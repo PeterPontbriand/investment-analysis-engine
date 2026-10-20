@@ -14,8 +14,8 @@ MethodId = Literal["reported_fcf_eps_cagr"]
 ANALYSIS_ID: Final[AnalysisId] = "fcf_earnings_growth"
 METHOD_ID: Final[MethodId] = "reported_fcf_eps_cagr"
 
-ConfigSchemaVersion = Literal[1]
-CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 1
+ConfigSchemaVersion = Literal[2]
+CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 2
 
 
 class HistoricalHorizon(StrEnum):

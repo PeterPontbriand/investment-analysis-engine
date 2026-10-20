@@ -99,7 +99,6 @@ def execute_graham_number(  # noqa: PLR0913
     composed_profile = compose_graham_profile(
         ticker,
         primary_provider=resolver.provider,
-        primary_provider_id=config.security_provider_id,
         yahoo_provider=profile_provider,
         profile_cache=profile_cache,
     )

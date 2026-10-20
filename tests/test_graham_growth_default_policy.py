@@ -5,8 +5,6 @@ from unittest.mock import ANY, MagicMock, patch
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
 
@@ -38,18 +36,14 @@ def test_growth_default_routes_sec_three_year_average_and_yahoo_quote() -> None:
 
     assert result.exit_code == 0
     assert result.output.strip() == "ok"
-    mock_build.assert_called_once_with(
-        resolver_type=GrahamGrowthInputResolver, data_provider=SEC_PROVIDER_ID, cache=ANY, clock=ANY
-    )
-    assert mock_run.call_args.kwargs["selection"].security_provider_id == SEC_PROVIDER_ID
-    assert mock_run.call_args.kwargs["selection"].quote_provider_id == YFINANCE_PROVIDER_ID
+    mock_build.assert_called_once_with(resolver_type=GrahamGrowthInputResolver, cache=ANY, clock=ANY)
     assert mock_run.call_args.kwargs["selection"].eps_basis == "three_year_average"
 
 
 def test_growth_rejects_ttm_with_sec_before_provider_access() -> None:
     result = runner.invoke(
         app,
-        _growth_args("--data-provider", "sec_edgar", "--eps-basis", "ttm"),
+        _growth_args("--eps-basis", "ttm"),
     )
 
     assert result.exit_code == 1

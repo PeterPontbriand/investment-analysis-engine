@@ -33,8 +33,8 @@
           "title": "As Of"
         },
         "config_schema_version": {
-          "const": 1,
-          "default": 1,
+          "const": 2,
+          "default": 2,
           "title": "Config Schema Version",
           "type": "integer"
         },
@@ -51,12 +51,6 @@
         },
         "policy": {
           "$ref": "#/$defs/FCFPolicySnapshot"
-        },
-        "provider_id": {
-          "const": "sec_edgar",
-          "default": "sec_edgar",
-          "title": "Provider Id",
-          "type": "string"
         },
         "use_cache": {
           "default": true,
@@ -130,8 +124,8 @@
           "title": "As Of"
         },
         "config_schema_version": {
-          "const": 1,
-          "default": 1,
+          "const": 2,
+          "default": 2,
           "title": "Config Schema Version",
           "type": "integer"
         },
@@ -185,23 +179,6 @@
           "default": null,
           "title": "Quote Override"
         },
-        "quote_provider_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Quote Provider Id"
-        },
-        "security_provider_id": {
-          "default": "sec_edgar",
-          "title": "Security Provider Id",
-          "type": "string"
-        },
         "use_cache": {
           "default": true,
           "title": "Use Cache",
@@ -251,8 +228,8 @@
           "title": "Bvps Override"
         },
         "config_schema_version": {
-          "const": 2,
-          "default": 2,
+          "const": 3,
+          "default": 3,
           "title": "Config Schema Version",
           "type": "integer"
         },
@@ -285,23 +262,6 @@
           ],
           "default": null,
           "title": "Quote Override"
-        },
-        "quote_provider_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Quote Provider Id"
-        },
-        "security_provider_id": {
-          "default": "sec_edgar",
-          "title": "Security Provider Id",
-          "type": "string"
         },
         "use_cache": {
           "default": true,

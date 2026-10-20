@@ -228,8 +228,6 @@ def test_graham_analysis_enters_the_same_optional_snapshot_boundary() -> None:
     analysis = run_graham_number_analysis(
         resolver=resolver,
         ticker="ASML",
-        security_provider_id=SEC_PROVIDER_ID,
-        quote_provider_id="yfinance",
         eps_override=None,
         bvps_override=None,
         quote_override=None,

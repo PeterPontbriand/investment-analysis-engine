@@ -27,7 +27,6 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
 )
 from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW,
-    PROVIDER_ID,
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
@@ -79,7 +78,7 @@ def _graham_number_analyzer() -> GrahamNumberAnalyzer:
 
 
 def _graham_number_config() -> GrahamNumberConfig:
-    return GrahamNumberConfig.model_validate({"security_provider_id": PROVIDER_ID})
+    return GrahamNumberConfig()
 
 
 def _graham_growth_analyzer() -> GrahamGrowthAnalyzer:
@@ -88,9 +87,7 @@ def _graham_growth_analyzer() -> GrahamGrowthAnalyzer:
 
 
 def _graham_growth_config() -> GrahamGrowthConfig:
-    return GrahamGrowthConfig.model_validate(
-        {"security_provider_id": PROVIDER_ID, "expected_growth": 5.0, "aaa_yield_override": 4.5}
-    )
+    return GrahamGrowthConfig.model_validate({"expected_growth": 5.0, "aaa_yield_override": 4.5})
 
 
 def _fcf_analyzer() -> FCFEarningsGrowthAnalyzer:
@@ -108,7 +105,7 @@ def _fcf_analyzer() -> FCFEarningsGrowthAnalyzer:
 
 
 def _fcf_config() -> FCFEarningsGrowthConfig:
-    return FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID)
+    return FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
 
 
 @dataclass(frozen=True)

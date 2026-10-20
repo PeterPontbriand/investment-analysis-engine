@@ -15,7 +15,6 @@ from typing import Final
 
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialFactsProvider, ProviderFact
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixture_context import FixtureContext, FixtureRequirement, SharedKey
 from investment_analysis_engine.evaluation.fixtures.graham import (
     GRAHAM_FACTS_FIXTURE_ID,
@@ -23,7 +22,6 @@ from investment_analysis_engine.evaluation.fixtures.graham import (
     FixtureFinancialFactsProvider,
     precedence_bvps_cache,
 )
-from investment_analysis_engine.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_IDS
 
 FIXTURE_IDS: Final = frozenset({GRAHAM_FACTS_FIXTURE_ID, GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID})
@@ -53,17 +51,15 @@ class _UnavailableFinancialFactsProvider:
 
 @dataclass(frozen=True)
 class GrahamFixtureInputs:
-    """The provider, precedence cache and provider identity both Graham strategies read within one case.
+    """The provider and precedence cache both Graham strategies read within one case.
 
     Attributes:
         provider: The company-facts provider the case selected, or one that reports every fact as absent.
         cache: The reviewed precedence cache when the case selected it.
-        provider_id: The provider identity both strategies are configured with.
     """
 
     provider: FinancialFactsProvider
     cache: InMemoryResolvedInputCache | None
-    provider_id: str
 
 
 _INPUTS_KEY: Final = SharedKey("graham_inputs", GrahamFixtureInputs)
@@ -81,7 +77,6 @@ def _build_inputs(context: FixtureContext) -> GrahamFixtureInputs:
     return GrahamFixtureInputs(
         provider=provider,
         cache=precedence_bvps_cache() if GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID in context.fixture_ids else None,
-        provider_id=SEC_PROVIDER_ID if context.sec_fpi_provider is not None else GRAHAM_PROVIDER_ID,
     )
 
 

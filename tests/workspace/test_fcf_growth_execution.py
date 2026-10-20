@@ -53,7 +53,7 @@ def _ok_result() -> FCFEarningsGrowthResult:
     """A real, fully computed result from the fixture provider chain."""
     return FCFEarningsGrowthAnalyzer(_resolver()).run_analysis(
         "ACME",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=NOW, use_cache=True),
     )
 
@@ -159,7 +159,7 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
         capture = execute_fcf_growth(
             resolver,
             "ACME",
-            config=FCFEarningsGrowthConfig(policy=policy, currency="USD", provider_id=SEC_PROVIDER_ID),
+            config=FCFEarningsGrowthConfig(policy=policy, currency="USD"),
             as_of=None,
             executed_at=NOW,
             use_cache=True,
@@ -171,7 +171,7 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
     assert capture.outcome is RunOutcome.COMPLETED
     assert captured == {
         "ticker": "ACME",
-        "config": FCFEarningsGrowthConfig(policy=policy, currency="USD", provider_id=SEC_PROVIDER_ID),
+        "config": FCFEarningsGrowthConfig(policy=policy, currency="USD"),
         "context": AnalysisContext(as_of=None, executed_at=NOW, use_cache=True, instrument_profile=composed),
     }
 
@@ -187,9 +187,7 @@ def test_known_etf_profile_is_not_applicable_through_the_real_analyzer() -> None
         capture = execute_fcf_growth(
             resolver,
             GOLDEN_ETF_TICKER,
-            config=FCFEarningsGrowthConfig(
-                policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID
-            ),
+            config=FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
             as_of=None,
             executed_at=NOW,
             use_cache=True,
@@ -211,9 +209,7 @@ def test_partial_forward_evidence_is_preserved_unmodified() -> None:
         capture = execute_fcf_growth(
             resolver,
             "ACME",
-            config=FCFEarningsGrowthConfig(
-                policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID
-            ),
+            config=FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
             as_of=None,
             executed_at=NOW,
             use_cache=True,
@@ -238,9 +234,7 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
         capture = execute_fcf_growth(
             _resolver(),
             "ACME",
-            config=FCFEarningsGrowthConfig(
-                policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID
-            ),
+            config=FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
             as_of=None,
             executed_at=NOW,
             use_cache=True,

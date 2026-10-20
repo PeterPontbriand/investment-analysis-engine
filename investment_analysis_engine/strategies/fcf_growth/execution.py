@@ -105,7 +105,6 @@ def execute_fcf_growth(  # noqa: PLR0913
     profile = compose_graham_profile(
         ticker,
         primary_provider=provider,
-        primary_provider_id=config.provider_id,
         yahoo_provider=provider,
         profile_cache=profile_cache,
     )

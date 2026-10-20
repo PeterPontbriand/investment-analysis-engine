@@ -35,7 +35,6 @@ uv run ian fcf-growth MSFT --json
 | `--classification-basis total-fcf|fcf-per-share` | Select which FCF CAGR controls classification. |
 | `--forward-policy display-only|confirmation|hard-gate` | Select how optional forward EPS evidence affects the result. |
 | `--as-of DATE_OR_TIMESTAMP` | Set a point-in-time information boundary. |
-| `--data-provider sec-edgar` | Select the current production annual-facts provider. |
 | `--currency USD` | Require a compatible three-letter ISO 4217 reporting currency for annual facts. |
 | `--no-cache` | Bypass resolved-input cache reads and writes for this run. |
 | `--details` | Explain annual inputs, calculation formulas and selected classification basis. |

@@ -29,23 +29,16 @@ class GrahamGrowthValueToolArguments(AnalysisToolArguments):
 
 @dataclass(frozen=True)
 class GrahamGrowthToolDependencies:
-    """Injected Graham growth-value analyzer and provider selections."""
+    """Injected Graham growth-value analyzer."""
 
     analyzer: GrahamGrowthAnalyzer
-    security_provider_id: str
-    quote_provider_id: str
-
-    def __post_init__(self) -> None:
-        """Reject missing provider selections before any tool is registered."""
-        if any(not provider_id.strip() for provider_id in (self.security_provider_id, self.quote_provider_id)):
-            raise ValueError("Analysis tool provider IDs must be non-empty.")
 
 
 class GrahamGrowthToolHandler:
     """Bind Graham growth-value's injected analyzer and shared runtime to the analysis tool."""
 
     def __init__(self, dependencies: GrahamGrowthToolDependencies, runtime: ToolRuntime) -> None:
-        """Retain the explicitly injected analyzer, provider selections and shared runtime."""
+        """Retain the explicitly injected analyzer and shared runtime."""
         self._dependencies = dependencies
         self._runtime = runtime
 
@@ -54,8 +47,6 @@ class GrahamGrowthToolHandler:
         arguments = GrahamGrowthValueToolArguments.model_validate(raw_arguments)
         profile = self._runtime.resolve_profile(arguments.ticker)
         config = GrahamGrowthConfig(
-            security_provider_id=self._dependencies.security_provider_id,
-            quote_provider_id=self._dependencies.quote_provider_id,
             eps_basis=arguments.eps_basis,
             eps_override=arguments.eps_override,
             expected_growth=arguments.expected_growth,

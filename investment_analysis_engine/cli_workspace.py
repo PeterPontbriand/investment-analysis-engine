@@ -129,7 +129,7 @@ def _workspace_database(command: str, *, json_output: bool = False) -> Iterator[
     at the one place every command shares, rather than repeated per command.
     ``command`` is the command as the user types it after ``ian``. An exception raised inside the block that
     declares its own ``reason_code`` (a rejected parameter, an unreadable stored selection, a missing watchlist)
-    keeps its own sentence; any other exception is an ``execution_error`` with one fixed sentence naming the
+    keeps its own message; any other exception is an ``execution_error`` with one fixed message naming the
     command, and its detail goes to the log with its traceback, so no library text reaches the user.
     ``json_output`` selects the failure envelope on standard output instead of text on standard error.
     """
@@ -156,7 +156,7 @@ def _fail(reason_code: FailureReasonCode, message: str, *, json_output: bool = F
     """Report a sanitized lookup or storage failure under ``reason_code`` and exit 1.
 
     With ``json_output`` the failure envelope is written to standard output and nothing to standard
-    error, as the direct commands do; otherwise the sentence goes to standard error.
+    error, as the direct commands do; otherwise the message goes to standard error.
     """
     report_failure(failure_envelope(reason_code, message), json_output=json_output)
 
@@ -289,7 +289,6 @@ def _build_selection(  # noqa: PLR0913
     long_window: int,
     rsi_period: int,
     as_of: str | None,
-    data_provider: str | None,
     no_cache: bool,
     eps: float | None,
     eps_basis: str | None,
@@ -313,7 +312,6 @@ def _build_selection(  # noqa: PLR0913
         long_window=long_window,
         rsi_period=rsi_period,
         as_of=as_of,
-        data_provider=data_provider,
         no_cache=no_cache,
         eps=eps,
         eps_basis=eps_basis,
@@ -353,10 +351,6 @@ def watchlist_create(  # noqa: PLR0913
     as_of: Annotated[
         str | None,
         typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
-    ] = None,
-    data_provider: Annotated[
-        str | None,
-        typer.Option("--data-provider", help="Security-fact provider override (graham-number/graham-growth)."),
     ] = None,
     no_cache: Annotated[
         bool,
@@ -444,7 +438,6 @@ def watchlist_create(  # noqa: PLR0913
                 long_window=long_window,
                 rsi_period=rsi_period,
                 as_of=as_of,
-                data_provider=data_provider,
                 no_cache=no_cache,
                 eps=eps,
                 eps_basis=eps_basis,
@@ -495,10 +488,6 @@ def watchlist_add_selection(  # noqa: PLR0913
     as_of: Annotated[
         str | None,
         typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
-    ] = None,
-    data_provider: Annotated[
-        str | None,
-        typer.Option("--data-provider", help="Security-fact provider override (graham-number/graham-growth)."),
     ] = None,
     no_cache: Annotated[
         bool,
@@ -571,7 +560,6 @@ def watchlist_add_selection(  # noqa: PLR0913
             long_window=long_window,
             rsi_period=rsi_period,
             as_of=as_of,
-            data_provider=data_provider,
             no_cache=no_cache,
             eps=eps,
             eps_basis=eps_basis,

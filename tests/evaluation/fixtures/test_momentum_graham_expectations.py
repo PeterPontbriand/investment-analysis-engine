@@ -8,6 +8,7 @@ import pytest
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.graham import (
     AAA_YIELD_VALUE,
     BVPS_VALUE,
@@ -21,7 +22,6 @@ from investment_analysis_engine.evaluation.fixtures.graham import (
     GOLDEN_HISTORICAL_AS_OF,
     GOLDEN_PRECEDENCE_BVPS_CACHE,
     GOLDEN_PRECEDENCE_EPS_OVERRIDE,
-    PROVIDER_ID,
     QUOTE_VALUE,
     SECURITY_ID,
     SUBJECT_MISSING_QUOTE,
@@ -125,7 +125,7 @@ def test_historical_as_of_excludes_latest_annual_eps_publication() -> None:
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SECURITY_ID,
         field_name=FinancialField.EPS,
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         basis="fiscal_year",
         observation_count=3,
     )
@@ -145,7 +145,7 @@ def test_missing_quote_subject_retains_required_facts_but_omits_quote() -> None:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_MISSING_QUOTE,
             field_name=FinancialField.EPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year",
             observation_count=3,
         ),
@@ -156,7 +156,7 @@ def test_missing_quote_subject_retains_required_facts_but_omits_quote() -> None:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_MISSING_QUOTE,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         ),
         effective_as_of=GOLDEN_HISTORICAL_AS_OF,
     )
@@ -165,7 +165,7 @@ def test_missing_quote_subject_retains_required_facts_but_omits_quote() -> None:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_MISSING_QUOTE,
             field_name=FinancialField.CURRENT_PRICE,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         ),
         effective_as_of=GOLDEN_HISTORICAL_AS_OF,
     )

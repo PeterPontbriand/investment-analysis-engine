@@ -42,10 +42,10 @@ EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "dire
 _WALL_CLOCK_FIELDS = re.compile(rb'("(?:resolved_at|effective_as_of|analysis_timestamp|retrieved_at)": ")[^"]+')
 _COMMANDS = {
     "momentum": ["momentum", "BTC-USD", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--no-cache"],
-    "graham-number": ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID, "--no-cache"],
+    "graham-number": ["graham-number", SECURITY_ID, "--no-cache"],
     "graham-growth": [
         *("graham-growth", SECURITY_ID, "--expected-growth", "5", "--aaa-yield", "4.5"),
-        *("--data-provider", SEC_PROVIDER_ID, "--no-cache"),
+        "--no-cache",
     ],
     "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
 }

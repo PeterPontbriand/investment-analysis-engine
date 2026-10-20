@@ -32,11 +32,8 @@ from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler, ToolRuntime
 from investment_analysis_engine.orchestrator.types import ToolCallRequest
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
-from investment_analysis_engine.strategies.graham_growth.tool import GrahamGrowthToolDependencies
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
-from investment_analysis_engine.strategies.graham_number.tool import GrahamNumberToolDependencies
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 from investment_analysis_engine.strategies.momentum.tool import MomentumToolDependencies, MomentumToolHandler
@@ -318,27 +315,6 @@ def test_registration_requires_a_handler_for_every_tool_and_no_other() -> None:
         register_analysis_tools(dispatcher, with_unknown)
 
     assert not dispatcher._handlers, "a rejected mapping must leave the dispatcher empty"
-
-
-def test_dependency_classes_reject_blank_provider_ids() -> None:
-    """Provider selections are required before any tool is registered."""
-    composition = _dependencies()
-    number = composition.dependencies[ToolName.ANALYZE_GRAHAM_NUMBER]
-    growth = composition.dependencies[ToolName.ANALYZE_GRAHAM_GROWTH_VALUE]
-    fcf = composition.dependencies[ToolName.ANALYZE_FCF_EARNINGS_GROWTH]
-    assert isinstance(number, GrahamNumberToolDependencies)
-    assert isinstance(growth, GrahamGrowthToolDependencies)
-    assert isinstance(fcf, FCFEarningsGrowthToolDependencies)
-    with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(number, security_provider_id=" ")
-    with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(number, quote_provider_id="")
-    with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(growth, security_provider_id="")
-    with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(growth, quote_provider_id=" ")
-    with pytest.raises(ValueError, match="provider IDs must be non-empty"):
-        replace(fcf, provider_id="  ")
 
 
 _CONFIGURED = MomentumSettings(short_window=4, long_window=9, rsi_period=6, history_start_date=date(2026, 1, 1))

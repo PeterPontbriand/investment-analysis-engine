@@ -60,9 +60,9 @@ or an operational failure, including a rejected `--database-url`; exit 2 means t
 inspection of non-ready storage has report `status=success` but exit 1. JSON
 reports have `schema_version=2`, `command`, `status`, `database_path`, `state`,
 `current_revision`, `expected_revision`, `reason_code` (the stable code) and `reason`
-(a sentence for people); unavailable fields are null. Version 1 named the code
-`reason` and the sentence `message`, so a reader written for version 1 must check
-`schema_version` first: `reason` now holds the sentence. The report shares the failure
+(a message for people); unavailable fields are null. Version 1 named the code
+`reason` and the message `message`, so a reader written for version 1 must check
+`schema_version` first: `reason` now holds the message. The report shares the failure
 envelope's names and its code vocabulary; the published schema is
 `schemas/database-maintenance-report.schema.json`. Upgrade success states are `initialized`, `upgraded` and `ready`.
 Untrusted revision strings are not exposed. JSON operational reports use stdout
@@ -164,7 +164,7 @@ analysis failures retain their versioned failure envelope (`schema_version=7`) w
 `status=error`, `result=null` and a stable `reason_code`, without initialization
 chatter. A `database_*` code also carries `database`, holding `database_path` and
 `expected_revision` as separate fields, so a caller need not read them from the
-sentence. The envelope reports the condition and never upgrades the database; the
+message. The envelope reports the condition and never upgrades the database; the
 published schema is `schemas/failure.schema.json`.
 
 | Reason | Next action |

@@ -7,11 +7,7 @@ from typing import Literal
 from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_validator
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
-from investment_analysis_engine.analysis.selection_base import (
-    CLI_QUOTE_PROVIDERS,
-    CLI_SECURITY_PROVIDERS,
-    FrozenSelection,
-)
+from investment_analysis_engine.analysis.selection_base import FrozenSelection
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
 from investment_analysis_engine.strategies.graham_growth.vocabulary import (
@@ -33,8 +29,6 @@ class GrahamGrowthSelection(FrozenSelection):
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
-    security_provider_id: str = "sec_edgar"
-    quote_provider_id: str | None = None
     eps_basis: GrahamGrowthSelectionEPSBasis | None = None
     eps_override: StrictFloat | None = None
     quote_override: StrictFloat | None = None
@@ -42,30 +36,6 @@ class GrahamGrowthSelection(FrozenSelection):
     aaa_yield_override: StrictFloat
     as_of: AwareDatetime | None = None
     use_cache: bool = Field(default=True, strict=True)
-
-    @field_validator("security_provider_id")
-    @classmethod
-    def _restrict_security_provider(cls, value: str) -> str:
-        """Normalize and restrict the security-fact provider to CLI-supported choices."""
-        normalized = value.strip().lower()
-        if not normalized:
-            raise ValueError("Provider identifier must not be blank.")
-        if normalized not in CLI_SECURITY_PROVIDERS:
-            raise ValueError(f"Unsupported security provider {normalized!r}; supported provider is 'sec_edgar'.")
-        return normalized
-
-    @field_validator("quote_provider_id")
-    @classmethod
-    def _restrict_quote_provider(cls, value: str | None) -> str | None:
-        """Normalize and restrict an explicit quote provider to CLI-supported choices."""
-        if value is None:
-            return None
-        normalized = value.strip().lower()
-        if not normalized:
-            raise ValueError("Provider identifier must not be blank.")
-        if normalized not in CLI_QUOTE_PROVIDERS:
-            raise ValueError(f"Unsupported quote provider {normalized!r}; supported provider is 'yfinance'.")
-        return normalized
 
     @field_validator("eps_override", "quote_override", "expected_growth", "aaa_yield_override")
     @classmethod
@@ -83,7 +53,7 @@ class GrahamGrowthSelection(FrozenSelection):
 
     @model_validator(mode="after")
     def _resolve_configuration(self) -> "GrahamGrowthSelection":
-        """Resolve the effective EPS basis/quote provider by constructing this method's own config.
+        """Resolve the effective EPS basis by constructing this method's own config.
 
         ``GrahamGrowthConfig.validate_method`` is the single definition of Graham Growth's
         entire accept/default rule; this Selection validates by delegating to it rather than
@@ -92,14 +62,11 @@ class GrahamGrowthSelection(FrozenSelection):
         """
         config = self.to_graham_growth_config()
         object.__setattr__(self, "eps_basis", config.eps_basis)
-        object.__setattr__(self, "quote_provider_id", config.quote_provider_id)
         return self
 
     def to_graham_growth_config(self) -> GrahamGrowthConfig:
         """Return the existing config without deriving assumptions or calculation policy."""
         return GrahamGrowthConfig(
-            security_provider_id=self.security_provider_id,
-            quote_provider_id=self.quote_provider_id,
             eps_basis=self.eps_basis,
             eps_override=self.eps_override,
             quote_override=self.quote_override,

@@ -95,8 +95,6 @@ def test_known_etf_short_circuits_both_graham_methods_before_input_or_quote_reso
     number = run_graham_number_analysis(
         resolver=resolver,
         ticker="FLSW",
-        security_provider_id="sec_edgar",
-        quote_provider_id="yfinance",
         eps_override=None,
         bvps_override=None,
         quote_override=None,
@@ -108,8 +106,6 @@ def test_known_etf_short_circuits_both_graham_methods_before_input_or_quote_reso
     growth = run_graham_growth_analysis(
         resolver=resolver,
         ticker="FLSW",
-        security_provider_id="sec_edgar",
-        quote_provider_id="yfinance",
         eps_basis="three_year_average",
         eps_override=None,
         expected_growth=5.0,
@@ -138,7 +134,7 @@ def test_known_etf_short_circuits_company_fcf_before_annual_fact_resolution() ->
 
     result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
         "FLSW",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id="sec_edgar"),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=NOW, use_cache=True, instrument_profile=profile),
     )
 
@@ -164,8 +160,6 @@ def test_unreviewed_kind_fails_open_to_existing_graham_resolution() -> None:
     result = run_graham_number_analysis(
         resolver=resolver,
         ticker="FLSW",
-        security_provider_id="sec_edgar",
-        quote_provider_id="yfinance",
         eps_override=None,
         bvps_override=None,
         quote_override=None,
@@ -189,8 +183,6 @@ def test_known_equity_continues_existing_graham_resolution() -> None:
     result = run_graham_number_analysis(
         resolver=resolver,
         ticker="FLSW",
-        security_provider_id="sec_edgar",
-        quote_provider_id="yfinance",
         eps_override=None,
         bvps_override=None,
         quote_override=None,
@@ -214,8 +206,6 @@ def test_kind_provider_error_fails_open_to_existing_graham_resolution() -> None:
     result = run_graham_number_analysis(
         resolver=resolver,
         ticker="FLSW",
-        security_provider_id="sec_edgar",
-        quote_provider_id="yfinance",
         eps_override=None,
         bvps_override=None,
         quote_override=None,
@@ -236,7 +226,7 @@ def test_fcf_profile_mismatch_precedes_applicability_and_resolution(known_etf: b
     with pytest.raises(ValueError, match="Instrument profile ticker does not match") as error:
         FCFEarningsGrowthAnalyzer(resolver).run_analysis(
             "OTHER",
-            FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id="sec_edgar"),
+            FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
             AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),
         )
     assert str(error.value) == "Instrument profile ticker does not match the FCF & Earnings Growth analysis ticker."
@@ -249,9 +239,7 @@ def test_fcf_etf_result_retains_caller_owned_messages_and_boundaries(include_yie
     profile = _profile(InstrumentKind.ETF, "ETF")
     result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
         " flsw ",
-        FCFEarningsGrowthConfig(
-            policy=FCFEarningsGrowthPolicy(include_fcf_yield=include_yield), currency="USD", provider_id="sec_edgar"
-        ),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(include_fcf_yield=include_yield), currency="USD"),
         AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),
     )
     reason = (

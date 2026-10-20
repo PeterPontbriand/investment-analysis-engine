@@ -128,8 +128,8 @@ def test_invalid_value_is_described_by_variable_without_the_value(monkeypatch: p
     with pytest.raises(ValidationError) as raised:
         ProjectSettings()
 
-    sentence = describe_validation_error(raised.value, os.environ)
+    message = describe_validation_error(raised.value, os.environ)
 
-    assert sentence.startswith("Environment variable ")
-    assert "DATABASE_BUSY_TIMEOUT_MS" in sentence.upper()
-    assert "not-a-number" not in sentence
+    assert message.startswith("Environment variable ")
+    assert "DATABASE_BUSY_TIMEOUT_MS" in message.upper()
+    assert "not-a-number" not in message

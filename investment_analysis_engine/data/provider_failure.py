@@ -70,7 +70,7 @@ def call_library[ResultT](
         call: A zero-argument callable that makes the third-party library call and nothing else.
         rules: The caller's exception rules, checked in order.
         provider_id: The provider the call serves.
-        message: The sentence the raised failure starts with; the exception text follows it.
+        message: The message the raised failure starts with; the exception text follows it.
         error_type: The provider failure class to raise.
 
     Returns:

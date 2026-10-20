@@ -3,7 +3,7 @@
 It is an inspection report, not a failure document: ``status`` says whether the operation ran, not
 whether the database is ready, so ``db status`` on a database that needs upgrading reports
 ``"success"``. It shares the failure envelope's names for the stable code (``reason_code``) and the
-sentence (``reason``), and its codes are drawn from the same vocabulary. Like the envelope it carries
+message (``reason``), and its codes are drawn from the same vocabulary. Like the envelope it carries
 facts and no instructions.
 """
 
@@ -17,9 +17,9 @@ from investment_analysis_engine.core.failure_codes import FailureReasonCode
 class DatabaseMaintenanceReport(BaseModel):
     """Versioned maintenance evidence independent of analysis-result documents.
 
-    Version 2 renamed the stable code from ``reason`` to ``reason_code`` and the sentence from
+    Version 2 renamed the stable code from ``reason`` to ``reason_code`` and the message from
     ``message`` to ``reason``. A reader of version 1 that branches on ``reason`` would silently read a
-    sentence, so check ``schema_version`` first.
+    message, so check ``schema_version`` first.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -31,5 +31,5 @@ class DatabaseMaintenanceReport(BaseModel):
     current_revision: str | None
     expected_revision: str | None
     reason_code: FailureReasonCode | None = Field(description="The stable code, or null when there is none.")
-    reason: str = Field(description="A sentence for people; not stable.")
+    reason: str = Field(description="A message for people; not stable.")
     schema_version: Literal[3] = 3

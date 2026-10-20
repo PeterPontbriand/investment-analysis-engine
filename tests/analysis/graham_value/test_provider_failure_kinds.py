@@ -24,6 +24,7 @@ from investment_analysis_engine.data.financial.facts import (
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests.analysis.graham_value.test_resolver import (
@@ -60,18 +61,18 @@ class _Provider:
         return tuple(answer)
 
 
-def _error(kind: ProviderFailureKind | None) -> FinancialProviderError:
+def _error(kind: ProviderFailureKind | None, provider_id: str = PROVIDER_ID) -> FinancialProviderError:
     if kind is None:
         return FinancialProviderError("synthetic failure")
-    return FinancialProviderError("synthetic failure", kind=kind, provider_id=PROVIDER_ID)
+    return FinancialProviderError("synthetic failure", kind=kind, provider_id=provider_id)
 
 
 def _resolver(answers: dict[FinancialField, Any]) -> InputResolver:
     return InputResolver(_Provider(answers), clock=lambda: NOW)
 
 
-def _record(kind: ProviderFailureKind) -> ProviderFailureRecord:
-    return ProviderFailureRecord(kind=kind, provider_id=PROVIDER_ID)
+def _record(kind: ProviderFailureKind, provider_id: str = PROVIDER_ID) -> ProviderFailureRecord:
+    return ProviderFailureRecord(kind=kind, provider_id=provider_id)
 
 
 @pytest.mark.parametrize("kind", sorted(_FAILED))
@@ -238,7 +239,6 @@ def _number_assembly(answers: dict[FinancialField, Any]) -> Any:
     resolver = GrahamNumberInputResolver(_Provider(answers), clock=lambda: NOW)
     return resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         use_cache=False,
     )
 
@@ -247,40 +247,35 @@ def _growth_assembly(answers: dict[FinancialField, Any]) -> Any:
     resolver = GrahamGrowthInputResolver(_Provider(answers), clock=lambda: NOW)
     return resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         eps_basis="fiscal_year",
         expected_growth=5.0,
-        aaa_subject_id="AAA",
-        aaa_provider_id=PROVIDER_ID,
+        aaa_yield_override=4.5,
         use_cache=False,
     )
 
 
 @pytest.mark.parametrize("kind", sorted(_FAILED))
 def test_graham_number_records_the_failed_input(kind: ProviderFailureKind) -> None:
-    eps = _number_assembly({FinancialField.EPS: _error(kind)})
-    bvps = _number_assembly({FinancialField.EPS: _three_fy_facts(), FinancialField.BVPS: _error(kind)})
+    eps = _number_assembly({FinancialField.EPS: _error(kind, SEC_PROVIDER_ID)})
+    bvps = _number_assembly(
+        {FinancialField.EPS: _three_fy_facts(SEC_PROVIDER_ID), FinancialField.BVPS: _error(kind, SEC_PROVIDER_ID)}
+    )
 
     assert eps.status is CalculationStatus.PROVIDER_ERROR
-    assert eps.provider_failure == _record(kind).for_input("eps")
+    assert eps.provider_failure == _record(kind, SEC_PROVIDER_ID).for_input("eps")
     assert bvps.status is CalculationStatus.PROVIDER_ERROR
-    assert bvps.provider_failure == _record(kind).for_input("bvps")
+    assert bvps.provider_failure == _record(kind, SEC_PROVIDER_ID).for_input("bvps")
 
 
 @pytest.mark.parametrize("kind", sorted(_FAILED))
 def test_graham_growth_records_the_failed_input(kind: ProviderFailureKind) -> None:
-    eps = _growth_assembly({FinancialField.EPS: _error(kind)})
-    aaa = _growth_assembly(
-        {FinancialField.EPS: (_make_fact(basis="fiscal_year"),), FinancialField.CURRENT_AAA_YIELD: _error(kind)}
-    )
+    eps = _growth_assembly({FinancialField.EPS: _error(kind, SEC_PROVIDER_ID)})
 
-    assert eps.provider_failure == _record(kind).for_input("eps")
-    assert aaa.status is CalculationStatus.PROVIDER_ERROR
-    assert aaa.provider_failure == _record(kind).for_input("current_aaa_yield")
+    assert eps.provider_failure == _record(kind, SEC_PROVIDER_ID).for_input("eps")
 
 
 def test_a_non_failing_assembly_stores_no_failure() -> None:
-    assembly = _number_assembly({FinancialField.EPS: _three_fy_facts()})
+    assembly = _number_assembly({FinancialField.EPS: _three_fy_facts(SEC_PROVIDER_ID)})
 
     assert assembly.status is not CalculationStatus.PROVIDER_ERROR
     assert assembly.provider_failure is None

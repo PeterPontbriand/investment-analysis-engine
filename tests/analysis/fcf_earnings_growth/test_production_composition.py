@@ -55,26 +55,6 @@ def test_sec_composition_resolves_all_required_fields_with_provenance() -> None:
         assert len(observation.free_cash_flow.lineage.components) == 2
 
 
-def test_unapproved_provider_is_typed_unavailable_without_provider_work() -> None:
-    provider, sec_adapter = _sec_annual_provider()
-    resolver = ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW)
-
-    result = resolver.resolve(
-        policy=FCFEarningsGrowthPolicy(),
-        subject_id="ACME",
-        currency="USD",
-        as_of=None,
-        effective_as_of=NOW,
-        provider_id="unsupported-provider",
-    )
-
-    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
-    assert result.reason is not None
-    assert "does not have approved" in result.reason
-    assert sec_adapter.requests == []
-    assert len(result.resolution_trace.events) == 1
-
-
 def test_sec_provider_failure_remains_a_typed_provider_error() -> None:
     provider, sec_adapter = _sec_annual_provider(error_field=FinancialField.EPS)
     resolver = ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW)

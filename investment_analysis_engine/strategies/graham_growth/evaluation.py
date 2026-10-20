@@ -32,7 +32,6 @@ def compose(context: FixtureContext) -> GrahamGrowthToolDependencies:
     """Build Graham growth-value's dependencies from the selected Graham facts."""
     inputs = graham_inputs(context)
     resolver = GrahamGrowthInputResolver(provider=inputs.provider, cache=inputs.cache, clock=graham_clock(context))
-    provider_id = inputs.provider_id
     return GrahamGrowthToolDependencies(
         analyzer=GrahamGrowthAnalyzer(
             resolver,
@@ -42,6 +41,4 @@ def compose(context: FixtureContext) -> GrahamGrowthToolDependencies:
                 baseline_aaa_yield=GOLDEN_BASELINE_AAA_YIELD,
             ),
         ),
-        security_provider_id=provider_id,
-        quote_provider_id=provider_id,
     )

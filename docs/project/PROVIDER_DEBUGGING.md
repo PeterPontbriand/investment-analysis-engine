@@ -59,7 +59,7 @@ says what each check found. It is described by
 ```
 
 Branch on `verdict`, which is one of the seven words in the table below with underscores (`rate_limited`,
-`unexpected_response`, `no_data`, `not_configured`). `probe` and `detail` are sentences for people and may change. `detail` is
+`unexpected_response`, `no_data`, `not_configured`). `probe` and `detail` are messages for people and may change. `detail` is
 `null` when the check passed. `library` names the library the application reaches the provider through and its
 installed version, read from the installed package metadata; it is `null` for a provider with no such library (SEC
 EDGAR). The library is pinned, so when a new failure appears and the version is unchanged, the cause came from the
@@ -241,7 +241,7 @@ mean replacing `yf.download` or reading the library's log text, and neither is d
   first, so a `no data` verdict there means the machine reached Yahoo and the quote read passed; only the history
   was empty.
 - **What it cannot tell you:** that the ticker is unknown, that Yahoo is throttling, or, in a command, that Yahoo
-  is down. The sentence of a command such as `ian momentum` says only that Yahoo returned no data for the ticker.
+  is down. The message of a command such as `ian momentum` says only that Yahoo returned no data for the ticker.
 - **To find out:** run `ian health --provider yfinance`; an `unreachable` verdict settles that the machine cannot
   reach Yahoo, and a pass settles that Yahoo answers the probe. The reason yfinance itself recorded (for example
   `Failed to get ticker ... reason: ...`) is in `logs/app.log`.
@@ -277,7 +277,7 @@ escapes a history download writes `yfinance download for '<ticker>' failed (unre
 log and the command prints that yfinance did not serve the request. A fault that yfinance's `download` swallows
 reaches the command only as `no data`, and the cause, if yfinance recorded one, is in the log. When a command fails and its message is
 too general, read the last lines of `logs/app.log` first. An unexpected error that a command reports with a generic
-sentence is logged with its traceback, and an exception that no command handled is logged as `CRITICAL` under
+message is logged with its traceback, and an exception that no command handled is logged as `CRITICAL` under
 `system.crash`.
 
 ## 5. Moving the Yahoo check to the fallback, and back

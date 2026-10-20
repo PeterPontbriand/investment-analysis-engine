@@ -98,7 +98,7 @@ Use the method-specific command; removed invocations return a usage error.
 | `ian graham KO --method growth --expected-growth 5 --aaa-yield 4.5` | `ian graham-growth KO --expected-growth 5 --aaa-yield 4.5` |
 
 Both commands accept positional `TICKER` or `--ticker` / `-t`, `--as-of`,
-`--data-provider`, `--no-cache`, `--eps` / `-e`,
+`--no-cache`, `--eps` / `-e`,
 `--current-price` / `-p`, and one of `--details`, `--diagnostics`, or `--json`.
 Only `graham-number` accepts `--bvps`. Only `graham-growth` accepts `--eps-basis`
 and requires both
@@ -215,7 +215,7 @@ Each strategy's document is described by a published schema: `schemas/momentum.s
 
 Quote timing distinguishes original retrieval from market observation. Filing venue evidence is separate from current identity. Momentum retains cache/provider resolution evidence and a typed crossover result. Missing numeric values remain `null`, never zero or non-standard `NaN`.
 
-Post-parse execution failures also produce one JSON failure document with a null result, a stable `reason_code`, a `reason` sentence and sanitized diagnostics; the process exits with code 1. The same document is written by the workspace commands that offer `--json` (`watchlist show`, `watchlist rename`, `watchlist delete`, `runs list`, `runs show` and `refresh`), with `analysis`, `method` and `ticker` null. A `reason_code` value is never renamed or removed, so branch on it and not on `reason`; treat a value you do not recognise as a generic failure and read `status`. Exit code 2 means one thing: the command line itself was rejected before any command code ran (an unknown option or command, a missing argument or required option, a value of the wrong type or outside a declared choice), with usage text on standard error and no JSON. Every check a command makes on what you typed after that (the ticker, `--as-of`, `--data-provider`, the exclusive `--details`, `--diagnostics` and `--json`, a window or a policy, a watchlist name, a run ID, `--limit`, `--workers`, `--provider`, `--database-url`, `--report` and the rest) is an `invalid_parameter` failure: one sentence that names the offending options or arguments, exit 1, and with `--json` the failure document, whose `parameters` lists them (an option by its long spelling, an argument by its upper-case name such as `TICKER`). A command with no `--json` writes the sentence to standard error. The same mistake can therefore exit differently depending on who checks it: a missing `--expected-growth` on `graham-growth` is rejected by the parser (exit 2), and on `watchlist create --analysis graham-growth` by the command (exit 1). `parameters` is `null` for every other failure. The failure document's `schema_version` is 10; after a provider failure it carries `provider_check` beside `provider_failure`, as the strategy documents do. The schema is published as `schemas/failure.schema.json`. A successfully calculated FCF screen `FAIL` is not an execution failure.
+Post-parse execution failures also produce one JSON failure document with a null result, a stable `reason_code`, a `reason` message and sanitized diagnostics; the process exits with code 1. The same document is written by the workspace commands that offer `--json` (`watchlist show`, `watchlist rename`, `watchlist delete`, `runs list`, `runs show` and `refresh`), with `analysis`, `method` and `ticker` null. A `reason_code` value is never renamed or removed, so branch on it and not on `reason`; treat a value you do not recognise as a generic failure and read `status`. Exit code 2 means one thing: the command line itself was rejected before any command code ran (an unknown option or command, a missing argument or required option, a value of the wrong type or outside a declared choice), with usage text on standard error and no JSON. Every check a command makes on what you typed after that (the ticker, `--as-of`, the exclusive `--details`, `--diagnostics` and `--json`, a window or a policy, a watchlist name, a run ID, `--limit`, `--workers`, `--provider`, `--database-url`, `--report` and the rest) is an `invalid_parameter` failure: a one-sentence message that names the offending options or arguments, exit 1, and with `--json` the failure document, whose `parameters` lists them (an option by its long spelling, an argument by its upper-case name such as `TICKER`). A command with no `--json` writes the message to standard error. The same mistake can therefore exit differently depending on who checks it: a missing `--expected-growth` on `graham-growth` is rejected by the parser (exit 2), and on `watchlist create --analysis graham-growth` by the command (exit 1). `parameters` is `null` for every other failure. The failure document's `schema_version` is 10; after a provider failure it carries `provider_check` beside `provider_failure`, as the strategy documents do. The schema is published as `schemas/failure.schema.json`. A successfully calculated FCF screen `FAIL` is not an execution failure.
 
 The failure's code chooses its `reason` message, and the same code gives the same message on every command, including the `error` of a failed `refresh` job. A provider failure names the provider and the ticker (`Unable to analyze KO: sec_edgar is limiting requests.`). `historical_quality`, `no_eligible_observations`, every `database_*` code, `invalid_parameter` and `configuration_error` show the application's own text. `invalid_input` is `Unable to analyze <ticker>: invalid analysis inputs or provider data.`, and `execution_error` is `Unable to analyze <ticker>: the analysis failed unexpectedly.` A failure after the analysis finished, while its result was being saved (`--save-run`, or a `refresh` that saves), is `<ticker> was analyzed, but the result could not be saved.` under the code it classifies to (`invalid_stored_run`, `execution_error` or `invalid_input`). No message names the strategy; the command you typed, and the `analysis` and `method` fields of the failure document, say which one it was. The exception's own text goes to the log with its traceback.
 
@@ -251,9 +251,9 @@ uv run ian graham-number KO --current-price 75
 
 Overrides are recorded as overrides rather than being presented as provider-verified evidence. See the strategy guide before overriding a value whose measurement basis matters.
 
-## Selecting a data source
+## Data sources
 
-The Graham commands and `fcf-growth` take `--data-provider`; SEC EDGAR (`sec_edgar`) is the only accepted value and the default. Investment Analysis Engine rejects an unsupported value rather than silently substituting a different source or financial basis.
+The Graham commands and `fcf-growth` read company facts from SEC EDGAR, and the Graham commands read the optional current quote from yfinance. No option selects another source, so a result never silently substitutes a different source or financial basis.
 
 ## When a command cannot produce a result
 
@@ -309,7 +309,7 @@ each strategy document, and is the last key of the `refresh` summary. Its value 
 
 `verdict` is one of six values, matching the lines above in order: `unreachable`, `rate_limited`,
 `unexpected_response`, `no_data`, `healthy` and `not_checked`. When the check is turned off the entries are still
-present, with `not_checked`. Branch on `verdict`; the lines are sentences for people.
+present, with `not_checked`. Branch on `verdict`; the lines are messages for people.
 
 In `--json` mode a failed call can therefore take up to 12 seconds longer for each provider it names (the time limit
 plus a short grace period, 24 seconds when a `refresh` implicates both providers), because the test request runs before
@@ -334,12 +334,12 @@ uv run ian health --json
 verdict (`ok`, `unreachable`, `rate limited`, `unexpected response`, `no data`, `not configured` or `failed`), what it
 requested and how long it took, and the reason when it did not pass. `not configured` means SEC EDGAR access is
 not set up (see [Installation](INSTALLATION.md)); `failed` means an unexpected error inside the check. The exit
-code is 0 when every check passed and 1 otherwise; an unknown `--provider` is an `invalid_parameter` failure (exit 1, the sentence on standard error, or with `--json` the failure document rather than the health document).
+code is 0 when every check passed and 1 otherwise; an unknown `--provider` is an `invalid_parameter` failure (exit 1, the message on standard error, or with `--json` the failure document rather than the health document).
 
 With `--json` the command writes one document to standard output and nothing else, whether or not every check
 passed; it is not the failure document described above. The document is published as
 `schemas/provider-health.schema.json`. Branch on each provider's `verdict`, which is `ok`, `unreachable`,
-`rate_limited`, `unexpected_response`, `no_data`, `not_configured` or `failed`; `probe` and `detail` are sentences for people.
+`rate_limited`, `unexpected_response`, `no_data`, `not_configured` or `failed`; `probe` and `detail` are messages for people.
 Each provider also has a `library` object, `{"name": "yfinance", "version": "..."}`, with the installed version of the
 library the application reaches the provider through, or `null` where there is none (SEC EDGAR). The library is
 pinned, so an unchanged version means a new failure came from the provider's side. The document's `schema_version`

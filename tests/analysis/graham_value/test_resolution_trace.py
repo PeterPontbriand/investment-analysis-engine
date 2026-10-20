@@ -23,6 +23,7 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 NOW = datetime(2026, 8, 22, 16, 0, tzinfo=UTC)
@@ -72,13 +73,14 @@ def _request(field: FinancialField, *, basis: str | None = None) -> FinancialFac
     )
 
 
-def _fact(
+def _fact(  # noqa: PLR0913
     field: FinancialField,
     value: float,
     *,
     units: FinancialUnit,
     basis: str | None = None,
     currency: str | None = None,
+    provider_id: str = "fixture",
 ) -> ProviderFact:
     """Build one deterministic provider fact."""
     return ProviderFact(
@@ -87,7 +89,7 @@ def _fact(
         field_name=field,
         value=value,
         units=units,
-        provider_id="fixture",
+        provider_id=provider_id,
         provider_field=f"fixture:{field.value}",
         retrieved_at=NOW,
         basis=basis,
@@ -255,7 +257,6 @@ def test_graham_number_assembly_aggregates_field_traces_in_resolution_order() ->
 
     assembly = resolver.assemble_graham_number(
         security_subject_id="NDAQ",
-        security_provider_id="fixture",
         eps_override=5.0,
         bvps_override=10.0,
         quote_override=20.0,
@@ -280,6 +281,7 @@ def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
                 units=FinancialUnit.CURRENCY_PER_SHARE,
                 basis="fiscal_year",
                 currency="USD",
+                provider_id=SEC_PROVIDER_ID,
             ),
             observation_period_start=datetime(year, 1, 1, tzinfo=UTC),
             observation_period_end=datetime(year, 12, 31, 23, 59, 59, tzinfo=UTC),
@@ -292,6 +294,7 @@ def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
         10.0,
         units=FinancialUnit.CURRENCY_PER_SHARE,
         currency="USD",
+        provider_id=SEC_PROVIDER_ID,
     )
     provider = RecordingProvider(
         {
@@ -303,7 +306,6 @@ def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
 
     assembly = resolver.assemble_graham_number(
         security_subject_id="NDAQ",
-        security_provider_id="fixture",
     )
 
     assert assembly.status is CalculationStatus.OK

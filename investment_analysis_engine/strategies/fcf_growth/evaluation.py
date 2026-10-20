@@ -65,5 +65,4 @@ def compose(context: FixtureContext) -> FCFEarningsGrowthToolDependencies:
         analyzer=FCFEarningsGrowthAnalyzer(
             ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock_at)
         ),
-        provider_id=SEC_PROVIDER_ID,
     )

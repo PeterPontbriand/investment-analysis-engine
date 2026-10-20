@@ -190,7 +190,7 @@ def test_graham_number_save_run_persists_a_completed_run(isolated_save_run_datab
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
         return_value=sec_labeled_number_resolver(),
     ):
-        result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--save-run"])
+        result = runner.invoke(app, ["graham-number", "SYNTH", "--save-run"])
 
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
@@ -216,7 +216,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome(
     ):
         result = runner.invoke(
             app,
-            ["graham-number", "FLSW", "--data-provider", "sec_edgar", "--save-run"],
+            ["graham-number", "FLSW", "--save-run"],
         )
 
     assert result.exit_code == 0
@@ -234,7 +234,7 @@ def test_graham_number_no_cache_plus_save_run_still_saves(isolated_save_run_data
     ):
         result = runner.invoke(
             app,
-            ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--no-cache", "--save-run"],
+            ["graham-number", "SYNTH", "--no-cache", "--save-run"],
         )
 
     assert result.exit_code == 0
@@ -249,7 +249,7 @@ def test_graham_number_default_call_saves_nothing(isolated_save_run_database: Pr
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
         return_value=sec_labeled_number_resolver(),
     ):
-        result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar"])
+        result = runner.invoke(app, ["graham-number", "SYNTH"])
 
     assert result.exit_code == 0
     assert "Saved Analysis Run" not in result.output
@@ -265,7 +265,7 @@ def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() ->
         ),
         patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=AnalysisRunConflictError("duplicate")),
     ):
-        result = runner.invoke(app, ["graham-number", "SYNTH", "--data-provider", "sec_edgar", "--save-run"])
+        result = runner.invoke(app, ["graham-number", "SYNTH", "--save-run"])
 
     assert result.exit_code != 0
     assert "Saved Analysis Run" not in result.output
@@ -287,8 +287,6 @@ def test_graham_growth_save_run_persists_with_stored_assumptions(isolated_save_r
             [
                 "graham-growth",
                 "SYNTH",
-                "--data-provider",
-                "sec_edgar",
                 "--expected-growth",
                 "6.0",
                 "--aaa-yield",

@@ -11,7 +11,6 @@ import pytest
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW,
-    PROVIDER_ID,
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
@@ -42,12 +41,10 @@ def _analyze(growth: bool) -> Any:
     """Run the analyzer with no boundary, an execution time of ``NOW`` and a resolver clock reading ``LATER``."""
     context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=False, instrument_profile=None)
     if growth:
-        config = GrahamGrowthConfig.model_validate(
-            {"security_provider_id": PROVIDER_ID, "expected_growth": 5.0, "aaa_yield_override": 4.5}
-        )
+        config = GrahamGrowthConfig.model_validate({"expected_growth": 5.0, "aaa_yield_override": 4.5})
         resolver = GrahamGrowthInputResolver(FixtureFinancialFactsProvider(), clock=lambda: LATER)
         return GrahamGrowthAnalyzer(resolver, policy=POLICY).run_analysis(SECURITY_ID, config, context)
-    number_config = GrahamNumberConfig.model_validate({"security_provider_id": PROVIDER_ID})
+    number_config = GrahamNumberConfig()
     number_resolver = GrahamNumberInputResolver(FixtureFinancialFactsProvider(), clock=lambda: LATER)
     return GrahamNumberAnalyzer(number_resolver).run_analysis(SECURITY_ID, number_config, context)
 

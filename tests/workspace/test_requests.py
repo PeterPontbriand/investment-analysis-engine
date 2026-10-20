@@ -46,7 +46,7 @@ def test_fixed_identifiers_and_schema_version() -> None:
 
     graham = GrahamNumberSelection()
     assert graham.analysis_id == "graham_number"
-    assert (graham.method_id, graham.config_schema_version) == ("graham_number", 2)
+    assert (graham.method_id, graham.config_schema_version) == ("graham_number", 3)
 
 
 def test_momentum_selection_carries_the_given_values_into_its_config() -> None:
@@ -119,17 +119,15 @@ def test_momentum_selection_is_frozen(field: str) -> None:
 
 
 def test_graham_defaults_resolve_like_analyzer_config() -> None:
-    selection = GrahamNumberSelection(security_provider_id="sec_edgar", bvps_override=20.0)
+    selection = GrahamNumberSelection(bvps_override=20.0)
     config = selection.to_graham_number_config()
 
     assert isinstance(config, GrahamNumberConfig)
-    assert selection.quote_provider_id == "yfinance"
     assert selection.use_cache is True
 
 
 def test_graham_number_defaults() -> None:
     selection = GrahamNumberSelection()
-    assert (selection.security_provider_id, selection.quote_provider_id) == ("sec_edgar", "yfinance")
     assert selection.use_cache is True
 
 
@@ -137,8 +135,6 @@ def test_graham_normalization_and_explicit_values() -> None:
     as_of = datetime(2025, 1, 1, tzinfo=UTC)
     selection = GrahamNumberSelection.model_validate(
         {
-            "security_provider_id": " SEC_EDGAR ",
-            "quote_provider_id": " YFINANCE ",
             "eps_override": 4.5,
             "bvps_override": 20.0,
             "quote_override": 100.0,
@@ -146,7 +142,6 @@ def test_graham_normalization_and_explicit_values() -> None:
             "use_cache": False,
         }
     )
-    assert (selection.security_provider_id, selection.quote_provider_id) == ("sec_edgar", "yfinance")
     config = selection.to_graham_number_config()
     assert (config.eps_override, config.bvps_override, config.quote_override) == (4.5, 20.0, 100.0)
     assert selection.as_of == as_of
@@ -165,13 +160,13 @@ def test_graham_snapshot_is_independent_of_caller_inputs() -> None:
 @pytest.mark.parametrize(
     ("values", "message"),
     [
-        ({"security_provider_id": "massive"}, "Unsupported security provider"),
-        ({"quote_provider_id": "massive"}, "Unsupported quote provider"),
+        ({"security_provider_id": "sec_edgar"}, "extra_forbidden"),
+        ({"quote_provider_id": "yfinance"}, "extra_forbidden"),
         ({"eps_basis": "three_year_average"}, "extra_forbidden"),
         ({"eps_basis": "ttm"}, "extra_forbidden"),
     ],
 )
-def test_graham_rejects_incompatible_provider_combinations(values: dict[str, Any], message: str) -> None:
+def test_graham_rejects_removed_and_incompatible_fields(values: dict[str, Any], message: str) -> None:
     with pytest.raises(ValidationError, match=message):
         GrahamNumberSelection(**values)
 
@@ -224,11 +219,11 @@ def test_nonfinite_override_rejected(field: str, value: float) -> None:
 
 
 @pytest.mark.parametrize("field", ["security_provider_id", "quote_provider_id"])
-@pytest.mark.parametrize("value", ["injected", "quotes", "", "   "])
-def test_unsupported_providers_rejected(field: str, value: str) -> None:
+@pytest.mark.parametrize("value", ["sec_edgar", "yfinance", "injected", ""])
+def test_removed_provider_fields_are_rejected(field: str, value: str) -> None:
     with pytest.raises(ValidationError) as error:
         GrahamNumberSelection.model_validate({field: value})
-    assert [item["loc"] for item in error.value.errors()] == [(field,)]
+    assert [(item["loc"], item["type"]) for item in error.value.errors()] == [((field,), "extra_forbidden")]
 
 
 @pytest.mark.parametrize("field", ["short_window", "long_window", "rsi_period"])
@@ -282,10 +277,10 @@ def test_growth_requires_each_explicit_assumption(missing: str) -> None:
 
 @pytest.mark.parametrize("growth", [0.0, -5.0, 5.0])
 def test_growth_conversion_preserves_assumptions(growth: float) -> None:
-    selection = GrahamGrowthSelection(security_provider_id="sec_edgar", expected_growth=growth, aaa_yield_override=0.0)
-    expected = GrahamGrowthConfig(security_provider_id="sec_edgar", expected_growth=growth, aaa_yield_override=0.0)
+    selection = GrahamGrowthSelection(expected_growth=growth, aaa_yield_override=0.0)
+    expected = GrahamGrowthConfig(expected_growth=growth, aaa_yield_override=0.0)
     assert selection.to_graham_growth_config() == expected
-    assert (selection.eps_basis, selection.quote_provider_id) == ("three_year_average", "yfinance")
+    assert selection.eps_basis == "three_year_average"
 
 
 @pytest.mark.parametrize("field", ["bvps_override", "calculation_policy", "policy"])
@@ -305,10 +300,9 @@ def test_growth_nonfinite_values_rejected(field: str, value: float) -> None:
 @pytest.mark.parametrize(
     "options",
     [
-        {"security_provider_id": "injected"},
-        {"quote_provider_id": "quotes"},
-        {"security_provider_id": "sec_edgar", "eps_basis": "ttm"},
-        {"security_provider_id": "massive"},
+        {"security_provider_id": "sec_edgar"},
+        {"quote_provider_id": "yfinance"},
+        {"eps_basis": "ttm"},
         {"as_of": datetime(2025, 1, 1)},
         {"use_cache": "false"},
         {"expected_growth": None},
@@ -332,12 +326,7 @@ def test_growth_snapshot_is_independent_and_frozen() -> None:
 def test_fcf_defaults_match_existing_policy() -> None:
     selection = FCFGrowthSelection()
     assert selection.to_fcf_policy() == FCFEarningsGrowthPolicy()
-    assert (selection.currency, selection.provider_id, selection.as_of, selection.use_cache) == (
-        "USD",
-        "sec_edgar",
-        None,
-        True,
-    )
+    assert (selection.currency, selection.as_of, selection.use_cache) == ("USD", None, True)
 
 
 @pytest.mark.parametrize("horizon", list(HistoricalHorizon))
@@ -375,17 +364,10 @@ def test_fcf_policy_rejects_invalid_nested_fields(policy: dict[str, object]) -> 
         FCFGrowthSelection.model_validate({"policy": policy})
 
 
-def test_fcf_normalizes_currency_provider_and_preserves_time() -> None:
+def test_fcf_normalizes_currency_and_preserves_time() -> None:
     boundary = datetime(2025, 1, 1, tzinfo=UTC)
-    selection = FCFGrowthSelection.model_validate(
-        {"currency": " cad ", "provider_id": " SEC_EDGAR ", "as_of": boundary, "use_cache": False}
-    )
-    assert (selection.currency, selection.provider_id, selection.as_of, selection.use_cache) == (
-        "CAD",
-        "sec_edgar",
-        boundary,
-        False,
-    )
+    selection = FCFGrowthSelection.model_validate({"currency": " cad ", "as_of": boundary, "use_cache": False})
+    assert (selection.currency, selection.as_of, selection.use_cache) == ("CAD", boundary, False)
 
 
 @pytest.mark.parametrize(

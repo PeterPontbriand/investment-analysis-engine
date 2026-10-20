@@ -472,7 +472,6 @@ def test_a_stored_selection_that_does_not_convert_is_an_execution_error_from_the
         long_window=50,
         rsi_period=14,
         as_of=None,
-        data_provider=None,
         no_cache=True,
         eps=None,
         eps_basis=None,

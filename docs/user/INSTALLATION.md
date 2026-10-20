@@ -157,7 +157,7 @@ IAN_DATA_DIR="E:/FinancialData"
 
 The values `IAN_DATA_DIR`, `IAN_LOG_DIR`, `IAN_TELEMETRY_LOG_DIR` and the file path in `IAN_DATABASE_URL` must be absolute paths.
 
-At startup (including `ian --help`) the application prints one sentence naming the variable to the error stream and exits with code 2 when an `IAN_` variable matches no setting (usually a typo), when two variables that differ only by letter case are both set for the same setting, or when a variable's value is not valid for its setting (the sentence says what was wrong and never repeats the value). The application name, version and text encoding are fixed and cannot be overridden.
+At startup (including `ian --help`) the application prints a one-sentence message naming the variable to the error stream and exits with code 2 when an `IAN_` variable matches no setting (usually a typo), when two variables that differ only by letter case are both set for the same setting, or when a variable's value is not valid for its setting (the message says what was wrong and never repeats the value). The application name, version and text encoding are fixed and cannot be overridden.
 
 ### Strategy settings files
 

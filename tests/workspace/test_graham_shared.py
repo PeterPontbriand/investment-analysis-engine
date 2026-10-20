@@ -8,7 +8,7 @@ from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
 
 
-def test_yahoo_is_appended_as_a_second_identity_candidate_when_primary_differs() -> None:
+def test_yahoo_is_the_second_identity_candidate_after_sec_edgar() -> None:
     primary = object()
     yahoo = object()
     captured: dict[str, object] = {}
@@ -20,9 +20,7 @@ def test_yahoo_is_appended_as_a_second_identity_candidate_when_primary_differs()
         return "sentinel"
 
     with patch("investment_analysis_engine.strategies._shared.profile.compose_instrument_profile", fake_compose):
-        compose_graham_profile(
-            "KO", primary_provider=primary, primary_provider_id=SEC_PROVIDER_ID, yahoo_provider=yahoo
-        )
+        compose_graham_profile("KO", primary_provider=primary, yahoo_provider=yahoo)
 
     assert captured["ticker"] == "KO"
     assert captured["identity_candidates"] == (
@@ -30,23 +28,6 @@ def test_yahoo_is_appended_as_a_second_identity_candidate_when_primary_differs()
         InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, yahoo),
     )
     assert captured["kind_candidate"] == InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, yahoo)
-
-
-def test_yahoo_is_not_duplicated_when_it_is_already_the_primary_provider() -> None:
-    yahoo = object()
-    captured: dict[str, object] = {}
-
-    def fake_compose(_ticker: str, *, identity_candidates: object, kind_candidate: object) -> object:
-        del kind_candidate
-        captured["identity_candidates"] = identity_candidates
-        return "sentinel"
-
-    with patch("investment_analysis_engine.strategies._shared.profile.compose_instrument_profile", fake_compose):
-        compose_graham_profile(
-            "KO", primary_provider=yahoo, primary_provider_id=YFINANCE_PROVIDER_ID, yahoo_provider=yahoo
-        )
-
-    assert captured["identity_candidates"] == (InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, yahoo),)
 
 
 def test_profile_cache_is_used_instead_of_live_composition_when_supplied() -> None:
@@ -74,7 +55,6 @@ def test_profile_cache_is_used_instead_of_live_composition_when_supplied() -> No
         result = compose_graham_profile(
             "KO",
             primary_provider=primary,
-            primary_provider_id=SEC_PROVIDER_ID,
             yahoo_provider=yahoo,
             profile_cache=_FakeProfileCache(),
         )

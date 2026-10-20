@@ -3,7 +3,10 @@
 Provides a small, internally coherent synthetic dataset sufficient to exercise
 both Graham methods and the resolver/assembly contracts without network access.
 
-All field identifiers, provider IDs, and series names are **synthetic fixture
+The provider IDs are the production ones (SEC EDGAR for company facts and the
+precedence cache, yfinance for the quote), so the strategies run unchanged against
+the fixture; the fixture holds no AAA yield, which the strategy takes as an override. Field identifiers,
+values, and series names are **synthetic fixture
 identifiers** and do NOT represent verified production-provider capabilities.
 Production-provider evidence belongs to Slice E1.
 
@@ -29,6 +32,8 @@ from investment_analysis_engine.data.financial.facts import (
     ProviderFact,
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 GRAHAM_FACTS_FIXTURE_ID: Final = "graham_facts"
 GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID: Final = "graham_precedence_cache"
@@ -37,16 +42,13 @@ GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID: Final = "graham_precedence_cache"
 # Synthetic identity constants (NOT production mappings)
 # ---------------------------------------------------------------------------
 
-PROVIDER_ID: str = "fixture-synth"
 SECURITY_ID: str = "SYNTH"
-MACRO_ID: str = "fixture-aaa"
 CURRENCY: str = "USD"
 
 # Synthetic field identifiers
 FIELD_ANNUAL_EPS: str = "fx_annual_eps"
 FIELD_BVPS: str = "fx_bvps"
 FIELD_QUOTE: str = "fx_quote"
-FIELD_AAA_YIELD: str = "fx_aaa_yield"
 
 # ---------------------------------------------------------------------------
 # Fixed UTC timestamps
@@ -78,10 +80,6 @@ BVPS_AVAIL = datetime(2025, 2, 10, tzinfo=UTC)
 # Quote
 QUOTE_OBSERVED = datetime(2025, 6, 30, 16, 0, tzinfo=UTC)
 QUOTE_AVAIL = datetime(2025, 6, 30, 16, 0, tzinfo=UTC)
-
-# AAA yield
-AAA_OBSERVED = datetime(2025, 6, 27, tzinfo=UTC)
-AAA_AVAIL = datetime(2025, 6, 27, tzinfo=UTC)
 
 # All happy-path retrieved_at (>= available_at per correction #1)
 RETRIEVED_AT = datetime(2025, 6, 30, 17, 0, tzinfo=UTC)
@@ -123,7 +121,7 @@ def precedence_bvps_cache() -> InMemoryResolvedInputCache:
         resolved_at=NOW,
         units="currency_per_share",
         currency=CURRENCY,
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         provider_field=FIELD_BVPS,
         available_at=BVPS_AVAIL,
         as_of=NOW,
@@ -135,7 +133,7 @@ def precedence_bvps_cache() -> InMemoryResolvedInputCache:
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
             basis=None,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             analysis_as_of=NOW,
             schema_version=1,
         ),
@@ -219,7 +217,7 @@ class FixtureFinancialFactsProvider:
 
     def _missing_quote_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return subject-correct required facts while omitting the optional quote."""
-        if request.subject_kind is FinancialSubjectKind.MACRO or request.field_name is FinancialField.CURRENT_PRICE:
+        if request.field_name is FinancialField.CURRENT_PRICE:
             return ()
         return tuple(replace(fact, subject_id=SUBJECT_MISSING_QUOTE) for fact in self._security_facts(request))
 
@@ -229,8 +227,6 @@ class FixtureFinancialFactsProvider:
 
     def _happy_path(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return the synthetic happy-path facts for the request."""
-        if request.subject_kind is FinancialSubjectKind.MACRO:
-            return self._macro_facts(request)
         return self._security_facts(request)
 
     def _security_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
@@ -250,12 +246,6 @@ class FixtureFinancialFactsProvider:
         # Unknown field for security subject
         return ()
 
-    def _macro_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
-        """Return macro-subject facts."""
-        if request.field_name is FinancialField.CURRENT_AAA_YIELD:
-            return (self._aaa_yield_fact(),)
-        return ()
-
     # ------------------------------------------------------------------
     # Individual fact constructors
     # ------------------------------------------------------------------
@@ -269,7 +259,7 @@ class FixtureFinancialFactsProvider:
                 field_name=FinancialField.EPS,
                 value=EPS_FY2022,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=SEC_PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis="fiscal_year",
@@ -285,7 +275,7 @@ class FixtureFinancialFactsProvider:
                 field_name=FinancialField.EPS,
                 value=EPS_FY2023,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=SEC_PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis="fiscal_year",
@@ -301,7 +291,7 @@ class FixtureFinancialFactsProvider:
                 field_name=FinancialField.EPS,
                 value=EPS_FY2024,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=SEC_PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis="fiscal_year",
@@ -321,7 +311,7 @@ class FixtureFinancialFactsProvider:
             field_name=FinancialField.BVPS,
             value=BVPS_VALUE,
             units=FinancialUnit.CURRENCY_PER_SHARE,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             provider_field=FIELD_BVPS,
             retrieved_at=RETRIEVED_AT,
             currency=CURRENCY,
@@ -338,29 +328,13 @@ class FixtureFinancialFactsProvider:
             field_name=FinancialField.CURRENT_PRICE,
             value=QUOTE_VALUE,
             units=FinancialUnit.CURRENCY_PER_SHARE,
-            provider_id=PROVIDER_ID,
+            provider_id=YFINANCE_PROVIDER_ID,
             provider_field=FIELD_QUOTE,
             retrieved_at=self._quote_retrieved_at,
             currency=CURRENCY,
             observed_at=QUOTE_OBSERVED,
             available_at=QUOTE_AVAIL,
             notes=("fixture: point-in-time quote",),
-        )
-
-    def _aaa_yield_fact(self) -> ProviderFact:
-        """Identified AAA corporate-yield fixture observation."""
-        return ProviderFact(
-            subject_kind=FinancialSubjectKind.MACRO,
-            subject_id=MACRO_ID,
-            field_name=FinancialField.CURRENT_AAA_YIELD,
-            value=AAA_YIELD_VALUE,
-            units=FinancialUnit.PERCENTAGE_POINTS,
-            provider_id=PROVIDER_ID,
-            provider_field=FIELD_AAA_YIELD,
-            retrieved_at=RETRIEVED_AT,
-            observed_at=AAA_OBSERVED,
-            available_at=AAA_AVAIL,
-            notes=("fixture: synthetic AAA yield series",),
         )
 
     # ------------------------------------------------------------------
@@ -374,22 +348,6 @@ class FixtureFinancialFactsProvider:
         ``retrieved_at >= available_at`` (temporal coherence), even though
         the data is in the future relative to the resolver clock.
         """
-        if request.subject_kind is FinancialSubjectKind.MACRO:
-            return (
-                ProviderFact(
-                    subject_kind=FinancialSubjectKind.MACRO,
-                    subject_id=SUBJECT_FUTURE,
-                    field_name=FinancialField.CURRENT_AAA_YIELD,
-                    value=AAA_YIELD_VALUE,
-                    units=FinancialUnit.PERCENTAGE_POINTS,
-                    provider_id=PROVIDER_ID,
-                    provider_field=FIELD_AAA_YIELD,
-                    retrieved_at=FUTURE_RETRIEVED_AT,
-                    observed_at=AAA_OBSERVED,
-                    available_at=FUTURE_AVAIL,
-                    notes=("fixture: future-published adverse case",),
-                ),
-            )
         if request.field_name is FinancialField.EPS:
             return (
                 ProviderFact(
@@ -398,7 +356,7 @@ class FixtureFinancialFactsProvider:
                     field_name=FinancialField.EPS,
                     value=EPS_FY2025,
                     units=FinancialUnit.CURRENCY_PER_SHARE,
-                    provider_id=PROVIDER_ID,
+                    provider_id=SEC_PROVIDER_ID,
                     provider_field=FIELD_ANNUAL_EPS,
                     retrieved_at=FUTURE_RETRIEVED_AT,
                     basis="fiscal_year",
@@ -417,7 +375,7 @@ class FixtureFinancialFactsProvider:
                     field_name=FinancialField.BVPS,
                     value=BVPS_VALUE,
                     units=FinancialUnit.CURRENCY_PER_SHARE,
-                    provider_id=PROVIDER_ID,
+                    provider_id=SEC_PROVIDER_ID,
                     provider_field=FIELD_BVPS,
                     retrieved_at=FUTURE_RETRIEVED_AT,
                     currency=CURRENCY,
@@ -434,7 +392,7 @@ class FixtureFinancialFactsProvider:
                 field_name=request.field_name,
                 value=QUOTE_VALUE,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=YFINANCE_PROVIDER_ID,
                 provider_field=FIELD_QUOTE,
                 retrieved_at=FUTURE_RETRIEVED_AT,
                 currency=CURRENCY,
@@ -463,7 +421,7 @@ class FixtureFinancialFactsProvider:
                 field_name=FinancialField.EPS,
                 value=EPS_FY2024,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=SEC_PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis=mismatched,

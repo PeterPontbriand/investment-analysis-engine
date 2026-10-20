@@ -596,8 +596,6 @@ def test_graham_number_assembly_can_use_sec_eps_and_yahoo_quote() -> None:
 
     result = resolver.assemble_graham_number(
         security_subject_id="AAPL",
-        security_provider_id=SEC_PROVIDER_ID,
-        quote_provider_id=YFINANCE_PROVIDER_ID,
     )
 
     assert result.status is CalculationStatus.OK

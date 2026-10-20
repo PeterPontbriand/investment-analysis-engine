@@ -10,7 +10,6 @@ from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.graham import SECURITY_ID
 from investment_analysis_engine.strategies.graham_growth import cli as graham_growth_cli
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
@@ -79,8 +78,6 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
                 "3",
                 "-p",
                 "20",
-                "--data-provider",
-                " SEC_EDGAR ",
                 "--as-of",
                 "2025-12-31T12:00:00Z",
                 "--no-cache",
@@ -94,8 +91,6 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
     assert result.exit_code == 0, result.output
     selection = run.call_args.kwargs["selection"]
     assert isinstance(selection, GrahamGrowthSelection if command == "graham-growth" else GrahamNumberSelection)
-    assert selection.security_provider_id == "sec_edgar"
-    assert selection.quote_provider_id == "yfinance"
     if isinstance(selection, GrahamGrowthSelection):
         assert selection.eps_basis == "three_year_average"
     assert selection.eps_override == 3.0
@@ -123,9 +118,7 @@ def test_both_commands_execute_real_analyzers_with_fixture_evidence(command: str
             "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None
         ),
     ):
-        result = CliRunner().invoke(
-            app, [*_arguments(command), "--data-provider", SEC_PROVIDER_ID, "--no-cache", *mode]
-        )
+        result = CliRunner().invoke(app, [*_arguments(command), "--no-cache", *mode])
     assert result.exit_code == 0, result.output
     assert result.stderr == ""
     if mode == ["--json"]:

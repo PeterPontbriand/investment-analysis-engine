@@ -26,7 +26,7 @@ def failure_envelope(  # noqa: PLR0913
 ) -> FailureEnvelope:
     """Build the envelope for ``reason_code``, taking diagnostics and database facts from ``cause``.
 
-    ``reason`` is the sentence to show; the caller sanitizes it. Only a failed historical-quality
+    ``reason`` is the message to show; the caller sanitizes it. Only a failed historical-quality
     exception contributes diagnostics, only a readiness error contributes ``database``, only an
     ``invalid_parameter`` exception contributes ``parameters``, and only a provider failure that carries a kind
     contributes ``provider_failure`` (its one input is null: the failure was raised).

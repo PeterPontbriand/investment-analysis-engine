@@ -20,7 +20,6 @@ from investment_analysis_engine.cli_provider_check import (
 from investment_analysis_engine.cli_run_support import maybe_save_run
 from investment_analysis_engine.cli_support import (
     SaveStage,
-    _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
     _production_financial_cache,
@@ -37,7 +36,6 @@ from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.security_identity import SecurityIdentityResolution
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
 from investment_analysis_engine.reporting.evidence_presentation import friendly_valuation_failure
@@ -68,11 +66,9 @@ def build_selection(flags: WatchlistFlags) -> GrahamNumberSelection:
     behaves identically to running the method directly.
     """
     boundary = _parse_as_of(flags.as_of)
-    provider_id = _canonical_provider_id(flags.data_provider) or SEC_PROVIDER_ID
     with config_usage_errors():
         return GrahamNumberSelection.model_validate(
             {
-                "security_provider_id": provider_id,
                 "eps_override": flags.eps,
                 "quote_override": flags.current_price,
                 "as_of": boundary,
@@ -92,7 +88,6 @@ def refresh(
     with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamNumberInputResolver,
-            data_provider=config.security_provider_id,
             cache=cache,
             clock=lambda: executed_at,
         )
@@ -123,11 +118,6 @@ def command(  # noqa: PLR0913
         None,
         "--as-of",
         help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp",
-    ),
-    data_provider: str | None = typer.Option(
-        None,
-        "--data-provider",
-        help="Security-fact provider override; defaults to SEC EDGAR",
     ),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass resolved-input cache reads and writes"),
     eps: float | None = typer.Option(None, "--eps", "-e", help="Explicit EPS override"),
@@ -163,11 +153,9 @@ def command(  # noqa: PLR0913
         mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         scope.mode = mode
         boundary = _parse_as_of(as_of)
-        provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
         with config_usage_errors():
             selection = GrahamNumberSelection.model_validate(
                 {
-                    "security_provider_id": provider_id,
                     "eps_override": eps,
                     "quote_override": current_price,
                     "bvps_override": bvps,
@@ -183,7 +171,6 @@ def command(  # noqa: PLR0913
             ):
                 resolver = build_graham_resolver(
                     resolver_type=GrahamNumberInputResolver,
-                    data_provider=selection.security_provider_id,
                     cache=cache,
                     clock=lambda: executed_at,
                 )

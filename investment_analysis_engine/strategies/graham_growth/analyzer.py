@@ -22,12 +22,9 @@ class GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthConfig, GrahamGrowthAnalysis
     def run_analysis(self, ticker: str, config: GrahamGrowthConfig, context: AnalysisContext) -> GrahamGrowthAnalysis:
         """Return complete service evidence, retaining the supplied policy."""
         assert config.eps_basis is not None
-        assert config.quote_provider_id is not None
         return run_graham_growth_analysis(
             resolver=self._resolver,
             ticker=require_ticker(ticker),
-            security_provider_id=config.security_provider_id,
-            quote_provider_id=config.quote_provider_id,
             eps_basis=config.eps_basis,
             eps_override=config.eps_override,
             expected_growth=config.expected_growth,

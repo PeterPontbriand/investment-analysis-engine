@@ -15,7 +15,6 @@ from investment_analysis_engine.cli_provider_check import (
 from investment_analysis_engine.cli_run_support import maybe_save_run
 from investment_analysis_engine.cli_support import (
     SaveStage,
-    _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
     _production_financial_cache,
@@ -31,7 +30,6 @@ from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.fcf_growth.execution import (
     capture_provider_failure,
@@ -95,12 +93,9 @@ def _fcf_currency(value: str) -> str:
 def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
     """Build one validated FCF Growth selection from watchlist CLI flags.
 
-    Mirrors the direct ``fcf-growth`` command's own flags and validation exactly. The method always executes
-    against SEC EDGAR regardless of ``--data-provider``, as the direct command's own persisted selection does;
-    the flag is still validated for a consistent error experience.
+    Mirrors the direct ``fcf-growth`` command's own flags and validation exactly.
     """
     boundary = _parse_as_of(flags.as_of)
-    _canonical_provider_id(flags.data_provider)
     normalized_currency = _fcf_currency(flags.currency)
     policy = FCFEarningsGrowthPolicy(
         historical_horizon=_fcf_historical_horizon(flags.growth_years),
@@ -110,7 +105,6 @@ def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
     return FCFGrowthSelection(
         policy=FCFPolicySnapshot.model_validate(policy),
         currency=normalized_currency,
-        provider_id="sec_edgar",
         as_of=boundary,
         use_cache=not flags.no_cache,
     )
@@ -161,7 +155,6 @@ def command(  # noqa: PLR0913
     as_of: str | None = typer.Option(
         None, "--as-of", help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
     ),
-    data_provider: str | None = typer.Option(None, "--data-provider", help="Defaults to SEC EDGAR"),
     currency: str = typer.Option("USD", "--currency", help="ISO 4217 reporting currency for compatible annual facts"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass resolved-input cache reads and writes"),
     details: bool = typer.Option(False, "--details", help="Show annual facts, provenance, and derivation lineage"),
@@ -188,17 +181,13 @@ def command(  # noqa: PLR0913
         scope.mode = mode
         horizon = _fcf_historical_horizon(growth_years)
         analysis_as_of = _parse_as_of(as_of)
-        provider_id = _canonical_provider_id(data_provider) or SEC_PROVIDER_ID
         normalized_currency = _fcf_currency(currency)
         policy = FCFEarningsGrowthPolicy(
             historical_horizon=horizon,
             classification_basis=_fcf_classification_basis(classification_basis),
             forward_policy=_fcf_forward_policy(forward_policy),
         )
-        # The command always uses the SEC production provider regardless of --data-provider
-        # (see the adapter's own docstring); provider_id here only labels the requested
-        # config/result, exactly as before this refactor — not the resolver actually used.
-        config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency, provider_id=provider_id)
+        config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency)
         with _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache:
             provider = build_sec_production_provider()
             resolver = ProductionAnnualGrowthSeriesResolver(
@@ -213,13 +202,9 @@ def command(  # noqa: PLR0913
                     executed_at=executed_at,
                     request_factory=lambda: AnalysisRequest(
                         ticker=target_ticker,
-                        # The command always uses the SEC production provider regardless of
-                        # --data-provider (see the adapter's own docstring); the selection
-                        # reflects the provider actually used, not a possibly-mislabeled flag.
                         selection=FCFGrowthSelection(
                             policy=FCFPolicySnapshot.model_validate(policy),
                             currency=normalized_currency,
-                            provider_id="sec_edgar",
                             as_of=analysis_as_of,
                             use_cache=not no_cache,
                         ),

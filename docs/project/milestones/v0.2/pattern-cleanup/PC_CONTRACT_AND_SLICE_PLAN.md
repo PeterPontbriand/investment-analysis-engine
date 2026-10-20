@@ -13,8 +13,9 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
   console.
 - **Why now:** `AGENTS.md` §0 still permits public interface and signature changes. Once Step 3.5 starts, seven
   strategies copy whatever is there, and §0 is removed.
-- **What it is not:** a formula, classification or stored-shape change, a new strategy, or a sweep over code no
-  Step 3.5 strategy would copy. The excluded issues and the reason for each are in [Out of scope](#4-out-of-scope).
+- **What it is not:** a formula or classification change, a new strategy, or a sweep over code no Step 3.5 strategy
+  would copy. The one stored-shape change is PC.1's: it changes three selection shapes under `AGENTS.md` §0, with
+  version bumps and no migration. The excluded issues and the reason for each are in [Out of scope](#4-out-of-scope).
 - **Rules every slice follows:** this is a consolidation package under `AGENTS.md` §0, so it follows §0's rules: no
   formula or classification change, no NaN or Inf, no network or LLM calls in tests outside `live_network`, the full
   managed quality gate on every slice, and no AI or tool attribution. A slice's open decisions go to the project
@@ -29,13 +30,14 @@ Each slice ends with the managed quality gate and is gated by explicit authoriza
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| PC.1 | [Interfaces and names](#pc1--interfaces-and-names) | Planned | |
-| PC.2 | [Test helpers](#pc2--test-helpers) | Planned | |
+| PC.1 | [Interfaces and names](#pc1--interfaces-and-names) | Complete | 2026-10-20 |
+| PC.2 | [Test helpers](#pc2--test-helpers) | Next | |
 | PC.3 | [Help encoding](#pc3--help-encoding) | Planned | |
+| PC.4 | [One shared mapping from statuses to a run outcome](#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) | Planned | |
 
-PC starts after SWC.8 completes and finishes before Step 3.5 begins. One more slice, PC.4, exists only if the project
-owner decides [issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111) in favour of a
-shared mapping; see [Decision pending: #111](#decision-pending-111).
+PC starts after SWC.8 completes and finishes before Step 3.5 begins. PC.4 follows PC.3: the project owner decided
+[issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111) in favour of a shared mapping on
+2026-10-19 ([A.2](#a2-pc1-and-pc4-decisions-2026-10-19)).
 
 ## 3. The slices
 
@@ -46,12 +48,15 @@ shared mapping; see [Decision pending: #111](#decision-pending-111).
   as a known exception. User-facing failure text is called a "sentence" in names and docs, where the project's word is
   "message" ([#140](https://github.com/PeterPontbriand/investment-analysis-engine/issues/140)); the inventory in that
   issue predates the package rename and must be refreshed first.
-- **Decision:** to be decided by the project owner before implementation. For #143 the question is: remove the option,
-  or keep it for a planned second provider? For #140 the rename follows the issue once its inventory is current.
-- **Scope:** the option, its tests and its documentation (#143); every name, test and document in the refreshed
-  inventory (#140). A stored shape is not changed.
-- **Branch:** to be named when the slice starts.
-- **Detail:** ⚠ no slice plan yet
+- **Decision:** approved by the project owner on 2026-10-19 ([A.2](#a2-pc1-and-pc4-decisions-2026-10-19)). For #143,
+  remove the option and the strategy-owned chain behind it, including `quote_provider_id`, a stored field that can hold
+  only `yfinance`; each strategy uses its fixed provider as a named constant. For #140, rename "sentence" to "message"
+  by the refreshed inventory, guarded by a word scan.
+- **Scope:** the option, the stored fields behind it, their tests and their documentation (#143); every name, test and
+  document in the refreshed inventory (#140). PC.1 changes three selection shapes (Graham Number, Graham Growth and
+  FCF Growth) under `AGENTS.md` §0, with `CONFIG_SCHEMA_VERSION` bumps and no migration.
+- **Branch:** `refactor/pc-1-interfaces-and-names`
+- **Detail:** [PC.1 slice plan](PC_1_INTERFACES_AND_NAMES_PLAN.md)
 
 ### PC.2 — Test helpers
 
@@ -75,16 +80,33 @@ shared mapping; see [Decision pending: #111](#decision-pending-111).
 - **Branch:** to be named when the slice starts.
 - **Detail:** ⚠ no slice plan yet
 
-### Decision pending: #111
+### PC.4 — One shared mapping from statuses to a run outcome
 
-[Issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111) asks whether every strategy uses
-one shared mapping from statuses to a run outcome. The project owner decides it before PC starts.
-
-- **If yes:** it becomes slice PC.4, with the same Problem, Decision, Scope, Branch and Detail sections, and a row in
-  the sequence table.
-- **If no:** it stays with Step 3.5.0, as
-  [Appendix A.9 of the Step 3.5 contract](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)
-  already records.
+- **Problem:** each strategy writes its own function from its statuses to a `RunOutcome`, and every Step 3.5 strategy
+  would write another copy. ESC-29 was a slip in one of them ([#111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111), and
+  [Appendix A.9 of the Step 3.5 contract](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)).
+- **Decision:** yes, approved by the project owner on 2026-10-19. PC.1 records the decision and implements none of it.
+  - **The function.** A single total function, `run_outcome_of(status: CalculationStatus | None) -> RunOutcome`, lives
+    beside `RunOutcome` in `investment_analysis_engine/analysis/run_models.py`. `ok` maps to completed,
+    `not_applicable` to not applicable and `input_unavailable` to unavailable. `invalid_input` and `provider_error` map
+    to failed. `None` maps to completed; that is Momentum's place in the mapping, and A.8 of the Step 3.5 contract may
+    later change Momentum's status, but not the mapping.
+  - **Removals.** The three `classify_*_outcome` functions are removed. The `outcome` field is removed from each
+    strategy's capture type. Each `from_*_capture` passes `run_outcome_of(<native status>)` to `ExecutionCapture`. The
+    generator's `execution.py.tmpl` does the same.
+  - **Graham Growth.** A calculation `not_applicable`, unreachable today, becomes not applicable instead of failed.
+    This is a change in an unreachable path, not a classification change (ESC-29 settled the outcome).
+  - **Exit codes.** A shared `exit_code_of(outcome)` returns 1 exactly for unavailable and failed. The strategy
+    commands and the CLI template use it. This matches every command's exit code today.
+  - **Guard tests**, in `tests/test_documented_conventions.py`: an AST scan proving that no module under
+    `investment_analysis_engine/strategies/` and no file under `scripts/strategy_templates/` names a `RunOutcome`
+    member; and a test that the mapping covers every `CalculationStatus` member and `None`.
+  - **Telemetry duplicate.** The Graham Number and Graham Growth codec `*_native_status` functions return
+    `analysis.native_status`, so there is one way to get that status.
+- **Scope:** the shared mapping and exit-code function, the strategies' execution and command modules, the generator
+  template, and the two guard tests. No formula or classification changes.
+- **Branch:** to be named when the slice starts.
+- **Detail:** ⚠ no slice plan yet
 
 ### Decision rule
 
@@ -100,7 +122,8 @@ one shared mapping from statuses to a run outcome. The project owner decides it 
   collects.
 - [#149](https://github.com/PeterPontbriand/investment-analysis-engine/issues/149): a v0.3 decision about how the engine
   connects to a language model.
-- Any formula, classification, stored-shape or strategy change, and any new framework, registry or factory.
+- Any formula, classification or strategy change, any stored-shape change other than PC.1's three selection shapes,
+  and any new framework, registry or factory.
 
 ## 5. Acceptance criteria
 
@@ -130,3 +153,18 @@ Decision of the project owner, 2026-10-19; this plan records it and implements n
 - **Placement.** Its row in the milestone plan is numbered `14B` so the other rows keep their numbers, and it sits
   after SWC and before Step 3.5.
 - **Out of scope**, with reasons: #156 except #145, #112 and #116, and #149 ([§4](#4-out-of-scope)).
+
+### A.2 PC.1 and PC.4 decisions (2026-10-19)
+
+Decisions of the project owner, 2026-10-19; this plan records them, and PC.1 implements the first two.
+
+- **#143:** remove `--data-provider` from `graham-number`, `graham-growth`, `fcf-growth`, `watchlist create` and
+  `watchlist add-selection`, with the strategy-owned chain behind it. Also remove `quote_provider_id` and
+  `CLI_QUOTE_PROVIDERS`. Each strategy uses its fixed provider as a named constant. Keep the `provider_id` parameters of
+  shared code and the provenance fields. The three selection shapes change under `AGENTS.md` §0, with
+  `CONFIG_SCHEMA_VERSION` bumps and no migration.
+- **#140:** rename "sentence" to "message" for user-facing failure text, by the refreshed inventory, with a word-scan
+  guard test. Text counting actual sentences, the plain-English-answer text of `MASTER_PLAN.md` and
+  `DISCOVERY_WORKBOOK.md`, and everything under `docs/project/milestones/` stay.
+- **#111:** yes. It is slice PC.4, planned after PC.3, with the design in [PC.4](#pc4--one-shared-mapping-from-statuses-to-a-run-outcome). This replaces the
+  "Decision pending: #111" section, which stated that yes makes it PC.4.

@@ -15,6 +15,7 @@ from investment_analysis_engine.analysis.shared.financial_resolution import (
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.facts import financial_facts_analysis_scope
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, complete_security_unit_profile
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.security_unit import SecurityUnitRequest
 from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
@@ -50,8 +51,6 @@ def run_graham_growth_analysis(  # noqa: PLR0913
     *,
     resolver: GrahamGrowthInputResolver,
     ticker: str,
-    security_provider_id: str,
-    quote_provider_id: str,
     eps_basis: str,
     eps_override: float | None,
     expected_growth: float,
@@ -78,20 +77,16 @@ def run_graham_growth_analysis(  # noqa: PLR0913
         with financial_facts_analysis_scope(
             resolver.provider,
             subject_id=ticker,
-            provider_id=security_provider_id,
+            provider_id=SEC_PROVIDER_ID,
             as_of=as_of,
         ):
             assembly = resolver.assemble_growth_value(
                 security_subject_id=ticker,
-                security_provider_id=security_provider_id,
                 eps_basis=eps_basis,
                 eps_override=eps_override,
                 expected_growth=expected_growth,
-                aaa_subject_id="AAA",
-                aaa_provider_id="user_override",
                 aaa_yield_override=aaa_yield_override,
                 quote_override=quote_override,
-                quote_provider_id=quote_provider_id,
                 as_of=as_of,
                 use_cache=use_cache,
             )
@@ -105,7 +100,7 @@ def run_graham_growth_analysis(  # noqa: PLR0913
                     resolver.provider,
                     SecurityUnitRequest(
                         ticker,
-                        security_provider_id,
+                        SEC_PROVIDER_ID,
                         as_of,
                         tuple(value for value in (assembly.eps,) if value is not None),
                         assembly.current_price,

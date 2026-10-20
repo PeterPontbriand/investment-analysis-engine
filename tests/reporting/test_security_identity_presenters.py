@@ -160,7 +160,7 @@ def _fcf_result() -> FCFEarningsGrowthResult:
     analyzer = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW))
     return analyzer.run_analysis(
         "ACME",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=NOW, use_cache=True),
     )
 

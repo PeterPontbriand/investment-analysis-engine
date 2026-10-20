@@ -18,6 +18,8 @@ from investment_analysis_engine.data.financial.provenance import FinancialSubjec
 from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessEvidence
 from investment_analysis_engine.data.financial.resolution_trace import ResolutionTrace
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_number.vocabulary import METHOD_ID, MethodId
 
 _EPS_BASIS: Final = "three_year_average"
@@ -184,11 +186,9 @@ class GrahamNumberInputResolver(InputResolver):
         self,
         *,
         security_subject_id: str,
-        security_provider_id: str,
         eps_override: float | None = None,
         bvps_override: float | None = None,
         quote_override: float | None = None,
-        quote_provider_id: str | None = None,
         as_of: datetime | None = None,
         use_cache: bool = True,
     ) -> GrahamNumberInputAssembly:
@@ -196,7 +196,7 @@ class GrahamNumberInputResolver(InputResolver):
         eps_result = resolve_normalized_eps(
             self,
             security_subject_id=security_subject_id,
-            security_provider_id=security_provider_id,
+            security_provider_id=SEC_PROVIDER_ID,
             eps_basis=_EPS_BASIS,
             eps_override=eps_override,
             as_of=as_of,
@@ -216,7 +216,7 @@ class GrahamNumberInputResolver(InputResolver):
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=security_subject_id,
             field_name=FinancialField.BVPS,
-            provider_id=security_provider_id,
+            provider_id=SEC_PROVIDER_ID,
             as_of=as_of,
         )
         bvps_result = self.resolve_bvps(bvps_request, override=bvps_override, use_cache=use_cache)
@@ -236,7 +236,7 @@ class GrahamNumberInputResolver(InputResolver):
         quote_result = resolve_optional_quote(
             self,
             security_subject_id=security_subject_id,
-            security_provider_id=quote_provider_id or security_provider_id,
+            security_provider_id=YFINANCE_PROVIDER_ID,
             quote_override=quote_override,
             as_of=as_of,
             use_cache=use_cache,

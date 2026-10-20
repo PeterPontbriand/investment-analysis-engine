@@ -33,7 +33,7 @@
   },
   "classification": "indeterminate",
   "classification_reason_code": "invalid_request",
-  "classification_reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required.",
+  "classification_reason": "subject_id and currency are required.",
   "selected_horizon_years": null,
   "selected_observation_count": 0,
   "used_horizon_fallback": false,
@@ -44,19 +44,19 @@
     "status": "unavailable",
     "value": null,
     "reason_code": "invalid_request",
-    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required."
+    "reason": "subject_id and currency are required."
   },
   "fcf_per_share_cagr": {
     "status": "unavailable",
     "value": null,
     "reason_code": "invalid_request",
-    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required."
+    "reason": "subject_id and currency are required."
   },
   "eps_cagr": {
     "status": "unavailable",
     "value": null,
     "reason_code": "invalid_request",
-    "reason": "subject_id, currency, and providers for OCF, CapEx, and EPS are required."
+    "reason": "subject_id and currency are required."
   },
   "trend_classification": "insufficient_or_nonmeaningful_growth",
   "market_capitalization": {

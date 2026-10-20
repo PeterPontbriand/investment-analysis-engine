@@ -194,7 +194,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The one JSON document written to standard output when a command with ``--json`` fails.\n\n``schema_version`` is this document's own lineage: it identifies a shape only within this schema\nand is independent of the ``schema_version`` of every success document. A consumer dispatches on\n``status`` and ``result`` first, then on ``analysis``. ``reason_code`` is stable; ``reason`` and\n``diagnostics[].reason`` are sentences for people and carry no guarantee.",
+  "description": "The one JSON document written to standard output when a command with ``--json`` fails.\n\n``schema_version`` is this document's own lineage: it identifies a shape only within this schema\nand is independent of the ``schema_version`` of every success document. A consumer dispatches on\n``status`` and ``result`` first, then on ``analysis``. ``reason_code`` is stable; ``reason`` and\n``diagnostics[].reason`` are messages for people and carry no guarantee.",
   "properties": {
     "analysis": {
       "anyOf": [

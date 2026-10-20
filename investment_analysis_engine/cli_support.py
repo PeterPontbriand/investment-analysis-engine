@@ -48,9 +48,9 @@ logger = logging.getLogger(__name__)
 # traceback to standard error; the null handler keeps standard error to the failure message alone.
 logger.addHandler(logging.NullHandler())
 
-# One sentence per kind of provider failure, then one for a failure the adapter did not classify. Each names the
+# One message per kind of provider failure, then one for a failure the adapter did not classify. Each names the
 # provider (when known) and the ticker, says what was observed, and offers no remedy.
-_PROVIDER_FAILURE_SENTENCES = {
+_PROVIDER_FAILURE_MESSAGES = {
     ProviderFailureKind.UNREACHABLE: "Unable to analyze {subject}: {provider} did not serve the request.",
     ProviderFailureKind.RATE_LIMITED: "Unable to analyze {subject}: {provider} is limiting requests.",
     ProviderFailureKind.UNEXPECTED_RESPONSE: (
@@ -58,17 +58,17 @@ _PROVIDER_FAILURE_SENTENCES = {
     ),
     ProviderFailureKind.NO_DATA: "Unable to analyze {subject}: {provider} returned no data for it.",
 }
-_UNCLASSIFIED_PROVIDER_FAILURE_SENTENCE = (
+_UNCLASSIFIED_PROVIDER_FAILURE_MESSAGE = (
     "Unable to analyze {subject}: a data provider failed; the failure was not classified."
 )
 
 
-def provider_failure_sentence(error: DataFetchError | FinancialProviderError, ticker: str | None) -> str:
-    """Return the sentence for a provider failure, from its kind, the provider that failed and the ticker."""
+def provider_failure_message(error: DataFetchError | FinancialProviderError, ticker: str | None) -> str:
+    """Return the message for a provider failure, from its kind, the provider that failed and the ticker."""
     subject = ticker or "the requested instrument"
     if error.kind is None:
-        return _UNCLASSIFIED_PROVIDER_FAILURE_SENTENCE.format(subject=subject)
-    return _PROVIDER_FAILURE_SENTENCES[error.kind].format(subject=subject, provider=error.provider_id)
+        return _UNCLASSIFIED_PROVIDER_FAILURE_MESSAGE.format(subject=subject)
+    return _PROVIDER_FAILURE_MESSAGES[error.kind].format(subject=subject, provider=error.provider_id)
 
 
 # Failures whose own message was written to be shown: the quality, parameter and configuration messages, and the
@@ -117,7 +117,7 @@ def describe_failure(exception: BaseException, ticker: str | None, *, saving: bo
     """Return the code and the message of a failure; the direct commands and refresh share this rule.
 
     The failure code chooses the message and no message names a strategy. A provider code gives
-    :func:`provider_failure_sentence`; the codes in ``_SHOWN_AS_RAISED`` and every ``database_*`` code show the
+    :func:`provider_failure_message`; the codes in ``_SHOWN_AS_RAISED`` and every ``database_*`` code show the
     exception's own text; ``invalid_input`` and ``execution_error`` each have one fixed message. A failure while the
     analysis result is being saved (``saving``) has the save message and the code it classifies to. Any other code
     is reported as ``execution_error``. Wherever a fixed message replaces the exception's text, the exception is
@@ -136,7 +136,7 @@ def describe_failure(exception: BaseException, ticker: str | None, *, saving: bo
     if saving:
         message = f"{ticker or 'The requested instrument'} was analyzed, but the result could not be saved."
     elif code in _PROVIDER_CODES and isinstance(exception, DataFetchError | FinancialProviderError):
-        message = provider_failure_sentence(exception, ticker)
+        message = provider_failure_message(exception, ticker)
     elif code.value.startswith("database_") or code in _SHOWN_AS_RAISED:
         return FailureDescription(code=code, message=str(exception))
     elif code is FailureReasonCode.INVALID_INPUT:
@@ -303,16 +303,6 @@ def _production_database() -> SQLiteDatabase:
     return SQLiteDatabase(settings)
 
 
-def _canonical_provider_id(value: str | None) -> str | None:
-    """Normalize an optional provider identifier."""
-    if value is None:
-        return None
-    normalized = value.strip().lower()
-    if not normalized:
-        raise InvalidParameterError("--data-provider must be non-empty when supplied.", parameters=("--data-provider",))
-    return normalized
-
-
 def _parse_as_of(value: str | None) -> datetime | None:
     """Parse a CLI as-of boundary without silently assuming a timestamp timezone."""
     if value is None:
@@ -362,7 +352,7 @@ class FailureScope:
 
 
 def report_failure(envelope: FailureEnvelope, *, json_output: bool) -> NoReturn:
-    """Write one failure envelope to standard output, or its sentence to standard error, and exit 1."""
+    """Write one failure envelope to standard output, or its message to standard error, and exit 1."""
     if json_output:
         typer.echo(failure_document(envelope))
     else:
@@ -374,7 +364,7 @@ def report_failure(envelope: FailureEnvelope, *, json_output: bool) -> NoReturn:
 def parameter_failures(*, json_output: bool) -> Iterator[None]:
     """Report an ``InvalidParameterError`` raised inside the block as an ``invalid_parameter`` failure.
 
-    This is the path for every command that has no analysis to name: the sentence on standard error, or with
+    This is the path for every command that has no analysis to name: the message on standard error, or with
     ``json_output`` the failure envelope on standard output, and exit 1. A command with no ``--json`` passes
     ``False``. ``typer.Exit`` and every other exception pass through.
     """
@@ -448,7 +438,6 @@ def config_usage_errors() -> Iterator[None]:
         error = exc.errors(include_input=False, include_url=False)[0]
         location = error["loc"]
         names = {
-            "security_provider_id": "--data-provider",
             "eps_basis": "--eps-basis",
             "eps_override": "--eps",
             "bvps_override": "--bvps",

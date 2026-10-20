@@ -1,8 +1,7 @@
 """The Graham fixture provider labelled the way the production provider router labels its answers.
 
-The direct Graham commands accept only the providers the CLI supports, so a test that drives one through the command
-line passes ``--data-provider sec_edgar`` and replaces the resolver builder. The facts the replaced resolver
-returns must then carry the provider ids a production composition would give them.
+A test that drives a direct Graham command through the command line replaces the resolver builder. The facts the
+replaced resolver returns must then carry the provider ids a production composition would give them.
 """
 
 from __future__ import annotations

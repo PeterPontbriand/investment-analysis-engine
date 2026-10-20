@@ -19,23 +19,20 @@ from investment_analysis_engine.data.financial.cache import (
     ResolvedInputSeriesCacheProtocol,
     ResolvedInputSeriesCacheQuery,
 )
-from investment_analysis_engine.data.financial.facts import FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from investment_analysis_engine.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
-    PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
-    annual_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
     AnnualGrowthSeriesAssembly,
-    FinancialFieldProvider,
     resolve_annual_growth_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import HistoricalHorizon
 from scripts.repository_root import REPOSITORY_ROOT
+from tests._sec_labeled_annual import sec_annual_series
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 CacheFactory = Callable[[timedelta | None], ResolvedInputSeriesCacheProtocol]
@@ -235,19 +232,13 @@ def resolve(
     clock: Clock,
     horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE,
 ) -> AnnualGrowthSeriesAssembly:
-    fields = (
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
-        FinancialField.EPS,
-        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
-    )
     return resolve_annual_growth_series(
         policy=FCFEarningsGrowthPolicy(historical_horizon=horizon),
         subject_id="ACME",
         currency="USD",
         as_of=None,
         effective_as_of=clock(),
-        providers=dict.fromkeys(fields, FinancialFieldProvider(PROVIDER_ID, provider)),
+        provider=provider,
         cache=cache,
         clock=clock,
     )
@@ -259,13 +250,13 @@ def test_annual_resolver_uses_both_cache_implementations(
 ) -> None:
     cache = cache_factory(timedelta(seconds=10))
     partial = scenario == "partial"
-    seed = FixtureAnnualFinancialFactsProvider(annual_series(range(2022 if partial else 2020, 2026)))
+    seed = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2022 if partial else 2020, 2026)))
     initial = resolve(seed, cache, clock, HistoricalHorizon.THREE_YEARS if partial else HistoricalHorizon.FIVE_YEARS)
     assert initial.status is CalculationStatus.OK
     assert len(seed.requests) == 4
     if scenario == "stale":
         clock.now += timedelta(seconds=11)
-    provider = FixtureAnnualFinancialFactsProvider(() if scenario == "hit" else annual_series(range(2020, 2026)))
+    provider = FixtureAnnualFinancialFactsProvider(() if scenario == "hit" else sec_annual_series(range(2020, 2026)))
     result = resolve(provider, cache, clock)
     assert result.status is CalculationStatus.OK
     assert result.selected_horizon_years == 5

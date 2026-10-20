@@ -17,12 +17,9 @@ class GrahamNumberAnalyzer(BaseAnalyzer[GrahamNumberConfig, GrahamNumberAnalysis
 
     def run_analysis(self, ticker: str, config: GrahamNumberConfig, context: AnalysisContext) -> GrahamNumberAnalysis:
         """Return complete service evidence for the given ticker."""
-        assert config.quote_provider_id is not None
         return run_graham_number_analysis(
             resolver=self._resolver,
             ticker=require_ticker(ticker),
-            security_provider_id=config.security_provider_id,
-            quote_provider_id=config.quote_provider_id,
             eps_override=config.eps_override,
             bvps_override=config.bvps_override,
             quote_override=config.quote_override,

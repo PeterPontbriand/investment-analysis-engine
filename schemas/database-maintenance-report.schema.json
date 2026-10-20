@@ -38,7 +38,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Versioned maintenance evidence independent of analysis-result documents.\n\nVersion 2 renamed the stable code from ``reason`` to ``reason_code`` and the sentence from\n``message`` to ``reason``. A reader of version 1 that branches on ``reason`` would silently read a\nsentence, so check ``schema_version`` first.",
+  "description": "Versioned maintenance evidence independent of analysis-result documents.\n\nVersion 2 renamed the stable code from ``reason`` to ``reason_code`` and the message from\n``message`` to ``reason``. A reader of version 1 that branches on ``reason`` would silently read a\nmessage, so check ``schema_version`` first.",
   "properties": {
     "command": {
       "enum": [
@@ -82,7 +82,7 @@
       "title": "Expected Revision"
     },
     "reason": {
-      "description": "A sentence for people; not stable.",
+      "description": "A message for people; not stable.",
       "title": "Reason",
       "type": "string"
     },

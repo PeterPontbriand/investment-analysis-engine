@@ -33,20 +33,18 @@ from investment_analysis_engine.data.financial.facts import FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput
 from investment_analysis_engine.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
-    PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
-    annual_fact,
-    annual_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
     CACHE_SCHEMA_VERSION,
     AnnualGrowthSeriesAssembly,
-    FinancialFieldProvider,
     resolve_annual_growth_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from scripts.repository_root import REPOSITORY_ROOT
+from tests._sec_labeled_annual import sec_annual_fact, sec_annual_series
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 BOUNDARY = datetime(2026, 2, 15, tzinfo=UTC)
@@ -87,10 +85,6 @@ def cache(request: pytest.FixtureRequest, database: SQLiteDatabase) -> _SeriesCa
     return SQLiteResolvedInputCache(database, clock=lambda: NOW)
 
 
-def _bindings(provider: FixtureAnnualFinancialFactsProvider) -> dict[FinancialField, FinancialFieldProvider]:
-    return dict.fromkeys(FIELDS, FinancialFieldProvider(PROVIDER_ID, provider))
-
-
 def _resolve(
     provider: FixtureAnnualFinancialFactsProvider,
     *,
@@ -104,16 +98,16 @@ def _resolve(
         currency="USD",
         as_of=as_of,
         effective_as_of=as_of or clock,
-        providers=_bindings(provider),
+        provider=provider,
         cache=cache,  # type: ignore[arg-type]
         clock=lambda: clock,
     )
 
 
 def _with_restated_eps(available_at: datetime) -> FixtureAnnualFinancialFactsProvider:
-    facts = [*annual_series(range(2020, 2026))]
+    facts = [*sec_annual_series(range(2020, 2026))]
     facts.append(
-        annual_fact(FinancialField.EPS, 2025, RESTATED_EPS, available_at=available_at, provider_fact_id="restated")
+        sec_annual_fact(FinancialField.EPS, 2025, RESTATED_EPS, available_at=available_at, provider_fact_id="restated")
     )
     return FixtureAnnualFinancialFactsProvider(tuple(facts))
 
@@ -148,7 +142,7 @@ def test_a_fact_is_admitted_only_when_available_at_or_before_the_boundary_with_n
 
 
 def _fill(cache: _SeriesCache, *, as_of: datetime | None, clock: datetime) -> FixtureAnnualFinancialFactsProvider:
-    provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    provider = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     assert _resolve(provider, as_of=as_of, cache=cache, clock=clock).status is CalculationStatus.OK
     return provider
 
@@ -161,7 +155,7 @@ def _shift_available_at(
         subject_id="ACME",
         field_name=field.value,
         basis="fiscal_year",
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         analysis_as_of=as_of,
         schema_version=CACHE_SCHEMA_VERSION,
     )
@@ -181,7 +175,7 @@ def test_an_as_of_series_is_reused_only_while_every_entry_was_available_by_the_b
     """The shared eligibility check reads ``available_at`` for an ``--as-of`` key, with no skew."""
     _fill(cache, as_of=BOUNDARY, clock=NOW)
     _shift_available_at(cache, FinancialField.OPERATING_CASH_FLOW, as_of=BOUNDARY, available_at=BOUNDARY + offset)
-    refreshed = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    refreshed = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
 
     result = _resolve(refreshed, as_of=BOUNDARY, cache=cache, clock=NOW)
 
@@ -200,7 +194,7 @@ def test_a_live_series_is_reused_only_while_every_entry_was_available_by_execute
     """The shared check ignores ``available_at`` on a live key; the resolver's own per-fact check does not."""
     _fill(cache, as_of=None, clock=NOW)
     _shift_available_at(cache, FinancialField.OPERATING_CASH_FLOW, as_of=None, available_at=NOW + offset)
-    refreshed = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    refreshed = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
 
     result = _resolve(refreshed, as_of=None, cache=cache, clock=NOW)
 
@@ -223,7 +217,7 @@ def test_a_series_cached_after_the_run_clock_is_still_eligible(cache: _SeriesCac
 
 def test_a_live_run_and_an_as_of_run_never_share_a_series(cache: _SeriesCache) -> None:
     _fill(cache, as_of=None, clock=NOW)
-    provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    provider = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
 
     result = _resolve(provider, as_of=BOUNDARY, cache=cache, clock=NOW)
 

@@ -413,7 +413,7 @@ def replay_stored_run(run: AnalysisRun) -> CommandOutput:
 
 def _fcf_invalid_input_result(replay: ModuleType) -> FCFEarningsGrowthResult:
     """A stored FCF result in the shape the analyzer writes for an invalid request, which no command can reach."""
-    reason = "subject_id, currency, and providers for OCF, CapEx, and EPS are required."
+    reason = "subject_id and currency are required."
     metric = _failure_metric(ReasonCode.INVALID_REQUEST, reason)
     result: FCFEarningsGrowthResult = replay._fcf_codec_result()
     return replace(
