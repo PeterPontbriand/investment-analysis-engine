@@ -1,8 +1,8 @@
 """The contributor guide, the lasting authorization of the strategy descriptor and Momentum's one profile composition.
 
-Three conventions are written down in prose or confined to one function. Each test fails with a sentence that
+Three conventions are written down in prose or confined to one function. Each test fails with a message that
 names what moved, so a rename or a second copy cannot go unnoticed. The single-valued provider option and field
-are kept out of every strategy by the last two tests.
+are kept out of every strategy by two tests, and the last test keeps one word out of failure text.
 """
 
 import ast
@@ -152,3 +152,71 @@ def test_no_strategy_model_has_a_provider_id_field() -> None:
         f"{offenders} hold a provider identifier a strategy owns as a named constant: a field that can hold only "
         "one value is not added."
     )
+
+
+_WORD: Final = "sen" + "tence"
+"""The scanned word, written in two pieces so that this file does not contain it."""
+_MESSAGE_RULE: Final = (
+    'User-facing failure text is a "message", optionally prefixed by its field, as in "reason message". '
+    f'"{_WORD.capitalize()}" is correct only where actual {_WORD}s are counted: add the phrase to '
+    "_ALLOWED_PHRASES only then."
+)
+_SCAN_ROOTS: Final = ("investment_analysis_engine", "scripts", "tests", "schemas", "docs", "AGENTS.md", "README.md")
+_SCAN_EXCLUDED: Final = REPOSITORY_ROOT / "docs" / "project" / "milestones"
+_SCAN_SUFFIXES: Final = frozenset({".py", ".md", ".json", ".toml", ".txt", ".tmpl", ".yml", ".yaml"})
+_ALLOWED_PHRASES: Final = tuple(
+    phrase.format(w=_WORD)
+    for phrase in (
+        "one {w}",
+        "one-{w}",
+        "every {w}",
+        "each {w}",
+        "each written {w}",
+        "a written {w}",
+        "a fluent {w}",
+        "a {w} that fails",
+        "a {w} as if",
+        "one friendly {w}",
+        "write {w}s",
+        "writes {w}s",
+        "writes the {w}s",
+        "check {w}s",
+        "checks {w}s",
+        "{w} checking",
+        "{w}s in an answer",
+        "{w}s that name",
+        "{w}s shown",
+        "correct {w}s",
+        "draft {w}s",
+        "failed {w}s",
+        "too many {w}s",
+    )
+)
+"""The phrases that count units of text, or describe the text of a plain-English answer."""
+
+
+def _scanned_files() -> list[Path]:
+    """Return the text files the word scan covers, in a stable order."""
+    found: list[Path] = []
+    for root in _SCAN_ROOTS:
+        base = REPOSITORY_ROOT / root
+        candidates = [base] if base.is_file() else sorted(base.rglob("*"))
+        found += [
+            path
+            for path in candidates
+            if path.is_file()
+            and path.suffix in _SCAN_SUFFIXES
+            and _SCAN_EXCLUDED not in path.parents
+            and "__pycache__" not in path.parts
+        ]
+    return found
+
+
+def test_the_scanned_word_appears_only_in_allowlisted_phrases() -> None:
+    offenders: list[str] = []
+    for path in _scanned_files():
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            lowered = line.lower()
+            if _WORD in lowered and not any(phrase in lowered for phrase in _ALLOWED_PHRASES):
+                offenders.append(f"{path.relative_to(REPOSITORY_ROOT).as_posix()}:{number}: {_MESSAGE_RULE}")
+    assert offenders == [], "\n".join(offenders)

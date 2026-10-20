@@ -27,8 +27,8 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 | :--- | :--- | :--- | :--- |
 | Slice plan | [This document](#3-the-work-units) and the parent-plan updates | Complete | 2026-10-19 |
 | #143 | [Remove the data-provider option and its chain](#143--remove-the-data-provider-option-and-its-chain) | Complete | 2026-10-20 |
-| #140 | [Rename "sentence" to "message"](#140--sentence-becomes-message) | Next | |
-| Completion | [Plan rows and the final gate](#completion) | Planned | |
+| #140 | [Rename "sentence" to "message"](#140--sentence-becomes-message) | Complete | 2026-10-20 |
+| Completion | [Plan rows and the final gate](#completion) | Next | |
 
 ## 3. The work units
 
@@ -126,7 +126,13 @@ document that names the option, `docs/user/WORKSPACE.md` where it shows the remo
 | K1 | keep | the text counts actual sentences, such as "The message is one sentence" in `core/settings_error.py` |
 | K2 | keep | the hits in `MASTER_PLAN.md` and `DISCOVERY_WORKBOOK.md` that describe sentences of plain-English answers |
 
-A line rewritten under N3 still contains "one-sentence", so it passes the guard test through the allowlist.
+A line rewritten under N3 still contains "one-sentence", so it passes the guard test through the allowlist. The
+allowlist is a short tuple of phrases in the guard test: the two promises ("one sentence", "one-sentence") and the
+phrasings of the plain-English answers of `MASTER_PLAN.md` and `DISCOVERY_WORKBOOK.md` ("every sentence", "write
+sentences", "sentence checking" and similar). It has no file or line entries.
+
+Result: of the 192 hits, 35 are kept (K1 2, K2 33) and 157 are renamed (N1 81, N2 56, N3 20 by the table below), of
+which 5 disappeared with the tests that #143 removed. The roots and suffixes of the scan are in the guard test.
 
 #### Schemas
 
@@ -341,7 +347,7 @@ All three are in `tests/test_documented_conventions.py`.
 | :--- | :--- |
 | `test_data_provider_option_is_rejected_with_exit_2` | parametrized over `CLI_STRATEGIES` and the two watchlist commands: `--data-provider` exits 2 |
 | `test_no_strategy_model_has_a_provider_id_field` | no selection, config or tool-dependency model of any strategy has a field whose name ends in `provider_id` |
-| `test_the_word_sentence_appears_only_in_allowlisted_phrases` | a word scan over the #140 roots fails on "sentence" unless the line holds a phrase of a short explicit tuple (for example "one sentence", "one-sentence"); the failure message names the file, the line number and the rule |
+| `test_the_scanned_word_appears_only_in_allowlisted_phrases` | a word scan over the #140 roots fails on "sentence" unless the line holds a phrase of a short explicit tuple (for example "one sentence", "one-sentence"); the failure message names the file, the line number and the rule |
 
 The two #111 guard tests belong to PC.4.
 

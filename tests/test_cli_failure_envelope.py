@@ -1,7 +1,7 @@
 """Failures from the workspace and direct commands reach a caller as one envelope with one set of codes.
 
 ``--json`` writes the envelope to standard output and nothing to standard error; text mode writes the
-sentence to standard error and nothing to standard output. Exit codes are unchanged except for Momentum's
+message to standard error and nothing to standard output. Exit codes are unchanged except for Momentum's
 window check, which now reports like every other failure.
 """
 
@@ -73,8 +73,8 @@ _MOMENTUM_WINDOW_CASES = [
 ]
 
 
-@pytest.mark.parametrize(("flags", "sentence"), _MOMENTUM_WINDOW_CASES)
-def test_direct_momentum_window_failure_is_an_invalid_parameter_envelope(flags: list[str], sentence: str) -> None:
+@pytest.mark.parametrize(("flags", "message"), _MOMENTUM_WINDOW_CASES)
+def test_direct_momentum_window_failure_is_an_invalid_parameter_envelope(flags: list[str], message: str) -> None:
     result = runner.invoke(app, ["momentum", "ACME", *flags, "--json"])
 
     assert result.exit_code == 1
@@ -82,25 +82,25 @@ def test_direct_momentum_window_failure_is_an_invalid_parameter_envelope(flags: 
     envelope = _envelope(result.stdout)
     assert envelope["status"] == "error"
     assert envelope["reason_code"] == "invalid_parameter"
-    assert envelope["reason"] == sentence
+    assert envelope["reason"] == message
     assert (envelope["analysis"], envelope["method"], envelope["ticker"]) == ("momentum", "sma_crossover", "ACME")
     assert envelope["database"] is None
-    assert envelope["parameters"] == [item for item in flags if item.startswith("--") and item in sentence]
+    assert envelope["parameters"] == [item for item in flags if item.startswith("--") and item in message]
 
 
-@pytest.mark.parametrize(("flags", "sentence"), _MOMENTUM_WINDOW_CASES)
-def test_direct_momentum_window_failure_in_text_mode_is_the_sentence_on_standard_error(
-    flags: list[str], sentence: str
+@pytest.mark.parametrize(("flags", "message"), _MOMENTUM_WINDOW_CASES)
+def test_direct_momentum_window_failure_in_text_mode_is_the_message_on_standard_error(
+    flags: list[str], message: str
 ) -> None:
     result = runner.invoke(app, ["momentum", "ACME", *flags])
 
     assert result.exit_code == 1
     assert result.stdout == ""
-    assert normalize_cli_output(result.stderr) == sentence
+    assert normalize_cli_output(result.stderr) == message
 
 
-@pytest.mark.parametrize(("flags", "sentence"), _MOMENTUM_WINDOW_CASES)
-def test_watchlist_commands_report_the_same_momentum_window_failure(flags: list[str], sentence: str) -> None:
+@pytest.mark.parametrize(("flags", "message"), _MOMENTUM_WINDOW_CASES)
+def test_watchlist_commands_report_the_same_momentum_window_failure(flags: list[str], message: str) -> None:
     created = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "momentum", *flags, "AAPL"])
     _create("Good")
     added = runner.invoke(app, ["watchlist", "add-selection", "Good", "--analysis", "momentum", *flags, "AAPL"])
@@ -108,7 +108,7 @@ def test_watchlist_commands_report_the_same_momentum_window_failure(flags: list[
     for result in (created, added):
         assert result.exit_code == 1
         assert result.stdout == ""
-        assert normalize_cli_output(result.stderr) == sentence
+        assert normalize_cli_output(result.stderr) == message
     assert runner.invoke(app, ["watchlist", "show", "Good", "--json"]).exit_code == 0
 
 
@@ -161,7 +161,7 @@ def test_workspace_json_failures_write_the_envelope_to_standard_output_only(argu
         ["runs", "show", "11111111-1111-4111-8111-111111111111"],
     ],
 )
-def test_workspace_text_failures_keep_the_sentence_on_standard_error(arguments: list[str]) -> None:
+def test_workspace_text_failures_keep_the_message_on_standard_error(arguments: list[str]) -> None:
     result = runner.invoke(app, arguments)
 
     assert result.exit_code == 1
@@ -311,7 +311,7 @@ def test_refreshing_an_empty_watchlist_is_a_watchlist_empty_failure_in_json() ->
     assert "nothing to refresh" in normalize_cli_output(str(envelope["reason"]))
 
 
-def test_refreshing_an_empty_watchlist_in_text_is_the_sentence_on_standard_error() -> None:
+def test_refreshing_an_empty_watchlist_in_text_is_the_message_on_standard_error() -> None:
     _create("Empty")
 
     result = runner.invoke(app, ["refresh", "Empty"])

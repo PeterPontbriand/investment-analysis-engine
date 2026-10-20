@@ -15,7 +15,7 @@ from investment_analysis_engine.cli_support import (
     config_usage_errors,
     execution_errors,
     parameter_failures,
-    provider_failure_sentence,
+    provider_failure_message,
 )
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
@@ -102,7 +102,7 @@ def test_ticker_provider_and_presentation_normalization() -> None:
     assert exclusive.value.parameters == ("--details", "--diagnostics")
 
 
-_KIND_SENTENCES = [
+_KIND_MESSAGES = [
     (ProviderFailureKind.UNREACHABLE, "Unable to analyze AAPL: sec_edgar did not serve the request."),
     (ProviderFailureKind.RATE_LIMITED, "Unable to analyze AAPL: sec_edgar is limiting requests."),
     (
@@ -114,27 +114,27 @@ _KIND_SENTENCES = [
 
 
 @pytest.mark.parametrize("exception_type", [DataFetchError, FinancialProviderError])
-@pytest.mark.parametrize(("kind", "sentence"), _KIND_SENTENCES)
-def test_the_sentence_table_names_the_provider_and_ticker_per_kind(
-    exception_type: type[DataFetchError] | type[FinancialProviderError], kind: ProviderFailureKind, sentence: str
+@pytest.mark.parametrize(("kind", "message"), _KIND_MESSAGES)
+def test_the_message_table_names_the_provider_and_ticker_per_kind(
+    exception_type: type[DataFetchError] | type[FinancialProviderError], kind: ProviderFailureKind, message: str
 ) -> None:
-    assert provider_failure_sentence(exception_type("private", kind=kind, provider_id="sec_edgar"), "AAPL") == sentence
+    assert provider_failure_message(exception_type("private", kind=kind, provider_id="sec_edgar"), "AAPL") == message
 
 
-def test_the_sentence_table_has_one_row_per_kind_and_one_for_an_unclassified_failure() -> None:
-    sentences = {
-        provider_failure_sentence(DataFetchError("x", kind=kind, provider_id="p"), "T") for kind in ProviderFailureKind
+def test_the_message_table_has_one_row_per_kind_and_one_for_an_unclassified_failure() -> None:
+    messages = {
+        provider_failure_message(DataFetchError("x", kind=kind, provider_id="p"), "T") for kind in ProviderFailureKind
     }
-    assert len(sentences) == len(ProviderFailureKind)
-    assert provider_failure_sentence(DataFetchError("private detail"), None) == (
+    assert len(messages) == len(ProviderFailureKind)
+    assert provider_failure_message(DataFetchError("private detail"), None) == (
         "Unable to analyze the requested instrument: a data provider failed; the failure was not classified."
     )
 
 
 @pytest.mark.parametrize("exception_type", [DataFetchError, FinancialProviderError])
-@pytest.mark.parametrize(("kind", "sentence"), _KIND_SENTENCES)
+@pytest.mark.parametrize(("kind", "message"), _KIND_MESSAGES)
 def test_a_raised_provider_failure_is_reported_under_its_code_with_its_element(
-    exception_type: type[DataFetchError] | type[FinancialProviderError], kind: ProviderFailureKind, sentence: str
+    exception_type: type[DataFetchError] | type[FinancialProviderError], kind: ProviderFailureKind, message: str
 ) -> None:
     error = exception_type("private detail", kind=kind, provider_id="sec_edgar")
     with (
@@ -147,7 +147,7 @@ def test_a_raised_provider_failure_is_reported_under_its_code_with_its_element(
     document = json.loads(echo.call_args.args[0])
     assert document["reason_code"] == f"provider_{kind.value}"
     assert document["status"] == "input_unavailable"
-    assert document["reason"] == sentence
+    assert document["reason"] == message
     assert document["provider_failure"] == {
         "reason_code": document["reason_code"],
         "inputs": [{"input": None, "provider_id": "sec_edgar", "kind": kind.value}],

@@ -160,7 +160,7 @@ def expected_text(block: Block) -> str:
 
 
 def block_problem(block: Block) -> str | None:
-    """Return the sentence that says why ``block`` is missing its markers or differs from its regenerated text."""
+    """Return the message that says why ``block`` is missing its markers or differs from its regenerated text."""
     where = block.file.relative_to(REPOSITORY_ROOT).as_posix()
     try:
         current = expected_text(block) == block.file.read_text(encoding="utf-8")
@@ -172,7 +172,7 @@ def block_problem(block: Block) -> str | None:
 
 
 def stale_blocks() -> list[str]:
-    """Return one sentence per generated block that differs from its regenerated text, naming the file."""
+    """Return one message per generated block that differs from its regenerated text, naming the file."""
     return [problem for problem in map(block_problem, blocks()) if problem is not None]
 
 

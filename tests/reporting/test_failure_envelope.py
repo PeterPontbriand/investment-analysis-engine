@@ -271,7 +271,7 @@ def test_database_facts_accompany_only_database_codes() -> None:
 
 
 def test_maintenance_report_shares_the_envelopes_names_and_code_vocabulary() -> None:
-    """The report's stable code and sentence are named as the envelope's are."""
+    """The report's stable code and message are named as the envelope's are."""
     shared = {"reason_code", "reason"}
     assert shared <= _model_field_names(DatabaseMaintenanceReport) & _model_field_names(FailureEnvelope)
     assert _model_field_names(DatabaseMaintenanceReport) == {
@@ -372,7 +372,7 @@ def test_a_raised_failure_reaches_the_envelope_with_one_null_input(
     code: FailureReasonCode,
 ) -> None:
     error = exception_type("x", kind=kind, provider_id="sec_edgar")
-    envelope = failure_envelope(classify_failure(error).reason_code, "sentence", cause=error)
+    envelope = failure_envelope(classify_failure(error).reason_code, "message", cause=error)
     assert envelope.reason_code is code
     assert envelope.provider_failure == ProviderFailure(
         reason_code=code, inputs=(ProviderFailureInput(input=None, provider_id="sec_edgar", kind=kind),)

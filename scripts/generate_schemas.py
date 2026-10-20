@@ -54,7 +54,7 @@ def expected_schemas() -> dict[str, str]:
 
 
 def schema_gaps(directory: Path = SCHEMA_DIRECTORY) -> list[str]:
-    """Return one sentence per schema file that is missing or differs from the regenerated text.
+    """Return one message per schema file that is missing or differs from the regenerated text.
 
     Line endings are compared as written: the repository stores these files with line feeds.
     """

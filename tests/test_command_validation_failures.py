@@ -1,7 +1,7 @@
 """Every check a command raises itself is an ``invalid_parameter`` failure with exit 1.
 
 The table below is section A of the SWC.4d plan, one entry per row and per command it covers. A text run writes the
-sentence to standard error and nothing to standard output; a ``--json`` run writes one failure document to standard
+message to standard error and nothing to standard output; a ``--json`` run writes one failure document to standard
 output and nothing to standard error. Exit 2 stays what the parser returns before any command code runs.
 """
 
@@ -40,7 +40,7 @@ class Check:
 
     row: str
     arguments: tuple[str, ...]
-    sentence: str
+    message: str
     parameters: tuple[str, ...]
     json_flag: bool
     prefix: bool = False
@@ -56,9 +56,9 @@ def _direct(command: str, *extra: str, ticker: str | None = "AAPL") -> tuple[str
 
 
 def _check(
-    row: str, arguments: tuple[str, ...], sentence: str, parameters: tuple[str, ...], *, json_flag: bool
+    row: str, arguments: tuple[str, ...], message: str, parameters: tuple[str, ...], *, json_flag: bool
 ) -> Check:
-    return Check(row, arguments, sentence, parameters, json_flag)
+    return Check(row, arguments, message, parameters, json_flag)
 
 
 _DIRECT_COMMANDS = ("momentum", "graham-number", "graham-growth", "fcf-growth")
@@ -317,13 +317,13 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
             ("--short-window", "--long-window"),
         ),
     )
-    for row, options, sentence, parameters in windows:
-        add(_check(row, _direct("momentum", *options), sentence, parameters, json_flag=True))
+    for row, options, message, parameters in windows:
+        add(_check(row, _direct("momentum", *options), message, parameters, json_flag=True))
         add(
             _check(
                 row,
                 ("watchlist", "create", "W", "AAPL", "-a", "momentum", *options),
-                sentence,
+                message,
                 parameters,
                 json_flag=False,
             )
@@ -332,7 +332,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
             _check(
                 row,
                 ("watchlist", "add-selection", "W", "AAPL", "-a", "momentum", *options),
-                sentence,
+                message,
                 parameters,
                 json_flag=False,
             )
@@ -344,13 +344,13 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         ("FCF-3", ("--classification-basis", "nope"), "--classification-basis must be total-fcf or fcf-per-share."),
         ("FCF-4", ("--currency", "USDX"), "--currency must be a three-letter ISO 4217 code."),
     )
-    for row, options, sentence in fcf:
-        add(_check(row, _direct("fcf-growth", *options), sentence, (options[0],), json_flag=True))
+    for row, options, message in fcf:
+        add(_check(row, _direct("fcf-growth", *options), message, (options[0],), json_flag=True))
         add(
             _check(
                 row,
                 ("watchlist", "create", "W", "AAPL", "-a", "fcf-growth", *options),
-                sentence,
+                message,
                 (options[0],),
                 json_flag=False,
             )
@@ -618,33 +618,33 @@ def _non_interactive_input() -> Iterator[None]:
         yield
 
 
-def _assert_sentence(check: Check, reason: str) -> None:
+def _assert_message(check: Check, reason: str) -> None:
     if check.prefix:
-        assert reason.startswith(check.sentence), reason
+        assert reason.startswith(check.message), reason
     else:
-        assert reason == check.sentence
+        assert reason == check.message
     assert not any(token in reason for token in _FORBIDDEN)
     assert "secret" not in reason
     for name in check.parameters:
-        assert name in reason, f"{name} is missing from the sentence"
+        assert name in reason, f"{name} is missing from the message"
 
 
 @pytest.mark.parametrize("check", _ROWS, ids=_ids(_ROWS))
-def test_the_sentence_goes_to_standard_error_and_the_command_exits_1(check: Check) -> None:
+def test_the_message_goes_to_standard_error_and_the_command_exits_1(check: Check) -> None:
     result = runner.invoke(app, list(check.arguments))
     assert result.exit_code == 1, result.output
     if "--json" in check.arguments:
         document = json.loads(result.stdout)
         assert result.stderr == ""
-        _assert_sentence(check, document["reason"])
+        _assert_message(check, document["reason"])
         return
     assert result.stdout == ""
-    _assert_sentence(check, result.stderr.strip())
+    _assert_message(check, result.stderr.strip())
 
 
 @pytest.mark.parametrize("alias", [item.alias for item in STRATEGIES])
-def test_the_unknown_alias_sentence_names_every_declared_alias(alias: str) -> None:
-    """Each strategy's alias is among the choices the unknown-alias sentence offers."""
+def test_the_unknown_alias_message_names_every_declared_alias(alias: str) -> None:
+    """Each strategy's alias is among the choices the unknown-alias message offers."""
     result = runner.invoke(app, ["runs", "list", "--analysis", "bogus"])
     assert result.exit_code == 1, result.output
     assert alias in result.stderr.split("must be one of:")[1].replace(".", "").replace(",", " ").split()
@@ -666,7 +666,7 @@ def test_a_command_with_json_writes_one_valid_failure_document_and_nothing_to_st
     assert document["result"] is None
     assert document["parameters"] == list(check.parameters)
     assert envelope.parameters == check.parameters
-    _assert_sentence(check, document["reason"])
+    _assert_message(check, document["reason"])
 
 
 _EXCLUSIVE_JSON = [check for check in _ROWS if "--json" in check.arguments and check.row in {"SUP-1", "WRK-16"}]

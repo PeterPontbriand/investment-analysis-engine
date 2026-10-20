@@ -47,7 +47,7 @@ def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: 
     """Reject invalid SMA/RSI periods with investor-readable domain language.
 
     The direct command and the watchlist builder share this check, so both report the same
-    ``invalid_parameter`` failure with the same sentence, which names the offending option. The option
+    ``invalid_parameter`` failure with the same message, which names the offending option. The option
     names are the ones both commands declare; this function, not generic tooling, supplies them.
     """
     if short_window <= 0:

@@ -8,7 +8,7 @@ The scenario runs, in order, every success path of the ``watchlist``, ``runs``, 
 text and, where the command offers it, ``--json``: one step per invocation, recording the exit code and both
 standard streams. Streams go through ``normalize_cli_output`` (as ``docs/project/README.md`` requires for CLI
 assertions) and then a mask for the values that differ between any two runs: UUIDs, ISO timestamps and the
-temporary database path. Nothing else is altered, so a changed key, sentence or exit code shows in the stored files.
+temporary database path. Nothing else is altered, so a changed key, message or exit code shows in the stored files.
 
 Regeneration with no argument rewrites ``tests/expected_output/workspace_commands/`` so an intended output change is a
 reviewed diff. With a directory argument it writes there instead, which is how the output of two revisions is compared.

@@ -1,4 +1,4 @@
-"""A bad engine environment is reported at startup as one sentence on stderr, with exit code 2."""
+"""A bad engine environment is reported at startup as a one-sentence message on stderr, with exit code 2."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def _run_ian(variables: dict[str, str], *arguments: str) -> subprocess.Completed
     )
 
 
-def _assert_one_sentence_failure(run: subprocess.CompletedProcess[str], *named: str) -> None:
+def _assert_one_message_failure(run: subprocess.CompletedProcess[str], *named: str) -> None:
     assert run.returncode == 2
     assert run.stdout == ""
     assert "Traceback" not in run.stderr
@@ -48,7 +48,7 @@ def _assert_one_sentence_failure(run: subprocess.CompletedProcess[str], *named: 
 def test_unknown_engine_variable_is_reported_at_startup(arguments: tuple[str, ...]) -> None:
     run = _run_ian({"IAN_NO_SUCH_SETTING": "1"}, *arguments)
 
-    _assert_one_sentence_failure(run, "IAN_NO_SUCH_SETTING", "matches no engine setting")
+    _assert_one_message_failure(run, "IAN_NO_SUCH_SETTING", "matches no engine setting")
 
 
 @pytest.mark.skipif(
@@ -58,10 +58,10 @@ def test_unknown_engine_variable_is_reported_at_startup(arguments: tuple[str, ..
 def test_case_duplicate_is_reported_at_startup(arguments: tuple[str, ...]) -> None:
     run = _run_ian({"IAN_DATA_DIR": "one", "ian_data_dir": "two"}, *arguments)
 
-    _assert_one_sentence_failure(run, "IAN_DATA_DIR", "ian_data_dir", "differ only by letter case")
+    _assert_one_message_failure(run, "IAN_DATA_DIR", "ian_data_dir", "differ only by letter case")
 
 
-def test_help_reports_the_same_sentence_as_a_command_for_a_bad_variable() -> None:
+def test_help_reports_the_same_message_as_a_command_for_a_bad_variable() -> None:
     bad = {"IAN_NO_SUCH_SETTING": "1"}
 
     assert _run_ian(bad, "--help").stderr == _run_ian(bad, "momentum", "KO").stderr
@@ -71,14 +71,14 @@ def test_help_reports_the_same_sentence_as_a_command_for_a_bad_variable() -> Non
 def test_bad_plain_value_is_reported_at_startup(arguments: tuple[str, ...]) -> None:
     run = _run_ian({"IAN_DATABASE_BUSY_TIMEOUT_MS": "abc"}, *arguments)
 
-    _assert_one_sentence_failure(run, "IAN_DATABASE_BUSY_TIMEOUT_MS", "valid integer")
+    _assert_one_message_failure(run, "IAN_DATABASE_BUSY_TIMEOUT_MS", "valid integer")
 
 
 @pytest.mark.parametrize("arguments", [("momentum", "KO"), ("--help",)])
 def test_bad_nested_value_is_reported_at_startup(arguments: tuple[str, ...]) -> None:
     run = _run_ian({"ian_schema_config__max_validation_retries": "many"}, *arguments)
 
-    _assert_one_sentence_failure(run, "valid integer")
+    _assert_one_message_failure(run, "valid integer")
     assert "ian_schema_config__max_validation_retries".upper() in run.stderr.upper()
 
 
@@ -86,14 +86,14 @@ def test_bad_nested_value_is_reported_at_startup(arguments: tuple[str, ...]) -> 
 def test_a_relative_folder_is_reported_at_startup_naming_the_variable(name: str) -> None:
     run = _run_ian({name: "relative/folder"}, "--help")
 
-    _assert_one_sentence_failure(run, name, "must be an absolute path")
+    _assert_one_message_failure(run, name, "must be an absolute path")
     assert "project folder" not in run.stderr
 
 
 def test_a_relative_database_file_path_is_reported_at_startup_naming_the_variable() -> None:
     run = _run_ian({"IAN_DATABASE_URL": "sqlite:///data/x.sqlite3"}, "--help")
 
-    _assert_one_sentence_failure(run, "IAN_DATABASE_URL", "must be an absolute path")
+    _assert_one_message_failure(run, "IAN_DATABASE_URL", "must be an absolute path")
 
 
 def test_the_env_file_cannot_set_the_variable_that_locates_it(tmp_path: Path) -> None:
@@ -101,5 +101,5 @@ def test_the_env_file_cannot_set_the_variable_that_locates_it(tmp_path: Path) ->
 
     run = _run_ian({"IAN_CONFIG_DIR": str(tmp_path)}, "--help")
 
-    _assert_one_sentence_failure(run, "IAN_CONFIG_DIR", "cannot be set there")
+    _assert_one_message_failure(run, "IAN_CONFIG_DIR", "cannot be set there")
     assert str(tmp_path) in run.stderr

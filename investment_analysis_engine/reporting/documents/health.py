@@ -42,10 +42,10 @@ class ProviderHealthEntry(BaseModel):
             "set up, so the check could not run. failed: an unexpected error inside the check."
         )
     )
-    probe: str = Field(description="What the check requests; a sentence for people, not stable.")
+    probe: str = Field(description="What the check requests; a message for people, not stable.")
     elapsed_seconds: float = Field(description="Wall-clock seconds the check took, rounded to hundredths.")
     detail: str | None = Field(
-        description="The failure detail, a sentence for people that is not stable; null when the check passed."
+        description="The failure detail, a message for people that is not stable; null when the check passed."
     )
     library: ProviderLibrary | None = Field(
         description="The library behind the provider and its installed version; null when the provider has none."

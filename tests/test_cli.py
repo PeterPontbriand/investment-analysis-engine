@@ -365,7 +365,7 @@ def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMoc
 
 
 @pytest.mark.parametrize(
-    ("kind", "sentence"),
+    ("kind", "message"),
     [
         (ProviderFailureKind.UNREACHABLE, "Unable to analyze FCIM: yfinance did not serve the request."),
         (ProviderFailureKind.RATE_LIMITED, "Unable to analyze FCIM: yfinance is limiting requests."),
@@ -378,19 +378,19 @@ def test_cli_momentum_data_fetch_failure_is_one_clean_message(mock_run: MagicMoc
 )
 @patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
 def test_cli_momentum_classified_failure_names_its_kind_in_text_and_json(
-    mock_run: MagicMock, kind: ProviderFailureKind, sentence: str
+    mock_run: MagicMock, kind: ProviderFailureKind, message: str
 ) -> None:
     mock_run.side_effect = DataFetchError("library detail leaked here", kind=kind, provider_id="yfinance")
 
     text = runner.invoke(app, ["momentum", "FCIM"])
     assert text.exit_code == 1
-    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{sentence}"
+    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{message}"
     assert "library detail" not in text.output
 
     document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--json"]).stdout)
     assert document["reason_code"] == f"provider_{kind.value}"
     assert document["status"] == "input_unavailable"
-    assert document["reason"] == sentence
+    assert document["reason"] == message
     assert document["provider_failure"] == {
         "reason_code": f"provider_{kind.value}",
         "inputs": [{"input": None, "provider_id": "yfinance", "kind": kind.value}],
@@ -844,24 +844,24 @@ def test_cli_momentum_download_exception_names_the_unreachable_service_without_t
         text = runner.invoke(app, ["momentum", "FCIM", "--no-cache"])
         document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--no-cache", "--json"]).stdout)
 
-    sentence = "Unable to analyze FCIM: yfinance did not serve the request."
+    message = "Unable to analyze FCIM: yfinance did not serve the request."
     assert text.exit_code == 1
-    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{sentence}"
+    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{message}"
     assert document["reason_code"] == "provider_unreachable"
-    assert document["reason"] == sentence
+    assert document["reason"] == message
     assert document["provider_failure"]["inputs"] == [{"input": None, "provider_id": "yfinance", "kind": "unreachable"}]
 
 
 def test_cli_momentum_swallowed_download_fault_is_no_data_and_does_not_call_the_ticker_unknown() -> None:
-    """D-b: ``yf.download`` swallows a per-ticker fault into an empty frame; the sentence stays factual."""
+    """D-b: ``yf.download`` swallows a per-ticker fault into an empty frame; the message stays factual."""
     with patch("investment_analysis_engine.data.yfinance.client.yf.download", return_value=pd.DataFrame()):
         text = runner.invoke(app, ["momentum", "FCIM", "--no-cache"])
         document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--no-cache", "--json"]).stdout)
 
-    sentence = "Unable to analyze FCIM: yfinance returned no data for it."
+    message = "Unable to analyze FCIM: yfinance returned no data for it."
     assert text.exit_code == 1
-    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{sentence}"
+    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{message}"
     assert document["reason_code"] == "provider_no_data"
-    assert document["reason"] == sentence
+    assert document["reason"] == message
     for claim in ("unknown", "invalid", "does not exist", "not found", "delisted"):
         assert claim not in text.stderr.lower()

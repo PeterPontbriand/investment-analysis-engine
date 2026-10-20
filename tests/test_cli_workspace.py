@@ -570,14 +570,14 @@ def test_runs_show_replays_a_real_persisted_run_and_exits_0_even_when_failed(
     assert "AAPL" in normalize_cli_output(result.output)
 
 
-def _unreadable_run_sentence(run_id: UUID) -> str:
+def _unreadable_run_message(run_id: UUID) -> str:
     return f"Analysis Run {run_id} could not be read: its stored record is malformed or does not match its summary."
 
 
 _LIBRARY_TEXT = ("input_value", "validation error for", "errors.pydantic.dev", "Malformed or inconsistent")
 
 
-def test_runs_show_reports_an_envelope_that_fails_validation_in_one_sentence(
+def test_runs_show_reports_an_envelope_that_fails_validation_in_one_message(
     caplog: pytest.LogCaptureFixture,
     isolated_cli_settings: ProjectSettings,
 ) -> None:
@@ -593,7 +593,7 @@ def test_runs_show_reports_an_envelope_that_fails_validation_in_one_sentence(
             )
     finally:
         database.close()
-    sentence = _unreadable_run_sentence(run.analysis_run_id)
+    message = _unreadable_run_message(run.analysis_run_id)
 
     text = runner.invoke(app, ["runs", "show", str(run.analysis_run_id)])
     as_json = runner.invoke(app, ["runs", "show", str(run.analysis_run_id), "--json"])
@@ -601,9 +601,9 @@ def test_runs_show_reports_an_envelope_that_fails_validation_in_one_sentence(
     assert text.exit_code == as_json.exit_code == 1
     assert text.stdout == ""
     assert as_json.stderr == ""
-    assert text.stderr.strip() == sentence
+    assert text.stderr.strip() == message
     document = json.loads(as_json.stdout)
-    assert (document["reason_code"], document["reason"]) == ("invalid_stored_run", sentence)
+    assert (document["reason_code"], document["reason"]) == ("invalid_stored_run", message)
     for output in (text.stderr, as_json.stdout):
         assert not any(token in output for token in _LIBRARY_TEXT)
     assert any(record.exc_info and "validation error" in str(record.exc_info[1]) for record in caplog.records)
@@ -636,12 +636,12 @@ def test_runs_show_rejects_a_corrupted_stored_envelope_without_a_raw_traceback(
     assert result.exit_code == 1
     assert isinstance(result.exception, SystemExit)  # a deliberate typer.Exit, not an unhandled traceback
     assert "Traceback" not in result.output
-    assert normalize_cli_output(result.output) == _unreadable_run_sentence(run.analysis_run_id)
+    assert normalize_cli_output(result.output) == _unreadable_run_message(run.analysis_run_id)
     as_json = runner.invoke(app, ["runs", "show", str(run.analysis_run_id), "--json"])
     document = json.loads(as_json.stdout)
     assert (document["reason_code"], document["reason"]) == (
         "invalid_stored_run",
-        _unreadable_run_sentence(run.analysis_run_id),
+        _unreadable_run_message(run.analysis_run_id),
     )
     assert not any(token in as_json.stdout + result.output for token in _LIBRARY_TEXT)
 
@@ -840,7 +840,7 @@ def test_every_declared_alias_is_a_choice_of_the_analysis_option(alias: str) -> 
 
 
 def test_the_alias_choices_are_formatted_as_a_comma_list_with_a_final_or(monkeypatch: pytest.MonkeyPatch) -> None:
-    """On a fixed, hand-written vocabulary the help text and the error read as the sentence documents."""
+    """On a fixed, hand-written vocabulary the help text and the error read as the documented message."""
     cli_workspace = importlib.import_module("investment_analysis_engine.cli_workspace")
     monkeypatch.setattr(cli_workspace, "CLI_BUILDERS", {"alpha": None, "beta-two": None, "gamma": None})
 
@@ -1168,12 +1168,12 @@ _UNEXPECTED = [
         ("runs list", (SQLiteAnalysisRunRepository, "list"), True),
     ],
 )
-def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fixed_sentence(
+def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fixed_message(
     error: Exception, typed: str, target: tuple[type, str], json_flag: bool, caplog: pytest.LogCaptureFixture
 ) -> None:
     _create("Core")
     arguments = [*typed.split(), *(["Core"] if typed == "watchlist show" else [])]
-    sentence = f"{typed} failed unexpectedly."
+    message = f"{typed} failed unexpectedly."
     owner, attribute = target
     with patch.object(owner, attribute, side_effect=error):
         text = runner.invoke(app, arguments)
@@ -1181,13 +1181,13 @@ def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fix
 
     assert text.exit_code == 1
     assert text.stdout == ""
-    assert text.stderr.strip() == sentence
+    assert text.stderr.strip() == message
     outputs = [text.stderr]
     if as_json is not None:
         assert as_json.exit_code == 1
         assert as_json.stderr == ""
         document = json.loads(as_json.stdout)
-        assert (document["reason_code"], document["reason"]) == ("execution_error", sentence)
+        assert (document["reason_code"], document["reason"]) == ("execution_error", message)
         outputs.append(as_json.stdout)
     for output in outputs:
         assert not any(token in output for token in _LIBRARY_TEXT)
@@ -1195,16 +1195,16 @@ def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fix
     assert any(record.exc_info and record.exc_info[1] is error for record in caplog.records)
 
 
-def test_an_exception_that_declares_its_own_code_keeps_its_own_sentence() -> None:
+def test_an_exception_that_declares_its_own_code_keeps_its_own_message() -> None:
     _create("Core")
     with patch(
         "investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.get",
-        side_effect=WatchlistNotFoundError("own sentence"),
+        side_effect=WatchlistNotFoundError("own message"),
     ):
         result = runner.invoke(app, ["watchlist", "show", "Core", "--json"])
     document = json.loads(result.stdout)
     assert result.exit_code == 1
-    assert (document["reason_code"], document["reason"]) == ("watchlist_not_found", "own sentence")
+    assert (document["reason_code"], document["reason"]) == ("watchlist_not_found", "own message")
 
 
 def test_a_deliberate_exit_passes_through_the_catch_all() -> None:

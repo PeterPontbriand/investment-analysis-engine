@@ -141,7 +141,7 @@ def test_a_successful_json_command_writes_only_the_document_to_stdout(tmp_path: 
     assert DOWNLOAD_RECORD in run.log
 
 
-def test_an_unexpected_error_reports_the_same_sentence_and_logs_its_cause_and_traceback(tmp_path: Path) -> None:
+def test_an_unexpected_error_reports_the_same_message_and_logs_its_cause_and_traceback(tmp_path: Path) -> None:
     run = _run(tmp_path, "unexpected", "unexpected")
 
     assert run.returncode == 1

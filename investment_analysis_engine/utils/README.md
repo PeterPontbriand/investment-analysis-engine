@@ -34,7 +34,7 @@ logger.info("Downloading market data for %s", ticker)
 
 The record goes to `logs/app.log` (or `<IAN_LOG_DIR>/<IAN_LOG_FILE_NAME>`) as `timestamp | logger name | LEVEL | message`. Nothing appears on the terminal, so a message the user must see belongs in the command's own output, not in a log call.
 
-An exception that a command handler reports with a generic sentence is logged with its traceback by `execution_errors`. An exception that no handler catches is logged as `CRITICAL` under `system.crash` by `main()`, and Typer shows its own traceback on standard error.
+An exception that a command handler reports with a generic message is logged with its traceback by `execution_errors`. An exception that no handler catches is logged as `CRITICAL` under `system.crash` by `main()`, and Typer shows its own traceback on standard error.
 
 ---
 

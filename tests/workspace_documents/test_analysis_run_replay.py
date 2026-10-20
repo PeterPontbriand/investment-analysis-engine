@@ -365,7 +365,7 @@ def test_graham_project_run_invalid_input_renders_stored_failure_without_recalcu
     )
     assert "KO" in rendered
     assert "Status: invalid input" in rendered
-    # The raw resolver reason is normalized to the live command's investor-facing sentence...
+    # The raw resolver reason is normalized to the live command's investor-facing message...
     assert "Unable to analyze KO: the requested inputs are invalid. Review the method and overrides." in rendered
     # ...and the raw technical string must never leak through.
     assert "resolved value failed strict finite validation" not in rendered
@@ -376,7 +376,7 @@ def _graham_quote_failure_analysis() -> GrahamNumberAnalysis:
     """A successful Number analysis whose optional quote lookup failed with a raw technical reason.
 
     ``quote_status`` is a genuine failure status and ``quote_reason`` is deliberately NOT
-    investor-facing; replay must render the normalized public sentence, not this text.
+    investor-facing; replay must render the normalized public message, not this text.
     """
     eps = ResolvedInput("eps", 4.0, SourceKind.PROVIDER, NOW, provider_id="sec_edgar", as_of=NOW)
     bvps = ResolvedInput("book_value_per_share", 10.0, SourceKind.OVERRIDE, NOW, as_of=NOW)
@@ -398,8 +398,8 @@ def _graham_quote_failure_analysis() -> GrahamNumberAnalysis:
     )
 
 
-def test_graham_project_run_normalizes_raw_quote_reason_to_public_sentence() -> None:
-    """Replay renders the investor-facing quote sentence and never leaks the raw technical reason."""
+def test_graham_project_run_normalizes_raw_quote_reason_to_public_message() -> None:
+    """Replay renders the investor-facing quote message and never leaks the raw technical reason."""
     run = _graham_run(analysis=_graham_quote_failure_analysis())
     evidence = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(evidence, GrahamNumberAnalysis)
@@ -410,7 +410,7 @@ def test_graham_project_run_normalizes_raw_quote_reason_to_public_sentence() -> 
     rendered = project_run(
         run, ReplayOptions(mode=PresentationMode.DIAGNOSTICS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
     )
-    # The stored technical reason must be replaced by the investor-facing sentence...
+    # The stored technical reason must be replaced by the investor-facing message...
     assert "The configured quote provider could not complete the request." in rendered
     # ...and the raw technical string must never appear anywhere in the replay output.
     assert "Provider error: connection reset" not in rendered
@@ -720,7 +720,7 @@ def _growth_quote_failure_analysis() -> GrahamGrowthAnalysis:
     )
 
 
-def test_growth_project_run_normalizes_raw_quote_reason_to_public_sentence() -> None:
+def test_growth_project_run_normalizes_raw_quote_reason_to_public_message() -> None:
     run = _growth_run(analysis=_growth_quote_failure_analysis())
     evidence = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(evidence, GrahamGrowthAnalysis)

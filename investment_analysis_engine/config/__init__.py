@@ -330,7 +330,7 @@ class ProjectSettings(BaseSettings):
 
 
 def describe_validation_error(error: ValidationError, environ: Mapping[str, str]) -> str:
-    """Describe the first invalid setting as one sentence that names the environment variable.
+    """Describe the first invalid setting as a one-sentence message that names the environment variable.
 
     The offending value is never included: pydantic's message text describes the rule.
 
@@ -339,7 +339,7 @@ def describe_validation_error(error: ValidationError, environ: Mapping[str, str]
         environ: The process environment, used to quote the variable in the spelling the user set.
 
     Returns:
-        A single sentence naming the variable and what was wrong with its value.
+        A one-sentence message naming the variable and what was wrong with its value.
     """
     first = error.errors(include_input=False, include_url=False, include_context=False)[0]
     location = tuple(str(part) for part in first["loc"])

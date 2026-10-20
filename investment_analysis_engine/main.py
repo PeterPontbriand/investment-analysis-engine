@@ -5,8 +5,8 @@ from investment_analysis_engine.core.settings_error import SettingsEnvironmentEr
 
 try:
     # The settings are built when this module loads, and many modules read them on import. A bad engine
-    # variable is therefore reported here, before any other project import, as one sentence and no traceback.
-    # Logging is configured from these same settings, so it is not up yet and the sentence is not logged.
+    # variable is therefore reported here, before any other project import, as a one-sentence message and no traceback.
+    # Logging is configured from these same settings, so it is not up yet and the message is not logged.
     import investment_analysis_engine.config  # noqa: F401
 except SettingsEnvironmentError as error:
     print(error, file=sys.stderr)

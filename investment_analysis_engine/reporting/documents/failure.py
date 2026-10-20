@@ -47,7 +47,7 @@ class FailureEnvelope(BaseModel):
     ``schema_version`` is this document's own lineage: it identifies a shape only within this schema
     and is independent of the ``schema_version`` of every success document. A consumer dispatches on
     ``status`` and ``result`` first, then on ``analysis``. ``reason_code`` is stable; ``reason`` and
-    ``diagnostics[].reason`` are sentences for people and carry no guarantee.
+    ``diagnostics[].reason`` are messages for people and carry no guarantee.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")

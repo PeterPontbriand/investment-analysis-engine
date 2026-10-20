@@ -34,7 +34,7 @@ def _first_reason(error: ValidationError) -> str:
     return message.removeprefix("Value error, ")
 
 
-_MEMORY_TARGET_SENTENCE = "Database maintenance requires a file-backed target; private memory is not supported."
+_MEMORY_TARGET_MESSAGE = "Database maintenance requires a file-backed target; private memory is not supported."
 
 
 def _anchor_database_url(database_url: str) -> str:
@@ -82,7 +82,7 @@ def _open_database(database_url: str | None, *, json_output: bool) -> SQLiteData
             database.close()
             if database_url is None:
                 report_failure(
-                    failure_envelope(FailureReasonCode.CONFIGURATION_ERROR, _MEMORY_TARGET_SENTENCE),
+                    failure_envelope(FailureReasonCode.CONFIGURATION_ERROR, _MEMORY_TARGET_MESSAGE),
                     json_output=json_output,
                 )
             raise InvalidParameterError(

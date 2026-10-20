@@ -757,7 +757,7 @@ def published_schema_gaps(descriptors: tuple[StrategyDescriptor, ...], directory
 
 
 def stale_schema_gaps(descriptors: tuple[StrategyDescriptor, ...], directory: Path = SCHEMA_DIRECTORY) -> list[str]:
-    """Return one sentence per descriptor whose checked-in schema exists but differs from the regenerated text."""
+    """Return one message per descriptor whose checked-in schema exists but differs from the regenerated text."""
     return [
         f"strategy {label(item)}: schemas/{path.name} is out of date; run {SCHEMA_COMMAND}"
         for item in descriptors
