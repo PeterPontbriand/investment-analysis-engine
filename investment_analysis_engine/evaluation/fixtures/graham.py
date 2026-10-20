@@ -217,7 +217,7 @@ class FixtureFinancialFactsProvider:
 
     def _missing_quote_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return subject-correct required facts while omitting the optional quote."""
-        if request.subject_kind is FinancialSubjectKind.MACRO or request.field_name is FinancialField.CURRENT_PRICE:
+        if request.field_name is FinancialField.CURRENT_PRICE:
             return ()
         return tuple(replace(fact, subject_id=SUBJECT_MISSING_QUOTE) for fact in self._security_facts(request))
 
@@ -227,8 +227,6 @@ class FixtureFinancialFactsProvider:
 
     def _happy_path(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
         """Return the synthetic happy-path facts for the request."""
-        if request.subject_kind is FinancialSubjectKind.MACRO:
-            return ()
         return self._security_facts(request)
 
     def _security_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:
@@ -350,8 +348,6 @@ class FixtureFinancialFactsProvider:
         ``retrieved_at >= available_at`` (temporal coherence), even though
         the data is in the future relative to the resolver clock.
         """
-        if request.subject_kind is FinancialSubjectKind.MACRO:
-            return ()
         if request.field_name is FinancialField.EPS:
             return (
                 ProviderFact(
