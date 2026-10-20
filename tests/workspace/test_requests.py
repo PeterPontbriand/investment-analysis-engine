@@ -469,9 +469,10 @@ def _stored_examples() -> tuple[AnalysisSelection, ...]:
     return tuple(strategy.sample_selection for strategy in EVALUATION_STRATEGIES)
 
 
-def test_stored_selection_round_trips_without_settings_or_external_activity(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+@pytest.fixture
+def no_external_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail any read of settings, files, sockets, databases or the environment while a test runs."""
+
     def forbidden(*_args: object, **_kwargs: object) -> None:
         pytest.fail("Decoding a stored selection must not read mutable/external state")
 
@@ -482,11 +483,52 @@ def test_stored_selection_round_trips_without_settings_or_external_activity(
     monkeypatch.setattr("socket.socket", forbidden)
     monkeypatch.setattr("sqlite3.connect", forbidden)
     monkeypatch.setattr("os.getenv", forbidden)
+
+
+def _stored_round_trip[SelT: AnalysisSelection](selection: SelT) -> SelT:
+    """Encode and decode a stored selection, require equality and stable re-encoding, and return the decoded one."""
+    stored = encode_selection(selection)
+    restored = decode_selection(selection.method_id, selection.config_schema_version, stored)
+    assert restored == selection
+    assert isinstance(restored, type(selection))
+    assert encode_selection(restored) == stored
+    return restored
+
+
+@pytest.mark.usefixtures("no_external_state")
+def test_every_declared_strategy_sample_round_trips_without_settings_or_external_activity() -> None:
     for selection in _stored_examples():
-        stored = encode_selection(selection)
-        restored = decode_selection(selection.method_id, selection.config_schema_version, stored)
-        assert restored == selection
-        assert encode_selection(restored) == stored
+        _stored_round_trip(selection)
+
+
+@pytest.mark.usefixtures("no_external_state")
+def test_stored_momentum_edge_values_round_trip_and_convert() -> None:
+    restored = _stored_round_trip(MomentumSelection(short_window=2, long_window=5, rsi_period=1))
+    assert restored.to_momentum_config().rsi_period == 1
+
+
+@pytest.mark.usefixtures("no_external_state")
+def test_stored_graham_number_edge_values_round_trip_and_convert() -> None:
+    restored = _stored_round_trip(GrahamNumberSelection(eps_override=-1, bvps_override=0))
+    assert restored.to_graham_number_config().eps_override == -1
+
+
+@pytest.mark.usefixtures("no_external_state")
+def test_stored_graham_growth_edge_values_round_trip_and_convert() -> None:
+    restored = _stored_round_trip(GrahamGrowthSelection(expected_growth=-5, aaa_yield_override=0))
+    assert restored.to_graham_growth_config().expected_growth == -5
+
+
+@pytest.mark.usefixtures("no_external_state")
+def test_stored_fcf_growth_edge_values_round_trip_and_convert() -> None:
+    restored = _stored_round_trip(
+        FCFGrowthSelection(
+            policy=FCFPolicySnapshot(forward_policy=ForwardPolicy.CONFIRMATION),
+            as_of=datetime(2025, 1, 1, tzinfo=UTC),
+        )
+    )
+    assert restored.to_fcf_policy().forward_policy is ForwardPolicy.CONFIRMATION
+    assert restored.as_of == datetime(2025, 1, 1, tzinfo=UTC)
 
 
 @pytest.mark.parametrize("index", range(len(EVALUATION_STRATEGIES)))

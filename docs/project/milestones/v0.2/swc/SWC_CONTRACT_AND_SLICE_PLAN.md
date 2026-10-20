@@ -1884,9 +1884,17 @@ Approved by the project owner on 2026-10-19; fixes [issue #167](https://github.c
   `EVALUATION_STRATEGIES`, and the `all_selections` fixture and the field-mutation parametrization read the same
   tuple. The per-strategy `isinstance` chain is removed; the round trip, the idempotent re-encoding and the guard that
   a stored selection reads no settings, file, socket, database or environment hold for every declared strategy. No
-  site was added: nothing in the file is hand-written content that cannot be derived. The hand-picked boundary values
-  (`-1`, `0`, `-5`) and the per-strategy config assertions that went with the chain are dropped; the strategies' own
-  selection tests earlier in the same file remain the place for per-strategy values.
+  site was added: nothing in the file is hand-written content that cannot be derived. Two kinds of test now
+  split what the old chain proved, under one guard (`no_external_state`) that forbids settings, environment, file,
+  socket and database access:
+  - *The derived test* round-trips every declared strategy's sample selection. It proves each declared strategy
+    encodes, decodes and re-encodes stably, so a new strategy is covered with no edit. Some samples are plain defaults,
+    so it cannot catch a field that fails to encode or decode.
+  - *The per-strategy tests* (one each for Momentum, Graham Number, Graham Growth and FCF Growth, each typed to its own
+    selection class, with no `isinstance` chain over the union) keep the non-default examples: negative and zero
+    overrides, the confirmation policy and an explicit `as_of`. They prove those values survive the round trip and that
+    converting the decoded selection uses the stored values, not current settings. A new strategy adds its own such
+    test; none of them can break when the union gains a member.
 - **Decision 2: T28 type-checks the whole copy.** After generation and again after the fills it runs
   `mypy --strict investment_analysis_engine tests scripts`, the command the guide documents. Design §19.4 is corrected
   to say so.
