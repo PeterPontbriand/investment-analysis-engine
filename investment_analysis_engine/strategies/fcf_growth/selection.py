@@ -1,7 +1,6 @@
 """Free Cash Flow & Earnings Growth's immutable workspace selection snapshot."""
 
 from datetime import datetime
-from typing import Literal
 
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
@@ -60,14 +59,8 @@ class FCFGrowthSelection(FrozenSelection):
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     policy: FCFPolicySnapshot = Field(default_factory=FCFPolicySnapshot)
     currency: str = "USD"
-    provider_id: Literal["sec_edgar"] = "sec_edgar"
     as_of: AwareDatetime | None = None
     use_cache: bool = Field(default=True, strict=True)
-
-    @field_validator("provider_id", mode="before")
-    @classmethod
-    def _normalize_provider(cls, value: object) -> object:
-        return value.strip().lower() if isinstance(value, str) else value
 
     @field_validator("currency")
     @classmethod
@@ -83,9 +76,7 @@ class FCFGrowthSelection(FrozenSelection):
 
     def to_fcf_config(self) -> FCFEarningsGrowthConfig:
         """Return the analyzer's complete per-call configuration for this snapshot."""
-        return FCFEarningsGrowthConfig(
-            policy=self.to_fcf_policy(), currency=self.currency, provider_id=self.provider_id
-        )
+        return FCFEarningsGrowthConfig(policy=self.to_fcf_policy(), currency=self.currency)
 
     def to_analysis_context(
         self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None

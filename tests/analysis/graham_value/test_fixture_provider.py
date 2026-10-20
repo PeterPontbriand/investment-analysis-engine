@@ -33,6 +33,8 @@ from investment_analysis_engine.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.graham import (
     AAA_YIELD_VALUE,
     BVPS_VALUE,
@@ -41,7 +43,6 @@ from investment_analysis_engine.evaluation.fixtures.graham import (
     EPS_FY2024,
     MACRO_ID,
     NOW,
-    PROVIDER_ID,
     QUOTE_VALUE,
     SECURITY_ID,
     SUBJECT_ERROR,
@@ -114,7 +115,7 @@ class TestProviderFactBoundary:
             "subject_id": SECURITY_ID,
             "field_name": FinancialField.BVPS,
             "units": FinancialUnit.CURRENCY_PER_SHARE,
-            "provider_id": PROVIDER_ID,
+            "provider_id": SEC_PROVIDER_ID,
             "provider_field": "fx_bvps",
             "retrieved_at": NOW,
             "currency": "USD",
@@ -168,7 +169,7 @@ class TestFixtureProviderContract:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         facts = provider.fetch_facts(request, effective_as_of=NOW)
         assert len(facts) == 1
@@ -181,7 +182,7 @@ class TestFixtureProviderContract:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_MISSING,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         facts = provider.fetch_facts(request, effective_as_of=NOW)
         assert facts == ()
@@ -193,7 +194,7 @@ class TestFixtureProviderContract:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_ERROR,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         with pytest.raises(FinancialProviderError):
             provider.fetch_facts(request, effective_as_of=NOW)
@@ -206,7 +207,7 @@ class TestFixtureProviderContract:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.EPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             basis=basis,
         )
         facts = provider.fetch_facts(request, effective_as_of=NOW)
@@ -219,7 +220,7 @@ class TestFixtureProviderContract:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.EPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year",
             observation_count=3,
         )
@@ -245,7 +246,7 @@ class TestResolverSingleFact:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.OK
@@ -261,7 +262,7 @@ class TestResolverSingleFact:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_MISSING,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.INPUT_UNAVAILABLE
@@ -274,7 +275,7 @@ class TestResolverSingleFact:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_ERROR,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.PROVIDER_ERROR
@@ -287,7 +288,7 @@ class TestResolverSingleFact:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_INCOMPATIBLE,
             field_name=FinancialField.EPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year",
         )
         result = resolver.resolve(request, use_cache=True)
@@ -326,7 +327,7 @@ class TestNetworkGuard:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.OK
@@ -344,7 +345,7 @@ class TestNetworkGuard:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.EPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year",
             observation_count=3,
         )
@@ -374,7 +375,7 @@ class TestCacheStaleness:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         result1 = resolver.resolve(request, use_cache=True)
         assert result1.status is CalculationStatus.OK
@@ -409,7 +410,7 @@ class TestCacheStaleness:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
 
         # First call: populates cache, returns PROVIDER.
@@ -436,7 +437,7 @@ class TestCacheStaleness:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SUBJECT_FUTURE,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             as_of=historical_as_of,
         )
         result = resolver.resolve(request, use_cache=True)
@@ -460,7 +461,7 @@ class TestThreeYearEPSProvenance:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.EPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             basis="fiscal_year",
             observation_count=3,
         )
@@ -493,7 +494,7 @@ class TestThreeYearEPSProvenance:
         assert ri.lineage is not None
         for comp in ri.lineage.components:
             assert comp.source_kind is SourceKind.PROVIDER
-            assert comp.provider_id == PROVIDER_ID
+            assert comp.provider_id == SEC_PROVIDER_ID
             assert comp.provider_field is not None
             assert comp.basis == "fiscal_year"
 
@@ -521,7 +522,7 @@ class TestOverrideCachePrecedence:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         override_value = 99.0
         result = resolver.resolve(request, override=override_value, use_cache=True)
@@ -542,7 +543,7 @@ class TestOverrideCachePrecedence:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         # Populate the cache.
         result_populate = fixture_resolver.resolve(request, use_cache=True)
@@ -566,7 +567,7 @@ class TestOverrideCachePrecedence:
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
         )
         result = resolver.resolve(request, use_cache=True)
         assert result.status is CalculationStatus.PROVIDER_ERROR
@@ -588,7 +589,8 @@ class TestC2DAssembly:
 
         result = resolver.assemble_graham_number(
             security_subject_id=SECURITY_ID,
-            security_provider_id=PROVIDER_ID,
+            security_provider_id=SEC_PROVIDER_ID,
+            quote_provider_id=YFINANCE_PROVIDER_ID,
         )
 
         assert result.status is CalculationStatus.OK
@@ -603,13 +605,13 @@ class TestC2DAssembly:
         assert result.bvps is not None
         assert result.bvps.source_kind is SourceKind.PROVIDER
         assert result.bvps.value == pytest.approx(BVPS_VALUE)
-        assert result.bvps.provider_id == PROVIDER_ID
+        assert result.bvps.provider_id == SEC_PROVIDER_ID
 
         # Optional quote: from fixture provider
         assert result.current_price is not None
         assert result.current_price.source_kind is SourceKind.PROVIDER
         assert result.current_price.value == pytest.approx(QUOTE_VALUE)
-        assert result.current_price.provider_id == PROVIDER_ID
+        assert result.current_price.provider_id == YFINANCE_PROVIDER_ID
 
     def test_growth_value_assembly_three_year_avg_eps(self) -> None:
         """assemble_growth_value() succeeds via fixture-backed three-year-average EPS and AAA yield."""
@@ -619,11 +621,12 @@ class TestC2DAssembly:
         expected_growth = 12.0  # explicit override-only
         result = resolver.assemble_growth_value(
             security_subject_id=SECURITY_ID,
-            security_provider_id=PROVIDER_ID,
+            security_provider_id=SEC_PROVIDER_ID,
             eps_basis="three_year_average",
             expected_growth=expected_growth,
             aaa_subject_id=MACRO_ID,
-            aaa_provider_id=PROVIDER_ID,
+            aaa_provider_id=SEC_PROVIDER_ID,
+            quote_provider_id=YFINANCE_PROVIDER_ID,
         )
 
         assert result.status is CalculationStatus.OK
@@ -643,7 +646,7 @@ class TestC2DAssembly:
         assert result.current_aaa_yield is not None
         assert result.current_aaa_yield.source_kind is SourceKind.PROVIDER
         assert result.current_aaa_yield.value == pytest.approx(AAA_YIELD_VALUE)
-        assert result.current_aaa_yield.provider_id == PROVIDER_ID
+        assert result.current_aaa_yield.provider_id == SEC_PROVIDER_ID
 
         # Optional quote: from fixture provider
         assert result.current_price is not None

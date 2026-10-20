@@ -15,7 +15,6 @@ class WatchlistFlags:
     long_window: int
     rsi_period: int
     as_of: str | None
-    data_provider: str | None
     no_cache: bool
     eps: float | None
     eps_basis: str | None

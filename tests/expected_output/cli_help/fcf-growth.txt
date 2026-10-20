@@ -15,7 +15,6 @@ fcf-per-share
 [default: total-fcf]
 --as-of <str> Point-in-time boundary as YYYY-MM-DD or
 timezone-aware ISO-8601 timestamp
---data-provider <str> Defaults to SEC EDGAR
 --currency <str> ISO 4217 reporting currency for
 compatible annual facts
 [default: USD]

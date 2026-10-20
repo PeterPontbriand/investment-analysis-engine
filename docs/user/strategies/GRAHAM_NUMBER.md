@@ -196,7 +196,7 @@ Nothing produced by this strategy is investment advice.
 
 ## Watchlist options
 
-`watchlist create --analysis graham-number` and `watchlist add-selection --analysis graham-number` accept `--as-of`, `--data-provider`, `--no-cache`, `--eps`, `--bvps` and `--current-price`. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the watchlist commands that take them.
+`watchlist create --analysis graham-number` and `watchlist add-selection --analysis graham-number` accept `--as-of`, `--no-cache`, `--eps`, `--bvps` and `--current-price`. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the watchlist commands that take them.
 
 ## Related user documentation
 

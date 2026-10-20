@@ -12,6 +12,7 @@ from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
 from investment_analysis_engine.data.financial.facts import FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRG_01, GRG_ETF_01
 from investment_analysis_engine.evaluation.cases.graham_number import GRAHAM_NUMBER_ARGUMENTS, GRN_04, GRN_05
 from investment_analysis_engine.evaluation.composition import dispatch_fixture_case
@@ -19,7 +20,6 @@ from investment_analysis_engine.evaluation.fixtures.graham import (
     BVPS_AVAIL,
     FIELD_BVPS,
     NOW,
-    PROVIDER_ID,
     RETRIEVED_AT,
     SECURITY_ID,
     FixtureFinancialFactsProvider,
@@ -74,7 +74,7 @@ def _seeded_precedence_resolver() -> GrahamNumberInputResolver:
         resolved_at=NOW,
         units="currency_per_share",
         currency="USD",
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         provider_field=FIELD_BVPS,
         available_at=BVPS_AVAIL,
         as_of=NOW,
@@ -86,7 +86,7 @@ def _seeded_precedence_resolver() -> GrahamNumberInputResolver:
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
             basis=None,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             analysis_as_of=NOW,
             schema_version=1,
         ),
@@ -181,11 +181,9 @@ def test_precedence_case_native_outputs_match_reviewed_cache_and_provider_source
     analysis = run_graham_number_analysis(
         resolver=_seeded_precedence_resolver(),
         ticker=SECURITY_ID,
-        security_provider_id=PROVIDER_ID,
         eps_override=5.0,
         bvps_override=None,
         quote_override=None,
-        quote_provider_id=PROVIDER_ID,
         as_of=NOW,
         use_cache=True,
         effective_as_of=EFFECTIVE_AS_OF,

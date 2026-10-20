@@ -151,14 +151,3 @@ def test_cli_fcf_growth_accepts_hyphenated_forward_policy() -> None:
     payload = json.loads(result.output)
     assert payload["policy"]["forward_policy"] == "hard_gate"
     assert payload["classification"] == "indeterminate"
-
-
-def test_cli_fcf_growth_rejects_unapproved_provider_without_network_work() -> None:
-    with patch(
-        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()
-    ):
-        result = runner.invoke(app, ["fcf-growth", "ACME", "--data-provider", "unapproved"])
-
-    assert result.exit_code == 1
-    assert "INDETERMINATE" in result.output
-    assert "does not have approved" in result.output

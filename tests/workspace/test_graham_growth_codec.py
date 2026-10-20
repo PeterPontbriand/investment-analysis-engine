@@ -132,7 +132,7 @@ def _run(analysis: GrahamGrowthAnalysis | None = None) -> AnalysisRun:
         ticker="KO",
         analysis_id="graham_growth_value",
         method_id="graham_growth_value",
-        config_schema_version=1,
+        config_schema_version=2,
         requested_config=GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4),
         started_at=STAMP,
         completed_at=STAMP,

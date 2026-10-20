@@ -38,6 +38,7 @@ from investment_analysis_engine.core.failure_classification import failure_reaso
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
 from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
@@ -105,7 +106,7 @@ def execute_fcf_growth(  # noqa: PLR0913
     profile = compose_graham_profile(
         ticker,
         primary_provider=provider,
-        primary_provider_id=config.provider_id,
+        primary_provider_id=SEC_PROVIDER_ID,
         yahoo_provider=provider,
         profile_cache=profile_cache,
     )

@@ -40,7 +40,7 @@ def _analyzer() -> FCFEarningsGrowthAnalyzer:
 
 
 def test_analyzer_composes_approved_history_into_canonical_result() -> None:
-    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
     context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
     result = _analyzer().run_analysis("acme", config, context)
 
@@ -59,7 +59,6 @@ def test_hard_gate_is_indeterminate_when_unapproved_consensus_is_unavailable() -
     config = FCFEarningsGrowthConfig(
         policy=FCFEarningsGrowthPolicy(forward_policy=ForwardPolicy.HARD_GATE),
         currency="USD",
-        provider_id=SEC_PROVIDER_ID,
     )
     context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
     result = _analyzer().run_analysis("ACME", config, context)
@@ -69,7 +68,7 @@ def test_hard_gate_is_indeterminate_when_unapproved_consensus_is_unavailable() -
 
 
 def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
-    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
     context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
     result = _analyzer().run_analysis("ACME", config, context)
 
@@ -121,7 +120,7 @@ def test_matching_or_unknown_profile_preserves_complete_fcf_result(kind_value: s
     )
     profile = InstrumentProfile("ACME", None, evidence, ())
     analyzer = _analyzer()
-    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD", provider_id=SEC_PROVIDER_ID)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
     baseline = analyzer.run_analysis(" acme ", config, AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True))
     result = analyzer.run_analysis(
         " acme ", config, AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile)

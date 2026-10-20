@@ -33,7 +33,7 @@ def _base_run(**overrides: object) -> dict[str, object]:
         "ticker": "  ko ",
         "analysis_id": "graham_number",
         "method_id": "graham_number",
-        "config_schema_version": 2,
+        "config_schema_version": 3,
         "method_version": 1,
         "result_schema_version": 1,
         "evidence_codec_version": 1,

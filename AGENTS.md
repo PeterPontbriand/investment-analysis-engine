@@ -160,8 +160,7 @@ Strategies differ in what they compute, not in how they are invoked.
 - Every strategy follows the shared outcome conventions: `MetricResult` for metrics, explicit reason codes instead of silent defaults, and retained provenance.
 - An option, tool argument or stored field that can hold only one value is not added; a fixed choice is a
   named constant in the strategy that owns it. Single-value type tags such as `AnalysisId` and `MethodId` are
-  discriminators, not options. Known exception, tracked in issue #143: `--data-provider`, which accepts only
-  `sec_edgar`.
+  discriminators, not options.
 - Change the envelope or conventions only through an explicit plan change, never by working around them in one strategy. Do not build registries, plugin loaders, or factories on top of the envelope speculatively.
 
 ## 10. OS, shell & execution

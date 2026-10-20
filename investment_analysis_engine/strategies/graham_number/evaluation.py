@@ -23,9 +23,6 @@ def compose(context: FixtureContext) -> GrahamNumberToolDependencies:
     """Build Graham Number's dependencies from the selected Graham facts."""
     inputs = graham_inputs(context)
     resolver = GrahamNumberInputResolver(provider=inputs.provider, cache=inputs.cache, clock=graham_clock(context))
-    provider_id = inputs.provider_id
     return GrahamNumberToolDependencies(
         analyzer=GrahamNumberAnalyzer(resolver),
-        security_provider_id=provider_id,
-        quote_provider_id=provider_id,
     )

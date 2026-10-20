@@ -32,7 +32,7 @@ from investment_analysis_engine.data.financial.cache import InMemoryResolvedInpu
 from investment_analysis_engine.data.financial.facts import FinancialFactsProvider
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessPolicy
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_growth.settings import GrahamGrowthSettings
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
@@ -56,7 +56,6 @@ def build_sec_production_provider() -> ProductionFinancialFactsProvider:
 def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInputResolver)](
     *,
     resolver_type: type[ResolverT],
-    data_provider: str | None,
     clock: Callable[[], datetime],
     cache: ResolvedInputCacheProtocol | None = None,
 ) -> ResolverT:
@@ -67,10 +66,6 @@ def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInp
     never fed a point-in-time boundary.
     """
     provider: FinancialFactsProvider
-    if data_provider is not None and data_provider != SEC_PROVIDER_ID:
-        raise AnalysisConfigurationError(
-            f"Unsupported valuation data provider {data_provider!r}; supported provider is {SEC_PROVIDER_ID!r}."
-        )
     provider = build_sec_production_provider()
 
     return resolver_type(

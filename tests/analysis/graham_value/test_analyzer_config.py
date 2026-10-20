@@ -9,21 +9,10 @@ from investment_analysis_engine.strategies.graham_growth.config import GrahamGro
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 
 
-@pytest.mark.parametrize("provider", ["sec_edgar", "injected"])
 @pytest.mark.parametrize("basis", [None, "three_year_average", "fiscal_year"])
-def test_growth_basis_default_is_provider_independent(provider: str, basis: str | None) -> None:
-    config = GrahamGrowthConfig.model_validate(
-        {"security_provider_id": provider, "eps_basis": basis, "expected_growth": 5.0, "aaa_yield_override": 4.5}
-    )
+def test_growth_basis_default(basis: str | None) -> None:
+    config = GrahamGrowthConfig.model_validate({"eps_basis": basis, "expected_growth": 5.0, "aaa_yield_override": 4.5})
     assert config.eps_basis == (basis or "three_year_average")
-    assert config.quote_provider_id == ("yfinance" if provider == "sec_edgar" else provider)
-
-
-@pytest.mark.parametrize("provider", ["sec_edgar", "injected"])
-@pytest.mark.parametrize("bvps", [None, 20.0])
-def test_number_quote_provider_default(provider: str, bvps: float | None) -> None:
-    config = GrahamNumberConfig.model_validate({"security_provider_id": provider, "bvps_override": bvps})
-    assert config.quote_provider_id == ("yfinance" if provider == "sec_edgar" else provider)
 
 
 @pytest.mark.parametrize("basis", [None, "three_year_average", "fiscal_year"])
@@ -35,11 +24,10 @@ def test_number_has_no_eps_basis_field(basis: str | None) -> None:
 
 @pytest.mark.parametrize("config_type", [GrahamNumberConfig, GrahamGrowthConfig])
 def test_normalization_frozen_and_roundtrip(config_type: type[GrahamNumberConfig] | type[GrahamGrowthConfig]) -> None:
-    values: dict[str, Any] = {"security_provider_id": " CUSTOM ", "quote_provider_id": " QUOTES "}
+    values: dict[str, Any] = {}
     if config_type is GrahamGrowthConfig:
         values.update(eps_basis=" FISCAL_YEAR ", expected_growth=5.0, aaa_yield_override=4.5)
     config = config_type.model_validate(values)
-    assert (config.security_provider_id, config.quote_provider_id) == ("custom", "quotes")
     if isinstance(config, GrahamGrowthConfig):
         assert config.eps_basis == "fiscal_year"
     assert config_type.model_validate_json(config.model_dump_json()) == config
@@ -50,9 +38,6 @@ def test_normalization_frozen_and_roundtrip(config_type: type[GrahamNumberConfig
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("security_provider_id", " "),
-        ("security_provider_id", None),
-        ("quote_provider_id", " "),
         ("eps_basis", " "),
         ("eps_basis", "annual"),
         ("eps_basis", "ttm"),

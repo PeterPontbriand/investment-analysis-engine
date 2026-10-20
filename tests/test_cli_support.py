@@ -9,7 +9,6 @@ import typer
 from pydantic import BaseModel, field_validator
 
 from investment_analysis_engine.cli_support import (
-    _canonical_provider_id,
     _parse_as_of,
     _presentation_mode,
     _resolve_ticker,
@@ -97,10 +96,6 @@ def test_ticker_provider_and_presentation_normalization() -> None:
     with pytest.raises(InvalidParameterError) as blank_option:
         _resolve_ticker(None, " ", command="momentum")
     assert blank_option.value.parameters == ("--ticker",)
-    assert _canonical_provider_id(" SEC_EDGAR ") == "sec_edgar"
-    assert _canonical_provider_id(None) is None
-    with pytest.raises(InvalidParameterError):
-        _canonical_provider_id(" ")
     assert _presentation_mode(details=False, diagnostics=False, json_output=True) is PresentationMode.JSON
     with pytest.raises(InvalidParameterError) as exclusive:
         _presentation_mode(details=True, diagnostics=True, json_output=False)

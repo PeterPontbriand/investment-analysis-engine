@@ -27,6 +27,7 @@ from investment_analysis_engine.core.failure_classification import failure_reaso
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
 from investment_analysis_engine.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from investment_analysis_engine.strategies.graham_growth.calculation import (
@@ -111,7 +112,7 @@ def execute_graham_growth(  # noqa: PLR0913
     composed_profile = compose_graham_profile(
         ticker,
         primary_provider=resolver.provider,
-        primary_provider_id=config.security_provider_id,
+        primary_provider_id=SEC_PROVIDER_ID,
         yahoo_provider=profile_provider,
         profile_cache=profile_cache,
     )

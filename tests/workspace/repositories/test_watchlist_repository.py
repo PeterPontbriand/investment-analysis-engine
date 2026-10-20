@@ -134,8 +134,8 @@ def test_add_entries_allows_the_same_method_twice_for_one_ticker_with_different_
 ) -> None:
     """Amendment A1: comparing two configurations of the same method is now supported."""
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
-    plain = GrahamNumberSelection(security_provider_id="sec_edgar")
-    with_override = GrahamNumberSelection(security_provider_id="sec_edgar", bvps_override=12.5)
+    plain = GrahamNumberSelection()
+    with_override = GrahamNumberSelection(bvps_override=12.5)
     updated = repository.add_entries(watchlist.display_name, [("AAPL", plain), ("AAPL", with_override)])
     assert len(updated.entries) == 2
     assert all(entry.ticker == "AAPL" for entry in updated.entries)
@@ -232,8 +232,8 @@ def test_remove_entries_for_ticker_removes_every_entry_for_that_ticker(
     watchlist = repository.add_entries(
         watchlist.display_name,
         [
-            ("AAPL", GrahamNumberSelection(security_provider_id="sec_edgar")),
-            ("AAPL", GrahamNumberSelection(security_provider_id="sec_edgar", bvps_override=1.0)),
+            ("AAPL", GrahamNumberSelection()),
+            ("AAPL", GrahamNumberSelection(bvps_override=1.0)),
             ("KO", GrahamNumberSelection()),
         ],
     )

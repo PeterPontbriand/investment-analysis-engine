@@ -14,7 +14,6 @@ from investment_analysis_engine.data.financial.facts import FinancialFactRequest
 from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
 from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW,
-    PROVIDER_ID,
     SECURITY_ID,
     SUBJECT_ERROR,
     SUBJECT_MISSING,
@@ -79,7 +78,7 @@ def _resolver(growth: bool) -> GrahamNumberInputResolver | GrahamGrowthInputReso
 
 
 def _config(growth: bool, **values: Any) -> GrahamNumberConfig | GrahamGrowthConfig:
-    fields = {"security_provider_id": PROVIDER_ID, **values}
+    fields = dict(values)
     if growth:
         return GrahamGrowthConfig.model_validate({"expected_growth": 5.0, "aaa_yield_override": 4.5, **fields})
     return GrahamNumberConfig.model_validate(fields)

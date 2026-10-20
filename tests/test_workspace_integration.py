@@ -34,10 +34,8 @@ from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_n
 runner = CliRunner()
 
 
-def _resolver_side_effect(
-    *, resolver_type: type, data_provider: str | None = None, cache: object = None, clock: object = None
-) -> object:
-    del data_provider, cache, clock
+def _resolver_side_effect(*, resolver_type: type, cache: object = None, clock: object = None) -> object:
+    del cache, clock
     if resolver_type is GrahamNumberInputResolver:
         return sec_labeled_number_resolver()
     return sec_labeled_growth_resolver()

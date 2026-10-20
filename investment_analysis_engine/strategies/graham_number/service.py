@@ -16,7 +16,9 @@ from investment_analysis_engine.analysis.shared.financial_resolution import (
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.facts import financial_facts_analysis_scope
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, complete_security_unit_profile
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.security_unit import SecurityUnitRequest
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_number.calculation import (
     GrahamNumberInputAssembly,
     GrahamNumberInputResolver,
@@ -49,8 +51,6 @@ def run_graham_number_analysis(  # noqa: PLR0913
     *,
     resolver: GrahamNumberInputResolver,
     ticker: str,
-    security_provider_id: str,
-    quote_provider_id: str,
     eps_override: float | None,
     bvps_override: float | None,
     quote_override: float | None,
@@ -74,16 +74,16 @@ def run_graham_number_analysis(  # noqa: PLR0913
         with financial_facts_analysis_scope(
             resolver.provider,
             subject_id=ticker,
-            provider_id=security_provider_id,
+            provider_id=SEC_PROVIDER_ID,
             as_of=as_of,
         ):
             assembly = resolver.assemble_graham_number(
                 security_subject_id=ticker,
-                security_provider_id=security_provider_id,
+                security_provider_id=SEC_PROVIDER_ID,
                 eps_override=eps_override,
                 bvps_override=bvps_override,
                 quote_override=quote_override,
-                quote_provider_id=quote_provider_id,
+                quote_provider_id=YFINANCE_PROVIDER_ID,
                 as_of=as_of,
                 use_cache=use_cache,
             )
@@ -97,7 +97,7 @@ def run_graham_number_analysis(  # noqa: PLR0913
                     resolver.provider,
                     SecurityUnitRequest(
                         ticker,
-                        security_provider_id,
+                        SEC_PROVIDER_ID,
                         as_of,
                         tuple(value for value in (assembly.eps, assembly.bvps) if value is not None),
                         assembly.current_price,

@@ -3,7 +3,9 @@
 Provides a small, internally coherent synthetic dataset sufficient to exercise
 both Graham methods and the resolver/assembly contracts without network access.
 
-All field identifiers, provider IDs, and series names are **synthetic fixture
+The provider IDs are the production ones (SEC EDGAR for company facts and the
+precedence cache, yfinance for the quote), so the strategies run unchanged against
+the fixture. Field identifiers, values, and series names are **synthetic fixture
 identifiers** and do NOT represent verified production-provider capabilities.
 Production-provider evidence belongs to Slice E1.
 
@@ -29,6 +31,8 @@ from investment_analysis_engine.data.financial.facts import (
     ProviderFact,
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 GRAHAM_FACTS_FIXTURE_ID: Final = "graham_facts"
 GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID: Final = "graham_precedence_cache"
@@ -37,7 +41,6 @@ GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID: Final = "graham_precedence_cache"
 # Synthetic identity constants (NOT production mappings)
 # ---------------------------------------------------------------------------
 
-PROVIDER_ID: str = "fixture-synth"
 SECURITY_ID: str = "SYNTH"
 MACRO_ID: str = "fixture-aaa"
 CURRENCY: str = "USD"
@@ -123,7 +126,7 @@ def precedence_bvps_cache() -> InMemoryResolvedInputCache:
         resolved_at=NOW,
         units="currency_per_share",
         currency=CURRENCY,
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         provider_field=FIELD_BVPS,
         available_at=BVPS_AVAIL,
         as_of=NOW,
@@ -135,7 +138,7 @@ def precedence_bvps_cache() -> InMemoryResolvedInputCache:
             subject_id=SECURITY_ID,
             field_name=FinancialField.BVPS,
             basis=None,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             analysis_as_of=NOW,
             schema_version=1,
         ),
@@ -269,7 +272,7 @@ class FixtureFinancialFactsProvider:
                 field_name=FinancialField.EPS,
                 value=EPS_FY2022,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=SEC_PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis="fiscal_year",
@@ -285,7 +288,7 @@ class FixtureFinancialFactsProvider:
                 field_name=FinancialField.EPS,
                 value=EPS_FY2023,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=SEC_PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis="fiscal_year",
@@ -301,7 +304,7 @@ class FixtureFinancialFactsProvider:
                 field_name=FinancialField.EPS,
                 value=EPS_FY2024,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=SEC_PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis="fiscal_year",
@@ -321,7 +324,7 @@ class FixtureFinancialFactsProvider:
             field_name=FinancialField.BVPS,
             value=BVPS_VALUE,
             units=FinancialUnit.CURRENCY_PER_SHARE,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             provider_field=FIELD_BVPS,
             retrieved_at=RETRIEVED_AT,
             currency=CURRENCY,
@@ -338,7 +341,7 @@ class FixtureFinancialFactsProvider:
             field_name=FinancialField.CURRENT_PRICE,
             value=QUOTE_VALUE,
             units=FinancialUnit.CURRENCY_PER_SHARE,
-            provider_id=PROVIDER_ID,
+            provider_id=YFINANCE_PROVIDER_ID,
             provider_field=FIELD_QUOTE,
             retrieved_at=self._quote_retrieved_at,
             currency=CURRENCY,
@@ -355,7 +358,7 @@ class FixtureFinancialFactsProvider:
             field_name=FinancialField.CURRENT_AAA_YIELD,
             value=AAA_YIELD_VALUE,
             units=FinancialUnit.PERCENTAGE_POINTS,
-            provider_id=PROVIDER_ID,
+            provider_id=SEC_PROVIDER_ID,
             provider_field=FIELD_AAA_YIELD,
             retrieved_at=RETRIEVED_AT,
             observed_at=AAA_OBSERVED,
@@ -382,7 +385,7 @@ class FixtureFinancialFactsProvider:
                     field_name=FinancialField.CURRENT_AAA_YIELD,
                     value=AAA_YIELD_VALUE,
                     units=FinancialUnit.PERCENTAGE_POINTS,
-                    provider_id=PROVIDER_ID,
+                    provider_id=SEC_PROVIDER_ID,
                     provider_field=FIELD_AAA_YIELD,
                     retrieved_at=FUTURE_RETRIEVED_AT,
                     observed_at=AAA_OBSERVED,
@@ -398,7 +401,7 @@ class FixtureFinancialFactsProvider:
                     field_name=FinancialField.EPS,
                     value=EPS_FY2025,
                     units=FinancialUnit.CURRENCY_PER_SHARE,
-                    provider_id=PROVIDER_ID,
+                    provider_id=SEC_PROVIDER_ID,
                     provider_field=FIELD_ANNUAL_EPS,
                     retrieved_at=FUTURE_RETRIEVED_AT,
                     basis="fiscal_year",
@@ -417,7 +420,7 @@ class FixtureFinancialFactsProvider:
                     field_name=FinancialField.BVPS,
                     value=BVPS_VALUE,
                     units=FinancialUnit.CURRENCY_PER_SHARE,
-                    provider_id=PROVIDER_ID,
+                    provider_id=SEC_PROVIDER_ID,
                     provider_field=FIELD_BVPS,
                     retrieved_at=FUTURE_RETRIEVED_AT,
                     currency=CURRENCY,
@@ -434,7 +437,7 @@ class FixtureFinancialFactsProvider:
                 field_name=request.field_name,
                 value=QUOTE_VALUE,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=YFINANCE_PROVIDER_ID,
                 provider_field=FIELD_QUOTE,
                 retrieved_at=FUTURE_RETRIEVED_AT,
                 currency=CURRENCY,
@@ -463,7 +466,7 @@ class FixtureFinancialFactsProvider:
                 field_name=FinancialField.EPS,
                 value=EPS_FY2024,
                 units=FinancialUnit.CURRENCY_PER_SHARE,
-                provider_id=PROVIDER_ID,
+                provider_id=SEC_PROVIDER_ID,
                 provider_field=FIELD_ANNUAL_EPS,
                 retrieved_at=RETRIEVED_AT,
                 basis=mismatched,

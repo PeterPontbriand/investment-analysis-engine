@@ -1,15 +1,28 @@
 """The contributor guide, the lasting authorization of the strategy descriptor and Momentum's one profile composition.
 
 Three conventions are written down in prose or confined to one function. Each test fails with a sentence that
-names what moved, so a rename or a second copy cannot go unnoticed.
+names what moved, so a rename or a second copy cannot go unnoticed. The single-valued provider option and field
+are kept out of every strategy by the last two tests.
 """
 
 import ast
+import dataclasses
 import importlib
 import re
 from pathlib import Path
 from typing import Final
 
+import pytest
+from pydantic import BaseModel
+from typer.testing import CliRunner
+
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig
+from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
+from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
+from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig
+from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyBehavior
 from scripts.repository_root import REPOSITORY_ROOT
 
 GUIDE: Final = REPOSITORY_ROOT / "docs" / "TOOL_DEVELOPMENT.md"
@@ -89,3 +102,53 @@ def test_momentum_composes_its_instrument_profile_in_one_function() -> None:
     assert functions == {"compose_momentum_profile"}, f"Only compose_momentum_profile may build it; found {functions}."
     cli = (MOMENTUM_PACKAGE / "cli.py").read_text(encoding="utf-8")
     assert cli.count("compose_momentum_profile(") == 3, "The direct, save-run and refresh paths must each call it."
+
+
+_CONFIG_TYPES: Final = (MomentumConfig, GrahamNumberConfig, GrahamGrowthConfig, FCFEarningsGrowthConfig)
+_REMOVED_OPTION_COMMANDS: Final = (
+    *(
+        ([descriptor.alias], descriptor.alias)
+        for entry in CLI_STRATEGIES
+        for descriptor in STRATEGIES
+        if descriptor.behavior is entry.behavior
+    ),
+    (["watchlist", "create", "Core"], "watchlist create"),
+    (["watchlist", "add-selection", "Core"], "watchlist add-selection"),
+)
+
+
+def _field_names(model: type) -> list[str]:
+    """Return the field names of a Pydantic model or a dataclass."""
+    if issubclass(model, BaseModel):
+        return list(model.model_fields)
+    assert dataclasses.is_dataclass(model), f"{model.__name__} is neither a Pydantic model nor a dataclass."
+    return [field.name for field in dataclasses.fields(model)]
+
+
+@pytest.mark.parametrize(
+    ("prefix", "label"), _REMOVED_OPTION_COMMANDS, ids=[label for _, label in _REMOVED_OPTION_COMMANDS]
+)
+def test_data_provider_option_is_rejected_with_exit_2(prefix: list[str], label: str) -> None:
+    arguments = [*prefix, "AAPL", "--data-provider", "sec_edgar"]
+    if prefix[0] == "watchlist":
+        arguments += ["-a", "momentum"]
+    result = CliRunner().invoke(app, arguments)
+    assert result.exit_code == 2, (
+        f"{label} must reject --data-provider as an unknown option (exit 2); it exited {result.exit_code}. "
+        "A strategy has one provider for each kind of fact, so the option can hold only one value."
+    )
+
+
+def test_no_strategy_model_has_a_provider_id_field() -> None:
+    models: list[type] = [*_CONFIG_TYPES]
+    for descriptor in STRATEGIES:
+        behavior = descriptor.behavior
+        assert isinstance(behavior, StrategyBehavior), f"{descriptor.alias} declares no strategy behavior."
+        models += [behavior.selection_type, behavior.deps_type]
+    offenders = [
+        f"{model.__name__}.{name}" for model in models for name in _field_names(model) if name.endswith("provider_id")
+    ]
+    assert offenders == [], (
+        f"{offenders} hold a provider identifier a strategy owns as a named constant: a field that can hold only "
+        "one value is not added."
+    )

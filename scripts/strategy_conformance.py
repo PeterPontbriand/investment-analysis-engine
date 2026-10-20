@@ -1037,7 +1037,6 @@ def _cli_tier_probes(
         long_window=20,
         rsi_period=14,
         as_of=None,
-        data_provider=None,
         no_cache=True,
         eps=None,
         eps_basis=None,

@@ -44,22 +44,16 @@ class FCFEarningsGrowthToolArguments(AnalysisToolArguments):
 
 @dataclass(frozen=True)
 class FCFEarningsGrowthToolDependencies:
-    """Injected FCF & Earnings Growth analyzer and provider selection."""
+    """Injected FCF & Earnings Growth analyzer."""
 
     analyzer: FCFEarningsGrowthAnalyzer
-    provider_id: str
-
-    def __post_init__(self) -> None:
-        """Reject a missing provider selection before any tool is registered."""
-        if not self.provider_id.strip():
-            raise ValueError("Analysis tool provider IDs must be non-empty.")
 
 
 class FCFEarningsGrowthToolHandler:
     """Bind FCF & Earnings Growth's injected analyzer and shared runtime to the analysis tool."""
 
     def __init__(self, dependencies: FCFEarningsGrowthToolDependencies, runtime: ToolRuntime) -> None:
-        """Retain the explicitly injected analyzer, provider selection and shared runtime."""
+        """Retain the explicitly injected analyzer and shared runtime."""
         self._dependencies = dependencies
         self._runtime = runtime
 
@@ -75,7 +69,6 @@ class FCFEarningsGrowthToolHandler:
         config = FCFEarningsGrowthConfig(
             policy=policy,
             currency=arguments.currency,
-            provider_id=self._dependencies.provider_id,
         )
         executed_at = self._runtime.validated_clock_value()
         profile = self._runtime.resolve_profile(arguments.ticker)

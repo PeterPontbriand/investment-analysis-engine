@@ -27,7 +27,7 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
-from investment_analysis_engine.evaluation.fixtures.graham import NOW, PROVIDER_ID, FixtureFinancialFactsProvider
+from investment_analysis_engine.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from scripts.repository_root import REPOSITORY_ROOT
 
@@ -46,7 +46,7 @@ class GrahamProvider:
         if self.fail:
             raise AssertionError("Unexpected provider access")
         facts = FixtureFinancialFactsProvider().fetch_facts(
-            replace(request, provider_id=PROVIDER_ID), effective_as_of=effective_as_of
+            replace(request, provider_id=SEC_PROVIDER_ID), effective_as_of=effective_as_of
         )
         return tuple(replace(fact, provider_id=request.provider_id) for fact in facts)
 
@@ -226,7 +226,5 @@ def test_explicit_memory_cache_is_retained() -> None:
     with patch(
         "investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=GrahamProvider()
     ):
-        resolver = build_graham_resolver(
-            resolver_type=GrahamNumberInputResolver, data_provider=None, cache=cache, clock=lambda: NOW
-        )
+        resolver = build_graham_resolver(resolver_type=GrahamNumberInputResolver, cache=cache, clock=lambda: NOW)
     assert resolver._cache is cache

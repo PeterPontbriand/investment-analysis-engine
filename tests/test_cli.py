@@ -20,18 +20,14 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.market_data import MarketDataContext
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW,
-    PROVIDER_ID,
     SECURITY_ID,
     SUBJECT_MISSING,
 )
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
-from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
 from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
 from tests._sec_labeled_graham import SecLabeledGrahamProvider, sec_labeled_growth_resolver, sec_labeled_number_resolver
@@ -81,10 +77,10 @@ def disable_live_yfinance_identity_resolution() -> Iterator[None]:
 
 def test_normalize_cli_output_strips_ansi_and_box_characters() -> None:
     """Prove the helper removes ANSI escape codes and normalizes Rich box/border layout."""
-    styled = "\x1b[1m--expected-growth\x1b[0m is required\n╭─╮\n│  use --data-provider sec_edgar for SEC data  │\n╰─╯"
+    styled = "\x1b[1m--expected-growth\x1b[0m is required\n╭─╮\n│  use --no-cache for fresh data  │\n╰─╯"
     normalized = normalize_cli_output(styled)
     assert "--expected-growth is required" in normalized
-    assert "use --data-provider sec_edgar for SEC data" in normalized
+    assert "use --no-cache for fresh data" in normalized
     assert "\x1b" not in normalized
     for ch in "─│┌┐└┘╭╮╰╯":
         assert ch not in normalized
@@ -462,9 +458,7 @@ def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adap
     declared_identity = "investment-analysis-engine-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        build_graham_resolver(
-            resolver_type=GrahamNumberInputResolver, data_provider=None, clock=lambda: datetime.now(UTC)
-        )
+        build_graham_resolver(resolver_type=GrahamNumberInputResolver, clock=lambda: datetime.now(UTC))
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
@@ -474,9 +468,7 @@ def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: Ma
     declared_identity = "investment-analysis-engine-test test@example.invalid"
 
     with patch.object(settings, "sec_user_agent", declared_identity):
-        build_graham_resolver(
-            resolver_type=GrahamGrowthInputResolver, data_provider=None, clock=lambda: datetime.now(UTC)
-        )
+        build_graham_resolver(resolver_type=GrahamGrowthInputResolver, clock=lambda: datetime.now(UTC))
 
     mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
 
@@ -485,7 +477,7 @@ def test_cli_graham_number_concise_analysis(fixture_resolver: GrahamNumberInputR
     with patch(
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver
     ):
-        result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID])
+        result = runner.invoke(app, ["graham-number", SECURITY_ID])
 
     assert result.exit_code == 0
     assert f"{SECURITY_ID} — Graham Number" in result.output
@@ -499,7 +491,7 @@ def test_cli_graham_legacy_ticker_option_still_routes(fixture_resolver: GrahamNu
     with patch(
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver
     ):
-        result = runner.invoke(app, ["graham-number", "--ticker", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID])
+        result = runner.invoke(app, ["graham-number", "--ticker", SECURITY_ID])
 
     assert result.exit_code == 0
     assert f"{SECURITY_ID} — Graham Number" in result.output
@@ -509,7 +501,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
     with patch(
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver
     ):
-        result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID, "--json"])
+        result = runner.invoke(app, ["graham-number", SECURITY_ID, "--json"])
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
@@ -574,8 +566,6 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
             [
                 "graham-growth" if method_arguments else "graham-number",
                 "FLSW",
-                "--data-provider",
-                SEC_PROVIDER_ID,
                 *method_arguments,
             ],
         )
@@ -595,7 +585,7 @@ def test_cli_graham_number_eps_override_inherits_default_basis(fixture_resolver:
     ):
         result = runner.invoke(
             app,
-            ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID, "--eps", "4.0", "--json"],
+            ["graham-number", SECURITY_ID, "--eps", "4.0", "--json"],
         )
 
     assert result.exit_code == 0
@@ -609,7 +599,7 @@ def test_cli_graham_number_optional_quote_failure_preserves_value() -> None:
     resolver = GrahamNumberInputResolver(QuoteUnavailableProvider(), clock=lambda: NOW)
 
     with patch("investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=resolver):
-        result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID])
+        result = runner.invoke(app, ["graham-number", SECURITY_ID])
 
     assert result.exit_code == 0
     assert "Graham Number (maximum indicated price):" in result.output
@@ -671,8 +661,6 @@ def test_cli_graham_growth_override_heavy_analysis_is_conspicuous(
             [
                 "graham-growth",
                 SECURITY_ID,
-                "--data-provider",
-                SEC_PROVIDER_ID,
                 "--eps",
                 "4.8",
                 "--expected-growth",
@@ -703,8 +691,6 @@ def test_cli_graham_fully_override_driven_unverified_ticker_is_rejected(
             [
                 "graham-growth",
                 "NOTREAL",
-                "--data-provider",
-                SEC_PROVIDER_ID,
                 "--eps",
                 "4.8",
                 "--expected-growth",
@@ -729,7 +715,7 @@ def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(
     with patch(
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver
     ):
-        result = runner.invoke(app, ["graham-number", SUBJECT_MISSING, "--data-provider", SEC_PROVIDER_ID])
+        result = runner.invoke(app, ["graham-number", SUBJECT_MISSING])
 
     assert result.exit_code == 1
     lines = [line for line in result.output.splitlines() if line.strip()]
@@ -745,10 +731,10 @@ def test_cli_graham_diagnostics_exposes_trace_only_when_requested(fixture_resolv
     with patch(
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver
     ):
-        concise = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID])
+        concise = runner.invoke(app, ["graham-number", SECURITY_ID])
         diagnostics = runner.invoke(
             app,
-            ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID, "--diagnostics"],
+            ["graham-number", SECURITY_ID, "--diagnostics"],
         )
 
     assert concise.exit_code == 0
@@ -763,7 +749,7 @@ def test_cli_graham_details_shows_financial_provenance(fixture_resolver: GrahamN
     with patch(
         "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=fixture_resolver
     ):
-        result = runner.invoke(app, ["graham-number", SECURITY_ID, "--data-provider", SEC_PROVIDER_ID, "--details"])
+        result = runner.invoke(app, ["graham-number", SECURITY_ID, "--details"])
 
     assert result.exit_code == 0
     assert "Details" in result.output
@@ -778,27 +764,6 @@ def test_cli_graham_conflicting_positional_and_option_tickers_are_an_invalid_par
 
     assert result.exit_code == 1
     assert "refer to different symbols" in result.output
-
-
-@pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
-def test_cli_graham_unsupported_provider_is_an_invalid_parameter_before_network_setup(command: str) -> None:
-    arguments = [command, "AAPL", "--data-provider", "not-a-provider"]
-    if command == "graham-growth":
-        arguments += ["--expected-growth", "5", "--aaa-yield", "4"]
-    sentence = (
-        "Invalid --data-provider: Unsupported security provider 'not-a-provider'; supported provider is 'sec_edgar'."
-    )
-
-    with patch(f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli.build_graham_resolver") as build:
-        text = runner.invoke(app, arguments)
-        document = json.loads(runner.invoke(app, [*arguments, "--json"]).stdout)
-
-    assert text.exit_code == 1
-    assert text.stderr.strip() == sentence
-    assert document["reason_code"] == "invalid_parameter"
-    assert document["parameters"] == ["--data-provider"]
-    assert document["reason"] == sentence
-    build.assert_not_called()
 
 
 def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
@@ -826,8 +791,6 @@ def test_cli_graham_transitional_growth_flag_aliases_remain_supported(
             [
                 "graham-growth",
                 SECURITY_ID,
-                "--data-provider",
-                SEC_PROVIDER_ID,
                 "--expected-growth-rate",
                 "6.5",
                 "--current-aaa-yield",
@@ -851,8 +814,6 @@ def test_cli_graham_growth_eps_override_inherits_three_year_average_basis(
             [
                 "graham-growth",
                 SECURITY_ID,
-                "--data-provider",
-                SEC_PROVIDER_ID,
                 "--eps",
                 "4.8",
                 "--expected-growth",
@@ -867,19 +828,6 @@ def test_cli_graham_growth_eps_override_inherits_three_year_average_basis(
     payload = json.loads(result.output)
     assert payload["inputs"]["eps"]["source_kind"] == "override"
     assert payload["inputs"]["eps"]["basis"] == "three_year_average"
-
-
-def test_graham_quote_provider_routing_is_method_aware() -> None:
-    assert GrahamNumberConfig().quote_provider_id == "yfinance"
-    assert GrahamNumberConfig(security_provider_id="sec_edgar").quote_provider_id == "yfinance"
-    assert GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.5).quote_provider_id == "yfinance"
-    assert (
-        GrahamGrowthConfig(
-            security_provider_id="sec_edgar", expected_growth=5.0, aaa_yield_override=4.5
-        ).quote_provider_id
-        == "yfinance"
-    )
-    assert GrahamNumberConfig(security_provider_id=PROVIDER_ID).quote_provider_id == PROVIDER_ID
 
 
 @pytest.fixture

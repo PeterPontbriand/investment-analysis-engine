@@ -289,7 +289,6 @@ def _build_selection(  # noqa: PLR0913
     long_window: int,
     rsi_period: int,
     as_of: str | None,
-    data_provider: str | None,
     no_cache: bool,
     eps: float | None,
     eps_basis: str | None,
@@ -313,7 +312,6 @@ def _build_selection(  # noqa: PLR0913
         long_window=long_window,
         rsi_period=rsi_period,
         as_of=as_of,
-        data_provider=data_provider,
         no_cache=no_cache,
         eps=eps,
         eps_basis=eps_basis,
@@ -353,10 +351,6 @@ def watchlist_create(  # noqa: PLR0913
     as_of: Annotated[
         str | None,
         typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
-    ] = None,
-    data_provider: Annotated[
-        str | None,
-        typer.Option("--data-provider", help="Security-fact provider override (graham-number/graham-growth)."),
     ] = None,
     no_cache: Annotated[
         bool,
@@ -444,7 +438,6 @@ def watchlist_create(  # noqa: PLR0913
                 long_window=long_window,
                 rsi_period=rsi_period,
                 as_of=as_of,
-                data_provider=data_provider,
                 no_cache=no_cache,
                 eps=eps,
                 eps_basis=eps_basis,
@@ -495,10 +488,6 @@ def watchlist_add_selection(  # noqa: PLR0913
     as_of: Annotated[
         str | None,
         typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
-    ] = None,
-    data_provider: Annotated[
-        str | None,
-        typer.Option("--data-provider", help="Security-fact provider override (graham-number/graham-growth)."),
     ] = None,
     no_cache: Annotated[
         bool,
@@ -571,7 +560,6 @@ def watchlist_add_selection(  # noqa: PLR0913
             long_window=long_window,
             rsi_period=rsi_period,
             as_of=as_of,
-            data_provider=data_provider,
             no_cache=no_cache,
             eps=eps,
             eps_basis=eps_basis,

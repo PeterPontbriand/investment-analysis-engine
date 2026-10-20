@@ -5,7 +5,6 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.graham import (
     SECURITY_ID,
 )
@@ -24,8 +23,6 @@ def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> No
             [
                 "graham-growth",
                 SECURITY_ID,
-                "--data-provider",
-                SEC_PROVIDER_ID,
                 "--eps",
                 "-1.5",
                 "--expected-growth",

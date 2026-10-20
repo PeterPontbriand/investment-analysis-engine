@@ -303,16 +303,6 @@ def _production_database() -> SQLiteDatabase:
     return SQLiteDatabase(settings)
 
 
-def _canonical_provider_id(value: str | None) -> str | None:
-    """Normalize an optional provider identifier."""
-    if value is None:
-        return None
-    normalized = value.strip().lower()
-    if not normalized:
-        raise InvalidParameterError("--data-provider must be non-empty when supplied.", parameters=("--data-provider",))
-    return normalized
-
-
 def _parse_as_of(value: str | None) -> datetime | None:
     """Parse a CLI as-of boundary without silently assuming a timestamp timezone."""
     if value is None:
@@ -448,7 +438,6 @@ def config_usage_errors() -> Iterator[None]:
         error = exc.errors(include_input=False, include_url=False)[0]
         location = error["loc"]
         names = {
-            "security_provider_id": "--data-provider",
             "eps_basis": "--eps-basis",
             "eps_override": "--eps",
             "bvps_override": "--bvps",

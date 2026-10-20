@@ -97,7 +97,6 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarning
             subject_id=ticker,
             currency=config.currency,
             as_of=context.as_of,
-            provider_id=config.provider_id,
             use_cache=context.use_cache,
             effective_as_of=boundary,
         )

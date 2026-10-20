@@ -127,17 +127,6 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
                 json_flag=True,
             )
         )
-    # SUP-5
-    for command in (*_GRAHAM, "fcf-growth"):
-        add(
-            _check(
-                "SUP-5",
-                _direct(command, "--data-provider", " "),
-                "--data-provider must be non-empty when supplied.",
-                ("--data-provider",),
-                json_flag=True,
-            )
-        )
     # SUP-6 to SUP-8
     for command in _DIRECT_COMMANDS:
         add(
@@ -188,17 +177,6 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
                 json_flag=False,
             )
         )
-    for method in ("graham-number", "graham-growth", "fcf-growth"):
-        extra = _GROWTH if method == "graham-growth" else ()
-        add(
-            _check(
-                "SUP-5",
-                ("watchlist", "create", "W", "AAPL", "-a", method, *extra, "--data-provider", " "),
-                "--data-provider must be non-empty when supplied.",
-                ("--data-provider",),
-                json_flag=False,
-            )
-        )
     # SUP-9: direct commands
     growth_basis = "Invalid --eps-basis: Input should be 'three_year_average' or 'fiscal_year'"
     add(
@@ -215,19 +193,6 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
             json_flag=True,
         )
     )
-    provider_sentence = (
-        "Invalid --data-provider: Unsupported security provider 'bogus'; supported provider is 'sec_edgar'."
-    )
-    for command in ("graham-number", "graham-growth"):
-        add(
-            _check(
-                "SUP-9",
-                _direct(command, "--data-provider", "bogus"),
-                provider_sentence,
-                ("--data-provider",),
-                json_flag=True,
-            )
-        )
     finite = "Financial override must be a finite number."
     for value in ("nan", "inf", "-inf"):
         for option in ("--eps", "--bvps", "--current-price"):
@@ -280,15 +245,6 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
     )
     for method in ("graham-number", "graham-growth"):
         extra = _GROWTH if method == "graham-growth" else ()
-        add(
-            _check(
-                "SUP-9",
-                ("watchlist", "create", "W", "AAPL", "-a", method, *extra, "--data-provider", "bogus"),
-                "Invalid --data-provider: Unsupported security provider 'bogus'; supported provider is 'sec_edgar'.",
-                ("--data-provider",),
-                json_flag=False,
-            )
-        )
         add(
             _check(
                 "SUP-9",
@@ -811,12 +767,9 @@ _ORDER = [
     (("momentum", "AAPL", "--details", "--json", "--short-window", "0"), ("--details", "--json")),
     (("momentum", "AAPL", "--short-window", "0", "--as-of", "bad"), ("--short-window",)),
     (("momentum", "AAPL", "--as-of", "bad", "--save-run"), ("--as-of",)),
-    (("graham-number", "AAPL", "--as-of", "bad", "--data-provider", " "), ("--as-of",)),
-    (("graham-number", "AAPL", "--data-provider", " ", "--eps=nan"), ("--data-provider",)),
     (("graham-number", "AAPL", "--ticker", "MSFT"), ("TICKER", "--ticker")),
     (("fcf-growth", "AAPL", "--growth-years", "9", "--as-of", "bad"), ("--growth-years",)),
     (("fcf-growth", "AAPL", "--as-of", "bad", "--currency", "XX"), ("--as-of",)),
-    (("fcf-growth", "AAPL", "--data-provider", " ", "--currency", "XX"), ("--data-provider",)),
     (("fcf-growth", "AAPL", "--currency", "XX", "--classification-basis", "nope"), ("--currency",)),
     (("fcf-growth", "AAPL", "--classification-basis", "nope", "--forward-policy", "nope"), ("--classification-basis",)),
     (("watchlist", "create", "W", "AAPL", "-a", "bogus", "--short-window", "0"), ("--analysis",)),
@@ -916,7 +869,6 @@ def test_exit_code_1_is_not_the_parser_for_any_command_check() -> None:
         "SUP-2",
         "SUP-3",
         "SUP-4",
-        "SUP-5",
         "SUP-6",
         "SUP-7",
         "SUP-8",
@@ -965,8 +917,6 @@ _PARITY_CASES = [
     ("graham-number", ("--eps=nan",)),
     ("graham-number", ("--bvps=inf",)),
     ("graham-number", ("--current-price=-inf",)),
-    ("graham-number", ("--data-provider", "bogus")),
-    ("graham-number", ("--data-provider", " SEC_EDGAR ")),
     ("graham-number", ("--as-of", "2025-01-31")),
     ("graham-growth", _PARITY_GROWTH),
     ("graham-growth", (*_PARITY_GROWTH, "--eps", "3", "--current-price", "50")),
@@ -976,7 +926,6 @@ _PARITY_CASES = [
     ("graham-growth", ("--expected-growth", "5", "--aaa-yield=-inf")),
     ("graham-growth", (*_PARITY_GROWTH, "--eps-basis", "ttm")),
     ("graham-growth", (*_PARITY_GROWTH, "--eps-basis", "fiscal_year")),
-    ("graham-growth", (*_PARITY_GROWTH, "--data-provider", "bogus")),
     ("graham-growth", (*_PARITY_GROWTH, "--as-of", "2025-01-31")),
 ]
 

@@ -25,9 +25,9 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 
 | Unit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| Slice plan | [This document](#3-the-work-units) and the parent-plan updates | In progress | |
-| #143 | [Remove the data-provider option and its chain](#143--remove-the-data-provider-option-and-its-chain) | Planned | |
-| #140 | [Rename "sentence" to "message"](#140--sentence-becomes-message) | Planned | |
+| Slice plan | [This document](#3-the-work-units) and the parent-plan updates | Complete | 2026-10-19 |
+| #143 | [Remove the data-provider option and its chain](#143--remove-the-data-provider-option-and-its-chain) | Complete | 2026-10-20 |
+| #140 | [Rename "sentence" to "message"](#140--sentence-becomes-message) | Next | |
 | Completion | [Plan rows and the final gate](#completion) | Planned | |
 
 ## 3. The work units
@@ -62,9 +62,10 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 | :--- | :--- |
 | `investment_analysis_engine/cli_support.py` | `_canonical_provider_id`; the `security_provider_id` → `--data-provider` entry of the option-name map |
 | `investment_analysis_engine/analysis/selection_base.py` | `CLI_SECURITY_PROVIDERS`, `CLI_QUOTE_PROVIDERS` |
-| `investment_analysis_engine/strategies/graham_number/` and `graham_growth/` | `security_provider_id` and `quote_provider_id` on config, selection and tool dependencies; the `--data-provider` option of each `cli.py`; the dead `else self.security_provider_id` branch in both configs; the service, calculation and execution parameters that only carried them |
+| `investment_analysis_engine/strategies/graham_number/` and `graham_growth/` | `security_provider_id` and `quote_provider_id` on config, selection and tool dependencies; the `--data-provider` option of each `cli.py`; the dead `else self.security_provider_id` branch in both configs; the `run_*_analysis` service and the execution parameters that only carried them |
 | `investment_analysis_engine/strategies/fcf_growth/` | `provider_id` on config, selection (`Literal["sec_edgar"]`) and tool dependencies; the `--data-provider` option of `cli.py` |
 | `investment_analysis_engine/cli_workspace.py`, `cli_watchlist_flags.py`, `cli_composition.py` | the `--data-provider` option of `watchlist create` and `watchlist add-selection`, the `data_provider` flag field and the `data_provider` parameter of `build_graham_resolver` |
+| `investment_analysis_engine/evaluation/fixtures/graham.py`, `investment_analysis_engine/strategies/_graham/evaluation.py` and the two Graham `evaluation.py` modules | the evaluation tier ran both Graham strategies against the fixture provider `fixture-synth`, which the removed fields carried. The fixture's company facts and precedence cache now carry `SEC_PROVIDER_ID` and its quote carries `YFINANCE_PROVIDER_ID` (as FCF Growth's evaluation composition already relabels its facts), `PROVIDER_ID` is removed, and `GrahamFixtureInputs` loses its `provider_id` field. The AAA fact carries `SEC_PROVIDER_ID` too, because the strategy always supplies the AAA yield as an override and `MACRO_ID` is unchanged. Field identifiers and values stay synthetic |
 | `AGENTS.md` §9 | the "Known exception, tracked in issue #143" sentence |
 | `schemas/` | regenerated: `watchlist.schema.json` and `watchlist-delete.schema.json` lose the removed selection fields. The watchlist document is unversioned, so no `schema_version` changes; each selection's own `config_schema_version` is bumped |
 | `scripts/` and `scripts/strategy_templates/` | any generator or conformance reference to the removed fields (found while implementing) |
@@ -72,6 +73,8 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 #### Kept
 
 - The `provider_id` parameters of shared resolvers and other shared code that more than one provider uses.
+- The `security_provider_id` and `quote_provider_id` parameters of the resolvers' `assemble_*` methods: a resolver is
+  built over any provider the caller injects, and its tests inject others.
 - The `provider_id` provenance fields of evidence, documents and published schemas: they record which source supplied
   a fact and take more than one value.
 
@@ -80,6 +83,17 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 - `CONFIG_SCHEMA_VERSION` is bumped in the `vocabulary.py` of Graham Number, Graham Growth and FCF Growth.
 - There is no migration or compatibility code. How an existing selection of the old shape is now rejected is found by
   running it and is reported with the slice.
+
+#### Tests removed
+
+Tests whose only subject was the removed behavior: `test_cli_graham_unsupported_provider_is_an_invalid_parameter_before_network_setup`,
+`test_graham_quote_provider_routing_is_method_aware`, `test_cli_fcf_growth_rejects_unapproved_provider_without_network_work`,
+`test_number_quote_provider_default`, `test_dependency_classes_reject_blank_provider_ids`,
+`test_graham_number_uses_the_foreign_private_issuer_provider_and_identity` and
+`test_graham_growth_uses_the_foreign_private_issuer_identity`; the `SUP-5` rows and the provider rows of the
+parity and order tables in `test_command_validation_failures.py`; and the `_canonical_provider_id` assertions of
+`test_cli_support.py`. `test_unsupported_providers_rejected` becomes `test_removed_provider_fields_are_rejected`,
+which asserts that a stored selection naming a removed field is refused.
 
 #### Documents and snapshots
 

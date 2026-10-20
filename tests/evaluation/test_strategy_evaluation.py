@@ -8,7 +8,6 @@ import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.quality import HistoricalDataQualityError
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixture_context import (
     FixtureCompositionError,
     FixtureContext,
@@ -28,7 +27,6 @@ from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW,
     SECURITY_ID,
 )
-from investment_analysis_engine.evaluation.fixtures.graham import PROVIDER_ID as GRAHAM_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
     GOLDEN_ETF_TICKER,
     KNOWN_ETF_PROFILE_FIXTURE_ID,
@@ -38,7 +36,6 @@ from investment_analysis_engine.evaluation.fixtures.market_data import (
     MOMENTUM_SUCCESS_FIXTURE_ID,
 )
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import (
-    SEC_FPI_ASML_FIXTURE_ID,
     SEC_FPI_FIXTURE_IDS,
     SEC_FPI_SAP_FIXTURE_ID,
 )
@@ -131,11 +128,8 @@ def _graham_number(context: FixtureContext, arguments: GrahamNumberToolArguments
 
 
 def test_graham_number_composes_the_selected_facts() -> None:
-    """Selected synthetic facts resolve; the provider identity is the fixture's."""
+    """Selected synthetic facts resolve."""
     context = _context(GRAHAM_FACTS_FIXTURE_ID)
-    dependencies = graham_number_evaluation.compose(context)
-    assert dependencies.security_provider_id == GRAHAM_PROVIDER_ID
-    assert dependencies.quote_provider_id == GRAHAM_PROVIDER_ID
     result = _graham_number(context, GrahamNumberToolArguments(ticker=SECURITY_ID))
     assert result.result.status is CalculationStatus.OK
 
@@ -144,13 +138,6 @@ def test_graham_number_without_selected_facts_reports_every_fact_as_absent() -> 
     """An unselected facts fixture is explicit absence, never default data."""
     result = _graham_number(_context(MOMENTUM_SUCCESS_FIXTURE_ID), GrahamNumberToolArguments(ticker=SECURITY_ID))
     assert result.result.status is CalculationStatus.INPUT_UNAVAILABLE
-
-
-def test_graham_number_uses_the_foreign_private_issuer_provider_and_identity() -> None:
-    """Selected SEC evidence replaces the synthetic provider and carries the SEC provider identity."""
-    dependencies = graham_number_evaluation.compose(_context(SEC_FPI_ASML_FIXTURE_ID))
-    assert dependencies.security_provider_id == SEC_PROVIDER_ID
-    assert dependencies.quote_provider_id == SEC_PROVIDER_ID
 
 
 def test_graham_number_reads_the_precedence_cache_only_when_selected() -> None:
@@ -192,9 +179,6 @@ def _growth_arguments() -> GrahamGrowthValueToolArguments:
 def test_graham_growth_composes_the_selected_facts_with_the_reviewed_policy() -> None:
     """Selected facts resolve and the reviewed policy yields the reviewed growth value."""
     context = _context(GRAHAM_FACTS_FIXTURE_ID)
-    dependencies = graham_growth_evaluation.compose(context)
-    assert dependencies.security_provider_id == GRAHAM_PROVIDER_ID
-    assert dependencies.quote_provider_id == GRAHAM_PROVIDER_ID
     result = _graham_growth(context, _growth_arguments())
     assert result.result.growth_value == pytest.approx(73.70441767068273, abs=1e-9)
 
@@ -203,13 +187,6 @@ def test_graham_growth_without_selected_facts_reports_every_fact_as_absent() -> 
     """An unselected facts fixture is explicit absence, never default data."""
     result = _graham_growth(_context(MOMENTUM_SUCCESS_FIXTURE_ID), _growth_arguments())
     assert result.result.status is CalculationStatus.INPUT_UNAVAILABLE
-
-
-def test_graham_growth_uses_the_foreign_private_issuer_identity() -> None:
-    """Selected SEC evidence carries the SEC provider identity for both providers."""
-    dependencies = graham_growth_evaluation.compose(_context(SEC_FPI_ASML_FIXTURE_ID))
-    assert dependencies.security_provider_id == SEC_PROVIDER_ID
-    assert dependencies.quote_provider_id == SEC_PROVIDER_ID
 
 
 def test_graham_growth_shares_the_graham_requirement() -> None:

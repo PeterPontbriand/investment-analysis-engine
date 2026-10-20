@@ -49,7 +49,6 @@ _FLAGS = WatchlistFlags(
     long_window=20,
     rsi_period=14,
     as_of=None,
-    data_provider=None,
     no_cache=False,
     eps=None,
     eps_basis=None,
