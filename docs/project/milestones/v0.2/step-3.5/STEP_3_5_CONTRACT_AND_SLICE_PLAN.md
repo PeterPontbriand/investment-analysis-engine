@@ -30,8 +30,9 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
     function returns it, as FCF-Growth's does. One question joins that decision: whether Momentum
     records an unavailable result for a provider failure
     ([A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07)). A second
-    question to settle before slice 3.5.0 is whether every strategy uses one shared mapping from statuses to a
-    run outcome ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)).
+    question, whether every strategy uses one shared mapping from statuses to a run outcome
+    ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)), is decided (yes, 2026-10-19) and implemented by slice PC.4 of the
+    [pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome).
   - A strategy slice ships complete: analyzer, wiring (including its `headline` function for the
     side-by-side table), presentation, tests, user guide, and `FINANCE_MATH.md` and `GLOSSARY.md` entries.
   - The managed quality gate after every slice, and explicit authorization before the next begins.
@@ -70,9 +71,9 @@ after SWC and PKG land, against the `main` of that day, because both packages ch
 wiring a plan must name. Each plan states:
 
 - exact files and starting points;
-- the decisions this contract leaves open, A.8 (Momentum's provider failure) and
-  [A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10) (the run-outcome
-  mapping);
+- the decision this contract leaves open, A.8 (Momentum's provider failure); the run-outcome mapping
+  ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)) is decided and implemented by slice PC.4 of the
+  [pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome);
 - new data fields and their mappings;
 - the boundary between resolver and calculator;
 - the result shape;
@@ -460,3 +461,6 @@ The question to settle when the Step 3.5 slice plan is drafted: should every str
 a conformance test over every declared strategy, in place of a per-strategy function? A strategy with no separate
 assembly status and one with a fixed outcome would need a defined place in it. Decision pending. Tracked in
 [issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111).
+
+**Decided 2026-10-19: yes.** The project owner approved one shared mapping. Slice PC.4 of the
+[pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) implements it and owns the design.
