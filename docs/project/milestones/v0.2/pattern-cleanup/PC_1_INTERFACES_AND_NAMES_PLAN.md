@@ -28,7 +28,7 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 | Slice plan | [This document](#3-the-work-units) and the parent-plan updates | Complete | 2026-10-19 |
 | #143 | [Remove the data-provider option and its chain](#143--remove-the-data-provider-option-and-its-chain) | Complete | 2026-10-20 |
 | #140 | [Rename "sentence" to "message"](#140--sentence-becomes-message) | Complete | 2026-10-20 |
-| Completion | [Plan rows and the final gate](#completion) | Next | |
+| Completion | [Plan rows and the final gate](#completion) | Complete | 2026-10-20 |
 
 ## 3. The work units
 
