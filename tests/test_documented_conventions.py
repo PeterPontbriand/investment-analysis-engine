@@ -189,6 +189,28 @@ def test_no_strategy_function_has_a_provider_id_parameter() -> None:
     )
 
 
+def test_no_strategy_class_has_a_provider_id_field() -> None:
+    offenders: list[str] = []
+    for path in sorted(STRATEGIES_PACKAGE.rglob("*.py")):
+        if path.name == "envelope.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            offenders += [
+                f"{path.relative_to(REPOSITORY_ROOT).as_posix()}:{item.lineno}: {node.name}.{item.target.id}"
+                for item in node.body
+                if isinstance(item, ast.AnnAssign)
+                and isinstance(item.target, ast.Name)
+                and item.target.id.endswith("provider_id")
+            ]
+    assert offenders == [], (
+        f"{offenders} hold a provider identifier a strategy owns as a named constant. Only the evidence document of "
+        "a strategy (envelope.py) records the source of a fact."
+    )
+
+
 _WORD: Final = "sen" + "tence"
 """The scanned word, written in two pieces so that this file does not contain it."""
 _MESSAGE_RULE: Final = (

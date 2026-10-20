@@ -276,7 +276,7 @@ class GrahamGrowthInputResolver(InputResolver):
         eps_basis: str,
         eps_override: float | None = None,
         expected_growth: float | None = None,
-        aaa_yield_override: float | None = None,
+        aaa_yield_override: float,
         quote_override: float | None = None,
         as_of: datetime | None = None,
         use_cache: bool = True,

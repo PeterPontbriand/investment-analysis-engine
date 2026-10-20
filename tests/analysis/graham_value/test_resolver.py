@@ -34,7 +34,7 @@ from investment_analysis_engine.data.financial.provenance import (
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
-from investment_analysis_engine.strategies.graham_growth.calculation import AAA_PROVIDER_ID, GrahamGrowthInputResolver
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 # ---------------------------------------------------------------------------
@@ -1816,20 +1816,6 @@ def _price_fact(value: float = 100.0) -> ProviderFact:
     )
 
 
-def _aaa_fact(value: float = 5.0) -> ProviderFact:
-    return ProviderFact(
-        subject_kind=FinancialSubjectKind.MACRO,
-        subject_id="AAA",
-        field_name=FinancialField.CURRENT_AAA_YIELD,
-        value=value,
-        units=FinancialUnit.PERCENTAGE_POINTS,
-        provider_id=AAA_PROVIDER_ID,
-        provider_field="aaa_synthetic",
-        retrieved_at=RETRIEVED_AT,
-        basis=None,
-    )
-
-
 def _single_eps_fact(value: float = 8.0) -> ProviderFact:
     return ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
@@ -1941,7 +1927,6 @@ def test_c2d_growth_value_success() -> None:
     provider = MultiFieldProvider(
         handlers={
             FinancialField.EPS: (_single_eps_fact(),),
-            FinancialField.CURRENT_AAA_YIELD: (_aaa_fact(),),
             FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
     )
@@ -1950,6 +1935,7 @@ def test_c2d_growth_value_success() -> None:
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=12.0,
+        aaa_yield_override=5.0,
     )
     assert result.status is CalculationStatus.OK
     assert result.method == "graham_growth_value"
@@ -1991,6 +1977,7 @@ def test_c2d_growth_value_missing_growth() -> None:
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         # expected_growth intentionally omitted (defaults to None)
+        aaa_yield_override=5.0,
     )
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert "expected_growth" in (result.reason or "")
@@ -2018,6 +2005,7 @@ def test_c2d_growth_value_non_finite_growth() -> None:
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=inf,
+        aaa_yield_override=5.0,
     )
     assert result.status is CalculationStatus.INVALID_INPUT
     assert "expected_growth" in (result.reason or "")
@@ -2371,18 +2359,6 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         currency="USD",
         available_at=hist_available,
     )
-    aaa_fact = ProviderFact(
-        subject_kind=FinancialSubjectKind.MACRO,
-        subject_id="AAA",
-        field_name=FinancialField.CURRENT_AAA_YIELD,
-        value=5.0,
-        units=FinancialUnit.PERCENTAGE_POINTS,
-        provider_id=AAA_PROVIDER_ID,
-        provider_field="aaa_synthetic",
-        retrieved_at=RETRIEVED_AT,
-        basis=None,
-        available_at=hist_available,
-    )
     price_fact = ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=SUBJECT_ID,
@@ -2400,7 +2376,6 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
     provider = MultiFieldProvider(
         handlers={
             FinancialField.EPS: (eps_fact,),
-            FinancialField.CURRENT_AAA_YIELD: (aaa_fact,),
             FinancialField.CURRENT_PRICE: (price_fact,),
         }
     )
@@ -2411,6 +2386,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=12.0,
+        aaa_yield_override=5.0,
         as_of=hist_as_of,
         use_cache=False,
     )

@@ -63,11 +63,11 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 | `investment_analysis_engine/cli_support.py` | `_canonical_provider_id`; the `security_provider_id` → `--data-provider` entry of the option-name map |
 | `investment_analysis_engine/analysis/selection_base.py` | `CLI_SECURITY_PROVIDERS`, `CLI_QUOTE_PROVIDERS` |
 | `investment_analysis_engine/strategies/graham_number/` and `graham_growth/` | `security_provider_id` and `quote_provider_id` on config, selection and tool dependencies; the `--data-provider` option of each `cli.py`; the dead `else self.security_provider_id` branch in both configs; the `run_*_analysis` service and the execution parameters that only carried them |
-| `investment_analysis_engine/strategies/graham_number/calculation.py` and `graham_growth/calculation.py` | the `security_provider_id` and `quote_provider_id` parameters of `assemble_graham_number` and `assemble_growth_value`, with the `quote_provider_id or security_provider_id` fallback; the `aaa_subject_id` and `aaa_provider_id` parameters of `assemble_growth_value`, which become the constants `AAA_SUBJECT_ID` (`"AAA"`) and `AAA_PROVIDER_ID` (`"user_override"`). The AAA provider-fetch path stays: production always supplies the AAA yield as an override, so the path is unreachable there, and its removal awaits the project owner |
+| `investment_analysis_engine/strategies/graham_number/calculation.py` and `graham_growth/calculation.py` | the `security_provider_id` and `quote_provider_id` parameters of `assemble_graham_number` and `assemble_growth_value`, with the `quote_provider_id or security_provider_id` fallback; the `aaa_subject_id` and `aaa_provider_id` parameters of `assemble_growth_value`, which become the constants `AAA_SUBJECT_ID` (`"AAA"`) and `AAA_PROVIDER_ID` (`"user_override"`). `aaa_yield_override` becomes a required `float`, so the strategy never asks a provider for AAA yield; the shared resolver's fetch code is unchanged. The assembly keeps its handling of a non-OK AAA result, which an invalid override (non-finite, zero or negative) still produces |
 | `investment_analysis_engine/strategies/_shared/profile.py` | the `primary_provider_id` parameter of `compose_graham_profile` and its `!= YFINANCE_PROVIDER_ID` branch: the primary identity candidate is SEC EDGAR and Yahoo is always the second |
-| `investment_analysis_engine/strategies/fcf_growth/` | `provider_id` on config, selection (`Literal["sec_edgar"]`) and tool dependencies; the `--data-provider` option of `cli.py`; the `provider_id` parameter of `ProductionAnnualGrowthSeriesResolver.resolve` and its unsupported-provider branch |
+| `investment_analysis_engine/strategies/fcf_growth/` | `provider_id` on config, selection (`Literal["sec_edgar"]`) and tool dependencies; the `--data-provider` option of `cli.py`; the `provider_id` parameter of `ProductionAnnualGrowthSeriesResolver.resolve` and its unsupported-provider branch; `resolve_annual_growth_series` takes one `FinancialFactsProvider` in place of the per-field `providers` map and uses `SEC_PROVIDER_ID`, and `FinancialFieldProvider` with the "providers for OCF, CapEx, and EPS are required" check is removed (the message now reads "subject_id and currency are required.") |
 | `investment_analysis_engine/cli_workspace.py`, `cli_watchlist_flags.py`, `cli_composition.py` | the `--data-provider` option of `watchlist create` and `watchlist add-selection`, the `data_provider` flag field and the `data_provider` parameter of `build_graham_resolver` |
-| `investment_analysis_engine/evaluation/fixtures/graham.py`, `investment_analysis_engine/strategies/_graham/evaluation.py` and the two Graham `evaluation.py` modules | the evaluation tier ran both Graham strategies against the fixture provider `fixture-synth`, which the removed fields carried. The fixture's company facts and precedence cache now carry `SEC_PROVIDER_ID` and its quote carries `YFINANCE_PROVIDER_ID` (as FCF Growth's evaluation composition already relabels its facts), `PROVIDER_ID` is removed, and `GrahamFixtureInputs` loses its `provider_id` field. The AAA fact carries its own synthetic `AAA_FIXTURE_PROVIDER_ID`, because AAA yield does not come from SEC EDGAR, and `MACRO_ID` is unchanged. Field identifiers and values stay synthetic |
+| `investment_analysis_engine/evaluation/fixtures/graham.py`, `investment_analysis_engine/strategies/_graham/evaluation.py` and the two Graham `evaluation.py` modules | the evaluation tier ran both Graham strategies against the fixture provider `fixture-synth`, which the removed fields carried. The fixture's company facts and precedence cache now carry `SEC_PROVIDER_ID` and its quote carries `YFINANCE_PROVIDER_ID` (as FCF Growth's evaluation composition already relabels its facts), `PROVIDER_ID` is removed, and `GrahamFixtureInputs` loses its `provider_id` field. The fixture's AAA fact, `MACRO_ID`, `AAA_FIXTURE_PROVIDER_ID`, `FIELD_AAA_YIELD` and the AAA timestamps are removed, because nothing reads AAA yield from a provider. Field identifiers and values stay synthetic |
 | `AGENTS.md` §9 | the "Known exception, tracked in issue #143" sentence |
 | `schemas/` | regenerated: `watchlist.schema.json` and `watchlist-delete.schema.json` lose the removed selection fields. The watchlist document is unversioned, so no `schema_version` changes; each selection's own `config_schema_version` is bumped |
 | `scripts/` and `scripts/strategy_templates/` | any generator or conformance reference to the removed fields (found while implementing) |
@@ -104,6 +104,16 @@ assembly tests of `test_resolver.py`, `test_resolution_trace.py`, `test_provider
 `test_production_providers.py`, and `test_yahoo_is_appended_as_a_second_identity_candidate_when_primary_differs`, now
 `test_yahoo_is_the_second_identity_candidate_after_sec_edgar`. `test_growth_value_assembly_three_year_avg_eps` supplies
 the AAA yield as an override, as production does, in place of reading it from the fixture provider.
+
+Removed or changed with the AAA override and the single FCF provider: the AAA-fetch half of
+`test_graham_growth_records_the_failed_input` (the provider failure on AAA); `_aaa_fact` and the AAA handlers of
+`test_resolver.py`, with the tests of the first, missing-growth, non-finite-growth and historical-as-of assembly
+passing `aaa_yield_override` and keeping their other assertions; `_growth_assembly` passing the override; and the
+FCF resolver tests of `test_series_cache.py`, `test_fcf_availability_and_cache_eligibility.py`,
+`test_fcf_earnings_growth_input_resolver.py` and `test_fcf_provider_failure_kinds.py`, which pass one provider and
+use facts labelled `SEC_PROVIDER_ID` (helper `tests/_sec_labeled_annual.py`) with the same assertions. No test was
+subject only to a missing per-field provider. The stored replay snapshot `fcf-growth-invalid-input.replay.json` and
+its builder carry the new message text.
 
 #### Documents and snapshots
 
@@ -357,6 +367,7 @@ All are in `tests/test_documented_conventions.py`.
 | :--- | :--- |
 | `test_data_provider_option_is_rejected_with_exit_2` | parametrized over `CLI_STRATEGIES` and the two watchlist commands: `--data-provider` exits 2 and the output names it as an unknown option |
 | `test_no_strategy_model_has_a_provider_id_field` | no selection, config or tool-dependency model of any strategy has a field whose name ends in `provider_id`; each config type is read from the `BaseAnalyzer[ConfigT, ResultT]` that the strategy's tool dependencies hold |
+| `test_no_strategy_class_has_a_provider_id_field` | an AST scan: no class under `investment_analysis_engine/strategies/` has an annotated field whose name ends in `provider_id`, except in a module named `envelope.py`, a strategy's published evidence document |
 | `test_no_strategy_function_has_a_provider_id_parameter` | an AST scan: no function under `investment_analysis_engine/strategies/` has a parameter whose name ends in `provider_id` |
 | `test_the_scanned_word_appears_only_in_allowlisted_phrases` | a word scan over the #140 roots fails on "sentence" unless the line holds a phrase of a short explicit tuple (for example "one sentence", "one-sentence"); the failure message names the file, the line number and the rule |
 
@@ -402,3 +413,9 @@ Decisions of the project owner, 2026-10-19.
   hold only `yfinance`. Keep the `provider_id` parameters of shared code and the provenance fields. Bump the three
   `CONFIG_SCHEMA_VERSION` values, with no migration.
 - **#140:** the rule, reach, keep list, one-sentence wording, identifier renames, schema handling and guard test above.
+
+#### Approvals of 2026-10-20
+
+- The project owner approved, as part of #143's whole strategy-owned chain, that Graham Growth's AAA yield is always an
+  override (a required `aaa_yield_override`, with no provider fetch), and that FCF Growth's series resolver takes one
+  provider in place of a per-field provider map.

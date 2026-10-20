@@ -16,20 +16,18 @@ from investment_analysis_engine.data.financial.provenance import (
     CapitalExpenditureSign,
     FinancialSubjectKind,
 )
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
-    PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
-    annual_fact,
-    annual_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
     CACHE_SCHEMA_VERSION,
     AnnualGrowthSeriesAssembly,
-    FinancialFieldProvider,
     resolve_annual_growth_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
+from tests._sec_labeled_annual import sec_annual_fact, sec_annual_series
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
 
@@ -37,14 +35,14 @@ NOW = datetime(2026, 3, 1, tzinfo=UTC)
 @pytest.mark.parametrize("provider_fails", [False, True])
 def test_incompatible_cached_series_refreshes_complete_field_without_stale_fallback(provider_fails: bool) -> None:
     cache = InMemoryResolvedInputCache(clock=lambda: NOW)
-    provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    provider = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     assert _resolve(provider, cache=cache).status is CalculationStatus.OK
     query = ResolvedInputSeriesCacheQuery(
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id="ACME",
         field_name="operating_cash_flow",
         basis="fiscal_year",
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         analysis_as_of=None,
         schema_version=CACHE_SCHEMA_VERSION,
     )
@@ -60,19 +58,6 @@ def test_incompatible_cached_series_refreshes_complete_field_without_stale_fallb
     assert stored.resolved_input.currency == ("CAD" if provider_fails else "USD")
 
 
-def _bindings(provider: FixtureAnnualFinancialFactsProvider) -> dict[FinancialField, FinancialFieldProvider]:
-    binding = FinancialFieldProvider(PROVIDER_ID, provider)
-    return dict.fromkeys(
-        (
-            FinancialField.OPERATING_CASH_FLOW,
-            FinancialField.CAPITAL_EXPENDITURES,
-            FinancialField.EPS,
-            FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
-        ),
-        binding,
-    )
-
-
 def _resolve(
     provider: FixtureAnnualFinancialFactsProvider,
     *,
@@ -85,14 +70,14 @@ def _resolve(
         currency="USD",
         as_of=None,
         effective_as_of=NOW,
-        providers=_bindings(provider),
+        provider=provider,
         cache=cache,
         clock=lambda: NOW,
     )
 
 
 def test_resolves_five_year_span_oldest_to_newest_with_lineage() -> None:
-    provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    provider = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     result = _resolve(provider)
     assert result.status is CalculationStatus.OK
     assert result.selected_horizon_years == 5
@@ -105,7 +90,7 @@ def test_resolves_five_year_span_oldest_to_newest_with_lineage() -> None:
 
 
 def test_longest_available_falls_back_to_three_years() -> None:
-    result = _resolve(FixtureAnnualFinancialFactsProvider(annual_series(range(2022, 2026))))
+    result = _resolve(FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2022, 2026))))
     assert result.status is CalculationStatus.OK
     assert result.selected_horizon_years == 3
     assert result.used_horizon_fallback
@@ -113,7 +98,7 @@ def test_longest_available_falls_back_to_three_years() -> None:
 
 def test_explicit_five_year_horizon_is_strict() -> None:
     result = _resolve(
-        FixtureAnnualFinancialFactsProvider(annual_series(range(2022, 2026))),
+        FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2022, 2026))),
         horizon=HistoricalHorizon.FIVE_YEARS,
     )
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
@@ -122,15 +107,15 @@ def test_explicit_five_year_horizon_is_strict() -> None:
 
 def test_interior_fcf_sign_change_is_nonmeaningful() -> None:
     values = (5.0, -2.0, 7.0, 8.0)
-    result = _resolve(FixtureAnnualFinancialFactsProvider(annual_series(range(2022, 2026), fcf_values=values)))
+    result = _resolve(FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2022, 2026), fcf_values=values)))
     assert result.status is CalculationStatus.OK
     assert result.fcf_cagr.reason_code is ReasonCode.SIGN_CHANGE
 
 
 def test_negative_cash_outflow_capex_is_normalized() -> None:
-    facts = list(annual_series(range(2020, 2026)))
+    facts = list(sec_annual_series(range(2020, 2026)))
     facts = [
-        annual_fact(
+        sec_annual_fact(
             FinancialField.CAPITAL_EXPENDITURES,
             fact.fiscal_year or 0,
             -fact.value,
@@ -146,11 +131,11 @@ def test_negative_cash_outflow_capex_is_normalized() -> None:
 
 
 def test_contradictory_capex_sign_is_ambiguous() -> None:
-    facts = list(annual_series(range(2020, 2026)))
+    facts = list(sec_annual_series(range(2020, 2026)))
     capex = next(fact for fact in facts if fact.field_name is FinancialField.CAPITAL_EXPENDITURES)
     facts.remove(capex)
     facts.append(
-        annual_fact(
+        sec_annual_fact(
             FinancialField.CAPITAL_EXPENDITURES,
             capex.fiscal_year or 0,
             -20.0,
@@ -162,9 +147,9 @@ def test_contradictory_capex_sign_is_ambiguous() -> None:
 
 
 def test_latest_restatement_wins_and_provider_order_does_not_matter() -> None:
-    base = list(annual_series(range(2020, 2026)))
+    base = list(sec_annual_series(range(2020, 2026)))
     original = next(fact for fact in base if fact.field_name is FinancialField.EPS and fact.fiscal_year == 2025)
-    restated = annual_fact(
+    restated = sec_annual_fact(
         FinancialField.EPS,
         2025,
         9.0,
@@ -179,14 +164,14 @@ def test_latest_restatement_wins_and_provider_order_does_not_matter() -> None:
 
 
 def test_conflicting_latest_values_are_ambiguous() -> None:
-    facts = list(annual_series(range(2020, 2026)))
-    facts.append(annual_fact(FinancialField.EPS, 2025, 99.0, provider_fact_id="eps-conflict"))
+    facts = list(sec_annual_series(range(2020, 2026)))
+    facts.append(sec_annual_fact(FinancialField.EPS, 2025, 99.0, provider_fact_id="eps-conflict"))
     result = _resolve(FixtureAnnualFinancialFactsProvider(tuple(facts)))
     assert result.reason_code is ReasonCode.AMBIGUOUS_FACT
 
 
 def test_identical_latest_duplicate_is_harmless() -> None:
-    facts = list(annual_series(range(2020, 2026)))
+    facts = list(sec_annual_series(range(2020, 2026)))
     duplicate = next(fact for fact in facts if fact.field_name is FinancialField.EPS and fact.fiscal_year == 2025)
     facts.append(replace(duplicate, provider_fact_id="eps-2025-duplicate"))
     result = _resolve(FixtureAnnualFinancialFactsProvider(tuple(reversed(facts))))
@@ -195,8 +180,8 @@ def test_identical_latest_duplicate_is_harmless() -> None:
 
 
 def test_provider_fact_id_collision_is_ambiguous() -> None:
-    facts = list(annual_series(range(2020, 2026)))
-    facts.append(annual_fact(FinancialField.EPS, 2024, 99.0, provider_fact_id="eps-2025"))
+    facts = list(sec_annual_series(range(2020, 2026)))
+    facts.append(sec_annual_fact(FinancialField.EPS, 2024, 99.0, provider_fact_id="eps-2025"))
     result = _resolve(FixtureAnnualFinancialFactsProvider(tuple(facts)))
     assert result.reason_code is ReasonCode.AMBIGUOUS_FACT
 
@@ -204,7 +189,7 @@ def test_provider_fact_id_collision_is_ambiguous() -> None:
 def test_missing_annual_metadata_is_rejected() -> None:
     facts = tuple(
         replace(fact, fiscal_year=None) if fact.field_name is FinancialField.EPS else fact
-        for fact in annual_series(range(2020, 2026))
+        for fact in sec_annual_series(range(2020, 2026))
     )
     result = _resolve(FixtureAnnualFinancialFactsProvider(facts))
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
@@ -216,7 +201,7 @@ def test_incompatible_accounting_scope_is_rejected() -> None:
         replace(fact, accounting_scope=AccountingScope.PARENT)
         if fact.field_name is FinancialField.OPERATING_CASH_FLOW
         else fact
-        for fact in annual_series(range(2020, 2026))
+        for fact in sec_annual_series(range(2020, 2026))
     )
     result = _resolve(FixtureAnnualFinancialFactsProvider(facts))
     assert result.reason_code is ReasonCode.INCOMPATIBLE_SCOPE
@@ -224,7 +209,7 @@ def test_incompatible_accounting_scope_is_rejected() -> None:
 
 def test_provider_error_is_typed() -> None:
     provider = FixtureAnnualFinancialFactsProvider(
-        annual_series(range(2020, 2026)),
+        sec_annual_series(range(2020, 2026)),
         error_field=FinancialField.OPERATING_CASH_FLOW,
     )
     result = _resolve(provider)
@@ -235,7 +220,7 @@ def test_provider_error_is_typed() -> None:
 def test_missing_capex_year_prevents_contiguous_five_year_span() -> None:
     facts = tuple(
         fact
-        for fact in annual_series(range(2020, 2026))
+        for fact in sec_annual_series(range(2020, 2026))
         if not (fact.field_name is FinancialField.CAPITAL_EXPENDITURES and fact.fiscal_year == 2023)
     )
     result = _resolve(FixtureAnnualFinancialFactsProvider(facts), horizon=HistoricalHorizon.FIVE_YEARS)
@@ -244,7 +229,7 @@ def test_missing_capex_year_prevents_contiguous_five_year_span() -> None:
 
 def test_complete_cache_avoids_provider_and_partial_cache_refreshes_field() -> None:
     cache = InMemoryResolvedInputCache(clock=lambda: NOW)
-    first_provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    first_provider = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     first = _resolve(first_provider, cache=cache)
     assert first.status is CalculationStatus.OK
     assert len(first_provider.requests) == 4
@@ -257,11 +242,11 @@ def test_complete_cache_avoids_provider_and_partial_cache_refreshes_field() -> N
 
 def test_partial_cached_series_causes_complete_field_refresh() -> None:
     cache = InMemoryResolvedInputCache(clock=lambda: NOW)
-    short = FixtureAnnualFinancialFactsProvider(annual_series(range(2022, 2026)))
+    short = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2022, 2026)))
     seeded = _resolve(short, horizon=HistoricalHorizon.THREE_YEARS, cache=cache)
     assert seeded.status is CalculationStatus.OK
 
-    full = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    full = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     refreshed = _resolve(full, cache=cache)
     assert refreshed.status is CalculationStatus.OK
     assert refreshed.selected_horizon_years == 5
@@ -271,27 +256,27 @@ def test_partial_cached_series_causes_complete_field_refresh() -> None:
 def test_stale_cache_refreshes_all_fields() -> None:
     now = [NOW]
     cache = InMemoryResolvedInputCache(clock=lambda: now[0], ttl=timedelta(days=1))
-    seed = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    seed = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     result = resolve_annual_growth_series(
         policy=FCFEarningsGrowthPolicy(),
         subject_id="ACME",
         currency="USD",
         as_of=None,
         effective_as_of=now[0],
-        providers=_bindings(seed),
+        provider=seed,
         cache=cache,
         clock=lambda: now[0],
     )
     assert result.status is CalculationStatus.OK
     now[0] += timedelta(days=2)
-    refresh = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    refresh = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     result = resolve_annual_growth_series(
         policy=FCFEarningsGrowthPolicy(),
         subject_id="ACME",
         currency="USD",
         as_of=None,
         effective_as_of=now[0],
-        providers=_bindings(refresh),
+        provider=refresh,
         cache=cache,
         clock=lambda: now[0],
     )
@@ -301,9 +286,9 @@ def test_stale_cache_refreshes_all_fields() -> None:
 
 def test_historical_boundary_excludes_later_restatement() -> None:
     boundary = datetime(2026, 2, 15, tzinfo=UTC)
-    facts = list(annual_series(range(2020, 2026)))
+    facts = list(sec_annual_series(range(2020, 2026)))
     facts.append(
-        annual_fact(
+        sec_annual_fact(
             FinancialField.EPS,
             2025,
             99.0,
@@ -318,7 +303,7 @@ def test_historical_boundary_excludes_later_restatement() -> None:
         currency="USD",
         as_of=boundary,
         effective_as_of=boundary,
-        providers=_bindings(provider),
+        provider=provider,
         clock=lambda: NOW,
     )
     assert result.status is CalculationStatus.OK
@@ -327,7 +312,7 @@ def test_historical_boundary_excludes_later_restatement() -> None:
 
 def test_non_calendar_fiscal_periods_are_contiguous() -> None:
     facts = []
-    for fact in annual_series(range(2020, 2026)):
+    for fact in sec_annual_series(range(2020, 2026)):
         assert fact.fiscal_year is not None
         facts.append(
             replace(
@@ -346,7 +331,7 @@ def test_cache_schema_version_is_period_series_version() -> None:
 
 
 def test_derives_fcf_per_share_cagr_with_provenance() -> None:
-    facts = list(annual_series(range(2020, 2026), fcf_values=(100.0, 110.0, 120.0, 130.0, 140.0, 150.0)))
+    facts = list(sec_annual_series(range(2020, 2026), fcf_values=(100.0, 110.0, 120.0, 130.0, 140.0, 150.0)))
     result = _resolve(FixtureAnnualFinancialFactsProvider(tuple(facts)))
     assert result.status is CalculationStatus.OK
     assert result.fcf_per_share_cagr.status is MetricStatus.OK
@@ -361,7 +346,7 @@ def test_derives_fcf_per_share_cagr_with_provenance() -> None:
 def test_selected_fcf_per_share_requires_share_evidence() -> None:
     facts = tuple(
         fact
-        for fact in annual_series(range(2020, 2026))
+        for fact in sec_annual_series(range(2020, 2026))
         if fact.field_name is not FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES
     )
     provider = FixtureAnnualFinancialFactsProvider(facts)
@@ -371,7 +356,7 @@ def test_selected_fcf_per_share_requires_share_evidence() -> None:
         currency="USD",
         as_of=None,
         effective_as_of=NOW,
-        providers=_bindings(provider),
+        provider=provider,
         clock=lambda: NOW,
     )
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
@@ -387,7 +372,7 @@ def test_invalid_request_is_typed(subject: str, currency: str) -> None:
         currency=currency,
         as_of=None,
         effective_as_of=NOW,
-        providers=_bindings(provider),
+        provider=provider,
         clock=lambda: NOW,
     )
     assert result.status is CalculationStatus.INVALID_INPUT
@@ -402,7 +387,7 @@ def test_naive_effective_as_of_is_rejected() -> None:
         currency="USD",
         as_of=None,
         effective_as_of=datetime(2026, 3, 1),  # noqa: DTZ001 - deliberately offset-naive
-        providers=_bindings(provider),
+        provider=provider,
         clock=lambda: NOW,
     )
     assert result.status is CalculationStatus.INVALID_INPUT
@@ -421,14 +406,14 @@ def test_live_runs_share_a_cache_key_regardless_of_executed_at() -> None:
     """
     clock = [NOW]
     cache = InMemoryResolvedInputCache(clock=lambda: clock[0], ttl=timedelta(days=1))
-    first_provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    first_provider = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     first = resolve_annual_growth_series(
         policy=FCFEarningsGrowthPolicy(),
         subject_id="ACME",
         currency="USD",
         as_of=None,
         effective_as_of=clock[0],
-        providers=_bindings(first_provider),
+        provider=first_provider,
         cache=cache,
         clock=lambda: clock[0],
     )
@@ -443,7 +428,7 @@ def test_live_runs_share_a_cache_key_regardless_of_executed_at() -> None:
         currency="USD",
         as_of=None,
         effective_as_of=clock[0],
-        providers=_bindings(second_provider),
+        provider=second_provider,
         cache=cache,
         clock=lambda: clock[0],
     )
@@ -460,28 +445,28 @@ def test_as_of_boundary_does_not_reuse_a_live_runs_cache_entry() -> None:
     """
     clock = [NOW]
     cache = InMemoryResolvedInputCache(clock=lambda: clock[0], ttl=timedelta(days=1))
-    first_provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    first_provider = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     first = resolve_annual_growth_series(
         policy=FCFEarningsGrowthPolicy(),
         subject_id="ACME",
         currency="USD",
         as_of=None,
         effective_as_of=clock[0],
-        providers=_bindings(first_provider),
+        provider=first_provider,
         cache=cache,
         clock=lambda: clock[0],
     )
     assert first.status is CalculationStatus.OK
 
     clock[0] += timedelta(hours=1)
-    second_provider = FixtureAnnualFinancialFactsProvider(annual_series(range(2020, 2026)))
+    second_provider = FixtureAnnualFinancialFactsProvider(sec_annual_series(range(2020, 2026)))
     second = resolve_annual_growth_series(
         policy=FCFEarningsGrowthPolicy(),
         subject_id="ACME",
         currency="USD",
         as_of=clock[0],
         effective_as_of=clock[0],
-        providers=_bindings(second_provider),
+        provider=second_provider,
         cache=cache,
         clock=lambda: clock[0],
     )

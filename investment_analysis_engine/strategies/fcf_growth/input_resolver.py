@@ -104,34 +104,17 @@ class ProductionAnnualGrowthSeriesResolver:
             provider_id=SEC_PROVIDER_ID,
             as_of=as_of,
         ):
-            binding = FinancialFieldProvider(SEC_PROVIDER_ID, self._provider)
-            providers = dict.fromkeys(_ANNUAL_FIELDS, binding)
             return resolve_annual_growth_series(
                 policy=policy,
                 subject_id=subject_id,
                 currency=currency,
                 as_of=as_of,
                 effective_as_of=effective_as_of,
-                providers=providers,
+                provider=self._provider,
                 cache=self._cache,
                 use_cache=use_cache,
                 clock=self._clock,
             )
-
-
-@dataclass(frozen=True)
-class FinancialFieldProvider:
-    """Bind one semantic financial field to a named provider implementation."""
-
-    provider_id: str
-    provider: FinancialFactsProvider
-
-    def __post_init__(self) -> None:
-        """Normalize and validate the provider identifier."""
-        normalized = self.provider_id.strip().lower()
-        if not normalized:
-            raise ValueError("FinancialFieldProvider.provider_id must be non-empty.")
-        object.__setattr__(self, "provider_id", normalized)
 
 
 @dataclass(frozen=True)
@@ -530,7 +513,7 @@ def _cached_field_valid(
 def _resolve_field(  # noqa: PLR0913
     *,
     field: FinancialField,
-    binding: FinancialFieldProvider,
+    provider: FinancialFactsProvider,
     subject_id: str,
     currency: str,
     effective_as_of: datetime,
@@ -547,7 +530,7 @@ def _resolve_field(  # noqa: PLR0913
             subject_id=subject_id,
             field_name=field.value,
             basis="fiscal_year",
-            provider_id=binding.provider_id,
+            provider_id=SEC_PROVIDER_ID,
             analysis_as_of=requested_as_of,
             schema_version=CACHE_SCHEMA_VERSION,
         )
@@ -580,13 +563,13 @@ def _resolve_field(  # noqa: PLR0913
         subject_kind=FinancialSubjectKind.SECURITY,
         subject_id=subject_id,
         field_name=field,
-        provider_id=binding.provider_id,
+        provider_id=SEC_PROVIDER_ID,
         basis="fiscal_year",
         as_of=requested_as_of,
         observation_count=required_count,
     )
     try:
-        facts = binding.provider.fetch_facts(request, effective_as_of=effective_as_of)
+        facts = provider.fetch_facts(request, effective_as_of=effective_as_of)
     except FinancialProviderError as exc:
         reason = f"{field.value} provider failed: {exc}"
         return _FieldResolution(
@@ -618,7 +601,7 @@ def _resolve_field(  # noqa: PLR0913
                     subject_id=subject_id,
                     field_name=field.value,
                     basis="fiscal_year",
-                    provider_id=binding.provider_id,
+                    provider_id=SEC_PROVIDER_ID,
                     analysis_as_of=requested_as_of,
                     schema_version=CACHE_SCHEMA_VERSION,
                     observation_period_start=resolved.observation_period_start,
@@ -756,7 +739,7 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
     currency: str,
     as_of: datetime | None,
     effective_as_of: datetime,
-    providers: Mapping[FinancialField, FinancialFieldProvider],
+    provider: FinancialFactsProvider,
     cache: ResolvedInputSeriesCacheProtocol | None = None,
     use_cache: bool = True,
     clock: Callable[[], datetime],
@@ -801,21 +784,11 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
         )
     normalized_subject = subject_id.strip().upper()
     normalized_currency = currency.strip().upper()
-    missing_required_provider = any(field not in providers for field in _REQUIRED_ANNUAL_FIELDS)
-    missing_selected_share_provider = (
-        policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE
-        and FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES not in providers
-    )
-    if (
-        not normalized_subject
-        or not normalized_currency
-        or missing_required_provider
-        or missing_selected_share_provider
-    ):
+    if not normalized_subject or not normalized_currency:
         return _failure_assembly(
             status=CalculationStatus.INVALID_INPUT,
             code=ReasonCode.INVALID_REQUEST,
-            reason="subject_id, currency, and providers for OCF, CapEx, and EPS are required.",
+            reason="subject_id and currency are required.",
             policy=policy,
             common_count=0,
             longest_count=0,
@@ -826,12 +799,9 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
     trace = ResolutionTrace()
     resolved_fields: dict[FinancialField, tuple[ResolvedInput, ...]] = {}
     for field in _ANNUAL_FIELDS:
-        if field not in providers:
-            resolved_fields[field] = ()
-            continue
         resolution, field_trace = _resolve_field(
             field=field,
-            binding=providers[field],
+            provider=provider,
             subject_id=normalized_subject,
             currency=normalized_currency,
             effective_as_of=effective_as_of,

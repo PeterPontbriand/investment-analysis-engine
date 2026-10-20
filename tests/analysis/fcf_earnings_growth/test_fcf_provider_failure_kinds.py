@@ -20,18 +20,17 @@ from investment_analysis_engine.data.financial.facts import (
     ProviderFact,
 )
 from investment_analysis_engine.data.financial.resolution_trace import ResolutionOutcome
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
-    PROVIDER_ID,
     FixtureAnnualFinancialFactsProvider,
-    annual_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
     AnnualGrowthSeriesAssembly,
-    FinancialFieldProvider,
     resolve_annual_growth_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis
+from tests._sec_labeled_annual import sec_annual_series
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 
 _KINDS = list(ProviderFailureKind)
@@ -41,7 +40,7 @@ class _FailingField(FixtureAnnualFinancialFactsProvider):
     """The annual fixture, raising a chosen exception for one field."""
 
     def __init__(self, field: FinancialField, error: BaseException) -> None:
-        super().__init__(annual_series(range(2020, 2026)))
+        super().__init__(sec_annual_series(range(2020, 2026)))
         self._field = field
         self._error = error
 
@@ -54,29 +53,20 @@ class _FailingField(FixtureAnnualFinancialFactsProvider):
 def _resolve(
     provider: FixtureAnnualFinancialFactsProvider, basis: FCFClassificationBasis
 ) -> AnnualGrowthSeriesAssembly:
-    binding = FinancialFieldProvider(PROVIDER_ID, provider)
     return resolve_annual_growth_series(
         policy=FCFEarningsGrowthPolicy(classification_basis=basis),
         subject_id="ACME",
         currency="USD",
         as_of=None,
         effective_as_of=NOW,
-        providers=dict.fromkeys(
-            (
-                FinancialField.OPERATING_CASH_FLOW,
-                FinancialField.CAPITAL_EXPENDITURES,
-                FinancialField.EPS,
-                FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
-            ),
-            binding,
-        ),
+        provider=provider,
         cache=None,
         clock=lambda: NOW,
     )
 
 
 def _typed(kind: ProviderFailureKind) -> FinancialProviderError:
-    return FinancialProviderError("synthetic failure", kind=kind, provider_id=PROVIDER_ID)
+    return FinancialProviderError("synthetic failure", kind=kind, provider_id=SEC_PROVIDER_ID)
 
 
 @pytest.mark.parametrize("kind", _KINDS)
@@ -89,7 +79,7 @@ def test_a_failed_required_field_stores_its_kind_and_provider(field: FinancialFi
 
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert result.reason_code is ReasonCode.PROVIDER_ERROR
-    assert result.provider_failure == ProviderFailureRecord(kind=kind, provider_id=PROVIDER_ID, input=field.value)
+    assert result.provider_failure == ProviderFailureRecord(kind=kind, provider_id=SEC_PROVIDER_ID, input=field.value)
 
 
 def test_an_unclassified_failure_stores_no_kind() -> None:
@@ -109,7 +99,7 @@ def test_a_failed_diluted_share_field_is_a_failure_only_under_the_per_share_basi
 
     assert per_share.status is CalculationStatus.PROVIDER_ERROR
     assert per_share.provider_failure == ProviderFailureRecord(
-        kind=kind, provider_id=PROVIDER_ID, input="weighted_average_diluted_shares"
+        kind=kind, provider_id=SEC_PROVIDER_ID, input="weighted_average_diluted_shares"
     )
 
 

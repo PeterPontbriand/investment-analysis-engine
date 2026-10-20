@@ -25,7 +25,7 @@ from investment_analysis_engine.data.financial.facts import (
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from investment_analysis_engine.strategies.graham_growth.calculation import AAA_PROVIDER_ID, GrahamGrowthInputResolver
+from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests.analysis.graham_value.test_resolver import (
     NOW,
@@ -249,6 +249,7 @@ def _growth_assembly(answers: dict[FinancialField, Any]) -> Any:
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=5.0,
+        aaa_yield_override=4.5,
         use_cache=False,
     )
 
@@ -269,16 +270,8 @@ def test_graham_number_records_the_failed_input(kind: ProviderFailureKind) -> No
 @pytest.mark.parametrize("kind", sorted(_FAILED))
 def test_graham_growth_records_the_failed_input(kind: ProviderFailureKind) -> None:
     eps = _growth_assembly({FinancialField.EPS: _error(kind, SEC_PROVIDER_ID)})
-    aaa = _growth_assembly(
-        {
-            FinancialField.EPS: (_make_fact(basis="fiscal_year", provider_id=SEC_PROVIDER_ID),),
-            FinancialField.CURRENT_AAA_YIELD: _error(kind, AAA_PROVIDER_ID),
-        }
-    )
 
     assert eps.provider_failure == _record(kind, SEC_PROVIDER_ID).for_input("eps")
-    assert aaa.status is CalculationStatus.PROVIDER_ERROR
-    assert aaa.provider_failure == _record(kind, AAA_PROVIDER_ID).for_input("current_aaa_yield")
 
 
 def test_a_non_failing_assembly_stores_no_failure() -> None:
