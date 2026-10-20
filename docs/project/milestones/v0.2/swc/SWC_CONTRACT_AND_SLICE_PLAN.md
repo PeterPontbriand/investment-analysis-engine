@@ -754,7 +754,8 @@ version and result-schema version distinct and do not silently reinterpret histo
 - **Branch:** `feat/swc-8-contributor-diagnostics`, from `main` after SWC.7b has merged.
 - **Detail:** [B.24](#b24-swc8-contributor-diagnostics-before-step-35-2026-10-19) (the decision),
   [B.25](#b25-swc8-acceptance-review-2026-10-19) (the acceptance review) and the
-  [SWC.7b review record](SWC_7B_GUIDE_REVIEW.md) (the findings and the four omission trials).
+  [SWC.7b review record](SWC_7B_GUIDE_REVIEW.md) (the findings and the four omission trials), and
+  [SWC.8 acceptance review](SWC_8_ACCEPTANCE_REVIEW.md) (the independent walk-through and seven omission trials).
 
 ## 6. Scope limits
 
@@ -1867,5 +1868,6 @@ Approved by the project owner on 2026-10-19; recorded with the slice, to be carr
 - **Passes when** all four trials print messages that name the site and the fix, and the review finds nothing that
   would block a contributor.
 - **Small findings** are fixed in a follow-up pull request within SWC.8. Larger ones are filed as issues.
+- **Review record:** [SWC_8_ACCEPTANCE_REVIEW.md](SWC_8_ACCEPTANCE_REVIEW.md). The review failed on the strict MyPy blocker in [issue #167](https://github.com/PeterPontbriand/investment-analysis-engine/issues/167); SWC.8 remains In progress.
 - **Status.** SWC.8 stays In progress when its pull request merges and becomes Complete only when this review passes;
   SWC stays In progress in the milestone plan until then.
