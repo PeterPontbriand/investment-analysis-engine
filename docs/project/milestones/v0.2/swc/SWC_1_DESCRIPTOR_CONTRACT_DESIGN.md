@@ -1155,8 +1155,8 @@ strategy `ci_probe` (label `CI Probe`) walks the whole contributor path:
 1. The generator exits 0. The status command reports every site the generator writes done, except the codec,
    presenter and replay sites, which it reports missing with the unfilled stub named (§19.3); T29 reports each
    stub by file and line.
-2. `mypy --strict` over the generated and edited files passes before any fill, so the typed stubs type-check as
-   written. `ruff check` and `ruff format --check` over the copy pass.
+2. `mypy --strict investment_analysis_engine tests scripts` over the whole copy, the command the contributor guide
+   documents, passes before any fill, so the typed stubs and every file they touch type-check as written. `ruff check` and `ruff format --check` over the copy pass.
 3. Every site the generator does not write is filled from hand-written trivial test data in
    `tests/scripts/generator_fills/`: the bodies of eight stub files (thirteen stub bodies), a golden case, the
    catalog entries and the catalog test's pinned id and counts, a guide that links to `FINANCE_MATH.md` and
@@ -1164,7 +1164,7 @@ strategy `ci_probe` (label `CI Probe`) walks the whole contributor path:
    `scripts/generate_schemas.py` and `scripts/generate_strategy_docs.py` then run in the copy, and both Ruff
    checks pass again.
 4. The status command reports every site done for `ci_probe`, none reported as covered by this test. `mypy --strict`
-   over the generated and edited files passes again, and the conformance tests pass in the copy. That includes the
+   over the whole copy passes again, and the conformance tests pass in the copy. That includes the
    tests that store, decode and replay a real run (T8 and T22), so `ci_probe` goes through the real `execute` and
    `AnalysisRun` validation, the real `ToolName` registration, the `AnalysisSelection` union and the
    `StrategyBehavior` bounds.

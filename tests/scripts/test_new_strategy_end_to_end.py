@@ -2,11 +2,11 @@
 
 This is the only end-to-end proof of the layers the specimen strategy cannot reach: the ``ToolName`` member, the
 ``AnalysisSelection`` union, the ``StrategyBehavior`` bounds and the real ``execute`` with ``AnalysisRun`` validation.
-In a temporary copy of the repository the test runs the generator for ``ci_probe``, type-checks and lints what it
-wrote, fills every site the generator does not write from the hand-written data in ``generator_fills/``, regenerates
-the schema and the strategy lists, and requires every site done, the strict type check and the conformance tests to
-pass. Every subprocess has a fixed ``PYTHONHASHSEED``, no proxy variables, bytecode writing off and a timeout, and none
-makes a network call.
+In a temporary copy of the repository the test runs the generator for ``ci_probe``, type-checks the whole copy and
+lints what it wrote, fills every site the generator does not write from the hand-written data in ``generator_fills/``,
+regenerates the schema and the strategy lists, and requires every site done, the strict type check and the conformance
+tests to pass. Every subprocess has a fixed ``PYTHONHASHSEED``, no proxy variables, bytecode writing off and a
+timeout, and none makes a network call.
 
 The conformance tests run the files below, with no test deselected: a test that names the four production strategies
 reads the descriptors instead, and the expected-output files and tables a new strategy writes by hand are sites that
@@ -24,7 +24,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Final
 
-from scripts.new_strategy import EDITED_FILES, PACKAGE, STUB_ROLES
+from scripts.new_strategy import PACKAGE, STUB_ROLES
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import load_sites
 
@@ -32,6 +32,8 @@ MODULE: Final = "ci_probe"
 ALIAS: Final = "ci-probe"
 LABEL: Final = "CI Probe"
 TIMEOUT_SECONDS: Final = 300
+STRICT_TARGETS: Final = ("investment_analysis_engine", "tests", "scripts")
+"""The folders of the guide's strict type check, which covers every file a strategy can break."""
 FILLS: Final = Path(__file__).resolve().parent / "generator_fills"
 
 COPIED_FOLDERS: Final = ("investment_analysis_engine", "scripts", "tests", "schemas", "docs")
@@ -144,17 +146,9 @@ def _status(copy: Path) -> tuple[int, dict[str, tuple[str, list[str]]]]:
     return process.returncode, sites
 
 
-def _strict_files(copy: Path, *, filled: bool) -> list[str]:
-    """Return the generated files and the five edited files, relative to the copy; plus the cases file once filled."""
-    package = copy / PACKAGE
-    generated = sorted(path.relative_to(copy).as_posix() for path in (package / "strategies" / MODULE).glob("*.py"))
-    edited = [f"{PACKAGE}/{name}" for name in EDITED_FILES]
-    extra = [f"{PACKAGE}/evaluation/cases/{MODULE}.py"] if filled else []
-    return [*generated, *edited, *extra]
-
-
-def _assert_strict_types(copy: Path, *, filled: bool) -> None:
-    process = _run(copy, "-m", "mypy", "--strict", "--follow-imports=silent", *_strict_files(copy, filled=filled))
+def _assert_strict_types(copy: Path) -> None:
+    """Type-check the whole copy with the command the contributor guide documents, not only the touched files."""
+    process = _run(copy, "-m", "mypy", "--strict", *STRICT_TARGETS)
     assert process.returncode == 0, _output(process)
 
 
@@ -226,7 +220,7 @@ def test_t28_the_generator_takes_a_strategy_through_the_whole_contributor_path(t
         assert f"{PACKAGE}/strategies/{MODULE}/{role}.py:" in stubs.stdout, f"{role} not reported:\n{stubs.stdout}"
 
     # 2. The typed stubs type-check as written, and the generator's output needs no manual Ruff fixing.
-    _assert_strict_types(copy, filled=False)
+    _assert_strict_types(copy)
     _assert_ruff_clean(copy)
 
     # 3. Fill every site the generator does not write, then regenerate the schema and the strategy lists.
@@ -241,7 +235,7 @@ def test_t28_the_generator_takes_a_strategy_through_the_whole_contributor_path(t
     assert code == 0, state
     assert {found for found, _ in state.values()} == {"done"}, state
     assert not any("T28" in message for _, messages in state.values() for message in messages)
-    _assert_strict_types(copy, filled=True)
+    _assert_strict_types(copy)
     conformance = _run(copy, *_conformance_arguments(*CONFORMANCE_TESTS))
     assert conformance.returncode == 0, _output(conformance)
     selected = _selected_nodes_run_and_pass(copy)

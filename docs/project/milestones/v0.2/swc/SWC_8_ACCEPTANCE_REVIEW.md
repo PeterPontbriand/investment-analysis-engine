@@ -26,7 +26,7 @@
 
 | ID | Where | What happened | Severity | Outcome |
 | :--- | :--- | :--- | :--- | :--- |
-| F1 | Guide §3, strict type check; `tests/workspace/test_requests.py:508` | After generating `swc8_probe`, `uv run mypy --strict investment_analysis_engine tests scripts` fails because `Swc8ProbeSelection` is included in a union that the test helper treats as `FCFGrowthSelection`. The generated strategy skeleton itself is typed, but the documented repository-wide check is blocked by this shared assumption. | blocks | Filed [issue #167](https://github.com/PeterPontbriand/investment-analysis-engine/issues/167) with the exact MyPy evidence; no test behavior was changed in this review. |
+| F1 | Guide §3, strict type check; `tests/workspace/test_requests.py:508` | After generating `swc8_probe`, `uv run mypy --strict investment_analysis_engine tests scripts` fails because `Swc8ProbeSelection` is included in a union that the test helper treats as `FCFGrowthSelection`. The generated strategy skeleton itself is typed, but the documented repository-wide check is blocked by this shared assumption. | blocks | Filed [issue #167](https://github.com/PeterPontbriand/investment-analysis-engine/issues/167) with the exact MyPy evidence; no test behavior was changed in this review. Fixed by the follow-up PR; awaiting re-check. |
 
 ### Part 1 — Follow the guide
 
