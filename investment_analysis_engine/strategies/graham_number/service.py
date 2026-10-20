@@ -18,7 +18,6 @@ from investment_analysis_engine.data.financial.facts import financial_facts_anal
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, complete_security_unit_profile
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.security_unit import SecurityUnitRequest
-from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_number.calculation import (
     GrahamNumberInputAssembly,
     GrahamNumberInputResolver,
@@ -79,11 +78,9 @@ def run_graham_number_analysis(  # noqa: PLR0913
         ):
             assembly = resolver.assemble_graham_number(
                 security_subject_id=ticker,
-                security_provider_id=SEC_PROVIDER_ID,
                 eps_override=eps_override,
                 bvps_override=bvps_override,
                 quote_override=quote_override,
-                quote_provider_id=YFINANCE_PROVIDER_ID,
                 as_of=as_of,
                 use_cache=use_cache,
             )

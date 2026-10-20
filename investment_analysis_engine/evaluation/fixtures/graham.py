@@ -5,7 +5,8 @@ both Graham methods and the resolver/assembly contracts without network access.
 
 The provider IDs are the production ones (SEC EDGAR for company facts and the
 precedence cache, yfinance for the quote), so the strategies run unchanged against
-the fixture. Field identifiers, values, and series names are **synthetic fixture
+the fixture; the AAA fact has a synthetic source of its own. Field identifiers,
+values, and series names are **synthetic fixture
 identifiers** and do NOT represent verified production-provider capabilities.
 Production-provider evidence belongs to Slice E1.
 
@@ -43,6 +44,8 @@ GRAHAM_PRECEDENCE_CACHE_FIXTURE_ID: Final = "graham_precedence_cache"
 
 SECURITY_ID: str = "SYNTH"
 MACRO_ID: str = "fixture-aaa"
+AAA_FIXTURE_PROVIDER_ID: str = "fixture-aaa-provider"
+"""The synthetic source of the AAA fact; AAA yield does not come from SEC EDGAR."""
 CURRENCY: str = "USD"
 
 # Synthetic field identifiers
@@ -358,7 +361,7 @@ class FixtureFinancialFactsProvider:
             field_name=FinancialField.CURRENT_AAA_YIELD,
             value=AAA_YIELD_VALUE,
             units=FinancialUnit.PERCENTAGE_POINTS,
-            provider_id=SEC_PROVIDER_ID,
+            provider_id=AAA_FIXTURE_PROVIDER_ID,
             provider_field=FIELD_AAA_YIELD,
             retrieved_at=RETRIEVED_AT,
             observed_at=AAA_OBSERVED,
@@ -385,7 +388,7 @@ class FixtureFinancialFactsProvider:
                     field_name=FinancialField.CURRENT_AAA_YIELD,
                     value=AAA_YIELD_VALUE,
                     units=FinancialUnit.PERCENTAGE_POINTS,
-                    provider_id=SEC_PROVIDER_ID,
+                    provider_id=AAA_FIXTURE_PROVIDER_ID,
                     provider_field=FIELD_AAA_YIELD,
                     retrieved_at=FUTURE_RETRIEVED_AT,
                     observed_at=AAA_OBSERVED,

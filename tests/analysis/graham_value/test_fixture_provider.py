@@ -41,7 +41,6 @@ from investment_analysis_engine.evaluation.fixtures.graham import (
     EPS_FY2022,
     EPS_FY2023,
     EPS_FY2024,
-    MACRO_ID,
     NOW,
     QUOTE_VALUE,
     SECURITY_ID,
@@ -589,8 +588,6 @@ class TestC2DAssembly:
 
         result = resolver.assemble_graham_number(
             security_subject_id=SECURITY_ID,
-            security_provider_id=SEC_PROVIDER_ID,
-            quote_provider_id=YFINANCE_PROVIDER_ID,
         )
 
         assert result.status is CalculationStatus.OK
@@ -621,12 +618,9 @@ class TestC2DAssembly:
         expected_growth = 12.0  # explicit override-only
         result = resolver.assemble_growth_value(
             security_subject_id=SECURITY_ID,
-            security_provider_id=SEC_PROVIDER_ID,
             eps_basis="three_year_average",
             expected_growth=expected_growth,
-            aaa_subject_id=MACRO_ID,
-            aaa_provider_id=SEC_PROVIDER_ID,
-            quote_provider_id=YFINANCE_PROVIDER_ID,
+            aaa_yield_override=AAA_YIELD_VALUE,
         )
 
         assert result.status is CalculationStatus.OK
@@ -642,11 +636,10 @@ class TestC2DAssembly:
         assert result.expected_growth.source_kind is SourceKind.OVERRIDE
         assert result.expected_growth.value == expected_growth
 
-        # AAA yield: from fixture provider
+        # AAA yield: the user's override, the only source production gives it
         assert result.current_aaa_yield is not None
-        assert result.current_aaa_yield.source_kind is SourceKind.PROVIDER
+        assert result.current_aaa_yield.source_kind is SourceKind.OVERRIDE
         assert result.current_aaa_yield.value == pytest.approx(AAA_YIELD_VALUE)
-        assert result.current_aaa_yield.provider_id == SEC_PROVIDER_ID
 
         # Optional quote: from fixture provider
         assert result.current_price is not None

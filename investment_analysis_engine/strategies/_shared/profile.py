@@ -14,6 +14,7 @@ from investment_analysis_engine.data.instrument_profile import (
     compose_instrument_profile,
 )
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 
@@ -21,26 +22,21 @@ def compose_graham_profile(
     ticker: str,
     *,
     primary_provider: object,
-    primary_provider_id: str,
     yahoo_provider: object,
     profile_cache: InstrumentProfileResolver | None = None,
 ) -> InstrumentProfile:
     """Compose current profile evidence with explicit production precedence.
 
-    The primary (security-fact) provider is tried first for identity; Yahoo
-    is added as a second identity candidate only when it is not already the
-    primary provider. Yahoo is always the kind candidate.
+    The primary (security-fact) provider, SEC EDGAR, is tried first for
+    identity; Yahoo is the second identity candidate and always the kind
+    candidate.
 
     ``profile_cache``, when supplied, resolves through the durable P2-Profiles
     cache instead of composing live every call; precedence and candidate
     construction are identical either way (P2-Profiles contract §3).
     """
     yahoo_candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, yahoo_provider)
-    identity_candidates: tuple[InstrumentProfileCandidate, ...] = (
-        InstrumentProfileCandidate(primary_provider_id, primary_provider),
-    )
-    if primary_provider_id != YFINANCE_PROVIDER_ID:
-        identity_candidates = (*identity_candidates, yahoo_candidate)
+    identity_candidates = (InstrumentProfileCandidate(SEC_PROVIDER_ID, primary_provider), yahoo_candidate)
     if profile_cache is not None:
         return profile_cache.resolve(ticker, identity_candidates=identity_candidates, kind_candidate=yahoo_candidate)
     return compose_instrument_profile(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Final
 
 from investment_analysis_engine.analysis.shared.financial_resolution import (
     resolve_normalized_eps,
@@ -22,6 +23,8 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     single_event_trace,
 )
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_growth.vocabulary import METHOD_ID, MethodId
 
 
@@ -257,6 +260,12 @@ def _recorded(result: InputResolutionResult, input_name: str) -> ProviderFailure
     return None if result.provider_failure is None else result.provider_failure.for_input(input_name)
 
 
+AAA_SUBJECT_ID: Final = "AAA"
+"""The subject of the AAA corporate-yield input."""
+AAA_PROVIDER_ID: Final = "user_override"
+"""The source identity of the AAA yield: the user supplies it, and no provider does."""
+
+
 class GrahamGrowthInputResolver(InputResolver):
     """Assemble method inputs using borrowed provider, cache, and clock dependencies."""
 
@@ -264,15 +273,11 @@ class GrahamGrowthInputResolver(InputResolver):
         self,
         *,
         security_subject_id: str,
-        security_provider_id: str,
         eps_basis: str,
         eps_override: float | None = None,
         expected_growth: float | None = None,
-        aaa_subject_id: str,
-        aaa_provider_id: str,
         aaa_yield_override: float | None = None,
         quote_override: float | None = None,
-        quote_provider_id: str | None = None,
         as_of: datetime | None = None,
         use_cache: bool = True,
     ) -> GrowthValueInputAssembly:
@@ -293,7 +298,7 @@ class GrahamGrowthInputResolver(InputResolver):
         eps_result = resolve_normalized_eps(
             self,
             security_subject_id=security_subject_id,
-            security_provider_id=security_provider_id,
+            security_provider_id=SEC_PROVIDER_ID,
             eps_basis=eps_basis,
             eps_override=eps_override,
             as_of=as_of,
@@ -323,9 +328,9 @@ class GrahamGrowthInputResolver(InputResolver):
 
         aaa_request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.MACRO,
-            subject_id=aaa_subject_id,
+            subject_id=AAA_SUBJECT_ID,
             field_name=FinancialField.CURRENT_AAA_YIELD,
-            provider_id=aaa_provider_id,
+            provider_id=AAA_PROVIDER_ID,
             as_of=as_of,
         )
         aaa_result = self.resolve(aaa_request, override=aaa_yield_override, use_cache=use_cache)
@@ -344,7 +349,7 @@ class GrahamGrowthInputResolver(InputResolver):
         quote_result = resolve_optional_quote(
             self,
             security_subject_id=security_subject_id,
-            security_provider_id=quote_provider_id or security_provider_id,
+            security_provider_id=YFINANCE_PROVIDER_ID,
             quote_override=quote_override,
             as_of=as_of,
             use_cache=use_cache,

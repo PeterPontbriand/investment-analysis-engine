@@ -63,9 +63,11 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 | `investment_analysis_engine/cli_support.py` | `_canonical_provider_id`; the `security_provider_id` → `--data-provider` entry of the option-name map |
 | `investment_analysis_engine/analysis/selection_base.py` | `CLI_SECURITY_PROVIDERS`, `CLI_QUOTE_PROVIDERS` |
 | `investment_analysis_engine/strategies/graham_number/` and `graham_growth/` | `security_provider_id` and `quote_provider_id` on config, selection and tool dependencies; the `--data-provider` option of each `cli.py`; the dead `else self.security_provider_id` branch in both configs; the `run_*_analysis` service and the execution parameters that only carried them |
-| `investment_analysis_engine/strategies/fcf_growth/` | `provider_id` on config, selection (`Literal["sec_edgar"]`) and tool dependencies; the `--data-provider` option of `cli.py` |
+| `investment_analysis_engine/strategies/graham_number/calculation.py` and `graham_growth/calculation.py` | the `security_provider_id` and `quote_provider_id` parameters of `assemble_graham_number` and `assemble_growth_value`, with the `quote_provider_id or security_provider_id` fallback; the `aaa_subject_id` and `aaa_provider_id` parameters of `assemble_growth_value`, which become the constants `AAA_SUBJECT_ID` (`"AAA"`) and `AAA_PROVIDER_ID` (`"user_override"`). The AAA provider-fetch path stays: production always supplies the AAA yield as an override, so the path is unreachable there, and its removal awaits the project owner |
+| `investment_analysis_engine/strategies/_shared/profile.py` | the `primary_provider_id` parameter of `compose_graham_profile` and its `!= YFINANCE_PROVIDER_ID` branch: the primary identity candidate is SEC EDGAR and Yahoo is always the second |
+| `investment_analysis_engine/strategies/fcf_growth/` | `provider_id` on config, selection (`Literal["sec_edgar"]`) and tool dependencies; the `--data-provider` option of `cli.py`; the `provider_id` parameter of `ProductionAnnualGrowthSeriesResolver.resolve` and its unsupported-provider branch |
 | `investment_analysis_engine/cli_workspace.py`, `cli_watchlist_flags.py`, `cli_composition.py` | the `--data-provider` option of `watchlist create` and `watchlist add-selection`, the `data_provider` flag field and the `data_provider` parameter of `build_graham_resolver` |
-| `investment_analysis_engine/evaluation/fixtures/graham.py`, `investment_analysis_engine/strategies/_graham/evaluation.py` and the two Graham `evaluation.py` modules | the evaluation tier ran both Graham strategies against the fixture provider `fixture-synth`, which the removed fields carried. The fixture's company facts and precedence cache now carry `SEC_PROVIDER_ID` and its quote carries `YFINANCE_PROVIDER_ID` (as FCF Growth's evaluation composition already relabels its facts), `PROVIDER_ID` is removed, and `GrahamFixtureInputs` loses its `provider_id` field. The AAA fact carries `SEC_PROVIDER_ID` too, because the strategy always supplies the AAA yield as an override and `MACRO_ID` is unchanged. Field identifiers and values stay synthetic |
+| `investment_analysis_engine/evaluation/fixtures/graham.py`, `investment_analysis_engine/strategies/_graham/evaluation.py` and the two Graham `evaluation.py` modules | the evaluation tier ran both Graham strategies against the fixture provider `fixture-synth`, which the removed fields carried. The fixture's company facts and precedence cache now carry `SEC_PROVIDER_ID` and its quote carries `YFINANCE_PROVIDER_ID` (as FCF Growth's evaluation composition already relabels its facts), `PROVIDER_ID` is removed, and `GrahamFixtureInputs` loses its `provider_id` field. The AAA fact carries its own synthetic `AAA_FIXTURE_PROVIDER_ID`, because AAA yield does not come from SEC EDGAR, and `MACRO_ID` is unchanged. Field identifiers and values stay synthetic |
 | `AGENTS.md` §9 | the "Known exception, tracked in issue #143" sentence |
 | `schemas/` | regenerated: `watchlist.schema.json` and `watchlist-delete.schema.json` lose the removed selection fields. The watchlist document is unversioned, so no `schema_version` changes; each selection's own `config_schema_version` is bumped |
 | `scripts/` and `scripts/strategy_templates/` | any generator or conformance reference to the removed fields (found while implementing) |
@@ -73,8 +75,8 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc1--int
 #### Kept
 
 - The `provider_id` parameters of shared resolvers and other shared code that more than one provider uses.
-- The `security_provider_id` and `quote_provider_id` parameters of the resolvers' `assemble_*` methods: a resolver is
-  built over any provider the caller injects, and its tests inject others.
+- Provider-id parameters of code outside `investment_analysis_engine/strategies/`, such as
+  `analysis/shared/financial_resolution.py`, which receives both `sec_edgar` and `yfinance`.
 - The `provider_id` provenance fields of evidence, documents and published schemas: they record which source supplied
   a fact and take more than one value.
 
@@ -94,6 +96,14 @@ Tests whose only subject was the removed behavior: `test_cli_graham_unsupported_
 parity and order tables in `test_command_validation_failures.py`; and the `_canonical_provider_id` assertions of
 `test_cli_support.py`. `test_unsupported_providers_rejected` becomes `test_removed_provider_fields_are_rejected`,
 which asserts that a stored selection naming a removed field is refused.
+
+Removed with the remaining parameters: `test_unapproved_provider_is_typed_unavailable_without_provider_work` (the FCF
+resolver's unsupported-provider branch) and `test_yahoo_is_not_duplicated_when_it_is_already_the_primary_provider`
+(the profile helper's Yahoo-as-primary branch). Relabelled to the production ids, with the same assertions: the
+assembly tests of `test_resolver.py`, `test_resolution_trace.py`, `test_provider_failure_kinds.py` and
+`test_production_providers.py`, and `test_yahoo_is_appended_as_a_second_identity_candidate_when_primary_differs`, now
+`test_yahoo_is_the_second_identity_candidate_after_sec_edgar`. `test_growth_value_assembly_three_year_avg_eps` supplies
+the AAA yield as an override, as production does, in place of reading it from the fixture provider.
 
 #### Documents and snapshots
 
@@ -339,14 +349,15 @@ Pydantic `Field` descriptions change and `uv run python scripts/generate_schemas
 | investment_analysis_engine/reporting/documents/database.py | 34 | reason: str = Field(description="A sentence for people; not stable.") | rename | N2 |
 | tests/utils/test_operational_logging.py | 144 | …ef test_an_unexpected_error_reports_the_same_sentence_and_logs_its_cause_and_traceback(tmp_path: Path) -)… | rename | N1 |
 
-### The three guard tests
+### The guard tests
 
-All three are in `tests/test_documented_conventions.py`.
+All are in `tests/test_documented_conventions.py`.
 
 | Test | Asserts |
 | :--- | :--- |
-| `test_data_provider_option_is_rejected_with_exit_2` | parametrized over `CLI_STRATEGIES` and the two watchlist commands: `--data-provider` exits 2 |
-| `test_no_strategy_model_has_a_provider_id_field` | no selection, config or tool-dependency model of any strategy has a field whose name ends in `provider_id` |
+| `test_data_provider_option_is_rejected_with_exit_2` | parametrized over `CLI_STRATEGIES` and the two watchlist commands: `--data-provider` exits 2 and the output names it as an unknown option |
+| `test_no_strategy_model_has_a_provider_id_field` | no selection, config or tool-dependency model of any strategy has a field whose name ends in `provider_id`; each config type is read from the `BaseAnalyzer[ConfigT, ResultT]` that the strategy's tool dependencies hold |
+| `test_no_strategy_function_has_a_provider_id_parameter` | an AST scan: no function under `investment_analysis_engine/strategies/` has a parameter whose name ends in `provider_id` |
 | `test_the_scanned_word_appears_only_in_allowlisted_phrases` | a word scan over the #140 roots fails on "sentence" unless the line holds a phrase of a short explicit tuple (for example "one sentence", "one-sentence"); the failure message names the file, the line number and the rule |
 
 The two #111 guard tests belong to PC.4.

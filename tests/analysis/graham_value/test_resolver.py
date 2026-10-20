@@ -32,7 +32,9 @@ from investment_analysis_engine.data.financial.provenance import (
     SourceKind,
 )
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
-from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.strategies.graham_growth.calculation import AAA_PROVIDER_ID, GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 
 # ---------------------------------------------------------------------------
@@ -1294,12 +1296,12 @@ def _c2c_request(
     )
 
 
-def _three_fy_facts() -> tuple[ProviderFact, ...]:
-    """Three eligible fiscal-year facts (FY2022, FY2023, FY2024)."""
+def _three_fy_facts(provider_id: str = PROVIDER_ID) -> tuple[ProviderFact, ...]:
+    """Three eligible fiscal-year facts (FY2022, FY2023, FY2024) from ``provider_id``."""
     return (
-        _fy_fact(2.0, FY2022_START, FY2022_END),
-        _fy_fact(3.0, FY2023_START, FY2023_END),
-        _fy_fact(4.0, FY2024_START, FY2024_END),
+        _fy_fact(2.0, FY2022_START, FY2022_END, provider_id=provider_id),
+        _fy_fact(3.0, FY2023_START, FY2023_END, provider_id=provider_id),
+        _fy_fact(4.0, FY2024_START, FY2024_END, provider_id=provider_id),
     )
 
 
@@ -1790,7 +1792,7 @@ def _bvps_fact(value: float = 50.0) -> ProviderFact:
         field_name=FinancialField.BVPS,
         value=value,
         units=FinancialUnit.CURRENCY_PER_SHARE,
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         provider_field="bvps_synthetic",
         retrieved_at=RETRIEVED_AT,
         basis=None,
@@ -1805,7 +1807,7 @@ def _price_fact(value: float = 100.0) -> ProviderFact:
         field_name=FinancialField.CURRENT_PRICE,
         value=value,
         units=FinancialUnit.CURRENCY_PER_SHARE,
-        provider_id=PROVIDER_ID,
+        provider_id=YFINANCE_PROVIDER_ID,
         provider_field="price_synthetic",
         retrieved_at=NOW,
         basis=None,
@@ -1821,7 +1823,7 @@ def _aaa_fact(value: float = 5.0) -> ProviderFact:
         field_name=FinancialField.CURRENT_AAA_YIELD,
         value=value,
         units=FinancialUnit.PERCENTAGE_POINTS,
-        provider_id="provider-aaa",
+        provider_id=AAA_PROVIDER_ID,
         provider_field="aaa_synthetic",
         retrieved_at=RETRIEVED_AT,
         basis=None,
@@ -1835,7 +1837,7 @@ def _single_eps_fact(value: float = 8.0) -> ProviderFact:
         field_name=FinancialField.EPS,
         value=value,
         units=FinancialUnit.CURRENCY_PER_SHARE,
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         provider_field="single_eps_synthetic",
         retrieved_at=RETRIEVED_AT,
         basis="fiscal_year",
@@ -1852,7 +1854,7 @@ def test_c2d_graham_number_three_year_avg_success() -> None:
     """Graham Number: three-year-avg EPS (provider) + BVPS (provider) + quote (provider) → OK."""
     provider = MultiFieldProvider(
         handlers={
-            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.EPS: _three_fy_facts(SEC_PROVIDER_ID),
             FinancialField.BVPS: (_bvps_fact(),),
             FinancialField.CURRENT_PRICE: (_price_fact(),),
         }
@@ -1860,7 +1862,6 @@ def test_c2d_graham_number_three_year_avg_success() -> None:
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
     )
     assert result.status is CalculationStatus.OK
     assert result.method == "graham_number"
@@ -1893,7 +1894,6 @@ def test_c2d_graham_number_override_bypasses_eps_provider() -> None:
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         eps_override=10.0,
     )
     assert result.status is CalculationStatus.OK
@@ -1914,7 +1914,7 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
     """BVPS unavailable → assembly INPUT_UNAVAILABLE; quote never requested."""
     provider = MultiFieldProvider(
         handlers={
-            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.EPS: _three_fy_facts(SEC_PROVIDER_ID),
             FinancialField.BVPS: (),  # empty → INPUT_UNAVAILABLE
             # No CURRENT_PRICE handler: would return empty if called.
         }
@@ -1922,7 +1922,6 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
     )
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.eps is not None  # EPS resolved before BVPS failed
@@ -1949,11 +1948,8 @@ def test_c2d_growth_value_success() -> None:
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         eps_basis="fiscal_year",
         expected_growth=12.0,
-        aaa_subject_id="AAA",
-        aaa_provider_id="provider-aaa",
     )
     assert result.status is CalculationStatus.OK
     assert result.method == "graham_growth_value"
@@ -1993,11 +1989,8 @@ def test_c2d_growth_value_missing_growth() -> None:
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         eps_basis="fiscal_year",
         # expected_growth intentionally omitted (defaults to None)
-        aaa_subject_id="AAA",
-        aaa_provider_id="provider-aaa",
     )
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert "expected_growth" in (result.reason or "")
@@ -2023,11 +2016,8 @@ def test_c2d_growth_value_non_finite_growth() -> None:
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         eps_basis="fiscal_year",
         expected_growth=inf,
-        aaa_subject_id="AAA",
-        aaa_provider_id="provider-aaa",
     )
     assert result.status is CalculationStatus.INVALID_INPUT
     assert "expected_growth" in (result.reason or "")
@@ -2044,7 +2034,7 @@ def test_c2d_graham_number_quote_unavailable_still_ok() -> None:
     """Quote unavailable → assembly OK, current_price=None, quote_status preserved."""
     provider = MultiFieldProvider(
         handlers={
-            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.EPS: _three_fy_facts(SEC_PROVIDER_ID),
             FinancialField.BVPS: (_bvps_fact(),),
             FinancialField.CURRENT_PRICE: (),  # empty → INPUT_UNAVAILABLE
         }
@@ -2052,7 +2042,6 @@ def test_c2d_graham_number_quote_unavailable_still_ok() -> None:
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
     )
     assert result.status is CalculationStatus.OK
     assert result.eps is not None
@@ -2278,7 +2267,7 @@ def test_c2d_graham_number_quote_provider_error_non_fatal() -> None:
     """Quote provider error → assembly OK, current_price=None, quote_status=PROVIDER_ERROR."""
     provider = MultiFieldProviderWithError(
         handlers={
-            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.EPS: _three_fy_facts(SEC_PROVIDER_ID),
             FinancialField.BVPS: (_bvps_fact(),),
         },
         error_fields={FinancialField.CURRENT_PRICE},
@@ -2286,7 +2275,6 @@ def test_c2d_graham_number_quote_provider_error_non_fatal() -> None:
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
     )
     assert result.status is CalculationStatus.OK
     assert result.eps is not None
@@ -2306,14 +2294,13 @@ def test_c2d_graham_number_quote_override_invalid() -> None:
     """Explicit quote override <= 0 → assembly INVALID_INPUT."""
     provider = MultiFieldProvider(
         handlers={
-            FinancialField.EPS: _three_fy_facts(),
+            FinancialField.EPS: _three_fy_facts(SEC_PROVIDER_ID),
             FinancialField.BVPS: (_bvps_fact(),),
         }
     )
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         quote_override=-5.0,
     )
     assert result.status is CalculationStatus.INVALID_INPUT
@@ -2341,11 +2328,8 @@ def test_c2d_growth_value_aaa_yield_override() -> None:
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         eps_basis="fiscal_year",
         expected_growth=12.0,
-        aaa_subject_id="AAA",
-        aaa_provider_id="provider-aaa",
         aaa_yield_override=4.5,
     )
     assert result.status is CalculationStatus.OK
@@ -2380,7 +2364,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         field_name=FinancialField.EPS,
         value=8.0,
         units=FinancialUnit.CURRENCY_PER_SHARE,
-        provider_id=PROVIDER_ID,
+        provider_id=SEC_PROVIDER_ID,
         provider_field="single_eps_synthetic",
         retrieved_at=RETRIEVED_AT,
         basis="fiscal_year",
@@ -2393,7 +2377,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         field_name=FinancialField.CURRENT_AAA_YIELD,
         value=5.0,
         units=FinancialUnit.PERCENTAGE_POINTS,
-        provider_id="provider-aaa",
+        provider_id=AAA_PROVIDER_ID,
         provider_field="aaa_synthetic",
         retrieved_at=RETRIEVED_AT,
         basis=None,
@@ -2405,7 +2389,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         field_name=FinancialField.CURRENT_PRICE,
         value=100.0,
         units=FinancialUnit.CURRENCY_PER_SHARE,
-        provider_id=PROVIDER_ID,
+        provider_id=YFINANCE_PROVIDER_ID,
         provider_field="price_synthetic",
         retrieved_at=RETRIEVED_AT,
         basis=None,
@@ -2425,11 +2409,8 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
 
     result = resolver.assemble_growth_value(
         security_subject_id=SUBJECT_ID,
-        security_provider_id=PROVIDER_ID,
         eps_basis="fiscal_year",
         expected_growth=12.0,
-        aaa_subject_id="AAA",
-        aaa_provider_id="provider-aaa",
         as_of=hist_as_of,
         use_cache=False,
     )

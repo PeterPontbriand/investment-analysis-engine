@@ -10,20 +10,18 @@ import dataclasses
 import importlib
 import re
 from pathlib import Path
-from typing import Final
+from typing import Final, get_args, get_origin, get_type_hints
 
 import pytest
 from pydantic import BaseModel
 from typer.testing import CliRunner
 
+from investment_analysis_engine.analysis.base_analyzer import BaseAnalyzer
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES
-from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig
-from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
-from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
-from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyBehavior
 from scripts.repository_root import REPOSITORY_ROOT
+from tests._cli_helpers import normalize_cli_output
 
 GUIDE: Final = REPOSITORY_ROOT / "docs" / "TOOL_DEVELOPMENT.md"
 OLD_GUIDE: Final = REPOSITORY_ROOT / "docs" / "project" / "ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md"
@@ -104,7 +102,6 @@ def test_momentum_composes_its_instrument_profile_in_one_function() -> None:
     assert cli.count("compose_momentum_profile(") == 3, "The direct, save-run and refresh paths must each call it."
 
 
-_CONFIG_TYPES: Final = (MomentumConfig, GrahamNumberConfig, GrahamGrowthConfig, FCFEarningsGrowthConfig)
 _REMOVED_OPTION_COMMANDS: Final = (
     *(
         ([descriptor.alias], descriptor.alias)
@@ -137,20 +134,58 @@ def test_data_provider_option_is_rejected_with_exit_2(prefix: list[str], label: 
         f"{label} must reject --data-provider as an unknown option (exit 2); it exited {result.exit_code}. "
         "A strategy has one provider for each kind of fact, so the option can hold only one value."
     )
+    output = normalize_cli_output(result.output)
+    assert "No such option" in output, f"{label} exited 2 but not for an unknown option; the output was {output!r}."
+    assert "--data-provider" in output, f"{label} does not name --data-provider as the unknown option: {output!r}."
+
+
+def _config_type_of(deps_type: type) -> type:
+    """Return the config type ``C`` of the ``BaseAnalyzer[C, R]`` that a strategy's tool dependencies hold."""
+    analyzer = get_type_hints(deps_type)["analyzer"]
+    for base in getattr(analyzer, "__orig_bases__", ()):
+        if get_origin(base) is BaseAnalyzer:
+            config_type = get_args(base)[0]
+            assert isinstance(config_type, type), f"{analyzer.__name__} declares no concrete config type."
+            return config_type
+    raise AssertionError(f"{analyzer.__name__} does not subclass BaseAnalyzer[ConfigT, ResultT].")
 
 
 def test_no_strategy_model_has_a_provider_id_field() -> None:
-    models: list[type] = [*_CONFIG_TYPES]
+    models: list[type] = []
     for descriptor in STRATEGIES:
         behavior = descriptor.behavior
         assert isinstance(behavior, StrategyBehavior), f"{descriptor.alias} declares no strategy behavior."
-        models += [behavior.selection_type, behavior.deps_type]
+        models += [_config_type_of(behavior.deps_type), behavior.selection_type, behavior.deps_type]
     offenders = [
         f"{model.__name__}.{name}" for model in models for name in _field_names(model) if name.endswith("provider_id")
     ]
     assert offenders == [], (
         f"{offenders} hold a provider identifier a strategy owns as a named constant: a field that can hold only "
         "one value is not added."
+    )
+
+
+STRATEGIES_PACKAGE: Final = REPOSITORY_ROOT / "investment_analysis_engine" / "strategies"
+
+
+def test_no_strategy_function_has_a_provider_id_parameter() -> None:
+    offenders: list[str] = []
+    for path in sorted(STRATEGIES_PACKAGE.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            arguments = node.args
+            names = [arg.arg for arg in (*arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs)]
+            names += [arg.arg for arg in (arguments.vararg, arguments.kwarg) if arg is not None]
+            offenders += [
+                f"{path.relative_to(REPOSITORY_ROOT).as_posix()}:{node.lineno}: {node.name}({name})"
+                for name in names
+                if name.endswith("provider_id")
+            ]
+    assert offenders == [], (
+        f"{offenders} take a provider identifier a strategy owns as a named constant: a parameter that holds one "
+        "value in production is not added. Provenance fields are class fields, not parameters."
     )
 
 

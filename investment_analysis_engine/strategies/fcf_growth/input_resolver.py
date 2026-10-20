@@ -95,36 +95,16 @@ class ProductionAnnualGrowthSeriesResolver:
         currency: str,
         as_of: datetime | None,
         effective_as_of: datetime,
-        provider_id: str = SEC_PROVIDER_ID,
         use_cache: bool = True,
     ) -> AnnualGrowthSeriesAssembly:
-        """Resolve the strategy inputs, preserving typed unsupported-provider outcomes."""
-        normalized_provider_id = provider_id.strip().lower()
-        if normalized_provider_id != SEC_PROVIDER_ID:
-            reason = (
-                f"Provider {provider_id!r} does not have approved annual operating-cash-flow, "
-                "capital-expenditure, and diluted-EPS mappings."
-            )
-            trace = ResolutionTrace().append(
-                _event("annual_series", ResolutionStage.PROVIDER, ResolutionOutcome.REJECTED, reason, now=self._clock())
-            )
-            return _failure_assembly(
-                status=CalculationStatus.INPUT_UNAVAILABLE,
-                code=ReasonCode.MISSING_FACT,
-                reason=reason,
-                policy=policy,
-                common_count=0,
-                longest_count=0,
-                trace=trace,
-            )
-
+        """Resolve the strategy inputs from SEC EDGAR."""
         with financial_facts_analysis_scope(
             self._provider,
             subject_id=subject_id,
-            provider_id=normalized_provider_id,
+            provider_id=SEC_PROVIDER_ID,
             as_of=as_of,
         ):
-            binding = FinancialFieldProvider(normalized_provider_id, self._provider)
+            binding = FinancialFieldProvider(SEC_PROVIDER_ID, self._provider)
             providers = dict.fromkeys(_ANNUAL_FIELDS, binding)
             return resolve_annual_growth_series(
                 policy=policy,
