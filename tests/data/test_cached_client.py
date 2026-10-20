@@ -1,14 +1,12 @@
 """Exercise durable historical reuse with deterministic providers and clocks."""
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 import pytest
-from alembic import command
-from alembic.config import Config
 from pandas.testing import assert_frame_equal
 
 from investment_analysis_engine.config import ProjectSettings
@@ -19,17 +17,17 @@ from investment_analysis_engine.data.quality import HistoricalDataQualityError, 
 from investment_analysis_engine.data.quality_reporting import quality_observer
 from investment_analysis_engine.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import DATABASE_FILE_NAME
 
 NOW = datetime(2026, 9, 5, tzinfo=UTC)
 START = "2025-01-01"
 
 
 def test_rejected_cache_refreshes_once_and_preserves_snapshot_on_failure(
-    database: SQLiteDatabase, tmp_path: Path
+    migrated_database: SQLiteDatabase, tmp_path: Path
 ) -> None:
     provider = FakeProvider()
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     key = MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "daily")
     bad = replace(provider.data, context=replace(provider.data.context, currency="USD"))
     repository.put(key, bad, fetch_completed_at=NOW)
@@ -50,8 +48,8 @@ def test_rejected_cache_refreshes_once_and_preserves_snapshot_on_failure(
     stored = repository.get(key)
     assert stored is not None
     assert stored.data.context.currency == "USD"
-    database.close()
-    reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}"))
+    migrated_database.close()
+    reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / DATABASE_FILE_NAME).as_posix()}"))
     repository = SQLiteMarketDataRepository(reopened)
     provider.error = None
     second = CachedHistoricalDataClient(
@@ -72,11 +70,11 @@ def test_rejected_cache_refreshes_once_and_preserves_snapshot_on_failure(
         reopened.close()
 
 
-def test_bypass_enforces_quality_even_with_broken_observer(database: SQLiteDatabase) -> None:
+def test_bypass_enforces_quality_even_with_broken_observer(migrated_database: SQLiteDatabase) -> None:
     provider = FakeProvider()
     provider.data.frame.index = provider.data.frame.index[::-1]
     client = CachedHistoricalDataClient(
-        provider, SQLiteMarketDataRepository(database), request_variant=None, ttl=None, clock=lambda: NOW
+        provider, SQLiteMarketDataRepository(migrated_database), request_variant=None, ttl=None, clock=lambda: NOW
     )
 
     def broken(_decision: QualityDecision) -> None:
@@ -87,9 +85,9 @@ def test_bypass_enforces_quality_even_with_broken_observer(database: SQLiteDatab
     assert len(provider.calls) == 1
 
 
-def test_failed_quality_refresh_never_replaces_stored_snapshot(database: SQLiteDatabase) -> None:
+def test_failed_quality_refresh_never_replaces_stored_snapshot(migrated_database: SQLiteDatabase) -> None:
     provider = FakeProvider()
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     key = MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "daily")
     repository.put(key, provider.data, fetch_completed_at=NOW)
     provider.data = replace(provider.data, context=replace(provider.data.context, price_adjustment="unadjusted"))
@@ -152,22 +150,9 @@ class FakeProvider(BaseDataClient):
         return 99.0
 
 
-@pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
-    finally:
-        database.close()
-
-
-def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path) -> None:
+def test_hit_all_boundaries_and_reopen(migrated_database: SQLiteDatabase, tmp_path: Path) -> None:
     provider = FakeProvider()
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     client = CachedHistoricalDataClient(
         provider, repository, request_variant="1d:adjusted", ttl=None, clock=lambda: NOW
     )
@@ -178,8 +163,8 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     entry = repository.get(MarketDataCacheKey("ABC", "fixture", date(2025, 1, 1), None, "1d:adjusted"))
     assert entry is not None
     assert entry.fetch_completed_at == NOW
-    database.close()
-    reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}"))
+    migrated_database.close()
+    reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / DATABASE_FILE_NAME).as_posix()}"))
     try:
         provider.error = DataFetchError("offline")
         second = CachedHistoricalDataClient(
@@ -191,11 +176,11 @@ def test_hit_all_boundaries_and_reopen(database: SQLiteDatabase, tmp_path: Path)
     assert len(provider.calls) == 1
 
 
-def test_python_date_index_passes_quality_and_round_trips_through_the_cache(database: SQLiteDatabase) -> None:
+def test_python_date_index_passes_quality_and_round_trips_through_the_cache(migrated_database: SQLiteDatabase) -> None:
     """ESC-25: a Python-date index is on the date-like allowlist, so it is cached and read back unchanged."""
     provider = FakeProvider()
     provider.data.frame.index = pd.Index([date(2025, 1, 1), date(2025, 1, 2)], name="calendar_date")
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
 
     first = client.fetch_data("ABC", START)
@@ -217,10 +202,12 @@ _NON_DATE_IDS = ["integer", "float", "string", "object_datetimes", "mixed_object
 
 
 @pytest.mark.parametrize("index", _NON_DATE_INDEXES, ids=_NON_DATE_IDS)
-def test_non_date_index_is_rejected_before_it_is_cached_or_returned(database: SQLiteDatabase, index: pd.Index) -> None:
+def test_non_date_index_is_rejected_before_it_is_cached_or_returned(
+    migrated_database: SQLiteDatabase, index: pd.Index
+) -> None:
     provider = FakeProvider()
     provider.data.frame.index = index
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
 
     with pytest.raises(HistoricalDataQualityError, match="date-like index"):
@@ -243,13 +230,13 @@ def _float32_close(frame: pd.DataFrame) -> None:
 @pytest.mark.parametrize("unsupported_shape", [_extra_column, _frame_attrs, _float32_close])
 @pytest.mark.parametrize("index", [pd.date_range(START, periods=2), pd.Index([date(2025, 1, 1), date(2025, 1, 2)])])
 def test_the_unsupported_representation_fall_through_only_delivers_date_like_indexes(
-    database: SQLiteDatabase, index: pd.Index, unsupported_shape: Callable[[pd.DataFrame], None]
+    migrated_database: SQLiteDatabase, index: pd.Index, unsupported_shape: Callable[[pd.DataFrame], None]
 ) -> None:
     """The fall-through is still reachable, for columns, attrs and dtypes; the index rule runs before it."""
     provider = FakeProvider()
     provider.data.frame.index = index
     unsupported_shape(provider.data.frame)
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
 
     delivered = client.fetch_data("ABC", START)
@@ -261,21 +248,21 @@ def test_the_unsupported_representation_fall_through_only_delivers_date_like_ind
 @pytest.mark.parametrize("unsupported_shape", [_extra_column, _frame_attrs, _float32_close])
 @pytest.mark.parametrize("index", _NON_DATE_INDEXES, ids=_NON_DATE_IDS)
 def test_an_unsupported_representation_never_lets_a_non_date_index_through(
-    database: SQLiteDatabase, index: pd.Index, unsupported_shape: Callable[[pd.DataFrame], None]
+    migrated_database: SQLiteDatabase, index: pd.Index, unsupported_shape: Callable[[pd.DataFrame], None]
 ) -> None:
     provider = FakeProvider()
     provider.data.frame.index = index
     unsupported_shape(provider.data.frame)
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     client = CachedHistoricalDataClient(provider, repository, request_variant="daily", ttl=None, clock=lambda: NOW)
 
     with pytest.raises(HistoricalDataQualityError, match="date-like index"):
         client.fetch_data("ABC", START)
 
 
-def test_disabled_cache_never_reads_or_writes_the_repository(database: SQLiteDatabase) -> None:
+def test_disabled_cache_never_reads_or_writes_the_repository(migrated_database: SQLiteDatabase) -> None:
     provider = FakeProvider()
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     key = MarketDataCacheKey("ABC", "Fixture", date(2025, 1, 1), None, "1d:adjusted")
     repository.put(key, provider.data, fetch_completed_at=NOW)
     client = CachedHistoricalDataClient(
@@ -302,12 +289,12 @@ def test_disabled_cache_never_reads_or_writes_the_repository(database: SQLiteDat
         (0, -1, 1),
     ],
 )
-def test_ttl(database: SQLiteDatabase, ttl: int | None, age: int, calls: int) -> None:
+def test_ttl(migrated_database: SQLiteDatabase, ttl: int | None, age: int, calls: int) -> None:
     provider = FakeProvider()
     now = NOW
     client = CachedHistoricalDataClient(
         provider,
-        SQLiteMarketDataRepository(database, clock=lambda: now),
+        SQLiteMarketDataRepository(migrated_database, clock=lambda: now),
         request_variant="daily",
         ttl=None if ttl is None else timedelta(seconds=ttl),
         clock=lambda: now,
@@ -318,9 +305,9 @@ def test_ttl(database: SQLiteDatabase, ttl: int | None, age: int, calls: int) ->
     assert len(provider.calls) == calls
 
 
-def test_ranges_and_configuration_are_independent(database: SQLiteDatabase) -> None:
+def test_ranges_and_configuration_are_independent(migrated_database: SQLiteDatabase) -> None:
     provider = FakeProvider()
-    repository = SQLiteMarketDataRepository(database)
+    repository = SQLiteMarketDataRepository(migrated_database)
     for variant in ("daily", "weekly"):
         for identity in ("first", "second"):
             provider.identity = identity
@@ -334,9 +321,9 @@ def test_ranges_and_configuration_are_independent(database: SQLiteDatabase) -> N
 
 
 @pytest.mark.parametrize("failure", ["provider", "empty", "missing", "nan", "inf", "text"])
-def test_failed_refresh_preserves_prior_snapshot(database: SQLiteDatabase, failure: str) -> None:
+def test_failed_refresh_preserves_prior_snapshot(migrated_database: SQLiteDatabase, failure: str) -> None:
     provider = FakeProvider()
-    repository = SQLiteMarketDataRepository(database, clock=lambda: NOW)
+    repository = SQLiteMarketDataRepository(migrated_database, clock=lambda: NOW)
     now = NOW
     client = CachedHistoricalDataClient(
         provider, repository, request_variant="daily", ttl=timedelta(0), clock=lambda: now
@@ -369,7 +356,7 @@ def test_failed_refresh_preserves_prior_snapshot(database: SQLiteDatabase, failu
 
 
 @pytest.mark.parametrize("reason", ["provider", "variant", "shape"])
-def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogCaptureFixture) -> None:
+def test_valid_bypass(migrated_database: SQLiteDatabase, reason: str, caplog: pytest.LogCaptureFixture) -> None:
     provider = FakeProvider()
     variant: str | None = "daily"
     if reason == "provider":
@@ -379,7 +366,7 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
     else:
         provider.data.frame.attrs["custom"] = "retained"
     client = CachedHistoricalDataClient(
-        provider, SQLiteMarketDataRepository(database), request_variant=variant, ttl=None, clock=lambda: NOW
+        provider, SQLiteMarketDataRepository(migrated_database), request_variant=variant, ttl=None, clock=lambda: NOW
     )
     with caplog.at_level("DEBUG", logger="investment_analysis_engine.data.cached_client"):
         assert client.fetch_historical_data("ABC", START, use_cache=True).frame is provider.data.frame
@@ -388,13 +375,13 @@ def test_valid_bypass(database: SQLiteDatabase, reason: str, caplog: pytest.LogC
     assert "cache bypassed" in caplog.text
 
 
-def test_quotes_never_touch_storage(database: SQLiteDatabase) -> None:
+def test_quotes_never_touch_storage(migrated_database: SQLiteDatabase) -> None:
     provider = FakeProvider()
     client = CachedHistoricalDataClient(
-        provider, SQLiteMarketDataRepository(database), request_variant="daily", ttl=None, clock=lambda: NOW
+        provider, SQLiteMarketDataRepository(migrated_database), request_variant="daily", ttl=None, clock=lambda: NOW
     )
     client.fetch_data("ABC", START)
-    database.close()
+    migrated_database.close()
     assert client.fetch_current_price("ABC") == 99.0
     provider.error = DataFetchError("quote unavailable")
     with pytest.raises(DataFetchError, match="quote unavailable"):
@@ -403,8 +390,8 @@ def test_quotes_never_touch_storage(database: SQLiteDatabase) -> None:
     assert len(provider.calls) == 1
 
 
-def test_invalid_policy_and_clock(database: SQLiteDatabase) -> None:
-    repository = SQLiteMarketDataRepository(database)
+def test_invalid_policy_and_clock(migrated_database: SQLiteDatabase) -> None:
+    repository = SQLiteMarketDataRepository(migrated_database)
     with pytest.raises(ValueError, match="non-negative"):
         CachedHistoricalDataClient(
             FakeProvider(), repository, request_variant="daily", ttl=timedelta(seconds=-1), clock=lambda: NOW

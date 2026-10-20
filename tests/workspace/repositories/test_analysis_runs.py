@@ -1,14 +1,11 @@
 """Verify Analysis Run insert/get/list/conflict/ordering/isolation/reopen through SQLite."""
 
 import socket
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import delete, select, update
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
@@ -29,7 +26,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
 from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from investment_analysis_engine.workspace.watchlists import WatchlistSpec
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import migrated_database_url
 from tests._wiring import alias_for
 from tests.workspace.test_fcf_growth_codec import _run as _fcf_run
 from tests.workspace.test_graham_growth_codec import _run as _graham_growth_run
@@ -53,28 +50,12 @@ def _four_runs() -> tuple[AnalysisRun, AnalysisRun, AnalysisRun, AnalysisRun]:
 
 
 @pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'analysis_runs.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
-    finally:
-        database.close()
-
-
-@pytest.fixture
-def repository(database: SQLiteDatabase) -> SQLiteAnalysisRunRepository:
-    return SQLiteAnalysisRunRepository(database)
+def repository(migrated_database: SQLiteDatabase) -> SQLiteAnalysisRunRepository:
+    return SQLiteAnalysisRunRepository(migrated_database)
 
 
 def test_four_typed_round_trips_after_reopen(tmp_path: Path) -> None:
-    url = f"sqlite:///{(tmp_path / 'reopen.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path)
     runs = _four_runs()
 
     first_database = SQLiteDatabase(ProjectSettings(database_url=url))
@@ -97,10 +78,7 @@ def test_four_typed_round_trips_after_reopen(tmp_path: Path) -> None:
 
 
 def test_captured_instrument_profile_round_trips_after_reopen(tmp_path: Path) -> None:
-    url = f"sqlite:///{(tmp_path / 'reopen_profile.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path)
     profile = fixture_instrument_profile("CNR.TO", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
     run = _momentum_run().model_copy(update={"analysis_run_id": MOMENTUM_ID, "instrument_profile": profile})
 
@@ -122,13 +100,13 @@ def test_captured_instrument_profile_round_trips_after_reopen(tmp_path: Path) ->
 
 
 def test_insert_duplicate_id_is_a_conflict_and_leaves_storage_unchanged(
-    database: SQLiteDatabase, repository: SQLiteAnalysisRunRepository
+    migrated_database: SQLiteDatabase, repository: SQLiteAnalysisRunRepository
 ) -> None:
     run = _momentum_run().model_copy(update={"analysis_run_id": MOMENTUM_ID})
     repository.insert(run)
     with pytest.raises(AnalysisRunConflictError, match="already exists"):
         repository.insert(run)
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         rows = connection.execute(select(analysis_runs)).all()
         assert len(rows) == 1
 
@@ -138,11 +116,11 @@ def test_get_missing_id_returns_none(repository: SQLiteAnalysisRunRepository) ->
 
 
 def test_get_detects_relational_column_disagreeing_with_a_valid_envelope(
-    database: SQLiteDatabase, repository: SQLiteAnalysisRunRepository
+    migrated_database: SQLiteDatabase, repository: SQLiteAnalysisRunRepository
 ) -> None:
     run = _momentum_run().model_copy(update={"analysis_run_id": MOMENTUM_ID})
     repository.insert(run)
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(
             update(analysis_runs).where(analysis_runs.c.analysis_run_id == str(MOMENTUM_ID)).values(ticker="OTHER")
         )
@@ -159,11 +137,11 @@ def test_insert_rejects_a_naive_completion_timestamp(repository: SQLiteAnalysisR
 
 
 def test_get_detects_corrupted_envelope_but_list_still_reports_it(
-    database: SQLiteDatabase, repository: SQLiteAnalysisRunRepository
+    migrated_database: SQLiteDatabase, repository: SQLiteAnalysisRunRepository
 ) -> None:
     run = _momentum_run().model_copy(update={"analysis_run_id": MOMENTUM_ID})
     repository.insert(run)
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(
             update(analysis_runs)
             .where(analysis_runs.c.analysis_run_id == str(MOMENTUM_ID))
@@ -229,14 +207,14 @@ def test_list_limit_and_offset_page_a_read_snapshot(repository: SQLiteAnalysisRu
 
 
 def test_independent_cache_and_telemetry_deletion_cannot_erase_runs(
-    database: SQLiteDatabase, repository: SQLiteAnalysisRunRepository
+    migrated_database: SQLiteDatabase, repository: SQLiteAnalysisRunRepository
 ) -> None:
     run = _momentum_run().model_copy(update={"analysis_run_id": MOMENTUM_ID})
     repository.insert(run)
-    watchlist_repository = SQLiteWatchlistRepository(database, alias_for=alias_for)
+    watchlist_repository = SQLiteWatchlistRepository(migrated_database, alias_for=alias_for)
     watchlist_repository.create(WatchlistSpec(display_name="Unrelated Watchlist"))
 
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(delete(trajectory_events))
         connection.execute(delete(resolved_input_cache))
         connection.execute(delete(market_data_cache_entries))
@@ -252,10 +230,7 @@ def test_no_network_access(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr(socket, "create_connection", reject_network)
     monkeypatch.setattr(socket.socket, "connect", reject_network)
-    url = f"sqlite:///{(tmp_path / 'offline.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path)
     database = SQLiteDatabase(ProjectSettings(database_url=url))
     try:
         repository = SQLiteAnalysisRunRepository(database)

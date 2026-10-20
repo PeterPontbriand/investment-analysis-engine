@@ -9,8 +9,6 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
@@ -29,7 +27,7 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
 )
 from investment_analysis_engine.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import DATABASE_FILE_NAME, migrated_database_url
 
 
 class GrahamProvider:
@@ -53,12 +51,11 @@ class GrahamProvider:
 
 @pytest.fixture(params=["ready", "missing"])
 def configured_database(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[Path]:
-    path = tmp_path / "financial.sqlite3"
-    settings = ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
+    path = tmp_path / DATABASE_FILE_NAME
     if request.param == "ready":
-        command.upgrade(config, "head")
+        settings = ProjectSettings(database_url=migrated_database_url(tmp_path))
+    else:
+        settings = ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
     with patch("investment_analysis_engine.cli_support.settings", settings):
         yield path
 

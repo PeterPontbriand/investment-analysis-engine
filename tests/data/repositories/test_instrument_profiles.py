@@ -1,13 +1,10 @@
 """Verify instrument-profile minting, in-place refresh, supersession, and reopen."""
 
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.instrument_profiles import (
@@ -15,7 +12,7 @@ from investment_analysis_engine.data.repositories.instrument_profiles import (
     SQLiteInstrumentProfileRepository,
 )
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import migrated_database_url
 
 NOW = datetime(2026, 9, 21, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 21, 12, 5, 0, tzinfo=UTC)
@@ -25,22 +22,9 @@ THIRD_ID = UUID("33333333-3333-4333-8333-333333333333")
 
 
 @pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'instrument_profiles.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
-    finally:
-        database.close()
-
-
-@pytest.fixture
-def repository(database: SQLiteDatabase) -> SQLiteInstrumentProfileRepository:
+def repository(migrated_database: SQLiteDatabase) -> SQLiteInstrumentProfileRepository:
     ids = iter([FIRST_ID, SECOND_ID])
-    return SQLiteInstrumentProfileRepository(database, clock=lambda: NOW, id_factory=lambda: next(ids))
+    return SQLiteInstrumentProfileRepository(migrated_database, clock=lambda: NOW, id_factory=lambda: next(ids))
 
 
 def test_get_returns_none_for_an_unknown_ticker(repository: SQLiteInstrumentProfileRepository) -> None:
@@ -64,9 +48,11 @@ def test_put_mints_a_new_profile_on_first_resolution(repository: SQLiteInstrumen
     assert repository.get_by_id(FIRST_ID) == record
 
 
-def test_matching_anchor_updates_in_place_and_preserves_cached_at(database: SQLiteDatabase) -> None:
+def test_matching_anchor_updates_in_place_and_preserves_cached_at(migrated_database: SQLiteDatabase) -> None:
     clock = iter([NOW, LATER])
-    repository = SQLiteInstrumentProfileRepository(database, clock=lambda: next(clock), id_factory=lambda: FIRST_ID)
+    repository = SQLiteInstrumentProfileRepository(
+        migrated_database, clock=lambda: next(clock), id_factory=lambda: FIRST_ID
+    )
     repository.put("KO", identity_anchor="0000021344", evidence={"kind": "equity"})
     updated = repository.put("KO", identity_anchor="0000021344", evidence={"kind": "equity", "name": "Coca-Cola"})
 
@@ -78,10 +64,12 @@ def test_matching_anchor_updates_in_place_and_preserves_cached_at(database: SQLi
     assert repository.get("KO") == updated
 
 
-def test_disagreeing_anchor_supersedes_and_mints_a_new_profile(database: SQLiteDatabase) -> None:
+def test_disagreeing_anchor_supersedes_and_mints_a_new_profile(migrated_database: SQLiteDatabase) -> None:
     clock = iter([NOW, LATER])
     ids = iter([FIRST_ID, SECOND_ID])
-    repository = SQLiteInstrumentProfileRepository(database, clock=lambda: next(clock), id_factory=lambda: next(ids))
+    repository = SQLiteInstrumentProfileRepository(
+        migrated_database, clock=lambda: next(clock), id_factory=lambda: next(ids)
+    )
     first = repository.put("KO", identity_anchor="0000021344", evidence={"kind": "equity"})
     second = repository.put("KO", identity_anchor="9999999999", evidence={"kind": "equity"})
 
@@ -103,10 +91,12 @@ def test_disagreeing_anchor_supersedes_and_mints_a_new_profile(database: SQLiteD
     assert repository.get("KO") == second
 
 
-def test_a_superseded_row_is_never_deleted_and_survives_further_activity(database: SQLiteDatabase) -> None:
+def test_a_superseded_row_is_never_deleted_and_survives_further_activity(migrated_database: SQLiteDatabase) -> None:
     clock = iter([NOW, LATER, LATER])
     ids = iter([FIRST_ID, SECOND_ID, THIRD_ID])
-    repository = SQLiteInstrumentProfileRepository(database, clock=lambda: next(clock), id_factory=lambda: next(ids))
+    repository = SQLiteInstrumentProfileRepository(
+        migrated_database, clock=lambda: next(clock), id_factory=lambda: next(ids)
+    )
     repository.put("KO", identity_anchor="0000021344", evidence={})
     repository.put("KO", identity_anchor="9999999999", evidence={})
     repository.put("MSFT", identity_anchor="0000789019", evidence={"kind": "equity"})
@@ -124,18 +114,15 @@ def test_put_rejects_blank_ticker_or_anchor(repository: SQLiteInstrumentProfileR
         repository.put("KO", identity_anchor="   ", evidence={})
 
 
-def test_put_rejects_a_naive_clock(database: SQLiteDatabase) -> None:
+def test_put_rejects_a_naive_clock(migrated_database: SQLiteDatabase) -> None:
     naive_clock = lambda: datetime(2026, 9, 21, 12, 0, 0)  # noqa: E731
-    repository = SQLiteInstrumentProfileRepository(database, clock=naive_clock)
+    repository = SQLiteInstrumentProfileRepository(migrated_database, clock=naive_clock)
     with pytest.raises(ValueError, match="timezone-aware"):
         repository.put("KO", identity_anchor="0000021344", evidence={})
 
 
 def test_reopen_preserves_current_and_superseded_profiles(tmp_path: Path) -> None:
-    url = f"sqlite:///{(tmp_path / 'reopen.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path)
 
     first_database = SQLiteDatabase(ProjectSettings(database_url=url))
     try:

@@ -6,8 +6,6 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
@@ -18,6 +16,7 @@ from investment_analysis_engine.telemetry.quality import record_cli_quality, rec
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
 from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
+from tests._migrated_database import migrated_database_url
 
 
 def decision() -> QualityDecision:
@@ -49,10 +48,7 @@ def test_candidate_rejection_is_diagnostic_without_console_warning(caplog: pytes
 
 
 def test_quality_failure_roundtrip_keeps_run_and_span_and_redacts(tmp_path: Path) -> None:
-    url = f"sqlite:///{(tmp_path / 'quality.sqlite3').as_posix()}"
-    config = Config("alembic.ini")
-    config.set_main_option("sqlalchemy.url", url)
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path)
     context = RunContext.new()
     span, parent = uuid4(), uuid4()
     database = SQLiteDatabase(ProjectSettings(database_url=url))

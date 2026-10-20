@@ -16,8 +16,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from typer.testing import CliRunner
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
@@ -42,8 +40,8 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
     SQLiteAnalysisRunRepository,
 )
 from investment_analysis_engine.workspace.runs import RunQuery
-from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import carry_profile
+from tests._migrated_database import migrated_database_url
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
@@ -65,10 +63,7 @@ def isolated_save_run_database(
     Every other field (SEC identity, etc.) is preserved from the real settings,
     so this module's tests do not disturb unrelated already-accepted behavior.
     """
-    url = f"sqlite:///{(tmp_path / 'save_run.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path / "save_run")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
     monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
     monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)

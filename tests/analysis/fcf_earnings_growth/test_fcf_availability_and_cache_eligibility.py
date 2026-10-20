@@ -11,17 +11,12 @@ key).
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Protocol
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
-from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.cache import (
     InMemoryResolvedInputCache,
@@ -43,7 +38,6 @@ from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
     resolve_annual_growth_series,
 )
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
-from scripts.repository_root import REPOSITORY_ROOT
 from tests._sec_labeled_annual import sec_annual_fact, sec_annual_series
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
@@ -64,25 +58,12 @@ class _SeriesCache(Protocol):
     def put(self, key: ResolvedInputCacheKey, resolved_input: ResolvedInput) -> None: ...
 
 
-@pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'resolved.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
-    finally:
-        database.close()
-
-
 @pytest.fixture(params=["memory", "sqlite"])
-def cache(request: pytest.FixtureRequest, database: SQLiteDatabase) -> _SeriesCache:
+def cache(request: pytest.FixtureRequest, migrated_database: SQLiteDatabase) -> _SeriesCache:
     """The two production-shaped series caches, which share one eligibility check."""
     if request.param == "memory":
         return InMemoryResolvedInputCache(clock=lambda: NOW)
-    return SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    return SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
 
 
 def _resolve(

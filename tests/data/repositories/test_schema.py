@@ -1,10 +1,9 @@
 """Inspect and exercise the approved schema through its actual Alembic revision."""
 
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from alembic import command, op
+from alembic import op
 from alembic.config import Config
 from sqlalchemy import BigInteger, bindparam, inspect, text
 from sqlalchemy.engine import Connection
@@ -13,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.schema import metadata
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import alembic_config, upgrade_to_head
 
 STAMP = "2026-09-05T12:00:00.000000Z"
 EXPECTED_COLUMNS = {
@@ -50,20 +49,7 @@ EXPECTED_COLUMNS = {
 
 
 def config_for(path: Path) -> Config:
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}".replace("%", "%%"))
-    return config
-
-
-@pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    path = tmp_path / "schema.sqlite3"
-    command.upgrade(config_for(path), "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
-    try:
-        yield database
-    finally:
-        database.close()
+    return alembic_config(f"sqlite:///{path.as_posix()}")
 
 
 def schema_signature(connection: Connection) -> dict[str, object]:
@@ -85,14 +71,14 @@ def schema_signature(connection: Connection) -> dict[str, object]:
 
 
 def test_migration_matches_core_metadata_and_approved_column_inventory(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
     tmp_path: Path,
 ) -> None:
     reference = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'core.sqlite3').as_posix()}"))
     try:
         with reference.transaction() as connection:
             metadata.create_all(connection)
-        with database.read() as actual, reference.read() as expected:
+        with migrated_database.read() as actual, reference.read() as expected:
             assert set(inspect(actual).get_table_names()) == set(EXPECTED_COLUMNS) | {"alembic_version"}
             assert set(metadata.tables) == set(EXPECTED_COLUMNS)
             for table, columns in EXPECTED_COLUMNS.items():
@@ -224,49 +210,49 @@ def base_row(table: str) -> dict[str, object]:
     ],
 )
 def test_database_checks_reject_invalid_rows(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
     table: str,
     field: str,
     value: object,
 ) -> None:
     row = base_row(table)
     row[field] = value
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(metadata.tables[table].insert(), row)
 
 
-def test_duplicate_event_identity_and_run_sequence_are_rejected(database: SQLiteDatabase) -> None:
+def test_duplicate_event_identity_and_run_sequence_are_rejected(migrated_database: SQLiteDatabase) -> None:
     row = base_row("trajectory_events")
     table = metadata.tables["trajectory_events"]
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(table.insert(), row)
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(table.insert(), row)
     row["event_id"] = "event-2"
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(table.insert(), row)
 
 
-def test_nullable_cache_key_identity_and_period_checks(database: SQLiteDatabase) -> None:
+def test_nullable_cache_key_identity_and_period_checks(migrated_database: SQLiteDatabase) -> None:
     row = base_row("resolved_input_cache")
     table = metadata.tables["resolved_input_cache"]
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(table.insert(), row)
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(table.insert(), row)
     historical = dict(
         row,
         cache_key='["security","AAPL","eps",null,"test","2026-09-05T12:00:00.000000Z",1,null,null]',
         analysis_as_of=STAMP,
     )
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(table.insert(), historical)
     invalid = dict(row, cache_key="reversed", key_period_start=STAMP, key_period_end="2025-09-05T12:00:00.000000Z")
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(table.insert(), invalid)
 
 
-def test_observations_are_snapshot_scoped_with_cascade_and_integer_volume(database: SQLiteDatabase) -> None:
+def test_observations_are_snapshot_scoped_with_cascade_and_integer_volume(migrated_database: SQLiteDatabase) -> None:
     entries = metadata.tables["market_data_cache_entries"]
     observations = metadata.tables["market_price_observations"]
     row = {
@@ -279,32 +265,32 @@ def test_observations_are_snapshot_scoped_with_cascade_and_integer_volume(databa
     # NUMERIC's default bind processor converts integers through float. E1 must
     # bind volume according to the retained frame dtype, preserving int64 here.
     integer_volume_insert = observations.insert().values(volume=bindparam("volume", type_=BigInteger()))
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(observations.insert(), row)
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(entries.insert(), base_row("market_data_cache_entries"))
         connection.execute(entries.insert(), dict(base_row("market_data_cache_entries"), entry_key="snapshot-2"))
         connection.execute(integer_volume_insert, row)
         connection.execute(integer_volume_insert, dict(row, entry_key="snapshot-2"))
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(observations.insert(), dict(row, row_position=1))
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(observations.insert(), dict(row, row_position=0, index_value="2026-01-02"))
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(observations.insert(), dict(row, row_position=-1, index_value="2026-01-02"))
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(entries.delete().where(entries.c.entry_key == "snapshot-1"))
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         assert connection.execute(text("SELECT entry_key FROM market_price_observations")).scalars().all() == [
             "snapshot-2"
         ]
         assert connection.execute(observations.select()).mappings().one()["volume"] == 2**60 + 1
 
 
-def test_watchlist_entries_enforce_order_and_cascade(database: SQLiteDatabase) -> None:
+def test_watchlist_entries_enforce_order_and_cascade(migrated_database: SQLiteDatabase) -> None:
     watchlists = metadata.tables["watchlists"]
     entries = metadata.tables["watchlist_entries"]
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(watchlists.insert(), base_row("watchlists"))
         connection.execute(
             entries.insert(),
@@ -319,7 +305,7 @@ def test_watchlist_entries_enforce_order_and_cascade(database: SQLiteDatabase) -
         )
     # A second entry at the same (watchlist_id, position) collides with the primary key,
     # even with a different ticker/method — position uniqueness is the PK itself now.
-    with pytest.raises(IntegrityError), database.transaction() as connection:
+    with pytest.raises(IntegrityError), migrated_database.transaction() as connection:
         connection.execute(
             entries.insert(),
             {
@@ -331,22 +317,22 @@ def test_watchlist_entries_enforce_order_and_cascade(database: SQLiteDatabase) -
                 "selection_json": "{}",
             },
         )
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(watchlists.delete())
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         assert connection.execute(entries.select()).all() == []
 
 
-def test_analysis_run_indexes_and_refresh_pair(database: SQLiteDatabase) -> None:
+def test_analysis_run_indexes_and_refresh_pair(migrated_database: SQLiteDatabase) -> None:
     table = metadata.tables["analysis_runs"]
     row = base_row("analysis_runs")
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(table.insert(), row)
         connection.execute(
             table.insert(),
             {**row, "analysis_run_id": "run-2", "refresh_id": "refresh-1", "batch_position": 0},
         )
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         indexes = {item["name"] for item in inspect(connection).get_indexes("analysis_runs")}
         assert indexes == {
             "ix_analysis_runs_completed",
@@ -357,10 +343,10 @@ def test_analysis_run_indexes_and_refresh_pair(database: SQLiteDatabase) -> None
         }
 
 
-def test_instrument_profiles_supersede_pair_and_ticker_index(database: SQLiteDatabase) -> None:
+def test_instrument_profiles_supersede_pair_and_ticker_index(migrated_database: SQLiteDatabase) -> None:
     table = metadata.tables["instrument_profiles"]
     row = base_row("instrument_profiles")
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(table.insert(), row)
     # A superseded row is a valid, distinct primary key sharing the same ticker
     # as its successor; there is no partial/unique index rejecting this pair
@@ -371,9 +357,9 @@ def test_instrument_profiles_supersede_pair_and_ticker_index(database: SQLiteDat
         superseded_at=STAMP,
         superseded_reason="Identity anchor changed.",
     )
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(table.insert(), superseded)
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         indexes = {item["name"] for item in inspect(connection).get_indexes("instrument_profiles")}
         assert indexes == {"ix_instrument_profiles_ticker"}
         assert connection.execute(
@@ -390,7 +376,7 @@ def test_failed_initial_revision_rolls_back_all_tables(tmp_path: Path, monkeypat
 
     monkeypatch.setattr(op, "execute", fail_seed)
     with pytest.raises(RuntimeError, match="seed failed"):
-        command.upgrade(config_for(path), "head")
+        upgrade_to_head(config_for(path))
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
     try:
         with database.read() as connection:

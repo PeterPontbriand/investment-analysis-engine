@@ -11,8 +11,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from sqlalchemy.engine import Connection
 
 from investment_analysis_engine.config import ProjectSettings
@@ -25,7 +23,7 @@ from investment_analysis_engine.data.repositories.readiness import (
 )
 from investment_analysis_engine.data.repositories.readiness_lock import readiness_lock
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import alembic_config, upgrade_to_head
 
 
 def _owner(path: str, channel: _ConnectionBase[object, object], crash: bool, mode: str = "automatic") -> None:
@@ -43,10 +41,9 @@ def _owner(path: str, channel: _ConnectionBase[object, object], crash: bool, mod
 
     try:
         if mode == "manual":
-            config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-            config.set_main_option("sqlalchemy.url", f"sqlite:///{Path(path).as_posix()}".replace("%", "%%"))
+            config = alembic_config(f"sqlite:///{Path(path).as_posix()}")
             with patch.object(migrations, "_run_on_connection", paused_upgrade):
-                command.upgrade(config, "head")
+                upgrade_to_head(config)
             channel.send("initialized")
         else:
             with patch.object(readiness, "upgrade_fresh_database", paused_upgrade):
@@ -75,10 +72,9 @@ def _waiter(path: str, channel: _ConnectionBase[object, object], mode: str) -> N
 
     try:
         if mode == "manual":
-            config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-            config.set_main_option("sqlalchemy.url", f"sqlite:///{Path(path).as_posix()}".replace("%", "%%"))
+            config = alembic_config(f"sqlite:///{Path(path).as_posix()}")
             with patch.object(migrations, "readiness_lock", signaled_lock):
-                command.upgrade(config, "head")
+                upgrade_to_head(config)
             channel.send("manual-upgrade-complete")
             return
         with (

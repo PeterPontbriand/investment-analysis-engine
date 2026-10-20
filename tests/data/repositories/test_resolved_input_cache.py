@@ -1,15 +1,12 @@
 """Verify durable scalar cache identity, provenance, replacement, and eligibility."""
 
 import json
-from collections.abc import Iterator
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
@@ -33,7 +30,7 @@ from investment_analysis_engine.data.financial.provenance import (
 from investment_analysis_engine.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
 from investment_analysis_engine.data.repositories.schema import resolved_input_cache, schema_metadata
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import DATABASE_FILE_NAME
 
 NOW = datetime(2026, 9, 5, 12, 0, 0, 123456, tzinfo=UTC)
 START = datetime(2025, 1, 1, tzinfo=UTC)
@@ -41,9 +38,9 @@ END = datetime(2025, 12, 31, tzinfo=UTC)
 
 
 def test_list_keys_pages_preserve_full_identity(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     assert cache.list_keys(limit=2) == ()
     keys = (
         replace(key, subject_kind=FinancialSubjectKind.MACRO, subject_id="macroCase", basis=None),
@@ -74,14 +71,14 @@ def test_list_keys_rejects_invalid_bounds_before_io(tmp_path: Path, limit: Any, 
 
 @pytest.mark.parametrize("version", [None, 2])
 def test_inspection_requires_encoding(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, version: int | None
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, version: int | None
 ) -> None:
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         if version is None:
             connection.execute(delete(schema_metadata))
         else:
             connection.execute(update(schema_metadata).values(metadata_value=version))
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     with pytest.raises(ValueError, match="encoding version"):
         cache.list_keys(limit=1)
     with pytest.raises(ValueError, match="encoding version"):
@@ -90,11 +87,11 @@ def test_inspection_requires_encoding(
 
 @pytest.mark.parametrize(("column", "value"), [("subject_id", "other"), ("analysis_as_of", "not-a-date")])
 def test_list_keys_rejects_malformed_selected_keys(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: str
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: str
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, fact)
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.exec_driver_sql("PRAGMA ignore_check_constraints = ON")
         connection.execute(update(resolved_input_cache).values(**{column: value}))
     with pytest.raises(ValueError, match="Malformed|validation error"):
@@ -103,25 +100,25 @@ def test_list_keys_rejects_malformed_selected_keys(
 
 @pytest.mark.parametrize(("column", "value"), [("notes_json", "{}"), ("value", float("inf")), ("subject_id", "OTHER")])
 def test_inspect_rejects_corrupt_storage(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: object
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: object
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, fact)
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(update(resolved_input_cache).values(**{column: value}))
     with pytest.raises(ValueError, match="Malformed|validation error"):
         cache.inspect(key)
 
 
 def test_inspection_preserves_ineligible_entries_and_never_uses_clock(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
     historical = replace(key, analysis_as_of=NOW, observation_period_start=START, observation_period_end=END)
     late_fact = replace(fact, as_of=NOW, available_at=NOW + timedelta(days=1))
-    writer = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    writer = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     writer.put(key, fact)
     writer.put(historical, late_fact)
-    stale = SQLiteResolvedInputCache(database, clock=lambda: NOW + timedelta(days=1), ttl=timedelta(seconds=1))
+    stale = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW + timedelta(days=1), ttl=timedelta(seconds=1))
     assert stale.get(key) is None
     assert stale.get(historical) is None
     assert (
@@ -142,23 +139,23 @@ def test_inspection_preserves_ineligible_entries_and_never_uses_clock(
     def forbidden_clock() -> datetime:
         pytest.fail("Inspection must not consult freshness or write timestamps")
 
-    inspector = SQLiteResolvedInputCache(database, clock=forbidden_clock, ttl=timedelta(0))
-    with database.read() as connection:
+    inspector = SQLiteResolvedInputCache(migrated_database, clock=forbidden_clock, ttl=timedelta(0))
+    with migrated_database.read() as connection:
         before = connection.execute(select(resolved_input_cache)).all()
     assert inspector.list_keys(limit=10) == (historical, key)
     assert inspector.inspect(key) == ResolvedInputCacheEntry(key, fact, NOW)
     assert inspector.inspect(historical) == ResolvedInputCacheEntry(historical, late_fact, NOW)
     assert inspector.inspect(replace(key, subject_id="MISSING")) is None
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         assert connection.execute(select(resolved_input_cache)).all() == before
 
 
 def test_list_keys_does_not_decode_payload(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, fact)
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(update(resolved_input_cache).values(notes_json="{}"))
     assert cache.list_keys(limit=1) == (key,)
     with pytest.raises(ValueError, match="Malformed|validation error"):
@@ -173,19 +170,6 @@ def test_inspect_revalidates_key_before_io(tmp_path: Path, key: ResolvedInputCac
         with pytest.raises(ValueError, match="timezone-aware"):
             SQLiteResolvedInputCache(database, clock=lambda: NOW).inspect(key)
         assert not path.exists()
-    finally:
-        database.close()
-
-
-@pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'cache.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
     finally:
         database.close()
 
@@ -224,14 +208,14 @@ def fact() -> ResolvedInput:
 
 
 def test_complete_provider_round_trip_and_reopen(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, tmp_path: Path
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, tmp_path: Path
 ) -> None:
-    cache: ResolvedInputCacheProtocol = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache: ResolvedInputCacheProtocol = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     assert cache.get(key) is None
     cache.put(key, fact)
     assert cache.get(key) == ResolvedInputCacheEntry(key, fact, NOW)
-    database.close()
-    reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'cache.sqlite3').as_posix()}"))
+    migrated_database.close()
+    reopened = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{(tmp_path / DATABASE_FILE_NAME).as_posix()}"))
     try:
         assert SQLiteResolvedInputCache(reopened, clock=lambda: NOW).get(key) == ResolvedInputCacheEntry(key, fact, NOW)
     finally:
@@ -239,7 +223,7 @@ def test_complete_provider_round_trip_and_reopen(
 
 
 def test_recursive_lineage_preserves_all_fields(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
     override = replace(fact, source_kind=SourceKind.OVERRIDE, provider_id=None, provider_field=None)
     cached = replace(fact, source_kind=SourceKind.CACHE, origin_source_kind=SourceKind.PROVIDER, cache_schema_version=3)
@@ -253,10 +237,10 @@ def test_recursive_lineage_preserves_all_fields(
         nested, source_kind=SourceKind.CACHE, origin_source_kind=SourceKind.DERIVED, cache_schema_version=4
     )
     derived = replace(nested, provider_id=None, lineage=ComponentLineage("nested transform", (cached_derived,)))
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, derived)
     assert cache.get(key) == ResolvedInputCacheEntry(key, derived, NOW)
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         encoded = connection.execute(select(resolved_input_cache.c.lineage_json)).scalar_one()
     component = json.loads(encoded)["components"][0]
     assert set(component) == set(asdict(fact))
@@ -266,11 +250,11 @@ def test_recursive_lineage_preserves_all_fields(
 
 
 def test_normalized_key_and_utc_identity(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
     historical = replace(key, analysis_as_of=NOW, observation_period_start=START, observation_period_end=END)
     fact = replace(fact, as_of=NOW)
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(historical, fact)
     offset = timezone(timedelta(hours=-4))
     equivalent = replace(
@@ -281,7 +265,7 @@ def test_normalized_key_and_utc_identity(
         observation_period_start=START.astimezone(offset),
     )
     assert cache.get(equivalent) == ResolvedInputCacheEntry(historical, fact, NOW)
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         encoded = connection.execute(select(resolved_input_cache.c.cache_key)).scalar_one()
     assert json.loads(encoded) == [
         "security",
@@ -309,18 +293,18 @@ def test_normalized_key_and_utc_identity(
     ],
 )
 def test_key_dimensions_do_not_collide(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, field: str, value: object
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, field: str, value: object
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, fact)
     changes: dict[str, Any] = {field: value}
     assert cache.get(replace(key, **changes)) is None
 
 
 def test_period_identity_and_macro_case(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     scoped = replace(
         key,
         subject_kind=FinancialSubjectKind.MACRO,
@@ -336,9 +320,9 @@ def test_period_identity_and_macro_case(
 
 
 def test_current_and_historical_entries_coexist(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     historical = replace(key, analysis_as_of=NOW)
     historical_fact = replace(fact, as_of=NOW, value=7)
     cache.put(key, fact)
@@ -348,10 +332,10 @@ def test_current_and_historical_entries_coexist(
 
 
 def test_replacement_refreshes_time_and_clears_old_fields(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
     now = NOW
-    cache = SQLiteResolvedInputCache(database, clock=lambda: now)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: now)
     cache.put(key, fact)
     now += timedelta(seconds=1)
     cache.put(key, fact)
@@ -366,7 +350,7 @@ def test_replacement_refreshes_time_and_clears_old_fields(
     )
     cache.put(key, minimal)
     assert cache.get(key) == ResolvedInputCacheEntry(key, minimal, now)
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         assert len(connection.execute(select(resolved_input_cache)).all()) == 1
 
 
@@ -382,7 +366,7 @@ def test_replacement_refreshes_time_and_clears_old_fields(
     ],
 )
 def test_ttl_matches_memory_without_deleting(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
     key: ResolvedInputCacheKey,
     fact: ResolvedInput,
     case: tuple[int | None, float, bool],
@@ -390,7 +374,7 @@ def test_ttl_matches_memory_without_deleting(
     ttl, age, hit = case
     now = NOW
     lifetime = None if ttl is None else timedelta(seconds=ttl)
-    cache = SQLiteResolvedInputCache(database, clock=lambda: now, ttl=lifetime)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: now, ttl=lifetime)
     memory = InMemoryResolvedInputCache(clock=lambda: now, ttl=lifetime)
     assert cache.ttl == lifetime
     cache.put(key, fact)
@@ -398,16 +382,16 @@ def test_ttl_matches_memory_without_deleting(
     now += timedelta(seconds=age)
     assert cache.get(key) == memory.get(key)
     assert (cache.get(key) is not None) is hit
-    assert SQLiteResolvedInputCache(database, clock=lambda: now).get(key) is not None
+    assert SQLiteResolvedInputCache(migrated_database, clock=lambda: now).get(key) is not None
 
 
 @pytest.mark.parametrize("available", [None, NOW - timedelta(seconds=1), NOW, NOW + timedelta(microseconds=1)])
 def test_historical_availability_matches_memory(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, available: datetime | None
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, available: datetime | None
 ) -> None:
     key = replace(key, analysis_as_of=NOW)
     fact = replace(fact, as_of=NOW, available_at=available)
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     memory = InMemoryResolvedInputCache(clock=lambda: NOW)
     cache.put(key, fact)
     memory.put(key, fact)
@@ -417,14 +401,14 @@ def test_historical_availability_matches_memory(
 
 @pytest.mark.parametrize("source", [SourceKind.OVERRIDE, SourceKind.CACHE])
 def test_reject_noncacheable_roots(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, source: SourceKind
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, source: SourceKind
 ) -> None:
     invalid = (
         replace(fact, source_kind=source, provider_id=None, provider_field=None)
         if source is SourceKind.OVERRIDE
         else replace(fact, source_kind=source, origin_source_kind=SourceKind.PROVIDER, cache_schema_version=1)
     )
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     with pytest.raises(ValueError, match="source_kind"):
         cache.put(key, invalid)
     assert cache.get(key) is None
@@ -440,9 +424,9 @@ def test_reject_noncacheable_roots(
     ],
 )
 def test_incoherent_replacement_preserves_previous_row(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, field: str, value: object
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, field: str, value: object
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, fact)
     changes: dict[str, Any] = {field: value}
     changed = replace(fact, capital_expenditure_sign=None, **changes)
@@ -452,12 +436,12 @@ def test_incoherent_replacement_preserves_previous_row(
 
 
 def test_invalid_clock_and_negative_ttl(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
 ) -> None:
     with pytest.raises(ValueError, match="non-negative"):
-        SQLiteResolvedInputCache(database, clock=lambda: NOW, ttl=timedelta(seconds=-1))
+        SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW, ttl=timedelta(seconds=-1))
     now = NOW
-    cache = SQLiteResolvedInputCache(database, clock=lambda: now, ttl=timedelta(seconds=1))
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: now, ttl=timedelta(seconds=1))
     cache.put(key, fact)
     now = NOW.replace(tzinfo=None)
     with pytest.raises(ValueError, match="timezone-aware"):
@@ -467,27 +451,29 @@ def test_invalid_clock_and_negative_ttl(
     # A cache with no configured TTL still reads through its own required clock (IR.2.4 removes
     # the prior "skip the clock entirely when ttl is None" special case), so this reopened,
     # bare-ttl instance needs a valid clock, unlike the intentionally-naive one exercised above.
-    assert SQLiteResolvedInputCache(database, clock=lambda: NOW).get(key) is not None
+    assert SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW).get(key) is not None
 
 
 @pytest.mark.parametrize("nested", [False, True])
 def test_nonfinite_values_are_revalidated(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, nested: bool
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, nested: bool
 ) -> None:
     invalid = replace(fact)
     object.__setattr__(invalid, "value", float("inf"))
     if nested:
         invalid = replace(fact, source_kind=SourceKind.DERIVED, lineage=ComponentLineage("invalid", (invalid,)))
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     with pytest.raises(ValueError, match="finite"):
         cache.put(key, invalid)
     assert cache.get(key) is None
 
 
-def test_failed_upsert_rolls_back(database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+def test_failed_upsert_rolls_back(
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput
+) -> None:
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, fact)
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.exec_driver_sql(
             "CREATE TRIGGER reject_cache_update AFTER UPDATE ON resolved_input_cache "
             "BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END"
@@ -499,19 +485,19 @@ def test_failed_upsert_rolls_back(database: SQLiteDatabase, key: ResolvedInputCa
 
 @pytest.mark.parametrize("version", [None, 2])
 def test_encoding_version_is_required(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, version: int | None
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, version: int | None
 ) -> None:
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         if version is None:
             connection.execute(delete(schema_metadata))
         else:
             connection.execute(update(schema_metadata).values(metadata_value=version))
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     with pytest.raises(ValueError, match="encoding version"):
         cache.get(key)
     with pytest.raises(ValueError, match="encoding version"):
         cache.put(key, fact)
-    with database.read() as connection:
+    with migrated_database.read() as connection:
         assert connection.execute(select(resolved_input_cache)).all() == []
 
 
@@ -527,11 +513,11 @@ def test_encoding_version_is_required(
     ],
 )
 def test_corrupt_storage_raises(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: object
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, column: str, value: object
 ) -> None:
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, fact)
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         connection.execute(update(resolved_input_cache).values(**{column: value}))
     with pytest.raises(ValueError, match="Malformed|validation error|Expecting"):
         cache.get(key)
@@ -553,10 +539,10 @@ def test_construction_does_not_migrate(tmp_path: Path, key: ResolvedInputCacheKe
 
 @pytest.mark.parametrize("corruption", ["row", "version"])
 def test_series_read_rejects_corruption_without_partial_results(
-    database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, corruption: str
+    migrated_database: SQLiteDatabase, key: ResolvedInputCacheKey, fact: ResolvedInput, corruption: str
 ) -> None:
     key = replace(key, observation_period_start=START, observation_period_end=END)
-    cache = SQLiteResolvedInputCache(database, clock=lambda: NOW)
+    cache = SQLiteResolvedInputCache(migrated_database, clock=lambda: NOW)
     cache.put(key, fact)
     earlier = replace(
         key, observation_period_start=START - timedelta(days=365), observation_period_end=END - timedelta(days=365)
@@ -569,7 +555,7 @@ def test_series_read_rejects_corruption_without_partial_results(
             observation_period_end=earlier.observation_period_end,
         ),
     )
-    with database.transaction() as connection:
+    with migrated_database.transaction() as connection:
         if corruption == "version":
             connection.execute(update(schema_metadata).values(metadata_value=2))
         else:

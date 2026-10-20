@@ -31,11 +31,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from investment_analysis_engine.config import ProjectSettings
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import migrated_database_url
 
 
 @pytest.fixture
@@ -45,11 +43,7 @@ def isolated_cli_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pr
     A test module that needs this isolation for every test lists the fixture in a ``pytestmark``; a test that uses
     the settings takes the fixture as an argument.
     """
-    url = f"sqlite:///{(tmp_path / 'cli.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    isolated = ProjectSettings(database_url=url)
+    isolated = ProjectSettings(database_url=migrated_database_url(tmp_path))
     monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)
     monkeypatch.setattr("investment_analysis_engine.cli_workspace.settings", isolated)
     monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)

@@ -36,6 +36,7 @@ import pytest  # noqa: E402
 from tests._cli_isolation import isolated_cli_settings, stub_yahoo_identity_metadata  # noqa: E402
 from tests._collection_hint import pytest_make_collect_report  # noqa: E402
 from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure  # noqa: E402
+from tests._migrated_database import migrated_database  # noqa: E402
 from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: E402
 from tests._session_isolation import SESSION_DATABASE_RULE, session_database_file, stop_session_if_outside  # noqa: E402
 
@@ -44,6 +45,7 @@ __all__ = [
     "block_live_yahoo",
     "cleanup_logging_handlers",
     "isolated_cli_settings",
+    "migrated_database",
     "pytest_addoption",
     "pytest_collection_modifyitems",
     "pytest_configure",

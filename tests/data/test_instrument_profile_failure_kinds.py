@@ -4,16 +4,11 @@ Each narrowed carrier records the kind of a typed provider failure and lets anyt
 never reported as a provider outage.
 """
 
-from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import update
 
-from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
@@ -49,7 +44,6 @@ from investment_analysis_engine.data.security_unit import (
     SecurityUnitResolution,
     SecurityUnitResolutionReason,
 )
-from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 21, 12, 0, 0, tzinfo=UTC)
 TTL = timedelta(days=30)
@@ -233,21 +227,8 @@ def test_a_defect_in_the_security_unit_completion_propagates() -> None:
 
 
 @pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'profile_kinds.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
-    finally:
-        database.close()
-
-
-@pytest.fixture
-def repository(database: SQLiteDatabase) -> SQLiteInstrumentProfileRepository:
-    return SQLiteInstrumentProfileRepository(database, clock=lambda: NOW)
+def repository(migrated_database: SQLiteDatabase) -> SQLiteInstrumentProfileRepository:
+    return SQLiteInstrumentProfileRepository(migrated_database, clock=lambda: NOW)
 
 
 def _anchored_candidates(
@@ -284,12 +265,12 @@ def test_the_profile_cache_payload_round_trips_the_kind(
 
 
 def test_a_version_one_record_is_not_reused_on_the_fresh_path(
-    database: SQLiteDatabase, repository: SQLiteInstrumentProfileRepository
+    migrated_database: SQLiteDatabase, repository: SQLiteInstrumentProfileRepository
 ) -> None:
     resolver = CachedInstrumentProfileResolver(repository, ttl=TTL, clock=lambda: NOW)
     identity_candidates, kind_candidate = _anchored_candidates(_typed(DataFetchError, ProviderFailureKind.NO_DATA))
     resolver.resolve("ko", identity_candidates=identity_candidates, kind_candidate=kind_candidate)
-    _set_version(database, 1)
+    _set_version(migrated_database, 1)
 
     calls = _CountingIdentity()
     result = resolver.resolve(
@@ -306,12 +287,12 @@ def test_a_version_one_record_is_not_reused_on_the_fresh_path(
 
 
 def test_a_version_one_record_is_not_reused_on_the_fail_open_path(
-    database: SQLiteDatabase, repository: SQLiteInstrumentProfileRepository
+    migrated_database: SQLiteDatabase, repository: SQLiteInstrumentProfileRepository
 ) -> None:
     resolver = CachedInstrumentProfileResolver(repository, ttl=TTL, clock=lambda: NOW)
     identity_candidates, kind_candidate = _anchored_candidates(_typed(DataFetchError, ProviderFailureKind.NO_DATA))
     resolver.resolve("ko", identity_candidates=identity_candidates, kind_candidate=kind_candidate)
-    _set_version(database, 1)
+    _set_version(migrated_database, 1)
 
     anchorless = _AnchorlessIdentity()
     result = resolver.resolve(

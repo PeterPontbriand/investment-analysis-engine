@@ -7,17 +7,12 @@ boundary's UTC date (providers treat the end date as exclusive); the strict trun
 before the boundary stays.
 """
 
-from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta, timezone
-from pathlib import Path
 
 import pandas as pd
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
-from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.base_client import BaseDataClient
 from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
 from investment_analysis_engine.data.market_data import (
@@ -29,7 +24,6 @@ from investment_analysis_engine.data.quality import HistoricalDataQualityError
 from investment_analysis_engine.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
-from scripts.repository_root import REPOSITORY_ROOT
 
 START = "2026-01-01"
 VARIANT = "1d:adjusted"
@@ -87,19 +81,6 @@ def _closes(*, bad_at: int | None = None) -> list[float]:
     return closes
 
 
-@pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'history.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
-    finally:
-        database.close()
-
-
 def _client(provider: _EndDateProvider, database: SQLiteDatabase) -> CachedHistoricalDataClient:
     repository = SQLiteMarketDataRepository(database, clock=lambda: EXECUTED_AT)
     return CachedHistoricalDataClient(
@@ -120,21 +101,21 @@ def _stored(database: SQLiteDatabase, end: date | None) -> pd.DataFrame | None:
 
 
 def test_an_invalid_bar_after_the_boundary_does_not_fail_an_as_of_run_on_a_cache_miss(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
 ) -> None:
     provider = _EndDateProvider(_closes(bad_at=BAR_COUNT - 1))
 
-    run = _run(_client(provider, database), as_of=BOUNDARY)
+    run = _run(_client(provider, migrated_database), as_of=BOUNDARY)
 
     assert run.metrics.current_price == 20.0  # the 2026-01-11 close
     assert provider.calls == [("ACME", START, "2026-01-12")]
 
 
 def test_an_invalid_bar_after_the_boundary_does_not_fail_an_as_of_run_on_a_cache_hit(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
 ) -> None:
     provider = _EndDateProvider(_closes(bad_at=BAR_COUNT - 1))
-    client = _client(provider, database)
+    client = _client(provider, migrated_database)
     first = _run(client, as_of=BOUNDARY)
 
     second = _run(client, as_of=BOUNDARY)
@@ -145,53 +126,53 @@ def test_an_invalid_bar_after_the_boundary_does_not_fail_an_as_of_run_on_a_cache
 
 
 def test_an_invalid_bar_after_the_boundary_does_not_fail_an_as_of_run_with_no_cache(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
 ) -> None:
     provider = _EndDateProvider(_closes(bad_at=BAR_COUNT - 1))
 
-    run = _run(_client(provider, database), as_of=BOUNDARY, use_cache=False)
+    run = _run(_client(provider, migrated_database), as_of=BOUNDARY, use_cache=False)
 
     assert run.metrics.current_price == 20.0
     assert provider.calls == [("ACME", START, "2026-01-12")]
-    assert _stored(database, date(2026, 1, 12)) is None
+    assert _stored(migrated_database, date(2026, 1, 12)) is None
 
 
 @pytest.mark.parametrize("bad_at", [BOUNDARY_DAY, BOUNDARY_DAY - 3, 0])
 @pytest.mark.parametrize("use_cache", [True, False])
 def test_an_invalid_bar_at_or_before_the_boundary_still_fails_the_run(
-    database: SQLiteDatabase, bad_at: int, use_cache: bool
+    migrated_database: SQLiteDatabase, bad_at: int, use_cache: bool
 ) -> None:
     provider = _EndDateProvider(_closes(bad_at=bad_at))
 
     with pytest.raises(HistoricalDataQualityError):
-        _run(_client(provider, database), as_of=BOUNDARY, use_cache=use_cache)
+        _run(_client(provider, migrated_database), as_of=BOUNDARY, use_cache=use_cache)
 
 
-def test_a_cached_as_of_window_holds_no_bar_after_the_boundary(database: SQLiteDatabase) -> None:
+def test_a_cached_as_of_window_holds_no_bar_after_the_boundary(migrated_database: SQLiteDatabase) -> None:
     provider = _EndDateProvider(_closes())
 
-    _run(_client(provider, database), as_of=BOUNDARY)
+    _run(_client(provider, migrated_database), as_of=BOUNDARY)
 
-    stored = _stored(database, date(2026, 1, 12))
+    stored = _stored(migrated_database, date(2026, 1, 12))
     assert stored is not None
     assert len(stored) == BOUNDARY_DAY + 1
     assert stored.index.max() <= pd.Timestamp(BOUNDARY.replace(tzinfo=None))
-    assert _stored(database, None) is None
+    assert _stored(migrated_database, None) is None
 
 
-def test_a_live_run_fetches_and_caches_the_full_history_separately(database: SQLiteDatabase) -> None:
+def test_a_live_run_fetches_and_caches_the_full_history_separately(migrated_database: SQLiteDatabase) -> None:
     provider = _EndDateProvider(_closes())
-    client = _client(provider, database)
+    client = _client(provider, migrated_database)
 
     _run(client, as_of=BOUNDARY)
     live = _run(client, as_of=None)
 
     assert provider.calls == [("ACME", START, "2026-01-12"), ("ACME", START, None)]
     assert live.metrics.current_price == 29.0
-    full = _stored(database, None)
+    full = _stored(migrated_database, None)
     assert full is not None
     assert len(full) == BAR_COUNT
-    bounded = _stored(database, date(2026, 1, 12))
+    bounded = _stored(migrated_database, date(2026, 1, 12))
     assert bounded is not None
     assert len(bounded) == BOUNDARY_DAY + 1
 
@@ -209,11 +190,11 @@ UTC_MINUS_FIVE = timezone(timedelta(hours=-5))
     ],
 )
 def test_the_requested_window_ends_the_day_after_the_boundarys_utc_date(
-    database: SQLiteDatabase, as_of: datetime, expected_end: str
+    migrated_database: SQLiteDatabase, as_of: datetime, expected_end: str
 ) -> None:
     provider = _EndDateProvider(_closes())
 
-    _run(_client(provider, database), as_of=as_of)
+    _run(_client(provider, migrated_database), as_of=as_of)
 
     assert provider.calls[0][2] == expected_end
 
@@ -232,7 +213,7 @@ def test_a_boundary_on_the_last_day_of_a_month_rolls_the_end_date_over() -> None
 
 
 def test_an_invalid_bar_dated_on_the_boundary_day_but_stamped_after_the_boundary_instant_still_fails(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
 ) -> None:
     """The one remaining case (ESC-22).
 
@@ -244,15 +225,15 @@ def test_an_invalid_bar_dated_on_the_boundary_day_but_stamped_after_the_boundary
     boundary = datetime(2026, 1, 11, 6, tzinfo=UTC)
 
     with pytest.raises(HistoricalDataQualityError):
-        _run(_client(provider, database), as_of=boundary)
+        _run(_client(provider, migrated_database), as_of=boundary)
 
 
 def test_a_valid_bar_dated_on_the_boundary_day_but_stamped_after_the_boundary_instant_is_dropped(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
 ) -> None:
     provider = _EndDateProvider(_closes(), stamp_offset=timedelta(hours=12))
 
-    run = _run(_client(provider, database), as_of=datetime(2026, 1, 11, 6, tzinfo=UTC))
+    run = _run(_client(provider, migrated_database), as_of=datetime(2026, 1, 11, 6, tzinfo=UTC))
 
     assert run.metrics.current_price == 19.0  # the 2026-01-10 bar; the 2026-01-11 12:00 bar is later
 
@@ -264,21 +245,23 @@ def test_a_valid_bar_dated_on_the_boundary_day_but_stamped_after_the_boundary_in
     ids=["1990", "one-second-before-the-start-date"],
 )
 def test_a_boundary_before_the_series_start_date_reports_no_eligible_observations_without_fetching(
-    database: SQLiteDatabase, use_cache: bool, as_of: datetime
+    migrated_database: SQLiteDatabase, use_cache: bool, as_of: datetime
 ) -> None:
     provider = _EndDateProvider(_closes())
 
     with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
-        _run(_client(provider, database), as_of=as_of, use_cache=use_cache)
+        _run(_client(provider, migrated_database), as_of=as_of, use_cache=use_cache)
 
     assert provider.calls == []
-    assert _stored(database, None) is None
+    assert _stored(migrated_database, None) is None
 
 
-def test_a_boundary_at_the_series_start_date_is_fetched_and_keeps_the_first_bar(database: SQLiteDatabase) -> None:
+def test_a_boundary_at_the_series_start_date_is_fetched_and_keeps_the_first_bar(
+    migrated_database: SQLiteDatabase,
+) -> None:
     provider = _EndDateProvider(_closes())
 
-    run = _run(_client(provider, database), as_of=datetime(2026, 1, 1, tzinfo=UTC))
+    run = _run(_client(provider, migrated_database), as_of=datetime(2026, 1, 1, tzinfo=UTC))
 
     assert provider.calls == [("ACME", START, "2026-01-02")]
     assert run.metrics.current_price == 10.0

@@ -25,8 +25,8 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc2--tes
 | :--- | :--- | :--- | :--- |
 | Slice plan | [This document](#3-the-work-units) and the parent-plan updates | Complete | 2026-10-20 |
 | #148 | [CLI test isolation is an opt-in](#148--cli-test-isolation-is-an-opt-in) | Complete | 2026-10-20 |
-| #145 | [One migrated-database helper](#145--one-migrated-database-helper) | Next | |
-| Completion | [Plan rows and the final gate](#completion) | Planned | |
+| #145 | [One migrated-database helper](#145--one-migrated-database-helper) | Complete | 2026-10-20 |
+| Completion | [Plan rows and the final gate](#completion) | Next | |
 
 ## 3. The work units
 
@@ -139,6 +139,7 @@ needs a recorder over a sink, and the suite has no shared sink. Filed as
 | `alembic_config(database_url: str) -> Config` | The one place that names `alembic.ini`; for the tests whose subject is migration |
 | `upgrade_to_head(config: Config) -> None` | The one place that upgrades to head; builds the template and serves the tests whose subject is migration |
 | `ALEMBIC_INI` | The path of `alembic.ini`, for the one test that copies the file |
+| `DATABASE_FILE_NAME` | The name of every copy inside its folder, for a test that reopens the file its fixture made |
 
 The template is created inside the session folder, through `alembic.ini` as before, on the first use in a process. Every
 connection to it is closed and the write-ahead log is checkpointed and removed before the first copy; the helper
@@ -192,6 +193,11 @@ raises if a log file remains. A copy is therefore a complete file.
 
 Totals: 31 sites use the helper and 8 keep their own Alembic calls.
 
+Six tests reopened the fixture's file by the name their own fixture had given it (`history.sqlite3`,
+`market.sqlite3`, `cache.sqlite3`, `telemetry.sqlite3`); they name it through `DATABASE_FILE_NAME`. A test that needs the
+isolated CLI database and a second migrated one in the same test (`tests/test_cli_save_run.py`,
+`tests/test_failure_messages.py`) puts the second in its own subfolder.
+
 #### Migration tests
 
 Tests whose subject is migration keep their own Alembic calls, through `alembic_config` and `upgrade_to_head` so that
@@ -204,9 +210,12 @@ as "keeps its own". The guard below then covers every other file under `tests/`.
 | Test | Where | What it asserts |
 | :--- | :--- | :--- |
 | `test_a_copied_database_is_at_head_and_ready` | `tests/test_migrated_database.py` | A copy is at head and passes `ensure_database_ready`, the check the CLI uses, with outcome `READY` and no upgrade |
+| `test_the_template_is_in_the_session_folder_and_has_no_pending_write_ahead_content` | `tests/test_migrated_database.py` | The template lives in the session folder and leaves no write-ahead content behind |
+| `test_the_template_is_migrated_once_per_process` | `tests/test_migrated_database.py` | Two requests return the same template file |
 | `test_two_copies_are_independent_files` | `tests/test_migrated_database.py` | Writing to one copy leaves the template and the other copy unchanged |
 | `test_a_second_copy_into_the_same_folder_is_refused` | `tests/test_migrated_database.py` | The helper never overwrites a database |
-| `test_no_test_names_alembic_ini_or_upgrades_to_head_outside_the_migration_helper` | `tests/test_helper_conventions.py` | An AST scan: no string constant `"alembic.ini"` and no `upgrade(..., "head")` call anywhere under `tests/` outside `tests/_migrated_database.py`, `tests/data/repositories/test_migrations.py` and the scan's own file |
+| `test_no_test_names_the_alembic_ini_or_upgrades_to_head_outside_the_migration_helper` | `tests/test_helper_conventions.py` | An AST scan: no string constant `"alembic.ini"` and no `upgrade(..., "head")` call anywhere under `tests/` outside `tests/_migrated_database.py`, `tests/data/repositories/test_migrations.py` and the scan's own file |
+| `test_the_migration_scan_reports_the_ini_file_and_an_upgrade_to_head` | `tests/test_helper_conventions.py` | The scan itself reports both and ignores a downgrade and an older revision |
 
 ### Completion
 

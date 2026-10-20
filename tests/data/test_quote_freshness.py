@@ -6,8 +6,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
@@ -27,6 +25,7 @@ from investment_analysis_engine.data.repositories.resolved_input_cache import SQ
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.yfinance.client import YFinanceClient, YFinanceQuote
 from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
+from tests._migrated_database import migrated_database_url
 
 NOW = datetime(2026, 9, 11, tzinfo=UTC)
 
@@ -221,10 +220,7 @@ def test_legacy_yahoo_timestamp_is_not_market_observation() -> None:
 
 def test_yahoo_adapter_quote_round_trips_through_real_sqlite(tmp_path: Path) -> None:
     """The descriptive quote basis must agree with its persisted request identity."""
-    settings = ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'quote.sqlite3').as_posix()}")
-    config = Config("alembic.ini")
-    config.set_main_option("sqlalchemy.url", settings.database_url)
-    command.upgrade(config, "head")
+    settings = ProjectSettings(database_url=migrated_database_url(tmp_path))
     client = MagicMock(spec=YFinanceClient)
     client.fetch_current_quote.return_value = YFinanceQuote(87.83, "USD")
     database = SQLiteDatabase(settings)
