@@ -76,13 +76,23 @@ PC starts after SWC.8 completes and finishes before Step 3.5 begins. PC.4 follow
 ### PC.3 — Help encoding
 
 - **Problem:** `fcf-growth --help` crashes on a console that uses the cp1252 code page
-  ([#147](https://github.com/PeterPontbriand/investment-analysis-engine/issues/147)). Every strategy command is
-  generated with the same help pattern, so each Step 3.5 command would inherit the defect.
-- **Decision:** to be decided by the project owner before implementation. The slice adds a test that every command's
-  help encodes in cp1252.
-- **Scope:** the help text that cannot be encoded, and the one test.
-- **Branch:** to be named when the slice starts.
-- **Detail:** ⚠ no slice plan yet
+  ([#147](https://github.com/PeterPontbriand/investment-analysis-engine/issues/147)). The cause is the output stream,
+  not one help text: when output is redirected on Windows, Python encodes it with cp1252, so the `→` of the
+  `--growth-years` help, the Unicode minus of `fcf-growth --details` and provider data in JSON output all crash. Every
+  strategy command is generated with the same help pattern, so each Step 3.5 command would inherit the defect. Two
+  neighbouring patterns would be copied as well: JSON written with and without `ensure_ascii=False`, and help text with
+  planning labels and literal markup.
+- **Decision:** approved by the project owner on 2026-10-21 ([A.4](#a4-pc3-decisions-2026-10-21)). The entry point
+  reconfigures standard output and standard error to UTF-8 before it writes anything; there is no ASCII-only rule.
+  Every `json.dumps` and `json.dump` call passes `ensure_ascii=False`. The help of five commands (the `watchlist` list among them) is rewritten in plain
+  user language. Tests walk every command, and two guards keep the JSON rule and the help clean.
+- **Scope:** production code in `investment_analysis_engine/main.py`, the JSON call sites under
+  `investment_analysis_engine/`, `scripts/` and `tests/`, and the help of `watchlist create`,
+  `watchlist add-selection`, `watchlist remove-entry` (and so the `watchlist` command list) and `refresh`; the new tests;
+  the three child-process workarounds, classified; and the user documentation of redirected output. No option, default
+  or behaviour changes.
+- **Branch:** `fix/pc-3-help-encoding`
+- **Detail:** [PC.3 slice plan](PC_3_HELP_ENCODING_PLAN.md)
 
 ### PC.4 — One shared mapping from statuses to a run outcome
 
@@ -186,3 +196,27 @@ holds them in full.
   copied; every test upgrade to head uses the helper; migration tests keep their own Alembic calls; a guard scan under
   `tests/`.
 - **Commits:** the slice plan, then #148, then #145, then the completion commit.
+
+### A.4 PC.3 decisions (2026-10-21)
+
+Decisions of the project owner, 2026-10-21; the [PC.3 slice plan](PC_3_HELP_ENCODING_PLAN.md#a1-approved-decisions-2026-10-21)
+holds them in full.
+
+- **#147:** fix the output streams, not one help text. `main.py` reconfigures standard output and standard error to
+  UTF-8 before it writes anything, the settings-error message included, keeping the one-message exit 2 for a bad engine
+  variable (before any other project import) and for a strategy-settings error. Importing the module reconfigures
+  nothing. This is the behaviour Python 3.15 makes the default (PEP 686); a program that reads redirected output as
+  cp1252 sees garbled non-ASCII characters instead of a crash, which the user documentation says.
+- **No ASCII-only rule:** `→`, `−`, `×`, `—` and similar typography stay.
+- **Tests:** an in-process walk of every command into a cp1252 stream, and two end-to-end subprocess cases under
+  `PYTHONIOENCODING=cp1252`, each shown failing on `main`.
+- **Help:** planning labels and reStructuredText markup in the help of `watchlist create`, `watchlist add-selection`,
+  `watchlist remove-entry` and `refresh` are rewritten in plain user language; a guard test walks every command.
+- **JSON (amended the same day):** every `json.dumps` and `json.dump` call under `investment_analysis_engine/`,
+  `scripts/` and `tests/` passes `ensure_ascii=False`, including command output, internal forms and test helpers; an
+  AST guard enforces it. Changed cache keys or telemetry digests for non-ASCII payloads are accepted under
+  `AGENTS.md` §0.
+- **Workarounds:** the three `PYTHONUTF8` and `PYTHONIOENCODING` settings for child processes are removed where the
+  child is the `ian` entry point and kept, with the reason, where it is another program.
+- **Commits:** the slice plan, then the stream fix and its tests, then the JSON rule and its guard, then the help
+  cleanup and its guard, then the completion commit.
