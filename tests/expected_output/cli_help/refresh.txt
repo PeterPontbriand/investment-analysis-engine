@@ -4,14 +4,13 @@ Nothing is printed until the refresh completes or is interrupted: no
 per-job progress chatter reaches stdout, only the final summary. A
 Ctrl+C during the refresh stops admitting new jobs, lets any job already
 running finish and persist normally, and exits 130 without a fabricated
-row for a job that never started. ``--no-save`` still runs every entry,
+row for a job that never started. With --no-save every entry still runs,
 but nothing is written to storage; each result is shown but has no
-Analysis Run ID to browse or replay afterward. When a job failed on a
-provider, one test request per
-implicated provider runs after the batch ends; its finding is printed before
-the summary, or
-carried in the summary document as ``provider_check`` with ``--json``.
-``--no-provider-check`` turns it off.
+Analysis Run ID to browse or replay afterward.
+When a job failed on a provider, one test request per implicated
+provider runs after the batch ends. Its finding is printed before the
+summary, or carried in the summary document as provider_check with
+--json. --no-provider-check turns it off.
 Arguments
 * name <str> Watchlist name to refresh. [required]
 Options

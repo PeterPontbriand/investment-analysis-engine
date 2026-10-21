@@ -410,14 +410,13 @@ def watchlist_create(  # noqa: PLR0913
 ) -> None:
     """Create a watchlist, optionally seeded with one method across the given tickers.
 
-    ``--analysis METHOD TICKER...`` seeds one entry per given ticker for that
-    method in the same command — the common single-method/multiple-ticker
-    case (Amendment A1, §12's "Creation"). Method-specific flags mirror the
-    matching direct command's own flags exactly, including which are
-    required; a method missing a required flag (for example, graham-growth
-    without --expected-growth/--aaa-yield) is a usage error exactly as the
-    direct command's own validation already produces. Omit --analysis to
-    create an empty watchlist, exactly as before.
+    With --analysis METHOD and one or more tickers, the watchlist starts with
+    one entry per ticker for that method, so a watchlist can be created and
+    filled in a single command. The method's flags are the same as those of
+    its own command, including which are required; a method missing a
+    required flag (for example, graham-growth without
+    --expected-growth/--aaa-yield) is a usage error, as it is for that
+    command. Leave out --analysis to create an empty watchlist.
     """
     seed_tickers = tickers or []
     entries: list[tuple[str, AnalysisSelection]] = []
@@ -547,10 +546,9 @@ def watchlist_add_selection(  # noqa: PLR0913
 ) -> None:
     """Append one entry per given ticker for one method to an existing watchlist.
 
-    The same one-command fan-out as ``create`` (Amendment A1, §12's
-    "Editing"), for adding a method to a watchlist that already exists.
-    Method-specific flags mirror the matching direct command's own flags
-    exactly, including which are required.
+    This does for a watchlist that already exists what seeding with
+    --analysis does in 'watchlist create'. The method's flags are the same as
+    those of its own command, including which are required.
     """
     with parameter_failures(json_output=False):
         method = _parse_analysis(analysis)
@@ -618,7 +616,7 @@ def watchlist_remove_entry(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
     index: Annotated[int, typer.Argument(help="1-based entry number, as shown by 'watchlist show'.")],
 ) -> None:
-    """Remove exactly one entry by its displayed 1-based index (Amendment A1, §12)."""
+    """Remove exactly one entry by its displayed 1-based index."""
     with parameter_failures(json_output=False):
         if index < 1:
             raise InvalidParameterError("INDEX must be 1 or greater.", parameters=("INDEX",))
@@ -1037,11 +1035,14 @@ def refresh(  # noqa: PLR0913
     per-job progress chatter reaches stdout, only the final summary. A
     Ctrl+C during the refresh stops admitting new jobs, lets any job already
     running finish and persist normally, and exits 130 without a fabricated
-    row for a job that never started. ``--no-save`` still runs every entry,
+    row for a job that never started. With --no-save every entry still runs,
     but nothing is written to storage; each result is shown but has no
-    Analysis Run ID to browse or replay afterward. When a job failed on a provider, one test request per
-    implicated provider runs after the batch ends; its finding is printed before the summary, or
-    carried in the summary document as ``provider_check`` with ``--json``. ``--no-provider-check`` turns it off.
+    Analysis Run ID to browse or replay afterward.
+
+    When a job failed on a provider, one test request per implicated
+    provider runs after the batch ends. Its finding is printed before the
+    summary, or carried in the summary document as provider_check with
+    --json. --no-provider-check turns it off.
     """
     with parameter_failures(json_output=json_output):
         if not MIN_WORKERS <= workers <= MAX_WORKERS:
