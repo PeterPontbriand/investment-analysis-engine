@@ -5,6 +5,7 @@ import json
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping, _validate_json_value
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategies.fcf_growth.models import (
     METHOD_VERSION,
     SCHEMA_VERSION,
@@ -66,9 +67,9 @@ def decode_fcf_growth(payload: StrictJsonMapping) -> FCFEarningsGrowthResult:
     return _FCFEvidence.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False)).result
 
 
-def fcf_growth_native_status(result: FCFEarningsGrowthResult, /) -> str:
-    """Return the native execution-status value recorded as telemetry evidence."""
-    return result.execution_status.value
+def fcf_growth_native_status(result: FCFEarningsGrowthResult, /) -> CalculationStatus:
+    """Return the native execution status."""
+    return result.execution_status
 
 
 def fcf_growth_ticker(result: FCFEarningsGrowthResult, /) -> str:

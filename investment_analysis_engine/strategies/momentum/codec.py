@@ -63,7 +63,7 @@ def decode_momentum(payload: StrictJsonMapping) -> MomentumRun:
 
 
 def momentum_native_status(result: MomentumRun, /) -> None:
-    """Return no result-level status: Momentum's analyzer declares none, so telemetry records ``None``."""
+    """Return no result-level status: Momentum's analyzer declares none."""
     del result
 
 

@@ -3,6 +3,7 @@
 from datetime import datetime
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from tests.specimen.analyzer import SpecimenResult
 
 _FIELDS = frozenset({"ticker", "value", "multiplier", "scaled", "effective_as_of"})
@@ -48,10 +49,10 @@ def decode_specimen(payload: StrictJsonMapping) -> SpecimenResult:
     )
 
 
-def specimen_native_status(result: SpecimenResult, /) -> str:
-    """Return the status recorded as telemetry evidence: the specimen's calculation always succeeds."""
+def specimen_native_status(result: SpecimenResult, /) -> CalculationStatus:
+    """Return the status the specimen reports: its calculation always succeeds."""
     del result
-    return "ok"
+    return CalculationStatus.OK
 
 
 def specimen_ticker(result: SpecimenResult, /) -> str:

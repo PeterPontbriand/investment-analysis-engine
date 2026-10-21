@@ -1,6 +1,7 @@
 """The $label strategy's strict codec for its evidence."""
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.strategies.$module.analyzer import ${Class}Result
 
@@ -17,8 +18,8 @@ def decode_$module(payload: StrictJsonMapping) -> ${Class}Result:
     unfilled_stub("codec")
 
 
-def ${module}_native_status(result: ${Class}Result, /) -> str | None:
-    """Return the status recorded as telemetry evidence, or ``None`` when the strategy has none."""
+def ${module}_native_status(result: ${Class}Result, /) -> CalculationStatus | None:
+    """Return the status the strategy reports, or ``None`` when it has none; the shared rule maps it."""
     del result
     unfilled_stub("codec")
 
