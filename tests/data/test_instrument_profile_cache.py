@@ -2,16 +2,11 @@
 
 import threading
 import time
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
-from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
     InstrumentKindEvidence,
@@ -24,7 +19,6 @@ from investment_analysis_engine.data.instrument_profile_cache import CachedInstr
 from investment_analysis_engine.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.security_identity import SecurityIdentity, SecurityIdentityRequest
-from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 21, 12, 0, 0, tzinfo=UTC)
 STALE = NOW + timedelta(days=31)
@@ -76,21 +70,8 @@ def _kind_evidence(*, resolved_at: datetime = NOW) -> InstrumentKindEvidence:
 
 
 @pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'instrument_profile_cache.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
-    finally:
-        database.close()
-
-
-@pytest.fixture
-def repository(database: SQLiteDatabase) -> SQLiteInstrumentProfileRepository:
-    return SQLiteInstrumentProfileRepository(database, clock=lambda: NOW)
+def repository(migrated_database: SQLiteDatabase) -> SQLiteInstrumentProfileRepository:
+    return SQLiteInstrumentProfileRepository(migrated_database, clock=lambda: NOW)
 
 
 def _candidates(
@@ -145,14 +126,14 @@ def test_fresh_reuse_returns_a_decoded_profile_without_calling_the_provider(
     assert "Reused" in cache_diagnostics[0].message
 
 
-def test_stale_entry_triggers_a_live_refresh_and_updates_in_place(database: SQLiteDatabase) -> None:
+def test_stale_entry_triggers_a_live_refresh_and_updates_in_place(migrated_database: SQLiteDatabase) -> None:
     identity_provider = _IdentityProvider(_identity("0000021344"))
     kind_provider = _KindProvider(_kind_evidence())
     identity_candidates, kind_candidate = _candidates(identity_provider, kind_provider)
     # The repository and the resolver share one clock, as production composition would.
     clock = iter([NOW, NOW, STALE, STALE])
     shared_clock = lambda: next(clock)  # noqa: E731
-    repository = SQLiteInstrumentProfileRepository(database, clock=shared_clock)
+    repository = SQLiteInstrumentProfileRepository(migrated_database, clock=shared_clock)
     resolver = CachedInstrumentProfileResolver(repository, ttl=TTL, clock=shared_clock)
     resolver.resolve("KO", identity_candidates=identity_candidates, kind_candidate=kind_candidate)
 
@@ -250,7 +231,7 @@ def test_resolve_rejects_a_naive_clock(repository: SQLiteInstrumentProfileReposi
 
 
 def test_concurrent_resolutions_for_the_same_new_ticker_never_mint_two_current_rows(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
 ) -> None:
     """Prove the P2-Profiles §13.6 race fix: a shared resolver serializes per ticker.
 
@@ -281,7 +262,7 @@ def test_concurrent_resolutions_for_the_same_new_ticker_never_mint_two_current_r
     )
     identity_candidates = (InstrumentProfileCandidate("yfinance", _SlowIdentityProvider()),)
     kind_candidate = InstrumentProfileCandidate("yfinance", _KindProvider(newco_kind_evidence))
-    repository = SQLiteInstrumentProfileRepository(database, clock=lambda: NOW)
+    repository = SQLiteInstrumentProfileRepository(migrated_database, clock=lambda: NOW)
     resolver = CachedInstrumentProfileResolver(repository, ttl=TTL, clock=lambda: NOW)
 
     def _resolve() -> None:

@@ -31,8 +31,6 @@ from types import ModuleType
 from typing import cast
 from unittest.mock import patch
 
-from alembic import command
-from alembic.config import Config
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
@@ -82,7 +80,6 @@ from investment_analysis_engine.strategies.graham_number.calculation import Grah
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
-from scripts.repository_root import REPOSITORY_ROOT
 from tests._direct_command_output import (
     _COMMANDS,
     CommandOutput,
@@ -90,6 +87,7 @@ from tests._direct_command_output import (
     enter_fixture_providers,
     normalize,
 )
+from tests._migrated_database import migrated_database_url
 from tests._sec_labeled_graham import SecLabeledGrahamProvider
 
 REPLAY_EXCLUDED_KEYS = frozenset({"provider_check"})
@@ -351,10 +349,7 @@ def _enter_providers(stack: ExitStack, case: Case) -> None:
 
 def _migrated(directory: Path) -> ProjectSettings:
     """Create a migrated database in ``directory`` and return settings that point at it."""
-    url = f"sqlite:///{(directory / 'documents.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(directory)
     return ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
 
 

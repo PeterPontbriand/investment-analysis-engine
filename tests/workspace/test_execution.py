@@ -7,8 +7,6 @@ from unittest.mock import Mock
 from uuid import UUID
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
@@ -45,7 +43,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
 )
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import migrated_database_url
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 0, 1, tzinfo=UTC)
@@ -317,10 +315,7 @@ def test_from_fcf_growth_capture_maps_fields() -> None:
 
 def test_execute_persists_through_a_real_repository_and_reopens(tmp_path: Path) -> None:
     """End-to-end: a real SQLiteAnalysisRunRepository, reopened, matches exactly."""
-    url = f"sqlite:///{(tmp_path / 'reopen.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path)
 
     first_database = SQLiteDatabase(ProjectSettings(database_url=url))
     try:

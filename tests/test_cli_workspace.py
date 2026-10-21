@@ -10,7 +10,6 @@ from uuid import UUID
 import pytest
 import typer
 from alembic import command
-from alembic.config import Config
 from pydantic import ValidationError
 from sqlalchemy import update
 from typer.testing import CliRunner
@@ -32,9 +31,11 @@ from investment_analysis_engine.workspace.repositories.watchlists import SQLiteW
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
-from scripts.repository_root import REPOSITORY_ROOT
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._cli_helpers import normalize_cli_output
+from tests._migrated_database import alembic_config
 from tests._wiring import encode_native
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
 
 runner = CliRunner()
 
@@ -719,9 +720,7 @@ def test_runs_list_json_and_text_render_real_persisted_summaries(isolated_cli_se
 def test_workspace_commands_report_a_sanitized_readiness_error(tmp_path: Path) -> None:
     """An un-migrated database is a sanitized exit 1, not a raw traceback."""
     url = f"sqlite:///{(tmp_path / 'stale.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "0001_persistence")  # older head: newer workspace tables never created
+    command.upgrade(alembic_config(url), "0001_persistence")  # older head: newer workspace tables never created
 
     with patch("investment_analysis_engine.cli_workspace.settings", ProjectSettings(database_url=url)):
         result = runner.invoke(app, ["watchlist", "list"])

@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
@@ -31,7 +29,7 @@ from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
 )
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import HistoricalHorizon
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import migrated_database_url
 from tests._sec_labeled_annual import sec_annual_series
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
@@ -56,10 +54,7 @@ def cache_factory(request: pytest.FixtureRequest, tmp_path: Path, clock: Clock) 
     if request.param == "memory":
         yield lambda ttl: InMemoryResolvedInputCache(clock=clock, ttl=ttl)
         return
-    url = f"sqlite:///{(tmp_path / 'series.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path)
     database = SQLiteDatabase(ProjectSettings(database_url=url))
     try:
         yield lambda ttl: SQLiteResolvedInputCache(database, clock=clock, ttl=ttl)

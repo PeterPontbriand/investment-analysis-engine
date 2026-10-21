@@ -31,8 +31,8 @@ Each slice ends with the managed quality gate and is gated by explicit authoriza
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | PC.1 | [Interfaces and names](#pc1--interfaces-and-names) | Complete | 2026-10-20 |
-| PC.2 | [Test helpers](#pc2--test-helpers) | Next | |
-| PC.3 | [Help encoding](#pc3--help-encoding) | Planned | |
+| PC.2 | [Test helpers](#pc2--test-helpers) | Complete | 2026-10-20 |
+| PC.3 | [Help encoding](#pc3--help-encoding) | Next | |
 | PC.4 | [One shared mapping from statuses to a run outcome](#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) | Planned | |
 
 PC starts after SWC.8 completes and finishes before Step 3.5 begins. PC.4 follows PC.3: the project owner decided
@@ -64,10 +64,14 @@ PC starts after SWC.8 completes and finishes before Step 3.5 begins. PC.4 follow
   looks unused ([#148](https://github.com/PeterPontbriand/investment-analysis-engine/issues/148)). The Alembic setup is
   repeated across tests ([#145](https://github.com/PeterPontbriand/investment-analysis-engine/issues/145)), which is also
   item 3 of [#156](https://github.com/PeterPontbriand/investment-analysis-engine/issues/156).
-- **Decision:** to be decided by the project owner before implementation.
+- **Decision:** approved by the project owner on 2026-10-20 ([A.3](#a3-pc2-decisions-2026-10-20)). For #148, the CLI
+  isolation fixtures become non-autouse, are registered in `tests/conftest.py` and are opted into with `pytestmark`;
+  the two database fixtures become one, `isolated_cli_settings`; an import guard and a session-database guard keep
+  the pattern removed. For #145, a helper migrates one template database per test process and each test copies it;
+  every test upgrade to head uses the helper, and a guard scan keeps it so.
 - **Scope:** the test helpers and the tests that use them. No production code.
-- **Branch:** to be named when the slice starts.
-- **Detail:** ⚠ no slice plan yet
+- **Branch:** `refactor/pc-2-test-helpers`
+- **Detail:** [PC.2 slice plan](PC_2_TEST_HELPERS_PLAN.md)
 
 ### PC.3 — Help encoding
 
@@ -168,3 +172,17 @@ Decisions of the project owner, 2026-10-19; this plan records them, and PC.1 imp
   `DISCOVERY_WORKBOOK.md`, and everything under `docs/project/milestones/` stay.
 - **#111:** yes. It is slice PC.4, planned after PC.3, with the design in [PC.4](#pc4--one-shared-mapping-from-statuses-to-a-run-outcome). This replaces the
   "Decision pending: #111" section, which stated that yes makes it PC.4.
+
+### A.3 PC.2 decisions (2026-10-20)
+
+Decisions of the project owner, 2026-10-20; the [PC.2 slice plan](PC_2_TEST_HELPERS_PLAN.md#a1-approved-decisions-2026-10-20)
+holds them in full.
+
+- **#148:** the CLI isolation fixtures are non-autouse, defined in a helper module, registered in `tests/conftest.py`
+  and opted into with `pytestmark`. `isolated_cli_database` is folded into `isolated_cli_settings`, which also patches
+  `cli_run_support`. An import guard and a session-database guard are added. The leftover telemetry file is fixed if
+  one line does it, otherwise filed.
+- **#145:** `migrated_database_url` and `migrated_database` in a helper module; one template migrated per process and
+  copied; every test upgrade to head uses the helper; migration tests keep their own Alembic calls; a guard scan under
+  `tests/`.
+- **Commits:** the slice plan, then #148, then #145, then the completion commit.

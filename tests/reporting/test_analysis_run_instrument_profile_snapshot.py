@@ -8,17 +8,10 @@ real chain end to end: `CachedInstrumentProfileResolver` -> `execute()` ->
 the persistence or replay path.
 """
 
-from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from uuid import UUID
 
-import pytest
-from alembic import command
-from alembic.config import Config
-
 from investment_analysis_engine.analysis.run_models import RunOutcome
-from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.instrument_profile import (
@@ -45,7 +38,6 @@ from investment_analysis_engine.workspace.execution import execute
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace_documents.run_replay import project_run
-from scripts.repository_root import REPOSITORY_ROOT
 
 NOW = datetime(2026, 9, 22, 12, 0, 0, tzinfo=UTC)
 LATER = NOW + timedelta(days=31)
@@ -115,28 +107,15 @@ def _graham_number_analysis(ticker: str, price: float) -> GrahamNumberAnalysis:
     )
 
 
-@pytest.fixture
-def database(tmp_path: Path) -> Iterator[SQLiteDatabase]:
-    url = f"sqlite:///{(tmp_path / 'analysis_run_profile_snapshot.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    database = SQLiteDatabase(ProjectSettings(database_url=url))
-    try:
-        yield database
-    finally:
-        database.close()
-
-
 def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
 ) -> None:
     """The core P2-Profiles §5 proof: history is frozen, only the current view moves on."""
     # The repository's own clock stamps each successful put(): NOW for Generation
     # A's mint, LATER for Generation B's supersede-and-mint.
     repository_clock = iter([NOW, LATER])
-    profile_repository = SQLiteInstrumentProfileRepository(database, clock=lambda: next(repository_clock))
-    run_repository = SQLiteAnalysisRunRepository(database)
+    profile_repository = SQLiteInstrumentProfileRepository(migrated_database, clock=lambda: next(repository_clock))
+    run_repository = SQLiteAnalysisRunRepository(migrated_database)
 
     # --- Generation A: first resolution, first Analysis Run ---
     profile_cache_a = CachedInstrumentProfileResolver(profile_repository, ttl=TTL, clock=lambda: NOW)
@@ -222,12 +201,12 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
 
 
 def test_repeated_execution_within_ttl_reuses_the_cache_and_each_run_keeps_its_own_snapshot(
-    database: SQLiteDatabase,
+    migrated_database: SQLiteDatabase,
 ) -> None:
     """Reopen/reuse proof: no re-call to the provider, and every run's own snapshot is intact."""
-    profile_repository = SQLiteInstrumentProfileRepository(database, clock=lambda: NOW)
+    profile_repository = SQLiteInstrumentProfileRepository(migrated_database, clock=lambda: NOW)
     profile_cache = CachedInstrumentProfileResolver(profile_repository, ttl=TTL, clock=lambda: NOW)
-    run_repository = SQLiteAnalysisRunRepository(database)
+    run_repository = SQLiteAnalysisRunRepository(migrated_database)
     identity_provider = _IdentityProvider(_identity("0000011111", name="Stable Co.", resolved_at=NOW))
     identity_candidates, kind_candidate = _candidates(identity_provider, _KindProvider(_kind_evidence(NOW)))
 

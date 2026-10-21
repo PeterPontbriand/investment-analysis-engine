@@ -21,11 +21,9 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
-from tests._cli_helpers import (  # noqa: F401
-    isolated_cli_database,
-    normalize_cli_output,
-    stub_yahoo_identity_metadata,
-)
+from tests._cli_helpers import normalize_cli_output
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 runner = CliRunner()
 

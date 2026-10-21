@@ -27,6 +27,7 @@ from typing import Final
 from scripts.new_strategy import PACKAGE, STUB_ROLES
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import load_sites
+from tests._migrated_database import ALEMBIC_INI
 
 MODULE: Final = "ci_probe"
 ALIAS: Final = "ci-probe"
@@ -37,7 +38,7 @@ STRICT_TARGETS: Final = ("investment_analysis_engine", "tests", "scripts")
 FILLS: Final = Path(__file__).resolve().parent / "generator_fills"
 
 COPIED_FOLDERS: Final = ("investment_analysis_engine", "scripts", "tests", "schemas", "docs")
-COPIED_FILES: Final = ("pyproject.toml", "alembic.ini")
+COPIED_FILES: Final = ("pyproject.toml", ALEMBIC_INI.name)
 EXCLUDED: Final = ("__pycache__", "*.pyc", ".mypy_cache", ".ruff_cache", ".pytest_cache", "htmlcov", "*.egg-info")
 PROXY_VARIABLES: Final = frozenset({"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "FTP_PROXY"})
 

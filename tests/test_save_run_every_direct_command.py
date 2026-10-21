@@ -12,8 +12,6 @@ from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
@@ -24,8 +22,8 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from scripts import strategy_conformance as conformance
-from scripts.repository_root import REPOSITORY_ROOT
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers
+from tests._migrated_database import migrated_database_url
 
 
 def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -> Callable[[], Sequence[AnalysisRun]]:
@@ -33,10 +31,7 @@ def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -
 
     def run() -> Sequence[AnalysisRun]:
         directory.mkdir()
-        url = f"sqlite:///{(directory / 'save_run.sqlite3').as_posix()}"
-        config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-        config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-        command.upgrade(config, "head")
+        url = migrated_database_url(directory)
         isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
         monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
         monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)

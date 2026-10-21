@@ -32,8 +32,10 @@ from investment_analysis_engine.data.provider_checks import (
     ProviderClients,
 )
 from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict, ProviderProbe
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
+from tests._cli_helpers import normalize_cli_output
 from tests._strategy_document_output import CASES, _enter_providers
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 runner = CliRunner()
 

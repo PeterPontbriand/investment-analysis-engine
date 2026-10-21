@@ -25,7 +25,8 @@ from investment_analysis_engine.strategies.graham_growth import cli as graham_gr
 from investment_analysis_engine.strategies.graham_number import cli as graham_number_cli
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace.runs import RunQuery
-from tests._cli_helpers import isolated_cli_database, stub_yahoo_identity_metadata  # noqa: F401
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 runner = CliRunner()
 

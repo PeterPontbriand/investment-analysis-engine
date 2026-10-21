@@ -25,7 +25,8 @@ from investment_analysis_engine.telemetry.recorder import TrajectoryRecord, Traj
 from investment_analysis_engine.telemetry.run_context import RunContext
 from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink
 from scripts.repository_root import REPOSITORY_ROOT
-from tests._cli_helpers import stub_yahoo_identity_metadata  # noqa: F401
+
+pytestmark = pytest.mark.usefixtures("stub_yahoo_identity_metadata")
 
 COMMANDS = ["momentum", "graham-number", "graham-growth", "fcf-growth"]
 

@@ -29,8 +29,10 @@ from investment_analysis_engine.evaluation.fixtures.instrument_profiles import f
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumMetrics, MomentumRun
-from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._cli_helpers import carry_profile, normalize_cli_output
 from tests._sec_labeled_graham import SecLabeledGrahamProvider, sec_labeled_growth_resolver, sec_labeled_number_resolver
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
 
 runner = CliRunner()
 

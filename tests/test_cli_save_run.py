@@ -1,11 +1,11 @@
 """Direct-command `--save-run` (F3) tests: opt-in Analysis Run persistence.
 
-Isolation note: the `settings` bindings of `investment_analysis_engine.cli_run_support` and Momentum's `cli` module are
-deliberately NOT covered by the shared `isolated_cli_database` fixture (see `tests/_cli_helpers.py`'s docstring) because
-that name is shared for configuration well beyond database access, and other already-accepted tests rely on mutating the
-real shared settings singleton directly. This module isolates them locally instead, preserving every other field from
-the real settings (built the same way `investment_analysis_engine.cli_database`'s own maintenance commands already do:
-`ProjectSettings(**(settings.model_dump() | {"database_url": ...}))`) so only the run-storage database target changes.
+Isolation note: `isolated_cli_settings` (see `tests/_cli_isolation.py`) isolates the database of the commands, but it
+builds its settings from the defaults. This module replaces the `settings` of
+`investment_analysis_engine.cli_run_support` and `investment_analysis_engine.cli_support` locally with settings that
+preserve every other field from the real settings (built the same way `investment_analysis_engine.cli_database`'s own
+maintenance commands already do: `ProjectSettings(**(settings.model_dump() | {"database_url": ...}))`) so only the
+run-storage database target changes.
 """
 
 import json
@@ -16,8 +16,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from typer.testing import CliRunner
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
@@ -42,24 +40,30 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
     SQLiteAnalysisRunRepository,
 )
 from investment_analysis_engine.workspace.runs import RunQuery
-from scripts.repository_root import REPOSITORY_ROOT
-from tests._cli_helpers import carry_profile, isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._cli_helpers import carry_profile
+from tests._migrated_database import migrated_database_url
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
 
 runner = CliRunner()
 
 
 @pytest.fixture(autouse=True)
-def isolated_save_run_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSettings:
+def isolated_save_run_database(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_cli_settings: ProjectSettings,  # noqa: ARG001 - requested so that it runs first
+) -> ProjectSettings:
     """Point the run helpers' and Momentum's `settings` run-storage database at a disposable, migrated file.
+
+    It requests `isolated_cli_settings` so that fixture runs first and these patches, which keep the real settings'
+    other fields, are the ones in effect.
 
     Every other field (SEC identity, etc.) is preserved from the real settings,
     so this module's tests do not disturb unrelated already-accepted behavior.
     """
-    url = f"sqlite:///{(tmp_path / 'save_run.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path / "save_run")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
     monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
     monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)

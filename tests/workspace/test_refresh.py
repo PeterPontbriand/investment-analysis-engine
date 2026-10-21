@@ -7,8 +7,6 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from alembic import command
-from alembic.config import Config
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
@@ -39,7 +37,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import SQLi
 from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import migrated_database_url
 from tests._wiring import encode_native, failure_text
 
 WATCHLIST_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -814,10 +812,7 @@ def test_g2_concurrent_refresh_saves_are_visible_to_another_connection_before_th
     observed while MSFT's job is still deliberately blocked, so the batch has not
     finished when a brand-new connection looks the run up.
     """
-    url = f"sqlite:///{(tmp_path / 'refresh.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(tmp_path)
 
     watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     admitted = {"AAPL": threading.Event(), "MSFT": threading.Event()}

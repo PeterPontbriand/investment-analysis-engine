@@ -17,8 +17,6 @@ from typing import Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import OperationalError
 from typer.testing import CliRunner, Result
@@ -51,12 +49,14 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
     AnalysisRunConflictError,
     SQLiteAnalysisRunRepository,
 )
-from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_conformance import _analyzer_result_type, _concrete_analyzers, _import_strategy_modules
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output, stub_yahoo_identity_metadata  # noqa: F401
+from tests._cli_helpers import normalize_cli_output
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers, no_provider_check_flag
 from tests._failure_code_table import _historical_quality_error
+from tests._migrated_database import migrated_database_url
 from tests.test_cli_refresh import _create_momentum_only, _mock_momentum_run
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
 runner = CliRunner()
 
@@ -296,10 +296,7 @@ def _analysis_raises(alias: str, exception: BaseException) -> AbstractContextMan
 
 
 def _migrated(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    url = f"sqlite:///{(directory / 'direct.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
+    url = migrated_database_url(directory / "direct")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
     monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
     monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)

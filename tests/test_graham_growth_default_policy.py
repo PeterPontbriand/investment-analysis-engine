@@ -2,11 +2,14 @@
 
 from unittest.mock import ANY, MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
-from tests._cli_helpers import isolated_cli_database, normalize_cli_output  # noqa: F401
+from tests._cli_helpers import normalize_cli_output
+
+pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
 
 runner = CliRunner()
 

@@ -4,42 +4,12 @@ CLI error messages rendered through Typer + Rich may contain ANSI escape
 sequences (colour, bold, underline) and Rich box/border-drawing characters
 (straight and rounded) depending on the terminal environment.  ``normalize_cli_output``
 strips both so that tests can assert on the semantic text without coupling
-to terminal-styling details.
-
-``isolated_cli_database`` points ``investment_analysis_engine.cli_support``'s and
-``investment_analysis_engine.cli_workspace``'s database access at a disposable, already-migrated
-SQLite file instead of the real local database at the default
-``database_url``. Momentum/Graham CLI commands (via
-``_production_historical_client``/``_production_financial_cache``) and the
-watchlist/runs commands (via their own ``_workspace_database``) all call
-``ensure_database_ready`` before doing any work; without this isolation,
-tests that invoke those commands implicitly depend on the developer
-machine's real local database already being upgraded to the current schema
-head, which breaks after every migration until someone runs that upgrade by
-hand.
-
-Deliberately not extended to ``investment_analysis_engine.cli``'s own ``settings`` binding: that
-name is shared for configuration well beyond database access (for example
-SEC identity), and several already-accepted tests rely on
-``patch.object(settings, "some_field", value)`` mutating the real shared
-settings singleton `cli.py` reads. Rebinding `investment_analysis_engine.cli.settings` to a
-different object here would silently defeat those patches. Tests exercising
-the four direct commands' opt-in ``--save-run`` path isolate `investment_analysis_engine.cli`'s
-run-storage database locally instead — see ``tests/test_cli_save_run.py``.
+to terminal-styling details. The isolation fixtures for CLI tests are in ``tests/_cli_isolation.py``.
 """
 
 import re
-from collections.abc import Iterator
 from dataclasses import replace
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
-from alembic import command
-from alembic.config import Config
-
-from investment_analysis_engine.config import ProjectSettings
-from scripts.repository_root import REPOSITORY_ROOT
+from unittest.mock import MagicMock
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
@@ -56,43 +26,6 @@ def normalize_cli_output(output: str) -> str:
     for ch in "─│┌┐└┘╭╮╰╯":
         text = text.replace(ch, " ")
     return " ".join(text.split())
-
-
-@pytest.fixture(autouse=True)
-def isolated_cli_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ProjectSettings:
-    """Migrate a disposable database to head and point CLI storage at it, returning the isolated settings.
-
-    Importing this fixture's name into a test module activates it for every
-    test in that module, matching pytest's usual cross-module fixture sharing.
-    """
-    url = f"sqlite:///{(tmp_path / 'cli.sqlite3').as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    isolated = ProjectSettings(database_url=url)
-    monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)
-    monkeypatch.setattr("investment_analysis_engine.cli_workspace.settings", isolated)
-    return isolated
-
-
-@pytest.fixture(autouse=True)
-def stub_yahoo_identity_metadata() -> Iterator[None]:
-    """Stub the optional Yahoo identity and instrument-kind metadata lookups.
-
-    Importing this fixture's name into a test module activates it for every test in that module. Without it the
-    CLI reaches ``YFinanceClient``'s live metadata fetch, which the suite-wide guard in ``tests/conftest.py``
-    rejects.
-    """
-    with (
-        patch(
-            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity",
-            return_value=None,
-        ),
-        patch(
-            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None
-        ),
-    ):
-        yield
 
 
 def carry_profile(mock_run: MagicMock) -> None:

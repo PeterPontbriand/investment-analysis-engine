@@ -7,7 +7,6 @@ from uuid import uuid4
 
 import pytest
 from alembic import command
-from alembic.config import Config
 from pandas.testing import assert_frame_equal
 
 from investment_analysis_engine.config import ProjectSettings
@@ -25,7 +24,7 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.repositories.trajectory import SQLiteTrajectoryRepository
 from investment_analysis_engine.evaluation.fixtures.market_data import momentum_success_frame
 from investment_analysis_engine.telemetry.sinks.sqlite import SQLiteTrajectorySink, read_trajectory
-from scripts.repository_root import REPOSITORY_ROOT
+from tests._migrated_database import alembic_config, upgrade_to_head
 
 
 def test_fresh_database_persistence_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -38,11 +37,10 @@ def test_fresh_database_persistence_lifecycle(tmp_path: Path, monkeypatch: pytes
     monkeypatch.setattr(socket.socket, "connect", reject_network)
     path = tmp_path / "smoke.sqlite3"
     settings = ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
+    config = alembic_config(settings.database_url)
     assert not path.exists()
-    command.upgrade(config, "head")
-    command.upgrade(config, "head")
+    upgrade_to_head(config)
+    upgrade_to_head(config)
     now = datetime(2026, 9, 6, tzinfo=UTC)
     event = TrajectoryEvent(
         run_id=uuid4(),
@@ -102,7 +100,7 @@ def test_fresh_database_persistence_lifecycle(tmp_path: Path, monkeypatch: pytes
         MarketDataCacheEntry(history_key, history, now, now),
     )
     command.downgrade(config, "base")
-    command.upgrade(config, "head")
+    upgrade_to_head(config)
     _assert_empty(settings, event, fact_key, history_key)
 
 

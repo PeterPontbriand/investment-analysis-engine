@@ -26,16 +26,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
 
-from alembic import command
-from alembic.config import Config
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.market_data import HistoricalMarketData
-from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import normalize_cli_output
 from tests._direct_command_output import _FixtureYahoo
+from tests._migrated_database import migrated_database_url
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "workspace_commands"
 
@@ -169,12 +167,8 @@ def _mask(text: str, paths: list[Path], *, keep_offset: bool = False) -> str:
     return pattern.sub("<time>", _UUID.sub("<uuid>", text))
 
 
-def _migrated_settings(path: Path) -> ProjectSettings:
-    url = f"sqlite:///{path.as_posix()}"
-    config = Config(str(REPOSITORY_ROOT / "alembic.ini"))
-    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    command.upgrade(config, "head")
-    return ProjectSettings(database_url=url)
+def _migrated_settings(folder: Path) -> ProjectSettings:
+    return ProjectSettings(database_url=migrated_database_url(folder))
 
 
 def run_scenario() -> list[Step]:
@@ -182,7 +176,7 @@ def run_scenario() -> list[Step]:
     steps: list[Step] = []
     with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
         root = scenario_root(Path(directory))
-        settings = _migrated_settings(root / "workspace.sqlite3")
+        settings = _migrated_settings(root)
         for module in (
             "investment_analysis_engine.cli_support",
             "investment_analysis_engine.cli_workspace",

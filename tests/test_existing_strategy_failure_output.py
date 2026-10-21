@@ -25,7 +25,8 @@ from investment_analysis_engine.strategies.fcf_growth import cli as fcf_growth_c
 from investment_analysis_engine.strategies.graham_growth import cli as graham_growth_cli
 from investment_analysis_engine.strategies.graham_number import cli as graham_number_cli
 from investment_analysis_engine.strategies.momentum import cli as momentum_cli
-from tests._cli_helpers import stub_yahoo_identity_metadata  # noqa: F401
+
+pytestmark = pytest.mark.usefixtures("stub_yahoo_identity_metadata")
 
 _STRATEGY_CLI = {
     "momentum": momentum_cli,
