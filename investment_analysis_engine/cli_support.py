@@ -10,6 +10,7 @@ from typing import ClassVar, NoReturn
 import typer
 from pydantic import ValidationError
 
+from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.analysis.selection_base import FrozenSelection
 from investment_analysis_engine.cli_provider_check import (
     ProviderCheckChoice,
@@ -262,6 +263,11 @@ def _production_instrument_profile_cache(
         ttl=None if seconds is None else timedelta(seconds=seconds),
         clock=clock,
     )
+
+
+def exit_code_of(outcome: RunOutcome) -> int:
+    """Return the exit code of a strategy command whose run had ``outcome``: 1 for unavailable and failed, else 0."""
+    return 1 if outcome in (RunOutcome.UNAVAILABLE, RunOutcome.FAILED) else 0
 
 
 def _presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -> PresentationMode:

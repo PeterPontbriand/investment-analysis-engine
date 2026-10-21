@@ -20,12 +20,12 @@ from investment_analysis_engine.cli_support import (
     _production_financial_cache,
     _resolve_ticker,
     execution_errors,
+    exit_code_of,
     require_job_ticker,
     saving_failures,
     stored_configuration,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
-from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
@@ -224,10 +224,9 @@ def command(  # noqa: PLR0913
             profile = capture.profile
             identity_resolution = profile_identity_resolution(profile)
 
-    exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
-    findings = provider_check_findings(
-        (from_fcf_growth_capture(capture).provider_failure,) if exit_code else (), provider_check
-    )
+    execution = from_fcf_growth_capture(capture)
+    exit_code = exit_code_of(execution.outcome)
+    findings = provider_check_findings((execution.provider_failure,) if exit_code else (), provider_check)
     output = render_fcf_earnings_growth(result, mode, identity_resolution, profile, findings.element())
     if exit_code:
         output = with_provider_check(output, findings, mode)

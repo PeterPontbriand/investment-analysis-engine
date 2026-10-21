@@ -8,12 +8,14 @@ import pytest
 import typer
 from pydantic import BaseModel, field_validator
 
+from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli_support import (
     _parse_as_of,
     _presentation_mode,
     _resolve_ticker,
     config_usage_errors,
     execution_errors,
+    exit_code_of,
     parameter_failures,
     provider_failure_message,
 )
@@ -239,3 +241,20 @@ def test_config_usage_errors_names_the_option_and_strips_the_library_prefix() ->
         Model.model_validate({"eps_override": 1.0})
     assert str(caught.value) == "Invalid --eps: Financial override must be a finite number."
     assert caught.value.parameters == ("--eps",)
+
+
+@pytest.mark.parametrize(
+    ("outcome", "code"),
+    [
+        (RunOutcome.COMPLETED, 0),
+        (RunOutcome.NOT_APPLICABLE, 0),
+        (RunOutcome.UNAVAILABLE, 1),
+        (RunOutcome.FAILED, 1),
+    ],
+)
+def test_exit_code_of_is_one_exactly_for_unavailable_and_failed(outcome: RunOutcome, code: int) -> None:
+    assert exit_code_of(outcome) == code
+
+
+def test_every_run_outcome_has_an_exit_code_row() -> None:
+    assert len(RunOutcome) == 4, "A new outcome needs a row in the table above."
