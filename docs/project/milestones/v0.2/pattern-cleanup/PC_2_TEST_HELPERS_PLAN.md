@@ -200,10 +200,19 @@ isolated CLI database and a second migrated one in the same test (`tests/test_cl
 
 #### Migration tests
 
-Tests whose subject is migration keep their own Alembic calls, through `alembic_config` and `upgrade_to_head` so that
-the file name and the head upgrade are written in one place: `tests/data/repositories/test_migrations.py` (exempt from
-the guard, because it also tests `alembic.ini`), every upgrade to a revision other than head, and the tests listed above
-as "keeps its own". The guard below then covers every other file under `tests/`.
+Tests whose subject is migration keep their own Alembic calls, and the guard enforces that by module. Only these
+modules may call `upgrade_to_head` or name `alembic.ini`; a module belongs to the set only when its subject is
+migration (`_MIGRATION_TESTS` in `tests/test_helper_conventions.py`):
+
+- `tests/_migrated_database.py`, the helper;
+- `tests/data/repositories/test_migrations.py`, which also tests `alembic.ini`;
+- `tests/data/repositories/test_persistence_smoke.py`, a migration round trip;
+- `tests/data/repositories/test_readiness_concurrency.py`, concurrent migration;
+- `tests/data/repositories/test_schema.py`, the schema the migrations produce, including a failing upgrade.
+
+Every upgrade to a revision other than head, such as the `0001_persistence` upgrade in `tests/test_cli_workspace.py`,
+uses `alembic_config` and is not restricted. The generator end-to-end test names the file through `ALEMBIC_INI`, which
+is not the string. Every other file under `tests/` copies the template.
 
 #### Guard tests
 
@@ -214,8 +223,8 @@ as "keeps its own". The guard below then covers every other file under `tests/`.
 | `test_the_template_is_migrated_once_per_process` | `tests/test_migrated_database.py` | Two requests return the same template file |
 | `test_two_copies_are_independent_files` | `tests/test_migrated_database.py` | Writing to one copy leaves the template and the other copy unchanged |
 | `test_a_second_copy_into_the_same_folder_is_refused` | `tests/test_migrated_database.py` | The helper never overwrites a database |
-| `test_no_test_names_the_alembic_ini_or_upgrades_to_head_outside_the_migration_helper` | `tests/test_helper_conventions.py` | An AST scan: no string constant `"alembic.ini"` and no `upgrade(..., "head")` call anywhere under `tests/` outside `tests/_migrated_database.py`, `tests/data/repositories/test_migrations.py` and the scan's own file |
-| `test_the_migration_scan_reports_the_ini_file_and_an_upgrade_to_head` | `tests/test_helper_conventions.py` | The scan itself reports both and ignores a downgrade and an older revision |
+| `test_no_test_names_the_alembic_ini_or_upgrades_to_head_outside_the_migration_modules` | `tests/test_helper_conventions.py` | An AST scan: no string constant `"alembic.ini"`, no `upgrade(..., "head")` call and no call to `upgrade_to_head` (bare name, import alias or attribute) anywhere under `tests/` outside the five modules above and the scan's own file. The message names the file, the line and the rule |
+| `test_the_migration_scan_reports_the_ini_file_and_every_upgrade_to_head_outside_the_migration_modules` | `tests/test_helper_conventions.py` | The scan itself reports the file name, an upgrade to head and a call to `upgrade_to_head` by each spelling, accepts one in `test_schema.py`, and ignores a downgrade, an older revision and `alembic_config` |
 
 ### Completion
 
@@ -260,3 +269,10 @@ Decisions of the project owner, 2026-10-20.
   template migrated per process, closed, and copied; a test that a copy is at head and ready; every test upgrade to
   head uses the helper; migration tests keep their own Alembic calls; a guard scan under `tests/`.
 - **Commits:** the slice plan, then #148, then #145, then the completion commit.
+
+### A.2 Migration guard enforced by module (2026-10-20)
+
+Decision of the project owner, 2026-10-20. As first committed, any test could call
+`upgrade_to_head(alembic_config(url))` without failing the guard, which is the repeated setup of #145 again. The guard
+now exempts only the five modules whose subject is migration, and fails on any call to `upgrade_to_head` elsewhere.
+This replaces the earlier record that those tests keep their own calls through the helper functions.

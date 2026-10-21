@@ -2,9 +2,10 @@
 
 Upgrading a database through Alembic takes real time and the suite needs one at head for most of its storage tests.
 :func:`migrated_database_url` migrates one template inside the session folder on first use and copies the file, so a
-test pays for a file copy and not for a migration. :func:`alembic_config` and :func:`upgrade_to_head` are the only
-places that name ``alembic.ini`` and upgrade to head, for the tests whose subject is migration; a test elsewhere that
-names the file or upgrades to head fails ``tests/test_helper_conventions.py``.
+test pays for a file copy and not for a migration. :func:`alembic_config` and :func:`upgrade_to_head` serve the tests
+whose subject is migration. Only the modules in ``_MIGRATION_TESTS`` in ``tests/test_helper_conventions.py`` may
+call :func:`upgrade_to_head` or name ``alembic.ini``; a test elsewhere that does fails that file's scan, and copies
+the template instead.
 """
 
 from __future__ import annotations
