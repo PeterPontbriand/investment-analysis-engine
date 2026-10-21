@@ -393,7 +393,7 @@ def _retire_entry(database: SQLiteDatabase, *, position: int) -> None:
                 "UPDATE watchlist_entries SET selection_json = :selection_json, config_schema_version = 1 "
                 "WHERE position = :position"
             ),
-            {"selection_json": json.dumps(selection), "position": position},
+            {"selection_json": json.dumps(selection, ensure_ascii=False), "position": position},
         )
 
 

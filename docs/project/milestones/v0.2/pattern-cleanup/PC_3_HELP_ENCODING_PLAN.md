@@ -159,7 +159,10 @@ Taken from an AST scan at `a150463`. Line numbers are those of that commit.
 | `tests/workspace_documents/test_workspace_documents.py:211` | `False` | unchanged |
 
 Of the 42 calls, 29 change and 13 stay. A test that compared production output with its own `json.dumps` text changes
-with it.
+with it. One test pinned a digest of a non-ASCII payload,
+`tests/telemetry/test_telemetry.py::test_payload_hash_is_stable_across_nested_mapping_order`: its canonical text now
+holds `é` itself, not its escape, which is the accepted digest change. No golden, evaluation expectation, published
+schema or stored version field changes.
 
 #### Guard
 

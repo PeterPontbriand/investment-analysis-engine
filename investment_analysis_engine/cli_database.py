@@ -152,10 +152,10 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
             )
             code = 1
         if json_output:
-            typer.echo(json.dumps(report.model_dump(mode="json"), ensure_ascii=True, allow_nan=False))
+            typer.echo(json.dumps(report.model_dump(mode="json"), ensure_ascii=False, allow_nan=False))
         else:
             typer.echo(
-                f"Database: {json.dumps(report.database_path, ensure_ascii=True)}\n"
+                f"Database: {json.dumps(report.database_path, ensure_ascii=False)}\n"
                 f"State: {report.state or 'unavailable'}\n"
                 f"Revision: {report.current_revision or 'unknown'}; expected: {report.expected_revision or 'unknown'}\n"
                 f"{report.reason}",

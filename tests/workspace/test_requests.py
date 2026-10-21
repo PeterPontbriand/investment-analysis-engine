@@ -528,7 +528,9 @@ def test_stored_selection_rejects_unknown_foreign_and_mistyped_fields(index: int
             mutations.append({**stored, key: {"wrong": "type"}})
     for mutated in mutations:
         with pytest.raises(StoredSelectionError):
-            decode_selection(selection.method_id, selection.config_schema_version, json.dumps(mutated))
+            decode_selection(
+                selection.method_id, selection.config_schema_version, json.dumps(mutated, ensure_ascii=False)
+            )
 
 
 @pytest.mark.parametrize(
@@ -544,7 +546,7 @@ def test_stored_fcf_selection_enforces_the_nested_policy_allowlist(mutation: dic
     selection = FCFGrowthSelection()
     stored = {**json.loads(encode_selection(selection)), **mutation}
     with pytest.raises(StoredSelectionError):
-        decode_selection(selection.method_id, selection.config_schema_version, json.dumps(stored))
+        decode_selection(selection.method_id, selection.config_schema_version, json.dumps(stored, ensure_ascii=False))
 
 
 @pytest.mark.parametrize("version", [True, False, 1.0, "1", 2.0, "2", 0, 99])

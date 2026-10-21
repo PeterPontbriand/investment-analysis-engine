@@ -238,7 +238,7 @@ def test_payload_hash_is_stable_across_nested_mapping_order() -> None:
     for payload in (original, original, reordered, changed):
         recorder.record(TrajectoryRecord(event_type=TrajectoryEventType.RUN_START, component="test", payload=payload))
 
-    canonical = b'{"a":{"x":1,"y":2},"z":"caf\\u00e9"}'
+    canonical = '{"a":{"x":1,"y":2},"z":"café"}'.encode()
     expected = hashlib.sha256(canonical).hexdigest()
     assert [event.payload_hash for event in sink.events[:3]] == [expected] * 3
     assert sink.events[3].payload_hash is not None

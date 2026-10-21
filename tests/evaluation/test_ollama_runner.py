@@ -367,7 +367,7 @@ def test_tool_schemas_are_the_four_declared_contracts_in_declaration_order() -> 
     tools = json.loads(serialized)["tools"]
     assert [tool["name"] for tool in tools] == [tool.value for tool in ToolName]
     assert all(tool["parameters"]["additionalProperties"] is False for tool in tools)
-    existing = json.dumps({"tools": tools[:4]}, sort_keys=True, separators=(",", ":"))
+    existing = json.dumps({"tools": tools[:4]}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     assert hashlib.sha256(existing.encode("utf-8")).hexdigest() == _PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256
 
 
@@ -375,10 +375,10 @@ def test_tool_parser_accepts_exactly_the_declared_tool_names() -> None:
     """Only declared tools are parsed as tool calls."""
     parser = ollama_runner._tool_parser()
     for tool in ToolName:
-        call = parser.parse(json.dumps({"name": tool.value, "parameters": {"ticker": "ACME"}}))
+        call = parser.parse(json.dumps({"name": tool.value, "parameters": {"ticker": "ACME"}}, ensure_ascii=False))
         assert call.tool_name == tool.value
     with pytest.raises(ToolNotFoundError, match="analyze_invented"):
-        parser.parse(json.dumps({"name": "analyze_invented", "parameters": {}}))
+        parser.parse(json.dumps({"name": "analyze_invented", "parameters": {}}, ensure_ascii=False))
 
 
 def test_only_approved_tool_names_are_declared_tools() -> None:

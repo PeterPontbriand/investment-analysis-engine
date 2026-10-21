@@ -83,7 +83,7 @@ def test_decode_selection_rejects_a_stored_momentum_selection_from_before_as_of_
     payload["config_schema_version"] = 1
     del payload["as_of"], payload["use_cache"]
     with pytest.raises(StoredSelectionError, match=r"saved by an earlier version \(selection version 1\)"):
-        decode_selection("sma_crossover", 1, json.dumps(payload))
+        decode_selection("sma_crossover", 1, json.dumps(payload, ensure_ascii=False))
 
 
 def test_decode_selection_rejects_a_momentum_version_column_that_disagrees() -> None:

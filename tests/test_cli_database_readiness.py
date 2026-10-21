@@ -124,7 +124,7 @@ def test_real_rejected_storage_precedes_provider_calls(
     assert result.exit_code == 1, result.output
     report = json.loads(result.stdout)
     assert report["reason_code"] == reason.value
-    assert json.dumps(str(path)) in report["reason"]
+    assert json.dumps(str(path), ensure_ascii=False) in report["reason"]
     assert ("\n\n    ian db upgrade\n\n" in report["reason"]) == (state == "older")
     assert not result.stderr
     assert path.read_bytes() == before

@@ -160,7 +160,12 @@ def _mask(text: str, paths: list[Path], *, keep_offset: bool = False) -> str:
     """
     text = normalize_cli_output(text)
     for path in paths:
-        for spelling in (str(path), path.as_posix(), json.dumps(str(path))[1:-1], json.dumps(path.as_posix())[1:-1]):
+        for spelling in (
+            str(path),
+            path.as_posix(),
+            json.dumps(str(path), ensure_ascii=False)[1:-1],
+            json.dumps(path.as_posix(), ensure_ascii=False)[1:-1],
+        ):
             text = text.replace(spelling, "<database>")
     text = _DATABASE_SUFFIX.sub("<database>", text)
     pattern = _TIMESTAMP_DIGITS if keep_offset else _TIMESTAMP

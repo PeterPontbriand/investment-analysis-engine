@@ -98,7 +98,7 @@ class DatabaseReadinessError(RuntimeError):
         self._reason = reason
         self._database_path = database_path
         self._expected_revision = expected_revision
-        target = "in-memory database" if database_path is None else json.dumps(str(database_path), ensure_ascii=True)
+        target = "in-memory database" if database_path is None else json.dumps(str(database_path), ensure_ascii=False)
         detail = _MESSAGES[reason]
         if reason is ReadinessReason.UPGRADE_REQUIRED:
             detail = detail.format(expected_revision=expected_revision or "the required revision")

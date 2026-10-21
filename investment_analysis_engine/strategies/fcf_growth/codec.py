@@ -63,7 +63,7 @@ def decode_fcf_growth(payload: StrictJsonMapping) -> FCFEarningsGrowthResult:
         raise ValueError("FCF native identifiers or versions do not match the declared evidence.")
     native = {key: value for key, value in result.items() if key not in identifiers and key not in versions}
     wire = {**payload, "result": native}
-    return _FCFEvidence.model_validate_json(json.dumps(wire, allow_nan=False)).result
+    return _FCFEvidence.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False)).result
 
 
 def fcf_growth_native_status(result: FCFEarningsGrowthResult, /) -> str:

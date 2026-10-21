@@ -57,7 +57,7 @@ def _patched_filing(side_effect: object) -> Any:
 
 
 def test_a_successful_json_fetch_decodes_the_document() -> None:
-    with _patched_json([_response(json.dumps({"a": 1}).encode())]):
+    with _patched_json([_response(json.dumps({"a": 1}, ensure_ascii=False).encode())]):
         assert _json() == {"a": 1}
 
 
