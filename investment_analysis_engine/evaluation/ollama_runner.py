@@ -461,7 +461,7 @@ def _tool_schemas_json() -> str:
         }
         for descriptor in STRATEGIES
     )
-    return json.dumps({"tools": tools}, sort_keys=True, separators=(",", ":"))
+    return json.dumps({"tools": tools}, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def _tool_parser() -> ToolParser:

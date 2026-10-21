@@ -179,8 +179,8 @@ async def test_dispatcher_and_loop_classify_each_failed_call(
     assert summary.tool_result_summary["success"] is False
     assert summary.tool_result_summary["reason_code"] == code.value
     assert summary.tool_result_summary.get("provider_failure") == _dumped(element)
-    json.dumps(error.error)
-    json.dumps(summary.tool_result_summary)
+    json.dumps(error.error, ensure_ascii=False)
+    json.dumps(summary.tool_result_summary, ensure_ascii=False)
 
 
 @pytest.mark.asyncio

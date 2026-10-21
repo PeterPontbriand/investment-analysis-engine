@@ -134,7 +134,7 @@ def test_full_typed_round_trip_through_json_envelope() -> None:
     assert isinstance(restored.price_inputs[1].lineage, ComponentLineage)
     assert isinstance(restored.resolution_trace.events, tuple)
     assert run.result_evidence is not None
-    assert json.loads(json.dumps(run.result_evidence, allow_nan=False)) == run.result_evidence
+    assert json.loads(json.dumps(run.result_evidence, allow_nan=False, ensure_ascii=False)) == run.result_evidence
 
 
 @pytest.mark.parametrize("retained", [False, True])

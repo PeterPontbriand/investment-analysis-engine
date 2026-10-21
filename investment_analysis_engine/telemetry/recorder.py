@@ -236,7 +236,7 @@ class TrajectoryRecorder:
         if payload is None:
             return None
         try:
-            canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True, default=str)
+            canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
         except (TypeError, ValueError):
             return None
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

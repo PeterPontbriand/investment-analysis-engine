@@ -59,7 +59,7 @@ def decode_momentum(payload: StrictJsonMapping) -> MomentumRun:
     unknown fields, invalid enums and non-finite numbers at every depth.
     """
     _validate_json_value(payload)
-    return _MomentumEvidence.model_validate_json(json.dumps(payload, allow_nan=False)).run
+    return _MomentumEvidence.model_validate_json(json.dumps(payload, allow_nan=False, ensure_ascii=False)).run
 
 
 def momentum_native_status(result: MomentumRun, /) -> None:

@@ -85,7 +85,8 @@ def test_tool_call_extra_fields_rejected() -> None:
             "tool_name": "get_price",
             "tool_args": {"symbol": "AAPL"},
             "extra_field": "should be rejected",
-        }
+        },
+        ensure_ascii=False,
     )
     result = validate_response(response, ToolCallResponse, strict=True)
     assert result.valid is False

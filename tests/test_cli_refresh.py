@@ -175,7 +175,7 @@ def _retire_momentum_entries(settings: ProjectSettings, *retired: str) -> None:
             connection.execute(
                 "UPDATE watchlist_entries SET selection_json = ?, config_schema_version = 1 "
                 "WHERE ticker = ? AND method_id = 'sma_crossover'",
-                (json.dumps(selection), ticker),
+                (json.dumps(selection, ensure_ascii=False), ticker),
             )
         connection.commit()
 

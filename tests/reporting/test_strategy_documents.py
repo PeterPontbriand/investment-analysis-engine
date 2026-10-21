@@ -78,7 +78,7 @@ def test_a_resolved_input_value_is_written_as_the_source_holds_it(value: float, 
     source = ResolvedInput("eps", value, SourceKind.OVERRIDE, _STAMP)
     part = resolved_input_part(source)
     assert part is not None
-    assert json.dumps(part.model_dump(mode="json")["value"]) == written
+    assert json.dumps(part.model_dump(mode="json")["value"], ensure_ascii=False) == written
 
 
 def test_a_momentum_data_date_is_a_date_and_an_analysis_instant_carries_its_offset() -> None:

@@ -94,7 +94,7 @@ def decode_graham_growth(payload: StrictJsonMapping) -> GrahamGrowthAnalysis:
         # constructor. Copy before removal to leave caller-owned data intact.
         analysis[name] = {key: item for key, item in section.items() if key != "method"}
     wire = {**payload, "analysis": analysis}
-    return _GrowthEvidence.model_validate_json(json.dumps(wire, allow_nan=False)).analysis
+    return _GrowthEvidence.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False)).analysis
 
 
 def graham_growth_native_status(result: GrahamGrowthAnalysis, /) -> str:

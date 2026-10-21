@@ -24,7 +24,7 @@ def mock_ollama_response() -> Callable[[Mapping[str, object]], Mock]:
     """Fixture for a mock Ollama response."""
 
     def _make_response(content: Mapping[str, object]) -> Mock:
-        return Mock(message=Mock(content=json.dumps(dict(content))))
+        return Mock(message=Mock(content=json.dumps(dict(content), ensure_ascii=False)))
 
     return _make_response
 

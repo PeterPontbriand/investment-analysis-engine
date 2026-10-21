@@ -189,6 +189,8 @@ Diagnostics retain complete technical provenance as well as resolution behavior:
 uv run ian graham-number KO --json
 ```
 
+Output is always written as UTF-8, on standard output and standard error, whether it goes to a terminal, a file or another program (Python 3.15 makes this its own default). A character outside ASCII, such as a company name, is written as it is, never as a `\uXXXX` escape. If you redirect output on Windows (`> result.json`) and a program then reads the file as cp1252, the Windows ANSI code page, it shows each non-ASCII character as garbled text; read the file as UTF-8 instead.
+
 Every strategy document has the same header and the same tail. Keys are written in this order, not sorted:
 
 | Part | Keys, in order | Meaning |

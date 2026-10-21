@@ -89,7 +89,7 @@ def decode_graham_number(payload: StrictJsonMapping) -> GrahamNumberAnalysis:
         # constructor. Copy before removal to leave caller-owned data intact.
         analysis[name] = {key: item for key, item in section.items() if key != "method"}
     wire = {**payload, "analysis": analysis}
-    return _NumberEvidence.model_validate_json(json.dumps(wire, allow_nan=False)).analysis
+    return _NumberEvidence.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False)).analysis
 
 
 def graham_number_native_status(result: GrahamNumberAnalysis, /) -> str:

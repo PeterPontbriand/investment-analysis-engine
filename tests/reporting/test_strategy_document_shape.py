@@ -260,7 +260,9 @@ def test_the_exclusion_is_the_one_key_and_a_difference_in_any_other_key_still_fa
         changed = json.loads(replayed.stdout)
         changed[key] = "a different value" if changed[key] != "a different value" else "another"
         assert differing_paths(document, changed, excluded=REPLAY_EXCLUDED_KEYS) == [f"$.{key}"]
-        assert without_excluded_keys(direct.stdout) != without_excluded_keys(json.dumps(changed).encode())
+        assert without_excluded_keys(direct.stdout) != without_excluded_keys(
+            json.dumps(changed, ensure_ascii=False).encode()
+        )
 
     dropped = json.loads(replayed.stdout)
     del dropped["status"]

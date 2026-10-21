@@ -205,7 +205,7 @@ class AgentOrchestrator:
             "the following JSON Schema. Do not include any text, markdown, "
             "comments, or explanation outside the JSON object.\n\n"
             "Schema:\n"
-            f"{json.dumps(schema_dict, indent=2)}"
+            f"{json.dumps(schema_dict, indent=2, ensure_ascii=False)}"
         )
         return {"role": "system", "content": body}
 
