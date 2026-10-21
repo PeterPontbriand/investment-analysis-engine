@@ -78,9 +78,9 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc3--hel
 | :--- | :--- | :--- |
 | `test_the_stream_setup_makes_a_cp1252_stream_write_utf8` | `tests/test_main_output_encoding.py` | After `use_utf8_output`, a cp1252 stream holds `→` as UTF-8 bytes |
 | `test_the_stream_setup_ignores_a_stream_it_cannot_reconfigure` | the same | `None` and an object that is not a text wrapper are accepted |
-| `test_importing_the_entry_point_leaves_the_streams_alone` | the same | An import of the module in a subprocess leaves the standard streams on their encoding |
 | `test_every_command_renders_its_help_as_utf8_into_a_cp1252_stream` | the same | Walks the root command and every group to every command (`tests/_command_tree.py`), so a new command needs no edit. For each: the stream setup is applied to a cp1252 stream, `--help` is rendered into it, the exit code is 0 and the bytes decode as UTF-8 |
-| `test_fcf_growth_help_is_utf8_when_redirected_under_cp1252` | `tests/test_main_output_encoding_end_to_end.py` | A subprocess with `PYTHONIOENCODING=cp1252` and output captured: exit 0, UTF-8 output containing `→` |
+| `test_importing_the_entry_point_leaves_the_streams_alone` | `tests/test_main_output_encoding_end_to_end.py` | An import of the module in a subprocess under cp1252 leaves the standard streams on their encoding |
+| `test_fcf_growth_help_is_utf8_when_redirected_under_cp1252` | the same | A subprocess with `PYTHONIOENCODING=cp1252` and output captured: exit 0, UTF-8 output containing `→` |
 | `test_a_settings_error_with_a_character_cp1252_cannot_encode_is_utf8_on_stderr` | the same | A subprocess with `IAN_CONFIG_DIR` set to a relative path containing `→` and the same encoding: exit 2 and the message, with `→`, as UTF-8 on standard error |
 
 Both end-to-end cases fail on `main` before the fix: the first exits 1 with the `UnicodeEncodeError` of #147; the second

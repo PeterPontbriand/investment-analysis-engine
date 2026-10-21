@@ -18,6 +18,8 @@ The saved run's ID is printed on a separate line so it never disturbs `--json` o
 uv run ian graham-number AAPL --save-run --json > result.json
 ```
 
+The file is UTF-8, as all output is; see [`--json`](USAGE.md#--json--machine-readable-output).
+
 `--save-run` saves exactly what you asked for, including a result the method could not calculate (missing data, a known ETF, and so on) — a "could not calculate" outcome is still a real, saved attempt, not a skipped one. Every direct command, `momentum` included, requires a ticker; there is no default ticker.
 
 Once a result is saved this way — or automatically by [refreshing a watchlist](#refreshing-a-watchlist) (see below) — it becomes available for later listing, filtering, and replaying. See [Browsing saved runs](#browsing-saved-runs) for how to do this. If you're wondering whether re-running the same request costs you anything, see [Saving vs. caching](#saving-vs-caching-theyre-not-the-same-thing) once you've read about watchlists and refreshing them below.

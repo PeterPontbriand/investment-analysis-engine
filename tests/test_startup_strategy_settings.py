@@ -25,8 +25,8 @@ def test_a_loader_error_prints_the_message_and_exits_with_code_2(
     monkeypatch.delitem(sys.modules, "investment_analysis_engine.cli", raising=False)
     monkeypatch.setattr(sys, "argv", arguments)
     with (
-        patch("investment_analysis_engine.main.setup_global_logging"),
-        patch("investment_analysis_engine.main.teardown_global_logging"),
+        patch("investment_analysis_engine.utils.logger_util.setup_global_logging"),
+        patch("investment_analysis_engine.utils.logger_util.teardown_global_logging"),
         patch(
             "investment_analysis_engine.cli_composition.load_strategy_settings",
             side_effect=StrategySettingsError(_MESSAGE),

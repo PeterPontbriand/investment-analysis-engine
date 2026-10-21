@@ -69,7 +69,7 @@ def main(argv: list[str]) -> None:
             )
         )
     if no_logging:
-        patches.append(patch("investment_analysis_engine.main.setup_global_logging", lambda: None))
+        patches.append(patch("investment_analysis_engine.utils.logger_util.setup_global_logging", lambda: None))
     command = ["ian", "momentum", TICKER, "--short-window", SHORT_WINDOW, "--long-window", LONG_WINDOW]
     if json_output:
         command.append("--json")

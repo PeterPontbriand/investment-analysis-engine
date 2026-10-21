@@ -57,7 +57,6 @@ def _run(tmp_path: Path, name: str, *arguments: str) -> CommandRun:
         "IAN_LOG_DIR": str(root / "logs"),
         "IAN_TELEMETRY_LOG_DIR": str(root / "telemetry"),
         "PYTHONPATH": str(REPOSITORY_ROOT),
-        "PYTHONIOENCODING": "utf-8",
         # The pytest process forces colour for the CLI tests (tests/conftest.py); a real run writes to a pipe
         # without it, so the child must not inherit it.
         "NO_COLOR": "1",
