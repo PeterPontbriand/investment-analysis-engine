@@ -26,12 +26,12 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one
 
 | Unit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| Slice plan | [This document](#3-the-work-units) and the parent-plan updates | In progress | |
-| Typed native status | [Native status as a `CalculationStatus`](#typed-native-status) | Planned | |
-| The rule | [`RunOutcome.from_status`, `ExecutionCapture`, removals, guards](#the-rule-and-the-capture) | Planned | |
-| Exit codes | [`exit_code_of` and the four commands](#exit-codes) | Planned | |
-| Documents | [Contributor guide, Step 3.5 documents](#documents) | Planned | |
-| Completion | [Plan rows and the final gate](#completion) | Planned | |
+| Slice plan | [This document](#3-the-work-units) and the parent-plan updates | Complete | 2026-10-21 |
+| Typed native status | [Native status as a `CalculationStatus`](#typed-native-status) | Complete | 2026-10-21 |
+| The rule | [`RunOutcome.from_status`, `ExecutionCapture`, removals, guards](#the-rule-and-the-capture) | Complete | 2026-10-21 |
+| Exit codes | [`exit_code_of` and the four commands](#exit-codes) | Complete | 2026-10-21 |
+| Documents | [Contributor guide, Step 3.5 documents](#documents) | Complete | 2026-10-21 |
+| Completion | [Plan rows and the final gate](#completion) | Complete | 2026-10-21 |
 
 ## 3. The work units
 
