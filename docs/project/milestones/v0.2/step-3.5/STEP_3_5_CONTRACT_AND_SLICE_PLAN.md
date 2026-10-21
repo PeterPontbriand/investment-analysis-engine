@@ -31,7 +31,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
     records an unavailable result for a provider failure
     ([A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07)). A second
     question, whether every strategy uses one shared mapping from statuses to a run outcome
-    ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)), is decided (yes, 2026-10-19) and implemented by slice PC.4 of the
+    ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)), is decided (yes, 2026-10-19) and was implemented by slice PC.4 (2026-10-21) of the
     [pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome).
   - A strategy slice ships complete: analyzer, wiring (including its `headline` function for the
     side-by-side table), presentation, tests, user guide, and `FINANCE_MATH.md` and `GLOSSARY.md` entries.
@@ -72,7 +72,7 @@ wiring a plan must name. Each plan states:
 
 - exact files and starting points;
 - the decision this contract leaves open, A.8 (Momentum's provider failure); the run-outcome mapping
-  ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)) is decided and implemented by slice PC.4 of the
+  ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)) is decided and was implemented by slice PC.4 (2026-10-21) of the
   [pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome);
 - new data fields and their mappings;
 - the boundary between resolver and calculator;
@@ -462,5 +462,5 @@ a conformance test over every declared strategy, in place of a per-strategy func
 assembly status and one with a fixed outcome would need a defined place in it. Decision pending. Tracked in
 [issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111).
 
-**Decided 2026-10-19: yes.** The project owner approved one shared mapping. Slice PC.4 of the
-[pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) implements it and owns the design.
+**Decided 2026-10-19: yes; implemented 2026-10-21.** The project owner approved one shared mapping. PC.4 implemented it as `RunOutcome.from_status`, with each strategy reporting a native status and `ExecutionCapture` deriving the outcome, and a shared `exit_code_of`. Slice PC.4 of the
+[pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) holds the design.

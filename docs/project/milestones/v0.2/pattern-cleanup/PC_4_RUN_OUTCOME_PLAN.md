@@ -186,7 +186,9 @@ either.
   and the shared rule produces the outcome.
 - **Scope:**
   - `docs/TOOL_DEVELOPMENT.md`: the `codec` and `execution` rows of the edit-site table, the `cli` row (it names
-    `exit_code_of`), steps 12 and 14 of the FCF walkthrough, and the paragraph on `execute_fcf_growth`.
+    `exit_code_of`), steps 12 and 14 of the FCF walkthrough, and the paragraph on `execute_fcf_growth`. The table is
+    generated from `scripts/strategy_sites.toml`, so the three rows change there and the guide is regenerated with
+    `uv run python -m scripts.generate_strategy_docs`.
   - `STEP_3_5_SHARED_DEFINITIONS.md` §2, "Result-level status".
   - The Step 3.5 contract: A.9 and its pre-3.5.0 decision list record that PC.4 implemented the rule; the rest of the
     appendix stays verbatim.
