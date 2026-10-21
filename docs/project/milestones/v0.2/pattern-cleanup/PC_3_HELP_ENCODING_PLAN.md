@@ -25,11 +25,11 @@ Parent plan: [PC contract and slice plan](PC_CONTRACT_AND_SLICE_PLAN.md#pc3--hel
 
 | Unit | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| Slice plan | [This document](#3-the-work-units) and the parent-plan updates | In progress | |
-| Stream fix | [UTF-8 standard streams](#utf-8-standard-streams) | Planned | |
-| JSON rule | [One JSON rule everywhere](#one-json-rule-everywhere) | Planned | |
-| Help cleanup | [Plain help](#plain-help) | Planned | |
-| Completion | [Plan rows and the final gate](#completion) | Planned | |
+| Slice plan | [This document](#3-the-work-units) and the parent-plan updates | Complete | 2026-10-21 |
+| Stream fix | [UTF-8 standard streams](#utf-8-standard-streams) | Complete | 2026-10-21 |
+| JSON rule | [One JSON rule everywhere](#one-json-rule-everywhere) | Complete | 2026-10-21 |
+| Help cleanup | [Plain help](#plain-help) | Complete | 2026-10-21 |
+| Completion | [Plan rows and the final gate](#completion) | Complete | 2026-10-21 |
 
 ## 3. The work units
 
@@ -190,6 +190,9 @@ schema or stored version field changes.
 | `watchlist add-selection` | "(Amendment A1, §12's "Editing")"; double backticks around `create` | Plain text: adds one entry per ticker for one method to an existing watchlist, like seeding with `--analysis` in `watchlist create`; the flags are those of the method's own command |
 | `watchlist remove-entry` | "(Amendment A1, §12)" | "Remove exactly one entry by its displayed 1-based index." |
 | `refresh` | double backticks around `--no-save`, `provider_check`, `--json` and `--no-provider-check`; lines broken at odd places | Plain text with the same content: nothing is printed until the refresh ends or is interrupted; Ctrl+C stops new jobs, lets running ones finish and exits 130; `--no-save` runs every entry and writes nothing; a provider failure is followed by one test request per provider, shown before the summary, or as `provider_check` in the `--json` summary; `--no-provider-check` turns it off |
+
+The stored help of `refresh` (`tests/expected_output/cli_help/refresh.txt`) is regenerated with
+`uv run python -m tests._cli_help_output`; no other stored help text mentions these commands' rewritten lines.
 
 #### Guard
 

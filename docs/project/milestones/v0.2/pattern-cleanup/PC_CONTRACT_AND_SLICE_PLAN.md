@@ -32,8 +32,8 @@ Each slice ends with the managed quality gate and is gated by explicit authoriza
 | :--- | :--- | :--- | :--- |
 | PC.1 | [Interfaces and names](#pc1--interfaces-and-names) | Complete | 2026-10-20 |
 | PC.2 | [Test helpers](#pc2--test-helpers) | Complete | 2026-10-20 |
-| PC.3 | [Help encoding](#pc3--help-encoding) | Next | |
-| PC.4 | [One shared mapping from statuses to a run outcome](#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) | Planned | |
+| PC.3 | [Help encoding](#pc3--help-encoding) | Complete | 2026-10-21 |
+| PC.4 | [One shared mapping from statuses to a run outcome](#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) | Next | |
 
 PC starts after SWC.8 completes and finishes before Step 3.5 begins. PC.4 follows PC.3: the project owner decided
 [issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111) in favour of a shared mapping on
