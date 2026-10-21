@@ -25,8 +25,8 @@ from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
 from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from investment_analysis_engine.strategies.fcf_growth.execution import (
     FCFGrowthCapture,
-    classify_fcf_growth_outcome,
     execute_fcf_growth,
+    from_fcf_growth_capture,
 )
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from investment_analysis_engine.strategies.fcf_growth.models import (
@@ -116,12 +116,17 @@ def _not_applicable_result() -> FCFEarningsGrowthResult:
     )
 
 
-def test_classify_fcf_growth_outcome_ok_completes() -> None:
-    assert classify_fcf_growth_outcome(_ok_result()) == RunOutcome.COMPLETED
+def _outcome_of(result: FCFEarningsGrowthResult) -> RunOutcome:
+    profile = fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
+    return from_fcf_growth_capture(FCFGrowthCapture(result, profile)).outcome
 
 
-def test_classify_fcf_growth_outcome_not_applicable() -> None:
-    assert classify_fcf_growth_outcome(_not_applicable_result()) == RunOutcome.NOT_APPLICABLE
+def test_fcf_growth_outcome_ok_completes() -> None:
+    assert _outcome_of(_ok_result()) is RunOutcome.COMPLETED
+
+
+def test_fcf_growth_outcome_not_applicable() -> None:
+    assert _outcome_of(_not_applicable_result()) is RunOutcome.NOT_APPLICABLE
 
 
 @pytest.mark.parametrize(
@@ -132,8 +137,8 @@ def test_classify_fcf_growth_outcome_not_applicable() -> None:
         (CalculationStatus.PROVIDER_ERROR, RunOutcome.FAILED),
     ],
 )
-def test_classify_fcf_growth_outcome_non_ok_statuses(status: CalculationStatus, expected: RunOutcome) -> None:
-    assert classify_fcf_growth_outcome(_non_ok_result(status)) == expected
+def test_fcf_growth_outcome_non_ok_statuses(status: CalculationStatus, expected: RunOutcome) -> None:
+    assert _outcome_of(_non_ok_result(status)) is expected
 
 
 def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
@@ -168,7 +173,7 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
 
     assert capture.result is canned
     assert capture.profile is composed
-    assert capture.outcome is RunOutcome.COMPLETED
+    assert from_fcf_growth_capture(capture).outcome is RunOutcome.COMPLETED
     assert captured == {
         "ticker": "ACME",
         "config": FCFEarningsGrowthConfig(policy=policy, currency="USD"),
@@ -195,7 +200,7 @@ def test_known_etf_profile_is_not_applicable_through_the_real_analyzer() -> None
         )
 
     assert capture.result.execution_status is CalculationStatus.NOT_APPLICABLE
-    assert capture.outcome is RunOutcome.NOT_APPLICABLE
+    assert from_fcf_growth_capture(capture).outcome is RunOutcome.NOT_APPLICABLE
 
 
 def test_partial_forward_evidence_is_preserved_unmodified() -> None:

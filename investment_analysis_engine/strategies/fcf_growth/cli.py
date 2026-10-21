@@ -32,7 +32,6 @@ from investment_analysis_engine.data.instrument_profile import profile_identity_
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.fcf_growth.execution import (
-    capture_provider_failure,
     execute_fcf_growth,
     from_fcf_growth_capture,
 )
@@ -226,7 +225,9 @@ def command(  # noqa: PLR0913
             identity_resolution = profile_identity_resolution(profile)
 
     exit_code = 0 if result.execution_status in (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE) else 1
-    findings = provider_check_findings((capture_provider_failure(capture),) if exit_code else (), provider_check)
+    findings = provider_check_findings(
+        (from_fcf_growth_capture(capture).provider_failure,) if exit_code else (), provider_check
+    )
     output = render_fcf_earnings_growth(result, mode, identity_resolution, profile, findings.element())
     if exit_code:
         output = with_provider_check(output, findings, mode)

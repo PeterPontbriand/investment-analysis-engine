@@ -15,7 +15,6 @@ from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategies.graham_number.execution import (
     GrahamNumberCapture,
-    classify_graham_number_outcome,
     from_graham_number_capture,
 )
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
@@ -58,9 +57,7 @@ def test_a_refresh_job_for_it_carries_no_reason_code(save: bool) -> None:
 
     def executor(_ticker: str, _selection: object) -> ExecutionCapture:
         # The capture is rebuilt through the real mapping, so a regression in it would show here.
-        return from_graham_number_capture(
-            GrahamNumberCapture(analysis, profile, classify_graham_number_outcome(analysis))
-        )
+        return from_graham_number_capture(GrahamNumberCapture(analysis, profile))
 
     summary = refresh_watchlist(
         "My Watch",

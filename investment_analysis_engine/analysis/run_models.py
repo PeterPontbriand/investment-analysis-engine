@@ -14,6 +14,8 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+
 
 class RunOutcome(StrEnum):
     """Terminal outcome of a workspace analysis run.
@@ -26,6 +28,27 @@ class RunOutcome(StrEnum):
     UNAVAILABLE = "unavailable"
     NOT_APPLICABLE = "not_applicable"
     FAILED = "failed"
+
+    @classmethod
+    def from_status(cls, status: CalculationStatus | None) -> "RunOutcome":
+        """Return the outcome of a run whose strategy reported ``status``.
+
+        This is the one rule from a strategy's native status to the workspace outcome: ``ok`` completes,
+        ``not_applicable`` is not applicable, ``input_unavailable`` is unavailable, and ``invalid_input`` and
+        ``provider_error`` fail.
+        ``None`` is a strategy that reports no status (Momentum); its run completes.
+        """
+        return _OUTCOME_BY_STATUS[status]
+
+
+_OUTCOME_BY_STATUS: dict[CalculationStatus | None, RunOutcome] = {
+    CalculationStatus.OK: RunOutcome.COMPLETED,
+    CalculationStatus.NOT_APPLICABLE: RunOutcome.NOT_APPLICABLE,
+    CalculationStatus.INPUT_UNAVAILABLE: RunOutcome.UNAVAILABLE,
+    CalculationStatus.INVALID_INPUT: RunOutcome.FAILED,
+    CalculationStatus.PROVIDER_ERROR: RunOutcome.FAILED,
+    None: RunOutcome.COMPLETED,
+}
 
 
 def _validate_json_value(value: object) -> object:

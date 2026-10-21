@@ -27,7 +27,6 @@ from investment_analysis_engine.strategies.graham_growth.calculation import (
 )
 from investment_analysis_engine.strategies.graham_growth.execution import (
     GrahamGrowthCapture,
-    classify_graham_growth_outcome,
     from_graham_growth_capture,
 )
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
@@ -37,7 +36,6 @@ from investment_analysis_engine.strategies.graham_number.calculation import (
 )
 from investment_analysis_engine.strategies.graham_number.execution import (
     GrahamNumberCapture,
-    classify_graham_number_outcome,
     from_graham_number_capture,
 )
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
@@ -49,6 +47,7 @@ from investment_analysis_engine.workspace.refresh import RefreshJobResult, refre
 from investment_analysis_engine.workspace.repositories.analysis_runs import (
     AnalysisRunConflictError,  # noqa: F401 - keeps the import graph warm
 )
+from tests._native_status import NATIVE_STATUS_OF_OUTCOME
 from tests._wiring import failure_text
 from tests.workspace.test_execution import _FakeSink as _ExecutionSink
 from tests.workspace.test_execution import _momentum_native_evidence, _momentum_request
@@ -109,17 +108,15 @@ def _fcf(status: CalculationStatus, failure: ProviderFailureRecord | None = None
 
 
 def _number_capture(analysis: GrahamNumberAnalysis) -> ExecutionCapture:
-    return from_graham_number_capture(GrahamNumberCapture(analysis, _PROFILE, classify_graham_number_outcome(analysis)))
+    return from_graham_number_capture(GrahamNumberCapture(analysis, _PROFILE))
 
 
 def _growth_capture(analysis: GrahamGrowthAnalysis) -> ExecutionCapture:
-    return from_graham_growth_capture(GrahamGrowthCapture(analysis, _PROFILE, classify_graham_growth_outcome(analysis)))
+    return from_graham_growth_capture(GrahamGrowthCapture(analysis, _PROFILE))
 
 
 def _fcf_capture(result: FCFEarningsGrowthResult) -> ExecutionCapture:
-    from investment_analysis_engine.strategies.fcf_growth.execution import classify_fcf_growth_outcome  # noqa: PLC0415
-
-    return from_fcf_growth_capture(FCFGrowthCapture(result, _PROFILE, classify_fcf_growth_outcome(result)))
+    return from_fcf_growth_capture(FCFGrowthCapture(result, _PROFILE))
 
 
 # --- the one function from a result to its code ------------------------------------------------------------------
@@ -273,17 +270,6 @@ def test_a_run_that_did_not_fail_stores_no_code() -> None:
     assert not_applicable.failure_reason_code is None
 
 
-def test_a_capture_requires_a_code_exactly_when_the_outcome_failed() -> None:
-    evidence = _momentum_native_evidence()
-
-    with pytest.raises(ValueError, match="failure_reason_code is set if and only if"):
-        ExecutionCapture(native_evidence=evidence, profile=None, outcome=RunOutcome.FAILED)
-    with pytest.raises(ValueError, match="failure_reason_code is set if and only if"):
-        ExecutionCapture(
-            native_evidence=evidence, profile=None, outcome=RunOutcome.COMPLETED, failure_reason_code="provider_error"
-        )
-
-
 @pytest.mark.parametrize("kind", _KINDS)
 def test_execute_stores_the_code_of_the_capture_and_never_execution_failed(kind: ProviderFailureKind) -> None:
     sink = _ExecutionSink()
@@ -295,8 +281,8 @@ def test_execute_stores_the_code_of_the_capture_and_never_execution_failed(kind:
         capture=lambda: ExecutionCapture(
             native_evidence=_momentum_native_evidence(),
             profile=None,
-            outcome=RunOutcome.FAILED,
-            failure_reason_code=code,
+            native_status=CalculationStatus.PROVIDER_ERROR,
+            provider_failure=provider_failure_of((ProviderFailureRecord(kind, "yfinance"),)),
         ),
         repository=sink,
     )
@@ -316,15 +302,25 @@ _OUTCOMES = [
 ]
 
 
-def _refresh(outcome: RunOutcome, code: str | None, *, save: bool, raises: bool = False) -> RefreshJobResult:
+def _refresh(
+    outcome: RunOutcome,
+    *,
+    save: bool,
+    raises: bool = False,
+    kind: ProviderFailureKind = ProviderFailureKind.UNREACHABLE,
+) -> RefreshJobResult:
     selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
 
     def executor(ticker: str, _selection: object) -> ExecutionCapture:
         if raises:
             raise RuntimeError("boom")
         capture = _momentum_capture(ticker)
+        recorded = ProviderFailureRecord(kind, "yfinance")
         return ExecutionCapture(
-            native_evidence=capture.native_evidence, profile=None, outcome=outcome, failure_reason_code=code
+            native_evidence=capture.native_evidence,
+            profile=None,
+            native_status=NATIVE_STATUS_OF_OUTCOME[outcome],
+            provider_failure=provider_failure_of((recorded,)) if outcome is RunOutcome.FAILED else None,
         )
 
     summary = refresh_watchlist(
@@ -342,7 +338,7 @@ def _refresh(outcome: RunOutcome, code: str | None, *, save: bool, raises: bool 
 @pytest.mark.parametrize("save", [True, False])
 @pytest.mark.parametrize(("outcome", "code"), _OUTCOMES)
 def test_a_job_carries_a_code_if_and_only_if_it_failed(outcome: RunOutcome, code: str | None, save: bool) -> None:
-    result = _refresh(outcome, code, save=save)
+    result = _refresh(outcome, save=save)
 
     assert result.reason_code == code
     assert (result.run is not None) is save
@@ -353,7 +349,7 @@ def test_a_job_carries_a_code_if_and_only_if_it_failed(outcome: RunOutcome, code
 
 @pytest.mark.parametrize("save", [True, False])
 def test_a_failed_job_copies_the_code_a_saved_run_stores(save: bool) -> None:
-    result = _refresh(RunOutcome.FAILED, "provider_no_data", save=save)
+    result = _refresh(RunOutcome.FAILED, save=save, kind=ProviderFailureKind.NO_DATA)
 
     assert result.reason_code == "provider_no_data"
     if result.run is not None:
@@ -362,7 +358,7 @@ def test_a_failed_job_copies_the_code_a_saved_run_stores(save: bool) -> None:
 
 @pytest.mark.parametrize("save", [True, False])
 def test_a_job_that_raised_carries_the_classifier_code(save: bool) -> None:
-    result = _refresh(RunOutcome.COMPLETED, None, save=save, raises=True)
+    result = _refresh(RunOutcome.COMPLETED, save=save, raises=True)
 
     assert result.error == "boom"
     assert result.reason_code == "execution_error"

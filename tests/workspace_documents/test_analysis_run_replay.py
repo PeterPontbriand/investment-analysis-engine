@@ -85,7 +85,7 @@ def _build_run(profile: InstrumentProfile | None = None) -> AnalysisRun:
         return ExecutionCapture(
             native_evidence=native,
             profile=profile,
-            outcome=RunOutcome.COMPLETED,
+            native_status=CalculationStatus.OK,
             presentation_inputs={"sma_spread": 999.0, "sma_spread_percent": 111.0},
         )
 

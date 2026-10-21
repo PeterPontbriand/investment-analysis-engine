@@ -5,6 +5,7 @@ from collections.abc import Callable
 import pytest
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
@@ -37,8 +38,7 @@ def _failed_capture(ticker: str, provider_failure: ProviderFailure | None) -> Ex
     return ExecutionCapture(
         native_evidence=completed.native_evidence,
         profile=None,
-        outcome=RunOutcome.FAILED,
-        failure_reason_code="provider_unreachable" if provider_failure is not None else "provider_error",
+        native_status=CalculationStatus.PROVIDER_ERROR,
         provider_failure=provider_failure,
     )
 
@@ -142,10 +142,11 @@ def test_the_element_requires_a_failed_job() -> None:
 def test_a_capture_carries_the_element_only_when_failed() -> None:
     completed = _momentum_capture("AAPL")
 
-    with pytest.raises(ValueError, match="provider_failure requires the failed outcome"):
-        ExecutionCapture(
-            native_evidence=completed.native_evidence,
-            profile=None,
-            outcome=RunOutcome.COMPLETED,
-            provider_failure=_UNREACHABLE,
-        )
+    capture = ExecutionCapture(
+        native_evidence=completed.native_evidence,
+        profile=None,
+        native_status=CalculationStatus.OK,
+        provider_failure=_UNREACHABLE,
+    )
+
+    assert capture.provider_failure is None

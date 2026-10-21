@@ -45,7 +45,6 @@ from investment_analysis_engine.strategies.graham_number.calculation import (
     GrahamNumberInputResolver,
 )
 from investment_analysis_engine.strategies.graham_number.execution import (
-    capture_provider_failure,
     execute_graham_number,
     from_graham_number_capture,
 )
@@ -240,7 +239,7 @@ def _run_graham_number(  # noqa: PLR0913
                 instrument_profile=profile,
             )
             return render_graham_number(presentation, mode), 0
-        findings = provider_check_findings((capture_provider_failure(capture),), provider_check)
+        findings = provider_check_findings((from_graham_number_capture(capture).provider_failure,), provider_check)
         failure_output, failure_exit_code = _number_failure_output(
             ticker=ticker,
             assembly=assembly,

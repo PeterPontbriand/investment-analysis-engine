@@ -29,7 +29,6 @@ from pydantic import BaseModel, ValidationError
 from typer.core import TyperGroup
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
-from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import (
     CLI_STRATEGIES,
@@ -43,6 +42,7 @@ from investment_analysis_engine.cli_strategy_wiring import (
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.cli_workspace import watchlist_app
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
 from investment_analysis_engine.core.strategy_stub import UnfilledStubError
@@ -509,8 +509,8 @@ class _MemorySink:
 
 
 def _capture_of(result: NativeEvidence) -> Callable[[], ExecutionCapture]:
-    """Return a capture callable that yields ``result`` as a completed, profile-less capture."""
-    return lambda: ExecutionCapture(native_evidence=result, profile=None, outcome=RunOutcome.COMPLETED)
+    """Return a capture callable that yields ``result`` as a profile-less capture whose status is ``ok``."""
+    return lambda: ExecutionCapture(native_evidence=result, profile=None, native_status=CalculationStatus.OK)
 
 
 class RunRecord(Protocol):

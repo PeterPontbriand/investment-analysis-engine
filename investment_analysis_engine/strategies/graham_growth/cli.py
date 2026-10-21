@@ -46,7 +46,6 @@ from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrowthValueInputAssembly,
 )
 from investment_analysis_engine.strategies.graham_growth.execution import (
-    capture_provider_failure,
     execute_graham_growth,
     from_graham_growth_capture,
 )
@@ -279,7 +278,7 @@ def _run_graham_growth(  # noqa: PLR0913
                 instrument_profile=profile,
             )
             return render_graham_growth(presentation, mode), 0
-        findings = provider_check_findings((capture_provider_failure(capture),), provider_check)
+        findings = provider_check_findings((from_graham_growth_capture(capture).provider_failure,), provider_check)
         failure_output, failure_exit_code = _growth_failure_output(
             ticker=ticker,
             assembly=assembly,

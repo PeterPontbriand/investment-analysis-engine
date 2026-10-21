@@ -2,7 +2,8 @@
 
 Three conventions are written down in prose or confined to one function. Each test fails with a message that
 names what moved, so a rename or a second copy cannot go unnoticed. The single-valued provider option and field
-are kept out of every strategy by two tests, and the last test keeps one word out of failure text.
+are kept out of every strategy by two tests, the run outcome is kept out of every strategy and template by a scan and
+a totality test of the shared rule, and the last test keeps one word out of failure text.
 """
 
 import ast
@@ -17,8 +18,10 @@ from pydantic import BaseModel
 from typer.testing import CliRunner
 
 from investment_analysis_engine.analysis.base_analyzer import BaseAnalyzer
+from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyBehavior
 from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import normalize_cli_output
@@ -277,3 +280,63 @@ def test_the_scanned_word_appears_only_in_allowlisted_phrases() -> None:
             if _WORD in lowered and not any(phrase in lowered for phrase in _ALLOWED_PHRASES):
                 offenders.append(f"{path.relative_to(REPOSITORY_ROOT).as_posix()}:{number}: {_MESSAGE_RULE}")
     assert offenders == [], "\n".join(offenders)
+
+
+_STRATEGIES_ROOT: Final = REPOSITORY_ROOT / "investment_analysis_engine" / "strategies"
+_TEMPLATES_ROOT: Final = REPOSITORY_ROOT / "scripts" / "strategy_templates"
+_OUTCOME_MEMBERS: Final = frozenset(member.name for member in RunOutcome)
+_PLACEHOLDER: Final = re.compile(r"\$\{?\w+\}?")
+_EXPECTED_OUTCOMES: Final = {
+    CalculationStatus.OK: RunOutcome.COMPLETED,
+    CalculationStatus.NOT_APPLICABLE: RunOutcome.NOT_APPLICABLE,
+    CalculationStatus.INPUT_UNAVAILABLE: RunOutcome.UNAVAILABLE,
+    CalculationStatus.INVALID_INPUT: RunOutcome.FAILED,
+    CalculationStatus.PROVIDER_ERROR: RunOutcome.FAILED,
+    None: RunOutcome.COMPLETED,
+}
+
+
+def _run_outcome_members_named(source: str) -> list[tuple[int, str]]:
+    """Return ``(line, member)`` for each ``RunOutcome.<member>`` access in Python source."""
+    return [
+        (node.lineno, node.attr)
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "RunOutcome"
+        and node.attr in _OUTCOME_MEMBERS
+    ]
+
+
+def _outcome_scan_targets() -> list[Path]:
+    """Return every strategy module and every generator template, in a stable order."""
+    modules = sorted(path for path in _STRATEGIES_ROOT.rglob("*.py") if "__pycache__" not in path.parts)
+    return [*modules, *sorted(_TEMPLATES_ROOT.glob("*.tmpl"))]
+
+
+def test_no_strategy_module_or_template_names_a_run_outcome_member() -> None:
+    offenders: list[str] = []
+    for path in _outcome_scan_targets():
+        source = path.read_text(encoding="utf-8")
+        if path.suffix == ".tmpl":
+            source = _PLACEHOLDER.sub("x", source)
+        offenders += [
+            f"{path.relative_to(REPOSITORY_ROOT).as_posix()}:{line}: RunOutcome.{member} is decided by the shared "
+            "rule RunOutcome.from_status, not by a strategy"
+            for line, member in _run_outcome_members_named(source)
+        ]
+    assert offenders == [], "\n".join(offenders)
+
+
+def test_the_outcome_scan_reports_a_member_and_accepts_the_rest() -> None:
+    found = _run_outcome_members_named("x = RunOutcome.FAILED\n\ny = RunOutcome.COMPLETED")
+    assert found == [(1, "FAILED"), (3, "COMPLETED")]
+    accepted = "x = RunOutcome.from_status(None)\ny = Other.FAILED\nz = RunOutcome('failed')"
+    assert _run_outcome_members_named(accepted) == []
+    assert _outcome_scan_targets(), "The scan found no strategy module or template."
+
+
+def test_run_outcome_from_status_is_total_and_matches_the_table() -> None:
+    assert set(_EXPECTED_OUTCOMES) == {*CalculationStatus, None}, "The table lacks a status, or names one that is gone."
+    for status, outcome in _EXPECTED_OUTCOMES.items():
+        assert RunOutcome.from_status(status) is outcome, f"{status!r} must map to {outcome!r}."

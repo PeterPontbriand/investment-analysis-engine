@@ -20,7 +20,7 @@ evidence for a later execution service to assemble.
 from dataclasses import dataclass
 from datetime import datetime
 
-from investment_analysis_engine.analysis.run_models import RunOutcome, StrictJsonMapping
+from investment_analysis_engine.analysis.run_models import StrictJsonMapping
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentProfile,
     InstrumentProfileCandidate,
@@ -135,7 +135,7 @@ def from_momentum_capture(capture: MomentumCapture) -> ExecutionCapture:
     return ExecutionCapture(
         native_evidence=capture.run,
         profile=capture.run.instrument_profile,
-        outcome=RunOutcome.COMPLETED,
+        native_status=None,
         presentation_inputs=capture.presentation_inputs,
     )
 

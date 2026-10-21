@@ -33,6 +33,7 @@ from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
 from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
 from tests._cli_helpers import normalize_cli_output
 from tests._migrated_database import alembic_config
+from tests._native_status import NATIVE_STATUS_OF_OUTCOME
 from tests._wiring import encode_native
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
@@ -540,8 +541,7 @@ def _insert_momentum_run(
             return ExecutionCapture(
                 native_evidence=native,
                 profile=None,
-                outcome=outcome,
-                failure_reason_code="execution_error" if outcome is RunOutcome.FAILED else None,
+                native_status=NATIVE_STATUS_OF_OUTCOME[outcome],
             )
 
         return execute(

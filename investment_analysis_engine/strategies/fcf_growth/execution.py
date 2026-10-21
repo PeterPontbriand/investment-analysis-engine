@@ -16,15 +16,10 @@ never reads it back for rendering — it reuses the profile it composed before
 calling the analyzer — so no post-analysis profile fallback is captured
 here, matching that exact behavior.
 
-``classify_fcf_growth_outcome`` freezes the exact native-status mapping
-required before any run is persisted: native ``NOT_APPLICABLE`` (including
-the analyzer's own known-ETF short-circuit) maps to
-``RunOutcome.NOT_APPLICABLE``; a missing required input
-(``INPUT_UNAVAILABLE``) maps to ``RunOutcome.UNAVAILABLE``; an invalid input
-or provider error maps to ``RunOutcome.FAILED``; a completed calculation
-maps to ``RunOutcome.COMPLETED`` regardless of the method's own PASS/FAIL
-trend classification, which is a financial signal, not an execution
-outcome. Partial/optional metrics (forward evidence, FCF yield) inside a
+The module reports facts only: the native status and the recorded provider failure. The shared rule
+``RunOutcome.from_status`` produces the outcome, and ``ExecutionCapture`` derives it; a completed calculation is
+completed regardless of the method's own PASS/FAIL trend classification, which is a financial signal, not an
+execution outcome. Partial/optional metrics (forward evidence, FCF yield) inside a
 completed result are retained unmodified by this adapter.
 """
 
@@ -32,10 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
-from investment_analysis_engine.analysis.run_models import RunOutcome
-from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.failure_classification import failure_reason_code, provider_failure_of
-from investment_analysis_engine.core.provider_failure_element import ProviderFailure
+from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
@@ -51,25 +43,11 @@ class FCFGrowthCapture:
 
     ``result`` is the unmodified native analyzer result. ``profile`` is the
     profile composed before calculation and supplied to the analyzer —
-    exactly what the CLI renders with today. ``outcome`` is the frozen
-    status mapping described above.
+    exactly what the CLI renders with today.
     """
 
     result: FCFEarningsGrowthResult
     profile: InstrumentProfile
-    outcome: RunOutcome
-
-
-def classify_fcf_growth_outcome(result: FCFEarningsGrowthResult) -> RunOutcome:
-    """Map native FCF execution status to the workspace's terminal outcome."""
-    status = result.execution_status
-    if status is CalculationStatus.NOT_APPLICABLE:
-        return RunOutcome.NOT_APPLICABLE
-    if status is CalculationStatus.INPUT_UNAVAILABLE:
-        return RunOutcome.UNAVAILABLE
-    if status is not CalculationStatus.OK:
-        return RunOutcome.FAILED
-    return RunOutcome.COMPLETED
 
 
 def execute_fcf_growth(  # noqa: PLR0913
@@ -99,8 +77,7 @@ def execute_fcf_growth(  # noqa: PLR0913
             durable P2-Profiles cache instead of composing live every call.
 
     Returns:
-        The captured native result, its associated profile, and the mapped
-        terminal outcome.
+        The captured native result and its associated profile.
     """
     profile = compose_graham_profile(
         ticker,
@@ -110,21 +87,7 @@ def execute_fcf_growth(  # noqa: PLR0913
     )
     context = AnalysisContext(as_of=as_of, executed_at=executed_at, use_cache=use_cache, instrument_profile=profile)
     result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(ticker, config, context)
-    return FCFGrowthCapture(result=result, profile=profile, outcome=classify_fcf_growth_outcome(result))
-
-
-def capture_provider_failure(capture: FCFGrowthCapture) -> ProviderFailure | None:
-    """Return the ``provider_failure`` element of a failed run, or ``None`` when it did not fail on a provider."""
-    if capture.outcome is not RunOutcome.FAILED:
-        return None
-    return provider_failure_of((capture.result.provider_failure,))
-
-
-def _failure_code(capture: FCFGrowthCapture) -> str | None:
-    """Return the stable code of a failed run, derived from the stored native status and provider failure."""
-    if capture.outcome is not RunOutcome.FAILED:
-        return None
-    return failure_reason_code(capture.result.execution_status, capture_provider_failure(capture)).value
+    return FCFGrowthCapture(result=result, profile=profile)
 
 
 def from_fcf_growth_capture(capture: FCFGrowthCapture) -> ExecutionCapture:
@@ -132,16 +95,13 @@ def from_fcf_growth_capture(capture: FCFGrowthCapture) -> ExecutionCapture:
     return ExecutionCapture(
         native_evidence=capture.result,
         profile=capture.profile,
-        outcome=capture.outcome,
-        failure_reason_code=_failure_code(capture),
-        provider_failure=capture_provider_failure(capture),
+        native_status=capture.result.execution_status,
+        provider_failure=provider_failure_of((capture.result.provider_failure,)),
     )
 
 
 __all__ = [
-    "capture_provider_failure",
     "from_fcf_growth_capture",
     "FCFGrowthCapture",
-    "classify_fcf_growth_outcome",
     "execute_fcf_growth",
 ]
