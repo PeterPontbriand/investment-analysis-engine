@@ -67,7 +67,7 @@ current codes:
   generated schemas). Origin: [proposal](swc/STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md), accepted
   2026-09-24.
 
-PC (PC.1 to PC.4) is complete; Step 3.5 is next; GR.3 runs in any gap
+PC (PC.1 to PC.4) and GR (GR.1 to GR.3) are complete; Step 3.5 is next
 ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
 
 Note the resulting collision: `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md` uses its own
@@ -97,7 +97,7 @@ sequencing meaning.
 | 14 | [`src` package rename (PKG)](pkg/PKG_RENAME_PLAN.md) | Complete | 2026-10-17 |
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-19 |
 | 14B | [Pattern cleanup before Step 3.5 (PC)](pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-21 |
-| 14A | [Gate reliability (GR)](gate-reliability/GR_GATE_RELIABILITY_PLAN.md#2-sequence-and-status) | In progress | |
+| 14A | [Gate reliability (GR)](gate-reliability/GR_GATE_RELIABILITY_PLAN.md#2-sequence-and-status) | Complete | 2026-10-21 |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Next | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |

@@ -10,8 +10,8 @@ position and work-package status.
   failing test. GR.2 followed a lead on the intermittent `WinError 10055` failures, refuted it (no event loop is
   left open), fixed the three leaks it found, and makes a leaked socket, file or event loop fail the suite. GR.2a
   excuses, in the live provider checks only, the SQLite connections yfinance's caches leave open in the check's
-  worker thread, which that strict leak gate made fail the scheduled Provider Health run. GR.3 will
-  record the machine's socket state, from a pytest hook, at the moment a test fails with `WinError 10055`.
+  worker thread, which that strict leak gate made fail the scheduled Provider Health run. GR.3
+  records the machine's socket state, from a pytest hook, at the moment a test fails with `WinError 10055`.
 - **What it is not:** a change to what the gate checks, to its order, to its arguments, to its isolation directories
   or to its exit codes, and not a change to any strategy, formula or output.
 - **Rules every slice follows:** the complete managed gate, with the 3.14 pass, at the end of the slice; no
@@ -27,7 +27,7 @@ position and work-package status.
 | GR.1 | [The gate wrappers keep their evidence](#gr1--the-gate-wrappers-keep-their-evidence) | Complete | 2026-10-13 |
 | GR.2 | [Resource leaks fail the suite](#gr2--resource-leaks-fail-the-suite) | Complete | 2026-10-15 |
 | GR.2a | [Excuse yfinance's SQLite leak in the live checks, and only that](#gr2a--excuse-yfinances-sqlite-leak-in-the-live-checks-and-only-that) | Complete | 2026-10-17 |
-| GR.3 | [Record the machine's socket state when a test pass fails](#gr3--record-the-machines-socket-state-when-a-test-pass-fails) | Next | |
+| GR.3 | [Record the machine's socket state when a test pass fails](#gr3--record-the-machines-socket-state-when-a-test-pass-fails) | Complete | 2026-10-21 |
 
 ## 3. The slices
 
