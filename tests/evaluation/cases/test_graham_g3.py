@@ -8,7 +8,6 @@ from uuid import UUID
 import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
 from investment_analysis_engine.data.financial.facts import FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
@@ -34,24 +33,11 @@ from investment_analysis_engine.strategies.graham_number.calculation import Grah
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
+from tests._recording_sink import RecordingSink
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("b0000000-0000-0000-0000-00000000000b")
 SESSION_ID = UUID("c0000000-0000-0000-0000-00000000000c")
-
-
-class RecordingSink:
-    """Accept deterministic runner telemetry without persistence."""
-
-    def record(self, event: TrajectoryEvent) -> None:
-        """Accept one event."""
-        del event
-
-    def flush(self) -> None:
-        """Accept a flush request."""
-
-    def close(self) -> None:
-        """Accept a close request."""
 
 
 def _recorder() -> TrajectoryRecorder:

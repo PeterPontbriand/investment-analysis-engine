@@ -3,7 +3,9 @@
 ``tests/conftest.py`` points the settings, data and log folders at one session folder before the package is imported.
 This check, run when the session starts, confirms that every resolved location is inside that folder and otherwise stops
 the session, so that no test can reach the user's real settings, database or logs. A fixture in ``tests/conftest.py``
-then fails any test that creates the session's own database file, which a test that writes to a database must isolate.
+then fails any test that creates the session's own database file, which a test that writes to a database must isolate,
+and any test that leaves a file in the session's telemetry folder, which a test that records telemetry must avoid by
+passing its own recorder.
 """
 
 from __future__ import annotations
@@ -25,6 +27,16 @@ def session_database_file(configured: ProjectSettings) -> Path | None:
     if database in (None, "", ":memory:"):
         return None
     return Path(database)
+
+
+SESSION_TELEMETRY_RULE = (
+    "A test that records telemetry passes its own recorder, over tests._recording_sink.RecordingSink."
+)
+
+
+def session_telemetry_files(configured: ProjectSettings) -> list[Path]:
+    """Return every file under ``configured.telemetry_log_dir``, or none when the folder does not exist."""
+    return sorted(path for path in configured.telemetry_log_dir.rglob("*") if path.is_file())
 
 
 def locations_outside(session_folder: Path, configured: ProjectSettings) -> list[str]:

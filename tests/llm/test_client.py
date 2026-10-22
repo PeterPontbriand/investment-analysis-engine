@@ -9,7 +9,10 @@ from investment_analysis_engine.llm.client import LLMClient, LLMGenerateResult
 from investment_analysis_engine.orchestrator.context import ContextConfig, MessageContext
 from investment_analysis_engine.orchestrator.loop import AgentOrchestrator, OrchestratorConfig, OrchestratorOptions
 from investment_analysis_engine.orchestrator.prompts import SystemPromptBuilder
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
+from investment_analysis_engine.telemetry.run_context import RunContext
 from investment_analysis_engine.tools.parser import ToolParsingError
+from tests._recording_sink import RecordingSink
 
 
 def test_llm_client_init() -> None:
@@ -286,7 +289,7 @@ async def test_integration_format_reaches_wire_when_capability_supported() -> No
         llm_client=client,
         dispatcher=dispatcher_mock,
         parser=parser_mock,
-        options=OrchestratorOptions(config=config),
+        options=OrchestratorOptions(config=config, recorder=TrajectoryRecorder(RunContext.new(), RecordingSink())),
     )
 
     builder = SystemPromptBuilder()
@@ -357,7 +360,7 @@ async def test_integration_format_absent_from_wire_when_capability_unsupported()
         llm_client=client,
         dispatcher=dispatcher_mock,
         parser=parser_mock,
-        options=OrchestratorOptions(config=config),
+        options=OrchestratorOptions(config=config, recorder=TrajectoryRecorder(RunContext.new(), RecordingSink())),
     )
 
     builder = SystemPromptBuilder()

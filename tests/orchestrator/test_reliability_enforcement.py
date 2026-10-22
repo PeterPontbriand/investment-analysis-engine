@@ -24,23 +24,7 @@ from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder, Tr
 from investment_analysis_engine.telemetry.run_context import RunContext
 from investment_analysis_engine.telemetry.sinks.jsonl import JSONLTrajectorySink
 from investment_analysis_engine.tools.parser import ParsedToolCall, ToolParser, ToolParsingError
-
-
-class RecordingSink:
-    """In-memory trajectory sink for retry evidence."""
-
-    def __init__(self) -> None:
-        """Initialize an empty event collection."""
-        self.events: list[TrajectoryEvent] = []
-
-    def record(self, event: TrajectoryEvent) -> None:
-        self.events.append(event)
-
-    def flush(self) -> None:
-        pass
-
-    def close(self) -> None:
-        pass
+from tests._recording_sink import RecordingSink
 
 
 def _config(**limit_overrides: Any) -> OrchestratorConfig:
@@ -109,7 +93,10 @@ async def test_llm_timeout_cancels_async_request_and_returns_trip() -> None:
         llm,
         MagicMock(spec=AsyncToolDispatcher),
         MagicMock(spec=ToolParser),
-        OrchestratorOptions(config=_config(llm_call_timeout_seconds=0.01)),
+        OrchestratorOptions(
+            config=_config(llm_call_timeout_seconds=0.01),
+            recorder=TrajectoryRecorder(RunContext.new(), RecordingSink()),
+        ),
     )
 
     steps = await _collect(orchestrator)
@@ -161,7 +148,9 @@ async def test_earliest_run_or_step_deadline_controls_llm(
         llm,
         MagicMock(spec=AsyncToolDispatcher),
         MagicMock(spec=ToolParser),
-        OrchestratorOptions(config=_config(**overrides)),
+        OrchestratorOptions(
+            config=_config(**overrides), recorder=TrajectoryRecorder(RunContext.new(), RecordingSink())
+        ),
     )
 
     steps = await _collect(orchestrator)
@@ -195,7 +184,10 @@ async def test_async_tool_timeout_cancels_handler_and_stops_run() -> None:
         llm,
         dispatcher,
         parser,
-        OrchestratorOptions(config=_config(tool_call_timeout_seconds=0.01)),
+        OrchestratorOptions(
+            config=_config(tool_call_timeout_seconds=0.01),
+            recorder=TrajectoryRecorder(RunContext.new(), RecordingSink()),
+        ),
     )
 
     steps = await _collect(orchestrator)
@@ -225,7 +217,10 @@ async def test_sync_tool_timeout_reports_unconfirmed_cancellation() -> None:
         llm,
         dispatcher,
         parser,
-        OrchestratorOptions(config=_config(tool_call_timeout_seconds=0.01)),
+        OrchestratorOptions(
+            config=_config(tool_call_timeout_seconds=0.01),
+            recorder=TrajectoryRecorder(RunContext.new(), RecordingSink()),
+        ),
     )
 
     try:

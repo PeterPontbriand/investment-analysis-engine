@@ -70,6 +70,10 @@ results.
   accurately, and that both fit in Light Mode's memory.
 - **Decision:** measure first. No product interface or contract is written until the results are
   in. The one exception is the small reader interface the measuring itself needs.
+- **Before it starts:** decide how the engine connects to a language model
+  ([#149](https://github.com/PeterPontbriand/investment-analysis-engine/issues/149)): Ollama's own
+  API only, any OpenAI-compatible endpoint, or both behind one interface. ASK.0's fit checks test
+  features of the installed server, so the connection must be chosen first.
 - **Scope:**
   - *Question understanding.* A fixed set of at least 100 plain-English questions, each with the
     plan it should produce. The set includes questions that must be declined and questions that

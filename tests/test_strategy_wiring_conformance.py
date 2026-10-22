@@ -158,7 +158,6 @@ def test_t8_stores_each_run_under_the_sample_selection_its_tier_entry_declares()
 def test_t10_the_evaluation_tier_covers_every_descriptor() -> None:
     """Every descriptor has exactly one evaluation-tier entry and every entry serves a descriptor."""
     assert conformance.evaluation_tier_gaps(STRATEGIES) == []
-    assert_wired(STRATEGIES, wiring_surfaces())
     assert len(EVALUATION_STRATEGIES) == len(STRATEGIES)
 
 
@@ -188,7 +187,6 @@ def test_t10_reports_a_duplicate_entry_and_an_entry_serving_no_descriptor() -> N
 def test_t10_the_cli_tier_covers_every_descriptor() -> None:
     """Every descriptor has exactly one CLI-tier entry and every entry serves a descriptor."""
     assert conformance.cli_tier_gaps(STRATEGIES) == []
-    assert_wired(STRATEGIES, wiring_surfaces())
     assert len(CLI_STRATEGIES) == len(STRATEGIES)
 
 
@@ -675,6 +673,11 @@ def test_t8_reports_a_presenter_that_writes_an_identifier_its_document_model_rej
         gap.startswith("strategy ('momentum', 'sma_crossover'): replay in json mode raised ValidationError")
         for gap in gaps
     )
+
+
+def test_t10_every_descriptor_is_wired_into_every_surface() -> None:
+    """Each wiring surface covers every descriptor; a gap names the surface and the command that fixes it."""
+    assert_wired(STRATEGIES, wiring_surfaces())
 
 
 def test_t10_every_descriptor_has_a_current_published_schema() -> None:

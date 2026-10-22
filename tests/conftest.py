@@ -28,6 +28,12 @@ os.environ["FORCE_COLOR"] = "1"
 # fake probe instead; a test of the setting's default removes this variable first.
 os.environ["IAN_PROVIDER_CHECK"] = "false"
 
+# Two paths record telemetry through the settings without being asked: the command-line quality telemetry and the
+# orchestrator's default recorder, both through ``TrajectoryRecorder.from_settings``. No test records telemetry through
+# the settings, so the suite turns it off here, once. A test of telemetry passes its own recorder, and a test of the
+# setting's default sets the variable itself.
+os.environ["IAN_TELEMETRY_LEVEL"] = "OFF"
+
 import logging  # noqa: E402
 from collections.abc import Generator  # noqa: E402
 
@@ -38,7 +44,13 @@ from tests._collection_hint import pytest_make_collect_report  # noqa: E402
 from tests._live_selection import pytest_addoption, pytest_collection_modifyitems, pytest_configure  # noqa: E402
 from tests._migrated_database import migrated_database  # noqa: E402
 from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: E402
-from tests._session_isolation import SESSION_DATABASE_RULE, session_database_file, stop_session_if_outside  # noqa: E402
+from tests._session_isolation import (  # noqa: E402
+    SESSION_DATABASE_RULE,
+    SESSION_TELEMETRY_RULE,
+    session_database_file,
+    session_telemetry_files,
+    stop_session_if_outside,
+)
 from tests._socket_snapshot import pytest_runtest_makereport  # noqa: E402
 
 __all__ = [
@@ -98,3 +110,37 @@ def fail_if_session_database_exists() -> Generator[None, None, None]:
     for path in (leftover, *(leftover.with_name(leftover.name + suffix) for suffix in ("-wal", "-shm", "-journal"))):
         path.unlink(missing_ok=True)
     pytest.fail(f"{leftover} existed after the test. {SESSION_DATABASE_RULE}", pytrace=False)
+
+
+@pytest.fixture(autouse=True)
+def fail_if_session_telemetry_folder_has_a_file() -> Generator[None, None, None]:
+    """Fail the test that leaves a file in the session's telemetry folder.
+
+    The suite turns telemetry through the settings off, so a file in the folder after a test means the test turned it
+    on, or wrote a log, outside its own folder. A test that records telemetry passes its own recorder. Each file is
+    removed, so that only the test that created it fails.
+    """
+    from investment_analysis_engine.config import settings  # noqa: PLC0415
+
+    yield
+    leftovers = session_telemetry_files(settings)
+    if not leftovers:
+        return
+    for path in leftovers:
+        path.unlink(missing_ok=True)
+    names = ", ".join(str(path) for path in leftovers)
+    pytest.fail(f"{names} existed after the test. {SESSION_TELEMETRY_RULE}", pytrace=False)
+
+
+@pytest.fixture(autouse=True)
+def restore_current_run_context() -> Generator[None, None, None]:
+    """Give each test the run context it started with, so a context one test sets does not reach the next.
+
+    The command-line callback sets the context once for a process and keeps it, so without this a test that invokes the
+    CLI leaves its run identity to every test after it.
+    """
+    from investment_analysis_engine.telemetry.run_context import _current_run_context  # noqa: PLC0415
+
+    before = _current_run_context.get()
+    yield
+    _current_run_context.set(before)
