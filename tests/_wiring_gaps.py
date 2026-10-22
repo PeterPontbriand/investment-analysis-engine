@@ -48,18 +48,17 @@ def find_wiring_gaps(descriptors: tuple[StrategyDescriptor, ...], surfaces: Mapp
     return gaps
 
 
-def assert_wired(
-    descriptors: tuple[StrategyDescriptor, ...],
-    surfaces: Mapping[str, Surface],
-    fixes: Mapping[str, str] | None = None,
-) -> None:
+def assert_wired(descriptors: tuple[StrategyDescriptor, ...], surfaces: Mapping[str, Surface]) -> None:
     """Fail with every diagnostic of :func:`find_wiring_gaps`, or return when every surface covers every descriptor.
 
-    ``fixes`` maps a surface name to the command that repairs it; the failure ends with ``To fix <surface>: run
-    <command>`` for each such surface that has a gap.
+    Under each summary line the failure lists, one per line, the messages the uncovering surfaces gave for that
+    strategy, so that a message that names a fix command reaches the reader.
     """
-    gaps = find_wiring_gaps(descriptors, surfaces)
-    hints = [
-        f"To fix {name}: run {command}" for name, command in (fixes or {}).items() if any(name in gap for gap in gaps)
-    ]
-    assert not gaps, "\n".join([*gaps, *hints])
+    lines = []
+    for item in descriptors:
+        summary = find_wiring_gaps((item,), surfaces)
+        if summary:
+            key = conformance.label(item)
+            lines.append(summary[0])
+            lines.extend(f"    {gap}" for surface in surfaces.values() for gap in surface((item,)) if key in gap)
+    assert not lines, "\n".join(lines)

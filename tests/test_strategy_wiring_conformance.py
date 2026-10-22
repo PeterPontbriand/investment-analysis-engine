@@ -677,7 +677,7 @@ def test_t8_reports_a_presenter_that_writes_an_identifier_its_document_model_rej
 
 def test_t10_every_descriptor_is_wired_into_every_surface() -> None:
     """Each wiring surface covers every descriptor; a gap names the surface and the command that fixes it."""
-    assert_wired(STRATEGIES, wiring_surfaces(), {"published schemas": conformance.SCHEMA_COMMAND})
+    assert_wired(STRATEGIES, wiring_surfaces())
 
 
 def test_t10_every_descriptor_has_a_current_published_schema() -> None:
