@@ -19,6 +19,7 @@ from investment_analysis_engine.cli_support import (
     _production_instrument_profile_cache,
     _resolve_ticker,
     execution_errors,
+    exit_code_of,
     require_job_ticker,
     saving_failures,
 )
@@ -224,6 +225,7 @@ def command(  # noqa: PLR0913
                     executed_at=executed_at,
                     instrument_profile=profile,
                 )
+        exit_code = exit_code_of(from_momentum_capture(capture_momentum(run)).outcome)
         embedded_profile = run.instrument_profile
         if embedded_profile is None:
             raise ValueError("Momentum result did not retain the instrument profile it ran with.")
@@ -238,3 +240,5 @@ def command(  # noqa: PLR0913
             instrument_profile=embedded_profile,
         )
         typer.echo(render_momentum(presentation, mode))
+        if exit_code:
+            raise typer.Exit(code=exit_code)

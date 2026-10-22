@@ -38,6 +38,7 @@ from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist, Wa
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
 from tests._migrated_database import migrated_database_url
+from tests._native_status import NATIVE_STATUS_OF_OUTCOME
 from tests._wiring import encode_native, failure_text
 
 WATCHLIST_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -104,8 +105,7 @@ def _momentum_capture(ticker: str, outcome: RunOutcome = RunOutcome.COMPLETED) -
     return ExecutionCapture(
         native_evidence=native,
         profile=None,
-        outcome=outcome,
-        failure_reason_code="execution_error" if outcome is RunOutcome.FAILED else None,
+        native_status=NATIVE_STATUS_OF_OUTCOME[outcome],
     )
 
 
@@ -172,7 +172,7 @@ def test_refresh_watchlist_iterates_member_then_selection_position_order() -> No
             result=GrahamNumberResult(status=CalculationStatus.OK, maximum_indicated_price=30.0),
             margin_of_safety_percent=None,
         )
-        return ExecutionCapture(native_evidence=analysis, profile=None, outcome=RunOutcome.COMPLETED)
+        return ExecutionCapture(native_evidence=analysis, profile=None, native_status=CalculationStatus.OK)
 
     summary = refresh_watchlist(
         "My Watch",

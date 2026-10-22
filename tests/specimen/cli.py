@@ -17,6 +17,7 @@ from investment_analysis_engine.data.instrument_profile_cache import InstrumentP
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from tests.specimen.analyzer import SpecimenAnalyzer
 from tests.specimen.closed_types import as_native_evidence
+from tests.specimen.codec import specimen_native_status
 from tests.specimen.execution import execute_specimen, from_specimen_capture
 from tests.specimen.presenter import render_specimen
 from tests.specimen.runs import SPECIMEN_RUN_STORE, build_specimen_run
@@ -50,7 +51,9 @@ def refresh(
     del profile_cache
     execution = from_specimen_capture(execute_specimen(_analyzer(), ticker, selection, executed_at=utc_now()))
     return ExecutionCapture(
-        native_evidence=as_native_evidence(execution.native_evidence), profile=None, outcome=execution.outcome
+        native_evidence=as_native_evidence(execution.native_evidence),
+        profile=None,
+        native_status=specimen_native_status(execution.native_evidence),
     )
 
 

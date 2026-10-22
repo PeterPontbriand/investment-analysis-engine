@@ -33,7 +33,7 @@ Each slice ends with the managed quality gate and is gated by explicit authoriza
 | PC.1 | [Interfaces and names](#pc1--interfaces-and-names) | Complete | 2026-10-20 |
 | PC.2 | [Test helpers](#pc2--test-helpers) | Complete | 2026-10-20 |
 | PC.3 | [Help encoding](#pc3--help-encoding) | Complete | 2026-10-21 |
-| PC.4 | [One shared mapping from statuses to a run outcome](#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) | Next | |
+| PC.4 | [One shared mapping from statuses to a run outcome](#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) | Complete | 2026-10-21 |
 
 PC starts after SWC.8 completes and finishes before Step 3.5 begins. PC.4 follows PC.3: the project owner decided
 [issue #111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111) in favour of a shared mapping on
@@ -99,28 +99,41 @@ PC starts after SWC.8 completes and finishes before Step 3.5 begins. PC.4 follow
 - **Problem:** each strategy writes its own function from its statuses to a `RunOutcome`, and every Step 3.5 strategy
   would write another copy. ESC-29 was a slip in one of them ([#111](https://github.com/PeterPontbriand/investment-analysis-engine/issues/111), and
   [Appendix A.9 of the Step 3.5 contract](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)).
-- **Decision:** yes, approved by the project owner on 2026-10-19. PC.1 records the decision and implements none of it.
-  - **The function.** A single total function, `run_outcome_of(status: CalculationStatus | None) -> RunOutcome`, lives
-    beside `RunOutcome` in `investment_analysis_engine/analysis/run_models.py`. `ok` maps to completed,
-    `not_applicable` to not applicable and `input_unavailable` to unavailable. `invalid_input` and `provider_error` map
-    to failed. `None` maps to completed; that is Momentum's place in the mapping, and A.8 of the Step 3.5 contract may
-    later change Momentum's status, but not the mapping.
-  - **Removals.** The three `classify_*_outcome` functions are removed. The `outcome` field is removed from each
-    strategy's capture type. Each `from_*_capture` passes `run_outcome_of(<native status>)` to `ExecutionCapture`. The
-    generator's `execution.py.tmpl` does the same.
+- **Decision:** yes, approved by the project owner on 2026-10-19 and amended on 2026-10-21
+  ([A.5](#a5-pc4-decisions-2026-10-21)). PC.1 records the decision and implements none of it.
+  - **The rule.** `RunOutcome.from_status(status: CalculationStatus | None) -> RunOutcome`, a class method in
+    `investment_analysis_engine/analysis/run_models.py`, replaces the separate `run_outcome_of`. `ok` maps to
+    completed, `not_applicable` to not applicable and `input_unavailable` to unavailable. `invalid_input` and
+    `provider_error` map to failed. `None` maps to completed; that is Momentum's place in the rule, and A.8 of the
+    Step 3.5 contract may later change Momentum's status, but not the rule.
+  - **Native status.** `StrategyBehavior.native_status` and `native_status_of` return `CalculationStatus | None`
+    instead of a string. Each strategy's codec function provides it: Graham Number and Graham Growth return
+    `analysis.native_status`, so there is one way to get that status; FCF Growth returns `result.execution_status`;
+    Momentum returns `None`. The evaluation runner records `.value`, or `None`, so recorded telemetry values stay the
+    same. The generator's `codec.py.tmpl` and `scripts/strategy_conformance.py` follow.
+  - **`ExecutionCapture` derives the rest.** It takes the native evidence and profile, the native status, the
+    presentation inputs and the provider failure the strategy recorded. It derives `outcome` through
+    `RunOutcome.from_status`, `failure_reason_code` (failed only) and `provider_failure` (kept for failed only).
+    Derivation replaces the invariant checks in its `__post_init__`.
+  - **Removals.** The three `classify_*_outcome` functions, the `outcome` field of each strategy's capture type, the
+    three `capture_provider_failure` and three `_failure_code` functions, and Momentum's fixed `RunOutcome.COMPLETED`.
+    Each `from_*_capture` passes the facts above and nothing else, and the commands read the provider failure from
+    the normalized capture. The generator's `execution.py.tmpl` follows the same shape.
+  - **Exit codes.** A shared `exit_code_of(outcome: RunOutcome) -> int` in `investment_analysis_engine/cli_support.py`
+    returns 1 exactly for unavailable and failed, and 0 otherwise. The four strategy commands take their exit code from
+    it, and no command's exit code changes. The CLI template's command body is an unfilled stub, so the contributor
+    guide names `exit_code_of`.
   - **Graham Growth.** A calculation `not_applicable`, unreachable today, becomes not applicable instead of failed.
-    This is a change in an unreachable path, not a classification change (ESC-29 settled the outcome).
-  - **Exit codes.** A shared `exit_code_of(outcome)` returns 1 exactly for unavailable and failed. The strategy
-    commands and the CLI template use it. This matches every command's exit code today.
+    This is a change in an unreachable path, not a classification change (ESC-29 settled the outcome); a test pins it
+    through `RunOutcome.from_status`.
   - **Guard tests**, in `tests/test_documented_conventions.py`: an AST scan proving that no module under
     `investment_analysis_engine/strategies/` and no file under `scripts/strategy_templates/` names a `RunOutcome`
-    member; and a test that the mapping covers every `CalculationStatus` member and `None`.
-  - **Telemetry duplicate.** The Graham Number and Graham Growth codec `*_native_status` functions return
-    `analysis.native_status`, so there is one way to get that status.
-- **Scope:** the shared mapping and exit-code function, the strategies' execution and command modules, the generator
-  template, and the two guard tests. No formula or classification changes.
-- **Branch:** to be named when the slice starts.
-- **Detail:** ⚠ no slice plan yet
+    member; and a test that `RunOutcome.from_status` covers every `CalculationStatus` member and `None`.
+- **Scope:** the shared rule and exit-code function, `ExecutionCapture`, the strategies' codec, execution and command
+  modules, the evaluation runner, the generator templates and conformance script, the two guard tests, and the
+  documents that described the per-strategy mapping. No formula or classification changes.
+- **Branch:** `refactor/pc-4-run-outcome`
+- **Detail:** [PC.4 slice plan](PC_4_RUN_OUTCOME_PLAN.md)
 
 ### Decision rule
 
@@ -220,3 +233,21 @@ holds them in full.
   child is the `ian` entry point and kept, with the reason, where it is another program.
 - **Commits:** the slice plan, then the stream fix and its tests, then the JSON rule and its guard, then the help
   cleanup and its guard, then the completion commit.
+
+### A.5 PC.4 decisions (2026-10-21)
+
+Decisions of the project owner, 2026-10-21, amending the 2026-10-19 design; the
+[PC.4 slice plan](PC_4_RUN_OUTCOME_PLAN.md#a1-approved-decisions-2026-10-19-amended-2026-10-21) holds them in full.
+
+- **The rule is a class method:** `RunOutcome.from_status`, replacing the separate `run_outcome_of`.
+- **One native-status function per strategy:** the descriptor member and `native_status_of` return
+  `CalculationStatus | None`; the codec functions provide it; the evaluation runner records `.value` or `None`.
+- **`ExecutionCapture` derives** the outcome, the failure code and the kept provider failure from facts the strategy
+  supplies, replacing its `__post_init__` checks.
+- **Removals:** the three `classify_*_outcome` functions, the capture types' `outcome` field, the three
+  `capture_provider_failure` and three `_failure_code` functions, and Momentum's fixed `COMPLETED`.
+- **Exit codes:** `exit_code_of` lives in `cli_support.py`; no command's exit code changes.
+- **Closing PC:** the completion commit sets PC.4 and row `14B` of the milestone plan to Complete and row 15 (Step 3.5)
+  to Next. `AGENTS.md` §0 stays until slice 3.5.0.
+- **Commits:** the slice plan, then the typed native status, then the rule with the capture, the removals, the template
+  and the guards, then `exit_code_of` and the commands, then the documents, then the completion commit.

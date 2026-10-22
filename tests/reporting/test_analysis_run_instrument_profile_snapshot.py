@@ -11,7 +11,6 @@ the persistence or replay path.
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.instrument_profile import (
@@ -131,7 +130,7 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
 
     def _capture_a() -> ExecutionCapture:
         return ExecutionCapture(
-            native_evidence=_graham_number_analysis("RENU", 30.0), profile=profile_a, outcome=RunOutcome.COMPLETED
+            native_evidence=_graham_number_analysis("RENU", 30.0), profile=profile_a, native_status=CalculationStatus.OK
         )
 
     first_run = execute(
@@ -157,7 +156,7 @@ def test_a_ticker_reuse_supersession_never_relabels_a_previously_persisted_run(
 
     def _capture_b() -> ExecutionCapture:
         return ExecutionCapture(
-            native_evidence=_graham_number_analysis("RENU", 55.0), profile=profile_b, outcome=RunOutcome.COMPLETED
+            native_evidence=_graham_number_analysis("RENU", 55.0), profile=profile_b, native_status=CalculationStatus.OK
         )
 
     second_run = execute(
@@ -213,7 +212,7 @@ def test_repeated_execution_within_ttl_reuses_the_cache_and_each_run_keeps_its_o
     def _capture() -> ExecutionCapture:
         profile = profile_cache.resolve("RENU", identity_candidates=identity_candidates, kind_candidate=kind_candidate)
         return ExecutionCapture(
-            native_evidence=_graham_number_analysis("RENU", 30.0), profile=profile, outcome=RunOutcome.COMPLETED
+            native_evidence=_graham_number_analysis("RENU", 30.0), profile=profile, native_status=CalculationStatus.OK
         )
 
     first_run = execute(

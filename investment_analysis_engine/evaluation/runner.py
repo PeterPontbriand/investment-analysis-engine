@@ -358,8 +358,9 @@ def _native_result(dispatch_result: ToolCallResult) -> NativeEvidence:
 
 
 def _native_status(result: NativeEvidence) -> str | None:
-    """Return the result-level status that the result's own strategy declares, for telemetry evidence."""
-    return require(BY_RESULT_TYPE, type(result), what="production result type").behavior.native_status_of(result)
+    """Return the value of the result-level status that the result's own strategy reports, for telemetry evidence."""
+    status = require(BY_RESULT_TYPE, type(result), what="production result type").behavior.native_status_of(result)
+    return None if status is None else status.value
 
 
 def _numerical_observations(case: Case, result: NativeEvidence) -> tuple[NumericalObservation, ...]:

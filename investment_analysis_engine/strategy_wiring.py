@@ -17,6 +17,7 @@ from typing import Final, Protocol
 from pydantic import BaseModel
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import require, undeclared
 from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from investment_analysis_engine.orchestrator.tool_names import ToolName
@@ -131,8 +132,8 @@ class BehaviorView(Protocol):
         """Decode a stored payload and require its evidence to be about ``ticker``."""
         ...
 
-    def native_status_of(self, result: object, /) -> str | None:
-        """Return the result-level status recorded as telemetry evidence, or ``None`` if the strategy has none."""
+    def native_status_of(self, result: object, /) -> CalculationStatus | None:
+        """Return the result-level status the strategy reports, or ``None`` if it has none."""
         ...
 
     def bind_handler(self, dependencies: object, runtime: ToolRuntime, /) -> AnalysisToolHandler[NativeEvidence]:
@@ -158,7 +159,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     decode: Callable[[StrictJsonMapping], ResultT]
     ticker_of: Callable[[ResultT], str]
     handler: ToolHandlerBinder[DepsT, ResultT]
-    native_status: Callable[[ResultT], str | None]
+    native_status: Callable[[ResultT], CalculationStatus | None]
     project: Callable[[ReplayInputs, ResultT, SelT, ReplayOptions], str]
 
     def encode_object(self, evidence: object, /) -> StrictJsonMapping:
@@ -176,7 +177,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
             raise ValueError("Ticker mismatch.")
         return result
 
-    def native_status_of(self, result: object, /) -> str | None:
+    def native_status_of(self, result: object, /) -> CalculationStatus | None:
         """Return the result-level status of ``result``, which must be exactly this strategy's result type."""
         if not isinstance(result, self.result_type) or type(result) is not self.result_type:
             raise undeclared("result type", type(result))

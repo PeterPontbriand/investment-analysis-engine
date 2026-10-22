@@ -7,6 +7,7 @@ its types cross the bound only through :mod:`tests.specimen.closed_types`.
 """
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import undeclared
 from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler, ToolRuntime
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
@@ -40,7 +41,7 @@ class SpecimenBehavior:
             raise ValueError("Ticker mismatch.")
         return as_native_evidence(result)
 
-    def native_status_of(self, result: object, /) -> str | None:
+    def native_status_of(self, result: object, /) -> CalculationStatus | None:
         """Return the status of ``result``, which must be exactly the specimen's result type."""
         if type(result) is not SpecimenResult:
             raise undeclared("result type", type(result))

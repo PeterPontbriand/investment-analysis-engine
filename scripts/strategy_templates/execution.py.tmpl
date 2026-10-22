@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.strategies.$module.analyzer import ${Class}Analyzer, ${Class}Result
 from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
@@ -15,18 +14,17 @@ class ${Class}Capture:
     """The captured evidence of one $label execution."""
 
     result: ${Class}Result
-    outcome: RunOutcome
 
 
 def execute_$module(
     analyzer: ${Class}Analyzer, ticker: str, selection: ${Class}Selection, *, executed_at: datetime
 ) -> ${Class}Capture:
-    """Run the analyzer for ``selection`` and capture its evidence and terminal outcome."""
+    """Run the analyzer for ``selection`` and capture its evidence."""
     del analyzer, ticker, selection, executed_at
     unfilled_stub("execution")
 
 
 def from_${module}_capture(capture: ${Class}Capture) -> ExecutionCapture:
-    """Normalize a $label capture."""
+    """Normalize a $label capture: pass its evidence, profile, native status and recorded provider failure."""
     del capture
     unfilled_stub("execution")

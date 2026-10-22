@@ -22,8 +22,8 @@ from investment_analysis_engine.strategies.graham_growth.calculation import (
 from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
 from investment_analysis_engine.strategies.graham_growth.execution import (
     GrahamGrowthCapture,
-    classify_graham_growth_outcome,
     execute_graham_growth,
+    from_graham_growth_capture,
 )
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 
@@ -72,23 +72,39 @@ def _analysis(
     [
         (CalculationStatus.OK, CalculationStatus.OK, RunOutcome.COMPLETED),
         (CalculationStatus.OK, CalculationStatus.INVALID_INPUT, RunOutcome.FAILED),
+        # The calculation returns only ok or invalid_input, so this state is never built; the rule maps it to not
+        # applicable (ESC-29 settled the outcome).
+        (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE, RunOutcome.NOT_APPLICABLE),
         (CalculationStatus.NOT_APPLICABLE, CalculationStatus.OK, RunOutcome.NOT_APPLICABLE),
         (CalculationStatus.INPUT_UNAVAILABLE, CalculationStatus.OK, RunOutcome.UNAVAILABLE),
         (CalculationStatus.INVALID_INPUT, CalculationStatus.OK, RunOutcome.FAILED),
         (CalculationStatus.PROVIDER_ERROR, CalculationStatus.OK, RunOutcome.FAILED),
     ],
 )
-def test_classify_graham_growth_outcome_matches_the_frozen_mapping(
+def test_graham_growth_outcome_follows_the_native_status(
     assembly_status: CalculationStatus, result_status: CalculationStatus, expected: RunOutcome
 ) -> None:
     analysis = _analysis(assembly_status, result_status)
-    assert classify_graham_growth_outcome(analysis) == expected
+    capture = from_graham_growth_capture(GrahamGrowthCapture(analysis, _profile()))
+    assert capture.native_status is analysis.native_status
+    assert capture.outcome is expected
+    assert (capture.failure_reason_code is not None) is (expected is RunOutcome.FAILED)
+
+
+def test_a_not_applicable_calculation_is_a_not_applicable_run_for_graham_growth() -> None:
+    """ESC-29 settled the outcome; the shared rule, not a per-strategy fall-through, now produces it."""
+    analysis = _analysis(CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE)
+
+    assert RunOutcome.from_status(analysis.native_status) is RunOutcome.NOT_APPLICABLE
+    capture = from_graham_growth_capture(GrahamGrowthCapture(analysis, _profile()))
+    assert capture.outcome is RunOutcome.NOT_APPLICABLE
+    assert capture.failure_reason_code is None
 
 
 def test_nonpositive_growth_value_is_a_completed_calculation_not_a_failure() -> None:
     """A nonpositive growth value is a valid financial signal, not an execution failure."""
     analysis = _analysis(CalculationStatus.OK, CalculationStatus.OK, growth_value=-3.5)
-    assert classify_graham_growth_outcome(analysis) == RunOutcome.COMPLETED
+    assert from_graham_growth_capture(GrahamGrowthCapture(analysis, _profile())).outcome is RunOutcome.COMPLETED
 
 
 def test_execute_graham_growth_delegates_and_falls_back_to_the_composed_profile() -> None:
@@ -120,7 +136,7 @@ def test_execute_graham_growth_delegates_and_falls_back_to_the_composed_profile(
 
     assert capture.analysis is canned
     assert capture.profile is composed
-    assert capture.outcome is RunOutcome.COMPLETED
+    assert from_graham_growth_capture(capture).outcome is RunOutcome.COMPLETED
     assert captured == {
         "config": config,
         "ticker": SECURITY_ID,

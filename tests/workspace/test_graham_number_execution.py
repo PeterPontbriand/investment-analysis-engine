@@ -21,8 +21,8 @@ from investment_analysis_engine.strategies.graham_number.calculation import (
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 from investment_analysis_engine.strategies.graham_number.execution import (
     GrahamNumberCapture,
-    classify_graham_number_outcome,
     execute_graham_number,
+    from_graham_number_capture,
 )
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 
@@ -68,9 +68,9 @@ def _analysis(
         (CalculationStatus.OK, CalculationStatus.OK, RunOutcome.COMPLETED),
         (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE, RunOutcome.NOT_APPLICABLE),
         (CalculationStatus.OK, CalculationStatus.INVALID_INPUT, RunOutcome.FAILED),
-        # The service never builds these two (the calculation returns ok, not_applicable or invalid_input); a result
-        # that is neither is a defect, and a failed run is the outcome that surfaces it.
-        (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE, RunOutcome.FAILED),
+        # The service never builds these two (the calculation returns ok, not_applicable or invalid_input); the
+        # shared rule maps each by its status alone.
+        (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE, RunOutcome.UNAVAILABLE),
         (CalculationStatus.OK, CalculationStatus.PROVIDER_ERROR, RunOutcome.FAILED),
         (CalculationStatus.NOT_APPLICABLE, CalculationStatus.OK, RunOutcome.NOT_APPLICABLE),
         (CalculationStatus.NOT_APPLICABLE, CalculationStatus.NOT_APPLICABLE, RunOutcome.NOT_APPLICABLE),
@@ -79,11 +79,14 @@ def _analysis(
         (CalculationStatus.PROVIDER_ERROR, CalculationStatus.OK, RunOutcome.FAILED),
     ],
 )
-def test_classify_graham_number_outcome_matches_the_frozen_mapping(
+def test_graham_number_outcome_follows_the_native_status(
     assembly_status: CalculationStatus, result_status: CalculationStatus, expected: RunOutcome
 ) -> None:
     analysis = _analysis(assembly_status, result_status)
-    assert classify_graham_number_outcome(analysis) == expected
+    capture = from_graham_number_capture(GrahamNumberCapture(analysis, _profile()))
+    assert capture.native_status is analysis.native_status
+    assert capture.outcome is expected
+    assert (capture.failure_reason_code is not None) is (expected is RunOutcome.FAILED)
 
 
 def test_execute_graham_number_delegates_and_falls_back_to_the_composed_profile() -> None:
@@ -115,7 +118,7 @@ def test_execute_graham_number_delegates_and_falls_back_to_the_composed_profile(
 
     assert capture.analysis is canned
     assert capture.profile is composed
-    assert capture.outcome is RunOutcome.COMPLETED
+    assert from_graham_number_capture(capture).outcome is RunOutcome.COMPLETED
     assert captured == {"config": config, "ticker": SECURITY_ID, "profile_supplied": composed}
 
 

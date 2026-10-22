@@ -9,6 +9,7 @@ import pytest
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli_workspace import _method_id_for_alias
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
@@ -158,7 +159,9 @@ def test_a_refresh_job_whose_strategy_has_no_run_spec_fails_as_that_jobs_error()
 
     def executor(ticker: str, chosen: object) -> ExecutionCapture:
         del ticker, chosen
-        return ExecutionCapture(native_evidence=object.__new__(MomentumRun), profile=None, outcome=RunOutcome.COMPLETED)
+        return ExecutionCapture(
+            native_evidence=object.__new__(MomentumRun), profile=None, native_status=CalculationStatus.OK
+        )
 
     summary = refresh_watchlist(
         "W", watchlists=_Lookup(watchlist), repository=_Sink(), executor=executor, run_specs={}, describe=failure_text

@@ -77,10 +77,10 @@ introduced.
 
 Every strategy result carries one explicit `execution_status`, a `CalculationStatus` (no new status is
 introduced), as `FCFEarningsGrowthResult` does. It is the software outcome of the run, independent of any
-band, zone or score, and it is what the strategy's native-status function returns and what its execution
-adapter maps to the workspace outcome (`ok` is completed, `not_applicable` is not applicable,
-`input_unavailable` is unavailable). No strategy reports a missing status because of how many numbers it
-displays. A calculation that cannot run for a reason outside the inputs raises, as today; it is not a
+band, zone or score, and it is what the strategy's native-status function returns. The strategy reports that
+status and the shared rule `RunOutcome.from_status` produces the workspace outcome (`ok` is completed,
+`not_applicable` is not applicable, `input_unavailable` is unavailable); no strategy decides an outcome itself.
+No strategy reports a missing status because of how many numbers it displays. A calculation that cannot run for a reason outside the inputs raises, as today; it is not a
 status.
 
 | Strategy | `ok` | `input_unavailable` | `not_applicable` |

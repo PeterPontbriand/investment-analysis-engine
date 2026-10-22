@@ -9,8 +9,8 @@ from uuid import UUID
 import pytest
 from sqlalchemy import select, text
 
-from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.repositories.schema import analysis_runs, watchlist_entries, watchlists
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
@@ -375,7 +375,7 @@ def _momentum_executor(ticker: str, selection: AnalysisSelection) -> ExecutionCa
     native = run_momentum(
         selection, ticker, _FixtureClient(), start_date="2026-01-01", executed_at=NOW, instrument_profile=None
     )
-    return ExecutionCapture(native_evidence=native, profile=None, outcome=RunOutcome.COMPLETED)
+    return ExecutionCapture(native_evidence=native, profile=None, native_status=CalculationStatus.OK)
 
 
 def _retire_entry(database: SQLiteDatabase, *, position: int) -> None:

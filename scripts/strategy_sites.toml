@@ -109,7 +109,7 @@ fails = "descriptor X has no selection member"
 [[site]]
 id = "codec"
 title = "Codec and native-status function"
-why = "A stored run is encoded and decoded by the strategy's own functions."
+why = "A stored run is encoded and decoded by the strategy's own functions, and the native-status function returns the `CalculationStatus` the strategy reports, or `None` when it reports none."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/codec.py"
 generated = true
@@ -120,7 +120,7 @@ fails = "the stored run does not decode to the result execute stored"
 [[site]]
 id = "execution"
 title = "Execution adapter, capture type, normalizer"
-why = "The adapter turns an analyzer outcome into a stored run."
+why = "The adapter runs the analyzer and the normalizer hands `ExecutionCapture` the evidence, the profile, the native status and the provider failure it recorded. It never names a `RunOutcome`: `RunOutcome.from_status` produces the outcome and `ExecutionCapture` derives it."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/execution.py"
 generated = true
@@ -131,7 +131,7 @@ fails = ""
 [[site]]
 id = "cli"
 title = "CLI file: direct command, selection builder, refresh executor"
-why = "The strategy's command-line behavior lives in its own package."
+why = "The strategy's command-line behavior lives in its own package, and the command takes its exit code from `exit_code_of` in `cli_support.py`."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/cli.py"
 generated = true

@@ -10,19 +10,11 @@ import pytest
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
-from investment_analysis_engine.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
-from investment_analysis_engine.strategies.graham_growth.execution import (
-    GrahamGrowthCapture,
-    from_graham_growth_capture,
-)
-from investment_analysis_engine.strategies.graham_number.execution import (
-    GrahamNumberCapture,
-    from_graham_number_capture,
-)
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
 from investment_analysis_engine.strategies.momentum.execution import (
     capture_momentum,
@@ -44,6 +36,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun
 from tests._migrated_database import migrated_database_url
+from tests._native_status import NATIVE_STATUS_OF_OUTCOME
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 0, 1, tzinfo=UTC)
@@ -87,16 +80,12 @@ def _momentum_request() -> AnalysisRequest:
     return AnalysisRequest(ticker="AAPL", selection=MomentumSelection(short_window=2, long_window=3, rsi_period=14))
 
 
-def _fake_capture(outcome: RunOutcome, failure_reason_code: str | None = None) -> ExecutionCapture:
-    """A capture using real native evidence (so encoding works) with a chosen outcome.
-
-    A ``failed`` outcome carries ``failure_reason_code``, which the capture requires.
-    """
+def _fake_capture(outcome: RunOutcome) -> ExecutionCapture:
+    """A capture using real native evidence (so encoding works) whose native status gives the chosen outcome."""
     return ExecutionCapture(
         native_evidence=_momentum_native_evidence(),
         profile=fixture_instrument_profile("AAPL", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),
-        outcome=outcome,
-        failure_reason_code=failure_reason_code,
+        native_status=NATIVE_STATUS_OF_OUTCOME[outcome],
     )
 
 
@@ -108,7 +97,7 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     run = execute(
         _momentum_request(),
         capture=lambda: ExecutionCapture(
-            native_evidence=_momentum_native_evidence(), profile=profile, outcome=RunOutcome.COMPLETED
+            native_evidence=_momentum_native_evidence(), profile=profile, native_status=CalculationStatus.OK
         ),
         repository=sink,
         id_factory=lambda: RUN_ID,
@@ -196,14 +185,14 @@ def test_execute_only_sets_failure_reason_code_for_failed(outcome: RunOutcome) -
 def test_execute_sets_a_stable_failure_reason_code_when_failed() -> None:
     run = execute(
         _momentum_request(),
-        capture=lambda: _fake_capture(RunOutcome.FAILED, "provider_unreachable"),
+        capture=lambda: _fake_capture(RunOutcome.FAILED),
         repository=_FakeSink(),
         id_factory=lambda: RUN_ID,
         clock=lambda: NOW,
         spec=run_spec_for(_momentum_request().selection),
     )
     assert run.status is RunOutcome.FAILED
-    assert run.failure_reason_code == "provider_unreachable"
+    assert run.failure_reason_code == "provider_error"
 
 
 def test_execute_does_not_insert_when_capture_raises() -> None:
@@ -271,46 +260,6 @@ def test_from_momentum_capture_maps_fields() -> None:
     assert result.profile is profile
     assert result.outcome is RunOutcome.COMPLETED
     assert result.presentation_inputs == momentum_capture.presentation_inputs
-
-
-def test_from_graham_number_capture_maps_fields() -> None:
-    evidence = _momentum_native_evidence()  # any object works; the normalizer only reshapes fields
-    profile = fixture_instrument_profile("KO", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
-    capture = GrahamNumberCapture(analysis=evidence, profile=profile, outcome=RunOutcome.COMPLETED)  # type: ignore[arg-type]
-
-    result = from_graham_number_capture(capture)
-
-    assert result.native_evidence is evidence
-    assert result.profile is profile
-    assert result.outcome is RunOutcome.COMPLETED
-    assert result.failure_reason_code is None
-    assert result.presentation_inputs == {}
-
-
-def test_from_graham_growth_capture_maps_fields() -> None:
-    evidence = _momentum_native_evidence()
-    profile = fixture_instrument_profile("KO", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
-    capture = GrahamGrowthCapture(analysis=evidence, profile=profile, outcome=RunOutcome.NOT_APPLICABLE)  # type: ignore[arg-type]
-
-    result = from_graham_growth_capture(capture)
-
-    assert result.native_evidence is evidence
-    assert result.profile is profile
-    assert result.outcome is RunOutcome.NOT_APPLICABLE
-    assert result.presentation_inputs == {}
-
-
-def test_from_fcf_growth_capture_maps_fields() -> None:
-    evidence = _momentum_native_evidence()
-    profile = fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
-    capture = FCFGrowthCapture(result=evidence, profile=profile, outcome=RunOutcome.UNAVAILABLE)  # type: ignore[arg-type]
-
-    result = from_fcf_growth_capture(capture)
-
-    assert result.native_evidence is evidence
-    assert result.profile is profile
-    assert result.outcome is RunOutcome.UNAVAILABLE
-    assert result.presentation_inputs == {}
 
 
 def test_execute_persists_through_a_real_repository_and_reopens(tmp_path: Path) -> None:

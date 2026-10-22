@@ -92,9 +92,9 @@ def decode_graham_number(payload: StrictJsonMapping) -> GrahamNumberAnalysis:
     return _NumberEvidence.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False)).analysis
 
 
-def graham_number_native_status(result: GrahamNumberAnalysis, /) -> str:
-    """Return the native calculation-status value recorded as telemetry evidence."""
-    return result.result.status.value
+def graham_number_native_status(result: GrahamNumberAnalysis, /) -> CalculationStatus:
+    """Return the native status: the assembly's, or the calculation's when the assembly succeeded."""
+    return result.native_status
 
 
 def graham_number_ticker(result: GrahamNumberAnalysis, /) -> str:

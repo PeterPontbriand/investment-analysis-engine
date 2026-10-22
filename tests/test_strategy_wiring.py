@@ -9,6 +9,7 @@ from types import MappingProxyType
 
 import pytest
 
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
 from investment_analysis_engine.evaluation.catalog import build_deterministic_requests
 from investment_analysis_engine.evaluation.composition import compose_fixture_dependencies, dispatch_fixture_case
@@ -111,17 +112,17 @@ def test_a_repeated_key_raises_naming_the_rule_and_both_descriptors() -> None:
 
 
 def test_native_status_comes_from_each_strategys_own_function() -> None:
-    """Momentum declares no result-level status; the others return their own status value."""
-    seen: dict[type, str | None] = {}
+    """Momentum declares no result-level status; the others return their own status."""
+    seen: dict[type, CalculationStatus | None] = {}
     for request in build_deterministic_requests():
         result = _dispatch(request)
         status = BY_RESULT_TYPE[type(result)].behavior.native_status_of(result)
         if isinstance(result, MomentumRun):
             assert status is None
         elif isinstance(result, (GrahamNumberAnalysis, GrahamGrowthAnalysis)):
-            assert status == result.result.status.value
+            assert status is result.native_status
         elif isinstance(result, FCFEarningsGrowthResult):
-            assert status == result.execution_status.value
+            assert status is result.execution_status
         seen[type(result)] = status
     assert set(seen) == set(BY_RESULT_TYPE)
 
