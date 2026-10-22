@@ -340,3 +340,47 @@ def test_run_outcome_from_status_is_total_and_matches_the_table() -> None:
     assert set(_EXPECTED_OUTCOMES) == {*CalculationStatus, None}, "The table lacks a status, or names one that is gone."
     for status, outcome in _EXPECTED_OUTCOMES.items():
         assert RunOutcome.from_status(status) is outcome, f"{status!r} must map to {outcome!r}."
+
+
+_PAIRING_ROOTS: Final = (REPOSITORY_ROOT / "investment_analysis_engine", REPOSITORY_ROOT / "scripts")
+_PAIRING_ALLOWED: Final = frozenset(
+    {"investment_analysis_engine/analysis/run_models.py", "investment_analysis_engine/cli_support.py"}
+)
+
+
+def _outcome_pairings(source: str) -> list[int]:
+    """Return the line of each tuple, list or set that holds ``RunOutcome.UNAVAILABLE`` and ``RunOutcome.FAILED``."""
+    lines: list[int] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Tuple | ast.List | ast.Set):
+            members = {
+                item.attr
+                for item in node.elts
+                if isinstance(item, ast.Attribute)
+                and isinstance(item.value, ast.Name)
+                and item.value.id == "RunOutcome"
+            }
+            if {"UNAVAILABLE", "FAILED"} <= members:
+                lines.append(node.lineno)
+    return lines
+
+
+def test_only_the_shared_rules_pair_the_unavailable_and_failed_outcomes() -> None:
+    offenders: list[str] = []
+    for root in _PAIRING_ROOTS:
+        for path in sorted(root.rglob("*.py")):
+            shown = path.relative_to(REPOSITORY_ROOT).as_posix()
+            if "__pycache__" in path.parts or shown in _PAIRING_ALLOWED:
+                continue
+            offenders += [
+                f"{shown}:{line}: the pairing of RunOutcome.UNAVAILABLE and RunOutcome.FAILED is the rule of "
+                "exit_code_of; call it"
+                for line in _outcome_pairings(path.read_text(encoding="utf-8"))
+            ]
+    assert offenders == [], "\n".join(offenders)
+
+
+def test_the_pairing_scan_reports_a_pair_and_accepts_single_members() -> None:
+    pair = "x in (RunOutcome.UNAVAILABLE, RunOutcome.FAILED)\ny in {RunOutcome.FAILED, RunOutcome.UNAVAILABLE}"
+    assert _outcome_pairings(pair) == [1, 2]
+    assert _outcome_pairings("x is RunOutcome.FAILED\ny in (RunOutcome.FAILED, RunOutcome.COMPLETED)") == []

@@ -37,6 +37,7 @@ from investment_analysis_engine.cli_support import (
     _presentation_mode,
     _production_instrument_profile_cache,
     describe_failure,
+    exit_code_of,
     parameter_failures,
     report_failure,
 )
@@ -959,12 +960,12 @@ def _describe_job_failure(exception: BaseException, ticker: str, saving: bool) -
 
 
 def _refresh_has_failure(summary: RefreshSummary) -> bool:
-    """True if any job failed to produce a result, or produced an unavailable/failed outcome."""
+    """True if any job raised, or produced an outcome for which ``exit_code_of`` is non-zero."""
     for result in summary.results:
         if result.error is not None:
             return True
         status = result.run.status if result.run is not None else result.outcome
-        if status in (RunOutcome.UNAVAILABLE, RunOutcome.FAILED):
+        if status is not None and exit_code_of(status):
             return True
     return False
 

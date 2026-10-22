@@ -134,6 +134,8 @@ Neither is a classification change. The slice pins the first through `RunOutcome
 | `test_a_not_applicable_calculation_is_a_not_applicable_run_for_graham_growth` | `tests/workspace/test_graham_growth_execution.py` | The unreachable state above maps to `NOT_APPLICABLE` through `RunOutcome.from_status`, and `from_graham_growth_capture` derives the same outcome with no failure code |
 | `test_graham_number_outcome_follows_the_native_status` and the Graham Growth and FCF Growth equivalents | the strategies' execution tests | Replace the `classify_*` tests: the rows of today's tests that are reachable, asserted on `from_*_capture(...).outcome` |
 | `test_execution_capture_derives_outcome_code_and_provider_failure` | `tests/workspace/test_capture.py` | For each status: the outcome; the failure code only for a failed outcome (the mapped provider code, or `invalid_input`); the provider failure kept only for a failed outcome |
+| `test_only_the_shared_rules_pair_the_unavailable_and_failed_outcomes` | `tests/test_documented_conventions.py` | An AST scan of `investment_analysis_engine/` and `scripts/` fails on a tuple, list or set that holds both `RunOutcome.UNAVAILABLE` and `RunOutcome.FAILED`, outside `analysis/run_models.py` and `cli_support.py`, where `exit_code_of` states the rule; a single `RunOutcome.FAILED` check concerning a failure code stays |
+| `test_the_pairing_scan_reports_a_pair_and_accepts_single_members` | the same | The scan itself, on text built for the test |
 | `test_exit_code_of_is_one_exactly_for_unavailable_and_failed` | `tests/test_cli_support.py` | One assertion per `RunOutcome` member |
 
 ### Exit codes
@@ -154,6 +156,7 @@ Neither is a classification change. The slice pins the first through `RunOutcome
 | `investment_analysis_engine/strategies/graham_number/cli.py` | `_run_graham_number` normalizes the capture once and returns `exit_code_of(outcome)`; `_number_failure_output` returns the rendered text only |
 | `investment_analysis_engine/strategies/graham_growth/cli.py` | the same for `_run_graham_growth` and `_growth_failure_output` |
 | `investment_analysis_engine/strategies/fcf_growth/cli.py` | `exit_code = exit_code_of(outcome)` replaces the status test |
+| `investment_analysis_engine/cli_workspace.py` | `_refresh_has_failure` takes a job's failure from `exit_code_of` of its outcome, in place of its own unavailable-or-failed test; a job that raised still counts as a failure. The exit code, output and summary document of `refresh` are unchanged |
 | `investment_analysis_engine/strategies/momentum/cli.py` | the command normalizes its capture and raises `typer.Exit` when `exit_code_of(outcome)` is non-zero (never, today) |
 
 #### Exit codes per command
