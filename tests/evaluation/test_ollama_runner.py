@@ -11,7 +11,7 @@ import pytest
 from pydantic import BaseModel
 
 from investment_analysis_engine.config.schema_config import SchemaConfig
-from investment_analysis_engine.core.trajectory_events import TrajectoryEvent, TrajectoryEventType
+from investment_analysis_engine.core.trajectory_events import TrajectoryEventType
 from investment_analysis_engine.evaluation import ollama_runner
 from investment_analysis_engine.evaluation.catalog import build_deterministic_requests
 from investment_analysis_engine.evaluation.models import ComponentKind, ComponentOutcome, ComponentResult
@@ -29,28 +29,9 @@ from investment_analysis_engine.orchestrator.types import ToolCallRequest
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
 from investment_analysis_engine.tools.parser import ToolNotFoundError
+from tests._recording_sink import RecordingSink
 
 EXECUTED_AT = datetime(2026, 8, 31, 20, 0, tzinfo=UTC)
-
-
-class RecordingSink:
-    """Retain one empirical trajectory in memory."""
-
-    def __init__(self) -> None:
-        """Initialize an empty event collection."""
-        self.events: list[TrajectoryEvent] = []
-        self.closed = False
-
-    def record(self, event: TrajectoryEvent) -> None:
-        """Retain one event."""
-        self.events.append(event)
-
-    def flush(self) -> None:
-        """Accept a flush request."""
-
-    def close(self) -> None:
-        """Record trajectory closure."""
-        self.closed = True
 
 
 class RecordingFactory:

@@ -13,25 +13,7 @@ from investment_analysis_engine.telemetry.redaction import redact_value, sanitiz
 from investment_analysis_engine.telemetry.run_context import RunContext
 from investment_analysis_engine.telemetry.sinks.base import TrajectorySink
 from investment_analysis_engine.telemetry.sinks.jsonl import JSONLTrajectorySink
-
-
-class RecordingSink:
-    """Small sink double used to verify recorder behavior."""
-
-    def __init__(self) -> None:
-        """Initialise with empty event list and flags."""
-        self.events: list[TrajectoryEvent] = []
-        self.flushed = False
-        self.closed = False
-
-    def record(self, event: TrajectoryEvent) -> None:
-        self.events.append(event)
-
-    def flush(self) -> None:
-        self.flushed = True
-
-    def close(self) -> None:
-        self.closed = True
+from tests._recording_sink import RecordingSink
 
 
 def test_recorder_assigns_monotonic_sequence_and_single_run_id() -> None:

@@ -36,32 +36,11 @@ from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
 from investment_analysis_engine.strategies.momentum.tool import MomentumToolArguments
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
+from tests._recording_sink import RecordingSink
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("10000000-0000-0000-0000-000000000001")
 SESSION_ID = UUID("20000000-0000-0000-0000-000000000002")
-
-
-class RecordingSink:
-    """Retain Step 2.1 events in memory without filesystem persistence."""
-
-    def __init__(self) -> None:
-        """Initialize an empty event collection."""
-        self.events: list[TrajectoryEvent] = []
-        self.flushed = False
-        self.closed = False
-
-    def record(self, event: TrajectoryEvent) -> None:
-        """Retain one event."""
-        self.events.append(event)
-
-    def flush(self) -> None:
-        """Record that the runner requested a flush."""
-        self.flushed = True
-
-    def close(self) -> None:
-        """Record that the runner released the sink."""
-        self.closed = True
 
 
 class FailingSink:

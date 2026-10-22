@@ -9,7 +9,6 @@ import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
-from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
 from investment_analysis_engine.evaluation.cases.fcf_growth import (
     FCF_01,
     FCF_02,
@@ -37,24 +36,11 @@ from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsG
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import Classification, TrendClassification
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
+from tests._recording_sink import RecordingSink
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("d0000000-0000-0000-0000-00000000000d")
 SESSION_ID = UUID("e0000000-0000-0000-0000-00000000000e")
-
-
-class RecordingSink:
-    """Accept deterministic runner telemetry in memory."""
-
-    def record(self, event: TrajectoryEvent) -> None:
-        """Accept one event."""
-        del event
-
-    def flush(self) -> None:
-        """Accept a flush request."""
-
-    def close(self) -> None:
-        """Accept a close request."""
 
 
 def _recorder() -> TrajectoryRecorder:

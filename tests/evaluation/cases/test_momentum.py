@@ -9,7 +9,6 @@ import pytest
 
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
-from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
 from investment_analysis_engine.evaluation.cases.momentum import (
     MOMENTUM_ARGUMENTS,
     MOMENTUM_BOUNDARY_CASE,
@@ -33,6 +32,7 @@ from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
 from investment_analysis_engine.strategies.momentum.tool import MomentumToolArguments
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
+from tests._recording_sink import RecordingSink
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("30000000-0000-0000-0000-000000000003")
@@ -44,24 +44,6 @@ def test_boundary_fixture_metadata_matches_its_actual_observations() -> None:
     data = FixtureMarketDataProvider(frame).fetch_historical_data("MOM", "2026-01-01")
     assert data.context.data_as_of == frame.index[-1].date()
     assert data.context.observation_count == len(frame)
-
-
-class RecordingSink:
-    """Retain deterministic runner telemetry in memory."""
-
-    def __init__(self) -> None:
-        """Initialize an empty event collection."""
-        self.events: list[TrajectoryEvent] = []
-
-    def record(self, event: TrajectoryEvent) -> None:
-        """Retain one event."""
-        self.events.append(event)
-
-    def flush(self) -> None:
-        """Accept the runner flush request."""
-
-    def close(self) -> None:
-        """Accept the runner close request."""
 
 
 def _recorder() -> TrajectoryRecorder:

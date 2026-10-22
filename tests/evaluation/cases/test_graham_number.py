@@ -8,7 +8,6 @@ from uuid import UUID
 import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.trajectory_events import TrajectoryEvent
 from investment_analysis_engine.evaluation.cases.graham_number import (
     GRA_ETF_01,
     GRAHAM_NUMBER_ARGUMENTS,
@@ -26,24 +25,11 @@ from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
+from tests._recording_sink import RecordingSink
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 RUN_ID = UUID("70000000-0000-0000-0000-000000000007")
 SESSION_ID = UUID("80000000-0000-0000-0000-000000000008")
-
-
-class RecordingSink:
-    """Retain deterministic runner telemetry in memory."""
-
-    def record(self, event: TrajectoryEvent) -> None:
-        """Accept one telemetry event."""
-        del event
-
-    def flush(self) -> None:
-        """Accept the runner flush request."""
-
-    def close(self) -> None:
-        """Accept the runner close request."""
 
 
 def _recorder() -> TrajectoryRecorder:
