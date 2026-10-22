@@ -10,8 +10,8 @@ position and work-package status.
   failing test. GR.2 followed a lead on the intermittent `WinError 10055` failures, refuted it (no event loop is
   left open), fixed the three leaks it found, and makes a leaked socket, file or event loop fail the suite. GR.2a
   excuses, in the live provider checks only, the SQLite connections yfinance's caches leave open in the check's
-  worker thread, which that strict leak gate made fail the scheduled Provider Health run. GR.3 will
-  record the machine's socket state when a test pass fails.
+  worker thread, which that strict leak gate made fail the scheduled Provider Health run. GR.3
+  records the machine's socket state, from a pytest hook, at the moment a test fails with `WinError 10055`.
 - **What it is not:** a change to what the gate checks, to its order, to its arguments, to its isolation directories
   or to its exit codes, and not a change to any strategy, formula or output.
 - **Rules every slice follows:** the complete managed gate, with the 3.14 pass, at the end of the slice; no
@@ -27,7 +27,7 @@ position and work-package status.
 | GR.1 | [The gate wrappers keep their evidence](#gr1--the-gate-wrappers-keep-their-evidence) | Complete | 2026-10-13 |
 | GR.2 | [Resource leaks fail the suite](#gr2--resource-leaks-fail-the-suite) | Complete | 2026-10-15 |
 | GR.2a | [Excuse yfinance's SQLite leak in the live checks, and only that](#gr2a--excuse-yfinances-sqlite-leak-in-the-live-checks-and-only-that) | Complete | 2026-10-17 |
-| GR.3 | [Record the machine's socket state when a test pass fails](#gr3--record-the-machines-socket-state-when-a-test-pass-fails) | Next | |
+| GR.3 | [Record the machine's socket state when a test pass fails](#gr3--record-the-machines-socket-state-when-a-test-pass-fails) | Complete | 2026-10-21 |
 
 ## 3. The slices
 
@@ -101,12 +101,26 @@ position and work-package status.
 ### GR.3 — Record the machine's socket state when a test pass fails
 
 - **Problem:** no leak in the suite explains the `WinError 10055` failures, and the gate output does not show the
-  machine's socket state when one occurs, so the next occurrence would again lack evidence.
-- **Decision:** when a pytest step fails, the PowerShell wrapper appends the TCP connection counts by state and by
-  owning process, and the dynamic port range, to `gate-output.txt`.
-- **Scope:** `scripts/run-quality-gates.ps1` and the quality-gate section of `docs/project/README.md`.
-- **Branch:** to be named when the slice starts.
-- **Detail:** ⚠ no slice plan yet
+  machine's socket state when one occurs, so the next occurrence would again lack evidence. A wrapper that records
+  the state after a failed pytest step records it too late: the pass keeps running after the failure, and the sockets
+  present at the failure are gone by then ([A.4](#a4-gr3-captures-from-pytest-not-from-the-wrapper-2026-10-21)).
+- **Decision:** a pytest hook, registered in `tests/conftest.py` and implemented in a small helper module
+  (`tests/_socket_snapshot.py`), wraps `pytest_runtest_makereport`. When a test's call, setup or teardown fails with
+  an `OSError` whose `winerror` is 10055, anywhere in the exception's `__cause__`/`__context__` chain, it records a
+  snapshot at once and attaches it to that test's report as a section titled `socket snapshot`, at most once per
+  pytest session. The section appears in pytest's failure output, so it is in `gate-output.txt` under either wrapper
+  and in CI logs; neither wrapper changes. The snapshot has labelled lines for the TCP connection counts by state, the
+  ten processes that own the most TCP connections (names and counts), the dynamic TCP port range, non-paged pool bytes
+  and available memory, and the number of `python` processes with their total handle count. It is collected with
+  local PowerShell or Windows commands run as a subprocess with a timeout of about 30 seconds, needing no admin
+  rights and no network call. On a system other than Windows the hook does nothing. If collecting fails or times out,
+  the section records that and why. The test's result is never changed, and the hook never raises.
+- **Scope:** `tests/conftest.py`, `tests/_socket_snapshot.py`, its tests, this plan and the quality-gate section of
+  `docs/project/README.md`.
+- **Branch:** `chore/gr-3-socket-snapshot`, from `main`.
+- **Detail:** [#116](https://github.com/PeterPontbriand/investment-analysis-engine/issues/116) stays open until a
+  captured occurrence explains the failure ([A.3](#a3-the-event-loop-lead-was-refuted-2026-10-15)). The headers of
+  the two files above carry the rest.
 
 ## 4. Scope limits and acceptance criteria
 
@@ -176,3 +190,11 @@ objects were reported when those objects were freed during these tests:
 `tests/reporting/test_failure_envelope.py::test_every_exception_reason_code_attribute_is_a_failure_reason_code` and
 `tests/data/test_yfinance_client.py::TestHistoryFailureKinds::test_exception_escaping_the_download_is_classified[builtins.TimeoutError]`.
 Both passed once the three sources were fixed.
+
+### A.4 GR.3 captures from pytest, not from the wrapper (2026-10-21)
+
+The project owner replaced the GR.3 design in which the PowerShell wrapper records the socket state after a pytest
+step fails. The wrapper would capture minutes too late: the pass keeps running after a failure, and the sockets that
+were present at the failure are gone by then. A pytest hook records the state at the moment a test fails with
+`WinError 10055`, and attaches it to that test's failure report, so it appears in `gate-output.txt` under both wrappers
+and in CI logs without changing either wrapper.

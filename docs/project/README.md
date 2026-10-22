@@ -96,6 +96,8 @@ The test suite forces coloured CLI output itself (`tests/conftest.py` sets `FORC
 
 The suite fails on a `ResourceWarning` and on an unraisable exception, so a socket, file or `HTTPError` a test leaves open fails a test, which may be a different test from the one that created it because the warning is reported when the object is freed. An event loop left open is reported at the end of the session with no test named. In both cases rerun with `PYTHONTRACEMALLOC=25` to see where the object was created.
 
+When a test fails in its setup, call or teardown with an `OSError` whose `winerror` is 10055 (Windows ran out of socket buffers) anywhere in the exception's cause chain, a pytest hook (`tests/_socket_snapshot.py`) records the machine's state at that moment and prints it in that test's failure output as a `socket snapshot` section: TCP connections by state, the ten processes owning the most connections, the dynamic TCP port range, non-paged pool and available memory, and the number of Python processes with their total handle count. It appears once per pytest session, on the first such failure, so it is in `gate-output.txt` under either wrapper and in CI logs. It needs no admin rights and makes no network call. Off Windows the hook does nothing, and if the snapshot cannot be collected the section says why; the test's result never changes. Keep the `gate-output.txt` of a run that shows the section and add it to [#116](https://github.com/PeterPontbriand/investment-analysis-engine/issues/116).
+
 When local repair is required, the recommended order is:
 
 ```bash

@@ -39,6 +39,7 @@ from tests._live_selection import pytest_addoption, pytest_collection_modifyitem
 from tests._migrated_database import migrated_database  # noqa: E402
 from tests._network_guard import block_external_sockets, block_live_yahoo  # noqa: E402
 from tests._session_isolation import SESSION_DATABASE_RULE, session_database_file, stop_session_if_outside  # noqa: E402
+from tests._socket_snapshot import pytest_runtest_makereport  # noqa: E402
 
 __all__ = [
     "block_external_sockets",
@@ -50,6 +51,7 @@ __all__ = [
     "pytest_collection_modifyitems",
     "pytest_configure",
     "pytest_make_collect_report",
+    "pytest_runtest_makereport",
     "stub_yahoo_identity_metadata",
 ]
 
