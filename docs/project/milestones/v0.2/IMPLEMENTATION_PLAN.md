@@ -50,9 +50,7 @@ current codes:
 - `LAY` — short for "Layering" ([plan](layering/LAY_CONTRACT_AND_SLICE_PLAN.md)): moves a fixed set of files and names so
   the top-level `investment_analysis_engine/` packages form layers with no import loop of any length, and changes the dependency check to
   keep it so (the decision on [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)).
-  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`. LAY.4 to LAY.8, GR.2, GR.2a, 12B, PKG.1 to PKG.3 and SWC.5 to SWC.8 are complete; PC is next, then Step 3.5;
-  GR.3 runs in any gap
-  ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
+  Its row is numbered `12A` so the rows after it keep their numbers; it runs before `PKG`.
 - `PC` — short for "Pattern Cleanup" ([plan](pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md)): removes the patterns that
   the Step 3.5 strategies would otherwise copy (a single-valued option, user-facing "sentence" naming, test helpers
   that hide their setup, a help screen that fails on a cp1252 console), while `AGENTS.md` §0 still permits interface
@@ -68,6 +66,9 @@ current codes:
   adds seven more strategies to it. Absorbs IR.5's scope (typed JSON envelope models and
   generated schemas). Origin: [proposal](swc/STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md), accepted
   2026-09-24.
+
+PC (PC.1 to PC.4) is complete; Step 3.5 is next; GR.3 runs in any gap
+([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
 
 Note the resulting collision: `graham-comparison/GRAHAM_COMPARISON_REPAIR_PLAN.md` uses its own
 document-local `R1 → R2 → R3` sequence (evidence → implementation → verification), unrelated to
