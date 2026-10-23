@@ -89,7 +89,7 @@ print_summary() {
     local index
     summary_printed=1
     printf '\nGate summary\n'
-    for index in "${!summary_names[@]}"; do
+    for index in ${summary_names[@]+"${!summary_names[@]}"}; do
         printf '  %-44s %-7s %9s s\n' "${summary_names[$index]}" "${summary_results[$index]}" "${summary_times[$index]}"
     done
     printf '  %-44s %-7s %9s s\n' "total" "$overall" "$(format_seconds "$(($(now_ms) - gate_start_ms))")"
@@ -176,7 +176,7 @@ main() {
         -o addopts= \
         -p no:cacheprovider \
         --durations=20 \
-        "${default_coverage[@]}" \
+        ${default_coverage[@]+"${default_coverage[@]}"} \
         --basetemp="$windows_pytest_root" \
         tests
 
