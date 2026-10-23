@@ -74,7 +74,7 @@ jobs:
         run: uv run mypy --strict investment_analysis_engine tests scripts
 
       - name: Execute Cross-Platform Test Suite with Coverage
-        run: uv run pytest
+        run: uv run pytest --cov-fail-under=85
 
       - name: Prove the installed package runs outside the repository
         run: uv run python -m scripts.check_installed_package --real-user-folders

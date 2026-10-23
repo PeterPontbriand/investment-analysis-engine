@@ -7,8 +7,8 @@ set -euo pipefail
 # Evidence: everything the run prints (every command's standard output and standard error, in
 # order) is also written to gate-output.txt in the run's own directory under .tmp/quality-runs/.
 # Each step prints its elapsed time when it ends, a closing summary lists every step with its
-# time and result, and each pytest pass lists its failing and erroring tests by full name. The
-# last line printed is the path of the output file.
+# time and result, and each pytest pass lists its failing and erroring tests by full name and its
+# 20 slowest tests. The last line printed is the path of the output file.
 extra_python=""
 case "${1:-}" in
     "") ;;
@@ -58,6 +58,16 @@ export TMP="$windows_run_root"
 export UV_CACHE_DIR="$windows_run_root/uv-cache"
 export COVERAGE_FILE="$windows_run_root/.coverage"
 
+# Coverage is measured once per run: on the extra pass when there is one (Python 3.14 measures it
+# with sys.monitoring, which costs far less than on 3.12), otherwise on the default pass. The run
+# fails below the project target of 85% total coverage.
+coverage_args=(
+    --cov=investment_analysis_engine
+    --cov-report=term-missing
+    --cov-report="html:$windows_coverage_html"
+    --cov-fail-under=85
+)
+
 now_ms() {
     local micros="${EPOCHREALTIME/./}"
     printf '%s' "$((micros / 1000))"
@@ -79,7 +89,7 @@ print_summary() {
     local index
     summary_printed=1
     printf '\nGate summary\n'
-    for index in "${!summary_names[@]}"; do
+    for index in ${summary_names[@]+"${!summary_names[@]}"}; do
         printf '  %-44s %-7s %9s s\n' "${summary_names[$index]}" "${summary_results[$index]}" "${summary_times[$index]}"
     done
     printf '  %-44s %-7s %9s s\n' "total" "$overall" "$(format_seconds "$(($(now_ms) - gate_start_ms))")"
@@ -158,12 +168,15 @@ main() {
     run_step "ruff check" uv run --no-sync ruff check --no-cache .
     run_step "ruff format" uv run --no-sync ruff format --check .
     run_step "mypy" uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" investment_analysis_engine tests scripts
+    local default_coverage=("${coverage_args[@]}")
+    if [ -n "$extra_python" ]; then
+        default_coverage=()
+    fi
     run_step "pytest (Python $python_version)" uv run --no-sync pytest \
         -o addopts= \
         -p no:cacheprovider \
-        --cov=investment_analysis_engine \
-        --cov-report=term-missing \
-        --cov-report="html:$windows_coverage_html" \
+        --durations=20 \
+        ${default_coverage[@]+"${default_coverage[@]}"} \
         --basetemp="$windows_pytest_root" \
         tests
 
@@ -193,6 +206,8 @@ main() {
         run_step "pytest (Python $extra_version)" uv run --no-sync pytest \
             -o addopts= \
             -p no:cacheprovider \
+            --durations=20 \
+            "${coverage_args[@]}" \
             --basetemp="$windows_run_root/pytest-extra" \
             tests
         printf 'Second-pass tests passed on Python %s, pandas %s.\n' "$extra_version" "$extra_pandas"

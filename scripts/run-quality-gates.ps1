@@ -9,8 +9,8 @@ param(
 # Evidence: everything the run prints (every command's standard output and standard error, in
 # order) is also written to gate-output.txt in the run's own directory under .tmp/quality-runs/.
 # Each step prints its elapsed time when it ends, a closing summary lists every step with its
-# time and result, and each pytest pass lists its failing and erroring tests by full name. The
-# last line printed is the path of the output file.
+# time and result, and each pytest pass lists its failing and erroring tests by full name and its
+# 20 slowest tests. The last line printed is the path of the output file.
 
 $ErrorActionPreference = "Stop"
 
@@ -24,6 +24,16 @@ $mypyCache = Join-Path $runRoot "mypy-cache"
 $uvCache = Join-Path $runRoot "uv-cache"
 $logFile = Join-Path $runRoot "gate-output.txt"
 $stepOutputFile = Join-Path $runRoot "step-output.txt"
+
+# Coverage is measured once per run: on the extra pass when there is one (Python 3.14 measures it
+# with sys.monitoring, which costs far less than on 3.12), otherwise on the default pass. The run
+# fails below the project target of 85% total coverage.
+$coverageArguments = @(
+    "--cov=investment_analysis_engine",
+    "--cov-report=term-missing",
+    "--cov-report=html:$coverageHtml",
+    "--cov-fail-under=85"
+)
 
 $originalLocation = Get-Location
 $originalTemp = $env:TEMP
@@ -205,20 +215,19 @@ try {
         "tests",
         "scripts"
     )
-    Invoke-Step -Name "pytest (Python $pythonVersion)" -Executable "uv" -Arguments @(
-        "run",
-        "--no-sync",
-        "pytest",
-        "-o",
-        "addopts=",
-        "-p",
-        "no:cacheprovider",
-        "--cov=investment_analysis_engine",
-        "--cov-report=term-missing",
-        "--cov-report=html:$coverageHtml",
-        "--basetemp=$pytestRoot",
-        "tests"
-    )
+    Invoke-Step -Name "pytest (Python $pythonVersion)" -Executable "uv" -Arguments (@(
+            "run",
+            "--no-sync",
+            "pytest",
+            "-o",
+            "addopts=",
+            "-p",
+            "no:cacheprovider",
+            "--durations=20"
+        ) + $(if ($ExtraPython) { @() } else { $coverageArguments }) + @(
+            "--basetemp=$pytestRoot",
+            "tests"
+        ))
 
     Write-Gate "Quality gates passed on Python $pythonVersion, pandas $pandasVersion. Isolated artifacts: $runRoot"
 
@@ -233,17 +242,19 @@ try {
             throw "Second pass requested Python $ExtraPython but the environment runs $extraVersion"
         }
         Write-Gate "Second pass running on Python $extraVersion, pandas $extraPandas"
-        Invoke-Step -Name "pytest (Python $extraVersion)" -Executable "uv" -Arguments @(
-            "run",
-            "--no-sync",
-            "pytest",
-            "-o",
-            "addopts=",
-            "-p",
-            "no:cacheprovider",
-            "--basetemp=$(Join-Path $runRoot 'pytest-extra')",
-            "tests"
-        )
+        Invoke-Step -Name "pytest (Python $extraVersion)" -Executable "uv" -Arguments (@(
+                "run",
+                "--no-sync",
+                "pytest",
+                "-o",
+                "addopts=",
+                "-p",
+                "no:cacheprovider",
+                "--durations=20"
+            ) + $coverageArguments + @(
+                "--basetemp=$(Join-Path $runRoot 'pytest-extra')",
+                "tests"
+            ))
         Write-Gate "Second-pass tests passed on Python $extraVersion, pandas $extraPandas."
     }
 }
