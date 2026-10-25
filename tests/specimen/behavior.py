@@ -10,12 +10,13 @@ from investment_analysis_engine.analysis.run_models import StrictJsonMapping
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import undeclared
 from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler, ToolRuntime
+from investment_analysis_engine.reporting.headline import Headline
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence
 from tests.specimen.analyzer import SpecimenResult
 from tests.specimen.closed_types import as_native_evidence, as_native_handler, native_evidence_type
 from tests.specimen.codec import decode_specimen, encode_specimen, specimen_native_status, specimen_ticker
-from tests.specimen.replay import project_specimen
+from tests.specimen.replay import headline_specimen, project_specimen
 from tests.specimen.selection import SpecimenSelection
 from tests.specimen.tool import SpecimenToolDependencies, SpecimenToolHandler
 
@@ -46,6 +47,12 @@ class SpecimenBehavior:
         if type(result) is not SpecimenResult:
             raise undeclared("result type", type(result))
         return specimen_native_status(result)
+
+    def headline_for(self, result: object, /) -> Headline:
+        """Return the headline of ``result``, which must be exactly the specimen's result type."""
+        if type(result) is not SpecimenResult:
+            raise undeclared("result type", type(result))
+        return headline_specimen(result)
 
     def bind_handler(self, dependencies: object, runtime: ToolRuntime, /) -> AnalysisToolHandler[NativeEvidence]:
         """Bind the specimen's handler to its own dependency class and the shared runtime."""

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.core.metric_result import MetricResult, ReasonCode
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
@@ -97,6 +98,17 @@ class MomentumPresentation:
         """Project composed identity evidence when no legacy resolution was supplied."""
         if self.identity_resolution is None and self.instrument_profile is not None:
             object.__setattr__(self, "identity_resolution", profile_identity_resolution(self.instrument_profile))
+
+
+def trend_word(status: TrendStatus) -> str | None:
+    """Return the word of the concise output's ``Status:`` line for a trend, such as ``Bullish``.
+
+    The line reads ``Bullish Trend``; the word ``Trend`` is dropped because the table's column already says it.
+    An ``UNKNOWN`` trend is no value.
+    """
+    if status is TrendStatus.UNKNOWN:
+        return None
+    return status.display_name(locale="en").removesuffix(" Trend")
 
 
 def render_momentum(

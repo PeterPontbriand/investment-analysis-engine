@@ -1,8 +1,13 @@
 """Momentum's replay projector: render a stored run using only the evidence it captured."""
 
+from investment_analysis_engine.reporting.headline import UNIT_POINTS, CellKind, Headline, HeadlineCell
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions, UnsupportedProjectionError
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
-from investment_analysis_engine.strategies.momentum.presenter import MomentumPresentation, render_momentum
+from investment_analysis_engine.strategies.momentum.presenter import (
+    MomentumPresentation,
+    render_momentum,
+    trend_word,
+)
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 
 
@@ -48,3 +53,22 @@ def project_momentum(
         captured_sma_spread_percent=captured_spread_percent,
     )
     return render_momentum(presentation, options.mode)
+
+
+def headline_momentum(run: MomentumRun) -> Headline:
+    """Return Momentum's side-by-side cells: the trend word and the RSI.
+
+    The trend is a text cell with no status; it has no value when no calculation ran or the trend is ``UNKNOWN``.
+    The RSI takes its own metric's status and reason code, or, when no calculation ran, the run's status and reason
+    code. Momentum has no fiscal period and no taxonomy.
+    """
+    metrics = run.metrics
+    trend = HeadlineCell(
+        "trend", "Trend", CellKind.TEXT, None if metrics is None else trend_word(metrics.status), None, None
+    )
+    if metrics is None:
+        rsi = HeadlineCell("rsi", "RSI", CellKind.NUMBER, None, UNIT_POINTS, run.execution_status, run.reason_code)
+    else:
+        metric = metrics.rsi_14
+        rsi = HeadlineCell("rsi", "RSI", CellKind.NUMBER, metric.value, UNIT_POINTS, metric.status, metric.reason_code)
+    return Headline(cells=(trend, rsi))

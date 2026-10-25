@@ -174,12 +174,12 @@ fails = "command X offers --json but has no typed document model"
 [[site]]
 id = "replay"
 title = "Replay projector and headline function"
-why = "A stored run is replayed through the strategy's own projector."
+why = "A stored run is replayed through the strategy's own projector, and the same file holds the strategy's headline function, which supplies its cells to the side-by-side refresh table."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/replay.py"
 generated = true
 check = "site_replay"
-defines = ["project_.+"]
+defines = ["project_.+", "headline_.+"]
 fails = "replay in X mode raised or is empty"
 
 [[site]]
