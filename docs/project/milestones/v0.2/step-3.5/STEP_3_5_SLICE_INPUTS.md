@@ -42,8 +42,8 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
 **Result shape:** one row per ticker; per strategy, the headline cells, the run outcome, the fiscal period
 end, the taxonomy and the run ID; text and `--json` forms. The `headline` member returns a `Headline`: a
 fixed-order tuple of cells, a period end and a taxonomy. A cell has a stable key, a label, a kind (number
-or text), a finite number or a text, an explicit unit, the metric's own status and, when that is not `ok`,
-its reason code. On paper the eleven strategies need only these shapes:
+or text), a finite number or a text, an explicit unit, the metric's own status and the reason code the result
+carries for that cell (none where the result carries a text reason only, as the Graham results do). On paper the eleven strategies need only these shapes:
 
 | Strategy | Cells |
 | :--- | :--- |

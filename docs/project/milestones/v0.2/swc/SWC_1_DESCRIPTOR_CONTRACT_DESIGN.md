@@ -145,8 +145,10 @@ SWC.3a adds `SelT` as the first parameter with its first member ([F.4](#f4-selec
 | `headline` | function from `ResultT` to `Headline` | Step 3.5 slice 3.5.0 | The side-by-side refresh table. |
 
 `native_status` returns the result's explicit result-level status. Step 3.5 gives every new result one
-([Step 3.5 shared definitions §2](../step-3.5/STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)); Momentum's
-analyzer has none, so its function returns `None`.
+([Step 3.5 shared definitions §2](../step-3.5/STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)). Momentum's
+result carries one from slice 3.5.0a: `ok` for a bullish or bearish trend, `input_unavailable` for an `UNKNOWN`
+trend, for no observation at or before the boundary and for a failed data-quality check, and `provider_error` for a
+provider failure. Its function returns that status, so no function returns `None`.
 
 **`headline`.** A pure function over a decoded result, kept in the strategy's `replay.py` because the root
 may import that role and both functions read decoded evidence for reporting. It returns a `Headline`:
@@ -166,7 +168,7 @@ class HeadlineCell:
     text: str | None  # a band, zone or completeness text; None for a number
     unit: str | None  # explicit for every number cell
     status: MetricStatus | CalculationStatus | None  # the metric's own status; None for a text-only field
-    reason_code: ReasonCode | None  # set when the status is not ok
+    reason_code: ReasonCode | None  # set when the result carries a ReasonCode for the cell; None otherwise
 
 
 @dataclass(frozen=True)

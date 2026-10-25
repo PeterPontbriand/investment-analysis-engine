@@ -94,8 +94,10 @@ status.
 | Greenblatt Magic Formula | Return on capital and earnings yield are both `ok`. | Either is `unavailable`, or an unknown industry class. | A financial issuer or a utility, or either metric `not_applicable` with neither `unavailable`. |
 
 The outcome that decides each row is the one the strategy specification already states for its metrics;
-the table adds no formula, threshold or classification. Momentum's analyzer has no status and its native
-status stays `None`.
+the table adds no formula, threshold or classification. Momentum's result carries an `execution_status` too
+([3.5.0a](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status)): `ok` when the trend is bullish or
+bearish; `input_unavailable` when the trend is `UNKNOWN`, when no price observation exists at or before the
+boundary, or when the data-quality check fails; `provider_error` when the market-data provider fails.
 
 ## 3. Data sources, periods and point-in-time
 
