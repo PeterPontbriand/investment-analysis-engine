@@ -29,7 +29,7 @@ def decode_ci_probe(payload: StrictJsonMapping) -> CiProbeResult:
     return CiProbeResult(ticker=ticker, effective_as_of=effective_as_of)
 
 
-def ci_probe_native_status(result: CiProbeResult, /) -> CalculationStatus | None:
+def ci_probe_native_status(result: CiProbeResult, /) -> CalculationStatus:
     """Return the status the strategy reports: the calculation always succeeds."""
     del result
     return CalculationStatus.OK

@@ -37,7 +37,7 @@ def test_every_strategy_has_a_document_for_each_status_it_can_report() -> None:
     for stem in cases():
         document = json.loads(expected_path(stem).read_bytes())
         statuses.setdefault(document["analysis"], set()).add(document["status"])
-        if document["analysis"] == "momentum":
+        if document["analysis"] == "momentum" and document["result"] is not None:
             trends.add(document["result"]["trend"])
     assert statuses["momentum"] == {"ok", "input_unavailable", "provider_error"}
     assert trends >= {"BULLISH", "UNKNOWN"}
