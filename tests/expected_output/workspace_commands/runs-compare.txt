@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+Refresh <uuid> · watchlist "Seeded" · 2 tickers · 1 strategy Momentum Ticker Trend RSI Outcome AAPL Bullish 100.0 completed MSFT Bullish 100.0 completed Runs (open one with: ian runs show <run-id>) AAPL momentum <uuid> MSFT momentum <uuid>
+--- stderr
+

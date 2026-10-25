@@ -11,6 +11,7 @@ cross-checks the full envelope against its own relational columns.
 
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, ClassVar, cast
 from uuid import UUID
@@ -26,6 +27,32 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.workspace.runs import AnalysisRun, AnalysisRunSummary, RunQuery
 
 _ENVELOPE_ADAPTER: TypeAdapter[AnalysisRun] = TypeAdapter(AnalysisRun)
+
+
+@dataclass(frozen=True)
+class StoredRefreshRun:
+    """One run of a refresh as stored: its indexed identity, outcome and versions, with its envelope decoded on demand.
+
+    The indexed fields are read without decoding the stored envelope, so a refresh that holds a run of an older
+    version, or of a strategy no longer declared, can still be listed. ``envelope`` decodes and cross-checks the full
+    record exactly as ``get`` does.
+    """
+
+    analysis_run_id: UUID
+    ticker: str
+    analysis_id: str
+    method_id: str
+    status: RunOutcome
+    batch_position: int
+    row: Mapping[str, Any] = field(repr=False, compare=False)
+
+    def envelope(self) -> AnalysisRun:
+        """Return the fully decoded run.
+
+        Raises:
+            ValueError: If the stored envelope is malformed or disagrees with its own indexed columns.
+        """
+        return SQLiteAnalysisRunRepository.decode_row(self.row)
 
 
 class AnalysisRunConflictError(ValueError):
@@ -148,6 +175,37 @@ class SQLiteAnalysisRunRepository:
             for row in rows
         )
 
+    def list_refresh_runs(self, refresh_id: UUID) -> tuple[StoredRefreshRun, ...]:
+        """Return every run saved by one refresh, in batch order, with no row limit.
+
+        A refresh can hold more runs than the 100-row bound of ``list``, so this read is separate. An unknown ID
+        and a refresh run with ``--no-save`` both return an empty tuple; storage cannot tell them apart.
+        """
+        statement = (
+            select(analysis_runs)
+            .where(analysis_runs.c.refresh_id == str(refresh_id))
+            .order_by(analysis_runs.c.batch_position.asc(), analysis_runs.c.analysis_run_id.asc())
+        )
+        with self._database.read() as connection:
+            rows = [dict(row) for row in connection.execute(statement).mappings().all()]
+        return tuple(
+            StoredRefreshRun(
+                analysis_run_id=UUID(row["analysis_run_id"]),
+                ticker=row["ticker"],
+                analysis_id=row["analysis_id"],
+                method_id=row["method_id"],
+                status=RunOutcome(row["outcome"]),
+                batch_position=row["batch_position"],
+                row=row,
+            )
+            for row in rows
+        )
+
+    @staticmethod
+    def decode_row(row: Mapping[str, Any]) -> AnalysisRun:
+        """Validate a stored row's envelope and confirm it matches its own indexed columns."""
+        return SQLiteAnalysisRunRepository._decode(row)
+
     @staticmethod
     def _decode(row: Mapping[str, Any]) -> AnalysisRun:
         """Validate the stored envelope and confirm it matches its own row."""
@@ -160,4 +218,5 @@ class SQLiteAnalysisRunRepository:
 __all__ = [
     "AnalysisRunConflictError",
     "SQLiteAnalysisRunRepository",
+    "StoredRefreshRun",
 ]

@@ -86,6 +86,9 @@ _STEPS: tuple[tuple[str, list[str]], ...] = (
     ("runs-show-details", ["runs", "show", "<run>", "--details"]),
     ("runs-show-diagnostics", ["runs", "show", "<run>", "--diagnostics"]),
     ("runs-show-json", ["runs", "show", "<run>", "--json"]),
+    ("runs-compare", ["runs", "compare", "<refresh>"]),
+    ("runs-compare-json", ["runs", "compare", "<refresh>", "--json"]),
+    ("runs-compare-not-found", ["runs", "compare", "00000000-0000-4000-8000-000000000000"]),
     ("watchlist-delete-missing-ok", ["watchlist", "delete", "Nowhere", "--yes", "--missing-ok"]),
     ("watchlist-delete-missing-ok-json", ["watchlist", "delete", "Nowhere", "--yes", "--missing-ok", "--json"]),
     ("watchlist-delete", ["watchlist", "delete", "Core Renamed", "--yes"]),
@@ -210,9 +213,15 @@ def run_scenario() -> list[Step]:
         }
         paths = [root]
         run_id = ""
+        refresh_id = ""
         for name, arguments in _STEPS:
-            resolved = [substitutions.get(item, run_id if item == "<run>" else item) for item in arguments]
+            resolved = [
+                substitutions.get(item, {"<run>": run_id, "<refresh>": refresh_id}.get(item, item))
+                for item in arguments
+            ]
             result = runner.invoke(app, resolved)
+            if name == "refresh-json":
+                refresh_id = json.loads(result.stdout)["refresh_id"]
             if name == "runs-list-json":
                 run_id = json.loads(result.stdout)[0]["analysis_run_id"]
             keep = name in _OFFSET_STEPS

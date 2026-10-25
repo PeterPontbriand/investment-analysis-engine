@@ -60,6 +60,7 @@ from investment_analysis_engine.strategy_wiring import (
     EVIDENCE_BY_KEY,
     REPLAYS_BY_KEY,
     RUN_SPECS_BY_KEY,
+    STRATEGIES,
 )
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
@@ -99,6 +100,13 @@ from investment_analysis_engine.workspace.watchlists import (
 from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.run_replay import project_run
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument, RunSummaryDocument
+from investment_analysis_engine.workspace_documents.runs_compare import (
+    CompareColumn,
+    DuplicateRefreshRunsError,
+    build_runs_compare,
+    no_runs_message,
+    render_runs_compare_text,
+)
 from investment_analysis_engine.workspace_documents.watchlist import (
     WatchlistDeleteDocument,
     WatchlistDocument,
@@ -908,6 +916,40 @@ def runs_show(
     except (UnsupportedProjectionError, UnsupportedRunVersionError, InvalidStoredRunError) as exc:
         _fail_with(exc, json_output=json_output)
     typer.echo(rendered)
+
+
+@runs_app.command("compare")
+def runs_compare(
+    refresh_id: Annotated[str, typer.Argument(help="Refresh ID (the full UUID shown by 'refresh').")],
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the complete table as one document.")] = False,
+) -> None:
+    """Show the runs of one refresh side by side: one row per ticker, one column group per strategy."""
+    with parameter_failures(json_output=json_output):
+        parsed_id = _parse_run_id(refresh_id, field="REFRESH_ID")
+    with _workspace_database("runs compare", json_output=json_output) as database:
+        stored = SQLiteAnalysisRunRepository(database).list_refresh_runs(parsed_id)
+        if not stored:
+            _fail(FailureReasonCode.ANALYSIS_RUN_NOT_FOUND, no_runs_message(parsed_id), json_output=json_output)
+        try:
+            document = build_runs_compare(parsed_id, stored, _compare_columns())
+        except DuplicateRefreshRunsError as exc:
+            _fail(FailureReasonCode.INVALID_INPUT, str(exc), json_output=json_output)
+    typer.echo(_document_json(document) if json_output else render_runs_compare_text(document))
+
+
+def _compare_columns() -> tuple[CompareColumn, ...]:
+    """Return the declared strategies as table columns, in the order the strategies are declared."""
+    return tuple(
+        CompareColumn(
+            analysis_id=descriptor.analysis_id,
+            method_id=descriptor.method_id,
+            alias=descriptor.alias,
+            label=descriptor.label,
+            codec=EVIDENCE_BY_KEY[(descriptor.analysis_id, descriptor.method_id)],
+            headline=descriptor.behavior.headline_for,
+        )
+        for descriptor in STRATEGIES
+    )
 
 
 def _parse_run_id(value: str, *, field: str) -> UUID:
