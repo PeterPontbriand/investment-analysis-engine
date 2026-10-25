@@ -64,6 +64,9 @@ One ticker paired with a [selection](GLOSSARY.md#selection) inside a watchlist. 
 ### Watchlist
 A named, ordered list of [entries](GLOSSARY.md#entry) that you want to run and revisit as a group.
 
+### Headline
+The few numbers and words one strategy offers to stand for a whole run in the side-by-side table of `ian runs compare`: for Momentum its trend and RSI, for the Graham strategies their price and margin of safety, for FCF Growth its two growth rates and its screen. A headline is a summary for comparison, not the result: open the run with `ian runs show` for the full result. A cell of a headline that the run could not calculate is shown as `—`.
+
 ### Refresh
 Running every entry in one watchlist and saving each result as its own Analysis Run. A refresh is bounded to at most `--workers` tickers running at once (1-4, default 2); one ticker's failure never stops the rest of the watchlist.
 

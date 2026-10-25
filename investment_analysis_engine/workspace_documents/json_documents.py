@@ -18,6 +18,7 @@ from investment_analysis_engine.reporting.documents.failure import FailureEnvelo
 from investment_analysis_engine.reporting.documents.health import ProviderHealthDocument
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
+from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
 from investment_analysis_engine.workspace_documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
 
 
@@ -39,6 +40,7 @@ DOCUMENTS: Final = (
     JsonDocument("watchlist.schema.json", WatchlistDocument, ("watchlist show", "watchlist rename")),
     JsonDocument("watchlist-delete.schema.json", WatchlistDeleteDocument, ("watchlist delete",)),
     JsonDocument("runs-list.schema.json", RunsListDocument, ("runs list",)),
+    JsonDocument("runs-compare.schema.json", RunsCompareDocument, ("runs compare",)),
     JsonDocument("refresh-summary.schema.json", RefreshSummaryDocument, ("refresh",)),
     JsonDocument("provider-health.schema.json", ProviderHealthDocument, ("health",)),
 )

@@ -2,19 +2,6 @@
 
 These rules apply to agents that write, refactor, test, document, or maintain this codebase.
 
-## 0. Pre-Step-3.5 consolidation period (temporary)
-
-Until Step 3.5 implementation begins, the project's priority is making the existing codebase fully consistent before new strategies copy its patterns. During this period, for work packages R3, IR, PKG, and any consolidation package added before Step 3.5:
-
-- Stored data has no compatibility value. Persisted selection, evidence, and result shapes may change without migration or compatibility code; local databases may be discarded. Bump the relevant version fields whenever a stored shape changes.
-- Public interfaces, constructors, and signatures may be changed or removed when the approved work package requires it.
-- The approved work package's plan defines the file scope; scope extensions within that plan's stated goals need no separate authorization.
-- An explicit, statically declared list of strategies with shared generic wiring is permitted where it removes per-strategy duplication. Discovery-based plugin loading and speculative frameworks remain prohibited.
-
-Unchanged during this period: no formula or classification changes (correctness issues go through the existing-strategy correctness process), no NaN/Inf, no network or LLM calls in tests other than those marked `live_network`, which §3 permits under its conditions, the full managed quality gate on every slice, and no AI/tool attribution. "Open items" are not an acceptable outcome of a design decision in this period; decide, or escalate to the project owner.
-
-Remove this section when Step 3.5 implementation begins.
-
 # 1. Project Instructions
 
 You are an expert Python developer specializing in financial data analysis, pandas, NumPy, and quantitative workflows. Always prioritize correctness, readability, and performance. Use type hints and docstrings where helpful.
@@ -105,6 +92,11 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 - Honor explicit review gates in the active milestone plan. If a step says to stop for human review, stop there.
 - When an instruction says to stop and report if a task cannot be done without a named workaround, a substitute
   workaround also needs approval before it is used.
+- A change to a persisted selection, evidence or result shape bumps that shape's version field. Runs stored under an
+  older version stay in the database and are refused by version when read (`UnsupportedRunVersionError`), never
+  misread. No migration or compatibility decoder is written unless the active plan requires one. The pull request
+  lists such a change among its user-visible changes.
+- "Open items" are not an acceptable outcome of a design decision; decide, or escalate to the project owner.
 
 ## 5. Python, Ruff & typing
 

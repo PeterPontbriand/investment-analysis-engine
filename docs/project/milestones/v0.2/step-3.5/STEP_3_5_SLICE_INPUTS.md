@@ -34,14 +34,16 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
 - It depends on the finished SWC work: the behavior bundle, the CLI tier and the injected replay and codec
   mappings.
 - The fiscal period end comes from each result: FCF-Growth records its period span; the Graham results
-  expose it through their resolved-input provenance; Momentum has none. The taxonomy is shown where a
-  result names one (the new strategies all do, per SD §3) and is "not recorded" otherwise.
+  expose it through their resolved-input provenance; Momentum has no fiscal period and is left out of the
+  period-ends block. A strategy with a fiscal period whose run recorded none shows "not recorded". The taxonomy
+  is shown where a result names one (the new strategies all do, per SD §3) and is left out of the text while
+  no run records one.
 
 **New data:** none.
 
 **Result shape:** one row per ticker; per strategy, the headline cells, the run outcome, the fiscal period
 end, the taxonomy and the run ID; text and `--json` forms. The `headline` member returns a `Headline`: a
-fixed-order tuple of cells, a period end and a taxonomy. A cell has a stable key, a label, a kind (number
+fixed-order tuple of cells, a period end, the label that says what the period end is and a taxonomy. A cell has a stable key, a label, a kind (number
 or text), a finite number or a text, an explicit unit, the metric's own status and the reason code the result
 carries for that cell (none where the result carries a text reason only, as the Graham results do). On paper the eleven strategies need only these shapes:
 
@@ -61,7 +63,8 @@ carries for that cell (none where the result carries a text reason only, as the 
 
 **Tests:** built from one `refresh_id` with provider, cache, clock and calculator disabled; each of the
 four existing strategies' headline equals the reviewed cells for a stored run; differing fiscal year-ends
-shown, not normalized; a strategy with no fiscal period shows "not recorded"; a failed or unavailable run
+shown, not normalized; a strategy with no fiscal period is left out of the period-ends block and one whose run
+recorded no period end shows "not recorded"; a failed or unavailable run
 shows its outcome and does not drop the row; two runs for one ticker and strategy refuse and name the
 duplicates. The sort option is tested in 3.5.6.
 

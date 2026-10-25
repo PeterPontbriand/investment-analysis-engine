@@ -16,8 +16,8 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
   [Out of scope](#4-out-of-scope).
 - **Entry condition:** implementation waits for integration readiness (IR), strategy wiring
   consolidation (SWC), the dead code audit (R3), provider health (PH), package layering (LAY, which resolves the two-way
-  package dependencies filed as [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)) and the package rename (PKG). 3.5.0b begins by
-  removing `AGENTS.md` §0, as that section requires ([A.10](#a10-removing-the-consolidation-rules-moves-to-350b-2026-10-25)).
+  package dependencies filed as [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)) and the package rename (PKG). 3.5.0b began by
+  removing `AGENTS.md` §0, as that section required ([A.10](#a10-removing-the-consolidation-rules-moves-to-350b-2026-10-25)).
 - **Rules every slice follows:**
   - One definition per shared metric, used everywhere, with no per-strategy fallback variants.
   - Every calculated numeric metric is a `MetricResult` with an explicit `ReasonCode`. Nothing
@@ -53,8 +53,8 @@ next begins.
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 3.5.0a | [Momentum result-level status](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status) | Complete | 2026-10-25 |
-| 3.5.0b | [Side-by-side refresh table](STEP_3_5_0_SLICE_PLAN.md#350b--side-by-side-refresh-table) | Next | |
-| 3.5.1 | [Data mappings and applicability](#351--data-mappings-and-applicability) | Planned | |
+| 3.5.0b | [Side-by-side refresh table](STEP_3_5_0_SLICE_PLAN.md#350b--side-by-side-refresh-table) | Complete | 2026-10-25 |
+| 3.5.1 | [Data mappings and applicability](#351--data-mappings-and-applicability) | Next | |
 | 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Planned | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
@@ -98,7 +98,8 @@ land, a slice starts from `scripts/new_strategy.py`, which writes the typed stub
 one-line edits, and tracks progress with `scripts/strategy_status.py`. Each slice plan names the table's
 sites it touches. The guide's workflow is the reference.
 
-Whoever implements the first Step 3.5 strategy records every point where `docs/TOOL_DEVELOPMENT.md` fell short, for a follow-up.
+Whoever implements the first Step 3.5 strategy records every point where `docs/TOOL_DEVELOPMENT.md` fell short, for a follow-up. 3.5.0b's own record of the points it met is
+[A.3 of the 3.5.0 slice plan](STEP_3_5_0_SLICE_PLAN.md#a3-350b-implementation-record-2026-10-25); 3.5.3's plan links it.
 
 **Repetition checkpoint.** All seven strategies read SEC annual filings only and share the same selection
 fields, so their wiring is expected to be near-identical. The first strategy slice (3.5.3) owns a review
@@ -194,8 +195,8 @@ its own quality gate and authorization.
   `--json`, and the orchestrator tool: `ToolName` member, arguments model, dependency class and handler),
   presenter, tests, user guide, Finance Math and Glossary entries, covering every site in the edit-site table;
   and the repetition checkpoint above.
-  - The side-by-side table's one-line-per-ticker text layout is about 150 characters wide over four strategies and
-    would be about 400 over eleven. This slice adds the fifth strategy, so its slice plan decides the text layout for
+  - The side-by-side table's one-line-per-ticker text layout is about 170 characters wide over four strategies (the
+    3.5.0 slice plan measured 174 to 186) and would be about 460 over eleven. This slice adds the fifth strategy, so its slice plan decides the text layout for
     more strategies. `--json` is unaffected.
 - **Detail:** [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score)
   the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md) and

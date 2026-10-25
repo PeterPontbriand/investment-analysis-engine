@@ -299,4 +299,59 @@ uv run ian runs show 3f9b... --json
 
 `runs show --json` prints the saved run's own strategy document, described by that strategy's schema in `schemas/` (for example `schemas/momentum.schema.json`, or `schemas/graham-number.schema.json`); a failure is the [failure document](USAGE.md#--json--machine-readable-output). The document's `provider_check` element is always `null` here: replaying a saved run sends no test request, and the verdict is never stored. A direct command that failed on a provider and the replay of its saved run differ in that one key.
 
+### Comparing a refresh side by side
+
+Every refresh records one refresh ID on the runs it saves, and `runs compare` shows those runs as one table: one row per ticker, in the order of the watchlist when it ran, and one column group per strategy, in the order of the strategy table above. Each group shows that strategy's headline numbers and the run's outcome, so you can read a watchlist across strategies without opening each run:
+
+```bash
+uv run ian runs compare 7c1a...
+uv run ian runs compare 7c1a... --json
+```
+
+```text
+Refresh 7c1a... · watchlist "Core" · 3 tickers · 4 strategies
+
+         Momentum                      Graham Number                       Graham Growth                     FCF Growth
+Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome    FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome
+ACME     Bullish   100.0  completed    36.69 USD      —       completed    66.28 USD      —       completed  10.2%                      17.6%     PASS           completed
+BOLT     —         100.0  unavailable  —              —       unavailable  no stored run  —       —          —                          —         INDETERMINATE  unavailable
+CRUX     —         —      failed       —              —       failed       —              —       failed     10.2%†                     17.6%     PASS           completed
+
+† marks a value labelled FCF/share CAGR, not the first label of its column header
+
+Period ends
+  ACME     Graham Number: earnings input period end 2024-06-30 · Graham Growth: earnings input period end 2024-06-30 · FCF Growth: selected span end 2025-01-01
+  BOLT     Graham Number: earnings input period end not recorded · FCF Growth: selected span end not recorded
+  CRUX     Graham Number: earnings input period end not recorded · Graham Growth: earnings input period end not recorded · FCF Growth: selected span end 2025-01-01
+
+Could not be read (stored under an older version, or for a strategy no longer declared): 9d1e...
+
+Runs (open one with: ian runs show <run-id>)
+  ACME     momentum       cbbd...
+  ACME     graham-number  7a65...
+  ACME     graham-growth  db73...
+  ACME     fcf-growth     6b82...
+  BOLT     momentum       2f07...
+  BOLT     graham-number  b265...
+  BOLT     fcf-growth     01fc...
+  CRUX     momentum       9d1e...
+  CRUX     graham-number  99e3...
+  CRUX     graham-growth  27de...
+  CRUX     fcf-growth     4136...
+```
+
+- The header of each column is its cell's name. A text value is the word the strategy's own output uses: Momentum's trend (`Bullish`, `Bearish`) and the FCF Growth screen (`PASS`, `FAIL`, `INDETERMINATE`). FCF Growth's first column is `FCF CAGR` for the total basis and `FCF/share CAGR` for the per-share basis, as each run was made. When the runs of one column give it different names, the header lists them all (`FCF CAGR / FCF/share CAGR`), every value whose name is not the first one carries a marker (`10.2%†`), and a line under the table says which name the marker stands for. The line appears only then.
+- A per-share amount is written as a number followed by its currency (`36.69 USD`). When no currency was recorded, for example because you gave the earnings per share with `--eps`, it reads `142.10 (currency unspecified)`, and nothing guesses one.
+- `—` means a value is absent: the run did not calculate it, or the strategy has none to show. A ticker with no run for a strategy that others have reads `no stored run`. Momentum's `Trend` is `—` when the history is too short to tell.
+- Under the table, each ticker's fiscal period end is listed in the strategy's own words. The Graham strategies show the period end of the earnings input; their book value can come from another period, and no code compares them. Differing period ends are shown, not adjusted. A run that recorded no period end (earnings per share given with `--eps`, an FCF Growth run with no span, a failed run) reads `not recorded`. Momentum has no fiscal period and is not listed.
+- The last block lists each run's full ID, so that you can open it with `runs show`.
+
+The command rebuilds the table from what is stored. It calls no data provider, reads no cache and recalculates nothing, so the same refresh always gives the same table. It exits `0` whenever a table is shown, even if every run in it failed: a failed run is a row, not a failure of the command.
+
+A refresh ID the command cannot find is reported as `analysis_run_not_found` (exit `1`). A refresh run with `--no-save` stores nothing, and storage cannot tell it from an unknown ID, so one message covers both. A refresh that holds two runs of the same ticker and strategy (a watchlist can hold two Momentum entries for one ticker) is refused as `invalid_input`, naming each; the table shows one run in each cell and never picks one for you.
+
+A run saved by an older version of the application, or for a strategy this version no longer declares, still has its row. Its outcome is read from the stored record, its cells read `—`, and a line under the table lists its ID; `--json` states why its headline is missing. `runs show` refuses such a run with `unsupported_run_version`. Runs are never converted: a new version of a stored shape leaves older runs in the database, and they are refused by version rather than misread. A run whose stored evidence is invalid refuses the whole table, as it refuses `runs show`, with `invalid_stored_run` and the run's ID.
+
+`runs compare --json` prints one document, described by `schemas/runs-compare.schema.json`, whose first key is `schema_version` (1).
+
 `runs show` exits `0` even for a saved run whose own financial outcome was unavailable or failed — you asked to *see* a record, and it exists; the record's own status tells you what happened when it ran.

@@ -64,7 +64,7 @@ def test_the_contributor_guide_is_the_only_one_and_has_its_sections_in_order() -
     assert positions == sorted(positions), f"The guide's sections are out of order; they are {headings}."
 
 
-def test_agents_permits_the_closed_descriptor_tuples_in_section_3_without_section_0() -> None:
+def test_agents_permits_the_closed_descriptor_tuples_in_section_3() -> None:
     text = AGENTS.read_text(encoding="utf-8")
     forbidden = _section(text, "3. Absolute forbidden actions")
     for name, module in CLOSED_TUPLES.items():
@@ -73,10 +73,12 @@ def test_agents_permits_the_closed_descriptor_tuples_in_section_3_without_sectio
     lowered = forbidden.lower()
     missing = [phrase for phrase in PROHIBITED_IN_AGENTS if phrase not in lowered]
     assert missing == [], f"AGENTS.md section 3 no longer prohibits {missing}."
-    temporary = _section(text, "0. ")
-    assert not any(name in temporary for name in CLOSED_TUPLES), (
-        "The permission must stand outside the temporary section, which is removed later."
-    )
+
+
+def test_agents_has_no_consolidation_period_section() -> None:
+    text = AGENTS.read_text(encoding="utf-8")
+    assert re.search(r"^#+ 0\. ", text, flags=re.MULTILINE) is None, "AGENTS.md still has a section 0."
+    assert "consolidation period" not in text.lower(), "AGENTS.md still describes a consolidation period."
 
 
 def _calls(path: Path) -> list[tuple[str, str]]:

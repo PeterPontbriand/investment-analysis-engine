@@ -1,0 +1,425 @@
+{
+  "$defs": {
+    "CellKind": {
+      "description": "Whether a cell holds a number or a text.",
+      "enum": [
+        "number",
+        "text"
+      ],
+      "title": "CellKind",
+      "type": "string"
+    },
+    "CompareCellDocument": {
+      "additionalProperties": false,
+      "description": "One headline cell of a run.",
+      "properties": {
+        "key": {
+          "description": "The cell's stable key.",
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/CellKind"
+        },
+        "label": {
+          "description": "The column header the text table uses for the cell.",
+          "title": "Label",
+          "type": "string"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The reason code the result carries for the cell, if any."
+        },
+        "status": {
+          "anyOf": [
+            {
+              "enum": [
+                "ok",
+                "unavailable",
+                "not_applicable",
+                "input_unavailable",
+                "invalid_input",
+                "provider_error"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The status of a number cell's value; null for a text cell.",
+          "title": "Status"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The unit of a number: percent, points, multiple, or '<currency> per share'.",
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The number or text; null when the run has none.",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "kind",
+        "value",
+        "unit",
+        "status",
+        "reason_code"
+      ],
+      "title": "CompareCellDocument",
+      "type": "object"
+    },
+    "CompareEntryDocument": {
+      "additionalProperties": false,
+      "description": "One ticker's run of one strategy.",
+      "properties": {
+        "method_id": {
+          "title": "Method Id",
+          "type": "string"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompareRunDocument"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The stored run; null when the ticker has none for this column."
+        }
+      },
+      "required": [
+        "method_id",
+        "run"
+      ],
+      "title": "CompareEntryDocument",
+      "type": "object"
+    },
+    "CompareHeadlineDocument": {
+      "additionalProperties": false,
+      "description": "One run's headline: its cells, the fiscal period end it used and its taxonomy.",
+      "properties": {
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/CompareCellDocument"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "period_end": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The fiscal period end the run used; null if not recorded.",
+          "title": "Period End"
+        },
+        "period_end_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the period end is, in the strategy's own words.",
+          "title": "Period End Label"
+        },
+        "taxonomy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The filing taxonomy; null where the run records none.",
+          "title": "Taxonomy"
+        }
+      },
+      "required": [
+        "cells",
+        "period_end",
+        "period_end_label",
+        "taxonomy"
+      ],
+      "title": "CompareHeadlineDocument",
+      "type": "object"
+    },
+    "CompareRowDocument": {
+      "additionalProperties": false,
+      "description": "One ticker, with an entry for each strategy in column order.",
+      "properties": {
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/CompareEntryDocument"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticker",
+        "entries"
+      ],
+      "title": "CompareRowDocument",
+      "type": "object"
+    },
+    "CompareRunDocument": {
+      "additionalProperties": false,
+      "description": "One stored run in the table.",
+      "properties": {
+        "analysis_run_id": {
+          "format": "uuid",
+          "title": "Analysis Run Id",
+          "type": "string"
+        },
+        "headline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompareHeadlineDocument"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The run's cells; null when headline_unavailable is set."
+        },
+        "headline_unavailable": {
+          "anyOf": [
+            {
+              "enum": [
+                "unsupported_version",
+                "strategy_not_declared",
+                "no_result_stored"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why the run has no headline, if it has none.",
+          "title": "Headline Unavailable"
+        },
+        "outcome": {
+          "$ref": "#/$defs/RunOutcome",
+          "description": "The run's outcome, read from its stored envelope."
+        },
+        "requested_as_of": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The point in time the run asked for; null means now.",
+          "title": "Requested As Of"
+        }
+      },
+      "required": [
+        "analysis_run_id",
+        "outcome",
+        "requested_as_of",
+        "headline",
+        "headline_unavailable"
+      ],
+      "title": "CompareRunDocument",
+      "type": "object"
+    },
+    "CompareStrategyDocument": {
+      "additionalProperties": false,
+      "description": "One column group: a strategy present in the refresh.",
+      "properties": {
+        "alias": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The strategy's command alias; null for a strategy no longer declared.",
+          "title": "Alias"
+        },
+        "analysis_id": {
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "declared": {
+          "title": "Declared",
+          "type": "boolean"
+        },
+        "label": {
+          "description": "The strategy's display name; its stored method identifier if no longer declared.",
+          "title": "Label",
+          "type": "string"
+        },
+        "method_id": {
+          "title": "Method Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "analysis_id",
+        "method_id",
+        "alias",
+        "label",
+        "declared"
+      ],
+      "title": "CompareStrategyDocument",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "description": "Machine-readable reasons shared by deterministic metric results.",
+      "enum": [
+        "insufficient_history",
+        "non_contiguous_history",
+        "missing_fact",
+        "incompatible_period",
+        "incompatible_units",
+        "incompatible_currency",
+        "incompatible_scope",
+        "ambiguous_fact",
+        "not_available_as_of",
+        "nonpositive_beginning",
+        "nonpositive_ending",
+        "sign_change",
+        "fcf_not_growing",
+        "eps_not_growing",
+        "fcf_and_eps_not_growing",
+        "forward_growth_not_confirmed",
+        "consensus_unavailable",
+        "market_cap_unavailable",
+        "provider_error",
+        "invalid_request",
+        "not_requested",
+        "instrument_kind_not_applicable"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "RunOutcome": {
+      "description": "Terminal outcome of a workspace analysis run.\n\nOnly terminal states exist; there is deliberately no in-progress value because\nthe envelope records an immutable completed attempt rather than live state.",
+      "enum": [
+        "completed",
+        "unavailable",
+        "not_applicable",
+        "failed"
+      ],
+      "title": "RunOutcome",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The whole ``runs compare --json`` output.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
+  "properties": {
+    "refresh_id": {
+      "format": "uuid",
+      "title": "Refresh Id",
+      "type": "string"
+    },
+    "rows": {
+      "description": "The tickers, in watchlist order.",
+      "items": {
+        "$ref": "#/$defs/CompareRowDocument"
+      },
+      "title": "Rows",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "strategies": {
+      "description": "The columns, in order.",
+      "items": {
+        "$ref": "#/$defs/CompareStrategyDocument"
+      },
+      "title": "Strategies",
+      "type": "array"
+    },
+    "watchlist_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The watchlist the refresh ran; null if no readable run records it.",
+      "title": "Watchlist Id"
+    },
+    "watchlist_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The watchlist's name when the refresh ran.",
+      "title": "Watchlist Name"
+    }
+  },
+  "required": [
+    "refresh_id",
+    "watchlist_id",
+    "watchlist_name",
+    "strategies",
+    "rows"
+  ],
+  "title": "RunsCompareDocument",
+  "type": "object"
+}

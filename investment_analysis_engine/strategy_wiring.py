@@ -22,6 +22,7 @@ from investment_analysis_engine.core.strategy_errors import require, undeclared
 from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler, ToolHandlerBinder, ToolRuntime
+from investment_analysis_engine.reporting.headline import Headline
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions, ReplayProjector
 from investment_analysis_engine.strategies.fcf_growth.codec import (
     decode_fcf_growth,
@@ -33,7 +34,7 @@ from investment_analysis_engine.strategies.fcf_growth.envelope import FCFDocumen
 from investment_analysis_engine.strategies.fcf_growth.models import METHOD_VERSION as FCF_GROWTH_METHOD_VERSION
 from investment_analysis_engine.strategies.fcf_growth.models import SCHEMA_VERSION as FCF_GROWTH_RESULT_SCHEMA_VERSION
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from investment_analysis_engine.strategies.fcf_growth.replay import project_fcf_growth
+from investment_analysis_engine.strategies.fcf_growth.replay import headline_fcf_growth, project_fcf_growth
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.fcf_growth.tool import (
     FCFEarningsGrowthToolArguments,
@@ -52,7 +53,7 @@ from investment_analysis_engine.strategies.graham_growth.codec import (
     graham_growth_ticker,
 )
 from investment_analysis_engine.strategies.graham_growth.envelope import GrahamGrowthDocument
-from investment_analysis_engine.strategies.graham_growth.replay import project_graham_growth
+from investment_analysis_engine.strategies.graham_growth.replay import headline_graham_growth, project_graham_growth
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 from investment_analysis_engine.strategies.graham_growth.settings import GrahamGrowthSettings
@@ -73,7 +74,7 @@ from investment_analysis_engine.strategies.graham_number.codec import (
     graham_number_ticker,
 )
 from investment_analysis_engine.strategies.graham_number.envelope import GrahamNumberDocument
-from investment_analysis_engine.strategies.graham_number.replay import project_graham_number
+from investment_analysis_engine.strategies.graham_number.replay import headline_graham_number, project_graham_number
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.graham_number.tool import (
@@ -94,7 +95,7 @@ from investment_analysis_engine.strategies.momentum.codec import (
     momentum_ticker,
 )
 from investment_analysis_engine.strategies.momentum.envelope import MomentumDocument
-from investment_analysis_engine.strategies.momentum.replay import project_momentum
+from investment_analysis_engine.strategies.momentum.replay import headline_momentum, project_momentum
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 from investment_analysis_engine.strategies.momentum.tool import (
@@ -136,6 +137,10 @@ class BehaviorView(Protocol):
         """Return the result-level status the strategy reports."""
         ...
 
+    def headline_for(self, result: object, /) -> Headline:
+        """Return the side-by-side table cells of ``result``, which must be exactly this strategy's result type."""
+        ...
+
     def bind_handler(self, dependencies: object, runtime: ToolRuntime, /) -> AnalysisToolHandler[NativeEvidence]:
         """Bind the strategy's handler to its own dependency class and the shared runtime."""
         ...
@@ -160,6 +165,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     ticker_of: Callable[[ResultT], str]
     handler: ToolHandlerBinder[DepsT, ResultT]
     native_status: Callable[[ResultT], CalculationStatus]
+    headline: Callable[[ResultT], Headline]
     project: Callable[[ReplayInputs, ResultT, SelT, ReplayOptions], str]
 
     def encode_object(self, evidence: object, /) -> StrictJsonMapping:
@@ -182,6 +188,12 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
         if not isinstance(result, self.result_type) or type(result) is not self.result_type:
             raise undeclared("result type", type(result))
         return self.native_status(result)
+
+    def headline_for(self, result: object, /) -> Headline:
+        """Return the headline of ``result``, which must be exactly this strategy's result type."""
+        if not isinstance(result, self.result_type) or type(result) is not self.result_type:
+            raise undeclared("result type", type(result))
+        return self.headline(result)
 
     def bind_handler(self, dependencies: object, runtime: ToolRuntime, /) -> AnalysisToolHandler[ResultT]:
         """Bind the handler to ``dependencies``, which must be exactly this strategy's dependency class."""
@@ -227,6 +239,7 @@ MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, Mome
     ticker_of=momentum_ticker,
     handler=MomentumToolHandler,
     native_status=momentum_native_status,
+    headline=headline_momentum,
     project=project_momentum,
 )
 GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
@@ -240,6 +253,7 @@ GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
     ticker_of=graham_number_ticker,
     handler=GrahamNumberToolHandler,
     native_status=graham_number_native_status,
+    headline=headline_graham_number,
     project=project_graham_number,
 )
 GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
@@ -253,6 +267,7 @@ GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     ticker_of=graham_growth_ticker,
     handler=GrahamGrowthToolHandler,
     native_status=graham_growth_native_status,
+    headline=headline_graham_growth,
     project=project_graham_growth,
 )
 FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
@@ -266,6 +281,7 @@ FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     ticker_of=fcf_growth_ticker,
     handler=FCFEarningsGrowthToolHandler,
     native_status=fcf_growth_native_status,
+    headline=headline_fcf_growth,
     project=project_fcf_growth,
 )
 
@@ -492,9 +508,19 @@ def replays_by_key(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[tuple
     )
 
 
+def headlines_by_key(
+    descriptors: tuple[StrategyDescriptor, ...],
+) -> Mapping[tuple[str, str], Callable[[object], Headline]]:
+    """Return each descriptor's headline function keyed by ``(analysis_id, method_id)``, read-only."""
+    return MappingProxyType(
+        {(descriptor.analysis_id, descriptor.method_id): descriptor.behavior.headline_for for descriptor in descriptors}
+    )
+
+
 EVIDENCE_BY_KEY: Final = evidence_by_key(STRATEGIES)
 RUN_SPECS_BY_KEY: Final = run_specs_by_key(STRATEGIES)
 REPLAYS_BY_KEY: Final = replays_by_key(STRATEGIES)
+HEADLINES_BY_KEY: Final = headlines_by_key(STRATEGIES)
 
 
 def run_spec_for(

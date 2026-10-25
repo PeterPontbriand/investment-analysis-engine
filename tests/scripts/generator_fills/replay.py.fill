@@ -1,5 +1,7 @@
 """The CI Probe strategy's replay projector: render a stored run using only the evidence it captured."""
 
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.reporting.headline import CellKind, Headline, HeadlineCell
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeResult
 from investment_analysis_engine.strategies.ci_probe.presenter import render_ci_probe
@@ -12,3 +14,9 @@ def project_ci_probe(
     """Reconstruct the CI Probe presentation from stored evidence only."""
     del inputs, selection
     return render_ci_probe(evidence, options.mode)
+
+
+def headline_ci_probe(result: CiProbeResult) -> Headline:
+    """Return the CI Probe cell of the side-by-side refresh table: the calculation always succeeds."""
+    del result
+    return Headline(cells=(HeadlineCell("probe", "Probe", CellKind.NUMBER, 1.0, "points", CalculationStatus.OK),))

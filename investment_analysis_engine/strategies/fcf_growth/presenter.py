@@ -37,6 +37,7 @@ from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsG
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     ANALYSIS_ID,
     METHOD_ID,
+    Classification,
     FCFClassificationBasis,
     ForwardEvidenceStatus,
     TrendClassification,
@@ -62,6 +63,11 @@ _CLASSIFICATION_BASIS_LABELS = {
     FCFClassificationBasis.TOTAL_FCF: "Total company free cash flow",
     FCFClassificationBasis.FCF_PER_SHARE: "Free cash flow per diluted share",
 }
+
+
+def screen_word(classification: Classification) -> str:
+    """Return the word the concise output's ``Screen:`` line uses for a classification, such as ``PASS``."""
+    return classification.value.upper()
 
 
 def _metric(metric: MetricResult) -> str:
@@ -129,7 +135,7 @@ def _concise(
     lines = [
         f"{security_display_label(result.ticker, identity_resolution)} — Free Cash Flow & Earnings Growth",
         "",
-        f"Screen: {result.classification.value.upper()}",
+        f"Screen: {screen_word(result.classification)}",
         f"Classification basis: {_CLASSIFICATION_BASIS_LABELS[result.policy.classification_basis]}",
     ]
     if result.classification_reason:

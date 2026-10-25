@@ -15,8 +15,11 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
 - **What it is not:** a formula or classification change, a new strategy, a new data mapping, a ranking, or a new
   persistence form. Momentum's numbers are unchanged. Full list: [Scope limits](#4-scope-limits).
 - **Rules both sub-slices follow:**
-  - The consolidation rules of `AGENTS.md` §0 apply to 3.5.0a: stored data has no compatibility value, so version
-    fields are bumped and no migration code is written. §0 is removed by the first commit of 3.5.0b.
+  - The consolidation rules of `AGENTS.md` §0 applied to 3.5.0a: stored data had no compatibility value, so version
+    fields were bumped and no migration code was written. The first commit of 3.5.0b removed §0 and made its two
+    lasting rules permanent in §4 ([E1 and E2](#a1-decisions-d1-to-d11-2026-10-25)): a change to a persisted shape
+    bumps its version field, and runs stored under an older version stay in the database and are refused by version
+    when read; and an open item is never the outcome of a design decision.
   - The managed quality gate after every sub-slice, and explicit authorization before the next begins.
   - No new `CalculationStatus`, `ReasonCode` or `FailureReasonCode` member.
 - **Where the detail lives:** the file inventories, the test lists and the documentation changes are in
@@ -30,7 +33,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 3.5.0a | [Momentum result-level status](#350a--momentum-result-level-status) | Complete | 2026-10-25 |
-| 3.5.0b | [Side-by-side refresh table](#350b--side-by-side-refresh-table) | Next | |
+| 3.5.0b | [Side-by-side refresh table](#350b--side-by-side-refresh-table) | Complete | 2026-10-25 |
 
 3.5.0a is implemented on the branch that carries this plan and merges as one pull request. 3.5.0b starts from `main`
 after that pull request merges.
@@ -115,7 +118,8 @@ Every exception that `MomentumInputResolver.resolve`, `MomentumAnalyzer.run_anal
   as a retrofit of eleven.
 - **Decision (D1, D5 to D11):**
   - One command, `ian runs compare <refresh-id>`, in the `runs` group of `cli_workspace.py`. It takes the full UUID
-    that `refresh` prints and has `--json`, with a typed model and a checked-in schema.
+    that `refresh` prints and has `--json`, with a typed model (`RunsCompareDocument`, `schema_version` 1, in
+    `workspace_documents/runs_compare.py`) and a checked-in schema (`schemas/runs-compare.schema.json`).
   - The table is rebuilt from storage only: no provider, cache, clock or recalculation. It adds no persistence, batch
     ID or run type.
   - The `headline` member is added to the behavior bundle with the types of the SWC design; the types live in a new
@@ -123,14 +127,17 @@ Every exception that `MomentumInputResolver.resolve`, `MomentumAnalyzer.run_anal
     injected. Both placements fit the package table in [ARCHITECTURE §13](../../../ARCHITECTURE.md#13-module-boundaries)
     and add no import between units.
   - `AGENTS.md` §0 is removed in the first commit of this sub-slice ([A.1](#a1-decisions-d1-to-d11-2026-10-25), D5).
+    Its stored-data rule is replaced by a permanent rule in §4 (E1), which also decides how the table treats a run
+    stored under an older version (see the [table rules](#table-rules-d7)).
   - Rows, columns, empty cases and the failure cases are in the [table rules](#table-rules-d7).
   - The text layout is in the [rendered example](#rendered-text-example-d9); the cells are in the
     [headline cells](#headline-cells-of-the-four-existing-strategies-d8-d9).
-- **Scope:** `AGENTS.md` §0 removal; `reporting/headline.py`; the `headline` member of `StrategyBehavior` and
-  `BehaviorView` with `headline_for`; `headline_<strategy>` in each existing strategy's `replay.py`; one new
-  repository read; the builder, the document, the renderer and the command; the generator template, the site data
-  file, the specimen strategy and the member set T15 checks, updated once for the new member; the contributor
-  guide, regenerated; tests; `WORKSPACE.md`. The file list is in [B.2](#b2-350b-files).
+- **Scope:** `AGENTS.md` §0 removal and the two permanent §4 rules; `reporting/headline.py`; the `headline` member
+  of `StrategyBehavior` and `BehaviorView` with `headline_for`; `headline_<strategy>` in each existing strategy's
+  `replay.py`; one new repository read; the builder, the document, the renderer and the command, in
+  `workspace_documents/runs_compare.py` and `cli_workspace.py`; the generator template, the site data file, the
+  specimen strategy and the member set T15 checks, updated once for the new member; the contributor guide,
+  regenerated; tests; `WORKSPACE.md`, `USAGE.md` and `GLOSSARY.md`. The file list is in [B.2](#b2-350b-files).
 - **Branch:** `feat/step-3-5-0b-side-by-side-table`, off `main` after the 3.5.0a pull request merges.
 - **Detail:** [files](#b2-350b-files), [tests](#b6-350b-tests),
   [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table),
@@ -153,6 +160,21 @@ Every exception that `MomentumInputResolver.resolve`, `MomentumAnalyzer.run_anal
   message names every duplicated ticker and strategy. `invalid_stored_run` is not used, because the stored runs
   are valid; the refresh simply holds more than the table can show.
 - **Malformed argument:** the existing run-ID parser, `InvalidParameterError` (`invalid_parameter`).
+- **A run the table cannot read (E3).** `decode_evidence` raises `UnsupportedRunVersionError` for a run stored under
+  an older version and for a run of a strategy no longer declared, and `InvalidStoredRunError` for evidence that is
+  invalid. The two are different exception types, so the table tells them apart:
+  - **Older version, or strategy no longer declared:** the table still renders and the exit code stays 0. The run's
+    outcome is read from the stored envelope's `status`, which needs no decoding, and its cells show "—". A line
+    below the table names the IDs of the runs that could not be read for these reasons. In `--json` the run's
+    `headline` is null and `headline_unavailable` says why (`unsupported_version` or `strategy_not_declared`). A run
+    of a strategy no longer declared follows the declared columns, in a column named by its stored method identifier.
+    The version rule is applied to the indexed columns first, so a run of an older version is recognized without
+    decoding an envelope whose other fields may no longer parse. The realistic case is a Momentum run stored before
+    3.5.0a (result schema 4, evidence codec 3).
+  - **Invalid evidence, or an envelope that is malformed:** the whole table is refused through the failure envelope
+    with `invalid_stored_run`, naming the run ID, as `runs show` does.
+  - A run that stored no result evidence at all has no headline (`headline_unavailable` `no_result_stored`) and is
+    not named in the note, because its outcome already says why.
 - **Reading:** a refresh can hold more than the 100-row limit of `RunQuery`, so 3.5.0b adds a read of the full runs
   of one refresh to `SQLiteAnalysisRunRepository` (SQL stays in the repository, per
   [ARCHITECTURE §14](../../../ARCHITECTURE.md#14-contributor-guardrails)).
@@ -164,7 +186,8 @@ Every exception that `MomentumInputResolver.resolve`, `MomentumAnalyzer.run_anal
 
 #### Headline cells of the four existing strategies (D8, D9)
 
-A cell has a key, a label, a kind, a unit, a value, a status and a reason code. **The reason code is set when the
+A cell has a key, a label, a kind, a unit, a value, a status and a reason code. **The label is the text table's
+column header, verbatim (E4); there is no separate abbreviation.** **The reason code is set when the
 result carries a `ReasonCode` for that cell, and is `None` otherwise** (amended 2026-10-25, [A.1](#a1-decisions-d1-to-d11-2026-10-25)).
 The Graham results carry text reasons only, so their cells never have one. **A text cell carries no status and no reason
 code** ([SWC design §3.3](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers); the
@@ -175,32 +198,47 @@ the run's `execution_status` and the run's reason code, if it carries one.
 
 | Strategy | Key | Label | Kind | Unit | Value from | Status from | Reason code from |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Momentum | `trend` | Trend | text | none | `MOM.metrics.status` (`TrendStatus`); none when `metrics` is absent | none (text cell) | none (text cell) |
+| Momentum | `trend` | Trend | text | none | the word of `TrendStatus.display_name` ("Bullish Trend") without "Trend", the `Status:` line of the concise output (`trend_word` in `presenter.py`); none for `UNKNOWN` and when `metrics` is absent | none (text cell) | none (text cell) |
 | Momentum | `rsi` | RSI | number | points | `MOM.metrics.rsi_14.value` | `MOM.metrics.rsi_14.status`; `MOM.execution_status` when `metrics` is absent | `MOM.metrics.rsi_14.reason_code`; `MOM.reason_code` when `metrics` is absent |
 | Graham Number | `maximum_indicated_price` | Max price | number | `<currency> per share` | `GN.result.maximum_indicated_price` | `GN.native_status` | none (text reason) |
-| Graham Number | `margin_of_safety` | Margin of safety | number | percent | `GN.margin_of_safety_percent` | `GN.price_comparison.status` mapped: `available` is `ok`, `unavailable` is `unavailable`; `GN.native_status` when no comparison exists | none (token reason) |
-| Graham Growth | `intrinsic_value` | Intrinsic value | number | `<currency> per share` | `GG.result.growth_value` | `GG.native_status` | none (text reason) |
-| Graham Growth | `margin_of_safety` | Margin of safety | number | percent | `GG.margin_of_safety_percent` | as Graham Number, from `GG.price_comparison` | none (token reason) |
-| FCF-Growth | `fcf_cagr` | "FCF CAGR" (total basis) or "FCF/share CAGR" (per-share basis) | number | percent | `FCF.fcf_cagr` when the policy's classification basis is total FCF, else `FCF.fcf_per_share_cagr` | that metric's `status` | that metric's `reason_code` |
+| Graham Number | `margin_of_safety` | Margin | number | percent | `GN.margin_of_safety_percent` | `GN.price_comparison.status` mapped: `available` is `ok`, `unavailable` is `unavailable`; `GN.native_status` when no comparison exists (`unavailable` if that is `ok`) | none (token reason) |
+| Graham Growth | `intrinsic_value` | Value | number | `<currency> per share` | `GG.result.growth_value` | `GG.native_status` | none (text reason) |
+| Graham Growth | `margin_of_safety` | Margin | number | percent | `GG.margin_of_safety_percent` | as Graham Number, from `GG.price_comparison` | none (token reason) |
+| FCF-Growth | `fcf_cagr` | FCF CAGR (total basis) or FCF/share CAGR (per-share basis) | number | percent | `FCF.fcf_cagr` when the policy's classification basis is total FCF, else `FCF.fcf_per_share_cagr` | that metric's `status` | that metric's `reason_code` |
 | FCF-Growth | `eps_cagr` | EPS CAGR | number | percent | `FCF.eps_cagr.value` | `FCF.eps_cagr.status` | `FCF.eps_cagr.reason_code` |
-| FCF-Growth | `classification` | Classification | text | none | `FCF.classification` (`PASS`, `FAIL`, `INDETERMINATE`) | none (text cell) | none (text cell) |
+| FCF-Growth | `classification` | Class | text | none | the word of the concise output's `Screen:` line, `PASS`, `FAIL` or `INDETERMINATE` (`screen_word` in `presenter.py`) | none (text cell) | none (text cell) |
 
-- **The FCF CAGR cell names its basis.** The classification basis is a per-run option (`--classification-basis`). The
-  cell keeps the stable key `fcf_cagr`, and its label names the run's basis: "FCF CAGR" for total FCF, "FCF/share
-  CAGR" for per share. In the text table the column header stays "FCF CAGR"; each per-share value carries a marker,
-  and a legend line explains it. The legend line appears only when the refresh holds at least one per-share
-  FCF-Growth run, the same rule as for requested `as_of` dates.
-- **Currency unit:** taken from the currency of the resolved earnings input. 3.5.0b confirms in the code that an
-  `ok` value always has one; the table must not show a bare per-share number.
+- **Text values come from the strategy's own concise output (E4).** Momentum's trend is "Bullish" or "Bearish", the
+  word of the `Status:` line ("Bullish Trend") without the word the column header already says; `UNKNOWN` is no value
+  and shows "—". FCF-Growth's class is the word of the `Screen:` line. Neither is a second spelling of an enum value.
+- **The FCF CAGR cell names its basis.** The classification basis is a per-run option (`--classification-basis`).
+  The cell keeps the stable key `fcf_cagr`, and its label names the run's basis: "FCF CAGR" for total FCF, "FCF/share
+  CAGR" for per share. The text table uses the label as the column header (E4), so a column that holds both bases
+  reads "FCF CAGR / FCF/share CAGR". This is a general rule for any column whose cell labels differ between rows:
+  the header joins the labels in the order they are first met, a value whose label is not the first one carries a
+  marker (†, ‡, §, ¶), and a legend line below the table names the label each marker stands for. The legend appears
+  only when such a column exists. A2's marker and legend line are therefore kept, and generalized from the FCF basis to
+  any differing label; E4 only made the headers verbatim (review fix, 2026-10-25).
+- **Currency (owner decision, 2026-10-25).** An `ok` Graham value does not always have a currency: an override
+  (`--eps`, `--bvps`) carries none, and a Graham Number with both overridden, or a Graham Growth with `--eps`, has no
+  currency. A per-share cell is therefore written by `format_money` of `reporting/presentation.py`, in every case, so
+  the currency follows the number: "142.10 USD", or "142.10 (currency unspecified)" when none was recorded. In
+  `--json` the unit keeps the form "<currency> per share" and is "currency unspecified per share" when none was
+  recorded. The table never shows a bare per-share number, and no currency is taken from another input.
 - **Reason text is not a cell field.** A Graham cell with a non-`ok` status shows "—" in the text table and its
   status in `--json`; the reason is read with `ian runs show <run-id>`, which the run ID below the table points to.
 
 | Strategy | Period end | Taxonomy |
 | :--- | :--- | :--- |
-| Momentum | not recorded (it has no fiscal period) | not recorded |
-| Graham Number | the observation period end of the earnings (EPS) input: the newest of the three annual periods it averages; not recorded when EPS was an override (`--eps`), which carries no period | not recorded |
-| Graham Growth | the observation period end of the EPS input; not recorded when it was an override | not recorded |
-| FCF-Growth | the recorded `period_end` of the selected span | not recorded |
+| Momentum | none: it has no fiscal period, so it is left out of the period-ends block | not recorded |
+| Graham Number | the observation period end of the earnings (EPS) input: the newest of the three annual periods it averages; not recorded when EPS was an override (`--eps`), which carries no period. Label: "earnings input period end" | not recorded |
+| Graham Growth | the observation period end of the EPS input; not recorded when it was an override. Label: "earnings input period end" | not recorded |
+| FCF-Growth | the recorded `period_end` of the selected span. Label: "selected span end" | not recorded |
+
+- **A period end carries its label.** `Headline` has a `period_end_label`, set by each strategy that has a period end,
+  so that the table never shows a period end under a plainer name than the strategy gives it. A period end without a
+  label is refused by the type. This field is an addition to the type in the SWC design (§3.3), made here (decision
+  in [A.1](#a1-decisions-d1-to-d11-2026-10-25)).
 
 - **Taxonomy is "not recorded" for all four.** It is never derived from the prefix of a `provider_field`.
 - **BVPS and EPS can differ in period.** No code compares them. Graham Number's EPS is the three newest eligible
@@ -212,43 +250,65 @@ the run's `execution_status` and the run's reason code, if it carries one.
 
 #### Rendered text example (D9)
 
-The layout is approved ([A.1](#a1-decisions-d1-to-d11-2026-10-25)); the tickers, numbers and ID are invented. Three
-tickers, one refresh over all four strategies. ACME completes everywhere. BOLT has too little history for Momentum's
-long average (RSI is still shown), a non-positive EPS for Graham Number, no stored Graham Growth run, and an FCF
-result with missing inputs. CRUX's price provider failed for Momentum.
+The text is the command's own output over a stored test refresh, with the run IDs shortened and the tickers renamed.
+It is the layout the owner approved ([A.1](#a1-decisions-d1-to-d11-2026-10-25)), amended by E4 and the currency
+decision. Three tickers, one refresh over all four strategies. ACME completes everywhere. BOLT has too little history
+for Momentum's long average (the trend is "—", the RSI is still shown), missing inputs for Graham Number, no stored
+Graham Growth run, and an FCF-Growth run with no annual facts. CRUX's Momentum price provider failed, and that run was
+stored under an older version, so its cells read "—" and a line below the table names it; its Graham Number and Graham
+Growth runs failed, and its FCF-Growth run is on the per-share basis, so the FCF column's header names both bases.
 
 ```text
 Refresh 3f1c0b52-6f6e-4c52-9a52-0d3e8f4a1b77 · watchlist "Core" · 3 tickers · 4 strategies
 
-        Momentum                      Graham Number                       Graham Growth                         FCF-Growth
-Ticker  Trend    RSI   Outcome        Max price   Margin  Outcome         Value       Margin  Outcome           FCF CAGR  EPS CAGR  Class  Outcome
-ACME    bullish  61.2  completed      USD 142.10  18.4%   completed       USD 188.40  24.1%   completed         9.8%      11.2%     PASS   completed
-BOLT    —        47.5  unavailable    —           —       not_applicable  no stored run                         —         —         —      unavailable
-CRUX    —        —     failed         USD 61.00   −7.3%   completed       USD 59.20   −3.2%   completed         −2.1%     0.4%      FAIL   completed
+         Momentum                      Graham Number                       Graham Growth                     FCF Growth
+Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome    FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome
+ACME     Bullish   100.0  completed    36.69 USD      —       completed    66.28 USD      —       completed  10.2%                      17.6%     PASS           completed
+BOLT     —         100.0  unavailable  —              —       unavailable  no stored run  —       —          —                          —         INDETERMINATE  unavailable
+CRUX     —         —      failed       —              —       failed       —              —       failed     10.2%†                     17.6%     PASS           completed
 
-Earnings input period end (Graham Number, Graham Growth); FCF-Growth: selected span end
-  ACME  Graham Number 2025-12-31 · Graham Growth 2025-12-31 · FCF-Growth 2025-12-31
-  BOLT  Graham Number 2025-12-31 · FCF-Growth not recorded
-  CRUX  Graham Number 2025-06-30 · Graham Growth 2025-06-30 · FCF-Growth 2025-06-30
+† marks a value labelled FCF/share CAGR, not the first label of its column header
+
+Period ends
+  ACME     Graham Number: earnings input period end 2024-06-30 · Graham Growth: earnings input period end 2024-06-30 · FCF Growth: selected span end 2025-01-01
+  BOLT     Graham Number: earnings input period end not recorded · FCF Growth: selected span end not recorded
+  CRUX     Graham Number: earnings input period end not recorded · Graham Growth: earnings input period end not recorded · FCF Growth: selected span end 2025-01-01
+
+Could not be read (stored under an older version, or for a strategy no longer declared): 9d1e...
 
 Runs (open one with: ian runs show <run-id>)
-  ACME  momentum       8a1f2c3d-0b4e-4f57-9a61-2d7c5e8b9a10
-  ACME  graham-number  c2d9e1f4-5a36-4b78-8c0d-1e2f3a4b5c6d
-  ...
+  ACME     momentum       cbbd...
+  ACME     graham-number  7a65...
+  ACME     graham-growth  db73...
+  ACME     fcf-growth     6b82...
+  BOLT     momentum       2f07...
+  BOLT     graham-number  b265...
+  BOLT     fcf-growth     01fc...
+  CRUX     momentum       9d1e...
+  CRUX     graham-number  99e3...
+  CRUX     graham-growth  27de...
+  CRUX     fcf-growth     4136...
 ```
 
 - **The table holds the headline cells and the outcome of each strategy.** Period ends and run IDs are listed
   below it, one run per line with the full ID, because `runs show` takes the full UUID.
-- **The example is all total basis.** A per-share FCF-Growth value would carry the marker described under the cell
-  table, with a legend line below the table; the example holds none, so it shows no legend line.
+- **The header of a column is its cell's label (E4).** A column that holds runs of both FCF bases is headed by both
+  labels, each per-share value carries the marker †, and the legend line "† marks a value labelled FCF/share CAGR,
+  not the first label of its column header" follows the table. The example shows both. A value that is absent
+  carries the marker too, because the marker says which label the value would have had. A strategy none of whose runs
+  could be read has an `Outcome` column only.
+- **A missing pair** shows "no stored run" in the strategy's first cell column and "—" in the rest of its columns.
+- **Period ends** are listed per ticker in the strategy's own words ("earnings input period end", "selected span
+  end"). A strategy that has a fiscal period but whose run recorded none shows "not recorded", as the failed and
+  missing runs of BOLT and CRUX do; Momentum has no fiscal period and is left out of the block, as the taxonomy line is.
 - **The taxonomy line is left out of the text** while no run records one. `--json` carries the field.
 - **Requested `as_of` dates are shown only when the refresh holds more than one:** a line "Requested as-of:" naming
   each. Here every run has none, so the line is absent. `--json` always carries `requested_as_of` per run.
 - **`--json` carries every field:** per run, the run ID, outcome, requested `as_of`, each cell with key, label, kind,
   value, unit, status and reason code, the period end and the taxonomy; per refresh, the watchlist and the
   strategies in column order.
-- **Missing values** are "—". **Units:** percent as `18.4%`, points bare, multiples as `12.3x`, currency prefixed.
-  A negative number uses a true minus sign.
+- **Missing values** are "—". **Units:** percent as `18.4%`, points bare (`61.2`), multiples as `12.3x`, a per-share
+  amount by `format_money` (the number, then the currency, as "142.10 USD"). A negative number uses a true minus sign.
 
 ## 4. Scope limits
 
@@ -261,8 +321,8 @@ Runs (open one with: ian runs show <run-id>)
 - No change to `AnalysisRun.native_status` and `native_reason` (the envelope fields `execute` never sets).
 - No reason text field on a headline cell; no per-cell drill-down other than the run ID.
 - No new `CalculationStatus`, `ReasonCode` or `FailureReasonCode` member.
-- The one-line-per-ticker text layout is about 150 characters wide over four strategies and would be about 400 over
-  eleven. The slice that adds the fifth strategy, 3.5.3, decides the text layout for more strategies. `--json` is
+- The one-line-per-ticker text layout is about 170 characters wide over four strategies (the example above is 174 to
+  186) and would be about 460 over eleven. The slice that adds the fifth strategy, 3.5.3, decides the text layout for more strategies. `--json` is
   unaffected.
 - No work on the new strategies. The record of where `docs/TOOL_DEVELOPMENT.md` fell short stays with 3.5.3; 3.5.0b
   records in its own implementation record every shortfall it meets, for the 3.5.3 plan to link (D11).
@@ -343,6 +403,25 @@ Approved by the project owner on review of the plan (2026-10-25):
 | Rendered text layout (D9) | Approved, with the FCF CAGR basis marker and its legend line, and the layout-width limit decided by 3.5.3. |
 | Amendments A1 to A6 | Text cells carry no status; the FCF CAGR cell names its basis; the stale `None` text of the SWC design joins 3.5.0a's documentation scope; the unchanged-output criterion is corrected; the text layout limit is recorded; "fixed sentence" becomes "fixed message". |
 
+Approved by the project owner for 3.5.0b (2026-10-25):
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| E1 | Replacement for §0's stored-data rule | §0 is removed entirely. `AGENTS.md` §4, under "Implementation preservation", states a permanent rule: a change to a persisted selection, evidence or result shape bumps its version field; runs stored under an older version stay in the database and are refused by version when read (`UnsupportedRunVersionError`), never misread; no migration or compatibility decoder is written unless the active plan requires one; the pull request lists such a change among its user-visible changes. |
+| E2 | "Open items" | §4 states: "Open items" are not an acceptable outcome of a design decision; decide, or escalate to the project owner. §0's other rules are already stated in §3 and §4. |
+| E3 | A refresh holding runs the table cannot read | As in the [table rules](#table-rules-d7): an older version or an undeclared strategy renders with the outcome from the stored envelope, "—" cells, a note line and a null `--json` headline, exit 0; invalid evidence refuses the table with `invalid_stored_run`. Both cases are tested; a Momentum run stored before 3.5.0a is the older-version test. |
+| E4 | Headers and text values | The text table's column header is the cell's label, verbatim; labels are Trend, RSI, Max price, Margin, Value, Margin, FCF CAGR (or FCF/share CAGR), EPS CAGR, Class. Text values are the words of the strategy's own concise output; Momentum's `UNKNOWN` is no value. A2's marker and legend line stay for differing labels in one column (see F1). |
+| E5 | The new document | `workspace_documents/runs_compare.py`, `schemas/runs-compare.schema.json`, `RunsCompareDocument`, `schema_version` 1 first among its keys. |
+| E6 | Record of guide shortfalls | In the [implementation record](#a3-350b-implementation-record-2026-10-25) below, linked from the 3.5.3 section of the contract. |
+| E7 | Commits | Five commits in the order the owner gave. |
+| E8 | Sequence tables | 3.5.0b is Complete here and in the contract's §2, and 3.5.1 is Next; the milestone's Step 3.5 row stays In progress. |
+| Currency | A per-share cell with no recorded currency | The 3.5.0b check found that an override carries no currency, so an `ok` Graham value can have none. Every per-share cell in the text table is written by `format_money` ("142.10 USD", or "142.10 (currency unspecified)"); the `--json` unit is "<currency> per share" or "currency unspecified per share". |
+| F1 | Differing labels in one column (2026-10-25 review) | The joined header stays, as a general rule for any column whose labels differ between rows. Each value whose label is not the first in the header carries a marker, and a legend line below the table names the label the marker stands for; the line appears only when such a column exists. Tested with a refresh that mixes total and per-share FCF-Growth runs. |
+| F2 | `period_end_label` (2026-10-25 review) | Approved. Added to the `Headline` type in the SWC design §3.3, Shared definitions §10 and Slice inputs §2. |
+| F3 | Period ends the run did not record (2026-10-25 review) | A strategy that has a fiscal period but whose run recorded none (a Graham override, an FCF-Growth run with no span, a failed run) shows "not recorded", not "—". A strategy with no fiscal period (Momentum) stays out of the period-ends block, as the taxonomy line does. Shared definitions §10 and Slice inputs §2 say so. |
+| F4 | Width figures (2026-10-25 review) | The contract's 3.5.3 bullet uses the measured width: about 170 over four strategies, about 460 over eleven. |
+| Period-end label | Naming the period end | `Headline` gains `period_end_label`, because a period end shown under a plainer name than its strategy gives it would mislead (the Graham strategies' EPS period). Decided by the implementer within the plan's goals; reported to the owner. |
+
 ### A.2 Premises checked against the code (2026-10-25)
 
 | Premise | Finding |
@@ -354,6 +433,54 @@ Approved by the project owner on review of the plan (2026-10-25):
 | D10's placement keeps the package table | Holds: `reporting` and `workspace_documents` already import what the new modules need. |
 | An entry in the SWC command test's non-strategy list | Does not apply to a subcommand; corrected above and in the contract. |
 | Each cell carries a `ReasonCode` when not `ok` | Does not hold for the Graham cells, whose results carry text reasons; the rule is amended. |
+| An `ok` Graham value always has a currency | Does not hold: an override carries none (`--eps` and `--bvps` for Graham Number, `--eps` for Graham Growth). The unit and the text say so, as the currency decision above states. |
+| The EPS input's observation period end can be read from the stored Graham result | Holds: the derived EPS input records `observation_period_end` (the newest of its three periods), and the codec keeps it. |
+| `decode_evidence` can tell an older-version run from invalid evidence | Holds: `UnsupportedRunVersionError` and `InvalidStoredRunError` are different types. A run for a strategy no longer declared raises the first. |
+
+### A.3 3.5.0b implementation record (2026-10-25)
+
+**Contributor guide shortfalls (E6).** `docs/TOOL_DEVELOPMENT.md` describes how to add a strategy. Adding a member to
+the behavior bundle, which 3.5.0b did, is a change to the contract, and the guide does not cover it. Every point
+below was found by a failing test or by reading the code, not from the guide. 3.5.3's plan links this record.
+
+1. **The guide ran ahead of the code.** The `replay` row's title already said "Replay projector and headline
+   function", but nothing generated a headline function and the row's `defines` pattern checked `project_.+` only. The
+   row now says what the file holds, and checks `headline_.+` too.
+2. **A new bundle member touches files the guide never names:** `strategy_wiring.py` (the member, the view's accessor and
+   `headlines_by_key`), `scripts/strategy_conformance.py` (the closed member set, the view accessor set and the
+   exact-type probes), `scripts/new_strategy.py` (the generated behavior declaration and its import),
+   `scripts/strategy_templates/replay.py.tmpl`, `tests/specimen/behavior.py` and `tests/specimen/replay.py` (the
+   specimen implements the erased view by hand), and `tests/scripts/generator_fills/replay.py.fill`. A reader finds
+   them from the failures of T15, T16 and the generator's end-to-end test, one at a time. 3.5.3 should expect the same
+   when it changes the envelope.
+3. **A fill repeats the template's signatures.** `tests/scripts/generator_fills/codec.py.fill` held its own copy of
+   `native_status`'s return type, so removing `None` from the status types in 3.5.0a was found by the end-to-end test,
+   not by the template change. Fills are not generated from the templates.
+4. **The pinned table of failure codes.** `tests/_failure_code_table.py` requires every exception class that declares
+   a `reason_code` to be pinned. The guide does not mention it for a new command that needs a new failure. 3.5.0b
+   avoided the file: the command reports its two failures through the failure envelope without a new class code.
+5. **Regenerating a command's stored output.** The guide names the two regeneration commands for the direct commands'
+   output and the stored strategy documents, but not `uv run python -m tests._workspace_command_output`, which a new
+   workspace command needs, and the scenario's step list in `tests/_workspace_command_output.py` is edited by hand.
+6. **The two regeneration entry points ran outside the suite's provider-check switch.** Fixed in 3.5.0a's follow-up; a
+   third entry point (`_workspace_command_output`) uses only fixtures that cannot fail on a provider, so it needs no
+   switch, but the guide does not say which entry points need one.
+
+**Decisions taken during implementation, for the owner's review.**
+
+- `Headline` gained `period_end_label` (see the A.1 table). The SWC design §3.3, the Shared definitions §10 and the
+  Slice inputs §2 describe the type without it; they are not edited here, and the plan above is the authority.
+- A per-share cell is formatted by `format_money` in every case, and its `--json` unit says when no currency was
+  recorded (owner decision, recorded above).
+- A column whose cell labels differ between rows is headed by all of them, joined with " / ", and the values of
+  the later labels carry a marker explained by a legend line (F1). The alternative, the first run's label alone,
+  would mislabel the others.
+- Momentum's text value drops the word "Trend" from the concise output's `Status:` line. The alternatives were the
+  full "Bullish Trend", which repeats the column header, and a second spelling of the enum.
+- The scenario helper `tests/_workspace_command_output.py` and the stored `runs-compare*.txt` files were added within
+  B.2's stored-outputs row. No existing stored output changed.
+- The text table's width: the example is 174 to 186 characters (the plan said about 150); 3.5.3 decides the layout for
+  more strategies, as the scope limit says.
 
 ---
 
@@ -388,18 +515,18 @@ Untouched, and checked by the conformance tests: `vocabulary`, `settings`, `tool
 
 | Area | File | Change |
 | :--- | :--- | :--- |
-| Policy | `AGENTS.md` | §0 removed, in the first commit |
+| Policy | `AGENTS.md`, `tests/test_documented_conventions.py` | §0 removed and the two §4 rules added, in the first commit; the test drops its look-up of section 0 and asserts that none exists |
 | Types | `reporting/headline.py` (new) | `CellKind`, `HeadlineCell`, `Headline`, the unit constants, with the invariants of the cell tables |
 | Bundle | `strategy_wiring.py` | `headline` on `StrategyBehavior`; `headline_for` on `BehaviorView` with the exact-type guard; the four declarations; `headlines_by_key` |
 | Strategies | `strategies/{momentum,graham_number,graham_growth,fcf_growth}/replay.py` | `headline_<strategy>` |
-| Read | `workspace/repositories/analysis_runs.py` | the full runs of one refresh, in batch order |
-| Table | `workspace_documents/refresh_table.py` (new) | the builder, the typed document, the text renderer |
-| Documents | `workspace_documents/json_documents.py`, `schemas/refresh-table.schema.json` | the `JSON_DOCUMENTS` entry and the schema |
+| Read | `workspace/repositories/analysis_runs.py` | `list_refresh_runs`: the runs of one refresh in batch order, as `StoredRefreshRun` records whose envelope decodes on demand |
+| Table | `workspace_documents/runs_compare.py` (new) | the builder, the typed document, the text renderer |
+| Documents | `workspace_documents/json_documents.py`, `schemas/runs-compare.schema.json` | the `JSON_DOCUMENTS` entry and the schema |
 | Command | `cli_workspace.py` | `runs compare` |
 | Generator | `scripts/strategy_templates/replay.py.tmpl`, `scripts/strategy_sites.toml`, `scripts/strategy_conformance.py` | the `headline_` name pattern in the replay row and its check; T15's member sets |
 | Specimen | `tests/specimen/` | a `headline` for the specimen strategy |
 | Guide | `docs/TOOL_DEVELOPMENT.md` | regenerated; shortfalls recorded in the implementation record |
-| Stored outputs | `tests/expected_output/workspace_commands/`, `tests/expected_output/cli_help/` | the new command's output and help, if the snapshots cover the `runs` group |
+| Stored outputs | `tests/_workspace_command_output.py`, `tests/expected_output/workspace_commands/` | the scenario's three `runs compare` steps and their stored output; the help snapshots do not cover the `runs` group, so none changes |
 | Docs | see [B.3](#b3-documentation) | |
 
 TOOL_DEVELOPMENT edit-site rows touched: `replay` (the headline function), `descriptor` (the `headline` argument of
@@ -411,8 +538,8 @@ rows of the guide. The new command is not a strategy: it has no descriptor, no C
 | Document | 3.5.0a | 3.5.0b |
 | :--- | :--- | :--- |
 | `docs/user/strategies/MOMENTUM.md` | status, exit codes, the stored failure runs, short history | |
-| `docs/user/WORKSPACE.md` | refresh shows a stored Momentum failure | the table and `runs compare`, with the text example |
-| `docs/user/USAGE.md`, `docs/user/GLOSSARY.md` | exit code and status wording for Momentum | the term "headline" if not defined |
+| `docs/user/WORKSPACE.md` | refresh shows a stored Momentum failure | the table and `runs compare`, with the text example, the older-version rule and the `--no-save` and duplicate cases |
+| `docs/user/USAGE.md`, `docs/user/GLOSSARY.md` | exit code and status wording for Momentum | `runs compare` in the list of `--json` commands; the term "headline" |
 | `docs/user/FINANCE_MATH.md` | none: no formula changes | none |
 | `docs/TOOL_DEVELOPMENT.md` | the native-status wording, regenerated | regenerated |
 | The Step 3.5 shared definitions and SWC design | updated by the planning commit | none |
@@ -481,10 +608,22 @@ Invariants
   fiscal year-ends shown, not normalized; a refresh holding one strategy; a watchlist edited after the refresh;
   a refresh larger than the 100-row query limit.
 - **Failures:** an unknown ID and a `--no-save` refresh give the same message; two runs for one ticker and strategy
-  name the duplicates; both through the failure envelope with the codes above; a malformed ID.
+  name the duplicates; both through the failure envelope with the codes above; a malformed ID. The command checks for
+  the empty refresh and for the duplicates itself, so that no exception class declares a new failure code.
 - **Command:** exit 0 for a table full of `failed` runs; the text equals the reviewed layout, including the
   more-than-one `as_of` line; `--json` validates against the schema and equals the text's content.
 - **Wiring:** `headline_for` rejects another strategy's result (T11); T15's member sets; T16 reads `headline_for`;
   T8 replay; T20 and T21 for the schema and the `JSON_DOCUMENTS` entry; the generator's end-to-end test with the new
   template; the site check for the replay row; the specimen strategy's headline.
+- **Runs the table cannot read (E3):** a Momentum run stored before 3.5.0a keeps its row, shows its outcome from the
+  stored envelope and is named below the table, with a null `--json` headline and exit 0; a run of a strategy no
+  longer declared follows the declared columns; a run with invalid evidence and a run with a malformed envelope each
+  refuse the table with `invalid_stored_run`, naming the run.
+- **Differing labels in one column (F1):** a refresh that mixes total and per-share FCF-Growth runs gets the joined
+  header, a marker on each later-label value (absent ones too) and one legend line; a refresh whose runs share one
+  label has none.
+- **Period ends (F3):** "not recorded" for an override and for an FCF-Growth run with no span; Momentum is left out.
+- **The currency decision:** a Graham Number with `--eps` and `--bvps`, and a Graham Growth with `--eps`, give a unit
+  of "currency unspecified per share" and the text "(currency unspecified)"; a reported currency follows the number.
+- **Formatting:** percent, points, multiples, a per-share amount and the true minus sign, on synthetic cells.
 - **Documents:** the link and sequence-table checks over the updated guide and `WORKSPACE.md`.

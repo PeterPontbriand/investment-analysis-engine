@@ -129,6 +129,7 @@ BEHAVIOR_MEMBERS: frozenset[str] = frozenset(
         "ticker_of",
         "handler",
         "native_status",
+        "headline",
         "project",
     }
 )
@@ -152,7 +153,7 @@ CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "refresh", "c
 """The documented fields of a CLI-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset(
-    {"result_type", "encode_object", "decode_for", "native_status_of", "bind_handler", "project_for"}
+    {"result_type", "encode_object", "decode_for", "native_status_of", "headline_for", "bind_handler", "project_for"}
 )
 """The behavior members that generic consumers can reach, through the erased view."""
 
@@ -1156,6 +1157,10 @@ def undeclared_input_gaps(
         )
         _expect_undeclared(
             gaps, f"{label(item)} native_status_of(subclass)", partial(behavior.native_status_of, subclass_instance)
+        )
+        _expect_undeclared(gaps, f"{label(item)} headline_for(object)", partial(behavior.headline_for, object()))
+        _expect_undeclared(
+            gaps, f"{label(item)} headline_for(subclass)", partial(behavior.headline_for, subclass_instance)
         )
         _expect_undeclared(
             gaps, f"{label(item)} bind_handler(object)", partial(behavior.bind_handler, object(), runtime)
