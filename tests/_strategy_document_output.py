@@ -88,6 +88,7 @@ from tests._direct_command_output import (
     _FixtureYahoo,
     enter_fixture_providers,
     normalize,
+    provider_check_switched_off,
 )
 from tests._migrated_database import migrated_database_url
 from tests._sec_labeled_graham import SecLabeledGrahamProvider
@@ -520,14 +521,15 @@ def produce(stem: str) -> CommandOutput:
 
 
 def regenerate() -> None:
-    """Rewrite every stored file from the current behavior."""
-    EXPECTED_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    for stem in cases():
-        output = produce(stem)
-        if output.exit_code != expected_exit_code(stem):
-            raise SystemExit(f"{stem} exited {output.exit_code}; refusing to store its output")
-        json.loads(output.stdout)
-        expected_path(stem).write_bytes(output.stdout)
+    """Rewrite every stored file from the current behavior, with the provider check off."""
+    with provider_check_switched_off():
+        EXPECTED_DIRECTORY.mkdir(parents=True, exist_ok=True)
+        for stem in cases():
+            output = produce(stem)
+            if output.exit_code != expected_exit_code(stem):
+                raise SystemExit(f"{stem} exited {output.exit_code}; refusing to store its output")
+            json.loads(output.stdout)
+            expected_path(stem).write_bytes(output.stdout)
 
 
 if __name__ == "__main__":
