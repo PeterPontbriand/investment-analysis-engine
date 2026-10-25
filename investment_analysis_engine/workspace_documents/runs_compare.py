@@ -54,6 +54,8 @@ MISSING: str = "—"
 """What the text table shows for a value that is absent."""
 
 _NO_RUN = "no stored run"
+_NOT_RECORDED = "not recorded"
+_MARKERS = ("†", "‡", "§", "¶")
 _UNREADABLE = ("unsupported_version", "strategy_not_declared")
 _PER_SHARE_SUFFIX = " per share"
 _SUPPORTED_RUN_SCHEMA_VERSION = 3
@@ -389,26 +391,48 @@ def format_cell(cell: CompareCellDocument) -> str:
     return _minus(text)
 
 
-def _cell_columns(document: RunsCompareDocument) -> list[list[str]]:
-    """Return, for each strategy, the headers of its cell columns, taken verbatim from the runs' cell labels."""
-    result: list[list[str]] = []
+def _column_labels(document: RunsCompareDocument) -> list[list[list[str]]]:
+    """Return, for each strategy's cell columns, the distinct labels its runs give each, first seen first."""
+    result: list[list[list[str]]] = []
     for index in range(len(document.strategies)):
-        labels: list[list[str]] = []
-        for row in document.rows:
-            run = row.entries[index].run
-            if run is not None and run.headline is not None:
-                labels.append([cell.label for cell in run.headline.cells])
-        width = max((len(item) for item in labels), default=0)
+        runs = [row.entries[index].run for row in document.rows]
+        labelled = [[cell.label for cell in run.headline.cells] for run in runs if run is not None and run.headline]
+        width = max((len(item) for item in labelled), default=0)
         result.append(
             [
-                " / ".join(dict.fromkeys(item[position] for item in labels if position < len(item)))
+                list(dict.fromkeys(item[position] for item in labelled if position < len(item)))
                 for position in range(width)
             ]
         )
     return result
 
 
-def _entry_cells(run: CompareRunDocument | None, headers: list[str]) -> list[str]:
+def _markers(labels: list[list[list[str]]]) -> dict[tuple[int, int, str], str]:
+    """Assign a marker to each label that is not the first of its column, in the order the columns are met.
+
+    A column whose runs give different labels (FCF-Growth on the total basis and on the per-share basis) is headed by
+    all of them, and a value whose label is not the first one carries its marker, which the legend explains.
+    """
+    found = [
+        (index, position, label)
+        for index, columns in enumerate(labels)
+        for position, column in enumerate(columns)
+        for label in column[1:]
+    ]
+    return {key: _MARKERS[number] if number < len(_MARKERS) else f"[{number + 1}]" for number, key in enumerate(found)}
+
+
+def _legend_lines(markers: dict[tuple[int, int, str], str]) -> list[str]:
+    """Return one line per marker, naming the label it stands for; none when no column mixes labels."""
+    return [
+        f"{marker} marks a value labelled {label}, not the first label of its column header"
+        for (_i, _p, label), marker in markers.items()
+    ]
+
+
+def _entry_cells(
+    run: CompareRunDocument | None, headers: list[str], markers: dict[tuple[int, int, str], str], index: int
+) -> list[str]:
     """Return the formatted cells of one entry, then its outcome, matched to the strategy's cell columns."""
     if run is None:
         absent = [_NO_RUN, *([MISSING] * len(headers))]
@@ -416,12 +440,14 @@ def _entry_cells(run: CompareRunDocument | None, headers: list[str]) -> list[str
     cells = [MISSING] * len(headers)
     if run.headline is not None:
         for position, cell in enumerate(run.headline.cells):
-            cells[position] = format_cell(cell)
+            cells[position] = format_cell(cell) + markers.get((index, position, cell.label), "")
     return [*cells, run.outcome.value]
 
 
-def _table(document: RunsCompareDocument) -> list[str]:
-    headers = _cell_columns(document)
+def _table(
+    document: RunsCompareDocument, labels: list[list[list[str]]], markers: dict[tuple[int, int, str], str]
+) -> list[str]:
+    headers = [[" / ".join(column) for column in columns] for columns in labels]
     group_row = [
         "",
         *[
@@ -434,7 +460,11 @@ def _table(document: RunsCompareDocument) -> list[str]:
     body = [
         [
             row.ticker,
-            *[value for index, entry in enumerate(row.entries) for value in _entry_cells(entry.run, headers[index])],
+            *[
+                value
+                for index, entry in enumerate(row.entries)
+                for value in _entry_cells(entry.run, headers[index], markers, index)
+            ],
         ]
         for row in document.rows
     ]
@@ -452,7 +482,7 @@ def _period_lines(document: RunsCompareDocument) -> list[str]:
             headline = None if entry.run is None else entry.run.headline
             if headline is None or headline.period_end_label is None:
                 continue
-            when = MISSING if headline.period_end is None else headline.period_end.date().isoformat()
+            when = _NOT_RECORDED if headline.period_end is None else headline.period_end.date().isoformat()
             parts.append(f"{document.strategies[index].label}: {headline.period_end_label} {when}")
         if parts:
             lines.append(f"  {row.ticker:<{width}}  " + " · ".join(parts))
@@ -471,7 +501,12 @@ def render_runs_compare_text(document: RunsCompareDocument) -> str:
     tickers = _count(len(document.rows), "ticker", "tickers")
     strategies = _count(len(document.strategies), "strategy", "strategies")
     title += f" · {tickers} · {strategies}"
-    lines = [title, "", *_table(document)]
+    labels = _column_labels(document)
+    markers = _markers(labels)
+    lines = [title, "", *_table(document, labels, markers)]
+    legend = _legend_lines(markers)
+    if legend:
+        lines += ["", *legend]
     runs = [
         (row.ticker, document.strategies[index], entry.run)
         for row in document.rows

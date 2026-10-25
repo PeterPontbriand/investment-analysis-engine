@@ -195,8 +195,8 @@ its own quality gate and authorization.
   `--json`, and the orchestrator tool: `ToolName` member, arguments model, dependency class and handler),
   presenter, tests, user guide, Finance Math and Glossary entries, covering every site in the edit-site table;
   and the repetition checkpoint above.
-  - The side-by-side table's one-line-per-ticker text layout is about 150 characters wide over four strategies and
-    would be about 400 over eleven. This slice adds the fifth strategy, so its slice plan decides the text layout for
+  - The side-by-side table's one-line-per-ticker text layout is about 170 characters wide over four strategies (the
+    3.5.0 slice plan measured 174 to 186) and would be about 460 over eleven. This slice adds the fifth strategy, so its slice plan decides the text layout for
     more strategies. `--json` is unaffected.
 - **Detail:** [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score)
   the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md) and

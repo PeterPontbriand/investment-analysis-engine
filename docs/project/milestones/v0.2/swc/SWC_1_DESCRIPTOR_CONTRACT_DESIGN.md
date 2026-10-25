@@ -174,14 +174,20 @@ class HeadlineCell:
 @dataclass(frozen=True)
 class Headline:
     cells: tuple[HeadlineCell, ...]  # fixed order
-    period_end: datetime | None  # None when the strategy has no fiscal period
+    period_end: datetime | None  # None when the strategy has no fiscal period, or the run recorded none
     taxonomy: str | None  # None when the strategy reads no filing taxonomy
+    period_end_label: str | None  # what the period end is, in the strategy's words
 ```
 
 The shape was checked on paper against all eleven strategies (four existing, seven new); the cells per
 strategy are listed in [Step 3.5 slice inputs §2](../step-3.5/STEP_3_5_SLICE_INPUTS.md#2-350--side-by-side-refresh-table).
 Number cells carry the metric's own `MetricStatus` or, for the Graham results, their `CalculationStatus`;
-text cells carry none. The member is added by Step 3.5 slice 3.5.0, over the four existing strategies, so it
+text cells carry none. The `period_end_label` is part of the headline because the table must not show a period
+end under a plainer name than the strategy gives it (for the Graham strategies, the period end of the earnings
+input, not of the whole run); a period end without a label is refused by the type. A strategy that has a fiscal
+period but whose run recorded none (a Graham override, an FCF-Growth run with no span) sets the label and no
+period end, and the table shows "not recorded"; a strategy with no fiscal period (Momentum) sets neither and is
+left out of the table's period-ends block. The member is added by Step 3.5 slice 3.5.0, over the four existing strategies, so it
 has a consumer before any new analyzer is written and every new strategy supplies it from the start. That
 one slice updates, together, the four existing declarations, the generator's `replay.py` template, the
 site data file's row for the replay file, the specimen's replay file and the member set that T15 checks.
@@ -944,7 +950,7 @@ function returns `None`.
 | `encode`, `decode`, `ticker_of` | A strict codec over the strategy's result; `.ticker`. | None. |
 | `native_status` | Returns the result's `execution_status` value. | None for the seven. |
 | `project` | Replay over decoded evidence and selection through the strategy's presenter, with no provider, cache, clock or calculator. | None. |
-| `headline` | A `Headline` of one to three cells, a period end and a taxonomy, as [§3.3](#33-behavior-members-and-the-two-tiers) defines. | Momentum has no period end or taxonomy. |
+| `headline` | A `Headline` of one to three cells, a period end and a taxonomy, as [§3.3](#33-behavior-members-and-the-two-tiers) defines. | Momentum has no period end, label or taxonomy. |
 | CLI file (`command`, `build`, `refresh`) | The command with `--save-run` and `--json`; a `refresh` that composes a fresh SEC provider and cache per call, as `_execute_fcf_growth` does. | None. |
 | Evaluation file (`compose`, `requirement`) | Fixtures from the captured filings 3.5.7 supplies; the requirement names them. | None. |
 | Envelope and identity | A typed document and unique `analysis` and `method` ids. | Altman's root model carries both model variants. |

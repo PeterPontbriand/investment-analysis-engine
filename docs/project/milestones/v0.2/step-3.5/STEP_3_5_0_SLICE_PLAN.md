@@ -213,8 +213,12 @@ the run's `execution_status` and the run's reason code, if it carries one.
   and shows "—". FCF-Growth's class is the word of the `Screen:` line. Neither is a second spelling of an enum value.
 - **The FCF CAGR cell names its basis.** The classification basis is a per-run option (`--classification-basis`).
   The cell keeps the stable key `fcf_cagr`, and its label names the run's basis: "FCF CAGR" for total FCF, "FCF/share
-  CAGR" for per share. The text table uses the label as the column header, so a column that holds both bases reads
-  "FCF CAGR / FCF/share CAGR". This replaces the per-value marker and legend line of amendment A2 (E4).
+  CAGR" for per share. The text table uses the label as the column header (E4), so a column that holds both bases
+  reads "FCF CAGR / FCF/share CAGR". This is a general rule for any column whose cell labels differ between rows:
+  the header joins the labels in the order they are first met, a value whose label is not the first one carries a
+  marker (†, ‡, §, ¶), and a legend line below the table names the label each marker stands for. The legend appears
+  only when such a column exists. A2's marker and legend line are therefore kept, and generalized from the FCF basis to
+  any differing label; E4 only made the headers verbatim (review fix, 2026-10-25).
 - **Currency (owner decision, 2026-10-25).** An `ok` Graham value does not always have a currency: an override
   (`--eps`, `--bvps`) carries none, and a Graham Number with both overridden, or a Graham Growth with `--eps`, has no
   currency. A per-share cell is therefore written by `format_money` of `reporting/presentation.py`, in every case, so
@@ -226,7 +230,7 @@ the run's `execution_status` and the run's reason code, if it carries one.
 
 | Strategy | Period end | Taxonomy |
 | :--- | :--- | :--- |
-| Momentum | not recorded (it has no fiscal period) | not recorded |
+| Momentum | none: it has no fiscal period, so it is left out of the period-ends block | not recorded |
 | Graham Number | the observation period end of the earnings (EPS) input: the newest of the three annual periods it averages; not recorded when EPS was an override (`--eps`), which carries no period. Label: "earnings input period end" | not recorded |
 | Graham Growth | the observation period end of the EPS input; not recorded when it was an override. Label: "earnings input period end" | not recorded |
 | FCF-Growth | the recorded `period_end` of the selected span. Label: "selected span end" | not recorded |
@@ -261,36 +265,42 @@ Refresh 3f1c0b52-6f6e-4c52-9a52-0d3e8f4a1b77 · watchlist "Core" · 3 tickers ·
 Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome    FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome
 ACME     Bullish   100.0  completed    36.69 USD      —       completed    66.28 USD      —       completed  10.2%                      17.6%     PASS           completed
 BOLT     —         100.0  unavailable  —              —       unavailable  no stored run  —       —          —                          —         INDETERMINATE  unavailable
-CRUX     —         —      failed       —              —       failed       —              —       failed     10.2%                      17.6%     PASS           completed
+CRUX     —         —      failed       —              —       failed       —              —       failed     10.2%†                     17.6%     PASS           completed
+
+† marks a value labelled FCF/share CAGR, not the first label of its column header
 
 Period ends
   ACME     Graham Number: earnings input period end 2024-06-30 · Graham Growth: earnings input period end 2024-06-30 · FCF Growth: selected span end 2025-01-01
-  BOLT     Graham Number: earnings input period end — · FCF Growth: selected span end —
-  CRUX     Graham Number: earnings input period end — · Graham Growth: earnings input period end — · FCF Growth: selected span end 2025-01-01
+  BOLT     Graham Number: earnings input period end not recorded · FCF Growth: selected span end not recorded
+  CRUX     Graham Number: earnings input period end not recorded · Graham Growth: earnings input period end not recorded · FCF Growth: selected span end 2025-01-01
 
-Could not be read (stored under an older version, or for a strategy no longer declared): d32e...
+Could not be read (stored under an older version, or for a strategy no longer declared): 9d1e...
 
 Runs (open one with: ian runs show <run-id>)
-  ACME     momentum       aea5...
-  ACME     graham-number  0b45...
-  ACME     graham-growth  4922...
-  ACME     fcf-growth     600f...
-  BOLT     momentum       b509...
-  BOLT     graham-number  d9fa...
-  BOLT     fcf-growth     5575...
-  CRUX     momentum       d32e...
-  CRUX     graham-number  78c7...
-  CRUX     graham-growth  3ebb...
-  CRUX     fcf-growth     9f06...
+  ACME     momentum       cbbd...
+  ACME     graham-number  7a65...
+  ACME     graham-growth  db73...
+  ACME     fcf-growth     6b82...
+  BOLT     momentum       2f07...
+  BOLT     graham-number  b265...
+  BOLT     fcf-growth     01fc...
+  CRUX     momentum       9d1e...
+  CRUX     graham-number  99e3...
+  CRUX     graham-growth  27de...
+  CRUX     fcf-growth     4136...
 ```
 
 - **The table holds the headline cells and the outcome of each strategy.** Period ends and run IDs are listed
   below it, one run per line with the full ID, because `runs show` takes the full UUID.
 - **The header of a column is its cell's label (E4).** A column that holds runs of both FCF bases is headed by both
-  labels. A strategy none of whose runs could be read has an `Outcome` column only.
+  labels, each per-share value carries the marker †, and the legend line "† marks a value labelled FCF/share CAGR,
+  not the first label of its column header" follows the table. The example shows both. A value that is absent
+  carries the marker too, because the marker says which label the value would have had. A strategy none of whose runs
+  could be read has an `Outcome` column only.
 - **A missing pair** shows "no stored run" in the strategy's first cell column and "—" in the rest of its columns.
 - **Period ends** are listed per ticker in the strategy's own words ("earnings input period end", "selected span
-  end"); Momentum has none and is not listed.
+  end"). A strategy that has a fiscal period but whose run recorded none shows "not recorded", as the failed and
+  missing runs of BOLT and CRUX do; Momentum has no fiscal period and is left out of the block, as the taxonomy line is.
 - **The taxonomy line is left out of the text** while no run records one. `--json` carries the field.
 - **Requested `as_of` dates are shown only when the refresh holds more than one:** a line "Requested as-of:" naming
   each. Here every run has none, so the line is absent. `--json` always carries `requested_as_of` per run.
@@ -400,12 +410,16 @@ Approved by the project owner for 3.5.0b (2026-10-25):
 | E1 | Replacement for §0's stored-data rule | §0 is removed entirely. `AGENTS.md` §4, under "Implementation preservation", states a permanent rule: a change to a persisted selection, evidence or result shape bumps its version field; runs stored under an older version stay in the database and are refused by version when read (`UnsupportedRunVersionError`), never misread; no migration or compatibility decoder is written unless the active plan requires one; the pull request lists such a change among its user-visible changes. |
 | E2 | "Open items" | §4 states: "Open items" are not an acceptable outcome of a design decision; decide, or escalate to the project owner. §0's other rules are already stated in §3 and §4. |
 | E3 | A refresh holding runs the table cannot read | As in the [table rules](#table-rules-d7): an older version or an undeclared strategy renders with the outcome from the stored envelope, "—" cells, a note line and a null `--json` headline, exit 0; invalid evidence refuses the table with `invalid_stored_run`. Both cases are tested; a Momentum run stored before 3.5.0a is the older-version test. |
-| E4 | Headers and text values | The text table's column header is the cell's label, verbatim; labels are Trend, RSI, Max price, Margin, Value, Margin, FCF CAGR (or FCF/share CAGR), EPS CAGR, Class. Text values are the words of the strategy's own concise output; Momentum's `UNKNOWN` is no value. This replaces A2's per-value marker and legend line. |
+| E4 | Headers and text values | The text table's column header is the cell's label, verbatim; labels are Trend, RSI, Max price, Margin, Value, Margin, FCF CAGR (or FCF/share CAGR), EPS CAGR, Class. Text values are the words of the strategy's own concise output; Momentum's `UNKNOWN` is no value. A2's marker and legend line stay for differing labels in one column (see F1). |
 | E5 | The new document | `workspace_documents/runs_compare.py`, `schemas/runs-compare.schema.json`, `RunsCompareDocument`, `schema_version` 1 first among its keys. |
 | E6 | Record of guide shortfalls | In the [implementation record](#a3-350b-implementation-record-2026-10-25) below, linked from the 3.5.3 section of the contract. |
 | E7 | Commits | Five commits in the order the owner gave. |
 | E8 | Sequence tables | 3.5.0b is Complete here and in the contract's §2, and 3.5.1 is Next; the milestone's Step 3.5 row stays In progress. |
 | Currency | A per-share cell with no recorded currency | The 3.5.0b check found that an override carries no currency, so an `ok` Graham value can have none. Every per-share cell in the text table is written by `format_money` ("142.10 USD", or "142.10 (currency unspecified)"); the `--json` unit is "<currency> per share" or "currency unspecified per share". |
+| F1 | Differing labels in one column (2026-10-25 review) | The joined header stays, as a general rule for any column whose labels differ between rows. Each value whose label is not the first in the header carries a marker, and a legend line below the table names the label the marker stands for; the line appears only when such a column exists. Tested with a refresh that mixes total and per-share FCF-Growth runs. |
+| F2 | `period_end_label` (2026-10-25 review) | Approved. Added to the `Headline` type in the SWC design §3.3, Shared definitions §10 and Slice inputs §2. |
+| F3 | Period ends the run did not record (2026-10-25 review) | A strategy that has a fiscal period but whose run recorded none (a Graham override, an FCF-Growth run with no span, a failed run) shows "not recorded", not "—". A strategy with no fiscal period (Momentum) stays out of the period-ends block, as the taxonomy line does. Shared definitions §10 and Slice inputs §2 say so. |
+| F4 | Width figures (2026-10-25 review) | The contract's 3.5.3 bullet uses the measured width: about 170 over four strategies, about 460 over eleven. |
 | Period-end label | Naming the period end | `Headline` gains `period_end_label`, because a period end shown under a plainer name than its strategy gives it would mislead (the Graham strategies' EPS period). Decided by the implementer within the plan's goals; reported to the owner. |
 
 ### A.2 Premises checked against the code (2026-10-25)
@@ -458,7 +472,8 @@ below was found by a failing test or by reading the code, not from the guide. 3.
   Slice inputs §2 describe the type without it; they are not edited here, and the plan above is the authority.
 - A per-share cell is formatted by `format_money` in every case, and its `--json` unit says when no currency was
   recorded (owner decision, recorded above).
-- A column that mixes FCF bases is headed by both labels, joined with " / ". The alternative, the first run's label,
+- A column whose cell labels differ between rows is headed by all of them, joined with " / ", and the values of
+  the later labels carry a marker explained by a legend line (F1). The alternative, the first run's label alone,
   would mislabel the others.
 - Momentum's text value drops the word "Trend" from the concise output's `Status:` line. The alternatives were the
   full "Bullish Trend", which repeats the column header, and a second spelling of the enum.
@@ -604,6 +619,10 @@ Invariants
   stored envelope and is named below the table, with a null `--json` headline and exit 0; a run of a strategy no
   longer declared follows the declared columns; a run with invalid evidence and a run with a malformed envelope each
   refuse the table with `invalid_stored_run`, naming the run.
+- **Differing labels in one column (F1):** a refresh that mixes total and per-share FCF-Growth runs gets the joined
+  header, a marker on each later-label value (absent ones too) and one legend line; a refresh whose runs share one
+  label has none.
+- **Period ends (F3):** "not recorded" for an override and for an FCF-Growth run with no span; Momentum is left out.
 - **The currency decision:** a Graham Number with `--eps` and `--bvps`, and a Graham Growth with `--eps`, give a unit
   of "currency unspecified per share" and the text "(currency unspecified)"; a reported currency follows the number.
 - **Formatting:** percent, points, multiples, a per-share amount and the true minus sign, on synthetic cells.

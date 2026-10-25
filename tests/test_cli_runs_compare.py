@@ -71,14 +71,16 @@ def test_the_table_of_a_stored_refresh_equals_the_reviewed_layout(isolated_cli_s
         "MISSING  —         100.0  unavailable  —              —       unavailable  no stored run  —       —"
         "          —                          —         INDETERMINATE  unavailable",
         "ERROR    —         —      failed       —              —       failed       —              —       failed"
-        "     10.2%                      17.6%     PASS           completed",
+        "     10.2%†                     17.6%     PASS           completed",
+        "",
+        "† marks a value labelled FCF/share CAGR, not the first label of its column header",
         "",
         "Period ends",
         "  SYNTH    Graham Number: earnings input period end 2024-06-30 · Graham Growth: earnings input period end"
         " 2024-06-30 · FCF Growth: selected span end 2025-01-01",
-        "  MISSING  Graham Number: earnings input period end — · FCF Growth: selected span end —",
-        "  ERROR    Graham Number: earnings input period end — · Graham Growth: earnings input period end —"
-        " · FCF Growth: selected span end 2025-01-01",
+        "  MISSING  Graham Number: earnings input period end not recorded · FCF Growth: selected span end not recorded",
+        "  ERROR    Graham Number: earnings input period end not recorded"
+        " · Graham Growth: earnings input period end not recorded · FCF Growth: selected span end 2025-01-01",
         "",
         "Runs (open one with: ian runs show <run-id>)",
         f"  SYNTH    momentum       {ids[('SYNTH', momentum)]}",
@@ -224,6 +226,65 @@ def test_requested_as_of_dates_are_listed_only_when_more_than_one(isolated_cli_s
 _AS_OF = datetime(2026, 2, 1, tzinfo=UTC)
 
 
+def test_a_column_whose_runs_give_different_labels_is_headed_by_all_and_marks_the_later_ones(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    refresh_id = refresh(
+        isolated_cli_settings, entries=[("SYNTH", FCFGrowthSelection()), ("ERROR", PER_SHARE), ("MISSING", PER_SHARE)]
+    )
+
+    code, out, err = _compare(refresh_id)
+
+    assert (code, err) == (0, "")
+    lines = out.splitlines()
+    assert "FCF CAGR / FCF/share CAGR  EPS CAGR" in lines[3]
+    assert lines[4].split()[1] == "10.2%", "The first label's value carries no marker."
+    assert lines[5].split()[1] == "10.2%†"
+    assert lines[6].split()[1] == "—†", "A value that is absent still says which label it would have had."
+    assert lines[7] == ""
+    assert lines[8] == "† marks a value labelled FCF/share CAGR, not the first label of its column header"
+    assert out.count("marks a value labelled") == 1
+    document = _document(refresh_id)
+    labels = [row.entries[0].run.headline.cells[0].label for row in document.rows if row.entries[0].run]  # type: ignore[union-attr]
+    assert labels == ["FCF CAGR", "FCF/share CAGR", "FCF/share CAGR"], "--json keeps each run's own label."
+
+
+def test_no_legend_is_shown_when_every_run_of_a_column_has_the_same_label(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    refresh_id = refresh(
+        isolated_cli_settings, entries=[("SYNTH", FCFGrowthSelection()), ("ERROR", FCFGrowthSelection())]
+    )
+
+    _code, out, _err = _compare(refresh_id)
+
+    assert "†" not in out
+    assert "marks a value" not in out
+
+
+def test_a_strategy_with_a_fiscal_period_shows_not_recorded_and_momentum_is_left_out(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    refresh_id = refresh(
+        isolated_cli_settings,
+        entries=[
+            ("SYNTH", MOMENTUM),
+            ("SYNTH", GrahamNumberSelection(eps_override=5.0, bvps_override=10.0)),
+            ("ERROR", FCFGrowthSelection()),
+            ("ERROR", GrahamNumberSelection()),
+        ],
+    )
+
+    _code, out, _err = _compare(refresh_id)
+
+    block = out.split("Period ends\n", 1)[1].split("\n\n", 1)[0].splitlines()
+    assert block == [
+        "  SYNTH  Graham Number: earnings input period end not recorded",
+        "  ERROR  Graham Number: earnings input period end not recorded · FCF Growth: selected span end 2025-01-01",
+    ]
+    assert "Momentum:" not in "\n".join(block)
+
+
 # The currency of a per-share value ------------------------------------------------------------------------------
 
 
@@ -243,7 +304,7 @@ def test_overridden_earnings_and_book_value_show_the_value_without_a_currency(
     assert run.headline is not None
     assert run.headline.cells[0].unit == "currency unspecified per share"
     assert run.headline.period_end is None, "An override has no period."
-    assert "earnings input period end —" in out
+    assert "earnings input period end not recorded" in out
 
 
 def test_overridden_earnings_show_the_growth_value_without_a_currency(isolated_cli_settings: ProjectSettings) -> None:

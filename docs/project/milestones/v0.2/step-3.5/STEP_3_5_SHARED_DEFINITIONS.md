@@ -333,8 +333,12 @@ member and records one `refresh_id` on each run.
   the fiscal period end used, the taxonomy, and the run ID for drill-down.
 - **Headline cells:** each strategy supplies one pure `headline` function over its decoded result, in the
   SWC behavior bundle. A cell is a fixed-order entry with a stable key, a label, a number or a text, an
-  explicit unit and the metric's own status; the period end and taxonomy are fields of the whole headline.
-  A strategy with no fiscal period or no filing taxonomy (Momentum) shows "not recorded" for them.
+  explicit unit and the metric's own status; the period end, the label that says what the period end is, and the
+  taxonomy are fields of the whole headline.
+  A strategy with no fiscal period (Momentum) has neither period end nor label and is left out of the table's
+  period-ends block. A strategy that has a fiscal period but whose run recorded none (a Graham override, an
+  FCF-Growth run with no span) shows "not recorded". The taxonomy line is left out of the text while no run
+  records a taxonomy.
 - **Build order:** the table is built first, over the four existing strategies; every new strategy
   supplies `headline` from its own slice. It needs nothing from the new data mappings or shared metrics.
 - **One run per cell:** a refresh executes (ticker, selection) pairs, so the table requires at most
