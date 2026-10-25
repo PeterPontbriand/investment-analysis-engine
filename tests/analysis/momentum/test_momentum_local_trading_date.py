@@ -69,6 +69,7 @@ def test_date_boundary_on_a_zoned_frame_matches_the_local_dates(zone: str) -> No
     run = _run(_local_midnights(DAYS, zone), AS_OF_DATE_BOUNDARY)
 
     assert len(run.price_inputs) == 3
+    assert run.metrics is not None
     assert run.metrics.current_price == 102.0
     assert run.market_data.data_as_of == date(2026, 8, 12)
 

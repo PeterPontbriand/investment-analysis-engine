@@ -8,8 +8,10 @@ from uuid import UUID
 import pytest
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionEvent,
@@ -85,12 +87,15 @@ def _evidence() -> MomentumRun:
         security_unit_resolution=SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_UNSUPPORTED),
     )
     return MomentumRun(
-        MomentumMetrics(
+        ticker="CNR.TO",
+        effective_as_of=STAMP,
+        execution_status=CalculationStatus.OK,
+        metrics=MomentumMetrics(
             "CNR.TO", TrendStatus.BEARISH, 42.5, 44.0, 45.0, 0.0, STAMP, MetricResult.ok(30.0), MetricResult.ok(0.0)
         ),
-        MarketDataContext("yfinance", "1d", date(2026, 9, 10), "CAD", 2, "adjusted"),
-        (source, derived),
-        ResolutionTrace(
+        market_data=MarketDataContext("yfinance", "1d", date(2026, 9, 10), "CAD", 2, "adjusted"),
+        price_inputs=(source, derived),
+        resolution_trace=ResolutionTrace(
             (
                 ResolutionEvent(
                     "historical_close", ResolutionStage.CACHE, ResolutionOutcome.HIT, "Retained cache evidence."
@@ -100,8 +105,36 @@ def _evidence() -> MomentumRun:
                 ),
             )
         ),
-        profile,
-        HistoricalDataResolution(SourceKind.CACHE, STAMP, STAMP, STAMP, 1),
+        instrument_profile=profile,
+        data_resolution=HistoricalDataResolution(SourceKind.CACHE, STAMP, STAMP, STAMP, 1),
+    )
+
+
+def _unavailable_evidence() -> MomentumRun:
+    """A run that stopped before any calculation: no metrics, no price series."""
+    return MomentumRun(
+        ticker="CNR.TO",
+        effective_as_of=STAMP,
+        execution_status=CalculationStatus.INPUT_UNAVAILABLE,
+        metrics=None,
+        market_data=MarketDataContext(),
+        reason_code=ReasonCode.NOT_AVAILABLE_AS_OF,
+        reason="No price history is available at or before the requested --as-of boundary.",
+    )
+
+
+def _provider_error_evidence(*, classified: bool = True) -> MomentumRun:
+    """A run whose provider failed: no metrics, a fixed reason and, when classified, the failure record."""
+    record = ProviderFailureRecord(ProviderFailureKind.UNREACHABLE, "yfinance", "historical_close")
+    return MomentumRun(
+        ticker="CNR.TO",
+        effective_as_of=STAMP,
+        execution_status=CalculationStatus.PROVIDER_ERROR,
+        metrics=None,
+        market_data=MarketDataContext(),
+        reason_code=ReasonCode.PROVIDER_ERROR,
+        reason="Historical prices could not be retrieved from the market-data provider.",
+        provider_failure=record if classified else None,
     )
 
 
@@ -116,8 +149,8 @@ def _run(evidence: MomentumRun | None = None) -> AnalysisRun:
         started_at=STAMP,
         completed_at=STAMP,
         method_version=1,
-        result_schema_version=4,
-        evidence_codec_version=3,
+        result_schema_version=5,
+        evidence_codec_version=4,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(evidence or _evidence()),
     )
@@ -130,6 +163,7 @@ def test_full_typed_round_trip_through_json_envelope() -> None:
     assert restored == expected
     assert restored is not expected
     assert isinstance(restored, MomentumRun)
+    assert restored.metrics is not None
     assert isinstance(restored.metrics.status, TrendStatus)
     assert isinstance(restored.price_inputs[1].lineage, ComponentLineage)
     assert isinstance(restored.resolution_trace.events, tuple)
@@ -140,9 +174,13 @@ def test_full_typed_round_trip_through_json_envelope() -> None:
 @pytest.mark.parametrize("retained", [False, True])
 def test_optional_metrics_and_missing_profile_remain_explicit(retained: bool) -> None:
     original = _evidence()
+    assert original.metrics is not None
     missing = MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.INSUFFICIENT_HISTORY, "Short history.")
     evidence = replace(
         original,
+        execution_status=CalculationStatus.INPUT_UNAVAILABLE,
+        reason_code=ReasonCode.INSUFFICIENT_HISTORY,
+        reason="The long moving average requires 200 observations; 3 were available.",
         metrics=replace(
             original.metrics,
             status=TrendStatus.UNKNOWN,
@@ -189,8 +227,11 @@ def test_previous_result_schema_version_is_rejected_before_decoding() -> None:
     def unexpected_decode(_payload: object, _ticker: str) -> MomentumRun:
         raise AssertionError("Unsupported versions must be rejected before evidence decoding.")
 
-    with pytest.raises(UnsupportedRunVersionError, match="Unsupported"):
-        decode_evidence(_run().model_copy(update={"result_schema_version": 1}), codecs_with_decode(unexpected_decode))
+    for previous in (1, 4):
+        with pytest.raises(UnsupportedRunVersionError, match="Unsupported"):
+            decode_evidence(
+                _run().model_copy(update={"result_schema_version": previous}), codecs_with_decode(unexpected_decode)
+            )
 
 
 @pytest.mark.parametrize(
@@ -238,8 +279,109 @@ def test_mismatched_envelope_and_missing_payload() -> None:
 
 def test_invalid_native_instance_cannot_bypass_validation() -> None:
     evidence = _evidence()
+    assert evidence.metrics is not None
     with pytest.raises(InvalidStoredRunError):
         encode_native(replace(evidence, metrics=replace(evidence.metrics, current_price=float("inf"))))
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    [
+        pytest.param(_evidence(), id="ok"),
+        pytest.param(_unavailable_evidence(), id="input_unavailable-no-metrics"),
+        pytest.param(_provider_error_evidence(), id="provider_error-classified"),
+        pytest.param(_provider_error_evidence(classified=False), id="provider_error-unclassified"),
+    ],
+)
+def test_every_status_round_trips(evidence: MomentumRun) -> None:
+    restored = decode_evidence(_run(evidence), EVIDENCE_BY_KEY)
+    assert restored == evidence
+    assert isinstance(restored, MomentumRun)
+    assert restored.execution_status is evidence.execution_status
+
+
+def test_unknown_trend_with_metrics_round_trips_as_input_unavailable() -> None:
+    original = _evidence()
+    assert original.metrics is not None
+    evidence = replace(
+        original,
+        execution_status=CalculationStatus.INPUT_UNAVAILABLE,
+        reason_code=ReasonCode.INSUFFICIENT_HISTORY,
+        reason="The long moving average requires 200 observations; 3 were available.",
+        metrics=replace(original.metrics, status=TrendStatus.UNKNOWN, long_sma_val=None, crossover_signal=None),
+    )
+    assert decode_evidence(_run(evidence), EVIDENCE_BY_KEY) == evidence
+
+
+_OK_CHANGES: list[tuple[str, dict[str, object]]] = [
+    ("ok without metrics", {"metrics": None}),
+    ("ok with a reason", {"reason": "Unexpected."}),
+    ("ok with a reason code", {"reason_code": ReasonCode.INSUFFICIENT_HISTORY}),
+    ("unavailable without a reason", {"execution_status": CalculationStatus.INPUT_UNAVAILABLE}),
+    (
+        "unavailable with metrics but a known trend",
+        {
+            "execution_status": CalculationStatus.INPUT_UNAVAILABLE,
+            "reason": "Short.",
+            "reason_code": ReasonCode.INSUFFICIENT_HISTORY,
+        },
+    ),
+    ("not_applicable", {"execution_status": CalculationStatus.NOT_APPLICABLE}),
+    ("invalid_input", {"execution_status": CalculationStatus.INVALID_INPUT}),
+    (
+        "provider failure beside ok",
+        {"provider_failure": ProviderFailureRecord(ProviderFailureKind.UNREACHABLE, "yfinance")},
+    ),
+    ("run ticker differing from the metrics", {"ticker": "MSFT"}),
+    ("run time differing from the metrics", {"effective_as_of": datetime(2026, 9, 11, tzinfo=UTC)}),
+    ("naive time", {"effective_as_of": datetime(2026, 9, 10, 12)}),
+]
+
+
+@pytest.mark.parametrize(("label", "change"), _OK_CHANGES, ids=[label for label, _ in _OK_CHANGES])
+def test_inconsistent_status_evidence_is_rejected(label: str, change: dict[str, object]) -> None:
+    assert label
+    with pytest.raises(InvalidStoredRunError):
+        encode_native(replace(_evidence(), **change))  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"metrics": _evidence().metrics},
+        {"reason_code": ReasonCode.INSUFFICIENT_HISTORY},
+        {"reason": ""},
+        {"reason": None},
+        {"execution_status": CalculationStatus.INPUT_UNAVAILABLE},
+    ],
+    ids=["with-metrics", "other-code", "empty-reason", "no-reason", "unavailable-with-failure"],
+)
+def test_inconsistent_failure_evidence_is_rejected(change: dict[str, object]) -> None:
+    with pytest.raises(InvalidStoredRunError):
+        encode_native(replace(_provider_error_evidence(), **change))  # type: ignore[arg-type]
+
+
+def test_unavailable_run_without_metrics_accepts_only_the_boundary_code_or_none() -> None:
+    with pytest.raises(InvalidStoredRunError):
+        encode_native(replace(_unavailable_evidence(), reason_code=ReasonCode.INSUFFICIENT_HISTORY))
+    assert encode_native(replace(_unavailable_evidence(), reason_code=None))
+
+
+def test_a_payload_with_an_unknown_status_is_rejected_on_decode() -> None:
+    run = _run()
+    assert run.result_evidence is not None
+    run.result_evidence["run"]["execution_status"] = "invalid"
+    with pytest.raises(InvalidStoredRunError):
+        decode_evidence(run, EVIDENCE_BY_KEY)
+
+
+def test_a_payload_of_the_previous_shape_is_rejected_on_decode() -> None:
+    run = _run()
+    assert run.result_evidence is not None
+    for key in ("ticker", "effective_as_of", "execution_status"):
+        del run.result_evidence["run"][key]
+    with pytest.raises(InvalidStoredRunError):
+        decode_evidence(run, EVIDENCE_BY_KEY)
 
 
 def test_security_unit_documents_round_trip_and_reject_naive_dates() -> None:

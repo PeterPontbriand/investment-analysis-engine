@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
 from investment_analysis_engine.evaluation.cases.momentum import (
@@ -124,15 +125,22 @@ async def test_reviewed_momentum_cases_run_deterministically_and_pass() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("case", "status", "rsi_status", "rsi_reason"),
+    ("case", "execution_status", "status", "rsi_status", "rsi_reason"),
     [
-        (MOMENTUM_SUCCESS_CASE, TrendStatus.BULLISH, MetricStatus.OK, None),
-        (MOMENTUM_BOUNDARY_CASE, TrendStatus.UNKNOWN, MetricStatus.UNAVAILABLE, ReasonCode.INSUFFICIENT_HISTORY),
-        (MOMENTUM_ETF_CASE, TrendStatus.BULLISH, MetricStatus.OK, None),
+        (MOMENTUM_SUCCESS_CASE, CalculationStatus.OK, TrendStatus.BULLISH, MetricStatus.OK, None),
+        (
+            MOMENTUM_BOUNDARY_CASE,
+            CalculationStatus.INPUT_UNAVAILABLE,
+            TrendStatus.UNKNOWN,
+            MetricStatus.UNAVAILABLE,
+            ReasonCode.INSUFFICIENT_HISTORY,
+        ),
+        (MOMENTUM_ETF_CASE, CalculationStatus.OK, TrendStatus.BULLISH, MetricStatus.OK, None),
     ],
 )
 async def test_reviewed_momentum_native_status_and_boundary_fields_are_exact(
     case: Case,
+    execution_status: CalculationStatus,
     status: TrendStatus,
     rsi_status: MetricStatus,
     rsi_reason: ReasonCode | None,
@@ -149,7 +157,9 @@ async def test_reviewed_momentum_native_status_and_boundary_fields_are_exact(
         clock_at=EXECUTED_AT,
     )
     assert isinstance(result.result, MomentumRun)
+    assert result.result.execution_status is execution_status
     metrics = result.result.metrics
+    assert metrics is not None
     assert metrics.status is status
     assert metrics.rsi_result is not None
     assert metrics.rsi_result.status is rsi_status

@@ -14,7 +14,9 @@ from typer.testing import CliRunner
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_composition import build_graham_resolver
 from investment_analysis_engine.config import settings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
@@ -39,6 +41,7 @@ runner = CliRunner()
 # The suite switches the automatic provider check off (tests/conftest.py), which the first line after a Yahoo
 # failure says.
 _YAHOO_NOT_CHECKED_SWITCHED_OFF = "Yahoo Finance was not checked (the provider check is turned off)."
+_PROVIDER_FAILURE_REASON = "Historical prices could not be retrieved from the market-data provider."
 
 
 def test_root_help_exposes_analysis_commands_without_shell_setup() -> None:
@@ -138,6 +141,9 @@ def test_cli_main_callback() -> None:
 def mock_momentum_run(mock_metrics: MomentumMetrics) -> MomentumRun:
     """Pair mock Momentum metrics with retained daily market context."""
     return MomentumRun(
+        ticker=mock_metrics.ticker,
+        effective_as_of=mock_metrics.timestamp,
+        execution_status=CalculationStatus.OK,
         metrics=mock_metrics,
         market_data=MarketDataContext(
             provider_id="fixture-market-source",
@@ -187,7 +193,10 @@ def test_cli_momentum_known_etf_remains_applicable_and_retains_kind(
     mock_run: MagicMock,
     mock_momentum_run: MomentumRun,
 ) -> None:
-    mock_run.return_value = replace(mock_momentum_run, metrics=replace(mock_momentum_run.metrics, ticker="FLSW"))
+    assert mock_momentum_run.metrics is not None
+    mock_run.return_value = replace(
+        mock_momentum_run, ticker="FLSW", metrics=replace(mock_momentum_run.metrics, ticker="FLSW")
+    )
     carry_profile(mock_run)
     profile = fixture_instrument_profile(
         "FLSW",
@@ -249,6 +258,9 @@ def test_cli_momentum_reports_identity_from_retained_market_context(
     mock_metrics: MomentumMetrics,
 ) -> None:
     mock_run.return_value = MomentumRun(
+        ticker=mock_metrics.ticker,
+        effective_as_of=mock_metrics.timestamp,
+        execution_status=CalculationStatus.OK,
         metrics=mock_metrics,
         market_data=MarketDataContext(
             provider_id="alternate-market-source",
@@ -280,6 +292,11 @@ def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: Magi
         timestamp=datetime(2026, 8, 22, 12, 0, tzinfo=UTC),
     )
     mock_run.return_value = MomentumRun(
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=CalculationStatus.INPUT_UNAVAILABLE,
+        reason_code=ReasonCode.INSUFFICIENT_HISTORY,
+        reason="The long moving average requires 200 observations; 3 were available.",
         metrics=metrics,
         market_data=MarketDataContext(
             provider_id="fixture-market-source",
@@ -293,10 +310,11 @@ def test_cli_momentum_insufficient_history_is_unknown_without_nan(mock_run: Magi
 
     result = runner.invoke(app, ["momentum", "SHORT"])
 
-    assert result.exit_code == 0
-    assert "Unknown State" in result.output
-    assert "insufficient history" in result.output.lower()
-    assert "3 observations available; 50 required for the short SMA and 200 required for the long SMA." in result.output
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert "Unknown State" in result.stderr
+    assert "insufficient history" in result.stderr.lower()
+    assert "3 observations available; 50 required for the short SMA and 200 required for the long SMA." in result.stderr
     assert re.search(r"\bnan\b", result.output, flags=re.IGNORECASE) is None
 
 
@@ -312,6 +330,11 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
         timestamp=datetime(2026, 8, 22, 12, 0, tzinfo=UTC),
     )
     mock_run.return_value = MomentumRun(
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=CalculationStatus.INPUT_UNAVAILABLE,
+        reason_code=ReasonCode.INSUFFICIENT_HISTORY,
+        reason="The long moving average requires 200 observations; 3 were available.",
         metrics=metrics,
         market_data=MarketDataContext(
             provider_id="fixture-market-source",
@@ -325,10 +348,12 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
 
     result = runner.invoke(app, ["momentum", "SHORT", "--json"])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "NaN" not in result.output
-    payload = json.loads(result.output)
-    assert payload["schema_version"] == 9
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == 10
+    assert payload["status"] == "input_unavailable"
+    assert payload["reason_code"] == "insufficient_history"
     assert payload["result"]["short_sma"] is None
     assert payload["result"]["long_sma"] is None
     assert payload["result"]["crossover_signal"] is None
@@ -846,12 +871,20 @@ def test_cli_momentum_download_exception_names_the_unreachable_service_without_t
         text = runner.invoke(app, ["momentum", "FCIM", "--no-cache"])
         document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--no-cache", "--json"]).stdout)
 
-    message = "Unable to analyze FCIM: yfinance did not serve the request."
     assert text.exit_code == 1
-    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{message}"
-    assert document["reason_code"] == "provider_unreachable"
-    assert document["reason"] == message
-    assert document["provider_failure"]["inputs"] == [{"input": None, "provider_id": "yfinance", "kind": "unreachable"}]
+    lines = text.stderr.strip().splitlines()
+    assert lines[0] == _YAHOO_NOT_CHECKED_SWITCHED_OFF
+    assert "Status: provider error" in lines
+    assert f"Reason: {_PROVIDER_FAILURE_REASON}" in lines
+    assert "connection refused" not in text.stderr
+    assert document["status"] == "provider_error"
+    assert document["reason_code"] == "provider_error"
+    assert document["reason"] == _PROVIDER_FAILURE_REASON
+    assert document["result"] is None
+    assert document["provider_failure"]["reason_code"] == "provider_unreachable"
+    assert document["provider_failure"]["inputs"] == [
+        {"input": "historical_close", "provider_id": "yfinance", "kind": "unreachable"}
+    ]
 
 
 def test_cli_momentum_swallowed_download_fault_is_no_data_and_does_not_call_the_ticker_unknown() -> None:
@@ -860,10 +893,12 @@ def test_cli_momentum_swallowed_download_fault_is_no_data_and_does_not_call_the_
         text = runner.invoke(app, ["momentum", "FCIM", "--no-cache"])
         document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--no-cache", "--json"]).stdout)
 
-    message = "Unable to analyze FCIM: yfinance returned no data for it."
     assert text.exit_code == 1
-    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{message}"
-    assert document["reason_code"] == "provider_no_data"
-    assert document["reason"] == message
+    lines = text.stderr.strip().splitlines()
+    assert lines[0] == _YAHOO_NOT_CHECKED_SWITCHED_OFF
+    assert f"Reason: {_PROVIDER_FAILURE_REASON}" in lines
+    assert document["status"] == "provider_error"
+    assert document["reason"] == _PROVIDER_FAILURE_REASON
+    assert document["provider_failure"]["reason_code"] == "provider_no_data"
     for claim in ("unknown", "invalid", "does not exist", "not found", "delisted"):
         assert claim not in text.stderr.lower()

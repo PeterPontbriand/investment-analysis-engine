@@ -44,7 +44,7 @@ from investment_analysis_engine.orchestrator.analysis_tool_arguments import Anal
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
-DETERMINISTIC_SUITE_VERSION: Final = "h1-v5"
+DETERMINISTIC_SUITE_VERSION: Final = "h1-v6"
 DETERMINISTIC_FIXTURE_SET_VERSION: Final = "step-2.5-h1-v4"
 
 DETERMINISTIC_CASES: Final[tuple[Case, ...]] = (

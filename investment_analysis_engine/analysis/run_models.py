@@ -30,24 +30,22 @@ class RunOutcome(StrEnum):
     FAILED = "failed"
 
     @classmethod
-    def from_status(cls, status: CalculationStatus | None) -> "RunOutcome":
+    def from_status(cls, status: CalculationStatus) -> "RunOutcome":
         """Return the outcome of a run whose strategy reported ``status``.
 
         This is the one rule from a strategy's native status to the workspace outcome: ``ok`` completes,
         ``not_applicable`` is not applicable, ``input_unavailable`` is unavailable, and ``invalid_input`` and
-        ``provider_error`` fail.
-        ``None`` is a strategy that reports no status (Momentum); its run completes.
+        ``provider_error`` fail. Every strategy reports a status.
         """
         return _OUTCOME_BY_STATUS[status]
 
 
-_OUTCOME_BY_STATUS: dict[CalculationStatus | None, RunOutcome] = {
+_OUTCOME_BY_STATUS: dict[CalculationStatus, RunOutcome] = {
     CalculationStatus.OK: RunOutcome.COMPLETED,
     CalculationStatus.NOT_APPLICABLE: RunOutcome.NOT_APPLICABLE,
     CalculationStatus.INPUT_UNAVAILABLE: RunOutcome.UNAVAILABLE,
     CalculationStatus.INVALID_INPUT: RunOutcome.FAILED,
     CalculationStatus.PROVIDER_ERROR: RunOutcome.FAILED,
-    None: RunOutcome.COMPLETED,
 }
 
 

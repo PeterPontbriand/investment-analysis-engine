@@ -182,6 +182,8 @@ Refresh 7c1a... for 'Core Holdings':
 Counts: completed=3, unavailable=1
 ```
 
+A Momentum entry whose price provider fails, whose data fails a quality check, or whose history is too short is recorded the same way: as a run with the outcome `failed` or `unavailable`, not as an error without a run, so you can list it and replay it with `runs show`. Such a refresh exits 1.
+
 Add `--no-save` to preview current numbers across the watchlist without adding anything to its saved history — every entry still runs, but nothing is written to storage, so there is no Analysis Run ID to browse or replay afterward:
 
 ```bash

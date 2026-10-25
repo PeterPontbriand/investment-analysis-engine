@@ -25,6 +25,7 @@ import pytest
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.data.market_data import MarketDataContext
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
@@ -46,6 +47,9 @@ def _resolver_side_effect(*, resolver_type: type, cache: object = None, clock: o
 
 def _mock_momentum_run(ticker: str) -> MomentumRun:
     return MomentumRun(
+        ticker=ticker,
+        effective_as_of=datetime(2026, 8, 22, 12, 0, tzinfo=UTC),
+        execution_status=CalculationStatus.OK,
         metrics=MomentumMetrics(
             ticker=ticker,
             status=TrendStatus.BULLISH,

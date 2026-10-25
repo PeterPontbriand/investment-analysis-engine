@@ -116,9 +116,27 @@ Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [J
 
 A moving average cannot be calculated until enough price observations exist for its window.
 
-If the returned history is too short, the strategy reports the affected values/result as unavailable or unknown rather than pretending that missing values are zero.
+If the returned history is too short, the strategy reports the affected values/result as unavailable or unknown rather than pretending that missing values are zero. A history too short for the long average gives a trend of `UNKNOWN` and the status `input_unavailable`. The RSI is still calculated and shown when the history is longer than the RSI period.
 
 Machine-readable JSON uses `null` for unavailable numeric outputs rather than non-standard `NaN`.
+
+## Status, failures and exit codes
+
+Every Momentum result carries a status, as the other strategies' results do:
+
+| Situation | Status | Run outcome | Exit code |
+| :--- | :--- | :--- | :--- |
+| A bullish or bearish trend | `ok` | `completed` | 0 |
+| The history is too short for the long average (trend `UNKNOWN`) | `input_unavailable` | `unavailable` | 1 |
+| No price history exists at or before the `--as-of` boundary | `input_unavailable` | `unavailable` | 1 |
+| The price data failed a data-quality check | `input_unavailable` | `unavailable` | 1 |
+| The price provider failed | `provider_error` | `failed` | 1 |
+
+A result that could not be calculated has no `result` part in `--json`; its `reason` says why, and `reason_code` names the cause where one fits (`insufficient_history`, `not_available_as_of` or `provider_error`; a failed data-quality check has the message only). A provider failure never stores the provider's own error text: the stored reason is a fixed message, and `provider_failure` names the provider and the kind of failure. In the text output, a result with a status other than `ok` is written to standard error, as the other strategies do, and after a provider failure the [provider check](../USAGE.md#after-a-provider-failure-the-first-line) runs unless you pass `--no-provider-check`.
+
+These results are saved like any other: `--save-run` stores a failed or unavailable run, and [`refresh`](../WORKSPACE.md#refreshing-a-watchlist) records it as a run with its outcome instead of an error without a run. A refresh that holds one exits 1.
+
+A request that is itself wrong (a naive `--as-of`, a window or period that is not positive) is rejected before anything is fetched and exits 1 with a failure document, as before.
 
 ## Data source
 

@@ -357,10 +357,9 @@ def _native_result(dispatch_result: ToolCallResult) -> NativeEvidence:
     raise undeclared("production result type", type(result), BY_RESULT_TYPE)
 
 
-def _native_status(result: NativeEvidence) -> str | None:
+def _native_status(result: NativeEvidence) -> str:
     """Return the value of the result-level status that the result's own strategy reports, for telemetry evidence."""
-    status = require(BY_RESULT_TYPE, type(result), what="production result type").behavior.native_status_of(result)
-    return None if status is None else status.value
+    return require(BY_RESULT_TYPE, type(result), what="production result type").behavior.native_status_of(result).value
 
 
 def _numerical_observations(case: Case, result: NativeEvidence) -> tuple[NumericalObservation, ...]:

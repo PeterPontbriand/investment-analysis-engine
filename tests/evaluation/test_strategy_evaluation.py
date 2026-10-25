@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.data.quality import HistoricalDataQualityError
 from investment_analysis_engine.evaluation.fixture_context import (
     FixtureCompositionError,
     FixtureContext,
@@ -87,6 +86,7 @@ def test_momentum_composes_the_selected_price_fixture() -> None:
     )
     result = handler(ticker="MOM")
     assert isinstance(result, MomentumRun)
+    assert result.metrics is not None
     assert result.metrics.current_price == 104.0
 
     handler = MOMENTUM.behavior.bind_handler(
@@ -94,14 +94,18 @@ def test_momentum_composes_the_selected_price_fixture() -> None:
     )
     boundary = handler(ticker="MOM")
     assert isinstance(boundary, MomentumRun)
+    assert boundary.metrics is not None
     assert boundary.metrics.current_price == 101.0
 
 
 def test_momentum_without_a_price_fixture_has_explicitly_empty_history() -> None:
     """An unselected price variant is an empty frame, never default data."""
     handler = MOMENTUM.behavior.bind_handler(momentum_evaluation.compose(_context(GRAHAM_FACTS_FIXTURE_ID)), _runtime())
-    with pytest.raises(HistoricalDataQualityError):
-        handler(ticker="MOM")
+    result = handler(ticker="MOM")
+    assert isinstance(result, MomentumRun)
+    assert result.execution_status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.metrics is None
+    assert result.reason
 
 
 def test_momentum_rejects_two_price_variants() -> None:

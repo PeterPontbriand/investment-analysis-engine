@@ -132,8 +132,8 @@ class BehaviorView(Protocol):
         """Decode a stored payload and require its evidence to be about ``ticker``."""
         ...
 
-    def native_status_of(self, result: object, /) -> CalculationStatus | None:
-        """Return the result-level status the strategy reports, or ``None`` if it has none."""
+    def native_status_of(self, result: object, /) -> CalculationStatus:
+        """Return the result-level status the strategy reports."""
         ...
 
     def bind_handler(self, dependencies: object, runtime: ToolRuntime, /) -> AnalysisToolHandler[NativeEvidence]:
@@ -159,7 +159,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     decode: Callable[[StrictJsonMapping], ResultT]
     ticker_of: Callable[[ResultT], str]
     handler: ToolHandlerBinder[DepsT, ResultT]
-    native_status: Callable[[ResultT], CalculationStatus | None]
+    native_status: Callable[[ResultT], CalculationStatus]
     project: Callable[[ReplayInputs, ResultT, SelT, ReplayOptions], str]
 
     def encode_object(self, evidence: object, /) -> StrictJsonMapping:
@@ -177,7 +177,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
             raise ValueError("Ticker mismatch.")
         return result
 
-    def native_status_of(self, result: object, /) -> CalculationStatus | None:
+    def native_status_of(self, result: object, /) -> CalculationStatus:
         """Return the result-level status of ``result``, which must be exactly this strategy's result type."""
         if not isinstance(result, self.result_type) or type(result) is not self.result_type:
             raise undeclared("result type", type(result))
@@ -280,8 +280,8 @@ MOMENTUM: Final = StrategyDescriptor(
     behavior=MOMENTUM_BEHAVIOR,
     config_schema_version=MOMENTUM_CONFIG_SCHEMA_VERSION,
     method_version=1,
-    result_schema_version=4,
-    evidence_codec_version=3,
+    result_schema_version=5,
+    evidence_codec_version=4,
     json_envelope=MomentumDocument,
     settings_type=MomentumSettings,
 )

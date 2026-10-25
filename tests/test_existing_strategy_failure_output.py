@@ -90,8 +90,8 @@ def _provider_returning(data: HistoricalMarketData) -> Iterator[MagicMock]:
     [pd.RangeIndex(5), pd.Index([0.5, 1.5, 2.5, 3.5, 4.5]), pd.Index(["a", "b", "c", "d", "e"])],
     ids=["integer", "float", "string"],
 )
-def test_momentum_non_date_index_fails_as_historical_quality_naming_the_index_rule(index: pd.Index) -> None:
-    """ESC-25 (D3): the existing reason code, with diagnostics identifying the index rule."""
+def test_momentum_non_date_index_is_an_unavailable_run_naming_the_index_rule(index: pd.Index) -> None:
+    """ESC-25 (D3): a failed quality check is input_unavailable with a text reason that names the index rule."""
     frame = pd.DataFrame({"Close": [100.0, 101.0, 102.0, 103.0, 104.0]}, index=index)
     data = HistoricalMarketData(frame, MarketDataContext(provider_id="fixture", observation_interval="1d"))
     with patch(
@@ -102,10 +102,10 @@ def test_momentum_non_date_index_fails_as_historical_quality_naming_the_index_ru
 
     assert result.exit_code == 1
     payload = json.loads(result.stdout)
-    assert payload["reason_code"] == "historical_quality"
+    assert payload["status"] == "input_unavailable"
+    assert payload["reason_code"] is None
     assert payload["result"] is None
-    assert [item["rule"] for item in payload["diagnostics"]] == ["historical.index"]
-    assert "date-like index" in payload["diagnostics"][0]["reason"]
+    assert "date-like index" in payload["reason"]
 
 
 _NO_HISTORY_REASON = "No price history is available at or before the requested --as-of boundary."

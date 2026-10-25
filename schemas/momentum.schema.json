@@ -283,7 +283,7 @@
     },
     "MomentumResultPart": {
       "additionalProperties": false,
-      "description": "The computed trend and metrics; each metric is null when the available history cannot support it.\n\n``trend`` is the verdict (``UNKNOWN`` when the history cannot support both moving averages), never the\ndocument's ``status``, which says only that the calculation ran.",
+      "description": "The computed trend and metrics; each metric is null when the available history cannot support it.\n\n``trend`` is the verdict (``UNKNOWN`` when the history cannot support both moving averages), never the\ndocument's ``status``. The document's ``status`` is ``input_unavailable`` for an ``UNKNOWN`` trend.",
       "properties": {
         "crossover_result": {
           "anyOf": [
@@ -779,7 +779,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The Momentum document, version 8, as ``momentum --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+  "description": "The Momentum document, version 10, as ``momentum --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
   "properties": {
     "analysis": {
       "const": "momentum",
@@ -865,6 +865,27 @@
         }
       ]
     },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reason"
+    },
+    "reason_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReasonCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "requested_as_of": {
       "anyOf": [
         {
@@ -879,7 +900,14 @@
       "title": "Requested As Of"
     },
     "result": {
-      "$ref": "#/$defs/MomentumResultPart"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MomentumResultPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "schema_version": {
       "title": "Schema Version",
@@ -918,6 +946,8 @@
     "effective_as_of",
     "security_identity",
     "instrument_kind",
+    "reason_code",
+    "reason",
     "result",
     "parameters",
     "source",

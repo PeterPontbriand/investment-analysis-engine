@@ -1,0 +1,84 @@
+{
+  "schema_version": 10,
+  "analysis": "momentum",
+  "method": "sma_crossover",
+  "ticker": "BTC-USD",
+  "status": "provider_error",
+  "provider_failure": {
+    "reason_code": "provider_rate_limited",
+    "inputs": [
+      {
+        "input": "historical_close",
+        "provider_id": "yfinance",
+        "kind": "rate_limited"
+      }
+    ]
+  },
+  "provider_check": [
+    {
+      "provider_id": "yfinance",
+      "verdict": "not_checked"
+    }
+  ],
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "BTC-USD",
+    "instrument_name": null,
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": null,
+    "resolved_at": null
+  },
+  "instrument_kind": null,
+  "reason_code": "provider_error",
+  "reason": "Historical prices could not be retrieved from the market-data provider.",
+  "result": null,
+  "parameters": {
+    "short_window": 2,
+    "long_window": 3,
+    "rsi_period": 3
+  },
+  "source": {
+    "provider": null,
+    "data_as_of": null,
+    "interval": null,
+    "observation_count": null,
+    "currency": null,
+    "price_adjustment": null
+  },
+  "data_resolution": null,
+  "warnings": [],
+  "limitations": [
+    "SMA momentum describes recent price trend; it is not a valuation, fundamental-quality conclusion, or investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "historical_close",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested historical market observations from the configured provider."
+    },
+    {
+      "field_name": "historical_close",
+      "stage": "provider",
+      "outcome": "error",
+      "message": "Historical prices could not be retrieved from the market-data provider."
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "provider_id": "yfinance"
+    }
+  ]
+}

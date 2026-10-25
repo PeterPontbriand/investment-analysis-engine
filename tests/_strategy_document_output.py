@@ -39,6 +39,7 @@ from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialFactsProvider,
@@ -53,6 +54,7 @@ from investment_analysis_engine.data.instrument_profile import (
     InstrumentKindEvidence,
     InstrumentKindRequest,
 )
+from investment_analysis_engine.data.market_data import HistoricalMarketData
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.security_identity import SecurityIdentity, SecurityIdentityRequest
@@ -144,6 +146,16 @@ class _ShortYahoo(_FixtureYahoo):
         self._provider = FixtureMarketDataProvider(momentum_boundary_frame())
 
 
+class _FailingYahoo(_FixtureYahoo):
+    """The fixture Yahoo client whose price history request fails with a classified provider failure."""
+
+    def fetch_historical_data(
+        self, ticker: str, start_date: str, end_date: str | None = None, *, use_cache: bool = True
+    ) -> HistoricalMarketData:
+        del ticker, start_date, end_date, use_cache
+        raise DataFetchError("fixture provider failure", kind=ProviderFailureKind.RATE_LIMITED, provider_id="yfinance")
+
+
 def without_excluded_keys(text: bytes) -> str:
     """Return a document's text with the excluded keys removed, written as a strategy command writes a document."""
     document = json.loads(text)
@@ -205,7 +217,9 @@ CASES: tuple[Case, ...] = (
     Case("momentum-success", "momentum", _arguments("momentum"), 0),
     Case("momentum-profile", "momentum", _arguments("momentum"), 0, yahoo=_ProfiledYahoo),
     Case("momentum-etf", "momentum", _arguments("momentum"), 0, yahoo=_EtfYahoo),
-    Case("momentum-insufficient-data", "momentum", _arguments("momentum"), 0, yahoo=_ShortYahoo),
+    Case("momentum-insufficient-data", "momentum", _arguments("momentum"), 1, yahoo=_ShortYahoo),
+    Case("momentum-provider-error", "momentum", _arguments("momentum"), 1, yahoo=_FailingYahoo),
+    Case("momentum-no-observation", "momentum", _arguments("momentum", "--as-of", "2020-06-01"), 1),
     Case("graham-number-success", "graham-number", _arguments("graham-number"), 0),
     Case("graham-number-profile", "graham-number", _arguments("graham-number"), 0, yahoo=_ProfiledYahoo),
     Case("graham-number-etf", "graham-number", _arguments("graham-number"), 0, yahoo=_EtfYahoo),

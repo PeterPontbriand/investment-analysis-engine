@@ -135,11 +135,11 @@ def _failing(
         if command == "momentum":
             stack.enter_context(
                 patch(
-                    "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
+                    "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data_with_context",
                     side_effect=DataFetchError("library detail", kind=kind, provider_id="yfinance" if kind else None),
                 )
             )
-            yield ["momentum", "FCIM"]
+            yield ["momentum", "FCIM", "--no-cache"]
             return
         name = _CASE_OF[command] if kind is not None else "graham-number-provider-error-unclassified"
         case = next(item for item in CASES if item.name == name)
@@ -153,8 +153,7 @@ def _invoke(arguments: list[str], probe: object | None, *extra: str) -> Result:
 
 def _first_line_and_failure_stream(command: str, mode: str) -> str:
     """Return the stream (``stdout`` or ``stderr``) the command writes its failure text to in *mode*."""
-    if command == "momentum":
-        return "stderr"
+    del command
     return "stderr" if mode in ("", "--details") else "stdout"
 
 
@@ -193,7 +192,8 @@ def test_each_verdict_has_its_first_line(verdict: CheckVerdict) -> None:
 
     assert result.exit_code == 1
     assert result.stderr.splitlines()[0] == _FINDING_LINES[verdict]
-    assert result.stderr.splitlines()[1] == "Unable to analyze FCIM: yfinance did not serve the request."
+    assert result.stderr.splitlines()[1] == "FCIM — Momentum"
+    assert "Status: provider error" in result.stderr.splitlines()
 
 
 @pytest.mark.parametrize(
@@ -316,14 +316,14 @@ def test_the_failed_call_is_never_retried() -> None:
 
     with (
         patch(
-            "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data_with_context",
             side_effect=DataFetchError("detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance"),
-        ) as analysis,
+        ) as fetch,
     ):
-        result = _invoke(["momentum", "FCIM"], fake.probe)
+        result = _invoke(["momentum", "FCIM", "--no-cache"], fake.probe)
 
     assert result.exit_code == 1
-    assert analysis.call_count == 1
+    assert fetch.call_count == 1
 
 
 @pytest.mark.parametrize("command", ["momentum", "graham-number"])
@@ -496,7 +496,7 @@ def _refresh_failing(
     name = f"Watch {next(_WATCHLIST_NUMBER)}"
     _seed_momentum(settings, name, list(tickers))
     with patch(
-        "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
+        "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data_with_context",
         side_effect=DataFetchError("library detail", kind=kind, provider_id="yfinance" if kind else None),
     ):
         return runner.invoke(app, ["refresh", name, "--workers", "1", *extra], obj=probe)
@@ -531,12 +531,12 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
     probe.check = check
     _seed_momentum(isolated_cli_settings, "My Watch", ["AAPL", "MSFT"])
 
-    def failing(**_kwargs: object) -> None:
+    def failing(*_args: object, **_kwargs: object) -> None:
         events.append("job")
         raise DataFetchError("detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance")
 
     with patch(
-        "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis", side_effect=failing
+        "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data_with_context", side_effect=failing
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"], obj=probe)
 
@@ -553,7 +553,7 @@ def test_refresh_json_prints_nothing_extra_and_carries_one_finding_in_the_summar
 
     assert result.exit_code == 1
     document = json.loads(result.stdout)
-    assert document["counts"] == {"error": 3}
+    assert document["counts"] == {"failed": 3}
     assert document["provider_check"] == [{"provider_id": "yfinance", "verdict": "rate_limited"}]
     assert result.stderr == ""
     assert fake.calls == ["yfinance"]  # three failed tickers, one test request
@@ -571,7 +571,7 @@ def test_refresh_option_turns_the_check_off_without_changing_the_summary(
     assert result.stdout.splitlines()[0] == _SWITCHED_OFF
     # Only the identities differ between two refreshes: the same job lines and counts follow the one first line.
     assert len(result.stdout.splitlines()) == len(checked.stdout.splitlines())
-    assert result.stdout.splitlines()[-1] == checked.stdout.splitlines()[-1] == "Counts: error=3"
+    assert result.stdout.splitlines()[-1] == checked.stdout.splitlines()[-1] == "Counts: failed=3"
     assert fake.calls == []
 
 

@@ -182,6 +182,7 @@ async def test_deterministic_runner_connects_dispatch_evaluation_reporting_and_t
     assert tool_call.tool_args["ticker"] == "MOM"
     assert isinstance(tool_result.tool_result_summary, dict)
     assert tool_result.tool_result_summary["success"] is True
+    assert tool_result.tool_result_summary["calculation_status"] == "ok"
     numerical_summary = tool_result.tool_result_summary["numerical_observations"]
     assert isinstance(numerical_summary, list)
     assert len(numerical_summary) == 4

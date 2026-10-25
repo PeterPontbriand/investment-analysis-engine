@@ -9,6 +9,10 @@ the caller's responsibility. The caller composes the profile before
 calculation and passes it in, and the analyzer embeds it in the returned run;
 the calling context owns and closes providers and caches.
 
+The module reports facts only: the run's own result-level status and the provider failure it recorded. A provider
+failure is a stored run with the ``provider_error`` status, not an exception, so the automatic provider check reads
+it from the capture. ``RunOutcome.from_status`` produces the outcome, and ``ExecutionCapture`` derives it.
+
 Display-derived values that the existing presenter currently computes at
 render time (the SMA spread and its percentage) are captured here instead,
 using the same formulas, so a future pure replay can consume them without
@@ -21,6 +25,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentProfile,
     InstrumentProfileCandidate,
@@ -38,7 +43,7 @@ from investment_analysis_engine.workspace.capture import ExecutionCapture
 class MomentumCapture:
     """Captured evidence for one Momentum command execution.
 
-    ``run`` is the unmodified analyzer result (metrics, market data, price
+    ``run`` is the unmodified analyzer result (status, metrics when a calculation ran, market data, price
     inputs, resolution trace, the instrument profile it was run with, and any
     data resolution it retained). ``presentation_inputs`` holds display-derived values
     (currently only the SMA spread and its percentage) computed once here
@@ -95,7 +100,7 @@ def run_momentum(  # noqa: PLR0913
 
 
 def capture_momentum(run: MomentumRun) -> MomentumCapture:
-    """Bundle a completed run with its captured display values.
+    """Bundle a run with its captured display values, which are null when no calculation ran.
 
     Args:
         run: The result of :func:`run_momentum`.
@@ -104,9 +109,10 @@ def capture_momentum(run: MomentumRun) -> MomentumCapture:
         The captured evidence, ready for a later execution service to
         assemble into a stored run.
     """
+    metrics = run.metrics
     presentation_inputs: StrictJsonMapping = {
-        "sma_spread": _sma_spread(run.metrics),
-        "sma_spread_percent": _sma_spread_percent(run.metrics),
+        "sma_spread": None if metrics is None else _sma_spread(metrics),
+        "sma_spread_percent": None if metrics is None else _sma_spread_percent(metrics),
     }
     return MomentumCapture(run=run, presentation_inputs=presentation_inputs)
 
@@ -131,12 +137,13 @@ def compose_momentum_profile(
 
 
 def from_momentum_capture(capture: MomentumCapture) -> ExecutionCapture:
-    """Normalize a Momentum capture; Momentum has no native failure status."""
+    """Normalize a Momentum capture: the run's status, its recorded provider failure and its display values."""
     return ExecutionCapture(
         native_evidence=capture.run,
         profile=capture.run.instrument_profile,
-        native_status=None,
+        native_status=capture.run.execution_status,
         presentation_inputs=capture.presentation_inputs,
+        provider_failure=provider_failure_of((capture.run.provider_failure,)),
     )
 
 

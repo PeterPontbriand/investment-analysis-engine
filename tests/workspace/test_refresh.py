@@ -4,6 +4,7 @@ import threading
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
@@ -11,6 +12,8 @@ import pytest
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
@@ -21,7 +24,11 @@ from investment_analysis_engine.strategies.graham_number.calculation import (
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
-from investment_analysis_engine.strategies.momentum.execution import run_momentum
+from investment_analysis_engine.strategies.momentum.execution import (
+    capture_momentum,
+    from_momentum_capture,
+    run_momentum,
+)
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
@@ -1046,3 +1053,44 @@ def test_a_missing_run_spec_is_not_a_failure_while_saving(workers: int) -> None:
     )
 
     assert calls == [("UndeclaredStrategyError", False)]
+
+
+def _failed_momentum_capture(ticker: str) -> ExecutionCapture:
+    """A real Momentum run whose provider failed, normalized as the production refresh executor does."""
+    provider = MagicMock()
+    provider.provider_id = "fixture"
+    provider.fetch_historical_data.side_effect = DataFetchError(
+        "library detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance"
+    )
+    selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
+    run = run_momentum(selection, ticker, provider, start_date="2026-01-01", executed_at=NOW, instrument_profile=None)
+    return from_momentum_capture(capture_momentum(run))
+
+
+@pytest.mark.parametrize("workers", [1, 2], ids=["sequential", "concurrent"])
+def test_a_momentum_provider_failure_is_a_stored_failed_run_in_the_batch(workers: int) -> None:
+    """The failure is a result with its run and batch context, not a raised job with no run."""
+    watchlist = _watchlist(("A", "B"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
+    sink = _FakeSink()
+
+    summary = refresh_watchlist(
+        "My Watch",
+        watchlists=_FakeWatchlists({"my watch": watchlist}),
+        repository=sink,
+        executor=lambda ticker, _selection: _failed_momentum_capture(ticker),
+        policy=RefreshPolicy(workers=workers),
+        clock=lambda: NOW,
+        run_specs=RUN_SPECS_BY_KEY,
+        describe=failure_text,
+    )
+
+    assert [(r.ticker, r.error) for r in summary.results] == [("A", None), ("B", None)]
+    stored = {run.ticker: run for run in sink.inserted}
+    assert set(stored) == {"A", "B"}
+    for ticker, position in (("A", 0), ("B", 1)):
+        run = stored[ticker]
+        assert run.status is RunOutcome.FAILED
+        assert run.failure_reason_code == "provider_unreachable"
+        assert (run.batch_position, run.watchlist_id) == (position, WATCHLIST_ID)
+        assert run.refresh_id == summary.refresh_id
+    assert all(result.provider_failure is not None for result in summary.results)

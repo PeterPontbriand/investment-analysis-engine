@@ -8,7 +8,11 @@ import typer
 
 from investment_analysis_engine.analysis.base_analyzer import require_ticker
 from investment_analysis_engine.cli_composition import momentum_settings
-from investment_analysis_engine.cli_provider_check import provider_check_choice
+from investment_analysis_engine.cli_provider_check import (
+    provider_check_choice,
+    provider_check_findings,
+    with_provider_check,
+)
 from investment_analysis_engine.cli_run_support import save_run_execution
 from investment_analysis_engine.cli_support import (
     SaveStage,
@@ -30,6 +34,7 @@ from investment_analysis_engine.data.instrument_profile import profile_identity_
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.data.repositories.readiness import ensure_database_ready
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
+from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig
 from investment_analysis_engine.strategies.momentum.execution import (
     capture_momentum,
@@ -157,10 +162,11 @@ def command(  # noqa: PLR0913
     ),
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
+    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
     with execution_errors(
         json_output=json_output,
         selection_type=MomentumSelection,
-        provider_check=provider_check_choice(context, no_provider_check=no_provider_check),
+        provider_check=provider_check,
     ) as scope:
         requested_ticker = _resolve_ticker(ticker, ticker_option, command="momentum")
         scope.ticker = requested_ticker
@@ -225,13 +231,23 @@ def command(  # noqa: PLR0913
                     executed_at=executed_at,
                     instrument_profile=profile,
                 )
-        exit_code = exit_code_of(from_momentum_capture(capture_momentum(run)).outcome)
+            momentum_capture = capture_momentum(run)
+        execution = from_momentum_capture(momentum_capture)
+        exit_code = exit_code_of(execution.outcome)
         embedded_profile = run.instrument_profile
         if embedded_profile is None:
             raise ValueError("Momentum result did not retain the instrument profile it ran with.")
+        findings = provider_check_findings((execution.provider_failure,) if exit_code else (), provider_check)
         presentation = MomentumPresentation(
+            ticker=run.ticker,
+            effective_as_of=run.effective_as_of,
+            execution_status=run.execution_status,
             metrics=run.metrics,
             config=config,
+            reason_code=run.reason_code,
+            reason=run.reason,
+            provider_failure=run.provider_failure,
+            provider_check=findings.element(),
             requested_as_of=boundary,
             market_data=run.market_data,
             resolution_trace=run.resolution_trace,
@@ -239,6 +255,9 @@ def command(  # noqa: PLR0913
             identity_resolution=profile_identity_resolution(embedded_profile),
             instrument_profile=embedded_profile,
         )
-        typer.echo(render_momentum(presentation, mode))
+        output = render_momentum(presentation, mode)
+        if exit_code:
+            output = with_provider_check(output, findings, mode)
+        typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
         if exit_code:
             raise typer.Exit(code=exit_code)

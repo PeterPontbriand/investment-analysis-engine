@@ -52,8 +52,8 @@ next begins.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| 3.5.0a | [Momentum result-level status](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status) | In progress | |
-| 3.5.0b | [Side-by-side refresh table](STEP_3_5_0_SLICE_PLAN.md#350b--side-by-side-refresh-table) | Planned | |
+| 3.5.0a | [Momentum result-level status](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status) | Complete | 2026-10-25 |
+| 3.5.0b | [Side-by-side refresh table](STEP_3_5_0_SLICE_PLAN.md#350b--side-by-side-refresh-table) | Next | |
 | 3.5.1 | [Data mappings and applicability](#351--data-mappings-and-applicability) | Planned | |
 | 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Planned | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |

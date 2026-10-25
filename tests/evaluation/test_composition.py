@@ -141,6 +141,7 @@ async def test_supplied_momentum_case_preserves_reviewed_fixture_values() -> Non
 
     assert result.success is True
     assert isinstance(result.result, MomentumRun)
+    assert result.result.metrics is not None
     assert result.result.metrics.current_price == 104.0
     assert result.result.metrics.short_sma_val == 103.5
     assert result.result.metrics.long_sma_val == 103.0

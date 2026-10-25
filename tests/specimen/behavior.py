@@ -41,7 +41,7 @@ class SpecimenBehavior:
             raise ValueError("Ticker mismatch.")
         return as_native_evidence(result)
 
-    def native_status_of(self, result: object, /) -> CalculationStatus | None:
+    def native_status_of(self, result: object, /) -> CalculationStatus:
         """Return the status of ``result``, which must be exactly the specimen's result type."""
         if type(result) is not SpecimenResult:
             raise undeclared("result type", type(result))

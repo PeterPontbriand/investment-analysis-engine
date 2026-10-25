@@ -13,7 +13,7 @@ from tests.workspace.test_execution import _momentum_native_evidence
 _FAILURE = provider_failure_of((ProviderFailureRecord(ProviderFailureKind.UNREACHABLE, "yfinance"),))
 
 
-def _capture(status: CalculationStatus | None, *, recorded: bool) -> ExecutionCapture:
+def _capture(status: CalculationStatus, *, recorded: bool) -> ExecutionCapture:
     return ExecutionCapture(
         native_evidence=_momentum_native_evidence(),
         profile=None,
@@ -30,11 +30,10 @@ def _capture(status: CalculationStatus | None, *, recorded: bool) -> ExecutionCa
         (CalculationStatus.INPUT_UNAVAILABLE, RunOutcome.UNAVAILABLE),
         (CalculationStatus.INVALID_INPUT, RunOutcome.FAILED),
         (CalculationStatus.PROVIDER_ERROR, RunOutcome.FAILED),
-        (None, RunOutcome.COMPLETED),
     ],
 )
 def test_execution_capture_derives_outcome_code_and_provider_failure(
-    status: CalculationStatus | None, outcome: RunOutcome
+    status: CalculationStatus, outcome: RunOutcome
 ) -> None:
     capture = _capture(status, recorded=True)
 
@@ -48,6 +47,11 @@ def test_execution_capture_derives_outcome_code_and_provider_failure(
     else:
         assert capture.failure_reason_code == PROVIDER_CODE_BY_KIND[ProviderFailureKind.UNREACHABLE].value
         assert capture.provider_failure is _FAILURE
+
+
+def test_no_status_is_not_an_outcome() -> None:
+    with pytest.raises(KeyError):
+        RunOutcome.from_status(None)  # type: ignore[arg-type]
 
 
 def test_a_failed_capture_without_a_recorded_provider_failure_has_the_generic_provider_code() -> None:

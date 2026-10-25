@@ -207,11 +207,11 @@ Every strategy document has the same header and the same tail. Keys are written 
 | Body | The strategy's own keys | Listed in its schema |
 | Tail | `warnings`, `limitations`, `diagnostics` | Lists of strings, strings and entries |
 
-A verdict lives in the body: Momentum's trend is `result.trend` (`BULLISH`, `BEARISH` or `UNKNOWN`), and FCF Growth's screen is `classification`. Momentum's `status` is `ok` for every document it writes, because a calculation that cannot run fails instead. The latest data date Momentum used is `source.data_as_of`.
+A verdict lives in the body: Momentum's trend is `result.trend` (`BULLISH`, `BEARISH` or `UNKNOWN`), and FCF Growth's screen is `classification`. Momentum's `status` is `ok` for a bullish or bearish trend, `input_unavailable` for an `UNKNOWN` trend, for no price at or before `--as-of` and for a failed data-quality check, and `provider_error` for a provider failure; the body's `result` is `null` when no calculation ran, and `reason` and `reason_code` say why. The latest data date Momentum used is `source.data_as_of`.
 
 A Graham document's `quote` part carries `provider_failure` (`input` `current_price`, `provider_id`, `kind`) when the optional quote failed with a classified provider failure, otherwise `null`; it does not change `status`. A Graham document's body begins with `price_comparison` (`status`, `reason`, `percent`, `security_unit_evidence`, `provenance`, `quote_freshness`); its `percent` matches `result.margin_of_safety_percent`, and a comparison that was not made is `null`.
 
-Presentation versions: Momentum **9**, Graham Number **10**, Graham Growth **10**, FCF Growth **9**. FCF's canonical result schema is **5** and its method version **2**.
+Presentation versions: Momentum **10**, Graham Number **10**, Graham Growth **10**, FCF Growth **9**. FCF's canonical result schema is **5** and its method version **2**.
 
 Each strategy's document is described by a published schema: `schemas/momentum.schema.json`, `schemas/graham-number.schema.json`, `schemas/graham-growth.schema.json` and `schemas/fcf-growth.schema.json`. `runs show --json` writes the saved run's own strategy document, described by the same schema as the direct command's. Every key is always present: a value that is absent is `null`, not an omitted key. The document's `schema_version` is independent of the method version and of the stored result's schema version, which FCF Growth also writes (`method_version`, `result_schema_version`, directly after the header).
 

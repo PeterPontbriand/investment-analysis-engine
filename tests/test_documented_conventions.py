@@ -292,7 +292,6 @@ _EXPECTED_OUTCOMES: Final = {
     CalculationStatus.INPUT_UNAVAILABLE: RunOutcome.UNAVAILABLE,
     CalculationStatus.INVALID_INPUT: RunOutcome.FAILED,
     CalculationStatus.PROVIDER_ERROR: RunOutcome.FAILED,
-    None: RunOutcome.COMPLETED,
 }
 
 
@@ -337,7 +336,7 @@ def test_the_outcome_scan_reports_a_member_and_accepts_the_rest() -> None:
 
 
 def test_run_outcome_from_status_is_total_and_matches_the_table() -> None:
-    assert set(_EXPECTED_OUTCOMES) == {*CalculationStatus, None}, "The table lacks a status, or names one that is gone."
+    assert set(_EXPECTED_OUTCOMES) == set(CalculationStatus), "The table lacks a status, or names one that is gone."
     for status, outcome in _EXPECTED_OUTCOMES.items():
         assert RunOutcome.from_status(status) is outcome, f"{status!r} must map to {outcome!r}."
 

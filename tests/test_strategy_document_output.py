@@ -39,7 +39,7 @@ def test_every_strategy_has_a_document_for_each_status_it_can_report() -> None:
         statuses.setdefault(document["analysis"], set()).add(document["status"])
         if document["analysis"] == "momentum":
             trends.add(document["result"]["trend"])
-    assert statuses["momentum"] == {"ok"}
+    assert statuses["momentum"] == {"ok", "input_unavailable", "provider_error"}
     assert trends >= {"BULLISH", "UNKNOWN"}
     for graham in ("graham_number", "graham_growth_value"):
         assert statuses[graham] == {"ok", "not_applicable", "input_unavailable", "provider_error", "invalid_input"}

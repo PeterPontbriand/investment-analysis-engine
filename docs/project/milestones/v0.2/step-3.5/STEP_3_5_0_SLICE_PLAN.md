@@ -29,8 +29,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| 3.5.0a | [Momentum result-level status](#350a--momentum-result-level-status) | In progress | |
-| 3.5.0b | [Side-by-side refresh table](#350b--side-by-side-refresh-table) | Planned | |
+| 3.5.0a | [Momentum result-level status](#350a--momentum-result-level-status) | Complete | 2026-10-25 |
+| 3.5.0b | [Side-by-side refresh table](#350b--side-by-side-refresh-table) | Next | |
 
 3.5.0a is implemented on the branch that carries this plan and merges as one pull request. 3.5.0b starts from `main`
 after that pull request merges.

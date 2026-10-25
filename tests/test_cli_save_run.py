@@ -22,6 +22,7 @@ from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.market_data import MarketDataContext
@@ -91,6 +92,9 @@ def _repository(settings: ProjectSettings) -> SQLiteAnalysisRunRepository:
 
 def _mock_momentum_run(ticker: str = "BTC-USD") -> MomentumRun:
     return MomentumRun(
+        ticker=ticker,
+        effective_as_of=datetime(2026, 8, 22, 12, 0, tzinfo=UTC),
+        execution_status=CalculationStatus.OK,
         metrics=MomentumMetrics(
             ticker=ticker,
             status=TrendStatus.BULLISH,
