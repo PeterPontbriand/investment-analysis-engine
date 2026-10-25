@@ -103,7 +103,7 @@ Every exception that `MomentumInputResolver.resolve`, `MomentumAnalyzer.run_anal
   to add none. The reason is text only, the message `HistoricalDataQualityError` already builds (field and date
   evidence, no raw observations). The `FailureReasonCode` `historical_quality` still names the same failure when it
   is raised elsewhere.
-- **Provider text:** the stored reason for row 1 is a fixed sentence. The provider's exception text is not stored,
+- **Provider text:** the stored reason for row 1 is a fixed message. The provider's exception text is not stored,
   because it may carry provider data; the `provider_failure` record holds the kind and the provider.
 - **Where it is decided:** the resolver catches rows 1 to 4 and returns a failed resolution; the analyzer applies row
   5 and row 6. The calculator is unchanged and still pure.
@@ -160,30 +160,36 @@ Every exception that `MomentumInputResolver.resolve`, `MomentumAnalyzer.run_anal
   (`scripts/strategy_conformance.py`) lists top-level commands only, and T7 does not look inside a group, so an
   entry there would name a command that does not exist at the top level. The entry the command needs is its row in
   `JSON_DOCUMENTS` (`workspace_documents/json_documents.py`), which T21 requires for every `--json` command. The
-  contract's wording at 3.5.0 and 3.5.6 ("an entry in the SWC command test's non-strategy list") is left unchanged
-  in this commit and awaits the project owner's approval to be corrected.
+  contract's 3.5.0 and 3.5.6 sections say so.
 
 #### Headline cells of the four existing strategies (D8, D9)
 
 A cell has a key, a label, a kind, a unit, a value, a status and a reason code. **The reason code is set when the
 result carries a `ReasonCode` for that cell, and is `None` otherwise** (amended 2026-10-25, [A.1](#a1-decisions-d1-to-d11-2026-10-25)).
-The Graham results carry text reasons only, so their cells never have one. A cell whose strategy has no value (the
-run did not calculate) takes the run's `execution_status` and the run's reason code, if it carries one.
+The Graham results carry text reasons only, so their cells never have one. **A text cell carries no status and no reason
+code** ([SWC design §3.3](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers); the
+run's status is already shown in the outcome column). A number cell with no value (the run did not calculate) takes
+the run's `execution_status` and the run's reason code, if it carries one.
 `GN` is `GrahamNumberAnalysis`, `GG` is `GrahamGrowthAnalysis`, `FCF` is `FCFEarningsGrowthResult` and `MOM` is
 `MomentumRun`.
 
 | Strategy | Key | Label | Kind | Unit | Value from | Status from | Reason code from |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Momentum | `trend` | Trend | text | none | `MOM.metrics.status` (`TrendStatus`); none when `metrics` is absent | `MOM.execution_status` | `MOM.reason_code` |
+| Momentum | `trend` | Trend | text | none | `MOM.metrics.status` (`TrendStatus`); none when `metrics` is absent | none (text cell) | none (text cell) |
 | Momentum | `rsi` | RSI | number | points | `MOM.metrics.rsi_14.value` | `MOM.metrics.rsi_14.status`; `MOM.execution_status` when `metrics` is absent | `MOM.metrics.rsi_14.reason_code`; `MOM.reason_code` when `metrics` is absent |
 | Graham Number | `maximum_indicated_price` | Max price | number | `<currency> per share` | `GN.result.maximum_indicated_price` | `GN.native_status` | none (text reason) |
 | Graham Number | `margin_of_safety` | Margin of safety | number | percent | `GN.margin_of_safety_percent` | `GN.price_comparison.status` mapped: `available` is `ok`, `unavailable` is `unavailable`; `GN.native_status` when no comparison exists | none (token reason) |
 | Graham Growth | `intrinsic_value` | Intrinsic value | number | `<currency> per share` | `GG.result.growth_value` | `GG.native_status` | none (text reason) |
 | Graham Growth | `margin_of_safety` | Margin of safety | number | percent | `GG.margin_of_safety_percent` | as Graham Number, from `GG.price_comparison` | none (token reason) |
-| FCF-Growth | `fcf_cagr` | FCF CAGR | number | percent | `FCF.fcf_cagr` when the policy's classification basis is total FCF, else `FCF.fcf_per_share_cagr` | that metric's `status` | that metric's `reason_code` |
+| FCF-Growth | `fcf_cagr` | "FCF CAGR" (total basis) or "FCF/share CAGR" (per-share basis) | number | percent | `FCF.fcf_cagr` when the policy's classification basis is total FCF, else `FCF.fcf_per_share_cagr` | that metric's `status` | that metric's `reason_code` |
 | FCF-Growth | `eps_cagr` | EPS CAGR | number | percent | `FCF.eps_cagr.value` | `FCF.eps_cagr.status` | `FCF.eps_cagr.reason_code` |
-| FCF-Growth | `classification` | Classification | text | none | `FCF.classification` (`PASS`, `FAIL`, `INDETERMINATE`) | `FCF.execution_status` | `FCF.classification_reason_code` |
+| FCF-Growth | `classification` | Classification | text | none | `FCF.classification` (`PASS`, `FAIL`, `INDETERMINATE`) | none (text cell) | none (text cell) |
 
+- **The FCF CAGR cell names its basis.** The classification basis is a per-run option (`--classification-basis`). The
+  cell keeps the stable key `fcf_cagr`, and its label names the run's basis: "FCF CAGR" for total FCF, "FCF/share
+  CAGR" for per share. In the text table the column header stays "FCF CAGR"; each per-share value carries a marker,
+  and a legend line explains it. The legend line appears only when the refresh holds at least one per-share
+  FCF-Growth run, the same rule as for requested `as_of` dates.
 - **Currency unit:** taken from the currency of the resolved earnings input. 3.5.0b confirms in the code that an
   `ok` value always has one; the table must not show a bare per-share number.
 - **Reason text is not a cell field.** A Graham cell with a non-`ok` status shows "—" in the text table and its
@@ -206,7 +212,7 @@ run did not calculate) takes the run's `execution_status` and the run's reason c
 
 #### Rendered text example (D9)
 
-Illustrative, for the project owner's approval of the layout; the tickers, numbers and ID are invented. Three
+The layout is approved ([A.1](#a1-decisions-d1-to-d11-2026-10-25)); the tickers, numbers and ID are invented. Three
 tickers, one refresh over all four strategies. ACME completes everywhere. BOLT has too little history for Momentum's
 long average (RSI is still shown), a non-positive EPS for Graham Number, no stored Graham Growth run, and an FCF
 result with missing inputs. CRUX's price provider failed for Momentum.
@@ -233,6 +239,8 @@ Runs (open one with: ian runs show <run-id>)
 
 - **The table holds the headline cells and the outcome of each strategy.** Period ends and run IDs are listed
   below it, one run per line with the full ID, because `runs show` takes the full UUID.
+- **The example is all total basis.** A per-share FCF-Growth value would carry the marker described under the cell
+  table, with a legend line below the table; the example holds none, so it shows no legend line.
 - **The taxonomy line is left out of the text** while no run records one. `--json` carries the field.
 - **Requested `as_of` dates are shown only when the refresh holds more than one:** a line "Requested as-of:" naming
   each. Here every run has none, so the line is absent. `--json` always carries `requested_as_of` per run.
@@ -253,6 +261,9 @@ Runs (open one with: ian runs show <run-id>)
 - No change to `AnalysisRun.native_status` and `native_reason` (the envelope fields `execute` never sets).
 - No reason text field on a headline cell; no per-cell drill-down other than the run ID.
 - No new `CalculationStatus`, `ReasonCode` or `FailureReasonCode` member.
+- The one-line-per-ticker text layout is about 150 characters wide over four strategies and would be about 400 over
+  eleven. The slice that adds the fifth strategy, 3.5.3, decides the text layout for more strategies. `--json` is
+  unaffected.
 - No work on the new strategies. The record of where `docs/TOOL_DEVELOPMENT.md` fell short stays with 3.5.3; 3.5.0b
   records in its own implementation record every shortfall it meets, for the 3.5.3 plan to link (D11).
 
@@ -267,8 +278,9 @@ Runs (open one with: ian runs show <run-id>)
   `--no-provider-check` suppresses it.
 - Every row of the [exception table](#the-exceptions-on-momentums-path-d3) is exercised by a test; the rows that keep
   raising are asserted to raise.
-- The stored outputs of every previously successful Momentum run differ from today's only in the document version
-  and the new null keys.
+- A previously successful Momentum output differs from today's in the document version, the new non-null fields
+  `execution_status` (`ok`), `ticker` and `effective_as_of`, and the new null fields `reason`, `reason_code` and
+  `provider_failure`. Momentum's numbers are identical.
 - No strategy returns `None` from its native-status function, and no signature in the code accepts it.
 - The complete managed gate passes, with at least 85% coverage and every new branch exercised.
 
@@ -323,6 +335,14 @@ Decided during planning, also 2026-10-25:
 | Failure codes of the command | `analysis_run_not_found` for an unknown or unsaved refresh; `invalid_input` for two runs of one ticker and strategy. Both exist. |
 | `None` status | Removed from the status types in 3.5.0a. |
 
+Approved by the project owner on review of the plan (2026-10-25):
+
+| Topic | Decision |
+| :--- | :--- |
+| D6's wording | The command's entry is its row in `JSON_DOCUMENTS` (`workspace_documents/json_documents.py`), which T21 requires. The contract's 3.5.0 and 3.5.6 sections are corrected to say so, in place of "an entry for the command in the SWC command test's non-strategy list". |
+| Rendered text layout (D9) | Approved, with the FCF CAGR basis marker and its legend line, and the layout-width limit decided by 3.5.3. |
+| Amendments A1 to A6 | Text cells carry no status; the FCF CAGR cell names its basis; the stale `None` text of the SWC design joins 3.5.0a's documentation scope; the unchanged-output criterion is corrected; the text layout limit is recorded; "fixed sentence" becomes "fixed message". |
+
 ### A.2 Premises checked against the code (2026-10-25)
 
 | Premise | Finding |
@@ -332,7 +352,7 @@ Decided during planning, also 2026-10-25:
 | Momentum raises only what D3 maps | Holds; every raise is a row of the exception table. |
 | A precedent for a failed quality check exists | Holds: `data/financial/resolver.py` and `fcf_growth/input_resolver.py`; both give `input_unavailable`. |
 | D10's placement keeps the package table | Holds: `reporting` and `workspace_documents` already import what the new modules need. |
-| An entry in the SWC command test's non-strategy list | Does not apply to a subcommand; corrected above. |
+| An entry in the SWC command test's non-strategy list | Does not apply to a subcommand; corrected above and in the contract. |
 | Each cell carries a `ReasonCode` when not `ok` | Does not hold for the Graham cells, whose results carry text reasons; the rule is amended. |
 
 ---
@@ -396,6 +416,7 @@ rows of the guide. The new command is not a strategy: it has no descriptor, no C
 | `docs/user/FINANCE_MATH.md` | none: no formula changes | none |
 | `docs/TOOL_DEVELOPMENT.md` | the native-status wording, regenerated | regenerated |
 | The Step 3.5 shared definitions and SWC design | updated by the planning commit | none |
+| `SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md` §3.3 and §7 | the §3.3 member table's `native_status` row: its type `str \| None` becomes `CalculationStatus`; the §7 escape-hatch row "Momentum has no native failure-status classifier" is rewritten. The §6 inventory row and the Appendix line near "Momentum's `None` is unchanged" are historical records and stay as written | none |
 
 ### B.4 Momentum result shape
 
@@ -447,7 +468,9 @@ Invariants
   regenerated schema.
 - **Evaluation:** `native_status_of` returns the status for every run; MOM-02 expects `input_unavailable`; the
   telemetry `calculation_status` value.
-- **Unchanged output:** the stored outputs of the successful cases differ only in the version and the new null keys.
+- **Unchanged output:** the stored outputs of the successful cases differ from today's in the document version, the
+  new non-null fields `execution_status` (`ok`), `ticker` and `effective_as_of`, and the new null fields `reason`,
+  `reason_code` and `provider_failure`; every number is identical.
 
 ### B.6 3.5.0b tests
 

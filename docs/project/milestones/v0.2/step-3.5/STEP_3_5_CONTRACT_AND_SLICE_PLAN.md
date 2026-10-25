@@ -141,8 +141,8 @@ its own quality gate and authorization.
   the `Headline` and `HeadlineCell` types added to the SWC behavior bundle, with the four existing
   strategies' functions. This one slice also updates, once, the generator's templates, the site data file,
   the specimen strategy and the closed-field test (T15) for the new member. The view, its command, a typed
-  `--json` model and checked-in schema, an entry for the command in the SWC command test's non-strategy
-  list, tests and `WORKSPACE.md` documentation.
+  `--json` model and checked-in schema, the command's entry in `JSON_DOCUMENTS`
+  (`workspace_documents/json_documents.py`), which T21 requires, tests and `WORKSPACE.md` documentation.
 - **Detail:** [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table),
   [Slice inputs §2](STEP_3_5_SLICE_INPUTS.md#2-350--side-by-side-refresh-table) and the
   [SWC design §3.3](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
@@ -194,6 +194,9 @@ its own quality gate and authorization.
   `--json`, and the orchestrator tool: `ToolName` member, arguments model, dependency class and handler),
   presenter, tests, user guide, Finance Math and Glossary entries, covering every site in the edit-site table;
   and the repetition checkpoint above.
+  - The side-by-side table's one-line-per-ticker text layout is about 150 characters wide over four strategies and
+    would be about 400 over eleven. This slice adds the fifth strategy, so its slice plan decides the text layout for
+    more strategies. `--json` is unaffected.
 - **Detail:** [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score)
   the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md) and
   [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score). ⚠ no slice plan yet
@@ -229,8 +232,8 @@ its own quality gate and authorization.
   of one watchlist refresh, built on the 3.5.2 ranking helper and never persisted. The universe is
   always a watchlist.
 - **Scope:** analyzer with the same completeness as 3.5.3; the ranked view and its command, with a typed
-  `--json` model and checked-in schema, and an entry for the command in the SWC command test's
-  non-strategy list; and the side-by-side table's sort option over this view (the table itself is 3.5.0).
+  `--json` model and checked-in schema, and the command's entry in `JSON_DOCUMENTS`
+  (`workspace_documents/json_documents.py`), which T21 requires; and the side-by-side table's sort option over this view (the table itself is 3.5.0).
 - **Detail:** [Strategy specifications §5](STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula),
   [Shared definitions §9](STEP_3_5_SHARED_DEFINITIONS.md#9-ranking-helper) and
   [Slice inputs §8](STEP_3_5_SLICE_INPUTS.md#8-356--magic-formula-and-ranked-refresh-view).

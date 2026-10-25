@@ -138,7 +138,7 @@ SWC.3a adds `SelT` as the first parameter with its first member ([F.4](#f4-selec
 | `result_type` | `type[ResultT]` | SWC.2c | Result-type membership in evaluation; `encode_object`. |
 | `deps_type` | `type[DepsT]` | SWC.2c | Handler binding (exact-type guard on injected dependencies). |
 | `handler` | factory from `(DepsT, ToolRuntime)` to a handler returning `ResultT` | SWC.2c | Tool registration. |
-| `native_status` | function from `ResultT` to `str \| None` | SWC.2c | The evaluation runner's telemetry status. |
+| `native_status` | function from `ResultT` to `CalculationStatus` | SWC.2c | The evaluation runner's telemetry status. |
 | `selection_type` | `type[SelT]` | SWC.3a | The selection union bound; `project_for`; the CLI tier's exact-type checks. |
 | `encode`, `decode`, `ticker_of` | functions over `ResultT` | SWC.3a | `RunSpec.encode` (through `encode_with`), `decode_evidence`. |
 | `project` | function from replay inputs, `ResultT`, `SelT` and options to text | SWC.4c | `project_run`. |
@@ -404,7 +404,7 @@ type, not by an optional field:
 | Dependencies of the handler | A strategy-owned dependency class in its `tool.py`; the shared `ToolRuntime` carries only the clock and the profile resolver. |
 | Execution adapter shape and capture type | Strategy-owned `execute_*`/`run_*`, `*Capture` and normalizer; the CLI tier's `refresh` composes the providers and calls the adapter. |
 | Outcome classification | Strategy-owned `classify_*_outcome` inside the adapter. The descriptor has no classifier member. |
-| Momentum has no native failure-status classifier | Every `native_status` member is required. Momentum's returns `None`, as `_native_status` does today, so absence is an explicit function and nothing is optional. An optional member was rejected: every consumer would branch on `None`, and "absent" could not be told from "forgotten". |
+| Momentum's native status | Every `native_status` member is required and returns a `CalculationStatus`. Momentum's result carries an `execution_status` from slice 3.5.0a, and its function returns it, so no function returns `None`. An optional member was rejected: every consumer would branch on `None`, and "absent" could not be told from "forgotten". |
 | Evidence ticker location | `ticker_of` (Momentum reads `run.metrics.ticker`; the others read `.ticker`). |
 | Profile composition | Graham and FCF share `compose_graham_profile`; Momentum owns `compose_momentum_profile`. |
 | Presentation and replay | `render_*` and the projector; projection stays versioned and strategy-owned. |
