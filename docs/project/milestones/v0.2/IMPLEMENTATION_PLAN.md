@@ -371,6 +371,7 @@ The complete investor workflow—data fetch/cache → deterministic analytics �
 6. Add or validate a simple `ian analyze TICKER` entry point that can request the default deterministic analyses and optionally ask the local LLM to synthesize only their completed typed results.
 7. Ensure synthesis failure, timeout, or schema failure never discards valid deterministic Analysis Runs.
 8. Decide [prefix matching for Analysis Run and refresh IDs](deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md): implement it, or drop it and delete the note.
+9. Decide whether the CLI gets a command to find and display entries from `docs/user/GLOSSARY.md`, so that a user new to investing can look up a term, such as a column header of `ian runs compare`, without leaving the CLI: implement it, or drop it.
 
 **Synthesis boundary**
 The model may summarize, compare, flag tensions, and suggest what the investor may wish to inspect next. It may not invent financial facts, perform the deterministic arithmetic, silently select a growth assumption, or turn a screening result into an investment recommendation.
