@@ -162,12 +162,11 @@ class CellKind(StrEnum):
 @dataclass(frozen=True)
 class HeadlineCell:
     key: str  # stable, unique within the strategy
-    label: str  # column text
+    label: str  # the text table's column header, verbatim
     kind: CellKind
-    number: float | None  # finite; None for a text cell or an absent value
-    text: str | None  # a band, zone or completeness text; None for a number
-    unit: str | None  # explicit for every number cell
-    status: MetricStatus | CalculationStatus | None  # the metric's own status; None for a text-only field
+    value: float | str | None  # a finite number for a number cell, a non-empty text for a text cell, None when absent
+    unit: str | None  # explicit for every number cell; None for a text cell
+    status: MetricStatus | CalculationStatus | None  # the metric's own status; None for a text cell
     reason_code: ReasonCode | None  # set when the result carries a ReasonCode for the cell; None otherwise
 
 
@@ -182,7 +181,7 @@ class Headline:
 The shape was checked on paper against all eleven strategies (four existing, seven new); the cells per
 strategy are listed in [Step 3.5 slice inputs §2](../step-3.5/STEP_3_5_SLICE_INPUTS.md#2-350--side-by-side-refresh-table).
 Number cells carry the metric's own `MetricStatus` or, for the Graham results, their `CalculationStatus`;
-text cells carry none. The `period_end_label` is part of the headline because the table must not show a period
+text cells carry no unit, status or reason code, and a number cell has a value if and only if its status is `ok`. The `period_end_label` is part of the headline because the table must not show a period
 end under a plainer name than the strategy gives it (for the Graham strategies, the period end of the earnings
 input, not of the whole run); a period end without a label is refused by the type. A strategy that has a fiscal
 period but whose run recorded none (a Graham override, an FCF-Growth run with no span) sets the label and no
