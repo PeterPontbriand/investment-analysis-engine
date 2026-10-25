@@ -164,7 +164,7 @@ A transition in the relation between short and long SMAs. The current implementa
 Both averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.
 
 ### Bullish / Bearish / Unknown
-Momentum result states. `UNKNOWN` is used when the final rolling values are not available, such as insufficient history.
+Momentum result states. `UNKNOWN` is used when the final rolling values are not available, such as insufficient history; the run's status is then `input_unavailable`.
 
 ### RSI (Relative Strength Index)
 A bounded momentum indicator comparing recent gains and losses. `MomentumAnalyzer` implements simple trailing-average RSI, with a default period of 14 price changes; it does not use Wilder smoothing. See [Financial Math](FINANCE_MATH.md#momentum-analysis-strategy) for the formula and zero-loss/flat-window conventions.

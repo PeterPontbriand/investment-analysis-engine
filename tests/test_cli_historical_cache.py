@@ -195,6 +195,7 @@ def test_custom_analyzer_client_remains_direct(history: HistoricalMarketData) ->
         context = AnalysisContext(as_of=None, executed_at=datetime.now(UTC), use_cache=True)
         run = analyzer.run_analysis("ACME", MomentumConfig(short_window=2, long_window=3, rsi_period=3), context)
     fetch.assert_called_once_with("ACME", "2026-01-01", None, use_cache=True)
+    assert run.metrics is not None
     assert run.metrics.current_price > 0
 
 

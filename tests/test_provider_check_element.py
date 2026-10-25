@@ -38,8 +38,8 @@ from investment_analysis_engine.core.provider_failure_kind import ProviderFailur
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.provider_checks import CheckVerdict
 from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict
-from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
+from investment_analysis_engine.strategies.momentum.envelope import MomentumDocument
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from scripts.repository_root import REPOSITORY_ROOT
@@ -469,9 +469,10 @@ def test_a_failure_in_json_mode_still_exits_one_and_writes_one_document() -> Non
         result = _invoke(arguments, fake.probe, "--json")
 
     assert result.exit_code == 1
-    envelope = FailureEnvelope.model_validate_json(result.stdout)
-    assert envelope.provider_check == _items(("yfinance", ProviderCheckVerdict.UNREACHABLE))
-    assert envelope.reason_code is FailureReasonCode.PROVIDER_UNREACHABLE
+    document = MomentumDocument.model_validate_json(result.stdout)
+    assert document.provider_check == _items(("yfinance", ProviderCheckVerdict.UNREACHABLE))
+    assert document.provider_failure is not None
+    assert document.provider_failure.reason_code is FailureReasonCode.PROVIDER_UNREACHABLE
 
 
 # ---------------------------------------------------------------------------

@@ -18,8 +18,8 @@ def decode_$module(payload: StrictJsonMapping) -> ${Class}Result:
     unfilled_stub("codec")
 
 
-def ${module}_native_status(result: ${Class}Result, /) -> CalculationStatus | None:
-    """Return the status the strategy reports, or ``None`` when it has none; the shared rule maps it."""
+def ${module}_native_status(result: ${Class}Result, /) -> CalculationStatus:
+    """Return the status the strategy reports; the shared rule maps it to an outcome."""
     del result
     unfilled_stub("codec")
 

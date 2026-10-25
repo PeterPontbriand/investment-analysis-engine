@@ -138,15 +138,17 @@ SWC.3a adds `SelT` as the first parameter with its first member ([F.4](#f4-selec
 | `result_type` | `type[ResultT]` | SWC.2c | Result-type membership in evaluation; `encode_object`. |
 | `deps_type` | `type[DepsT]` | SWC.2c | Handler binding (exact-type guard on injected dependencies). |
 | `handler` | factory from `(DepsT, ToolRuntime)` to a handler returning `ResultT` | SWC.2c | Tool registration. |
-| `native_status` | function from `ResultT` to `str \| None` | SWC.2c | The evaluation runner's telemetry status. |
+| `native_status` | function from `ResultT` to `CalculationStatus` | SWC.2c | The evaluation runner's telemetry status. |
 | `selection_type` | `type[SelT]` | SWC.3a | The selection union bound; `project_for`; the CLI tier's exact-type checks. |
 | `encode`, `decode`, `ticker_of` | functions over `ResultT` | SWC.3a | `RunSpec.encode` (through `encode_with`), `decode_evidence`. |
 | `project` | function from replay inputs, `ResultT`, `SelT` and options to text | SWC.4c | `project_run`. |
 | `headline` | function from `ResultT` to `Headline` | Step 3.5 slice 3.5.0 | The side-by-side refresh table. |
 
 `native_status` returns the result's explicit result-level status. Step 3.5 gives every new result one
-([Step 3.5 shared definitions §2](../step-3.5/STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)); Momentum's
-analyzer has none, so its function returns `None`.
+([Step 3.5 shared definitions §2](../step-3.5/STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)). Momentum's
+result carries one from slice 3.5.0a: `ok` for a bullish or bearish trend, `input_unavailable` for an `UNKNOWN`
+trend, for no observation at or before the boundary and for a failed data-quality check, and `provider_error` for a
+provider failure. Its function returns that status, so no function returns `None`.
 
 **`headline`.** A pure function over a decoded result, kept in the strategy's `replay.py` because the root
 may import that role and both functions read decoded evidence for reporting. It returns a `Headline`:
@@ -166,7 +168,7 @@ class HeadlineCell:
     text: str | None  # a band, zone or completeness text; None for a number
     unit: str | None  # explicit for every number cell
     status: MetricStatus | CalculationStatus | None  # the metric's own status; None for a text-only field
-    reason_code: ReasonCode | None  # set when the status is not ok
+    reason_code: ReasonCode | None  # set when the result carries a ReasonCode for the cell; None otherwise
 
 
 @dataclass(frozen=True)
@@ -402,7 +404,7 @@ type, not by an optional field:
 | Dependencies of the handler | A strategy-owned dependency class in its `tool.py`; the shared `ToolRuntime` carries only the clock and the profile resolver. |
 | Execution adapter shape and capture type | Strategy-owned `execute_*`/`run_*`, `*Capture` and normalizer; the CLI tier's `refresh` composes the providers and calls the adapter. |
 | Outcome classification | Strategy-owned `classify_*_outcome` inside the adapter. The descriptor has no classifier member. |
-| Momentum has no native failure-status classifier | Every `native_status` member is required. Momentum's returns `None`, as `_native_status` does today, so absence is an explicit function and nothing is optional. An optional member was rejected: every consumer would branch on `None`, and "absent" could not be told from "forgotten". |
+| Momentum's native status | Every `native_status` member is required and returns a `CalculationStatus`. Momentum's result carries an `execution_status` from slice 3.5.0a, and its function returns it, so no function returns `None`. An optional member was rejected: every consumer would branch on `None`, and "absent" could not be told from "forgotten". |
 | Evidence ticker location | `ticker_of` (Momentum reads `run.metrics.ticker`; the others read `.ticker`). |
 | Profile composition | Graham and FCF share `compose_graham_profile`; Momentum owns `compose_momentum_profile`. |
 | Presentation and replay | `render_*` and the projector; projection stays versioned and strategy-owned. |

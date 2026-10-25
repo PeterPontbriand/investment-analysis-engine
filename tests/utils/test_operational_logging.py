@@ -104,10 +104,10 @@ def test_a_failing_command_flushes_its_records_to_the_file_before_exiting(tmp_pa
     assert DOWNLOAD_RECORD in run.log
     assert run.stdout == ""
     # The suite switches the automatic provider check off (tests/conftest.py), which the first line says.
-    assert run.stderr.strip().splitlines() == [
-        "Yahoo Finance was not checked (the provider check is turned off).",
-        "Unable to analyze OFFLINE: yfinance returned no data for it.",
-    ]
+    lines = run.stderr.strip().splitlines()
+    assert lines[0] == "Yahoo Finance was not checked (the provider check is turned off)."
+    assert "Status: provider error" in lines
+    assert "Reason: Historical prices could not be retrieved from the market-data provider." in lines
 
 
 def test_third_party_records_at_info_reach_the_file(tmp_path: Path) -> None:
@@ -116,15 +116,21 @@ def test_third_party_records_at_info_reach_the_file(tmp_path: Path) -> None:
     assert "alembic.runtime.migration | INFO | Running upgrade" in run.log
 
 
+def _without_run_time(document: str) -> str:
+    """Return the JSON document text with the instant the run was evaluated at replaced by a marker."""
+    return re.sub(r'("effective_as_of": )"[^"]*"', r'"<time>"', document)
+
+
 def test_json_stdout_is_byte_identical_with_and_without_logging(tmp_path: Path) -> None:
     logged = _run(tmp_path, "json-logged", "fail", "--json")
     unlogged = _run(tmp_path, "json-unlogged", "fail", "--json", "--no-logging")
 
     assert logged.returncode == unlogged.returncode == 1
-    assert logged.stdout == unlogged.stdout
+    # The document carries the time each run was evaluated at, which differs between two processes.
+    assert _without_run_time(logged.stdout) == _without_run_time(unlogged.stdout)
     assert logged.stderr == unlogged.stderr == ""
     assert logged.stdout.startswith("{")
-    assert json.loads(logged.stdout)["status"] == "input_unavailable"
+    assert json.loads(logged.stdout)["status"] == "provider_error"
     assert DOWNLOAD_RECORD in logged.log
     assert unlogged.log == ""
 

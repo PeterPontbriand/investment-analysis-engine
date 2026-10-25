@@ -16,8 +16,8 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
   [Out of scope](#4-out-of-scope).
 - **Entry condition:** implementation waits for integration readiness (IR), strategy wiring
   consolidation (SWC), the dead code audit (R3), provider health (PH), package layering (LAY, which resolves the two-way
-  package dependencies filed as [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)) and the package rename (PKG). 3.5.0 begins by
-  removing `AGENTS.md` §0, as that section requires.
+  package dependencies filed as [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)) and the package rename (PKG). 3.5.0b begins by
+  removing `AGENTS.md` §0, as that section requires ([A.10](#a10-removing-the-consolidation-rules-moves-to-350b-2026-10-25)).
 - **Rules every slice follows:**
   - One definition per shared metric, used everywhere, with no per-strategy fallback variants.
   - Every calculated numeric metric is a `MetricResult` with an explicit `ReasonCode`. Nothing
@@ -27,9 +27,9 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
   - Fundamentals come from SEC EDGAR annual filings only.
   - Every strategy result carries one explicit result-level status, `execution_status`, defined in
     [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status); the strategy's native-status
-    function returns it, as FCF-Growth's does. One question joins that decision: whether Momentum
-    records an unavailable result for a provider failure
-    ([A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07)). A second
+    function returns it, as FCF-Growth's does. Momentum's provider failure is a stored run
+    ([A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07), decided 2026-10-25), and
+    its status is added by slice 3.5.0a. A second
     question, whether every strategy uses one shared mapping from statuses to a run outcome
     ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)), is decided (yes, 2026-10-19) and was implemented by slice PC.4 (2026-10-21) of the
     [pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome).
@@ -52,7 +52,8 @@ next begins.
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| 3.5.0 | [Side-by-side refresh table](#350--side-by-side-refresh-table) | Planned | |
+| 3.5.0a | [Momentum result-level status](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status) | Complete | 2026-10-25 |
+| 3.5.0b | [Side-by-side refresh table](STEP_3_5_0_SLICE_PLAN.md#350b--side-by-side-refresh-table) | Next | |
 | 3.5.1 | [Data mappings and applicability](#351--data-mappings-and-applicability) | Planned | |
 | 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Planned | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
@@ -71,7 +72,7 @@ after SWC and PKG land, against the `main` of that day, because both packages ch
 wiring a plan must name. Each plan states:
 
 - exact files and starting points;
-- the decision this contract leaves open, A.8 (Momentum's provider failure); the run-outcome mapping
+- the decision this contract left open, A.8 (Momentum's provider failure), decided 2026-10-25; the run-outcome mapping
   ([A.9](#a9-one-shared-mapping-from-statuses-to-a-run-outcome-question-from-esc-29-2026-10-10)) is decided and was implemented by slice PC.4 (2026-10-21) of the
   [pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome);
 - new data fields and their mappings;
@@ -135,16 +136,17 @@ its own quality gate and authorization.
   on the finished SWC work and on runs that already exist: no new data (3.5.1), no shared metric or
   ranking helper (3.5.2). Sorting by the ranked view needs that view, so it arrives with Magic Formula
   (3.5.6).
-- **Scope:** `AGENTS.md` §0 removal (3.5.0 is the first implementation slice); the `headline` member and
+- **Scope:** Momentum's result-level status (3.5.0a, [A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07));
+  `AGENTS.md` §0 removal (the first commit of 3.5.0b); the `headline` member and
   the `Headline` and `HeadlineCell` types added to the SWC behavior bundle, with the four existing
   strategies' functions. This one slice also updates, once, the generator's templates, the site data file,
   the specimen strategy and the closed-field test (T15) for the new member. The view, its command, a typed
-  `--json` model and checked-in schema, an entry for the command in the SWC command test's non-strategy
-  list, tests and `WORKSPACE.md` documentation.
+  `--json` model and checked-in schema, the command's entry in `JSON_DOCUMENTS`
+  (`workspace_documents/json_documents.py`), which T21 requires, tests and `WORKSPACE.md` documentation.
 - **Detail:** [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table),
   [Slice inputs §2](STEP_3_5_SLICE_INPUTS.md#2-350--side-by-side-refresh-table) and the
   [SWC design §3.3](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#33-behavior-members-and-the-two-tiers).
-  ⚠ no slice plan yet
+  [Slice plan for 3.5.0a and 3.5.0b](STEP_3_5_0_SLICE_PLAN.md)
 
 ### 3.5.1 — Data mappings and applicability
 
@@ -192,6 +194,9 @@ its own quality gate and authorization.
   `--json`, and the orchestrator tool: `ToolName` member, arguments model, dependency class and handler),
   presenter, tests, user guide, Finance Math and Glossary entries, covering every site in the edit-site table;
   and the repetition checkpoint above.
+  - The side-by-side table's one-line-per-ticker text layout is about 150 characters wide over four strategies and
+    would be about 400 over eleven. This slice adds the fifth strategy, so its slice plan decides the text layout for
+    more strategies. `--json` is unaffected.
 - **Detail:** [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score)
   the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md) and
   [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score). ⚠ no slice plan yet
@@ -227,8 +232,8 @@ its own quality gate and authorization.
   of one watchlist refresh, built on the 3.5.2 ranking helper and never persisted. The universe is
   always a watchlist.
 - **Scope:** analyzer with the same completeness as 3.5.3; the ranked view and its command, with a typed
-  `--json` model and checked-in schema, and an entry for the command in the SWC command test's
-  non-strategy list; and the side-by-side table's sort option over this view (the table itself is 3.5.0).
+  `--json` model and checked-in schema, and the command's entry in `JSON_DOCUMENTS`
+  (`workspace_documents/json_documents.py`), which T21 requires; and the side-by-side table's sort option over this view (the table itself is 3.5.0).
 - **Detail:** [Strategy specifications §5](STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula),
   [Shared definitions §9](STEP_3_5_SHARED_DEFINITIONS.md#9-ranking-helper) and
   [Slice inputs §8](STEP_3_5_SLICE_INPUTS.md#8-356--magic-formula-and-ranked-refresh-view).
@@ -443,6 +448,13 @@ Whether Momentum should record an unavailable result for a provider failure is d
 status ([Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status)), because the answer fixes
 Momentum's `execution_status` for that case. Decision pending.
 
+**Decided 2026-10-25: yes.** The project owner approved storing a Momentum provider failure as a run with
+`execution_status` `provider_error`, outcome `failed`, with its resolution trace and the provider failure passed to
+the capture so the automatic provider check still fires. Too little history for the trend is `input_unavailable`
+(RSI, when computed, is still stored and shown), and a failed data-quality check is `input_unavailable` with a text
+reason, as in the shared financial resolver. Slice 3.5.0a implements it; the
+[3.5.0 slice plan](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status) holds the mapping of every exception.
+
 The common strategy-document header ([SWC.4c.1](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h34-common-header-and-tail-for-strategy-documents-2026-10-09)) gives Momentum a calculation `status`. That slice left it as `ok` for every document that exists, with too little history shown as `result.trend` `UNKNOWN`; whether that case becomes `input_unavailable` is decided here.
 
 ### A.9 One shared mapping from statuses to a run outcome: question from ESC-29 (2026-10-10)
@@ -464,3 +476,11 @@ assembly status and one with a fixed outcome would need a defined place in it. D
 
 **Decided 2026-10-19: yes; implemented 2026-10-21.** The project owner approved one shared mapping. PC.4 implemented it as `RunOutcome.from_status`, with each strategy reporting a native status and `ExecutionCapture` deriving the outcome, and a shared `exit_code_of`. Slice PC.4 of the
 [pattern-cleanup plan](../pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#pc4--one-shared-mapping-from-statuses-to-a-run-outcome) holds the design.
+
+### A.10 Removing the consolidation rules moves to 3.5.0b (2026-10-25)
+
+The contract and A.7 had 3.5.0 begin by removing `AGENTS.md` §0. Slice 3.5.0 is now two sub-slices
+([plan](STEP_3_5_0_SLICE_PLAN.md)). The project owner decided that §0 is removed in the first commit of 3.5.0b, not
+3.5.0a: 3.5.0a changes Momentum's stored shape (the result schema version, the evidence codec version and the
+document version) without compatibility code, which §0 permits and nothing after it would. The A.7 wording
+"removed by 3.5.0, the first implementation slice" is kept as recorded.

@@ -297,6 +297,9 @@ def _momentum_presentation() -> MomentumPresentation:
         price_adjustment="adjusted",
     )
     return MomentumPresentation(
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=CalculationStatus.OK,
         metrics=metrics,
         config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
         market_data=context,

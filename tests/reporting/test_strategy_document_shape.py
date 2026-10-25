@@ -179,7 +179,7 @@ def test_status_is_a_calculation_status_never_a_verdict(stem: str) -> None:
     document = json.loads(expected_path(stem).read_bytes())
     assert document["status"] in {item.value for item in CalculationStatus}
     assert document["status"] not in {item.value for item in TrendStatus}
-    if document["analysis"] == "momentum":
+    if document["analysis"] == "momentum" and document["result"] is not None:
         assert document["result"]["trend"] in {item.value for item in TrendStatus}
 
 

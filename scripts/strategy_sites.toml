@@ -109,7 +109,7 @@ fails = "descriptor X has no selection member"
 [[site]]
 id = "codec"
 title = "Codec and native-status function"
-why = "A stored run is encoded and decoded by the strategy's own functions, and the native-status function returns the `CalculationStatus` the strategy reports, or `None` when it reports none."
+why = "A stored run is encoded and decoded by the strategy's own functions, and the native-status function returns the `CalculationStatus` the strategy reports."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/codec.py"
 generated = true

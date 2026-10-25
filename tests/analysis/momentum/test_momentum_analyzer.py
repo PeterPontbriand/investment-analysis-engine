@@ -8,7 +8,9 @@ import pandas as pd
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
@@ -19,6 +21,7 @@ from investment_analysis_engine.strategies.momentum.analyzer import (
     MomentumConfig,
     compute_momentum_metrics,
 )
+from tests._momentum_runs import assert_no_series_resolved, assert_not_calculated
 
 _CONTEXT = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 20, tzinfo=UTC), use_cache=True)
 
@@ -129,6 +132,7 @@ def test_run_analysis_retains_market_metadata(bullish_dataframe: pd.DataFrame) -
         context=_CONTEXT,
     )
 
+    assert run.metrics is not None
     assert run.metrics.status is TrendStatus.BULLISH
     assert run.market_data == market_data.context
     provider.fetch_historical_data.assert_called_once_with("BTC-USD", "2026-01-01", use_cache=True)
@@ -235,7 +239,32 @@ def test_analyze_momentum_empty_dataset_fault(mock_fetch: MagicMock) -> None:
     mock_fetch.side_effect = DataFetchError("No market data was returned for ticker 'XYZ'.")
 
     analyzer = MomentumAnalyzer(market_data_provider=YFinanceClient(), start_date="2026-01-01")
-    with pytest.raises(DataFetchError, match="No market data was returned"):
-        analyzer.run_analysis(
-            ticker="XYZ", config=MomentumConfig(short_window=2, long_window=5, rsi_period=14), context=_CONTEXT
-        )
+    run = analyzer.run_analysis(
+        ticker="XYZ", config=MomentumConfig(short_window=2, long_window=5, rsi_period=14), context=_CONTEXT
+    )
+
+    assert_not_calculated(run, CalculationStatus.PROVIDER_ERROR, code=ReasonCode.PROVIDER_ERROR)
+    assert_no_series_resolved(run)
+    assert run.provider_failure is None
+    assert run.reason is not None
+    assert "No market data was returned" not in run.reason
+    assert run.ticker == "XYZ"
+    assert run.effective_as_of == _CONTEXT.effective_as_of
+
+
+def test_a_successful_run_reports_ok_with_its_identity_and_no_reason(bullish_dataframe: pd.DataFrame) -> None:
+    provider = MagicMock()
+    provider.fetch_historical_data.return_value = HistoricalMarketData(
+        frame=bullish_dataframe, context=MarketDataContext(provider_id="fixture-market")
+    )
+    analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
+
+    run = analyzer.run_analysis(
+        ticker=" btc-usd ", config=MomentumConfig(short_window=2, long_window=5, rsi_period=14), context=_CONTEXT
+    )
+
+    assert run.execution_status is CalculationStatus.OK
+    assert (run.ticker, run.effective_as_of) == ("BTC-USD", _CONTEXT.effective_as_of)
+    assert (run.reason, run.reason_code, run.provider_failure) == (None, None, None)
+    assert run.metrics is not None
+    assert run.metrics.ticker == run.ticker

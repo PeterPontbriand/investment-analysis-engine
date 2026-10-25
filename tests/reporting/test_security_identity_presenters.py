@@ -105,6 +105,9 @@ def _input(field_name: str, value: float, units: str) -> ResolvedInput:
 
 def _momentum(identity: SecurityIdentityResolution, *, ticker: str = "ACME") -> MomentumPresentation:
     return MomentumPresentation(
+        ticker=ticker,
+        effective_as_of=NOW,
+        execution_status=CalculationStatus.OK,
         metrics=MomentumMetrics(
             ticker=ticker,
             status=TrendStatus.BULLISH,
@@ -188,7 +191,7 @@ def test_json_contracts_expose_same_snapshot_and_deliberate_versions() -> None:
         json.loads(render_fcf_earnings_growth(fcf_result, PresentationMode.JSON, identity)),
     )
 
-    assert [document["schema_version"] for document in documents] == [9, 10, 10, 9]
+    assert [document["schema_version"] for document in documents] == [10, 10, 10, 9]
     for document in documents:
         snapshot = document["security_identity"]
         assert snapshot["ticker"] == "ACME"

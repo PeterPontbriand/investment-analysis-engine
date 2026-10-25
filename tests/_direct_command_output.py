@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
-from contextlib import ExitStack, nullcontext
+from contextlib import ExitStack, contextmanager, nullcontext
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import cast
@@ -22,6 +22,7 @@ import typer.main
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
+from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
@@ -153,14 +154,26 @@ def expected_path(command: str, mode: str) -> Path:
     return EXPECTED_DIRECTORY / f"{command}.{'json' if mode == 'json' else 'txt'}"
 
 
+@contextmanager
+def provider_check_switched_off() -> Iterator[None]:
+    """Turn the automatic provider check off for the life of the block, as ``tests/conftest.py`` does for pytest.
+
+    A regeneration entry point runs outside pytest, so the suite's own switch does not apply; without this a command
+    that fails on a provider would send a real test request while its output was being stored.
+    """
+    with patch.object(real_settings, "provider_check", False):
+        yield
+
+
 def regenerate() -> None:
-    """Rewrite every stored expected-output file from the current behavior."""
-    EXPECTED_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    for command, mode in cases():
-        output = run_command(command, mode)
-        if output.exit_code != 0 or output.stderr:
-            raise SystemExit(f"{command} {mode} did not succeed; refusing to store its output")
-        expected_path(command, mode).write_bytes(output.stdout)
+    """Rewrite every stored expected-output file from the current behavior, with the provider check off."""
+    with provider_check_switched_off():
+        EXPECTED_DIRECTORY.mkdir(parents=True, exist_ok=True)
+        for command, mode in cases():
+            output = run_command(command, mode)
+            if output.exit_code != 0 or output.stderr:
+                raise SystemExit(f"{command} {mode} did not succeed; refusing to store its output")
+            expected_path(command, mode).write_bytes(output.stdout)
 
 
 if __name__ == "__main__":

@@ -30,7 +30,13 @@ def project_momentum(
         raise UnsupportedProjectionError("Stored sma_spread_percent is not a finite number or null.")
 
     presentation = MomentumPresentation(
+        ticker=evidence.ticker,
+        effective_as_of=evidence.effective_as_of,
+        execution_status=evidence.execution_status,
         metrics=evidence.metrics,
+        reason_code=evidence.reason_code,
+        reason=evidence.reason,
+        provider_failure=evidence.provider_failure,
         config=selection.to_momentum_config(),
         requested_as_of=selection.as_of,
         market_data=evidence.market_data,

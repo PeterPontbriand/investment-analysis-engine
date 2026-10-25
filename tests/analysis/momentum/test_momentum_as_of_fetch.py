@@ -13,17 +13,15 @@ import pandas as pd
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.base_client import BaseDataClient
 from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
-from investment_analysis_engine.data.market_data import (
-    HistoricalMarketData,
-    MarketDataContext,
-    NoEligibleObservationsError,
-)
-from investment_analysis_engine.data.quality import HistoricalDataQualityError
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
 from investment_analysis_engine.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from tests._momentum_runs import assert_no_series_resolved, assert_not_calculated
 
 START = "2026-01-01"
 VARIANT = "1d:adjusted"
@@ -107,6 +105,7 @@ def test_an_invalid_bar_after_the_boundary_does_not_fail_an_as_of_run_on_a_cache
 
     run = _run(_client(provider, migrated_database), as_of=BOUNDARY)
 
+    assert run.metrics is not None
     assert run.metrics.current_price == 20.0  # the 2026-01-11 close
     assert provider.calls == [("ACME", START, "2026-01-12")]
 
@@ -121,6 +120,8 @@ def test_an_invalid_bar_after_the_boundary_does_not_fail_an_as_of_run_on_a_cache
     second = _run(client, as_of=BOUNDARY)
 
     assert len(provider.calls) == 1
+    assert first.metrics is not None
+    assert second.metrics is not None
     assert second.metrics.current_price == first.metrics.current_price == 20.0
     assert second.price_inputs[-1].source_kind.value == "cache"
 
@@ -132,6 +133,7 @@ def test_an_invalid_bar_after_the_boundary_does_not_fail_an_as_of_run_with_no_ca
 
     run = _run(_client(provider, migrated_database), as_of=BOUNDARY, use_cache=False)
 
+    assert run.metrics is not None
     assert run.metrics.current_price == 20.0
     assert provider.calls == [("ACME", START, "2026-01-12")]
     assert _stored(migrated_database, date(2026, 1, 12)) is None
@@ -144,8 +146,10 @@ def test_an_invalid_bar_at_or_before_the_boundary_still_fails_the_run(
 ) -> None:
     provider = _EndDateProvider(_closes(bad_at=bad_at))
 
-    with pytest.raises(HistoricalDataQualityError):
-        _run(_client(provider, migrated_database), as_of=BOUNDARY, use_cache=use_cache)
+    run = _run(_client(provider, migrated_database), as_of=BOUNDARY, use_cache=use_cache)
+
+    assert_not_calculated(run, CalculationStatus.INPUT_UNAVAILABLE, code=None)
+    assert_no_series_resolved(run)
 
 
 def test_a_cached_as_of_window_holds_no_bar_after_the_boundary(migrated_database: SQLiteDatabase) -> None:
@@ -168,6 +172,7 @@ def test_a_live_run_fetches_and_caches_the_full_history_separately(migrated_data
     live = _run(client, as_of=None)
 
     assert provider.calls == [("ACME", START, "2026-01-12"), ("ACME", START, None)]
+    assert live.metrics is not None
     assert live.metrics.current_price == 29.0
     full = _stored(migrated_database, None)
     assert full is not None
@@ -224,8 +229,9 @@ def test_an_invalid_bar_dated_on_the_boundary_day_but_stamped_after_the_boundary
     provider = _EndDateProvider(_closes(bad_at=BOUNDARY_DAY), stamp_offset=timedelta(hours=12))
     boundary = datetime(2026, 1, 11, 6, tzinfo=UTC)
 
-    with pytest.raises(HistoricalDataQualityError):
-        _run(_client(provider, migrated_database), as_of=boundary)
+    run = _run(_client(provider, migrated_database), as_of=boundary)
+
+    assert_not_calculated(run, CalculationStatus.INPUT_UNAVAILABLE, code=None)
 
 
 def test_a_valid_bar_dated_on_the_boundary_day_but_stamped_after_the_boundary_instant_is_dropped(
@@ -235,6 +241,7 @@ def test_a_valid_bar_dated_on_the_boundary_day_but_stamped_after_the_boundary_in
 
     run = _run(_client(provider, migrated_database), as_of=datetime(2026, 1, 11, 6, tzinfo=UTC))
 
+    assert run.metrics is not None
     assert run.metrics.current_price == 19.0  # the 2026-01-10 bar; the 2026-01-11 12:00 bar is later
 
 
@@ -249,9 +256,15 @@ def test_a_boundary_before_the_series_start_date_reports_no_eligible_observation
 ) -> None:
     provider = _EndDateProvider(_closes())
 
-    with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
-        _run(_client(provider, migrated_database), as_of=as_of, use_cache=use_cache)
+    run = _run(_client(provider, migrated_database), as_of=as_of, use_cache=use_cache)
 
+    assert_not_calculated(
+        run,
+        CalculationStatus.INPUT_UNAVAILABLE,
+        code=ReasonCode.NOT_AVAILABLE_AS_OF,
+        reason_contains="No price history is available at or before",
+    )
+    assert_no_series_resolved(run)
     assert provider.calls == []
     assert _stored(migrated_database, None) is None
 
@@ -264,4 +277,5 @@ def test_a_boundary_at_the_series_start_date_is_fetched_and_keeps_the_first_bar(
     run = _run(_client(provider, migrated_database), as_of=datetime(2026, 1, 1, tzinfo=UTC))
 
     assert provider.calls == [("ACME", START, "2026-01-02")]
+    assert run.metrics is not None
     assert run.metrics.current_price == 10.0

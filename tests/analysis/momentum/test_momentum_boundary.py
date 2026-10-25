@@ -13,14 +13,12 @@ import pandas as pd
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
-from investment_analysis_engine.data.market_data import (
-    HistoricalMarketData,
-    MarketDataContext,
-    NoEligibleObservationsError,
-)
-from investment_analysis_engine.data.quality import HistoricalDataQualityError, QualityOutcome
+from investment_analysis_engine.core.metric_result import ReasonCode
+from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
+from tests._momentum_runs import assert_no_series_resolved, assert_not_calculated
 
 FIRST_BAR = datetime(2026, 1, 1, 12, tzinfo=UTC)
 EXECUTED_AT = datetime(2026, 2, 1, tzinfo=UTC)
@@ -54,6 +52,7 @@ def _bar_time(position: int) -> datetime:
 def test_as_of_keeps_the_bar_exactly_at_the_boundary() -> None:
     run = _run([float(10 + value) for value in range(10)], as_of=_bar_time(7))
 
+    assert run.metrics is not None
     assert run.metrics.current_price == 17.0
     assert run.market_data.data_as_of == date(2026, 1, 8)
 
@@ -61,6 +60,7 @@ def test_as_of_keeps_the_bar_exactly_at_the_boundary() -> None:
 def test_as_of_drops_a_bar_one_second_after_the_boundary() -> None:
     run = _run([float(10 + value) for value in range(10)], as_of=_bar_time(7) - ONE_SECOND)
 
+    assert run.metrics is not None
     assert run.metrics.current_price == 16.0
     assert run.market_data.data_as_of == date(2026, 1, 7)
 
@@ -70,15 +70,28 @@ def test_as_of_1990_never_calls_the_provider() -> None:
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
     context = AnalysisContext(as_of=datetime(1990, 1, 1, tzinfo=UTC), executed_at=EXECUTED_AT, use_cache=True)
 
-    with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
-        analyzer.run_analysis("ACME", CONFIG, context)
+    run = analyzer.run_analysis("ACME", CONFIG, context)
 
+    assert_not_calculated(
+        run,
+        CalculationStatus.INPUT_UNAVAILABLE,
+        code=ReasonCode.NOT_AVAILABLE_AS_OF,
+        reason_contains="No price history is available at or before",
+    )
+    assert_no_series_resolved(run)
     provider.fetch_historical_data.assert_not_called()
 
 
 def test_as_of_before_every_bar_has_no_eligible_observations() -> None:
-    with pytest.raises(NoEligibleObservationsError, match="No price history is available at or before"):
-        _run([10.0, 11.0, 12.0], as_of=FIRST_BAR - ONE_SECOND)
+    run = _run([10.0, 11.0, 12.0], as_of=FIRST_BAR - ONE_SECOND)
+
+    assert_not_calculated(
+        run,
+        CalculationStatus.INPUT_UNAVAILABLE,
+        code=ReasonCode.NOT_AVAILABLE_AS_OF,
+        reason_contains="No price history is available at or before",
+    )
+    assert_no_series_resolved(run)
 
 
 def _run_with_final_bar(offset: timedelta, *, as_of: datetime | None) -> MomentumRun:
@@ -104,20 +117,23 @@ def _run_with_final_bar(offset: timedelta, *, as_of: datetime | None) -> Momentu
 def test_live_run_accepts_a_bar_dated_within_the_skew_tolerance_after_execution(offset: timedelta) -> None:
     run = _run_with_final_bar(offset, as_of=None)
 
+    assert run.metrics is not None
     assert run.metrics.current_price == 19.0
 
 
 @pytest.mark.parametrize("offset", [FROZEN_CLOCK_SKEW_TOLERANCE + ONE_SECOND, timedelta(hours=1), timedelta(days=30)])
 def test_live_run_rejects_a_bar_dated_beyond_the_skew_tolerance_with_a_specific_reason(offset: timedelta) -> None:
     """ESC-23: the bar is not dropped silently; the run fails and names the rule."""
-    with pytest.raises(HistoricalDataQualityError, match="later than the execution time") as raised:
-        _run_with_final_bar(offset, as_of=None)
+    run = _run_with_final_bar(offset, as_of=None)
 
-    failed = [decision for decision in raised.value.decisions if decision.outcome is QualityOutcome.FAIL]
-    assert [decision.rule_id for decision in failed] == ["historical.future_observation"]
+    assert_not_calculated(
+        run, CalculationStatus.INPUT_UNAVAILABLE, code=None, reason_contains="later than the execution time"
+    )
+    assert_no_series_resolved(run)
 
 
 def test_as_of_run_is_unaffected_because_truncation_already_excludes_the_future_bar() -> None:
     run = _run_with_final_bar(timedelta(days=30), as_of=_bar_time(7))
 
+    assert run.metrics is not None
     assert run.metrics.current_price == 17.0

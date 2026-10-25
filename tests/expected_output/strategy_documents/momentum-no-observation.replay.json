@@ -1,0 +1,64 @@
+{
+  "schema_version": 10,
+  "analysis": "momentum",
+  "method": "sma_crossover",
+  "ticker": "BTC-USD",
+  "status": "input_unavailable",
+  "provider_failure": null,
+  "provider_check": null,
+  "requested_as_of": "2020-06-01T23:59:59.999999+00:00",
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "BTC-USD",
+    "instrument_name": null,
+    "listing_venue": null,
+    "issuer_identifier": null,
+    "instrument_identifier": null,
+    "provider_id": null,
+    "resolved_at": null
+  },
+  "instrument_kind": null,
+  "reason_code": "not_available_as_of",
+  "reason": "No price history is available at or before the requested --as-of boundary.",
+  "result": null,
+  "parameters": {
+    "short_window": 2,
+    "long_window": 3,
+    "rsi_period": 3
+  },
+  "source": {
+    "provider": null,
+    "data_as_of": null,
+    "interval": null,
+    "observation_count": null,
+    "currency": null,
+    "price_adjustment": null
+  },
+  "data_resolution": null,
+  "warnings": [],
+  "limitations": [
+    "SMA momentum describes recent price trend; it is not a valuation, fundamental-quality conclusion, or investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "historical_close",
+      "stage": "validation",
+      "outcome": "unavailable",
+      "message": "No price history is available at or before the requested --as-of boundary."
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no security identity metadata.",
+      "provider_id": "yfinance"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "provider_id": "yfinance"
+    }
+  ]
+}

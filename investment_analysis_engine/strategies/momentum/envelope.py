@@ -9,6 +9,7 @@ from datetime import date
 from typing import Final
 
 from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.provenance import SourceKind
 from investment_analysis_engine.reporting.documents.shared_parts import DocumentPart, MetricResultPart
 from investment_analysis_engine.reporting.documents.strategy_document import (
@@ -24,14 +25,14 @@ from investment_analysis_engine.strategies.momentum.vocabulary import (
     TrendRelationship,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 9
+DOCUMENT_SCHEMA_VERSION: Final = 10
 
 
 class MomentumResultPart(DocumentPart):
     """The computed trend and metrics; each metric is null when the available history cannot support it.
 
     ``trend`` is the verdict (``UNKNOWN`` when the history cannot support both moving averages), never the
-    document's ``status``, which says only that the calculation ran.
+    document's ``status``. The document's ``status`` is ``input_unavailable`` for an ``UNKNOWN`` trend.
     """
 
     trend: TrendStatus
@@ -78,16 +79,22 @@ class MomentumDataResolutionPart(DocumentPart):
 
 
 class MomentumBody(DocumentPart):
-    """The keys only the Momentum document writes."""
+    """The keys only the Momentum document writes.
 
-    result: MomentumResultPart
+    ``result`` is null when no calculation ran; ``reason`` then says why, and ``reason_code`` names the cause where a
+    code fits. For an ``UNKNOWN`` trend the result is present and ``reason`` explains the status.
+    """
+
+    reason_code: ReasonCode | None
+    reason: str | None
+    result: MomentumResultPart | None
     parameters: MomentumParametersPart
     source: MomentumSourcePart
     data_resolution: MomentumDataResolutionPart | None
 
 
 class MomentumDocument(StrategyDocumentTail, MomentumBody, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The Momentum document, version 8, as ``momentum --json`` and ``runs show --json`` write it.
+    """The Momentum document, version 10, as ``momentum --json`` and ``runs show --json`` write it.
 
     The shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.
     """

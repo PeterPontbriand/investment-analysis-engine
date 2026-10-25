@@ -13,8 +13,11 @@ import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import DataColumns, TrendStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
+from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionEvent,
@@ -28,8 +31,8 @@ from investment_analysis_engine.data.market_data import (
     HistoricalMarketData,
     MarketDataContext,
     MarketDataProvider,
-    NoEligibleObservationsError,
 )
+from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.quality import (
     HistoricalDataQualityError,
     QualityContext,
@@ -38,6 +41,10 @@ from investment_analysis_engine.data.quality import (
     evaluate_historical_quality,
 )
 from investment_analysis_engine.data.quality_reporting import publish_quality
+
+_PRICE_INPUT: Final = "historical_close"
+_PROVIDER_FAILURE_MESSAGE: Final = "Historical prices could not be retrieved from the market-data provider."
+_NO_OBSERVATION_MESSAGE: Final = "No price history is available at or before the requested --as-of boundary."
 
 
 @dataclass(frozen=True)
@@ -69,10 +76,23 @@ class MomentumMetrics:
 
 @dataclass(frozen=True)
 class MomentumRun:
-    """One Momentum calculation paired with retained market-data context."""
+    """One Momentum attempt: its result-level status, the metrics when a calculation ran, and the retained context.
 
-    metrics: MomentumMetrics
+    ``execution_status`` is ``ok`` for a bullish or bearish trend, ``input_unavailable`` for an ``UNKNOWN`` trend, for
+    no observation at or before the boundary and for a failed data-quality check, and ``provider_error`` for a
+    provider failure. ``metrics`` is absent exactly when no calculation ran. ``market_data`` and ``price_inputs`` are
+    empty when no series resolved. ``reason_code`` is set only where a ``ReasonCode`` names the cause, and
+    ``provider_failure`` only for a classified provider failure.
+    """
+
+    ticker: str
+    effective_as_of: datetime
+    execution_status: CalculationStatus
+    metrics: MomentumMetrics | None
     market_data: MarketDataContext
+    reason_code: ReasonCode | None = None
+    reason: str | None = None
+    provider_failure: ProviderFailureRecord | None = None
     price_inputs: tuple[ResolvedInput, ...] = ()
     resolution_trace: ResolutionTrace = ResolutionTrace()
     instrument_profile: InstrumentProfile | None = None
@@ -112,6 +132,10 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
         against the (possibly ``as_of``-truncated) frame actually handed to
         calculation, without publishing again — a fail-safe on the exact
         input, not a second independent telemetry event.
+
+        A provider failure, a failed quality check and no observation at or before the boundary are returned as a
+        run without metrics, as is a history too short for the trend. Only a caller defect or a defect in the code
+        raises.
         """
         normalized_ticker = require_ticker(ticker)
         resolver = MomentumInputResolver(self._market_data_provider, clock=lambda: context.executed_at)
@@ -122,6 +146,19 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
             effective_as_of=context.effective_as_of,
             use_cache=context.use_cache,
         )
+        if isinstance(resolved, MomentumUnresolved):
+            return MomentumRun(
+                ticker=normalized_ticker,
+                effective_as_of=context.effective_as_of,
+                execution_status=resolved.status,
+                metrics=None,
+                market_data=MarketDataContext(),
+                reason_code=resolved.reason_code,
+                reason=resolved.reason,
+                provider_failure=resolved.provider_failure,
+                resolution_trace=resolved.resolution_trace,
+                instrument_profile=context.instrument_profile,
+            )
         df = resolved.market_data.frame
         decisions = evaluate_historical_quality(
             HistoricalMarketData(df, MarketDataContext()),
@@ -131,7 +168,25 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
         )
         failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
         if failure is not None:
-            raise HistoricalDataQualityError(decisions, df)
+            return MomentumRun(
+                ticker=normalized_ticker,
+                effective_as_of=context.effective_as_of,
+                execution_status=CalculationStatus.INPUT_UNAVAILABLE,
+                metrics=None,
+                market_data=resolved.market_data.context,
+                reason=str(HistoricalDataQualityError(decisions, df)),
+                price_inputs=resolved.price_inputs,
+                resolution_trace=resolved.resolution_trace.append(
+                    ResolutionEvent(
+                        _PRICE_INPUT,
+                        ResolutionStage.VALIDATION,
+                        ResolutionOutcome.REJECTED,
+                        "The price series handed to calculation failed the data-quality check.",
+                    )
+                ),
+                instrument_profile=context.instrument_profile,
+                data_resolution=resolved.market_data.resolution,
+            )
         metrics = compute_momentum_metrics(
             df=df, config=config, ticker=normalized_ticker, timestamp=context.effective_as_of
         )
@@ -143,9 +198,17 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
                 "Calculated Momentum metrics from the point-in-time price series.",
             )
         )
+        trend_known = metrics.status is not TrendStatus.UNKNOWN
         return MomentumRun(
+            ticker=normalized_ticker,
+            effective_as_of=context.effective_as_of,
+            execution_status=CalculationStatus.OK if trend_known else CalculationStatus.INPUT_UNAVAILABLE,
             metrics=metrics,
             market_data=resolved.market_data.context,
+            reason_code=None if trend_known else ReasonCode.INSUFFICIENT_HISTORY,
+            reason=None
+            if trend_known
+            else f"The long moving average requires {config.long_window} observations; {len(df)} were available.",
             price_inputs=resolved.price_inputs,
             resolution_trace=trace,
             instrument_profile=context.instrument_profile,
@@ -261,6 +324,22 @@ class MomentumResolution:
     resolution_trace: ResolutionTrace
 
 
+@dataclass(frozen=True)
+class MomentumUnresolved:
+    """A resolution that produced no usable price series, with the status and reason Momentum reports for it.
+
+    ``reason`` is a fixed message for a provider failure, never the provider's exception text, which may carry
+    provider data. For a failed quality check it is the message the quality error builds from field and date
+    evidence. ``reason_code`` is set only for ``provider_error`` and for no observation at or before the boundary.
+    """
+
+    status: CalculationStatus
+    reason: str
+    resolution_trace: ResolutionTrace
+    reason_code: ReasonCode | None = None
+    provider_failure: ProviderFailureRecord | None = None
+
+
 def _observation_instants(index: pd.Index[Any]) -> pd.DatetimeIndex:
     """Return each bar's UTC instant, reading a zoned daily index by its local trading dates.
 
@@ -276,6 +355,36 @@ def _observation_instants(index: pd.Index[Any]) -> pd.DatetimeIndex:
     return pd.to_datetime(index, utc=True)
 
 
+def _no_observation(trace: ResolutionTrace) -> MomentumUnresolved:
+    """Return the outcome of a boundary that no observation is at or before."""
+    return MomentumUnresolved(
+        status=CalculationStatus.INPUT_UNAVAILABLE,
+        reason=_NO_OBSERVATION_MESSAGE,
+        resolution_trace=trace.append(
+            ResolutionEvent(
+                _PRICE_INPUT, ResolutionStage.VALIDATION, ResolutionOutcome.UNAVAILABLE, _NO_OBSERVATION_MESSAGE
+            )
+        ),
+        reason_code=ReasonCode.NOT_AVAILABLE_AS_OF,
+    )
+
+
+def _quality_failure(trace: ResolutionTrace, error: HistoricalDataQualityError) -> MomentumUnresolved:
+    """Return the one outcome of a failed quality check, whichever rule failed; the reason is the error's message."""
+    return MomentumUnresolved(
+        status=CalculationStatus.INPUT_UNAVAILABLE,
+        reason=str(error),
+        resolution_trace=trace.append(
+            ResolutionEvent(
+                _PRICE_INPUT,
+                ResolutionStage.VALIDATION,
+                ResolutionOutcome.REJECTED,
+                "The historical prices failed the data-quality check.",
+            )
+        ),
+    )
+
+
 class MomentumInputResolver:
     """Resolve and strictly truncate historical prices before calculation."""
 
@@ -289,6 +398,60 @@ class MomentumInputResolver:
         self._provider = provider
         self._clock = clock
 
+    def _fetch(
+        self, ticker: str, start_date: str, end_date: str | None, *, use_cache: bool, trace: ResolutionTrace
+    ) -> HistoricalMarketData | MomentumUnresolved:
+        """Fetch the series, or return the unresolved outcome of a provider failure or a failed cached-client check."""
+        try:
+            if end_date is None:
+                return self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)
+            return self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
+        except DataFetchError as error:
+            record = failure_record(error)
+            return MomentumUnresolved(
+                status=CalculationStatus.PROVIDER_ERROR,
+                reason=_PROVIDER_FAILURE_MESSAGE,
+                resolution_trace=trace.append(
+                    ResolutionEvent(
+                        _PRICE_INPUT, ResolutionStage.PROVIDER, ResolutionOutcome.ERROR, _PROVIDER_FAILURE_MESSAGE
+                    )
+                ),
+                reason_code=ReasonCode.PROVIDER_ERROR,
+                provider_failure=None if record is None else record.for_input(_PRICE_INPUT),
+            )
+        except HistoricalDataQualityError as error:
+            return _quality_failure(trace, error)
+
+    def _eligible_frame(
+        self,
+        ticker: str,
+        data: HistoricalMarketData,
+        *,
+        as_of: datetime | None,
+        effective_as_of: datetime,
+        trace: ResolutionTrace,
+    ) -> pd.DataFrame | MomentumUnresolved:
+        """Check the fetched series once, then keep the observations at or before the boundary."""
+        decisions = evaluate_historical_quality(
+            data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=effective_as_of)
+        )
+        publish_quality(decisions)
+        failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
+        if failure is not None:
+            return _quality_failure(trace, HistoricalDataQualityError(decisions, data.frame))
+        frame = data.frame
+        if as_of is not None:
+            timestamps = _observation_instants(frame.index)
+            frame = frame.loc[timestamps <= pd.Timestamp(as_of)]
+        else:
+            future = evaluate_future_observation(
+                frame, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=None)
+            )
+            if future.outcome is QualityOutcome.FAIL:
+                publish_quality((future,))
+                return _quality_failure(trace, HistoricalDataQualityError((future,), frame))
+        return _no_observation(trace) if frame.empty else frame
+
     def resolve(
         self,
         *,
@@ -297,19 +460,19 @@ class MomentumInputResolver:
         effective_as_of: datetime,
         use_cache: bool,
         as_of: datetime | None = None,
-    ) -> MomentumResolution:
-        """Fetch prices and retain only observations at or before ``as_of``."""
-        trace = ResolutionTrace().append(
-            ResolutionEvent(
-                "historical_close",
-                ResolutionStage.PROVIDER,
-                ResolutionOutcome.ATTEMPTED,
-                "Requested historical market observations from the configured provider.",
-            )
-        )
-        if as_of is None:
-            data = self._provider.fetch_historical_data(ticker, start_date, use_cache=use_cache)
-        else:
+    ) -> MomentumResolution | MomentumUnresolved:
+        """Fetch prices and retain only observations at or before ``as_of``.
+
+        Returns:
+            The resolved series, or the unresolved outcome for a provider failure, a failed quality check or no
+            observation at or before the boundary.
+
+        Raises:
+            ValueError: If ``as_of`` is naive or the provider identity is missing, both defects of the caller or
+                of the wiring.
+        """
+        end_date: str | None = None
+        if as_of is not None:
             if as_of.tzinfo is None or as_of.tzinfo.utcoffset(as_of) is None:
                 raise ValueError("Momentum as_of must be timezone-aware.")
             # An --as-of run asks only for history up to the boundary. Providers treat the end date as
@@ -317,33 +480,22 @@ class MomentumInputResolver:
             # truncation below still decides which of those bars are at or before the boundary instant.
             window_end = as_of.astimezone(UTC).date() + timedelta(days=1)
             if window_end <= date.fromisoformat(start_date):
-                raise NoEligibleObservationsError(
-                    "No price history is available at or before the requested --as-of boundary."
-                )
+                return _no_observation(ResolutionTrace())
             end_date = window_end.isoformat()
-            data = self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
-        decisions = evaluate_historical_quality(
-            data, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=effective_as_of)
+        trace = ResolutionTrace().append(
+            ResolutionEvent(
+                _PRICE_INPUT,
+                ResolutionStage.PROVIDER,
+                ResolutionOutcome.ATTEMPTED,
+                "Requested historical market observations from the configured provider.",
+            )
         )
-        publish_quality(decisions)
-        failure = next((item for item in decisions if item.outcome is QualityOutcome.FAIL), None)
-        if failure is not None:
-            raise HistoricalDataQualityError(decisions, data.frame)
-        frame = data.frame
-        if as_of is not None:
-            timestamps = _observation_instants(frame.index)
-            frame = frame.loc[timestamps <= pd.Timestamp(as_of)]
-        if as_of is None:
-            future = evaluate_future_observation(
-                frame, context=QualityContext(f"{ticker}:historical_close", self._clock(), analysis_as_of=None)
-            )
-            if future.outcome is QualityOutcome.FAIL:
-                publish_quality((future,))
-                raise HistoricalDataQualityError((future,), frame)
-        if frame.empty:
-            raise NoEligibleObservationsError(
-                "No price history is available at or before the requested --as-of boundary."
-            )
+        data = self._fetch(ticker, start_date, end_date, use_cache=use_cache, trace=trace)
+        if isinstance(data, MomentumUnresolved):
+            return data
+        frame = self._eligible_frame(ticker, data, as_of=as_of, effective_as_of=effective_as_of, trace=trace)
+        if isinstance(frame, MomentumUnresolved):
+            return frame
 
         retrieved_at = self._clock()
         resolution = data.resolution

@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.metric_result import MetricResult
+from investment_analysis_engine.core.failure_classification import provider_failure_of
+from investment_analysis_engine.core.metric_result import MetricResult, ReasonCode
+from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.data.financial.resolution_trace import ResolutionTrace
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from investment_analysis_engine.data.market_data import HistoricalDataResolution, MarketDataContext
@@ -20,6 +23,7 @@ from investment_analysis_engine.reporting.documents.shared_parts import (
     security_identity_part,
 )
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
+from investment_analysis_engine.reporting.evidence_presentation import status_label
 from investment_analysis_engine.reporting.presentation import (
     PresentationMode,
     ResolutionDiagnostic,
@@ -55,6 +59,10 @@ _LIMITATION = (
 class MomentumPresentation:
     """Presentation context for one Momentum analysis.
 
+    ``execution_status`` is the run's result-level status. ``metrics`` is absent exactly when no calculation ran, and
+    then ``reason`` says why. ``provider_check`` is the provider-check element of a document written beside a provider
+    failure; it is null for a replay.
+
     ``use_captured_spread`` defaults to False, so every existing direct-command
     call site is unaffected: the SMA spread is computed from ``metrics`` as
     before. Pure report replay (projection v1) sets it True and supplies
@@ -64,8 +72,15 @@ class MomentumPresentation:
     historical records.
     """
 
-    metrics: MomentumMetrics
+    ticker: str
+    effective_as_of: datetime
+    execution_status: CalculationStatus
+    metrics: MomentumMetrics | None
     config: MomentumConfig
+    reason_code: ReasonCode | None = None
+    reason: str | None = None
+    provider_failure: ProviderFailureRecord | None = None
+    provider_check: tuple[ProviderCheckItem, ...] | None = None
     requested_as_of: datetime | None = None
     market_data: MarketDataContext | None = None
     warnings: tuple[str, ...] = ()
@@ -104,11 +119,30 @@ def _effective_spread(p: MomentumPresentation) -> tuple[float | None, float | No
     """Return the SMA spread/percent to display: captured for replay, computed otherwise."""
     if p.use_captured_spread:
         return p.captured_sma_spread, p.captured_sma_spread_percent
+    if p.metrics is None:
+        return None, None
     return _sma_spread(p.metrics), _sma_spread_percent(p.metrics)
+
+
+def _unavailable_lines(p: MomentumPresentation) -> list[str]:
+    """Describe a run in which no calculation ran: its status, the reason and the data context."""
+    lines = [
+        f"{security_display_label(p.ticker, p.identity_resolution)} — Momentum",
+        "Momentum could not be calculated.",
+        f"Status: {status_label(p.execution_status)}",
+    ]
+    if p.reason:
+        lines.append(f"Reason: {p.reason}")
+    lines.append(f"Data: {_data_summary(p.market_data)}")
+    lines.extend(f"Warning: {warning}" for warning in _warnings(p))
+    lines.append(f"Limitation: {_LIMITATION}")
+    return lines
 
 
 def _concise_lines(p: MomentumPresentation) -> list[str]:
     metrics = p.metrics
+    if metrics is None:
+        return _unavailable_lines(p)
     currency = _currency(p)
     short_label = _sma_label(p.config.short_window, p.market_data)
     long_label = _sma_label(p.config.long_window, p.market_data)
@@ -159,7 +193,7 @@ def _technical_detail_lines(p: MomentumPresentation) -> list[str]:
         f"Configured windows: {p.config.short_window} / {p.config.long_window} {_window_basis(context)}",
         f"Configured RSI period: {p.config.rsi_period} observations",
         f"Price basis: {_price_basis_detail(context)}",
-        f"Analysis timestamp: {format_datetime(p.metrics.timestamp)}",
+        f"Analysis timestamp: {format_datetime(p.effective_as_of)}",
         f"Data provider: {provider_display_name(provider)}",
         f"Data interval: {_interval_detail(interval)}",
         f"Latest data observation: {data_as_of.isoformat() if data_as_of is not None else 'unavailable'}",
@@ -216,15 +250,15 @@ def _resolution_diagnostics(p: MomentumPresentation) -> tuple[ResolutionDiagnost
 def _diagnostic_lines(p: MomentumPresentation) -> list[str]:
     metrics = p.metrics
     context = p.market_data
-    lines = [
-        *_technical_detail_lines(p),
-        "",
-        "Diagnostics",
-        "-----------",
-        f"Raw crossover signal: {_optional_metric(metrics.crossover_signal, decimals=0)}",
-        f"Trend relationship: {_trend_relationship(metrics) or 'unavailable'}",
-        f"Market-data context: {_diagnostic_market_data(context)}",
-    ]
+    lines = [*_technical_detail_lines(p), "", "Diagnostics", "-----------"]
+    if metrics is not None:
+        lines.extend(
+            [
+                f"Raw crossover signal: {_optional_metric(metrics.crossover_signal, decimals=0)}",
+                f"Trend relationship: {_trend_relationship(metrics) or 'unavailable'}",
+            ]
+        )
+    lines.append(f"Market-data context: {_diagnostic_market_data(context)}")
     for item in _resolution_diagnostics(p):
         lines.append(f"{item.field_name}: {item.stage} -> {item.outcome} — {item.message}")
     if p.instrument_profile is not None:
@@ -298,7 +332,7 @@ def _crossover_interpretation(signal: float | None) -> str | None:
 def _warnings(p: MomentumPresentation) -> list[str]:
     warnings = list(p.warnings)
     metrics = p.metrics
-    if metrics.short_sma_val is None or metrics.long_sma_val is None:
+    if metrics is not None and (metrics.short_sma_val is None or metrics.long_sma_val is None):
         context = p.market_data
         count = context.observation_count if context is not None else None
         if count is not None and count < p.config.long_window:
@@ -461,30 +495,17 @@ def _document(p: MomentumPresentation) -> MomentumDocument:
         schema_version=DOCUMENT_SCHEMA_VERSION,
         analysis=ANALYSIS_ID,
         method=METHOD_ID,
-        ticker=metrics.ticker.upper(),
-        status=CalculationStatus.OK,
-        provider_failure=None,
-        provider_check=None,
+        ticker=p.ticker.upper(),
+        status=p.execution_status,
+        provider_failure=provider_failure_of((p.provider_failure,)),
+        provider_check=p.provider_check,
         requested_as_of=p.requested_as_of,
-        effective_as_of=metrics.timestamp,
-        security_identity=security_identity_part(metrics.ticker, p.identity_resolution),
+        effective_as_of=p.effective_as_of,
+        security_identity=security_identity_part(p.ticker, p.identity_resolution),
         instrument_kind=instrument_kind_part_of(p.instrument_profile),
-        result=MomentumResultPart(
-            trend=metrics.status,
-            current_price=metrics.current_price,
-            price_basis=_json_price_basis(context),
-            short_sma=metrics.short_sma_val,
-            long_sma=metrics.long_sma_val,
-            sma_spread=spread,
-            sma_spread_percent=spread_percent,
-            trend_relationship=_trend_relationship(metrics),
-            crossover_signal=metrics.crossover_signal,
-            crossover_result=(
-                metric_result_part(metrics.crossover_result) if metrics.crossover_result is not None else None
-            ),
-            crossover_state=_crossover_state(metrics.crossover_signal),
-            rsi=metric_result_part(metrics.rsi_14),
-        ),
+        reason_code=p.reason_code,
+        reason=p.reason,
+        result=None if metrics is None else _result_part(p, metrics, spread, spread_percent),
         parameters=MomentumParametersPart(
             short_window=p.config.short_window, long_window=p.config.long_window, rsi_period=p.config.rsi_period
         ),
@@ -512,6 +533,26 @@ def _document(p: MomentumPresentation) -> MomentumDocument:
             *profile_diagnostic_parts(p.instrument_profile),
             *identity_diagnostic_parts(p.instrument_profile, p.identity_resolution),
         ),
+    )
+
+
+def _result_part(
+    p: MomentumPresentation, metrics: MomentumMetrics, spread: float | None, spread_percent: float | None
+) -> MomentumResultPart:
+    """Return the computed trend and metrics of a run in which a calculation ran."""
+    return MomentumResultPart(
+        trend=metrics.status,
+        current_price=metrics.current_price,
+        price_basis=_json_price_basis(p.market_data),
+        short_sma=metrics.short_sma_val,
+        long_sma=metrics.long_sma_val,
+        sma_spread=spread,
+        sma_spread_percent=spread_percent,
+        trend_relationship=_trend_relationship(metrics),
+        crossover_signal=metrics.crossover_signal,
+        crossover_result=metric_result_part(metrics.crossover_result) if metrics.crossover_result is not None else None,
+        crossover_state=_crossover_state(metrics.crossover_signal),
+        rsi=metric_result_part(metrics.rsi_14),
     )
 
 

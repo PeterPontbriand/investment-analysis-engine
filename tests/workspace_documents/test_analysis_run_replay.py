@@ -155,6 +155,7 @@ def test_project_run_concise_uses_the_stored_spread_not_a_recomputed_one() -> No
     run = _build_run()
     evidence = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(evidence, MomentumRun)
+    assert evidence.metrics is not None
     assert evidence.metrics.short_sma_val is not None
     assert evidence.metrics.long_sma_val is not None
     real_spread = evidence.metrics.short_sma_val - evidence.metrics.long_sma_val

@@ -112,13 +112,13 @@ def test_a_repeated_key_raises_naming_the_rule_and_both_descriptors() -> None:
 
 
 def test_native_status_comes_from_each_strategys_own_function() -> None:
-    """Momentum declares no result-level status; the others return their own status."""
-    seen: dict[type, CalculationStatus | None] = {}
+    """Every strategy returns the result-level status its own result carries."""
+    seen: dict[type, CalculationStatus] = {}
     for request in build_deterministic_requests():
         result = _dispatch(request)
         status = BY_RESULT_TYPE[type(result)].behavior.native_status_of(result)
         if isinstance(result, MomentumRun):
-            assert status is None
+            assert status is result.execution_status
         elif isinstance(result, (GrahamNumberAnalysis, GrahamGrowthAnalysis)):
             assert status is result.native_status
         elif isinstance(result, FCFEarningsGrowthResult):

@@ -12,9 +12,9 @@ import pandas as pd
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext
 from investment_analysis_engine.data.quality import (
-    HistoricalDataQualityError,
     QualityContext,
     QualityOutcome,
     evaluate_historical_quality,
@@ -24,7 +24,9 @@ from investment_analysis_engine.strategies.momentum.analyzer import (
     MomentumConfig,
     MomentumInputResolver,
     MomentumRun,
+    MomentumUnresolved,
 )
+from tests._momentum_runs import assert_no_series_resolved, assert_not_calculated
 
 EXECUTED_AT = datetime(2026, 9, 1, tzinfo=UTC)
 CLOSES = [100.0, 101.0, 102.0, 103.0, 104.0]
@@ -55,12 +57,10 @@ def _run(data: HistoricalMarketData) -> MomentumRun:
 
 
 def test_integer_indexed_frame_is_rejected_with_the_index_rule() -> None:
-    with pytest.raises(HistoricalDataQualityError) as raised:
-        _run(_data(None))
+    run = _run(_data(None))
 
-    failures = [item for item in raised.value.decisions if item.outcome is QualityOutcome.FAIL]
-    assert [item.rule_id for item in failures] == ["historical.index"]
-    assert "date-like index" in str(raised.value)
+    assert_not_calculated(run, CalculationStatus.INPUT_UNAVAILABLE, code=None, reason_contains="date-like index")
+    assert_no_series_resolved(run)
 
 
 @pytest.mark.parametrize(
@@ -72,8 +72,7 @@ def test_integer_indexed_frame_is_rejected_with_the_index_rule() -> None:
     ids=["float", "string"],
 )
 def test_other_non_date_indexes_are_rejected(index: pd.Index) -> None:
-    with pytest.raises(HistoricalDataQualityError):
-        _run(_data(index))
+    assert_not_calculated(_run(_data(index)), CalculationStatus.INPUT_UNAVAILABLE, code=None)
 
 
 def test_quality_fails_an_integer_index() -> None:
@@ -117,13 +116,13 @@ def test_the_index_rule_runs_before_any_index_is_converted_to_dates(index: pd.In
     resolver = MomentumInputResolver(provider, clock=lambda: EXECUTED_AT)
     guard = AssertionError("index converted before the quality rule")
 
-    with (
-        patch("investment_analysis_engine.strategies.momentum.analyzer.pd.to_datetime", side_effect=guard),
-        pytest.raises(HistoricalDataQualityError),
-    ):
-        resolver.resolve(
+    with patch("investment_analysis_engine.strategies.momentum.analyzer.pd.to_datetime", side_effect=guard):
+        resolved = resolver.resolve(
             ticker="ACME", start_date="2026-01-01", effective_as_of=EXECUTED_AT, use_cache=True, as_of=as_of
         )
+
+    assert isinstance(resolved, MomentumUnresolved)
+    assert resolved.status is CalculationStatus.INPUT_UNAVAILABLE
 
 
 def test_python_date_index_with_an_as_of_boundary_keeps_its_own_dates() -> None:

@@ -6,15 +6,17 @@ import pandas as pd
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
-from investment_analysis_engine.data.quality import HistoricalDataQualityError
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureMarketDataProvider
 from investment_analysis_engine.strategies.momentum.analyzer import (
     MomentumAnalyzer,
     MomentumConfig,
     MomentumInputResolver,
+    MomentumResolution,
     compute_momentum_metrics,
 )
+from tests._momentum_runs import assert_no_series_resolved, assert_not_calculated
 
 
 def test_resolver_truncates_future_bars_and_retains_provenance() -> None:
@@ -33,6 +35,7 @@ def test_resolver_truncates_future_bars_and_retains_provenance() -> None:
         ticker="TEST", start_date="2026-01-01", as_of=boundary, effective_as_of=boundary, use_cache=True
     )
 
+    assert isinstance(resolved, MomentumResolution)
     assert resolved.market_data.frame["Close"].tolist() == [10.0, 11.0, 12.0]
     assert len(resolved.price_inputs) == 3
     assert all(value.provider_id == "fixture_market" for value in resolved.price_inputs)
@@ -95,9 +98,11 @@ def test_run_analysis_rejects_invalid_values_outside_latest_windows(invalid: flo
     )
     context = AnalysisContext(as_of=None, executed_at=datetime(2026, 1, 5, tzinfo=UTC), use_cache=True)
     analyzer = MomentumAnalyzer(market_data_provider=FixtureMarketDataProvider(frame), start_date="2026-01-01")
-    with pytest.raises(HistoricalDataQualityError, match="finite"):
-        analyzer.run_analysis(
-            ticker="ACME",
-            config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
-            context=context,
-        )
+    run = analyzer.run_analysis(
+        ticker="ACME",
+        config=MomentumConfig(short_window=2, long_window=3, rsi_period=2),
+        context=context,
+    )
+
+    assert_not_calculated(run, CalculationStatus.INPUT_UNAVAILABLE, code=None, reason_contains="finite")
+    assert_no_series_resolved(run)

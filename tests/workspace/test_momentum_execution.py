@@ -7,7 +7,11 @@ from unittest.mock import patch
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentKind,
     InstrumentProfile,
@@ -26,6 +30,7 @@ from investment_analysis_engine.strategies.momentum.analyzer import (
 from investment_analysis_engine.strategies.momentum.execution import (
     capture_momentum,
     compose_momentum_profile,
+    from_momentum_capture,
     run_momentum,
 )
 from investment_analysis_engine.strategies.momentum.presenter import _sma_spread, _sma_spread_percent
@@ -54,7 +59,7 @@ def test_run_momentum_delegates_to_the_existing_analyzer_unchanged(monkeypatch: 
     """Prove the extraction is a faithful delegation, not a reimplementation."""
     client = _FixtureClient()
     selection = _selection()
-    canned = MomentumRun(metrics=_metrics(short=1.0, long=2.0), market_data=MarketDataContext())
+    canned = _run(_metrics(short=1.0, long=2.0))
     captured: dict[str, object] = {}
 
     def fake_run_analysis(
@@ -91,6 +96,7 @@ def test_run_momentum_computes_real_sma_values_from_the_fixture_series() -> None
     expected_short = sum(closes[-2:]) / 2
     expected_long = sum(closes[-3:]) / 3
 
+    assert run.metrics is not None
     assert run.metrics.ticker == "AAPL"
     assert run.metrics.short_sma_val == pytest.approx(expected_short)
     assert run.metrics.long_sma_val == pytest.approx(expected_long)
@@ -101,6 +107,7 @@ def test_run_momentum_normalizes_the_ticker() -> None:
     run = run_momentum(
         _selection(), " aapl ", client, start_date="2026-01-01", executed_at=STAMP, instrument_profile=None
     )
+    assert run.metrics is not None
     assert run.metrics.ticker == "AAPL"
 
 
@@ -115,11 +122,24 @@ def test_capture_momentum_computes_spread_and_percent_matching_reporting() -> No
 
     assert capture.run is run
     assert run.instrument_profile is profile
+    assert run.metrics is not None
     assert capture.presentation_inputs["sma_spread"] == _sma_spread(run.metrics)
     assert capture.presentation_inputs["sma_spread_percent"] == _sma_spread_percent(run.metrics)
     assert run.metrics.short_sma_val is not None
     assert run.metrics.long_sma_val is not None
     assert capture.presentation_inputs["sma_spread"] == run.metrics.short_sma_val - run.metrics.long_sma_val
+
+
+def _run(metrics: MomentumMetrics) -> MomentumRun:
+    return MomentumRun(
+        ticker="AAPL",
+        effective_as_of=STAMP,
+        execution_status=CalculationStatus.INPUT_UNAVAILABLE,
+        metrics=metrics,
+        market_data=MarketDataContext(),
+        reason_code=ReasonCode.INSUFFICIENT_HISTORY,
+        reason="Short history.",
+    )
 
 
 def _metrics(*, short: float | None, long: float | None) -> MomentumMetrics:
@@ -135,17 +155,82 @@ def _metrics(*, short: float | None, long: float | None) -> MomentumMetrics:
 
 
 def test_capture_momentum_leaves_presentation_inputs_null_when_smas_unavailable() -> None:
-    run = MomentumRun(metrics=_metrics(short=None, long=None), market_data=MarketDataContext())
+    run = _run(_metrics(short=None, long=None))
     capture = capture_momentum(run)
     assert capture.presentation_inputs == {"sma_spread": None, "sma_spread_percent": None}
     assert run.instrument_profile is None
 
 
 def test_capture_momentum_guards_a_zero_long_sma() -> None:
-    run = MomentumRun(metrics=_metrics(short=1.0, long=0.0), market_data=MarketDataContext())
+    run = _run(_metrics(short=1.0, long=0.0))
     capture = capture_momentum(run)
     assert capture.presentation_inputs["sma_spread"] == 1.0
     assert capture.presentation_inputs["sma_spread_percent"] is None
+
+
+def _without_metrics(status: CalculationStatus, **fields: object) -> MomentumRun:
+    return MomentumRun(
+        ticker="AAPL",
+        effective_as_of=STAMP,
+        execution_status=status,
+        metrics=None,
+        market_data=MarketDataContext(),
+        reason="Why.",
+        **fields,  # type: ignore[arg-type]
+    )
+
+
+def test_capture_momentum_leaves_presentation_inputs_null_when_no_calculation_ran() -> None:
+    capture = capture_momentum(_without_metrics(CalculationStatus.INPUT_UNAVAILABLE))
+    assert capture.presentation_inputs == {"sma_spread": None, "sma_spread_percent": None}
+
+
+_RECORD = ProviderFailureRecord(ProviderFailureKind.RATE_LIMITED, "yfinance", "historical_close")
+
+
+@pytest.mark.parametrize(
+    ("run", "outcome", "has_failure_code", "has_provider_failure"),
+    [
+        pytest.param(_run(_metrics(short=None, long=None)), RunOutcome.UNAVAILABLE, False, False, id="unknown-trend"),
+        pytest.param(
+            _without_metrics(CalculationStatus.INPUT_UNAVAILABLE), RunOutcome.UNAVAILABLE, False, False, id="no-data"
+        ),
+        pytest.param(
+            _without_metrics(CalculationStatus.PROVIDER_ERROR, provider_failure=_RECORD),
+            RunOutcome.FAILED,
+            True,
+            True,
+            id="classified-provider-error",
+        ),
+        pytest.param(
+            _without_metrics(CalculationStatus.PROVIDER_ERROR), RunOutcome.FAILED, True, False, id="unclassified"
+        ),
+    ],
+)
+def test_from_momentum_capture_reports_the_run_status_and_its_recorded_failure(
+    run: MomentumRun, outcome: RunOutcome, has_failure_code: bool, has_provider_failure: bool
+) -> None:
+    execution = from_momentum_capture(capture_momentum(run))
+    assert execution.native_evidence is run
+    assert execution.outcome is outcome
+    assert (execution.failure_reason_code is not None) is has_failure_code
+    assert (execution.provider_failure is not None) is has_provider_failure
+    assert execution.native_status is run.execution_status
+    if has_provider_failure:
+        assert execution.failure_reason_code == "provider_rate_limited"
+    elif has_failure_code:
+        assert execution.failure_reason_code == "provider_error"
+
+
+def test_from_momentum_capture_completes_an_ok_run() -> None:
+    run = run_momentum(
+        _selection(), "AAPL", _FixtureClient(), start_date="2026-01-01", executed_at=STAMP, instrument_profile=None
+    )
+    execution = from_momentum_capture(capture_momentum(run))
+    assert run.execution_status is CalculationStatus.OK
+    assert execution.outcome is RunOutcome.COMPLETED
+    assert execution.failure_reason_code is None
+    assert execution.provider_failure is None
 
 
 def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -160,6 +245,7 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
         _selection(), "AAPL", client, start_date="2026-01-01", executed_at=STAMP, instrument_profile=_profile("AAPL")
     )
     capture = capture_momentum(run)
+    assert capture.run.metrics is not None
     assert capture.run.metrics.ticker == "AAPL"
 
 

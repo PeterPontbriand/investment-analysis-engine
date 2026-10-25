@@ -7,7 +7,12 @@ import re
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
+
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionEvent,
     ResolutionOutcome,
@@ -17,6 +22,7 @@ from investment_analysis_engine.data.financial.resolution_trace import (
 from investment_analysis_engine.data.market_data import MarketDataContext
 from investment_analysis_engine.reporting.presentation import PresentationMode, ResolutionDiagnostic
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
+from investment_analysis_engine.strategies.momentum.envelope import MomentumDocument
 from investment_analysis_engine.strategies.momentum.presenter import MomentumPresentation, render_momentum
 
 NOW = datetime(2026, 8, 22, 4, 0, tzinfo=UTC)
@@ -33,6 +39,11 @@ def test_legacy_and_typed_resolution_diagnostics_are_not_duplicated() -> None:
     assert render_momentum(presentation, PresentationMode.DIAGNOSTICS).count(event.message) == 1
     payload = json.loads(render_momentum(presentation, PresentationMode.JSON))
     assert len(payload["diagnostics"]) == 1
+
+
+def _status_of(metrics: MomentumMetrics) -> CalculationStatus:
+    """Return the run status that goes with a trend: ok when known, input_unavailable when unknown."""
+    return CalculationStatus.INPUT_UNAVAILABLE if metrics.status is TrendStatus.UNKNOWN else CalculationStatus.OK
 
 
 def _presentation() -> MomentumPresentation:
@@ -54,6 +65,9 @@ def _presentation() -> MomentumPresentation:
         price_adjustment="adjusted",
     )
     return MomentumPresentation(
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=_status_of(metrics),
         metrics=metrics,
         config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
         market_data=context,
@@ -143,7 +157,7 @@ def test_momentum_diagnostics_expose_retained_raw_and_market_context() -> None:
 def test_momentum_json_adds_semantic_fields_with_identity_schema_version() -> None:
     payload = json.loads(render_momentum(_presentation(), PresentationMode.JSON))
 
-    assert payload["schema_version"] == 9
+    assert payload["schema_version"] == 10
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["analysis"] == "momentum"
     assert payload["method"] == "sma_crossover"
@@ -176,6 +190,9 @@ def test_momentum_missing_source_metadata_is_compact_not_repeated_as_warnings() 
         timestamp=NOW,
     )
     presentation = MomentumPresentation(
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=_status_of(metrics),
         metrics=metrics,
         config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
     )
@@ -201,7 +218,11 @@ def test_momentum_json_keeps_unknown_data_date_separate_from_analysis_timestamp(
         timestamp=NOW,
     )
     presentation = MomentumPresentation(
-        metrics=metrics, config=MomentumConfig(short_window=20, long_window=50, rsi_period=14)
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=_status_of(metrics),
+        metrics=metrics,
+        config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
     )
 
     payload = json.loads(render_momentum(presentation, PresentationMode.JSON))
@@ -225,6 +246,9 @@ def test_momentum_equal_smas_are_reported_as_equal_not_below() -> None:
         timestamp=NOW,
     )
     presentation = MomentumPresentation(
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=_status_of(metrics),
         metrics=metrics,
         config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
     )
@@ -255,6 +279,9 @@ def test_momentum_insufficient_history_names_both_unmet_sma_requirements() -> No
         observation_count=3,
     )
     presentation = MomentumPresentation(
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=_status_of(metrics),
         metrics=metrics,
         config=MomentumConfig(short_window=50, long_window=200, rsi_period=14),
         market_data=context,
@@ -283,6 +310,9 @@ def test_momentum_unavailable_sma_explains_insufficient_history_without_nan() ->
         observation_count=3,
     )
     presentation = MomentumPresentation(
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=_status_of(metrics),
         metrics=metrics,
         config=MomentumConfig(short_window=2, long_window=5, rsi_period=14),
         market_data=context,
@@ -317,7 +347,12 @@ def test_momentum_json_carries_the_requested_boundary_apart_from_the_evaluated_i
         timestamp=boundary,
     )
     presentation = MomentumPresentation(
-        metrics=metrics, config=MomentumConfig(short_window=20, long_window=50, rsi_period=14), requested_as_of=boundary
+        ticker=metrics.ticker,
+        effective_as_of=metrics.timestamp,
+        execution_status=_status_of(metrics),
+        metrics=metrics,
+        config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
+        requested_as_of=boundary,
     )
 
     payload = json.loads(render_momentum(presentation, PresentationMode.JSON))
@@ -326,3 +361,118 @@ def test_momentum_json_carries_the_requested_boundary_apart_from_the_evaluated_i
     assert payload["effective_as_of"] == boundary.isoformat()
     assert payload["status"] == "ok"
     assert payload["result"]["trend"] == "BEARISH"
+
+
+# A run in which no calculation ran -----------------------------------------------------------------------------
+
+_NO_CALCULATION_CASES = [
+    pytest.param(
+        CalculationStatus.INPUT_UNAVAILABLE,
+        ReasonCode.NOT_AVAILABLE_AS_OF,
+        "No price history is available at or before the requested --as-of boundary.",
+        None,
+        id="no-observation",
+    ),
+    pytest.param(
+        CalculationStatus.INPUT_UNAVAILABLE,
+        None,
+        "Close contains non-finite values. Affected observations: Close at 2026-08-03.",
+        None,
+        id="quality",
+    ),
+    pytest.param(
+        CalculationStatus.PROVIDER_ERROR,
+        ReasonCode.PROVIDER_ERROR,
+        "Historical prices could not be retrieved from the market-data provider.",
+        ProviderFailureRecord(ProviderFailureKind.UNREACHABLE, "yfinance", "historical_close"),
+        id="provider-classified",
+    ),
+    pytest.param(
+        CalculationStatus.PROVIDER_ERROR,
+        ReasonCode.PROVIDER_ERROR,
+        "Historical prices could not be retrieved from the market-data provider.",
+        None,
+        id="provider-unclassified",
+    ),
+]
+
+
+def _no_calculation(
+    status: CalculationStatus, code: ReasonCode | None, reason: str, failure: ProviderFailureRecord | None
+) -> MomentumPresentation:
+    return MomentumPresentation(
+        ticker="AAPL",
+        effective_as_of=NOW,
+        execution_status=status,
+        metrics=None,
+        config=MomentumConfig(short_window=20, long_window=50, rsi_period=14),
+        reason_code=code,
+        reason=reason,
+        provider_failure=failure,
+        resolution_trace=ResolutionTrace(
+            (ResolutionEvent("historical_close", ResolutionStage.PROVIDER, ResolutionOutcome.ERROR, "It failed."),)
+        ),
+    )
+
+
+@pytest.mark.parametrize(("status", "code", "reason", "failure"), _NO_CALCULATION_CASES)
+@pytest.mark.parametrize("mode", list(PresentationMode))
+def test_every_mode_renders_a_run_without_metrics(
+    status: CalculationStatus,
+    code: ReasonCode | None,
+    reason: str,
+    failure: ProviderFailureRecord | None,
+    mode: PresentationMode,
+) -> None:
+    rendered = render_momentum(_no_calculation(status, code, reason, failure), mode)
+
+    if mode is PresentationMode.JSON:
+        document = MomentumDocument.model_validate_json(rendered)
+        assert document.status is status
+        assert document.result is None
+        assert (document.reason_code, document.reason) == (code, reason)
+        assert (document.provider_failure is None) is (failure is None)
+        assert document.effective_as_of == NOW
+        return
+    assert "AAPL — Momentum" in rendered
+    assert "Momentum could not be calculated." in rendered
+    assert f"Reason: {reason}" in rendered
+    assert "Price used" not in rendered
+    assert "nan" not in rendered.lower()
+    if mode is PresentationMode.DIAGNOSTICS:
+        assert "historical_close: provider -> error — It failed." in rendered
+        assert "Raw crossover signal" not in rendered
+
+
+def test_a_run_without_metrics_warns_of_nothing_it_did_not_try() -> None:
+    presentation = _no_calculation(CalculationStatus.PROVIDER_ERROR, ReasonCode.PROVIDER_ERROR, "Why.", None)
+
+    assert "Warning:" not in render_momentum(presentation)
+    assert json.loads(render_momentum(presentation, PresentationMode.JSON))["warnings"] == []
+
+
+def test_a_known_trend_document_reports_ok_with_no_reason() -> None:
+    document = MomentumDocument.model_validate_json(render_momentum(_presentation(), PresentationMode.JSON))
+
+    assert document.status is CalculationStatus.OK
+    assert (document.reason, document.reason_code, document.provider_failure) == (None, None, None)
+    assert document.result is not None
+
+
+def test_an_unknown_trend_document_carries_its_result_and_its_status_and_reason() -> None:
+    base = _presentation()
+    assert base.metrics is not None
+    presentation = replace(
+        base,
+        metrics=replace(base.metrics, status=TrendStatus.UNKNOWN, long_sma_val=None, crossover_signal=None),
+        execution_status=CalculationStatus.INPUT_UNAVAILABLE,
+        reason_code=ReasonCode.INSUFFICIENT_HISTORY,
+        reason="The long moving average requires 50 observations; 40 were available.",
+    )
+
+    document = MomentumDocument.model_validate_json(render_momentum(presentation, PresentationMode.JSON))
+
+    assert document.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert document.result is not None
+    assert document.result.trend is TrendStatus.UNKNOWN
+    assert document.reason_code is ReasonCode.INSUFFICIENT_HISTORY

@@ -16,7 +16,7 @@ class ExecutionCapture:
 
     A strategy supplies facts: ``native_evidence``, its own typed result, encoded by the codec the caller injects into
     :func:`investment_analysis_engine.workspace.execution.execute`; the ``profile``; ``native_status``, the status the
-    strategy reports (``None`` for a strategy that reports none); ``presentation_inputs``; and the ``provider_failure``
+    strategy reports; ``presentation_inputs``; and the ``provider_failure``
     it recorded, if any. The capture derives the rest. ``outcome`` is :meth:`RunOutcome.from_status` of the native
     status. ``failure_reason_code`` is the stable code of a ``failed`` outcome and ``None`` for every other outcome.
     ``provider_failure`` is kept only for a ``failed`` outcome; it is carried in memory for the automatic provider check
@@ -25,7 +25,7 @@ class ExecutionCapture:
 
     native_evidence: NativeEvidence
     profile: InstrumentProfile | None
-    native_status: CalculationStatus | None
+    native_status: CalculationStatus
     presentation_inputs: StrictJsonMapping = field(default_factory=dict)
     provider_failure: ProviderFailure | None = None
     outcome: RunOutcome = field(init=False)
@@ -37,7 +37,7 @@ class ExecutionCapture:
         outcome = RunOutcome.from_status(status)
         code: str | None = None
         kept: ProviderFailure | None = None
-        if outcome is RunOutcome.FAILED and status is not None:
+        if outcome is RunOutcome.FAILED:
             code = failure_reason_code(status, self.provider_failure).value
             kept = self.provider_failure
         object.__setattr__(self, "outcome", outcome)

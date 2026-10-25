@@ -121,6 +121,7 @@ async def test_registered_handlers_execute_all_approved_strategies() -> None:
 
     assert momentum.success is True
     assert isinstance(momentum.result, MomentumRun)
+    assert momentum.result.metrics is not None
     assert momentum.result.metrics.ticker == "MOM"
     assert number.success is True
     assert isinstance(number.result, GrahamNumberAnalysis)
@@ -218,6 +219,7 @@ async def test_registered_handlers_apply_known_etf_policy_without_changing_momen
 
     assert momentum.success is True
     assert isinstance(momentum.result, MomentumRun)
+    assert momentum.result.metrics is not None
     assert momentum.result.metrics.status.value == "BULLISH"
     assert momentum.result.instrument_profile is not None
     assert momentum.result.instrument_profile.ticker == "FLSW"

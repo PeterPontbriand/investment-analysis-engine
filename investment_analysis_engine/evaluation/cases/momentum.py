@@ -101,6 +101,7 @@ MOMENTUM_BOUNDARY_CASE: Final = Case(
             ),
             DomainOutcomeExpectation(field_path="metrics.rsi_result.status", expected_value="unavailable"),
             DomainOutcomeExpectation(field_path="metrics.status", expected_value="UNKNOWN"),
+            DomainOutcomeExpectation(field_path="execution_status", expected_value="input_unavailable"),
         ),
     ),
     tags=("boundary", "insufficient_history", "momentum"),

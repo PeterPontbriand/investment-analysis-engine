@@ -1,5 +1,5 @@
 {
-  "schema_version": 9,
+  "schema_version": 10,
   "analysis": "momentum",
   "method": "sma_crossover",
   "ticker": "BTC-USD",
@@ -23,6 +23,8 @@
     "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
+  "reason_code": null,
+  "reason": null,
   "result": {
     "trend": "BULLISH",
     "current_price": 104.0,

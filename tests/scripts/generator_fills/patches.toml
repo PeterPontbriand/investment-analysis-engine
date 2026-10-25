@@ -42,8 +42,8 @@ count = 1
 
 [[patch]]
 path = "investment_analysis_engine/evaluation/catalog.py"
-old = '"h1-v5"'
-new = '"h1-v6"'
+old = '"h1-v6"'
+new = '"h1-v7"'
 count = 1
 
 [[patch]]
