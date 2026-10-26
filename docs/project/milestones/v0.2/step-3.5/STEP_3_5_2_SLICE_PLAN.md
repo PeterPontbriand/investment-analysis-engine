@@ -59,7 +59,7 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
     compared exactly, with no tolerance.
   - A caller error (no metrics, repeated metric names, repeated tickers after upper-casing, a member without an entry
     for a requested metric) raises `ValueError`; an unavailable value is not an error.
-- **Scope:** this plan and the document amendments listed in [B.9](#b12-documentation); `ranking.py`; its tests; the
+- **Scope:** this plan and the document amendments listed in [B.12](#b12-documentation); `ranking.py`; its tests; the
   ranking entry of `FINANCE_MATH.md`. The file list is in [B.1](#b1-352a-files).
 - **Branch:** `feat/step-3-5-2a-ranking-helper` (this branch; plan and implementation are one pull request).
 - **Detail:** [files](#b1-352a-files), [result shape](#b5-result-shapes), [tests](#b6-352a-tests).
@@ -225,7 +225,7 @@ Points where a decision above needed a more exact statement. They add no behavio
 | Topic | Wording |
 | :--- | :--- |
 | Exclusion reasons | An excluded member lists one reason per metric that excluded it, in the order of the requested metrics, each with the result's own status (`unavailable` or `not_applicable`), reason code and reason message. The exclusion also carries the member's values, `None` where a metric was not `ok`, so that a result below the minimum carries every member's values. |
-| Ticker form | The helper returns tickers upper-cased. A blank ticker or issuer key is refused when the member is built. |
+| Ticker form | The ticker is stripped and upper-cased when the member is built, so the helper returns tickers in that form. A blank ticker or issuer key is refused when the member is built. The issuer key is opaque and is compared exactly. |
 | Naming diagnostic | When the kept class lacks a metric another class has, the helper reports it as its own diagnostic (`kept_class_lacks_metric`) naming both tickers, in addition to the ordinary exclusion and the deduplication diagnostic. If no other class has the value, no naming diagnostic is added. |
 | Result fields | The result lists the eligible members in ticker order whether or not ranks exist, and the ranked members in display order (position, then ticker) only when the minimum is met. Ranks, percentiles, sums and positions are typed fields; none is a `MetricResult`. |
 
@@ -244,7 +244,7 @@ because the code can move before the sub-slice begins.
 | Helper | `analysis/shared/ranking.py` (new) | `rank_members`, `MINIMUM_ELIGIBLE_MEMBERS`, the frozen member, metric, result and diagnostic types |
 | Tests | `tests/analysis/shared/test_ranking.py` (new) | [B.6](#b6-352a-tests) |
 | Finance math | `docs/user/FINANCE_MATH.md` | the ranking entry: eligibility, average ranks, display percentile, rank sum, competition positions, minimum universe |
-| Planning | the documents of [B.9](#b12-documentation) | this plan and the amendments |
+| Planning | the documents of [B.12](#b12-documentation) | this plan and the amendments |
 
 ### B.2 3.5.2b files
 
@@ -321,7 +321,6 @@ RankingResult (frozen)                 3.5.2a
   ranked: tuple[RankedMember, ...]     display order (position, then ticker); empty below the minimum
   exclusions: tuple[RankExclusion, ...]  ticker, issuer key, values (None where not ok), one reason per metric
   diagnostics: tuple[RankDiagnostic, ...]  duplicate issuer, kept class lacks a metric, below the minimum
-  minimum_eligible_members: int        MINIMUM_ELIGIBLE_MEMBERS, 10
 RankedMember (frozen)
   ranks, percentiles: tuple[float, ...]  per metric, in the order of the requested metrics
   rank_sum: float; position: int       competition position (1, 1, 3)

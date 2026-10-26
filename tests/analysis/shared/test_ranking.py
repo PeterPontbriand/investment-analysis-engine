@@ -50,7 +50,6 @@ def _single_metric(values: Sequence[float]) -> list[RankMember]:
 
 def test_the_minimum_is_ten() -> None:
     assert MINIMUM_ELIGIBLE_MEMBERS == 10
-    assert rank_members(_ten_members(), [HIGHER, LOWER]).minimum_eligible_members == 10
 
 
 def test_two_metrics_with_opposite_directions() -> None:
@@ -349,6 +348,23 @@ def test_tickers_repeated_after_upper_casing_are_refused() -> None:
     members = [_member("abc", a=1.0), _member("ABC", issuer="other", a=2.0)]
     with pytest.raises(ValueError, match="unique after upper-casing"):
         rank_members(members, [HIGHER])
+
+
+def test_a_ticker_with_surrounding_whitespace_is_stored_stripped_and_upper_cased() -> None:
+    assert RankMember("  goog \t", "alphabet", {}).ticker == "GOOG"
+
+
+def test_tickers_that_differ_only_in_whitespace_and_case_are_refused() -> None:
+    members = [_member(" goog", issuer="a", a=1.0), _member("GOOG", issuer="b", a=2.0)]
+    with pytest.raises(ValueError, match="unique after upper-casing"):
+        rank_members(members, [HIGHER])
+
+
+def test_the_issuer_key_is_compared_exactly() -> None:
+    members = [_member("T01", issuer="Alphabet", a=1.0), _member("T02", issuer="alphabet", a=2.0)]
+    result = rank_members(members, [HIGHER])
+    assert [m.ticker for m in result.eligible] == ["T01", "T02"]
+    assert result.diagnostics[0].kind is RankDiagnosticKind.BELOW_MINIMUM
 
 
 def test_a_member_without_an_entry_for_a_requested_metric_is_refused() -> None:

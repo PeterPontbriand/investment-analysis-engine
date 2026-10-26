@@ -52,7 +52,8 @@ class RankMetric:
 class RankMember:
     """One candidate: a ticker, the issuer it belongs to and its result for every requested metric.
 
-    ``issuer_key`` is opaque to the helper: members with an equal key are share classes of one issuer.
+    The ticker is stripped and upper-cased when the member is built. ``issuer_key`` is opaque to the helper and is
+    compared exactly: members with an equal key are share classes of one issuer.
     """
 
     ticker: str
@@ -60,9 +61,10 @@ class RankMember:
     results: Mapping[str, MetricResult]
 
     def __post_init__(self) -> None:
-        """Reject a blank ticker or issuer key."""
+        """Reject a blank ticker or issuer key and normalize the ticker."""
         if not self.ticker.strip():
             raise ValueError("A ranking member requires a non-empty ticker.")
+        object.__setattr__(self, "ticker", self.ticker.strip().upper())
         if not self.issuer_key.strip():
             raise ValueError(f"Ranking member {self.ticker!r} requires a non-empty issuer key.")
 
@@ -135,7 +137,6 @@ class RankingResult:
     ranked: tuple[RankedMember, ...]
     exclusions: tuple[RankExclusion, ...]
     diagnostics: tuple[RankDiagnostic, ...]
-    minimum_eligible_members: int
 
 
 def rank_members(members: Sequence[RankMember], metrics: Sequence[RankMetric]) -> RankingResult:
@@ -152,10 +153,7 @@ def rank_members(members: Sequence[RankMember], metrics: Sequence[RankMetric]) -
     """
     metric_tuple = tuple(metrics)
     _validate(members, metric_tuple)
-    normalized = sorted(
-        (RankMember(member.ticker.upper(), member.issuer_key, member.results) for member in members),
-        key=lambda member: member.ticker,
-    )
+    normalized = sorted(members, key=lambda member: member.ticker)
     kept, diagnostics = _deduplicate(normalized)
     eligible: list[EligibleMember] = []
     exclusions: list[RankExclusion] = []
@@ -184,7 +182,6 @@ def rank_members(members: Sequence[RankMember], metrics: Sequence[RankMetric]) -
         ranked=ranked,
         exclusions=tuple(exclusions),
         diagnostics=diagnostics,
-        minimum_eligible_members=MINIMUM_ELIGIBLE_MEMBERS,
     )
 
 
@@ -197,7 +194,7 @@ def _validate(members: Sequence[RankMember], metrics: tuple[RankMetric, ...]) ->
         raise ValueError(f"Ranking metric names must be unique (received {names!r}).")
     seen: set[str] = set()
     for member in members:
-        ticker = member.ticker.upper()
+        ticker = member.ticker
         if ticker in seen:
             raise ValueError(f"Ranking tickers must be unique after upper-casing (repeated {ticker!r}).")
         seen.add(ticker)

@@ -218,7 +218,7 @@ in which an absent element yields a number.
   price date are not reflected. A split announced before the filing but effective just after it is assumed not to be
   reflected in the filing.
 
-## 5. EBIT, D&A and EBITDA
+## 5. Gross profit, EBIT, D&A and EBITDA
 
 - **Gross profit:** the reported gross profit; otherwise sales minus cost of revenue when both are reported, keeping
   both inputs' provenance. It is never taken from operating income, and a filer that reports neither form has none
