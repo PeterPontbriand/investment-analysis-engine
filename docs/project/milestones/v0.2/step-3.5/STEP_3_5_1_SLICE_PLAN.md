@@ -61,8 +61,10 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
   - A combined filing has one `<FILER>` block per registrant; the code is the one in the block whose `<CIK>` is the
     issuer's CIK. A filing with no such block, no code, a code that is not four digits (including `0000`), an
     accession or CIK that does not match, or an acceptance time after the boundary gives an unknown class.
-  - The industry class and the applicability helpers are pure functions in
-    `investment_analysis_engine/analysis/shared/applicability.py`; the header reading stays in
+  - The industry class, the `SectorGate` type and the applicability helpers are pure functions in
+    `investment_analysis_engine/analysis/shared/applicability.py`, which names no strategy: which classes a strategy
+    refuses is that strategy's policy, so each strategy declares its own gate as a named constant in its own package,
+    in its own slice, with a test that pins it to its row of the matrix (G5). The header reading stays in
     `investment_analysis_engine/data/sec_edgar/`. Both placements fit the package table in
     [ARCHITECTURE §13](../../../ARCHITECTURE.md#13-module-boundaries) (`analysis` already imports `core` and `data`;
     `data` imports neither) and add no import between units.
@@ -251,6 +253,7 @@ Added on the project owner's review of the plan:
 | G1 | Share-count coverage | Added to 3.5.1b: a coverage check of `COMMON_SHARES_OUTSTANDING` across the regression issuer set plus Walmart, the direct concept and the issued-minus-treasury fallback recorded separately, a row and a disposition in the evidence record. If a large filer gets no count from either path, 3.5.1b stops and asks before 3.5.2 is planned. |
 | G2 | Implementer decisions | The four decisions in the table above are approved. |
 | G3 | Header cache | No persistent header cache is approved (F3). |
+| G5 | Where the gates live | The per-strategy gate constants are not in `analysis/shared/applicability.py`. AGENTS.md §9 makes each strategy own its policy, which classes it refuses is policy, the shared module stays strategy-neutral like the ranking helper, and the constants had no consumer. Each strategy slice declares its `SectorGate` as a named constant in its own package with a test pinning it to its row of the matrix ([Slice inputs §1](STEP_3_5_SLICE_INPUTS.md#1-at-a-glance)). Superseded in 3.5.1a before the pull request opened. |
 | G4 | `ReasonCode` schemas | The schemas that list `ReasonCode` values (`momentum`, `fcf-growth`, `runs-compare`) are regenerated with the two new members and no document version bump. Adding enum values changes no stored shape, so the AGENTS.md §4 rule does not apply, and existing payloads still decode. |
 ### A.2 The share-count scaling window (2026-10-25)
 
@@ -288,7 +291,7 @@ Paths are under `investment_analysis_engine/` unless they start with `tests/`, `
 | Transport | `data/sec_edgar/filing_document.py` | `filing_header_url(cik, accession)` builds `https://www.sec.gov/Archives/edgar/data/<cik>/<18 digits>/<accession>.hdr.sgml` from validated identifiers; `fetch_filing_header` reads it with the same no-redirect, bounded, classified-failure transport as `fetch_filing`, under its own `FilingHeaderPolicy` (timeout 20 s, 256 KiB); the shared read is extracted so `fetch_filing` is unchanged in behavior. It does not consult `max_documents`. |
 | Parser | `data/sec_edgar/filing_header.py` (new) | `parse_filing_header(text, *, cik, accession)` returns `AsFiledSic` or a reason; `AsFiledSic` is a frozen type (code, CIK, accession, filing date, acceptance time, source URL, retrieval time) |
 | Adapter | `data/sec_edgar/financial_facts.py` | the snapshot gains the filing dates of its accessions; `resolve_as_filed_sic(...)` requests the anchor header once per analysis scope, applies the checks of [B.6](#b6-result-shapes) and returns `AsFiledSic` or a reason |
-| Applicability | `analysis/shared/applicability.py` (new) | `IndustryClass`, `industry_class_of_sic`, `SectorGate`, `ApplicabilityOutcome`, `applicability_of` (pure) |
+| Applicability | `analysis/shared/applicability.py` (new) | `IndustryClass`, `Applicability`, `industry_class_of_sic`, `SectorGate`, `ApplicabilityOutcome`, `applicability_of` (pure); no per-strategy gate |
 | Reason codes | `core/metric_result.py` | `INDUSTRY_CLASS_NOT_APPLICABLE`, `INDUSTRY_CLASS_UNKNOWN` |
 | Schemas | `schemas/momentum.schema.json`, `schemas/fcf-growth.schema.json`, `schemas/runs-compare.schema.json` | regenerated: each lists the `ReasonCode` values |
 | Fixtures | `evaluation/fixtures/sec_edgar/filing_headers/` (new) | the header lines that matter, from the filings of [evidence §3](STEP_3_5_1_MAPPING_EVIDENCE.md#3-sic-evidence), with a checksum file as the existing fixtures have |
@@ -392,9 +395,10 @@ Piotroski needs. `NOT_APPLICABLE` becomes `MetricStatus.NOT_APPLICABLE` and `UNA
 - **Classification:** each of the bank, insurer, REIT, utility and manufacturer of the evidence classifies from its
   trimmed header; every range edge (1999 and 2000, 3999 and 4000, 4899 and 4900, 4999 and 5000, 5999 and 6000, 6799 and
   6800) lands in the right class; a code in no range is `OTHER`.
-- **Matrix:** every row of the Shared definitions §1 table for each class; a gated strategy with an unknown class is
-  `UNAVAILABLE`; an ungated strategy (Piotroski) with an unknown class `APPLIES` and says so; a financial issuer under
-  Piotroski `APPLIES_WITH_WARNING`; Magic Formula refuses a utility and a financial issuer.
+- **Matrix:** each distinct gate shape of the Shared definitions §1 table, built in the test, for every class: not
+  gated with a warning for financial issuers (Piotroski's shape), not applicable for financial issuers, and not
+  applicable for financial issuers and utilities (Magic Formula's); a gated gate with an unknown class is
+  `UNAVAILABLE`; an ungated gate with an unknown class `APPLIES` and says so.
 - **Parser:** the single-filer header; the combined filing (Prologis, Duke Energy) takes the issuer's own block whatever
   its position; a header with no block for the CIK, no `ASSIGNED-SIC`, `0000`, a three-digit code, a non-numeric code, an
   accession that differs, a filing date that differs from the submissions date; trailing and leading whitespace.

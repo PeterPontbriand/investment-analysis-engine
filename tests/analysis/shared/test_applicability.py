@@ -3,13 +3,6 @@
 import pytest
 
 from investment_analysis_engine.analysis.shared.applicability import (
-    ALTMAN_GATE,
-    BENEISH_GATE,
-    INTEREST_COVERAGE_GATE,
-    MAGIC_FORMULA_GATE,
-    PIOTROSKI_GATE,
-    ROIC_GATE,
-    VALUATION_MULTIPLES_GATE,
     Applicability,
     ApplicabilityOutcome,
     IndustryClass,
@@ -55,22 +48,25 @@ def test_a_code_outside_four_digits_is_refused(code: int) -> None:
         industry_class_of_sic(code)
 
 
-# The matrix of Shared definitions §1: strategy -> classes that are not applicable / applicable with a warning.
-_MATRIX = {
-    "piotroski": (PIOTROSKI_GATE, False, set(), {IndustryClass.FINANCIAL}),
-    "altman": (ALTMAN_GATE, True, {IndustryClass.FINANCIAL}, set()),
-    "beneish": (BENEISH_GATE, True, {IndustryClass.FINANCIAL}, set()),
-    "valuation": (VALUATION_MULTIPLES_GATE, True, {IndustryClass.FINANCIAL}, set()),
-    "magic": (MAGIC_FORMULA_GATE, True, {IndustryClass.FINANCIAL, IndustryClass.UTILITY}, set()),
-    "coverage": (INTEREST_COVERAGE_GATE, True, {IndustryClass.FINANCIAL}, set()),
-    "roic": (ROIC_GATE, True, {IndustryClass.FINANCIAL}, set()),
+# The three gate shapes of the Shared definitions §1 matrix, built here: a strategy declares its own gate.
+_FINANCIAL = frozenset({IndustryClass.FINANCIAL})
+_FINANCIAL_AND_UTILITY = frozenset({IndustryClass.FINANCIAL, IndustryClass.UTILITY})
+_SHAPES = {
+    "ungated, warning for financial issuers": (SectorGate(gated=False, warn=_FINANCIAL), False, set(), _FINANCIAL),
+    "gated, financial issuers refused": (SectorGate(gated=True, not_applicable=_FINANCIAL), True, _FINANCIAL, set()),
+    "gated, financial issuers and utilities refused": (
+        SectorGate(gated=True, not_applicable=_FINANCIAL_AND_UTILITY),
+        True,
+        _FINANCIAL_AND_UTILITY,
+        set(),
+    ),
 }
 
 
-@pytest.mark.parametrize("strategy", sorted(_MATRIX))
+@pytest.mark.parametrize("shape", sorted(_SHAPES))
 @pytest.mark.parametrize("industry", list(IndustryClass))
-def test_the_matrix_holds_for_every_strategy_and_class(strategy: str, industry: IndustryClass) -> None:
-    gate, gated, refused, warned = _MATRIX[strategy]
+def test_each_gate_shape_of_the_matrix_decides_every_class(shape: str, industry: IndustryClass) -> None:
+    gate, gated, refused, warned = _SHAPES[shape]
     assert gate.gated is gated
     outcome = applicability_of(gate, industry)
     assert outcome.industry_class is industry
@@ -85,14 +81,15 @@ def test_the_matrix_holds_for_every_strategy_and_class(strategy: str, industry: 
         assert (outcome.outcome, outcome.reason_code) == (Applicability.APPLIES, None)
 
 
-@pytest.mark.parametrize("strategy", sorted(set(_MATRIX) - {"piotroski"}))
-def test_a_gated_strategy_with_an_unknown_class_is_unavailable(strategy: str) -> None:
-    outcome = applicability_of(_MATRIX[strategy][0], None)
+@pytest.mark.parametrize("shape", [name for name, (_, gated, _, _) in sorted(_SHAPES.items()) if gated])
+def test_a_gated_gate_with_an_unknown_class_is_unavailable(shape: str) -> None:
+    outcome = applicability_of(_SHAPES[shape][0], None)
     assert outcome == ApplicabilityOutcome(Applicability.UNAVAILABLE, ReasonCode.INDUSTRY_CLASS_UNKNOWN, None)
 
 
-def test_an_ungated_strategy_runs_with_the_class_still_unknown() -> None:
-    assert applicability_of(PIOTROSKI_GATE, None) == ApplicabilityOutcome(Applicability.APPLIES, None, None)
+def test_an_ungated_gate_runs_with_the_class_still_unknown() -> None:
+    gate = _SHAPES["ungated, warning for financial issuers"][0]
+    assert applicability_of(gate, None) == ApplicabilityOutcome(Applicability.APPLIES, None, None)
 
 
 def test_a_custom_gate_follows_its_own_sets() -> None:

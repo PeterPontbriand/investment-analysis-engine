@@ -13,9 +13,10 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
   written after SWC and PKG land, against the `main` of that day.
 - **Every strategy slice also delivers:** analyzer, descriptor wiring including its `headline`
   function, presenter with concise, details, diagnostics and JSON views, stored-run replay, user guide,
-  `FINANCE_MATH.md` and `GLOSSARY.md` entries, and a result carrying the result-level `execution_status`
-  that [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status) defines. This is not
-  repeated per slice below.
+  `FINANCE_MATH.md` and `GLOSSARY.md` entries, a result carrying the result-level `execution_status`
+  that [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status) defines, and its
+  `SectorGate`, declared as a named constant in its own package, with a test that pins it to its row of the
+  [Shared definitions §1](STEP_3_5_SHARED_DEFINITIONS.md#1-applicability) matrix. This is not repeated per slice below.
 - **Every strategy slice also tests:** a financial issuer, an unknown industry class (`input_unavailable` for a sector-gated strategy; Piotroski runs and states it), a missing
   critical input, a boundary before the filing, stored-run replay with provider, cache, clock and
   calculator disabled, and unchanged output of the four existing strategies.

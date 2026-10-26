@@ -66,15 +66,6 @@ class ApplicabilityOutcome:
             raise ValueError("Only a not-applicable or unavailable outcome carries a reason code.")
 
 
-PIOTROSKI_GATE = SectorGate(gated=False, warn=frozenset({IndustryClass.FINANCIAL}))
-ALTMAN_GATE = SectorGate(gated=True, not_applicable=frozenset({IndustryClass.FINANCIAL}))
-BENEISH_GATE = SectorGate(gated=True, not_applicable=frozenset({IndustryClass.FINANCIAL}))
-VALUATION_MULTIPLES_GATE = SectorGate(gated=True, not_applicable=frozenset({IndustryClass.FINANCIAL}))
-MAGIC_FORMULA_GATE = SectorGate(gated=True, not_applicable=frozenset({IndustryClass.FINANCIAL, IndustryClass.UTILITY}))
-INTEREST_COVERAGE_GATE = SectorGate(gated=True, not_applicable=frozenset({IndustryClass.FINANCIAL}))
-ROIC_GATE = SectorGate(gated=True, not_applicable=frozenset({IndustryClass.FINANCIAL}))
-
-
 def industry_class_of_sic(code: int) -> IndustryClass:
     """Return the industry class of a four-digit SIC code.
 
