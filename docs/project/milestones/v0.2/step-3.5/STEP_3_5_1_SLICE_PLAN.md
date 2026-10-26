@@ -39,7 +39,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | :--- | :--- | :--- | :--- |
 | 3.5.1a | [As-filed SIC code and applicability](#351a--as-filed-sic-code-and-applicability) | Complete | 2026-10-25 |
 | 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | Complete | 2026-10-25 |
-| 3.5.1c | [Annual period fields](#351c--annual-period-fields) | Next | |
+| 3.5.1c | [Annual period fields](#351c--annual-period-fields) | In progress | |
 | 3.5.1d | [Split history and the market-cap price basis](#351d--split-history-and-the-market-cap-price-basis) | Planned | |
 
 3.5.1a is implemented on the branch that carries this plan and merges as one pull request. Each later sub-slice has its
@@ -147,6 +147,13 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
   - Overlapping revenue concepts are a priority list and are never summed; a segment figure is never total revenue.
   - The depreciation evidence of Slice inputs §3 is gathered here and decides the depreciation-alone mapping: approved,
     approved with a stated limit, or unsupported. If unsupported, every Beneish run uses the D&A basis.
+  - **Submissions paging (H18).** The paging of 3.5.1b is extended to the completed-annual series request these fields
+    use, which FCF-Growth and Graham share: a frequent filer's older annual facts take their acceptance time from the
+    extra submissions pages instead of the end of the filing date. It is bounded the same way and read only when the
+    recent block does not reach back far enough.
+  - **Beneish receivables (H17).** Receivables are unavailable for the index when the balance-sheet series reports a
+    related concept tagged at either of the two year-ends (Duke Energy fiscal 2025, where receivables moved to
+    "Receivables of VIEs"); the test case is due in 3.5.4b.
 - **Scope:** the 13 fields and their us-gaap and ifrs-full mappings; the series set; trimmed fixtures; the field-mapping
   and depreciation rows of the evidence record; tests. The file list is in [B.3](#b3-351c-files).
 - **Branch:** `feat/step-3-5-1c-annual-period-fields`, off `main` after the 3.5.1b pull request merges.
@@ -324,6 +331,13 @@ Added on the project owner's review of the pull request (2026-10-26):
 | H15 | Submissions paging | The extra pages of the submissions data are read, bounded and only when the recent block does not reach back far enough for the request (D11). JPMorgan's earlier year-ends resolve, and no stored output changes. |
 | H16 | Duke Energy receivables | The 16 million is a real face line: the receivables moved to a separate line of variable interest entities (4,214 million), which is a related concept. The field is limited to the line the concept names, and the related concept is reported beside it. |
 
+Added at the start of 3.5.1c, decided by the project owner (2026-10-26):
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| H17 | Beneish receivables | Receivables are unavailable for the Beneish receivables index when the balance-sheet series reports a related concept tagged at either of the two year-ends (Duke Energy fiscal 2025, where receivables moved to "Receivables of VIEs"). [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-beneish) states it, and a test case is due in 3.5.4b. |
+| H18 | Paging for the annual series | The submissions paging of 3.5.1b is extended to the completed-annual series request, bounded the same way and read only when the recent block does not reach back far enough. The request is shared with FCF-Growth and Graham, so a frequent filer such as JPMorgan gains the acceptance times of its older annual years there; the pull request lists it as a user-visible change, and the work stops only if an existing stored output changes. |
+
 ### A.2 The share-count scaling window (2026-10-25)
 
 F6 as approved scaled the fiscal year-end share count by every split from that year-end up to the price data's
@@ -399,6 +413,7 @@ keys a financial fact.
 | SEC | `data/sec_edgar/financial_facts.py` | a candidate and parse routine per concept priority list, following the existing annual operating-cash-flow routine; revenue concepts never summed |
 | Fixtures | `evaluation/fixtures/sec_edgar/annual_facts/` (new) | trimmed facts, including the filings of the depreciation evidence |
 | Evidence | `STEP_3_5_1_MAPPING_EVIDENCE.md` | the field-mapping rows and the depreciation evidence |
+| Paging | `data/sec_edgar/financial_facts.py` | the extra submissions pages are read for the completed-annual series (H18): the newest `observation_count` annual filings with no acceptance time, each page once, at most twelve |
 
 ### B.4 The fields
 
@@ -572,7 +587,10 @@ Piotroski needs. `NOT_APPLICABLE` becomes `MetricStatus.NOT_APPLICABLE` and `UNA
 - 3.5.1a: two reason codes; the three schemas that enumerate them are regenerated. No stored run changes meaning.
 - 3.5.1b: the financial-fact cache version changes, so cached facts are fetched again once. The `PeriodKind` enumeration
   gains `instant` in the schemas that list it, which the schema check regenerates.
-- 3.5.1c and 3.5.1d: none expected; each pull request states any it finds.
+- 3.5.1c: the completed-annual series request, which FCF-Growth and Graham share, reads the extra submissions pages of a frequent
+  filer, so the facts of its older annual years carry their acceptance time (H18). New fields are added with the evidence record's
+  rows; the pull request lists any further change it finds.
+- 3.5.1d: none expected; the pull request states any it finds.
 
 ### B.12 TOOL_DEVELOPMENT edit sites
 
