@@ -40,7 +40,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.1a | [As-filed SIC code and applicability](#351a--as-filed-sic-code-and-applicability) | Complete | 2026-10-25 |
 | 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | Complete | 2026-10-25 |
 | 3.5.1c | [Annual period fields](#351c--annual-period-fields) | Complete | 2026-10-26 |
-| 3.5.1d | [Split history and the market-cap price basis](#351d--split-history-and-the-market-cap-price-basis) | Next | |
+| 3.5.1d | [Split history and the market-cap price basis](#351d--split-history-and-the-market-cap-price-basis) | Complete | 2026-10-26 |
 
 3.5.1a is implemented on the branch that carries this plan and merges as one pull request. Each later sub-slice has its
 own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previous pull request merges.
@@ -338,6 +338,13 @@ Added at the start of 3.5.1c, decided by the project owner (2026-10-26):
 | H17 | Beneish receivables | Receivables are unavailable for the Beneish receivables index when the balance-sheet series reports a related concept tagged at either of the two year-ends (Duke Energy fiscal 2025, where receivables moved to "Receivables of VIEs"). [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-beneish) states it, and a test case is due in 3.5.4b. |
 | H18 | Paging for the annual series | The submissions paging of 3.5.1b is extended to the completed-annual series request, bounded the same way and read only when the recent block does not reach back far enough. The request is shared with FCF-Growth and Graham, so a frequent filer such as JPMorgan gains the acceptance times of its older annual years there; the pull request lists it as a user-visible change, and the work stops only if an existing stored output changes. |
 
+Accepted by the project owner at the start of 3.5.1d (2026-10-26), as consequences of 3.5.1c:
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| H19 | Beneish and SG&A | SG&A is unsupported under ifrs-full and unavailable for US GAAP filers that report selling and administrative costs as separate lines (Alphabet). Beneish has no partial score, so those issuers are `input_unavailable` for Beneish. SAP and Alphabet are 3.5.4b test cases ([Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-beneish)). |
+| H20 | Piotroski and net income | Net income is unavailable for a filer that tags only `ProfitLoss` (Monster), so its net-income tests are unavailable and the score is partial when at least six tests remain. Monster is a 3.5.3 test case ([Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score)). |
+
 Decided under delegation during 3.5.1c (2026-10-26):
 
 | # | Topic | Decision | Why |
@@ -348,6 +355,17 @@ Decided under delegation during 3.5.1c (2026-10-26):
 | D15 | Unsupported IFRS fields | SG&A and depreciation alone. | No IFRS concept is the combined line or the year's depreciation, and the lines that exist do not add to the combined figure. IFRS Beneish is unavailable while SG&A is unsupported; the owner is told in the pull request. |
 | D16 | Concept of an annual series | The first listed concept that reports the newest fiscal year any listed concept reports; a year it does not cover is absent. | One concept per run (H10), applied to a series without named dates. |
 | D17 | Annual paging rule | For the completed-annual series, the extra submissions pages are read for the `observation_count` newest annual filings that have no acceptance time, one page per filing date, at most twelve, each once per adapter. | A page is needed only for a filing the recent block lacks; the Company Facts name those filings and their dates, so no page is read to look. |
+
+Decided under delegation during 3.5.1d (2026-10-26):
+
+| # | Topic | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| D18 | The request | `fetch_split_adjusted_history(ticker, start_date, *, use_cache)` has a start date and no end date: the response runs through the latest session. | Every later split must be in the closes and in the events for the adjustment date to be the date of the response; a bounded range would leave later splits in neither. |
+| D19 | Storage without a migration | A split-adjusted response is stored as an ordinary Close-only snapshot under its own request variant (`1d:split_adjusted`), with the events and the adjustment date in the entry's structural metadata, which an ordinary snapshot does not carry and stores exactly as before. | The plan names no migration. The key already separates the two adjustment modes through its variant, so no key change and no cache version bump are needed. |
+| D20 | The live path | `adjusted_on` is the day the share count must be scaled to. A stored response adjusted on another day is refused and fetched again; without it a stored response is returned however old, with its original adjustment date. | A split since the response is in neither its closes nor its events. |
+| D21 | One function for both counts | `scale_share_count(count, after, adjustment_date, events)` takes the date after which splits apply: the filing date of a year-end count, or the cover date of a cover-page count (H7). | The rule is the same; only the date of the count differs. |
+| D22 | Composition | `cli_support` passes the split variant to the cached client. | Without it the cached client has no variant and never stores a split-adjusted response. No consumer reads one yet. |
+| D23 | A response that ends before `as_of` | On review of the pull request: `fetch_split_adjusted_history` takes the run's `as_of` and reuses a stored response only when its adjustment date is on or after it, otherwise it fetches again; `split_adjusted_close_on_or_before` refuses an `as_of` later than the response's adjustment date (`SplitHistoryEndsBeforeRequestError`). Tests cover a stored response that covers `as_of`, one that does not, and the refusal. | The historical cache TTL can be unlimited, and a stored response that ended before the requested day has no session on it: the last session on or before `as_of` would silently be an older one. |
 
 ### A.2 The share-count scaling window (2026-10-25)
 

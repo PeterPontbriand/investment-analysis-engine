@@ -6,6 +6,7 @@ command uses, makes at most the request budget of that check, and asserts shape,
 the check's own detail as the assertion message.
 """
 
+import math
 import re
 
 import pytest
@@ -20,7 +21,7 @@ from investment_analysis_engine.data.sec_edgar.filing_document import (
     filing_header_url,
 )
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
 
 pytestmark = pytest.mark.live_network
 
@@ -63,3 +64,16 @@ def test_sec_edgar_filing_header_response_shape() -> None:
     assert filer is not None, "the header has no <FILER> block"
     assert re.search(r"^<CIK>[0-9]{10}$", filer.group(1), re.MULTILINE)
     assert re.search(r"^<ASSIGNED-SIC>[0-9]{4}$", filer.group(1), re.MULTILINE)
+
+
+def test_yahoo_split_adjusted_history_response_shape() -> None:
+    """Request the split-adjusted history of an issuer that has split, and check its shape, never a value."""
+    history = YFinanceClient().fetch_split_adjusted_history("AAPL", "2020-08-01")
+    assert list(history.close.columns) == ["Close"]
+    assert len(history.close) > 100
+    assert (history.close["Close"] > 0).all()
+    assert history.events, "an issuer that has split returned no split event"
+    assert all(math.isfinite(event.ratio) and event.ratio > 0 for event in history.events)
+    assert history.context.data_as_of is not None
+    assert history.adjustment_date >= history.context.data_as_of
+    assert history.context.price_adjustment == "split_adjusted"

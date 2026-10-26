@@ -243,6 +243,15 @@ scaling is the filing date of the filing the count was taken from, found in the 
   concept, so the restated value could not be read from structured data. The statement is read from the rendered
   filing.
 
+### 4.6 The implemented request and its live check
+
+The implementation downloads with `yf.download(start=..., auto_adjust=False, actions=True)` and no end date, keeps `Close` and
+`Stock Splits` and never reads `Adj Close`. The result agrees with the capture above: NVIDIA's `Close` on 2024-04-30 is 86.402 and the
+only split after the filing is 10.0 on 2024-06-10; Walmart's is 3.0 on 2024-02-26; Commerce Bancshares' last is 1.05 on 2025-12-02. The
+trimmed rows of the three are the fixtures under `evaluation/fixtures/sec_edgar/split_history/`. The `live_network` check
+requests Apple from 2020-08-01 and asserts the columns, finite positive ratios and the adjustment date, never a value; it makes two
+Yahoo requests (the download and the currency lookup the context retains).
+
 ## 5. Field mappings
 
 Slice 3.5.1b fills the balance-sheet fields; 3.5.1c fills the annual fields. Every row records the columns below.
@@ -676,3 +685,7 @@ last.
 | `data.sec.gov/submissions/CIK0000019617-submissions-018.json`, JPMorgan (the page of its fiscal 2023 report) | 1 |
 
 The Company Facts, submissions and statements already held under `.tmp/` were read again without a request.
+
+**Slice 3.5.1d, 2026-10-26: Yahoo requests only, 8 of about 15.** Six for the fixtures (a download and a currency lookup each for
+NVIDIA, Walmart and Commerce Bancshares, through the implemented client) and two for the live check (one download and one currency
+lookup). The unit tests mock Yahoo. No SEC requests.

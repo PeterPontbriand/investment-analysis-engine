@@ -27,6 +27,7 @@ from investment_analysis_engine.data.cached_client import CachedHistoricalDataCl
 from investment_analysis_engine.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.instrument_profile_cache import CachedInstrumentProfileResolver
+from investment_analysis_engine.data.market_data import SPLIT_ADJUSTED_PRICE
 from investment_analysis_engine.data.quality import HistoricalQualityPolicy
 from investment_analysis_engine.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
 from investment_analysis_engine.data.repositories.market_data import SQLiteMarketDataRepository
@@ -214,6 +215,7 @@ def _production_historical_client(
             provider,
             SQLiteMarketDataRepository(database),
             request_variant=f"{YFINANCE_HISTORICAL_INTERVAL}:{YFINANCE_PRICE_ADJUSTMENT}",
+            split_request_variant=f"{YFINANCE_HISTORICAL_INTERVAL}:{SPLIT_ADJUSTED_PRICE}",
             ttl=None if seconds is None else timedelta(seconds=seconds),
             clock=clock,
             quality_policy=HistoricalQualityPolicy(expected_adjustment=YFINANCE_PRICE_ADJUSTMENT),

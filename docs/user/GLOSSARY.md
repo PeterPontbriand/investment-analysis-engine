@@ -215,6 +215,9 @@ The span or date to which a financial fact applies, such as a fiscal year, quart
 ### Stock Split Adjustment
 A transformation that restates per-share values after the number of shares changes through a stock split or reverse split. EPS, BVPS, and price must use compatible share bases.
 
+### Split-adjusted close
+A closing price restated for every stock split after its date and for nothing else, so a dividend paid later does not change it. It is the price on the same basis as a share count scaled by those splits, and the two together give the market capitalization the shares and the price had on the day. It is not the dividend-adjusted close that the [Momentum](GLOSSARY.md#momentum-analyzer) series uses. A stock dividend appears in the provider's split history as a fractional split (1.05) and is treated like a split; it is not counted as new shares issued.
+
 ### BVPS (Book Value Per Share)
 Book value attributable to common shareholders divided by period-end common shares outstanding. BVPS is an accounting measure of net assets per common share, not a market price. When using SEC EDGAR data, Investment Analysis Engine derives it from eligible fiscal-year-end balance-sheet components rather than claiming a direct SEC BVPS field.
 

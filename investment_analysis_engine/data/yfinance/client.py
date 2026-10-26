@@ -32,9 +32,12 @@ from investment_analysis_engine.data.instrument_profile import (
     reviewed_instrument_kind,
 )
 from investment_analysis_engine.data.market_data import (
+    SPLIT_ADJUSTED_PRICE,
     HistoricalDataResolution,
     HistoricalMarketData,
     MarketDataContext,
+    SplitAdjustedHistory,
+    SplitEvent,
     latest_observation_date,
 )
 from investment_analysis_engine.data.provider_failure import DEFECT, FailureRule, call_library
@@ -49,6 +52,8 @@ YFINANCE_HISTORICAL_INTERVAL = "1d"
 YFINANCE_PRICE_ADJUSTMENT = "adjusted"
 YFINANCE_HISTORY_COLUMNS = ("Open", "High", "Low", "Close", "Volume")
 """The columns of a daily history frame that the adapter requires from ``yf.download``."""
+YFINANCE_SPLIT_HISTORY_COLUMNS = ("Close", "Stock Splits")
+"""The columns the split-adjusted history reads from an unadjusted ``yf.download``; ``Adj Close`` is never read."""
 
 # How an exception raised inside a yfinance call is classified, checked in this order. The more specific types
 # come first because both HTTP backends derive their request errors from ``OSError`` (including the JSON-decoding,
@@ -196,6 +201,110 @@ class YFinanceClient(BaseDataClient):
             context=context,
             resolution=HistoricalDataResolution(SourceKind.PROVIDER, retrieved, None, retrieved),
         )
+
+    def fetch_split_adjusted_history(
+        self,
+        ticker: str,
+        start_date: str,
+        *,
+        use_cache: bool = True,  # noqa: ARG002
+    ) -> SplitAdjustedHistory:
+        """Return the split-adjusted close without dividend adjustment and the split history of one download.
+
+        The download is unadjusted for dividends (``auto_adjust=False``) with the corporate actions kept, so ``Close``
+        is adjusted for splits only and ``Stock Splits`` lists the events. ``Adj Close``, which is adjusted for
+        dividends as well, is never read. A frame without ``Close`` or ``Stock Splits`` is an unexpected response,
+        and a frame without a split has an empty list of events. ``use_cache`` is accepted for interface uniformity
+        and ignored: this raw provider has no cache of its own.
+        """
+        frame = self._download_unadjusted(ticker, start_date)
+        missing = [column for column in YFINANCE_SPLIT_HISTORY_COLUMNS if column not in frame.columns]
+        if missing:
+            raise DataFetchError(
+                f"yfinance split history for '{ticker}' is missing columns: {', '.join(missing)}.",
+                kind=ProviderFailureKind.UNEXPECTED_RESPONSE,
+                provider_id=YFINANCE_PROVIDER_ID,
+            )
+        close = frame[["Close"]].astype("float64").dropna()
+        if close.empty:
+            raise DataFetchError(
+                f"No closing prices were returned for ticker '{ticker}'.",
+                kind=ProviderFailureKind.NO_DATA,
+                provider_id=YFINANCE_PROVIDER_ID,
+            )
+        ratios = frame["Stock Splits"].astype("float64").fillna(0.0)
+        try:
+            splits = ratios[ratios != 0]
+            events = tuple(
+                SplitEvent(session.date(), float(ratio))
+                for session, ratio in zip(pd.DatetimeIndex(splits.index), splits.to_numpy(), strict=True)
+            )
+            adjustment_date = self._clock().date()
+            return SplitAdjustedHistory(
+                close=close,
+                events=events,
+                context=MarketDataContext(
+                    provider_id=self.provider_id,
+                    observation_interval=YFINANCE_HISTORICAL_INTERVAL,
+                    data_as_of=latest_observation_date(close),
+                    currency=self._fetch_currency(ticker),
+                    observation_count=len(close),
+                    price_adjustment=SPLIT_ADJUSTED_PRICE,
+                ),
+                adjustment_date=adjustment_date,
+                resolution=HistoricalDataResolution(SourceKind.PROVIDER, utc_now(), None, utc_now()),
+            )
+        except ValueError as err:
+            raise DataFetchError(
+                f"yfinance split history for '{ticker}' is not usable: {err}",
+                kind=ProviderFailureKind.UNEXPECTED_RESPONSE,
+                provider_id=YFINANCE_PROVIDER_ID,
+            ) from err
+
+    def _download_unadjusted(self, ticker: str, start_date: str) -> pd.DataFrame:
+        """Download daily history with the corporate actions kept and no adjustment for dividends."""
+        stderr_buffer = io.StringIO()
+
+        def download() -> object:
+            with contextlib.redirect_stderr(stderr_buffer):
+                return yf.download(
+                    ticker,
+                    start=start_date,
+                    interval=YFINANCE_HISTORICAL_INTERVAL,
+                    ignore_tz=True,
+                    auto_adjust=False,
+                    actions=True,
+                    progress=False,
+                    threads=False,
+                )
+
+        try:
+            result = call_library(
+                download,
+                rules=_YFINANCE_FAILURE_RULES,
+                provider_id=YFINANCE_PROVIDER_ID,
+                message=f"yfinance split history download failed for '{ticker}'",
+                error_type=DataFetchError,
+            )
+        except DataFetchError as failure:
+            logger.error(f"yfinance split history download for '{ticker}' failed ({failure.kind}): {failure}")
+            logger.debug(f"Stderr buffer contents: {stderr_buffer.getvalue()} - Ticker: {ticker}")
+            raise
+        if result is None or (isinstance(result, pd.DataFrame) and result.empty):
+            raise DataFetchError(
+                f"No market data was returned for ticker '{ticker}'.",
+                kind=ProviderFailureKind.NO_DATA,
+                provider_id=YFINANCE_PROVIDER_ID,
+            )
+        if not isinstance(result, pd.DataFrame):
+            raise DataFetchError(
+                f"yfinance returned {type(result).__name__} instead of a data frame for '{ticker}'.",
+                kind=ProviderFailureKind.UNEXPECTED_RESPONSE,
+                provider_id=YFINANCE_PROVIDER_ID,
+            )
+        if isinstance(result.columns, pd.MultiIndex):
+            result.columns = result.columns.get_level_values(0)
+        return result
 
     def fetch_current_quote(self, ticker: str) -> YFinanceQuote:
         """Resolve the latest tradable quote and best-effort currency via ``fast_info``."""
