@@ -334,6 +334,31 @@ The `display_only` and `confirmation` policies do not change the historical clas
 
 See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_GROWTH.md).
 
+## Cross-sectional ranking
+
+A ranking orders a fixed set of members, such as the tickers of one watchlist refresh, over one or more metrics. It is a pure calculation over the members it is given: it reads no market, assumes no wider universe and imputes no value. Each metric has a direction, higher is better or lower is better.
+
+### Eligibility
+
+1. **One member per issuer.** Members that share an issuer key (share classes of one filer) are reduced to the one whose ticker sorts first, after upper-casing, in ordinal character order. That ticker is a canonical representative for ranking only; the rule does not assert that the share classes are economically equivalent, since their prices and rights can differ. The other tickers are listed in a diagnostic.
+2. **Every metric must have a value.** A member is eligible only if each requested metric is `ok` with a finite value. A member with any metric `unavailable` or `not_applicable` is excluded, and the exclusion lists each such metric with its reason code and reason. This is judged after step 1: when the kept share class lacks a value that another class has, the issuer is excluded, and the diagnostic names both classes. Values are never taken from another class.
+3. **A minimum universe.** With fewer than 10 eligible members, nothing is ranked. The result carries the eligible members' values, the exclusions and a diagnostic, and no ranks, percentiles or positions. The minimum is fixed, not an option.
+
+### Ranks, percentile, sum and position
+
+With `N` eligible members:
+
+```text
+rank              1 is best; equal values share the average of the ranks they span
+                  (two values tied for first both have rank 1.5)
+percentile        100 * (N - rank) / (N - 1)        rank 1 gives 100, rank N gives 0
+rank_sum          the sum of a member's ranks over the metrics, with equal weights
+position          competition ranking of the ascending rank sum: equal sums share a
+                  position and the next position skips the tied ones (1, 1, 3)
+```
+
+The percentile is for display and is not used to order members. Values are compared exactly, with no tolerance. Members are listed by position, then ticker; ticker order carries no ranking meaning. The same members give the same result in any input order.
+
 ## Source notes
 
 - Benjamin Graham, *The Intelligent Investor*, Chapter 14: defensive-investor limits on price relative to average earnings and book value, including the combined product limit of 22.5.
