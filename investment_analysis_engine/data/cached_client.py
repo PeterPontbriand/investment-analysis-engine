@@ -9,7 +9,13 @@ import pandas as pd
 
 from investment_analysis_engine.data.base_client import BaseDataClient
 from investment_analysis_engine.data.financial.provenance import SourceKind
-from investment_analysis_engine.data.market_data import HistoricalDataResolution, HistoricalMarketData
+from investment_analysis_engine.data.market_data import (
+    SPLIT_ADJUSTED_PRICE,
+    HistoricalDataResolution,
+    HistoricalMarketData,
+    SplitAdjustedHistory,
+    SplitAdjustedHistoryProvider,
+)
 from investment_analysis_engine.data.quality import (
     FreshnessPolicy,
     HistoricalDataQualityError,
@@ -48,6 +54,7 @@ class CachedHistoricalDataClient(BaseDataClient):
         ttl: timedelta | None,
         clock: Callable[[], datetime],
         quality_policy: HistoricalQualityPolicy | None = None,
+        split_request_variant: str | None = None,
     ) -> None:
         """Inject historical storage, explicit reuse policy, and a required aware clock."""
         if ttl is not None and ttl < timedelta(0):
@@ -58,6 +65,7 @@ class CachedHistoricalDataClient(BaseDataClient):
         self._ttl = ttl
         self._clock = clock
         self._quality_policy = quality_policy or HistoricalQualityPolicy()
+        self._split_variant = split_request_variant
 
     def _quality_error(
         self, data: HistoricalMarketData, input_id: str, *, cached_at: datetime | None = None
@@ -152,6 +160,85 @@ class CachedHistoricalDataClient(BaseDataClient):
             resolution=HistoricalDataResolution(
                 SourceKind.PROVIDER,
                 data.resolution.retrieved_at if data.resolution is not None else completed,
+                None,
+                completed,
+            ),
+        )
+
+    def fetch_split_adjusted_history(
+        self, ticker: str, start_date: str, *, use_cache: bool, adjusted_on: date | None = None
+    ) -> SplitAdjustedHistory:
+        """Return the split-adjusted close and split history from ``start_date``, reusing an eligible stored response.
+
+        The response is stored as an entry of its own request variant, so it never shares an entry with the
+        dividend-adjusted series, and carries its own adjustment date. A stored response is returned with its original
+        adjustment date, however old: the closes and the splits of one response agree by construction.
+
+        Args:
+            ticker: The instrument.
+            start_date: First calendar day requested (``YYYY-MM-DD``); the response runs through the latest session.
+            use_cache: ``False`` always fetches and neither reads nor writes storage.
+            adjusted_on: For the live path, the day the share count must be scaled to. A stored response adjusted on
+                another day is refused and fetched again, because a split since then is in neither its closes nor its
+                events.
+        """
+        provider = self._provider
+        if not isinstance(provider, SplitAdjustedHistoryProvider):
+            raise TypeError("The wrapped provider offers no split-adjusted history.")
+        provider_id = self.provider_id
+        variant = self._split_variant
+        if not use_cache or not provider_id or not provider_id.strip() or not variant or not variant.strip():
+            logger.debug("Split-history cache bypassed: caching is off or the provider or variant is unavailable.")
+            return self._split_provider_resolution(
+                provider.fetch_split_adjusted_history(ticker, start_date, use_cache=use_cache)
+            )
+        key = MarketDataCacheKey(ticker, provider_id, date.fromisoformat(start_date), None, variant)
+        entry = self._repository.get(key)
+        if (
+            entry is not None
+            and entry.split_history is not None
+            and entry.data.context.price_adjustment == SPLIT_ADJUSTED_PRICE
+            and (adjusted_on is None or entry.split_history.adjustment_date == adjusted_on)
+            and not self._expired(entry.cached_at, f"{ticker}:{provider_id}:{start_date}:{variant}")
+        ):
+            return SplitAdjustedHistory(
+                close=entry.data.frame,
+                events=entry.split_history.events,
+                context=entry.data.context,
+                adjustment_date=entry.split_history.adjustment_date,
+                resolution=HistoricalDataResolution(
+                    SourceKind.CACHE, entry.fetch_completed_at, entry.cached_at, self._now(), key.schema_version
+                ),
+            )
+        history = provider.fetch_split_adjusted_history(ticker, start_date, use_cache=use_cache)
+        completed = self._now()
+        try:
+            retrieved = history.resolution.retrieved_at if history.resolution is not None else completed
+            self._repository.put_split_history(key, history, fetch_completed_at=retrieved)
+        except UnsupportedHistoricalDataError:
+            logger.debug("Split-history cache bypassed: frame representation is unsupported.")
+        return self._split_provider_resolution(history, completed)
+
+    def _expired(self, cached_at: datetime, input_id: str) -> bool:
+        """Return whether a stored response has outlived the cache TTL."""
+        decisions = evaluate_freshness(
+            context=QualityContext(input_id, self._now()),
+            policy=FreshnessPolicy(cache_ttl=self._ttl),
+            cached_at=cached_at,
+        )
+        publish_quality(decisions)
+        return any(item.outcome is QualityOutcome.FAIL for item in decisions)
+
+    def _split_provider_resolution(
+        self, history: SplitAdjustedHistory, completed_at: datetime | None = None
+    ) -> SplitAdjustedHistory:
+        """Retain actual fetch completion without replacing original provider timing."""
+        completed = completed_at or self._now()
+        return replace(
+            history,
+            resolution=HistoricalDataResolution(
+                SourceKind.PROVIDER,
+                history.resolution.retrieved_at if history.resolution is not None else completed,
                 None,
                 completed,
             ),

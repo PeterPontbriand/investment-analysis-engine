@@ -17,7 +17,13 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Connection
 
 from investment_analysis_engine.core.clock import utc_now
-from investment_analysis_engine.data.market_data import HistoricalMarketData, MarketDataContext, historical_index_kind
+from investment_analysis_engine.data.market_data import (
+    HistoricalMarketData,
+    MarketDataContext,
+    SplitAdjustedHistory,
+    SplitEvent,
+    historical_index_kind,
+)
 from investment_analysis_engine.data.repositories.schema import (
     market_data_cache_entries,
     market_price_observations,
@@ -85,6 +91,14 @@ class MarketDataCacheKey:
 
 
 @dataclass(frozen=True)
+class SplitHistoryStorage:
+    """The split events and the adjustment date stored beside a split-adjusted close snapshot."""
+
+    events: tuple[SplitEvent, ...]
+    adjustment_date: date
+
+
+@dataclass(frozen=True)
 class MarketDataCacheEntry:
     """One stored request snapshot and its original cache/retrieval timing."""
 
@@ -92,9 +106,28 @@ class MarketDataCacheEntry:
     data: HistoricalMarketData
     cached_at: datetime
     fetch_completed_at: datetime | None = None
+    split_history: SplitHistoryStorage | None = None
 
 
 _KEY_ADAPTER = TypeAdapter(MarketDataCacheKey)
+
+
+class _SplitEventMetadata(BaseModel):
+    """One stored split event."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    ex_date: str
+    ratio: float
+
+
+class _SplitHistoryMetadata(BaseModel):
+    """The split events of a split-adjusted snapshot and the date its closes are adjusted to."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    events: list[_SplitEventMetadata]
+    adjustment_date: str
 
 
 class _FrameMetadata(BaseModel):
@@ -110,6 +143,7 @@ class _FrameMetadata(BaseModel):
     index_dtype: str
     index_timezone: str | None
     index_frequency: str | None
+    split_history: _SplitHistoryMetadata | None = None
 
 
 def _json(value: object) -> str:
@@ -260,6 +294,32 @@ def _restore_frame(metadata: _FrameMetadata, rows: list[dict[str, Any]]) -> pd.D
     return frame
 
 
+def _dump(metadata: _FrameMetadata) -> dict[str, Any]:
+    """Encode the structural metadata; a snapshot without split history stores exactly what it always stored."""
+    encoded = metadata.model_dump()
+    if encoded["split_history"] is None:
+        del encoded["split_history"]
+    return encoded
+
+
+def _split_metadata(storage: SplitHistoryStorage) -> _SplitHistoryMetadata:
+    """Encode split events and the adjustment date."""
+    return _SplitHistoryMetadata(
+        events=[_SplitEventMetadata(ex_date=event.ex_date.isoformat(), ratio=event.ratio) for event in storage.events],
+        adjustment_date=storage.adjustment_date.isoformat(),
+    )
+
+
+def _split_storage(metadata: _SplitHistoryMetadata | None) -> SplitHistoryStorage | None:
+    """Decode split events and the adjustment date."""
+    if metadata is None:
+        return None
+    return SplitHistoryStorage(
+        events=tuple(SplitEvent(date.fromisoformat(item.ex_date), item.ratio) for item in metadata.events),
+        adjustment_date=date.fromisoformat(metadata.adjustment_date),
+    )
+
+
 def _parent(entry: MarketDataCacheEntry, metadata: _FrameMetadata) -> dict[str, Any]:
     """Encode snapshot and context metadata independently of observations."""
     row = _key_row(entry.key)
@@ -270,7 +330,7 @@ def _parent(entry: MarketDataCacheEntry, metadata: _FrameMetadata) -> dict[str, 
         cached_at=_utc(entry.cached_at),
         fetch_completed_at=None if entry.fetch_completed_at is None else _utc(entry.fetch_completed_at),
         row_count=len(entry.data.frame),
-        frame_metadata_json=_json(metadata.model_dump()),
+        frame_metadata_json=_json(_dump(metadata)),
     )
     return row
 
@@ -301,14 +361,42 @@ class SQLiteMarketDataRepository:
         self, key: MarketDataCacheKey, data: HistoricalMarketData, *, fetch_completed_at: datetime | None = None
     ) -> None:
         """Validate then atomically replace one parent and all observation rows."""
+        self._put(key, data, fetch_completed_at, None)
+
+    def put_split_history(
+        self, key: MarketDataCacheKey, history: SplitAdjustedHistory, *, fetch_completed_at: datetime | None = None
+    ) -> None:
+        """Store a split-adjusted close snapshot with its events and adjustment date as one entry.
+
+        The closes use the ordinary observation rows; the events and the adjustment date live in the entry's structural
+        metadata, so no table changes and an ordinary snapshot stores exactly what it always stored.
+        """
+        self._put(
+            key,
+            HistoricalMarketData(history.close, history.context),
+            fetch_completed_at,
+            SplitHistoryStorage(history.events, history.adjustment_date),
+        )
+
+    def _put(
+        self,
+        key: MarketDataCacheKey,
+        data: HistoricalMarketData,
+        fetch_completed_at: datetime | None,
+        split_history: SplitHistoryStorage | None,
+    ) -> None:
+        """Validate then atomically replace one parent and all observation rows."""
         key = _KEY_ADAPTER.validate_python(asdict(key))
         metadata, rows = _frame_rows(data.frame, _key_row(key)["entry_key"])
+        if split_history is not None:
+            metadata = metadata.model_copy(update={"split_history": _split_metadata(split_history)})
         # Prove structural reconstruction before publication, including timezone
         # identifiers that pandas may not support as portable text.
         restored_metadata, restored_rows = _frame_rows(_restore_frame(metadata, rows), rows[0]["entry_key"])
+        restored_metadata = restored_metadata.model_copy(update={"split_history": metadata.split_history})
         if restored_metadata != metadata or restored_rows != rows:
             raise UnsupportedHistoricalDataError("Historical frame does not round-trip through the supported encoding.")
-        entry = MarketDataCacheEntry(key, data, self._clock(), fetch_completed_at)
+        entry = MarketDataCacheEntry(key, data, self._clock(), fetch_completed_at, split_history)
         parent = _parent(entry, metadata)
         statement = insert(market_data_cache_entries).values(**parent)
         volume_type = (
@@ -404,8 +492,10 @@ class SQLiteMarketDataRepository:
             HistoricalMarketData(frame, context),
             datetime.fromisoformat(parent["cached_at"]),
             None if parent["fetch_completed_at"] is None else datetime.fromisoformat(parent["fetch_completed_at"]),
+            _split_storage(metadata.split_history),
         )
         actual_metadata, actual_rows = _frame_rows(frame, parent["entry_key"])
+        actual_metadata = actual_metadata.model_copy(update={"split_history": metadata.split_history})
         if _parent(entry, actual_metadata) != dict(parent) or actual_rows != rows:
             raise ValueError("Malformed or inconsistent historical snapshot encoding.")
         return entry

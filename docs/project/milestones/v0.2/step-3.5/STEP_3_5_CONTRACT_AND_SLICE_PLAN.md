@@ -57,8 +57,8 @@ next begins.
 | 3.5.1a | [As-filed SIC code and applicability](STEP_3_5_1_SLICE_PLAN.md#351a--as-filed-sic-code-and-applicability) | Complete | 2026-10-25 |
 | 3.5.1b | [Balance-sheet instants](STEP_3_5_1_SLICE_PLAN.md#351b--balance-sheet-instants) | Complete | 2026-10-25 |
 | 3.5.1c | [Annual period fields](STEP_3_5_1_SLICE_PLAN.md#351c--annual-period-fields) | Complete | 2026-10-26 |
-| 3.5.1d | [Split history and the market-cap price basis](STEP_3_5_1_SLICE_PLAN.md#351d--split-history-and-the-market-cap-price-basis) | In progress | |
-| 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Planned | |
+| 3.5.1d | [Split history and the market-cap price basis](STEP_3_5_1_SLICE_PLAN.md#351d--split-history-and-the-market-cap-price-basis) | Complete | 2026-10-26 |
+| 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Next | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
