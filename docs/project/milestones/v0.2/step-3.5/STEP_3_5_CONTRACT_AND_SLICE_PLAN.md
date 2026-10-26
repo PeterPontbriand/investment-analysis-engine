@@ -58,7 +58,10 @@ next begins.
 | 3.5.1b | [Balance-sheet instants](STEP_3_5_1_SLICE_PLAN.md#351b--balance-sheet-instants) | Complete | 2026-10-25 |
 | 3.5.1c | [Annual period fields](STEP_3_5_1_SLICE_PLAN.md#351c--annual-period-fields) | Complete | 2026-10-26 |
 | 3.5.1d | [Split history and the market-cap price basis](STEP_3_5_1_SLICE_PLAN.md#351d--split-history-and-the-market-cap-price-basis) | Complete | 2026-10-26 |
-| 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Next | |
+| 3.5.2a | [Slice plan and ranking helper](STEP_3_5_2_SLICE_PLAN.md#352a--slice-plan-and-ranking-helper) | Complete | 2026-10-26 |
+| 3.5.2b | [Pure shared metrics](STEP_3_5_2_SLICE_PLAN.md#352b--pure-shared-metrics) | Next | |
+| 3.5.2c | [Shared input assembly](STEP_3_5_2_SLICE_PLAN.md#352c--shared-input-assembly) | Planned | |
+| 3.5.2d | [FCF-Growth adopts the shared market cap](STEP_3_5_2_SLICE_PLAN.md#352d--fcf-growth-adopts-the-shared-market-cap) | Planned | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
@@ -176,17 +179,21 @@ its own quality gate and authorization.
 - **Problem:** EV, invested capital and market cap would otherwise be defined inside whichever
   strategy needs them first, and diverge in the next one. No market-cap evidence exists today, so
   FCF-Growth's optional FCF yield is always unavailable.
-- **Decision:** define market cap, EBIT, D&A, EBITDA, EV and invested capital once, as pure
-  functions over resolved facts, and reuse the existing FCF and FCF-yield definitions. FCF-Growth's
-  FCF yield adopts the shared market cap, with no formula change: this slice either wires it through
-  `compute_fcf_yield` in `investment_analysis_engine/strategies/fcf_growth/calculators.py`, which no production code calls today, or
-  deletes that function. The ranking helper is a pure,
+- **Decision:** define market cap, gross profit, EBIT, D&A, EBITDA, EV and invested capital once, as pure
+  functions over resolved facts, and move the existing FCF and FCF-yield definitions beside them unchanged in
+  behavior. Assemble the shared inputs once (the anchor year-end, the share-count path, the price and the split
+  history, and the balance-sheet and annual inputs at that year-end), so no consumer builds them itself. FCF-Growth's
+  FCF yield adopts the shared market cap, with no formula change. The ranking helper is a pure,
   analysis-agnostic function, tested here on synthetic inputs before Magic Formula consumes it.
-- **Scope:** shared metric functions and their tests; `investment_analysis_engine/analysis/shared/ranking.py`;
-  FCF-Growth's market-cap wiring; `FINANCE_MATH.md` entries for every shared metric.
-- **Detail:** [Shared definitions §4–§9](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization)
-  and [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-352--shared-metrics-and-ranking-helper).
-  ⚠ no slice plan yet
+  The slice is four sub-slices, each with its own branch, managed gate and authorization
+  ([A.13](#a13-352-sub-slices-and-scope-2026-10-26)).
+- **Scope:** shared metric functions and their tests, gross profit included; the ranking helper
+  (`investment_analysis_engine/analysis/shared/ranking.py`); the shared input assembly, which also routes the balance-sheet series
+  through the production financial-facts provider and declares a split-history provider protocol that carries `as_of`
+  and `adjusted_on`; FCF-Growth's market-cap wiring; `FINANCE_MATH.md` entries for every shared metric.
+- **Detail:** [Shared definitions §4–§9](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization),
+  [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-352--shared-metrics-and-ranking-helper) and the
+  [slice plan for 3.5.2a to 3.5.2d](STEP_3_5_2_SLICE_PLAN.md).
 
 ### 3.5.3 — Piotroski F-Score
 
@@ -520,3 +527,14 @@ year-end for Walmart, SAP and Nutrien ([slice plan, H7 to H12](STEP_3_5_1_SLICE_
 | Equivalent concepts | One concept per field | A priority list where the evidence shows the same line item; one concept for every year of a run; the absent-component zero only when none is tagged and never for an unsupported mapping | Alphabet and Moderna tag short-term investments under other names; Walmart tags receivables under another |
 
 The 2026-10-02 rule in A.6 is kept as recorded.
+
+### A.13 3.5.2 sub-slices and scope (2026-10-26)
+
+Decided by the project owner while the [3.5.2 slice plan](STEP_3_5_2_SLICE_PLAN.md) was written; the plan's
+[Appendix A](STEP_3_5_2_SLICE_PLAN.md#a1-decisions-k1-to-k17-2026-10-26) holds all seventeen decisions (K1 to K17).
+
+| Topic | Before | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| Sub-slices (K2) | One slice, 3.5.2 | Four, each with its own branch, managed gate and authorization: 3.5.2a the slice plan and the ranking helper (one pull request), 3.5.2b the pure shared metrics, 3.5.2c the shared input assembly, 3.5.2d FCF-Growth adopts the shared market cap | The ranking helper, the pure metrics, the I/O assembly and the change to a stored result shape have different inputs and risks |
+| Shared input assembly (K3) | Each consumer builds its own inputs | Built once in 3.5.2c: the anchor year-end, the share-count path, the price and the split history, and the balance-sheet and annual inputs at that year-end. It closes two gaps found on `main`: the production provider does not route the balance-sheet series, and the split-history provider protocol declares neither `as_of` nor `adjusted_on` | Seven strategies would otherwise each assemble the same inputs, and diverge |
+| Gross profit (K6) | Not a shared metric | The reported gross profit; otherwise sales minus cost of revenue when both are reported, keeping both inputs' provenance; never operating income | Piotroski and Beneish both use it, and the mapping evidence already assigns it to 3.5.2 |

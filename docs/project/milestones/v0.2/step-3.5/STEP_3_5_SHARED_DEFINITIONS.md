@@ -152,6 +152,11 @@ a filing says "none", and requiring an explicit zero would make EV unavailable f
   `ReceivablesNetCurrent`.
 - **Unsupported mappings:** the convention never applies to a field whose mapping is recorded as unsupported for the
   taxonomy. The field is `unavailable`.
+- **Short-term investments need a classified balance sheet:** the zero applies to short-term investments only when
+  current assets are tagged at that date. On an unclassified balance sheet the absence of the line does not show that
+  the filer has none, so short-term investments are `unavailable`. Deere's balance sheet is unclassified and it holds
+  1,411 million of marketable securities its listed concepts do not read, so its EV is `unavailable`
+  ([mapping evidence §5.6](STEP_3_5_1_MAPPING_EVIDENCE.md#56-findings-the-owner-decides)).
 
 The convention never applies to the critical inputs each definition below names. Debt is not
 covered by it: [total debt](#total-debt) has its own, stricter rule. These two are the only cases
@@ -182,6 +187,11 @@ in which an absent element yields a number.
 - **Effect:** the market cap is the same as the one the unadjusted price and the unscaled count of the same date give. The
   formula and the value are unchanged; this states only how it is computed. Splits after `as_of` are used only to undo the
   provider's retroactive adjustment ([§3](#3-data-sources-periods-and-point-in-time)).
+- **Security unit and currency:** the market cap uses the existing fail-closed rule,
+  `evaluate_security_unit_compatibility` (`investment_analysis_engine/data/security_unit.py`), as Graham does. It is
+  available only when the quote currency equals the filing currency and the evidence affirms an ordinary share at 1:1.
+  Otherwise it is `unavailable`. SAP's market cap is therefore `unavailable`: SAP files in EUR and its listed ADR is
+  quoted in USD.
 - **Critical inputs:** shares and price.
 - **Dates stay visible** in the result: the share-count date, the filing date of the count's source and the price date.
 
@@ -210,6 +220,9 @@ in which an absent element yields a number.
 
 ## 5. EBIT, D&A and EBITDA
 
+- **Gross profit:** the reported gross profit; otherwise sales minus cost of revenue when both are reported, keeping
+  both inputs' provenance. It is never taken from operating income, and a filer that reports neither form has none
+  (Piotroski and Beneish use it).
 - **EBIT:** reported operating income (`OperatingIncomeLoss`, or
   `ProfitLossFromOperatingActivities` under IFRS). It is never rebuilt from pretax income plus
   interest. Absent operating income makes EBIT `unavailable`.
@@ -317,8 +330,9 @@ strategies, runs or persistence.
 
 **Input**
 
-- Members: each with an issuer key and, per requested metric, either a finite value or an
-  unavailable reason.
+- Members: each with a ticker, an issuer key (an opaque, non-empty string the caller supplies) and, per requested
+  metric, a `MetricResult`. A result that is not `ok` excludes the member and carries its own reason code and
+  reason into the exclusion.
 - Metrics: each with a name and a direction (higher-is-better or lower-is-better).
 
 **Behavior**
@@ -328,12 +342,14 @@ strategies, runs or persistence.
    in a diagnostic. The choice does not depend on input order, and the issuer stays in the
    ranking. The kept ticker is a canonical representative for ranking only. The diagnostic says so,
    and says the rule does not assert that the share classes are economically equivalent: their
-   prices and rights can differ.
-2. **Determine the eligible set.** A member is eligible only if every requested metric has a value.
-   Each excluded member is listed with its reason.
+   prices and rights can differ. Tickers are compared by ordinal order after upper-casing.
+2. **Determine the eligible set,** after deduplication. A member is eligible only if every requested metric is `ok`.
+   Each excluded member is listed with its reason. When the kept share class lacks a metric, the issuer is excluded
+   even if another class has the value, and the diagnostic names both classes.
 3. **Enforce a minimum universe.** With fewer than 10 eligible members, the helper returns no ranks,
    only the values and a diagnostic.
-4. **Rank each metric.** Rank 1 is best. Tied values share the average (fractional) rank.
+4. **Rank each metric.** Rank 1 is best. Tied values share the average (fractional) rank. Values and ranks are
+   compared exactly, with no tolerance: ranks are multiples of one half.
 5. **Report a display percentile:** 100 × (N − rank) ÷ (N − 1). Higher is better.
 6. **Aggregate.** The aggregate is the sum of per-metric ranks, with equal weights and no weights
    parameter. Final positions follow the ascending sum.
@@ -348,8 +364,9 @@ strategies, runs or persistence.
 - Every exclusion carries its reason.
 - The universe is exactly the members passed in.
 
-The minimum of 10 eligible members is a named, documented default, not a constant buried in the
-calculation.
+The minimum of 10 eligible members is a named, documented module constant of the helper
+(`MINIMUM_ELIGIBLE_MEMBERS`), not a parameter and not a number buried in the calculation: no caller can lower it for
+one ranking.
 
 ### Ranked refresh view
 

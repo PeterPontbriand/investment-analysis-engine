@@ -194,6 +194,9 @@ selection; no SIC in the instrument profile; no schema migration.
 
 **New data:** none beyond 3.5.1.
 
+**Sub-slices:** 3.5.2a the ranking helper, 3.5.2b the pure shared metrics, 3.5.2c the shared input assembly, 3.5.2d
+FCF-Growth adopts the shared market cap ([slice plan](STEP_3_5_2_SLICE_PLAN.md)).
+
 **Result shape:** each shared metric is a pure function over resolved facts that returns a
 `MetricResult` plus the operands and provenance it used. Market cap also returns its share-count
 date and price date. EV and total debt return each component and which absent components were
@@ -204,10 +207,26 @@ taken as zero.
 - Market cap: count at year-end *t* only; no count is `unavailable`; conflicting counts are
   `unavailable`; a split after the filing date of the count's source scales the count and one before it does not; per-class counts with no total
   are `unavailable`; a one-day historical download is never used as a quote.
+  - Security unit and currency (decision K5): a quote currency that differs from the filing currency, or evidence that
+    does not affirm an ordinary share at 1:1, makes it `unavailable`. SAP (EUR filer, USD ADR) is the case.
+  - Nutrien has no share count and is `unavailable`, never zero.
+  - The Walmart and NVIDIA scaling cases of the 3.5.1 plan's B.10, now through the market cap.
+- Gross profit (decision K6): the reported figure is used; otherwise sales minus cost of revenue when both are
+  reported, with both inputs' provenance; one of the two missing is `unavailable`; it is never taken from operating
+  income. Monster (reported) and Walmart (not reported, derived) are the cases.
 - EV: each absent-component case; missing cash is `unavailable`; negative EV is a valid number.
+  - Short-term investments (decision K7): absent on a classified balance sheet is zero with a diagnostic; absent where
+    current assets are not tagged is `unavailable`. Deere's EV is `unavailable`.
+  - Total debt: Alphabet and Honeywell reconcile a direct total with its parts as Shared definitions §6 states;
+    Monster has zero debt (it tags `InterestPaidNet`, not interest expense); Nutrien's IFRS total debt is `unavailable`.
 - Invested capital: IC ≤ 0 makes dependent ratios `not_applicable`.
+- FCF yield (decision K4): the yield is `unavailable` with `incompatible_period` when FCF-Growth's latest observation
+  does not end at year-end *t*; it is never computed from an older year.
 - FCF-Growth: FCF yield becomes available through the shared market cap with its formula and
-  every existing expected value unchanged.
+  every existing expected value unchanged (decision K11): the success fixture gains a share-count fixture and a
+  split-history fixture so one golden case has the yield `ok`, and a test asserts every other expected value is
+  unchanged. A market-data failure makes the yield `unavailable` with `provider_error` and a warning, and leaves the
+  run's `execution_status` and the classification unchanged (decision K10).
 - Ranking helper, on synthetic members:
   - any input order gives the same output;
   - duplicate issuers keep the alphabetically first ticker and report the rest, with the
@@ -350,6 +369,9 @@ Two sub-slices: 3.5.6a the analyzer, 3.5.6b the ranked view.
   view.
 - Side-by-side table: its sort option over this view gives the view's order, and a refresh with
   no Magic Formula runs refuses the option and says why.
+
+**Glossary:** the terms for ranking ("rank sum", "display percentile", "eligible member", and any others the ranked view
+needs) arrive with the ranked view in 3.5.6, not with the helper.
 
 **Non-goals:** no ad-hoc ticker list; no persisted ranks; no market-wide universe; no weights.
 
