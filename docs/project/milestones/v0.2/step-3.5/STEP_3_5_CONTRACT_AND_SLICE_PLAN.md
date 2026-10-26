@@ -54,7 +54,10 @@ next begins.
 | :--- | :--- | :--- | :--- |
 | 3.5.0a | [Momentum result-level status](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status) | Complete | 2026-10-25 |
 | 3.5.0b | [Side-by-side refresh table](STEP_3_5_0_SLICE_PLAN.md#350b--side-by-side-refresh-table) | Complete | 2026-10-25 |
-| 3.5.1 | [Data mappings and applicability](#351--data-mappings-and-applicability) | Next | |
+| 3.5.1a | [As-filed SIC code and applicability](STEP_3_5_1_SLICE_PLAN.md#351a--as-filed-sic-code-and-applicability) | Complete | 2026-10-25 |
+| 3.5.1b | [Balance-sheet instants](STEP_3_5_1_SLICE_PLAN.md#351b--balance-sheet-instants) | Next | |
+| 3.5.1c | [Annual period fields](STEP_3_5_1_SLICE_PLAN.md#351c--annual-period-fields) | Planned | |
+| 3.5.1d | [Split history and the market-cap price basis](STEP_3_5_1_SLICE_PLAN.md#351d--split-history-and-the-market-cap-price-basis) | Planned | |
 | 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Planned | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
@@ -166,7 +169,7 @@ its own quality gate and authorization.
   historical market-data boundary; new `ReasonCode` members these need.
 - **Detail:** [Shared definitions §1–§3](STEP_3_5_SHARED_DEFINITIONS.md#1-applicability) and
   [Slice inputs §3](STEP_3_5_SLICE_INPUTS.md#3-351--data-mappings-and-applicability).
-  ⚠ no slice plan yet
+  [Slice plan for 3.5.1a to 3.5.1d](STEP_3_5_1_SLICE_PLAN.md)
 
 ### 3.5.2 — Shared metrics and ranking helper
 
@@ -485,3 +488,18 @@ The contract and A.7 had 3.5.0 begin by removing `AGENTS.md` §0. Slice 3.5.0 is
 3.5.0a: 3.5.0a changes Momentum's stored shape (the result schema version, the evidence codec version and the
 document version) without compatibility code, which §0 permits and nothing after it would. The A.7 wording
 "removed by 3.5.0, the first implementation slice" is kept as recorded.
+
+### A.11 Market-cap price basis and share-count scaling (2026-10-25)
+
+Decided by the project owner while the [3.5.1 slice plan](STEP_3_5_1_SLICE_PLAN.md) was written, after live checks
+([evidence §4](STEP_3_5_1_MAPPING_EVIDENCE.md#4-price-and-split-evidence)):
+
+| Topic | Before | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| Price with a requested `as_of` | "The unadjusted close" | The split-adjusted close without dividend adjustment, on or before `as_of`, through a new request in the historical market-data boundary. Without `as_of`, the current quote as before | Yahoo returns no unadjusted close: `Close` is split-adjusted after the fact and `Adj Close` is adjusted for dividends too. The existing series is dividend-adjusted and is never used for market cap. Momentum's series is unchanged |
+| Share count | Scaled by splits between the share-count date and the price date | Scaled by every split whose ex-date is after the filing date of the filing the count was taken from (the accession and filing date in the count's own provenance, not assumed to be the anchor filing), up to the price data's adjustment date | A filing restates its share counts for a split effective before it is issued (SEC Staff Accounting Bulletin Topic 4.C): Walmart's fiscal 2024 10-K restates for a split after the fiscal year-end, so scaling from the year-end would count it twice. A later filing's comparative restates an earlier year-end for splits up to its own date |
+| Point-in-time | No exception | Splits after the boundary are used only to undo the provider's retroactive adjustment and never change the as-of market cap | The provider adjusts every historical close for all later splits |
+| Stock dividends | Not addressed | Scaled like splits where the split history shows them, never issuance; the history shows them as fractional splits and cannot tell them from small splits | Shown for Commerce Bancshares (1.05) and Tootsie Roll (1.03) |
+| Effect | | The market cap equals the one [Shared definitions §4](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization) defines; the formula and the value are unchanged, and only how it is computed is stated | |
+
+Limitation: a split announced before the filing but effective just after it is assumed not to be reflected in the filing.

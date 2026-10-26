@@ -13,9 +13,10 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
   written after SWC and PKG land, against the `main` of that day.
 - **Every strategy slice also delivers:** analyzer, descriptor wiring including its `headline`
   function, presenter with concise, details, diagnostics and JSON views, stored-run replay, user guide,
-  `FINANCE_MATH.md` and `GLOSSARY.md` entries, and a result carrying the result-level `execution_status`
-  that [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status) defines. This is not
-  repeated per slice below.
+  `FINANCE_MATH.md` and `GLOSSARY.md` entries, a result carrying the result-level `execution_status`
+  that [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#result-level-status) defines, and its
+  `SectorGate`, declared as a named constant in its own package, with a test that pins it to its row of the
+  [Shared definitions §1](STEP_3_5_SHARED_DEFINITIONS.md#1-applicability) matrix. This is not repeated per slice below.
 - **Every strategy slice also tests:** a financial issuer, an unknown industry class (`input_unavailable` for a sector-gated strategy; Piotroski runs and states it), a missing
   critical input, a boundary before the filing, stored-run replay with provider, cache, clock and
   calculator disabled, and unchanged output of the four existing strategies.
@@ -133,7 +134,8 @@ shares outstanding.
 
 - As-filed SIC code from the selected filing's SEC header (SD §1).
 - Split and stock-dividend history from the historical market-data boundary.
-- Unadjusted historical close on or before a requested `as_of` (SD §4).
+- Split-adjusted historical close, without dividend adjustment, on or before a requested `as_of` (SD §4). The provider has
+  no unadjusted close.
 
 **Entry criterion: SIC evidence**
 
@@ -200,7 +202,7 @@ taken as zero.
 **Tests**
 
 - Market cap: count at year-end *t* only; no count is `unavailable`; conflicting counts are
-  `unavailable`; a split between the two dates scales the count; per-class counts with no total
+  `unavailable`; a split after the filing date of the count's source scales the count and one before it does not; per-class counts with no total
   are `unavailable`; a one-day historical download is never used as a quote.
 - EV: each absent-component case; missing cash is `unavailable`; negative EV is a valid number.
 - Invested capital: IC ≤ 0 makes dependent ratios `not_applicable`.

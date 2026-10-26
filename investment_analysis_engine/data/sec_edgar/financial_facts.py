@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, time
+from datetime import UTC, date, datetime, time
 from types import MappingProxyType
 from typing import cast
 from zoneinfo import ZoneInfo
@@ -33,9 +33,18 @@ from investment_analysis_engine.data.http_json import JsonFetcher, fetch_json
 from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.sec_edgar.filing_document import (
     FilingFetcher,
+    FilingHeaderFetcher,
+    FilingHeaderPolicy,
     FilingReaderPolicy,
     fetch_filing,
+    fetch_filing_header,
+    filing_header_url,
     filing_url,
+)
+from investment_analysis_engine.data.sec_edgar.filing_header import (
+    AsFiledSicResolution,
+    SicUnavailableReason,
+    parse_filing_header,
 )
 from investment_analysis_engine.data.sec_edgar.security_unit import (
     MAPPING_ID,
@@ -193,6 +202,7 @@ class SecEdgarAnalysisSnapshot:
     taxonomy: str | None
     primary_documents: Mapping[str, str] = field(default_factory=dict)
     filing_forms: Mapping[str, str] = field(default_factory=dict)
+    filing_dates: Mapping[str, date] = field(default_factory=dict)
     current_tickers: tuple[str, ...] = ()
 
 
@@ -216,7 +226,7 @@ class SecEdgarFinancialFactsAdapter:
     ``filed`` date rather than pretending the fact was knowable at midnight.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         json_fetcher: JsonFetcher = fetch_json,
@@ -224,6 +234,8 @@ class SecEdgarFinancialFactsAdapter:
         user_agent: str,
         filing_fetcher: FilingFetcher = fetch_filing,
         filing_policy: FilingReaderPolicy | None = None,
+        header_fetcher: FilingHeaderFetcher = fetch_filing_header,
+        header_policy: FilingHeaderPolicy | None = None,
     ) -> None:
         """Initialize the adapter with injectable transport, clock, and SEC identity.
 
@@ -235,6 +247,9 @@ class SecEdgarFinancialFactsAdapter:
         self._fetch_json = json_fetcher
         self._filing_fetcher = filing_fetcher
         self._filing_policy = filing_policy or FilingReaderPolicy()
+        self._header_fetcher = header_fetcher
+        self._header_policy = header_policy or FilingHeaderPolicy()
+        self._header_texts: dict[tuple[str, str], tuple[str, datetime]] = {}
         self._clock = clock or utc_now
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
         self._ticker_to_cik: dict[str, str] | None = None
@@ -286,7 +301,53 @@ class SecEdgarFinancialFactsAdapter:
             taxonomy=taxonomy,
             primary_documents=MappingProxyType(_submission_strings(submissions_raw, "primaryDocument")),
             filing_forms=MappingProxyType(_submission_strings(submissions_raw, "form")),
+            filing_dates=MappingProxyType(_submission_filing_dates(submissions_raw)),
             current_tickers=_submission_tickers(submissions_raw),
+        )
+
+    def resolve_as_filed_sic(self, snapshot: SecEdgarAnalysisSnapshot) -> AsFiledSicResolution:
+        """Resolve the SIC code the anchor filing's SEC header assigns to the issuer.
+
+        One header request is made for the anchor filing, outside the filing-document limit, and its text is kept for
+        the life of the adapter because a filed header never changes; the boundary check is made on every call. A
+        header that is missing or unreadable, or that fails a check, gives the reason the class is unknown. A
+        transport fault raises the classified ``FinancialProviderError``.
+        """
+        accession = snapshot.latest_annual_accession
+        if snapshot.cik is None or accession is None:
+            return AsFiledSicResolution(reason=SicUnavailableReason.NO_ANCHOR_FILING)
+        try:
+            url = filing_header_url(snapshot.cik, accession)
+        except ValueError as exc:
+            msg = f"SEC listed a filing that cannot be addressed: {exc}"
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID
+            ) from exc
+        cached = self._header_texts.get((snapshot.cik, accession))
+        if cached is None:
+            try:
+                text = self._header_fetcher(
+                    url,
+                    headers=self._headers,
+                    policy=self._header_policy,
+                    not_found=ProviderFailureKind.NO_DATA,
+                    provider_id=SEC_PROVIDER_ID,
+                )
+            except FinancialProviderError as exc:
+                if exc.kind is ProviderFailureKind.NO_DATA:
+                    return AsFiledSicResolution(reason=SicUnavailableReason.HEADER_MISSING)
+                raise
+            cached = (text, self._clock())
+            self._header_texts[(snapshot.cik, accession)] = cached
+        text, retrieved_at = cached
+        return parse_filing_header(
+            text,
+            cik=snapshot.cik,
+            accession=accession,
+            filing_date=snapshot.filing_dates.get(accession),
+            boundary=snapshot.as_of,
+            source_url=url,
+            retrieved_at=retrieved_at,
         )
 
     def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:  # noqa: PLR0911
@@ -686,6 +747,17 @@ def _submission_strings(payload: object, field_name: str) -> dict[str, str]:
         for accession, value in zip(accessions, values, strict=False)
         if isinstance(accession, str) and isinstance(value, str)
     }
+
+
+def _submission_filing_dates(payload: object) -> dict[str, date]:
+    """Return accession -> SEC filing date for recent submissions, skipping any value that is not a date."""
+    result: dict[str, date] = {}
+    for accession, value in _submission_strings(payload, "filingDate").items():
+        try:
+            result[accession] = date.fromisoformat(value)
+        except ValueError:
+            continue
+    return result
 
 
 def _submission_tickers(payload: object) -> tuple[str, ...]:

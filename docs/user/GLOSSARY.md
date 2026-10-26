@@ -46,6 +46,12 @@ Structured, validated information passed between project components with explici
 ### Heterogeneous Strategy Independence
 The principle that materially different financial strategies may use different inputs and outputs while sharing the existing orchestration/tool architecture. Generic orchestration must not assume all analysis is Momentum.
 
+### As-filed SIC code
+The four-digit Standard Industrial Classification code that the SEC header of an annual filing assigns to the issuer on the filing date (`ASSIGNED-SIC`). It is read from the filing the analysis is anchored to, so a historical analysis sees the code the issuer had then. The code shown for an issuer on the SEC website today can differ, and is never used in its place. When the header cannot be read, the [industry class](GLOSSARY.md#industry-class) is unknown.
+
+### Industry class
+The group an issuer falls into for deciding whether a screening strategy applies: financial (SIC 6000 to 6799, which includes REITs), utility (4900 to 4999), manufacturer (2000 to 3999), or any other issuer. It comes from the [as-filed SIC code](GLOSSARY.md#as-filed-sic-code). A strategy that does not apply to a class reports the issuer as not applicable; a strategy that depends on the class reports an unknown class as unavailable, and one that does not (Piotroski) runs and says the class is unknown. The SEC assigns one code per filer, so a diversified issuer has the class of that one code.
+
 ---
 
 ## Local research workspace
