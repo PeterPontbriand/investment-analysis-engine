@@ -74,6 +74,7 @@ class PeriodKind(StrEnum):
     COMPLETED_ANNUAL = "completed_annual"
     QUARTERLY = "quarterly"
     TTM = "ttm"
+    INSTANT = "instant"
 
 
 class AccountingScope(StrEnum):
@@ -214,6 +215,11 @@ def _validate_general_invariants(ri: ResolvedInput) -> None:
         raise ValueError(msg)
     if ri.fiscal_year is not None and ri.period_kind is not PeriodKind.COMPLETED_ANNUAL:
         msg = "fiscal_year requires period_kind=completed_annual."
+        raise ValueError(msg)
+    if ri.period_kind is PeriodKind.INSTANT and (
+        ri.observation_period_start is not None or ri.observation_period_end is None
+    ):
+        msg = "period_kind=instant requires an observation_period_end and no observation_period_start."
         raise ValueError(msg)
     if ri.capital_expenditure_sign is not None and ri.field_name != "capital_expenditures":
         msg = "capital_expenditure_sign is only applicable to capital_expenditures inputs."

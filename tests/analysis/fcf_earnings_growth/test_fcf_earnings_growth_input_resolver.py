@@ -327,7 +327,7 @@ def test_non_calendar_fiscal_periods_are_contiguous() -> None:
 
 
 def test_cache_schema_version_is_period_series_version() -> None:
-    assert CACHE_SCHEMA_VERSION == 2
+    assert CACHE_SCHEMA_VERSION == 3
 
 
 def test_derives_fcf_per_share_cagr_with_provenance() -> None:

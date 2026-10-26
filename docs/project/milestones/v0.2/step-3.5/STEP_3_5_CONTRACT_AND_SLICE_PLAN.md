@@ -55,8 +55,8 @@ next begins.
 | 3.5.0a | [Momentum result-level status](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status) | Complete | 2026-10-25 |
 | 3.5.0b | [Side-by-side refresh table](STEP_3_5_0_SLICE_PLAN.md#350b--side-by-side-refresh-table) | Complete | 2026-10-25 |
 | 3.5.1a | [As-filed SIC code and applicability](STEP_3_5_1_SLICE_PLAN.md#351a--as-filed-sic-code-and-applicability) | Complete | 2026-10-25 |
-| 3.5.1b | [Balance-sheet instants](STEP_3_5_1_SLICE_PLAN.md#351b--balance-sheet-instants) | In progress | |
-| 3.5.1c | [Annual period fields](STEP_3_5_1_SLICE_PLAN.md#351c--annual-period-fields) | Planned | |
+| 3.5.1b | [Balance-sheet instants](STEP_3_5_1_SLICE_PLAN.md#351b--balance-sheet-instants) | Complete | 2026-10-25 |
+| 3.5.1c | [Annual period fields](STEP_3_5_1_SLICE_PLAN.md#351c--annual-period-fields) | Next | |
 | 3.5.1d | [Split history and the market-cap price basis](STEP_3_5_1_SLICE_PLAN.md#351d--split-history-and-the-market-cap-price-basis) | Planned | |
 | 3.5.2 | [Shared metrics and ranking helper](#352--shared-metrics-and-ranking-helper) | Planned | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |

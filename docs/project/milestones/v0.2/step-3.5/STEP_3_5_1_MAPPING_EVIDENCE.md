@@ -352,6 +352,11 @@ tags a direct `LongTermDebt` of 29,046 million beside `LongTermDebtAndCapitalLea
 `LongTermDebtAndCapitalLeaseObligationsCurrent` (1,546); neither of the last two is a mapped part. That is a second test
 case for the reconciliation rule of Shared definitions §6, with Alphabet.
 
+**Limits of the captured series.** The trimmed fixtures of the implementation read each issuer's annual filings from the
+`recent` block of its submissions data. JPMorgan has one annual filing in that block, so a year-end the anchor filing does
+not report (its *t−2*) is absent as not tagged. Duke Energy's `AccountsReceivableNetCurrent` is 16 million at 2025-12-31
+against 1,889 million a year earlier; it was not compared with a rendered statement and is not a value check.
+
 **Period behavior, all rows.** Every observation is an instant at a fiscal year-end (52/53-week ends such as Deere's
 2025-11-02 and Walmart's 2026-01-31 included). No row is a duration. A comparative year-end the anchor filing does not
 report is found in an earlier annual filing for most fields (Alphabet's net PP&E at 2024-12-31 and 2023-12-31, Walmart's

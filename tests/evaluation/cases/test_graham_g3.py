@@ -11,6 +11,7 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheKey
 from investment_analysis_engine.data.financial.facts import FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
+from investment_analysis_engine.data.financial.resolver import DEFAULT_CACHE_SCHEMA_VERSION
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRG_01, GRG_ETF_01
 from investment_analysis_engine.evaluation.cases.graham_number import GRAHAM_NUMBER_ARGUMENTS, GRN_04, GRN_05
@@ -74,7 +75,7 @@ def _seeded_precedence_resolver() -> GrahamNumberInputResolver:
             basis=None,
             provider_id=SEC_PROVIDER_ID,
             analysis_as_of=NOW,
-            schema_version=1,
+            schema_version=DEFAULT_CACHE_SCHEMA_VERSION,
         ),
         cached_bvps,
     )

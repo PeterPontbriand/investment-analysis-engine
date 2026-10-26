@@ -12,16 +12,22 @@ from investment_analysis_engine.core.clock import effective_as_of
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.cache import ResolvedInputCacheKey, ResolvedInputCacheProtocol
 from investment_analysis_engine.data.financial.facts import (
+    INSTANT_SERIES_FIELDS,
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
     FinancialProviderError,
     FinancialUnit,
+    InstantAbsence,
+    InstantSeriesProvider,
+    InstantSeriesRequest,
+    ProviderAmountSource,
     ProviderFact,
     ProviderShareSource,
 )
 from investment_analysis_engine.data.financial.provenance import (
     ComponentLineage,
+    PeriodKind,
     ResolvedInput,
     SourceKind,
 )
@@ -57,6 +63,8 @@ def _provider_lineage(fact: ProviderFact, *, resolved_at: datetime, as_of: datet
         components=tuple(
             _resolved_share_source(source, resolved_at=resolved_at, as_of=as_of)
             if isinstance(source, ProviderShareSource)
+            else _resolved_amount_source(source, resolved_at=resolved_at, as_of=as_of)
+            if isinstance(source, ProviderAmountSource)
             else ResolvedInput(
                 field_name=source.field_name.value,
                 value=source.value,
@@ -100,6 +108,66 @@ def _resolved_share_source(
         retrieved_at=source.retrieved_at,
         provider_fact_id=source.provider_fact_id,
     )
+
+
+def _resolved_amount_source(
+    source: ProviderAmountSource, *, resolved_at: datetime, as_of: datetime | None
+) -> ResolvedInput:
+    """Carry one term of a derived currency amount with its own period end and filing time."""
+    return ResolvedInput(
+        field_name=source.provider_field,
+        value=source.value,
+        source_kind=SourceKind.PROVIDER,
+        resolved_at=resolved_at,
+        basis="fiscal_year_end",
+        units=FinancialUnit.CURRENCY.value,
+        currency=source.currency,
+        provider_id=source.provider_id,
+        provider_field=source.provider_field,
+        observation_period_end=source.observation_period_end,
+        available_at=source.available_at,
+        as_of=as_of,
+        retrieved_at=source.retrieved_at,
+        period_kind=PeriodKind.INSTANT,
+        provider_fact_id=source.provider_fact_id,
+    )
+
+
+@dataclass(frozen=True)
+class InstantSeriesResolution:
+    """Outcome of resolving one balance-sheet field at named fiscal year-ends.
+
+    Invariants:
+        - ``OK`` requires at least one resolved input and no ``reason``.
+        - ``INPUT_UNAVAILABLE`` and ``PROVIDER_ERROR`` carry no resolved input and a non-empty ``reason``;
+          ``INPUT_UNAVAILABLE`` still lists the absences it found.
+        - ``provider_failure`` is present only with ``PROVIDER_ERROR``.
+
+    Attributes:
+        status: The resolution outcome.
+        inputs: One resolved input per requested date that has a value, oldest year-end first.
+        absences: The requested dates with no value, each with its reason.
+        reason: Non-empty explanation when status is not ``OK``.
+        resolution_trace: Ordered resolver events actually observed for this resolution.
+        provider_failure: The kind and provider of a ``PROVIDER_ERROR`` outcome.
+    """
+
+    status: CalculationStatus
+    inputs: tuple[ResolvedInput, ...] = ()
+    absences: tuple[InstantAbsence, ...] = ()
+    reason: str | None = None
+    resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
+    provider_failure: ProviderFailureRecord | None = None
+
+    def __post_init__(self) -> None:
+        """Enforce status/value invariants."""
+        if self.status is CalculationStatus.OK:
+            if not self.inputs or self.reason is not None or self.provider_failure is not None:
+                raise ValueError("InstantSeriesResolution: OK requires inputs and no reason or failure.")
+        elif self.inputs or not self.reason:
+            raise ValueError("InstantSeriesResolution: a non-OK status requires a reason and no inputs.")
+        if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
+            raise ValueError("InstantSeriesResolution: provider_failure requires PROVIDER_ERROR.")
 
 
 @dataclass(frozen=True)
@@ -158,6 +226,12 @@ class InputResolutionResult:
 # ---------------------------------------------------------------------------
 
 
+# The version of every financial fact stored through ``InputResolver``. It is bumped when a stored shape or a
+# value-bearing enumeration changes, and an entry stored under an older version is refused and fetched again.
+# Version 2: ``PeriodKind`` gained ``instant`` and the share-count fact gained the IFRS and cover-page paths.
+DEFAULT_CACHE_SCHEMA_VERSION = 2
+
+
 class InputResolver:
     """Resolve a single financial fact through override, cache, or provider.
 
@@ -178,7 +252,7 @@ class InputResolver:
         self,
         provider: FinancialFactsProvider,
         cache: ResolvedInputCacheProtocol | None = None,
-        cache_schema_version: int = 1,
+        cache_schema_version: int = DEFAULT_CACHE_SCHEMA_VERSION,
         *,
         clock: Callable[[], datetime],
         quote_freshness_policy: QuoteFreshnessPolicy = DEFAULT_QUOTE_FRESHNESS_POLICY,
@@ -203,6 +277,115 @@ class InputResolver:
         self._clock = clock
         self._schema_version = cache_schema_version
         self._quote_freshness_policy = quote_freshness_policy
+
+    def resolve_instant_series(self, request: InstantSeriesRequest) -> InstantSeriesResolution:
+        """Resolve one balance-sheet field at the requested fiscal year-ends.
+
+        Returns one resolved input for each date the provider reports and the dates it does not, each with its
+        reason. No convention fills an absent date: whether an absent component counts as zero is decided by the
+        metric that uses it. The series is not cached.
+        """
+        field_name = request.field_name.value
+        trace = _trace_event(
+            field_name,
+            ResolutionStage.PROVIDER,
+            ResolutionOutcome.ATTEMPTED,
+            f"Requested {field_name} at {len(request.period_ends)} year-end(s) from provider {request.provider_id!r}.",
+            now=self._clock(),
+        )
+        if not isinstance(self._provider, InstantSeriesProvider):
+            return self._instant_failure(
+                request,
+                trace,
+                CalculationStatus.INPUT_UNAVAILABLE,
+                f"Provider {request.provider_id!r} does not serve balance-sheet series.",
+            )
+        try:
+            answer = self._provider.fetch_instant_series(
+                request, effective_as_of=effective_as_of(request.as_of, self._clock())
+            )
+        except FinancialProviderError as exc:
+            return self._instant_failure(
+                request, trace, CalculationStatus.PROVIDER_ERROR, f"Provider error: {exc}", failure=failure_record(exc)
+            )
+        rejected = _instant_answer_error(request, answer.facts, answer.absences, self._clock())
+        if rejected is not None:
+            return self._instant_failure(
+                request,
+                trace,
+                CalculationStatus.PROVIDER_ERROR,
+                rejected,
+                failure=_rejected_instant_answer(request),
+            )
+        if not answer.facts:
+            return self._instant_failure(
+                request,
+                trace,
+                CalculationStatus.INPUT_UNAVAILABLE,
+                f"Provider reported no {field_name} at any requested year-end.",
+                absences=answer.absences,
+            )
+        resolved_at = self._clock()
+        inputs = tuple(
+            ResolvedInput(
+                field_name=field_name,
+                value=fact.value,
+                source_kind=SourceKind.DERIVED if fact.source_facts else SourceKind.PROVIDER,
+                resolved_at=resolved_at,
+                basis=fact.basis,
+                units=fact.units.value,
+                currency=fact.currency,
+                provider_id=fact.provider_id,
+                provider_field=fact.provider_field,
+                observation_period_end=fact.observation_period_end,
+                available_at=fact.available_at,
+                as_of=request.as_of,
+                retrieved_at=fact.retrieved_at,
+                notes=fact.notes,
+                period_kind=fact.period_kind,
+                provider_fact_id=fact.provider_fact_id,
+                lineage=_provider_lineage(fact, resolved_at=resolved_at, as_of=request.as_of),
+            )
+            for fact in sorted(answer.facts, key=lambda item: item.observation_period_end or resolved_at)
+        )
+        return InstantSeriesResolution(
+            status=CalculationStatus.OK,
+            inputs=inputs,
+            absences=answer.absences,
+            resolution_trace=trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.PROVIDER,
+                    ResolutionOutcome.SUCCESS,
+                    f"{len(inputs)} year-end(s) resolved; {len(answer.absences)} absent.",
+                    now=self._clock(),
+                )
+            ),
+        )
+
+    def _instant_failure(  # noqa: PLR0913
+        self,
+        request: InstantSeriesRequest,
+        trace: ResolutionTrace,
+        status: CalculationStatus,
+        reason: str,
+        *,
+        failure: ProviderFailureRecord | None = None,
+        absences: tuple[InstantAbsence, ...] = (),
+    ) -> InstantSeriesResolution:
+        """Build a non-OK series resolution with its closing trace event."""
+        outcome = (
+            ResolutionOutcome.ERROR if status is CalculationStatus.PROVIDER_ERROR else ResolutionOutcome.UNAVAILABLE
+        )
+        return InstantSeriesResolution(
+            status=status,
+            absences=absences,
+            reason=reason,
+            provider_failure=failure,
+            resolution_trace=trace.append(
+                _event(request.field_name.value, ResolutionStage.PROVIDER, outcome, reason, now=self._clock())
+            ),
+        )
 
     @property
     def provider(self) -> FinancialFactsProvider:
@@ -1365,15 +1548,59 @@ def _field_unit(field_name: FinancialField) -> FinancialUnit:
     """Map a semantic field to its required unit."""
     if field_name is FinancialField.CURRENT_AAA_YIELD:
         return FinancialUnit.PERCENTAGE_POINTS
-    if field_name in (
-        FinancialField.STOCKHOLDERS_EQUITY,
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
+    if (
+        field_name
+        in (
+            FinancialField.STOCKHOLDERS_EQUITY,
+            FinancialField.OPERATING_CASH_FLOW,
+            FinancialField.CAPITAL_EXPENDITURES,
+        )
+        or field_name in INSTANT_SERIES_FIELDS
     ):
         return FinancialUnit.CURRENCY
     if field_name in (FinancialField.COMMON_SHARES_OUTSTANDING, FinancialField.PREFERRED_SHARES_OUTSTANDING):
         return FinancialUnit.SHARES
     return FinancialUnit.CURRENCY_PER_SHARE
+
+
+def _rejected_instant_answer(request: InstantSeriesRequest) -> ProviderFailureRecord:
+    """Record that the provider the request named answered and the project rejected the answer."""
+    return ProviderFailureRecord(kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=request.provider_id)
+
+
+def _instant_answer_error(
+    request: InstantSeriesRequest,
+    facts: tuple[ProviderFact, ...],
+    absences: tuple[InstantAbsence, ...],
+    now: datetime,
+) -> str | None:
+    """Return why a provider's answer does not coherently answer the series request, or ``None``."""
+    boundary = request.as_of or now
+    present = [fact.observation_period_end.date() for fact in facts if fact.observation_period_end is not None]
+    for fact in facts:
+        mismatch = (
+            fact.subject_id != request.subject_id
+            or fact.provider_id != request.provider_id
+            or fact.field_name is not request.field_name
+            or fact.basis != "fiscal_year_end"
+            or fact.period_kind is not PeriodKind.INSTANT
+        )
+        if mismatch:
+            return f"Provider fact for {fact.subject_id!r} does not match the series request."
+        if fact.available_at is None or fact.available_at > boundary:
+            return "Provider fact was not available at the boundary."
+        error = financial_quality_error(
+            fact,
+            input_id=f"{request.subject_id}:{request.field_name.value}:{request.provider_id}",
+            now=now,
+            as_of=request.as_of,
+        )
+        if error is not None:
+            return error
+    answered = sorted(present + [item.period_end for item in absences])
+    if answered != sorted(request.period_ends):
+        return "Provider answer does not cover each requested year-end exactly once."
+    return None
 
 
 def _rejected_answer(request: FinancialFactRequest) -> ProviderFailureRecord:

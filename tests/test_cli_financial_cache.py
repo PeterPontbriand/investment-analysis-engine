@@ -136,7 +136,7 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
     assert cached
     for fact in cached:
         assert fact["origin_source_kind"] in ("provider", "derived")
-        assert fact["cache_schema_version"] == (1 if strategy.startswith("graham-") else 2)
+        assert fact["cache_schema_version"] == (2 if strategy.startswith("graham-") else 3)
         original = next(
             node
             for node in first_nodes

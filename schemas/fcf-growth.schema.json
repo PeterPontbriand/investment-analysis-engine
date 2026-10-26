@@ -718,7 +718,8 @@
       "enum": [
         "completed_annual",
         "quarterly",
-        "ttm"
+        "ttm",
+        "instant"
       ],
       "title": "PeriodKind",
       "type": "string"

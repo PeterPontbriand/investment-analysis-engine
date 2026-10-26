@@ -21,7 +21,7 @@ from __future__ import annotations
 import math
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
@@ -97,10 +97,14 @@ def _expected_unit(field_name: FinancialField) -> FinancialUnit:
     """Return the unit a given field must carry."""
     if field_name is FinancialField.CURRENT_AAA_YIELD:
         return FinancialUnit.PERCENTAGE_POINTS
-    if field_name in (
-        FinancialField.STOCKHOLDERS_EQUITY,
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
+    if (
+        field_name
+        in (
+            FinancialField.STOCKHOLDERS_EQUITY,
+            FinancialField.OPERATING_CASH_FLOW,
+            FinancialField.CAPITAL_EXPENDITURES,
+        )
+        or field_name in INSTANT_SERIES_FIELDS
     ):
         return FinancialUnit.CURRENCY
     if field_name in (
@@ -141,6 +145,23 @@ class FinancialField(StrEnum):
     OPERATING_CASH_FLOW = "operating_cash_flow"
     CAPITAL_EXPENDITURES = "capital_expenditures"
     WEIGHTED_AVERAGE_DILUTED_SHARES = "weighted_average_diluted_shares"
+    TOTAL_ASSETS = "total_assets"
+    TOTAL_LIABILITIES = "total_liabilities"
+    CURRENT_ASSETS = "current_assets"
+    CURRENT_LIABILITIES = "current_liabilities"
+    CASH_AND_EQUIVALENTS = "cash_and_equivalents"
+    SHORT_TERM_INVESTMENTS = "short_term_investments"
+    LONG_TERM_INVESTMENTS = "long_term_investments"
+    NET_PPE = "net_ppe"
+    RECEIVABLES = "receivables"
+    RETAINED_EARNINGS = "retained_earnings"
+    SHORT_TERM_BORROWINGS = "short_term_borrowings"
+    CURRENT_PORTION_OF_LONG_TERM_DEBT = "current_portion_of_long_term_debt"
+    NONCURRENT_LONG_TERM_DEBT = "noncurrent_long_term_debt"
+    LONG_TERM_DEBT_TOTAL = "long_term_debt_total"
+    LEASE_LIABILITIES_AS_DEBT = "lease_liabilities_as_debt"
+    PREFERRED_STOCK = "preferred_stock"
+    NONCONTROLLING_INTEREST = "noncontrolling_interest"
 
 
 class FinancialUnit(StrEnum):
@@ -151,6 +172,39 @@ class FinancialUnit(StrEnum):
     CURRENCY = "currency"
     SHARES = "shares"
 
+
+# Balance-sheet amounts at a date. They are served only by an ``InstantSeriesRequest``; the
+# latest-only ``FinancialFactRequest`` path does not offer them.
+INSTANT_SERIES_FIELDS = frozenset(
+    {
+        FinancialField.TOTAL_ASSETS,
+        FinancialField.TOTAL_LIABILITIES,
+        FinancialField.CURRENT_ASSETS,
+        FinancialField.CURRENT_LIABILITIES,
+        FinancialField.CASH_AND_EQUIVALENTS,
+        FinancialField.SHORT_TERM_INVESTMENTS,
+        FinancialField.LONG_TERM_INVESTMENTS,
+        FinancialField.NET_PPE,
+        FinancialField.RECEIVABLES,
+        FinancialField.RETAINED_EARNINGS,
+        FinancialField.SHORT_TERM_BORROWINGS,
+        FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT,
+        FinancialField.NONCURRENT_LONG_TERM_DEBT,
+        FinancialField.LONG_TERM_DEBT_TOTAL,
+        FinancialField.LEASE_LIABILITIES_AS_DEBT,
+        FinancialField.PREFERRED_STOCK,
+        FinancialField.NONCONTROLLING_INTEREST,
+    }
+)
+
+# The basis of a common-share count taken from the cover page of an annual filing, as against the balance-sheet
+# count at a fiscal year-end that the basis "fiscal_year_end" asks for.
+COVER_PAGE_BASIS = "cover_page"
+
+# Consecutive fiscal year-ends are a year apart, give or take the 52/53-week variation of a fiscal calendar. The
+# bounds are those of the completed-annual duration tolerance, so a quarter-end or a stub date is never a neighbor.
+_MIN_YEAR_END_GAP_DAYS = 335
+_MAX_YEAR_END_GAP_DAYS = 395
 
 # These provider-neutral fields support requests for multiple completed annual
 # observations. Provider-specific eligibility and identity rules remain in the
@@ -263,6 +317,108 @@ class FinancialFactRequest:
 
 
 # ---------------------------------------------------------------------------
+# InstantSeriesRequest
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class InstantSeriesRequest:
+    """A request for one balance-sheet field at named fiscal year-ends.
+
+    The latest-only ``FinancialFactRequest`` is left as it is. This request names the dates, and a provider returns
+    what its filings report for exactly those dates, never the newest balance sheet in place of an earlier one.
+
+    Normalization (applied in ``__post_init__``): ``subject_id`` is ``strip().upper()``, ``provider_id`` is
+    ``strip().lower()``, and ``period_ends`` is sorted ascending.
+
+    Attributes:
+        subject_id: Security symbol (normalized).
+        field_name: One of ``INSTANT_SERIES_FIELDS``.
+        provider_id: Non-empty provider identifier (normalized lowercase).
+        period_ends: At least one fiscal year-end; consecutive year-ends are a year apart within the annual-duration
+            tolerance, so a quarter-end, a year-to-date date or a stub date is refused.
+        as_of: None = current; timezone-aware = historical boundary.
+    """
+
+    subject_id: str
+    field_name: FinancialField
+    provider_id: str
+    period_ends: tuple[date, ...]
+    as_of: datetime | None = None
+
+    def __post_init__(self) -> None:
+        """Normalize identifiers and validate the field, the boundary and the dates."""
+        if self.field_name not in INSTANT_SERIES_FIELDS:
+            msg = f"{self.field_name.name} is not a balance-sheet field served by an instant series."
+            raise ValueError(msg)
+        if self.as_of is not None:
+            _require_timezone_aware(self.as_of, field_name="as_of")
+        ordered = tuple(sorted(self.period_ends))
+        if not ordered:
+            raise ValueError("period_ends must name at least one fiscal year-end.")
+        for earlier, later in zip(ordered, ordered[1:], strict=False):
+            gap = (later - earlier).days
+            if not _MIN_YEAR_END_GAP_DAYS <= gap <= _MAX_YEAR_END_GAP_DAYS:
+                msg = f"period_ends must be consecutive fiscal year-ends ({earlier} and {later} are {gap} days apart)."
+                raise ValueError(msg)
+        object.__setattr__(self, "subject_id", _normalize_subject_id(FinancialSubjectKind.SECURITY, self.subject_id))
+        object.__setattr__(self, "provider_id", _canonicalize_provider_id(self.provider_id))
+        object.__setattr__(self, "period_ends", ordered)
+
+
+class InstantAbsenceReason(StrEnum):
+    """Why an instant series has no value at a requested date."""
+
+    NOT_TAGGED = "not_tagged"
+    OTHER_CONCEPT = "other_concept"
+    CONFLICT = "conflict"
+    UNSUPPORTED = "unsupported"
+    BASIS_MISMATCH = "basis_mismatch"
+    AFTER_BOUNDARY = "after_boundary"
+    NO_ANCHOR_FILING = "no_anchor_filing"
+
+
+@dataclass(frozen=True)
+class InstantAbsence:
+    """A requested date with no value, and the reason.
+
+    Attributes:
+        period_end: The requested year-end.
+        reason: Why there is no value. ``NOT_TAGGED`` says that none of the field's listed concepts is tagged for the
+            date in any eligible filing; ``OTHER_CONCEPT`` says that the concept chosen for the run is not tagged for
+            it while another listed concept is, and nothing is substituted.
+        detail: A non-empty explanation.
+    """
+
+    period_end: date
+    reason: InstantAbsenceReason
+    detail: str
+
+    def __post_init__(self) -> None:
+        """Require an explanation."""
+        _require_non_empty(self.detail, field_name="detail")
+
+
+@dataclass(frozen=True)
+class InstantSeriesFacts:
+    """What a provider reports for the requested dates: one fact per date present and the dates absent."""
+
+    facts: tuple[ProviderFact, ...] = ()
+    absences: tuple[InstantAbsence, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Require instants, and each date either present or absent, once."""
+        present = []
+        for fact in self.facts:
+            if fact.period_kind is not PeriodKind.INSTANT or fact.observation_period_end is None:
+                raise ValueError("An instant series carries instant facts only.")
+            present.append(fact.observation_period_end.date())
+        dates = present + [item.period_end for item in self.absences]
+        if len(set(dates)) != len(dates):
+            raise ValueError("A requested date is either present or absent, once.")
+
+
+# ---------------------------------------------------------------------------
 # ProviderFact
 # ---------------------------------------------------------------------------
 
@@ -289,6 +445,29 @@ class ProviderShareSource:
             raise ValueError("Raw share counts must be nonnegative.")
         for timestamp in (self.retrieved_at, self.observation_period_end, self.available_at):
             _require_timezone_aware(timestamp, field_name="share source timestamp")
+
+
+@dataclass(frozen=True)
+class ProviderAmountSource:
+    """One term of an adapter derivation of a currency amount, which may be negative."""
+
+    subject_id: str
+    provider_id: str
+    provider_field: str
+    value: float
+    currency: str
+    retrieved_at: datetime
+    observation_period_end: datetime
+    available_at: datetime
+    provider_fact_id: str
+
+    def __post_init__(self) -> None:
+        """Retain finite, dated, currency-denominated source evidence."""
+        for value in (self.subject_id, self.provider_id, self.provider_field, self.currency, self.provider_fact_id):
+            _require_non_empty(value, field_name="amount source identifier")
+        _require_finite(self.value, field_name="amount source value")
+        for timestamp in (self.retrieved_at, self.observation_period_end, self.available_at):
+            _require_timezone_aware(timestamp, field_name="amount source timestamp")
 
 
 @dataclass(frozen=True)
@@ -353,7 +532,7 @@ class ProviderFact:
     accounting_scope: AccountingScope | None = None
     capital_expenditure_sign: CapitalExpenditureSign | None = None
     provider_fact_id: str | None = None
-    source_facts: tuple[ProviderFact | ProviderShareSource, ...] = ()
+    source_facts: tuple[ProviderFact | ProviderShareSource | ProviderAmountSource, ...] = ()
     source_transformation: str | None = None
 
     def __post_init__(self) -> None:
@@ -435,6 +614,11 @@ def _validate_provider_fact_metadata(fact: ProviderFact) -> None:
     if fact.fiscal_year is not None and fact.period_kind is not PeriodKind.COMPLETED_ANNUAL:
         msg = "fiscal_year requires period_kind=completed_annual."
         raise ValueError(msg)
+    if fact.period_kind is PeriodKind.INSTANT and (
+        fact.observation_period_start is not None or fact.observation_period_end is None
+    ):
+        msg = "period_kind=instant requires an observation_period_end and no observation_period_start."
+        raise ValueError(msg)
     if fact.capital_expenditure_sign is not None and fact.field_name is not FinancialField.CAPITAL_EXPENDITURES:
         msg = "capital_expenditure_sign is only applicable to capital_expenditures facts."
         raise ValueError(msg)
@@ -475,6 +659,24 @@ class FinancialFactsProvider(Protocol):
                 given, otherwise the run's own execution clock) for any provider-side
                 availability/eligibility decision. Never a substitute for the
                 provider's own retrieval clock, and never itself a clock read.
+
+        Raises:
+            FinancialProviderError: On an operational provider failure.
+        """
+        ...
+
+
+@runtime_checkable
+class InstantSeriesProvider(Protocol):
+    """Optional provider capability: balance-sheet fields at named fiscal year-ends."""
+
+    def fetch_instant_series(self, request: InstantSeriesRequest, *, effective_as_of: datetime) -> InstantSeriesFacts:
+        """Return the value at each requested date that the provider's filings report, and the dates they do not.
+
+        Args:
+            request: The exact-date series request.
+            effective_as_of: The resolved point-in-time cutoff (``request.as_of`` when given, otherwise the run's own
+                execution clock).
 
         Raises:
             FinancialProviderError: On an operational provider failure.
