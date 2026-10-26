@@ -40,6 +40,8 @@ class ReasonCode(StrEnum):
     INVALID_REQUEST = "invalid_request"
     NOT_REQUESTED = "not_requested"
     INSTRUMENT_KIND_NOT_APPLICABLE = "instrument_kind_not_applicable"
+    INDUSTRY_CLASS_NOT_APPLICABLE = "industry_class_not_applicable"
+    INDUSTRY_CLASS_UNKNOWN = "industry_class_unknown"
 
 
 @dataclass(frozen=True)
