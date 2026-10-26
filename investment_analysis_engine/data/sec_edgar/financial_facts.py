@@ -17,6 +17,7 @@ from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
+    ANNUAL_PERIOD_FIELDS,
     COVER_PAGE_BASIS,
     FinancialFactRequest,
     FinancialField,
@@ -37,6 +38,7 @@ from investment_analysis_engine.data.financial.provenance import (
 )
 from investment_analysis_engine.data.http_json import JsonFetcher, fetch_json
 from investment_analysis_engine.data.provider_failure import failure_record
+from investment_analysis_engine.data.sec_edgar.annual_series import annual_concepts, select_annual_period_facts
 from investment_analysis_engine.data.sec_edgar.filing_document import (
     FilingFetcher,
     FilingHeaderFetcher,
@@ -119,13 +121,16 @@ _BALANCE_SHEET_FIELDS: Mapping[FinancialField, tuple[str, FinancialUnit]] = {
 # as unavailable when ticker-to-CIK identity cannot be established. Legacy SEC
 # valuation fields retain their existing provider-error behavior until their
 # separately reviewed compatibility boundary is reconciled.
-_SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
-    {
-        FinancialField.EPS,
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
-        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
-    }
+_SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = (
+    frozenset(
+        {
+            FinancialField.EPS,
+            FinancialField.OPERATING_CASH_FLOW,
+            FinancialField.CAPITAL_EXPENDITURES,
+            FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
+        }
+    )
+    | ANNUAL_PERIOD_FIELDS
 )
 
 # SEC Company Facts monetary cash-flow fields describe the issuer, so an exact
@@ -133,11 +138,14 @@ _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
 # rows. Per-share fields describe an issuer share unit; until affirmative unit
 # evidence is implemented, multiple ticker rows cannot prove that the requested
 # listed security uses that same unit and therefore remain fail-closed.
-_SEC_ISSUER_LEVEL_COMPLETED_ANNUAL_FIELDS = frozenset(
-    {
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
-    }
+_SEC_ISSUER_LEVEL_COMPLETED_ANNUAL_FIELDS = (
+    frozenset(
+        {
+            FinancialField.OPERATING_CASH_FLOW,
+            FinancialField.CAPITAL_EXPENDITURES,
+        }
+    )
+    | ANNUAL_PERIOD_FIELDS
 )
 _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS = frozenset(
     {
@@ -706,6 +714,17 @@ class SecEdgarFinancialFactsAdapter:
                     taxonomy=taxonomy,
                     boundary=request.as_of or effective_as_of,
                 )
+            if request.field_name in ANNUAL_PERIOD_FIELDS:
+                facts = select_annual_period_facts(
+                    company_facts,
+                    request=request,
+                    cik=cik,
+                    acceptance_by_accession=acceptance_by_accession,
+                    retrieved_at=provider_now,
+                    taxonomy=taxonomy,
+                    boundary=request.as_of or effective_as_of,
+                )
+                return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.OPERATING_CASH_FLOW:
                 candidates = _annual_operating_cash_flow_candidates(
                     company_facts,
@@ -983,7 +1002,7 @@ _ANNUAL_CONCEPT_NAMES: Mapping[FinancialField, Mapping[str, tuple[str, ...]]] = 
 
 def _annual_concept_names(field_name: FinancialField, taxonomy: str) -> tuple[str, ...]:
     """Return the concepts a completed-annual field reads under a taxonomy."""
-    return _ANNUAL_CONCEPT_NAMES.get(field_name, {}).get(taxonomy, ())
+    return _ANNUAL_CONCEPT_NAMES.get(field_name, {}).get(taxonomy, ()) or annual_concepts(field_name, taxonomy)
 
 
 def _annual_filing_dates(payload: object, concepts: tuple[str, ...]) -> dict[str, date]:

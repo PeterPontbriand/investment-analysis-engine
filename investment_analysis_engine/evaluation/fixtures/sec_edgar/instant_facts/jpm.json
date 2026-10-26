@@ -744,6 +744,23 @@
    "primaryDocument": [
     "jpm-20241231.htm"
    ]
+  },
+  "CIK0000019617-submissions-018.json": {
+   "acceptanceDateTime": [
+    "2024-02-16T21:20:22.000Z"
+   ],
+   "accessionNumber": [
+    "0000019617-24-000225"
+   ],
+   "filingDate": [
+    "2024-02-16"
+   ],
+   "form": [
+    "10-K"
+   ],
+   "primaryDocument": [
+    "jpm-20231231.htm"
+   ]
   }
  },
  "submissions": {

@@ -7,18 +7,23 @@ tests read, from the annual filing named in its ``anchor_accession`` and the ear
 import json
 from collections.abc import Mapping
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any
 
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.financial.facts import (
+    FinancialFactRequest,
     FinancialField,
     InstantSeriesFacts,
     InstantSeriesRequest,
+    ProviderFact,
 )
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 
 FIXTURES = PACKAGE_ROOT / "evaluation" / "fixtures" / "sec_edgar" / "instant_facts"
+ANNUAL_FIXTURES = PACKAGE_ROOT / "evaluation" / "fixtures" / "sec_edgar" / "annual_facts"
 NOW = datetime(2026, 10, 25, 12, tzinfo=UTC)
 
 # The regression issuer set of Step 3.5 and each issuer's latest fiscal year-end.
@@ -37,18 +42,25 @@ REGRESSION_SET: dict[str, date] = {
 }
 
 
-def load(ticker: str) -> dict[str, Any]:
+def load(ticker: str, folder: Path = FIXTURES) -> dict[str, Any]:
     """Return one issuer's fixture."""
-    document: dict[str, Any] = json.loads((FIXTURES / f"{ticker.lower()}.json").read_text(encoding="utf-8"))
+    document: dict[str, Any] = json.loads((folder / f"{ticker.lower()}.json").read_text(encoding="utf-8"))
     return document
 
 
 class FixtureFetcher:
     """A JSON fetcher that answers the three SEC documents an analysis reads from fixtures."""
 
-    def __init__(self, ticker: str, *, companyfacts: object | None = None, submissions: object | None = None) -> None:
+    def __init__(
+        self,
+        ticker: str,
+        *,
+        companyfacts: object | None = None,
+        submissions: object | None = None,
+        folder: Path = FIXTURES,
+    ) -> None:
         """Serve the fixture of ``ticker``, with either document replaced when given."""
-        document = load(ticker)
+        document = load(ticker, folder)
         self.documents: dict[str, object] = {
             "company_tickers.json": {"0": {"cik_str": document["cik"], "ticker": ticker, "title": ticker}},
             "/companyfacts/": document["companyfacts"] if companyfacts is None else companyfacts,
@@ -96,3 +108,27 @@ def series(
         ends = (date(2023, 10, 29), date(2024, 10, 27), latest)[-count:]
     request = InstantSeriesRequest(ticker, field, SEC_PROVIDER_ID, ends)
     return (adapter or adapter_for(ticker)).fetch_instant_series(request, effective_as_of=NOW)
+
+
+def annual_request(
+    ticker: str, field: FinancialField, *, count: int = 3, as_of: datetime | None = None
+) -> FinancialFactRequest:
+    """Return a completed-annual series request for ``count`` fiscal years."""
+    return FinancialFactRequest(
+        FinancialSubjectKind.SECURITY,
+        ticker,
+        field,
+        SEC_PROVIDER_ID,
+        basis="fiscal_year",
+        as_of=as_of,
+        observation_count=count,
+    )
+
+
+def annual_series(
+    ticker: str, field: FinancialField, *, count: int = 3, adapter: SecEdgarFinancialFactsAdapter | None = None
+) -> tuple[ProviderFact, ...]:
+    """Return the field's completed-annual facts through the SEC adapter on the annual fixtures."""
+    chosen = adapter or adapter_for(ticker, FixtureFetcher(ticker, folder=ANNUAL_FIXTURES))
+    with chosen.analysis_scope(subject_id=ticker, provider_id=SEC_PROVIDER_ID, as_of=None):
+        return chosen.fetch_facts(annual_request(ticker, field, count=count), effective_as_of=NOW)
