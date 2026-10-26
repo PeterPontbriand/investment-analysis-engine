@@ -245,6 +245,12 @@ partial); the count of available tests; the result-level `execution_status`; the
 - One issuer case from captured fixtures, checked independently
   ([candidate](STEP_3_5_PIOTROSKI_EVIDENCE.md#5-apple-recorded-values-and-worked-example)).
 
+**Net income and `ProfitLoss`:** net income is the parent's (`NetIncomeLoss`, or the IFRS owners-of-parent concept). A filer that
+tags only `ProfitLoss`, which includes the noncontrolling share, has no net income: Monster, with no noncontrolling interest, is
+the case. Its net-income tests are `unavailable`, and the score is partial when at least six tests remain. Accepted by the
+project owner (2026-10-26, [plan A.1, H20](STEP_3_5_1_SLICE_PLAN.md#a1-decisions-f1-to-f10-2026-10-25)); **Monster is a 3.5.3 test
+case.**
+
 **Non-goals:** no issuance-proceeds reading; no user-selectable denominators or income basis; no
 ranking of partial scores. An envelope change Piotroski needs is applied to every analyzer.
 
@@ -272,6 +278,11 @@ Two sub-slices: 3.5.4a Altman, 3.5.4b Beneish.
 - Beneish DEPI basis: depreciation alone in both years gives the canonical basis; D&A only gives
   the D&A basis with its diagnostic; depreciation alone in one year only gives the D&A basis for
   both; neither gives `unavailable`; the basis appears in every view and in stored-run replay.
+
+**SG&A:** selling, general and administrative expense is unsupported under ifrs-full, where no concept is the combined line, and
+unavailable for a US GAAP filer that reports selling and administrative costs as separate lines (Alphabet). Beneish has no
+partial score, so those issuers are `input_unavailable` for Beneish. Accepted by the project owner (2026-10-26,
+[plan A.1, H19](STEP_3_5_1_SLICE_PLAN.md#a1-decisions-f1-to-f10-2026-10-25)); **SAP and Alphabet are 3.5.4b test cases.**
 
 **Receivables index and related concepts:** receivables are unavailable for the Beneish receivables index when the
 balance-sheet series reports a related concept tagged at either of the two year-ends. Duke Energy fiscal 2025 is the case:
