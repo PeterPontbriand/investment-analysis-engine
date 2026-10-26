@@ -37,7 +37,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| 3.5.1a | [As-filed SIC code and applicability](#351a--as-filed-sic-code-and-applicability) | Next | |
+| 3.5.1a | [As-filed SIC code and applicability](#351a--as-filed-sic-code-and-applicability) | In progress | |
 | 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | Planned | |
 | 3.5.1c | [Annual period fields](#351c--annual-period-fields) | Planned | |
 | 3.5.1d | [Split history and the market-cap price basis](#351d--split-history-and-the-market-cap-price-basis) | Planned | |
@@ -90,9 +90,17 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
     here, one `FinancialField` each, with an explicit currency unit, and is approved only from captured filings.
   - The resolver returns what the filing reports for each requested date and says which dates have no value. It applies
     no absent-component convention and no debt rule (3.5.2).
-- **Scope:** the new `PeriodKind` member; the series request and its provider protocol; the SEC implementation; the
+  - **Share-count coverage (G1).** The existing `COMMON_SHARES_OUTSTANDING` field is not covered by any evidence, and
+    market cap (3.5.2), and through it EV, FCF yield, the valuation multiples and Magic Formula's earnings yield, depends
+    on it. Walmart has not tagged `us-gaap:CommonStockSharesOutstanding` since 2013. This sub-slice checks the field's
+    coverage across the regression issuer set of the contract's [§5](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#5-acceptance-criteria)
+    plus Walmart, recording the direct concept and the fallback (`CommonStockSharesIssued` minus
+    `TreasuryStockCommonShares`) separately, with a row and a disposition in the evidence record. If a large filer gets
+    no count from either path, 3.5.1b stops and asks the project owner before 3.5.2 is planned. The cover-page count
+    stays forbidden ([Shared definitions §4](STEP_3_5_SHARED_DEFINITIONS.md#share-count-rule)).- **Scope:** the new `PeriodKind` member; the series request and its provider protocol; the SEC implementation; the
   resolver entry; the 17 fields with their us-gaap and ifrs-full mappings; the cache version; trimmed fixtures; the
-  field-mapping rows of the evidence record for these fields; tests. The file list is in [B.2](#b2-351b-files).
+  field-mapping rows of the evidence record for these fields, and the share-count coverage check and its row; tests. The
+  file list is in [B.2](#b2-351b-files).
 - **Branch:** `feat/step-3-5-1b-balance-sheet-instants`, off `main` after the 3.5.1a pull request merges.
 - **Detail:** [files](#b2-351b-files), [fields](#b4-the-fields), [tests](#b8-351b-tests).
 
@@ -179,6 +187,8 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
   date; a date with no value is reported absent.
 - Every instant field carries an approved mapping per taxonomy or is recorded unsupported, with captured evidence.
 - Existing fields, stored values and Graham's balance-sheet selection are unchanged.
+- `COMMON_SHARES_OUTSTANDING` has a coverage row and a disposition in the evidence record, covering the regression issuer
+  set and Walmart, with the direct concept and the issued-minus-treasury fallback recorded separately.
 - The gate passes.
 
 **3.5.1c**
@@ -216,7 +226,7 @@ Approved by the project owner. Each is stated in the sections above; this table 
 | :--- | :--- | :--- |
 | F1 | Sub-slices | Four: 3.5.1a SIC and applicability, 3.5.1b instants, 3.5.1c annual fields with the depreciation evidence, 3.5.1d split history and price basis. 3.5.1a is implemented on this branch as one pull request with the plan; each later one has its own branch off `main` after the previous merges. The contract's sequence table has rows 3.5.1a (Next) to 3.5.1d (Planned) in place of 3.5.1; 3.5.1a stays Next until its implementation starts. |
 | F2 | SIC entry criterion | Pass when an older annual filing's header shows a code that differs from the current submissions `sic` and from a later filing's header; fail when the headers always show the current code; inconclusive when no issuer with a changed code is found. **Result: Pass** ([evidence §3.3](STEP_3_5_1_MAPPING_EVIDENCE.md#33-result)). |
-| F3 | The header file | Read from `<accession>.hdr.sgml`. One request per run, for the anchor filing only; an exact URL pattern; outside the four-document limit; kept as filing evidence with accession, filing date and acceptance time; boundary-checked. The plan keeps it for the analysis scope, as the snapshot's other filing evidence is kept, and adds no persistent cache: an as-filed header never changes, so a persistent cache is an optimization that can be added later without changing any shape. |
+| F3 | The header file | Read from `<accession>.hdr.sgml`. One request per run, for the anchor filing only; an exact URL pattern; outside the four-document limit; kept as filing evidence with accession, filing date and acceptance time; boundary-checked. The plan keeps it for the analysis scope, as the snapshot's other filing evidence is kept, and adds no persistent cache: an as-filed header never changes, so a persistent cache is an optimization that can be added later without changing any shape. **No persistent header cache: approved** by the project owner on review of the plan (G3). |
 | F4 | Evidence storage | The evidence record; fixtures trimmed to the facts used, following the `evaluation/fixtures/sec_edgar` precedent; no full Company Facts payload is checked in; each sub-slice adds the fixtures its tests need. |
 | F5 | Instants | An additional `PeriodKind` member; a new exact-date series request leaving the latest-only behavior unchanged; the financial-fact cache version bumped under the AGENTS.md §4 stored-shape rule. |
 | F6 | Market-cap price basis | See [A.2](#a2-the-share-count-scaling-window-2026-10-25), which carries the project owner's refinement of the share-count window. |
@@ -225,7 +235,7 @@ Approved by the project owner. Each is stated in the sections above; this table 
 | F9 | Every field in 3.5.1 | Every field of Slice inputs §3 is added in 3.5.1b or 3.5.1c and proven against captured filings; none has a production consumer until 3.5.3. |
 | F10 | Live checks | One `live_network` check for the header request (3.5.1a) and one for the split-history request (3.5.1d), in `tests/live/test_provider_response_shape.py`, under the conditions of AGENTS.md §3. |
 
-Decided by the implementer within the plan's goals, for the owner's review:
+Decided by the implementer within the plan's goals. **Approved by the project owner on review of the plan (G2).**
 
 | Topic | Decision | Why |
 | :--- | :--- | :--- |
@@ -234,6 +244,14 @@ Decided by the implementer within the plan's goals, for the owner's review:
 | One response for close and splits | The new request returns the close and the splits together. | The two share one adjustment date by construction, so no cache can pair a close with a split list from another day. |
 | Fixture folder names | Neutral names (`filing_headers`, `instant_facts`, `annual_facts`, `split_history`). | Planning labels stay out of code ([AGENTS.md §4](../../../../../AGENTS.md)). |
 
+Added on the project owner's review of the plan:
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| G1 | Share-count coverage | Added to 3.5.1b: a coverage check of `COMMON_SHARES_OUTSTANDING` across the regression issuer set plus Walmart, the direct concept and the issued-minus-treasury fallback recorded separately, a row and a disposition in the evidence record. If a large filer gets no count from either path, 3.5.1b stops and asks before 3.5.2 is planned. |
+| G2 | Implementer decisions | The four decisions in the table above are approved. |
+| G3 | Header cache | No persistent header cache is approved (F3). |
+| G4 | `ReasonCode` schemas | The schemas that list `ReasonCode` values (`momentum`, `fcf-growth`, `runs-compare`) are regenerated with the two new members and no document version bump. Adding enum values changes no stored shape, so the AGENTS.md §4 rule does not apply, and existing payloads still decode. |
 ### A.2 The share-count scaling window (2026-10-25)
 
 F6 as approved scaled the fiscal year-end share count by every split from that year-end up to the price data's
@@ -406,6 +424,10 @@ Piotroski needs. `NOT_APPLICABLE` becomes `MetricStatus.NOT_APPLICABLE` and `UNA
   field; a US GAAP operating-lease liability is not the lease field and an IFRS lease liability is.
 - The cache: an entry stored under the older version is refused and fetched again; a new entry round-trips.
 - Graham's latest-only selection returns what it returned before, for every stored fixture.
+- **Share-count coverage (G1):** from trimmed captured filings, `COMMON_SHARES_OUTSTANDING` resolves for each issuer of the
+  regression set by the direct concept or by the issued-minus-treasury fallback, and the test records which; Walmart,
+  which no longer tags the direct concept, is the fallback case or is recorded as having no count; the cover-page count
+  is never used; an issuer with no count from either path is `unavailable`, not zero.
 
 ### B.9 3.5.1c tests
 
