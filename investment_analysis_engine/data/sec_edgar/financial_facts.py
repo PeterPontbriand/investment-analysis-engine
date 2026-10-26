@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from types import MappingProxyType
 from typing import cast
 from zoneinfo import ZoneInfo
@@ -16,10 +17,15 @@ from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
+    COVER_PAGE_BASIS,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
     FinancialUnit,
+    InstantAbsence,
+    InstantAbsenceReason,
+    InstantSeriesFacts,
+    InstantSeriesRequest,
     ProviderFact,
     ProviderShareSource,
 )
@@ -46,6 +52,7 @@ from investment_analysis_engine.data.sec_edgar.filing_header import (
     SicUnavailableReason,
     parse_filing_header,
 )
+from investment_analysis_engine.data.sec_edgar.instant_series import InstantSource, select_instant_series
 from investment_analysis_engine.data.sec_edgar.security_unit import (
     MAPPING_ID,
     UnitMappingError,
@@ -75,11 +82,19 @@ SEC_IFRS_OPERATING_CASH_FLOW_FIELD = "ifrs-full:CashFlowsFromUsedInOperatingActi
 SEC_IFRS_CAPITAL_EXPENDITURES_FIELD = "ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"
 SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
 _SEC_DERIVED_COMMON_SHARES_FIELD = "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
+SEC_COVER_PAGE_SHARES_FIELD = "dei:EntityCommonStockSharesOutstanding"
+_IFRS_FULL = "ifrs-full"
+_US_GAAP = "us-gaap"
 _SEC_INFERRED_PREFERRED_ABSENCE_FIELD = "inferred:sec-company-facts:no-issued-preferred-equity"
 _PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "PreferredStockParOrStatedValuePerShare"})
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
+_SUBMISSION_PAGE_URL = "https://data.sec.gov/submissions/{name}"
+# An extra page names one stretch of an issuer's filings (about a month for the most frequent filers). A balance-sheet
+# series reads at most this many of them, so the cost of an issuer that files constantly stays bounded.
+_MAX_SUBMISSION_PAGES = 12
+_SUBMISSION_PAGE_NAME = re.compile(r"^CIK(\d{10})-submissions-\d{3}\.json$")
 
 
 class _MissingCikError(FinancialProviderError):
@@ -148,6 +163,7 @@ class _BalanceSheetParseContext:
     currency: str | None
     acceptance_by_accession: Mapping[str, datetime]
     retrieved_at: datetime
+    forms: frozenset[str] = _BALANCE_SHEET_FORMS
 
 
 @dataclass(frozen=True)
@@ -172,6 +188,15 @@ class _AnnualEpsParseContext:
     acceptance_by_accession: Mapping[str, datetime]
     retrieved_at: datetime
     provider_field: str
+
+
+@dataclass(frozen=True)
+class SubmissionPage:
+    """One extra page of an issuer's submissions history, as the `filings.files` list names it."""
+
+    name: str
+    filing_from: date
+    filing_to: date
 
 
 @dataclass(frozen=True)
@@ -204,6 +229,7 @@ class SecEdgarAnalysisSnapshot:
     filing_forms: Mapping[str, str] = field(default_factory=dict)
     filing_dates: Mapping[str, date] = field(default_factory=dict)
     current_tickers: tuple[str, ...] = ()
+    submission_pages: tuple[SubmissionPage, ...] = ()
 
 
 _ACTIVE_SNAPSHOT: ContextVar[SecEdgarAnalysisSnapshot | None] = ContextVar("sec_edgar_analysis_snapshot", default=None)
@@ -250,6 +276,7 @@ class SecEdgarFinancialFactsAdapter:
         self._header_fetcher = header_fetcher
         self._header_policy = header_policy or FilingHeaderPolicy()
         self._header_texts: dict[tuple[str, str], tuple[str, datetime]] = {}
+        self._submission_page_documents: dict[tuple[str, str], object] = {}
         self._clock = clock or utc_now
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
         self._ticker_to_cik: dict[str, str] | None = None
@@ -303,6 +330,7 @@ class SecEdgarFinancialFactsAdapter:
             filing_forms=MappingProxyType(_submission_strings(submissions_raw, "form")),
             filing_dates=MappingProxyType(_submission_filing_dates(submissions_raw)),
             current_tickers=_submission_tickers(submissions_raw),
+            submission_pages=_submission_pages(submissions_raw, cik),
         )
 
     def resolve_as_filed_sic(self, snapshot: SecEdgarAnalysisSnapshot) -> AsFiledSicResolution:
@@ -460,6 +488,115 @@ class SecEdgarFinancialFactsAdapter:
         finally:
             _ACTIVE_SNAPSHOT.reset(token)
 
+    def fetch_instant_series(self, request: InstantSeriesRequest, *, effective_as_of: datetime) -> InstantSeriesFacts:
+        """Return the balance-sheet value the eligible annual filings report at each requested year-end.
+
+        The anchor filing is the newest annual filing accepted at or before the boundary, and the taxonomy is the one
+        it tags. A year-end it does not report may come from an earlier eligible filing on the same taxonomy; see
+        ``select_instant_series`` for the selection rules.
+
+        Args:
+            request: The exact-date series request.
+            effective_as_of: The resolved point-in-time boundary when the request names none.
+
+        Raises:
+            FinancialProviderError: On an operational provider failure.
+        """
+        boundary = request.as_of or effective_as_of
+        if request.provider_id != SEC_PROVIDER_ID:
+            return _all_absent(request, InstantAbsenceReason.UNSUPPORTED, "SEC EDGAR does not serve this provider.")
+        try:
+            try:
+                cik = self._resolve_cik(request.subject_id)
+            except _MissingCikError:
+                return _all_absent(
+                    request, InstantAbsenceReason.NO_ANCHOR_FILING, "SEC EDGAR has no CIK for the ticker."
+                )
+            snapshot = _ACTIVE_SNAPSHOT.get()
+            if snapshot is None or snapshot.subject_id != request.subject_id:
+                snapshot = self.create_analysis_snapshot(subject_id=request.subject_id, as_of=boundary)
+            if snapshot.cik != cik:
+                return _all_absent(
+                    request, InstantAbsenceReason.UNSUPPORTED, "The analysis snapshot is for another issuer."
+                )
+            acceptance, forms = self._filings_reaching_back(snapshot, request.period_ends[0], boundary)
+            eligible = {
+                accession: accepted
+                for accession, accepted in acceptance.items()
+                if forms.get(accession) in _COMPLETED_ANNUAL_FORMS and accepted <= boundary
+            }
+            anchor = max(eligible, key=lambda accession: eligible[accession], default=None)
+            namespaces = snapshot.accession_taxonomies.get(anchor, frozenset()) if anchor is not None else frozenset()
+            company_facts = snapshot.company_facts if isinstance(snapshot.company_facts, Mapping) else {}
+            return select_instant_series(
+                request,
+                InstantSource(
+                    company_facts=company_facts,
+                    cik_matches=_company_facts_matches_cik(company_facts, cik),
+                    taxonomy=next(iter(namespaces)) if len(namespaces) == 1 else None,
+                    acceptance_by_accession=eligible,
+                    accession_taxonomies=snapshot.accession_taxonomies,
+                    retrieved_at=snapshot.retrieved_at,
+                    boundary=boundary,
+                ),
+            )
+        except FinancialProviderError:
+            raise
+        except (KeyError, TypeError, ValueError) as exc:
+            msg = f"SEC EDGAR balance-sheet series retrieval failed for {request.subject_id}: {exc}"
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID
+            ) from exc
+
+    def _filings_reaching_back(
+        self, snapshot: SecEdgarAnalysisSnapshot, oldest: date, boundary: datetime
+    ) -> tuple[dict[str, datetime], dict[str, str]]:
+        """Return the acceptance times and forms of the recent filings, with older pages added when they are needed.
+
+        A year-end is reported by the annual filing made after it and by the next year's filing, which repeats it as a
+        comparative. The recent block is enough when an annual filing accepted at the boundary or before was filed
+        after ``oldest`` and within two years of it. Otherwise the extra pages the submissions data lists are read,
+        nearest to that window first, until one is enough or ``_MAX_SUBMISSION_PAGES`` have been read. Nothing else
+        reads these pages, so no other resolution changes.
+        """
+        acceptance = dict(snapshot.acceptance_by_accession)
+        forms = dict(snapshot.filing_forms)
+        dates = dict(snapshot.filing_dates)
+        window_end = oldest + timedelta(days=2 * 365)
+
+        def enough() -> bool:
+            return any(
+                forms.get(accession) in _COMPLETED_ANNUAL_FORMS
+                and accepted <= boundary
+                and oldest < dates.get(accession, accepted.date()) <= window_end
+                for accession, accepted in acceptance.items()
+            )
+
+        if enough() or snapshot.cik is None:
+            return acceptance, forms
+        pages = sorted(
+            (page for page in snapshot.submission_pages if page.filing_to > oldest and page.filing_from <= window_end),
+            key=lambda page: page.filing_from,
+            reverse=True,
+        )
+        for page in pages[:_MAX_SUBMISSION_PAGES]:
+            wrapped = {"filings": {"recent": self._submission_page(snapshot.cik, page)}}
+            acceptance.update(_acceptance_times(wrapped))
+            forms.update(_submission_strings(wrapped, "form"))
+            dates.update(_submission_filing_dates(wrapped))
+            if enough():
+                break
+        return acceptance, forms
+
+    def _submission_page(self, cik: str, page: SubmissionPage) -> object:
+        """Fetch one extra submissions page once per adapter; its history never changes except by appending."""
+        key = (cik, page.name)
+        if key not in self._submission_page_documents:
+            self._submission_page_documents[key] = self._fetch_company_document(
+                _SUBMISSION_PAGE_URL.format(name=page.name)
+            )
+        return self._submission_page_documents[key]
+
     def resolve_security_identity(self, request: SecurityIdentityRequest) -> SecurityIdentity | None:
         """Return current SEC ticker-title and CIK evidence when available."""
         if request.provider_id != SEC_PROVIDER_ID:
@@ -508,11 +645,18 @@ class SecEdgarFinancialFactsAdapter:
                 company_facts = snapshot.company_facts
                 acceptance_by_accession = snapshot.acceptance_by_accession
                 provider_now = snapshot.retrieved_at
+                anchor_accession = snapshot.latest_annual_accession
             else:
                 company_facts = self._fetch_company_document(_COMPANY_FACTS_URL.format(cik=cik))
                 submissions = self._fetch_company_document(_SUBMISSIONS_URL.format(cik=cik))
                 acceptance_by_accession = _acceptance_times(submissions)
                 provider_now = self._clock()
+                eligible_accessions = _eligible_annual_accessions(
+                    submissions,
+                    acceptance_by_accession=acceptance_by_accession,
+                    as_of=request.as_of or effective_as_of,
+                )
+                anchor_accession = eligible_accessions[0] if eligible_accessions else None
             taxonomy = snapshot.taxonomy if snapshot is not None and snapshot.taxonomy is not None else "us-gaap"
             if request.field_name is FinancialField.OPERATING_CASH_FLOW:
                 candidates = _annual_operating_cash_flow_candidates(
@@ -560,6 +704,15 @@ class SecEdgarFinancialFactsAdapter:
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
 
             if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING:
+                if request.basis == COVER_PAGE_BASIS:
+                    return _cover_page_shares_facts(
+                        company_facts,
+                        request=request,
+                        anchor_accession=anchor_accession,
+                        acceptance_by_accession=acceptance_by_accession,
+                        retrieved_at=provider_now,
+                        now=effective_as_of,
+                    )
                 return _common_shares_facts(
                     company_facts,
                     request=request,
@@ -596,6 +749,8 @@ class SecEdgarFinancialFactsAdapter:
             return False
         if request.field_name in _SEC_COMPLETED_ANNUAL_FIELDS:
             return request.basis == "fiscal_year" and request.observation_count >= 1
+        if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING and request.basis == COVER_PAGE_BASIS:
+            return request.observation_count == 1
         return (
             request.field_name in _BALANCE_SHEET_FIELDS
             and request.basis == "fiscal_year_end"
@@ -758,6 +913,33 @@ def _submission_filing_dates(payload: object) -> dict[str, date]:
         except ValueError:
             continue
     return result
+
+
+def _submission_pages(payload: object, cik: str) -> tuple[SubmissionPage, ...]:
+    """Return the extra submissions pages the issuer's own document lists, skipping any entry that is not usable.
+
+    A page is usable when its name is the issuer's own `CIK<cik>-submissions-NNN.json` and its filing range is valid.
+    """
+    filings = payload.get("filings") if isinstance(payload, Mapping) else None
+    listed = filings.get("files") if isinstance(filings, Mapping) else None
+    if not isinstance(listed, Sequence) or isinstance(listed, (str, bytes)):
+        return ()
+    pages: list[SubmissionPage] = []
+    for entry in listed:
+        if not isinstance(entry, Mapping):
+            continue
+        name, first, last = entry.get("name"), entry.get("filingFrom"), entry.get("filingTo")
+        if not isinstance(name, str) or not isinstance(first, str) or not isinstance(last, str):
+            continue
+        matched = _SUBMISSION_PAGE_NAME.match(name)
+        try:
+            filing_from, filing_to = date.fromisoformat(first), date.fromisoformat(last)
+        except ValueError:
+            continue
+        if matched is None or matched.group(1) != cik or filing_from > filing_to:
+            continue
+        pages.append(SubmissionPage(name, filing_from, filing_to))
+    return tuple(pages)
 
 
 def _submission_tickers(payload: object) -> tuple[str, ...]:
@@ -1330,12 +1512,13 @@ def _eligible_annual_candidates(
 def _balance_sheet_concept_units(
     payload: Mapping[object, object],
     concept_name: str,
+    namespace: str = _US_GAAP,
 ) -> Mapping[object, object] | None:
-    """Return the SEC units mapping for one US-GAAP balance-sheet concept."""
+    """Return the SEC units mapping for one balance-sheet concept of a taxonomy (US-GAAP unless stated)."""
     facts = payload.get("facts")
     if not isinstance(facts, Mapping):
         return None
-    us_gaap = facts.get("us-gaap")
+    us_gaap = facts.get(namespace)
     if not isinstance(us_gaap, Mapping):
         return None
     concept = us_gaap.get(concept_name)
@@ -1347,14 +1530,20 @@ def _balance_sheet_concept_units(
     return units
 
 
-def _balance_sheet_fact_candidates(
+def _balance_sheet_fact_candidates(  # noqa: PLR0912, PLR0913
     payload: object,
     *,
     request: FinancialFactRequest,
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
+    namespace: str = _US_GAAP,
+    concept_override: str | None = None,
 ) -> tuple[ProviderFact, ...]:
-    """Parse fiscal-year-end SEC facts used by the conservative BVPS derivation."""
+    """Parse fiscal-year-end SEC facts used by the conservative BVPS derivation.
+
+    An IFRS concept (``concept_override`` with ``namespace="ifrs-full"``) is read from the annual forms of a foreign
+    private issuer as well; the US-GAAP concepts keep the 10-K forms.
+    """
     if not isinstance(payload, Mapping):
         msg = "SEC Company Facts payload is not an object."
         raise ValueError(msg)
@@ -1363,8 +1552,10 @@ def _balance_sheet_fact_candidates(
     if mapping is None:
         return ()
     concept_name, expected_unit = mapping
+    if concept_override is not None:
+        concept_name = concept_override
 
-    units = _balance_sheet_concept_units(payload, concept_name)
+    units = _balance_sheet_concept_units(payload, concept_name, namespace)
     if units is None:
         return ()
 
@@ -1384,11 +1575,12 @@ def _balance_sheet_fact_candidates(
             continue
         context = _BalanceSheetParseContext(
             request=request,
-            provider_field=f"us-gaap:{concept_name}",
+            provider_field=f"{namespace}:{concept_name}",
             unit=expected_unit,
             currency=currency,
             acceptance_by_accession=acceptance_by_accession,
             retrieved_at=retrieved_at,
+            forms=_COMPLETED_ANNUAL_FORMS if namespace == _IFRS_FULL else _BALANCE_SHEET_FORMS,
         )
         for observation in observations:
             if not isinstance(observation, Mapping):
@@ -1523,6 +1715,13 @@ def _common_shares_facts(
         request=request,
         acceptance_by_accession=acceptance_by_accession,
         retrieved_at=retrieved_at,
+    ) + _balance_sheet_fact_candidates(
+        payload,
+        request=request,
+        acceptance_by_accession=acceptance_by_accession,
+        retrieved_at=retrieved_at,
+        namespace=_IFRS_FULL,
+        concept_override="NumberOfSharesOutstanding",
     )
     selected_direct = _select_latest_balance_sheet_fact(direct, request=request, now=now)
     if selected_direct:
@@ -1586,6 +1785,79 @@ def _common_shares_facts(
                 "same-period source observations required; no cover-date DEI share substitution applied",
             ),
         ),
+    )
+
+
+def _cover_page_shares_facts(  # noqa: PLR0913
+    payload: object,
+    *,
+    request: FinancialFactRequest,
+    anchor_accession: str | None,
+    acceptance_by_accession: Mapping[str, datetime],
+    retrieved_at: datetime,
+    now: datetime,
+) -> tuple[ProviderFact, ...]:
+    """Return the cover-page share count of the anchor annual filing, or nothing.
+
+    The count is used only where the filing tags exactly one non-dimensional total (Company Facts holds no dimensional
+    value, so a filer that reports its classes separately has none here). Its own date, the date of the cover page, is
+    the share-count date; it is not a balance-sheet fact and the year-end path never returns it.
+    """
+    if not isinstance(payload, Mapping):
+        msg = "SEC Company Facts payload is not an object."
+        raise ValueError(msg)
+    if anchor_accession is None:
+        return ()
+    boundary = request.as_of or now
+    available_at = acceptance_by_accession.get(anchor_accession)
+    if available_at is None or available_at > boundary:
+        return ()
+    units = _balance_sheet_concept_units(payload, "EntityCommonStockSharesOutstanding", "dei")
+    observations = units.get("shares") if units is not None else None
+    if not isinstance(observations, Sequence) or isinstance(observations, (str, bytes)):
+        return ()
+    found: set[tuple[str, float]] = set()
+    for observation in observations:
+        if not isinstance(observation, Mapping) or observation.get("accn") != anchor_accession:
+            continue
+        value, end = observation.get("val"), observation.get("end")
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not isinstance(end, str):
+            continue
+        found.add((end, float(value)))
+    if len(found) != 1:
+        return ()
+    end_text, value_number = next(iter(found))
+    period_end = _parse_date_end(end_text)
+    if period_end is None or period_end > boundary or not math.isfinite(value_number) or value_number <= 0:
+        return ()
+    return (
+        ProviderFact(
+            subject_kind=FinancialSubjectKind.SECURITY,
+            subject_id=request.subject_id,
+            field_name=FinancialField.COMMON_SHARES_OUTSTANDING,
+            value=value_number,
+            units=FinancialUnit.SHARES,
+            provider_id=SEC_PROVIDER_ID,
+            provider_field=SEC_COVER_PAGE_SHARES_FIELD,
+            retrieved_at=retrieved_at,
+            basis=COVER_PAGE_BASIS,
+            observation_period_end=period_end,
+            available_at=available_at,
+            notes=(
+                f"accession={anchor_accession}",
+                "definition=cover-page common shares outstanding of the anchor annual filing "
+                "as one non-dimensional total",
+                "not a balance-sheet fact; for market capitalization only; its own date is the share-count date",
+            ),
+            provider_fact_id=f"{anchor_accession}:{SEC_COVER_PAGE_SHARES_FIELD}:shares:{end_text}",
+        ),
+    )
+
+
+def _all_absent(request: InstantSeriesRequest, reason: InstantAbsenceReason, detail: str) -> InstantSeriesFacts:
+    """Report every requested year-end as absent for one reason."""
+    return InstantSeriesFacts(
+        absences=tuple(InstantAbsence(period_end=day, reason=reason, detail=detail) for day in request.period_ends)
     )
 
 
@@ -1811,7 +2083,7 @@ def _parse_balance_sheet_observation(  # noqa: PLR0911
 ) -> ProviderFact | None:
     request = context.request
     form = observation.get("form")
-    if form not in _BALANCE_SHEET_FORMS:
+    if form not in context.forms:
         return None
 
     value = observation.get("val")

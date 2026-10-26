@@ -1,7 +1,8 @@
 # Step 3.5 — Slice 3.5.1 Mapping Evidence Record
 
 Live source evidence behind the 3.5.1 slice plan: where a filing's as-filed SIC code comes from, how Yahoo adjusts its
-price history, and (filled in by the later sub-slices) the field mappings and depreciation evidence. Rules and
+price history, the regression issuer set, the balance-sheet field mappings, the derived-total reconciliation and the
+share-count coverage, and (filled in by 3.5.1c) the annual field mappings and depreciation evidence. Rules and
 formulas are owned by [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md); nothing here overrides them. Scope and
 status live in the [slice plan](STEP_3_5_1_SLICE_PLAN.md#2-sequence-and-status).
 
@@ -20,8 +21,12 @@ status live in the [slice plan](STEP_3_5_1_SLICE_PLAN.md#2-sequence-and-status).
 - **One finding changes a decision:** a filing restates its share counts for a split effective before the filing is
   issued, so a share count must be scaled only by splits after the filing it came from, not after its fiscal year-end
   ([§4.5](#45-a-count-restated-for-a-split-before-the-filing-walmart-fy2024)).
-- **Field mappings and depreciation evidence:** empty. 3.5.1b and 3.5.1c fill them ([§5](#5-field-mappings),
-  [§6](#6-depreciation-evidence)).
+- **Balance-sheet field mappings (3.5.1b):** the regression issuer set is named in [§5.1](#51-the-regression-issuer-set);
+  the 17 instant fields have a disposition per taxonomy in [§5.3](#53-the-field-mappings); total liabilities has a
+  derivation that holds for US GAAP and fails for IFRS ([§5.4](#54-derived-totals)).
+- **Share-count coverage fails** for three of the ten issuers checked: Walmart, SAP and Nutrien get no
+  `COMMON_SHARES_OUTSTANDING` from either existing path ([§5.5](#55-share-count-coverage)). The sub-slice stops there.
+- **Annual field mappings and depreciation evidence:** empty until 3.5.1c ([§6](#6-depreciation-evidence)).
 - **What it does not show:** coverage across the market. Nine issuers were checked for the SIC, five for
   Yahoo. The gaps are in [§7](#7-not-yet-verified).
 
@@ -240,19 +245,283 @@ scaling is the filing date of the filing the count was taken from, found in the 
 
 ## 5. Field mappings
 
-Empty. Slices 3.5.1b (balance-sheet instants) and 3.5.1c (annual period fields) fill it, one row per field and
-taxonomy, for every field of [Slice inputs §3](STEP_3_5_SLICE_INPUTS.md#3-351--data-mappings-and-applicability). Each
-row records:
+Slice 3.5.1b fills the balance-sheet fields; 3.5.1c fills the annual fields. Every row records the columns below.
 
 | Column | Content |
 | :--- | :--- |
-| Field | The `FinancialField` name |
+| Field | The `FinancialField` name proposed for it |
 | Taxonomy | `us-gaap` or `ifrs-full` |
 | Concept | The exact element, or the priority list of elements |
 | Units and scale | The XBRL unit, and the scale the filer applies |
 | Kind | A period amount or a balance at a date |
 | Reported by | The filer populations that report it, and what the others report instead |
+| Value check | The rendered statement or note the value was compared with |
 | Disposition | Approved, approved with a stated limit, or unsupported |
+
+### 5.1 The regression issuer set
+
+This is Step 3.5's regression issuer set. The 3.5.7 golden suite reuses it. "Latest annual" is the newest annual report
+filed on or before 2026-10-25.
+
+| Issuer | Ticker | CIK | Latest annual accession (form, filed, year-end) | Taxonomy | Why it fits |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| JPMorgan Chase | JPM | 19617 | `0001628280-26-008131` (10-K, 2026-02-13, 2025-12-31) | us-gaap | Bank; SIC 6021 ([§3.4](#34-classification-spot-checks)) |
+| Prologis | PLD | 1045609 | `0001193125-26-051453` (10-K, 2026-02-13, 2025-12-31) | us-gaap | REIT; SIC 6798; combined filing with Prologis, L.P. |
+| Duke Energy | DUK | 1326160 | `0001326160-26-000014` (10-K, 2026-02-26, 2025-12-31) | us-gaap | Utility; SIC 4931; combined filing of eight registrants |
+| Deere | DE | 315189 | `0001104659-25-122321` (10-K, 2025-12-18, 2025-11-02) | us-gaap | Manufacturer; SIC 3523; 52/53-week year |
+| SAP | SAP | 1000184 | `0001104659-26-020058` (20-F, 2026-02-26, 2025-12-31) | ifrs-full | IFRS filer in EUR; SIC 7372 |
+| Nutrien | NTR | 1725964 | `0001193125-26-081326` (40-F, 2026-02-27, 2025-12-31) | ifrs-full | IFRS filer in USD; SIC 2870 |
+| Walmart | WMT | 104169 | `0000104169-26-000055` (10-K, 2026-03-13, 2026-01-31) | us-gaap | Non-manufacturer; tags no share count since 2013 |
+| Moderna | MRNA | 1682852 | `0001682852-26-000033` (10-K, 2026-02-20, 2025-12-31) | us-gaap | Negative EBIT: `OperatingIncomeLoss` is -3,074 million for fiscal 2025 |
+| Monster Beverage | MNST | 865752 | `0001104659-26-020831` (10-K, 2026-02-27, 2025-12-31) | us-gaap | No reported debt: no debt concept is tagged at 2025-12-31 and the balance sheet's long-term debt line is empty (373.951 million a year earlier) |
+| Alphabet | GOOGL | 1652044 | `0001652044-26-000018` (10-K, 2026-02-05, 2025-12-31) | us-gaap | Several share classes (A, B and C); Company Facts holds one combined count of 12,088 million |
+| Honeywell | HON | 773840 | `0000773840-26-000013` (10-K, 2026-02-17, 2025-12-31) | us-gaap | Manufacturer (SIC 3724) with a classified balance sheet: `AssetsCurrent` 30,387 million and `LiabilitiesCurrent` 23,414 million are tagged. Added under decision H9 beside Deere, whose balance sheet is unclassified |
+
+- **Chosen from evidence, not from the issuers' names.** Moderna, Monster and Alphabet were the only candidates fetched
+  for the three slots; each met its criterion on the first check. The negative-EBIT firm is not also the no-debt firm:
+  Moderna tags a noncurrent long-term debt line of 590 million.
+- **Monster's interest.** It tags `InterestPaidNet` (5.337 million, a cash-flow amount) and no interest expense, so the
+  zero-debt rule of [Shared definitions §6](STEP_3_5_SHARED_DEFINITIONS.md#total-debt) is for 3.5.2 to apply.
+- **Honeywell** tags no `Liabilities` at any year-end, so the derivation of [§5.4](#54-derived-totals) is its only source
+  of total liabilities. Its fiscal year is the calendar year, so it adds no 52/53-week case; Deere remains that case.
+- **Prologis and Duke Energy** are combined filings; their Company Facts hold the parent issuer's values only.
+
+### 5.2 Method and limits
+
+- **Presence:** the Company Facts of the ten issuers, read for the anchor annual filing's year-end *t*, for *t−1*, and
+  for *t−2* from the same or an earlier annual filing. All values are in whole units of the reported currency; a value
+  is an instant (it has an `end` and no `start`). The scale is the rounding the filer applies: thousands (Prologis,
+  Monster), millions (the others). A year-end repeats in the next filing as a comparative and may differ there by a
+  restatement (SAP, Alphabet, JPMorgan, Deere); the newest filing's value is the restated one.
+- **Values:** one US GAAP filer and one IFRS filer per field, at the anchor year-end, against the filing's rendered
+  statement (the SEC's `R<n>.htm` page): Walmart, Monster and Prologis for US GAAP, Nutrien and SAP for IFRS. Where a line
+  is a note disclosure and not on the face, the note's page is the check; a field no checked filer shows is marked
+  "not checked".
+- **Request budget:** 59 EDGAR requests of about 60 ([Appendix A](#appendix-a-requests-made)). Raw responses are under
+  `.tmp/` and are not committed.
+- **Honeywell and the later checks** (decisions H7 to H12) were read from Company Facts for presence only, with the
+  rendered balance sheets of Alphabet and Moderna added to establish which tagged concepts are the same line item.
+
+### 5.3 The field mappings
+
+The `FinancialField` names are the ones the implementation proposes. In the "Value check" column a tick means the Company
+Facts value equals the rendered value to the filer's own rounding.
+
+| Field | Taxonomy | Concept | Units and scale | Reported by | Value check | Disposition |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `TOTAL_ASSETS` | us-gaap | `Assets` | USD, instant; millions (thousands: PLD, MNST) | All eight US filers | WMT, MNST, PLD ✓ | Approved |
+| `TOTAL_ASSETS` | ifrs-full | `Assets` | EUR or USD, instant; millions | SAP, NTR | SAP, NTR ✓ | Approved |
+| `TOTAL_LIABILITIES` | us-gaap | `Liabilities`, else the derivation of [§5.4](#54-derived-totals) | USD, instant | Direct: JPM, PLD, DE, GOOGL, MRNA. Not tagged: DUK, WMT, MNST | PLD ✓; WMT's face has no total-liabilities line | Approved; the derivation is approved with a stated limit (every term must be tagged) |
+| `TOTAL_LIABILITIES` | ifrs-full | `Liabilities` | EUR or USD, instant | SAP, NTR | SAP, NTR ✓ | Approved; the derivation is unsupported |
+| `CURRENT_ASSETS` | us-gaap | `AssetsCurrent` | USD, instant | DUK, WMT, GOOGL, MRNA, MNST. Unclassified balance sheets: JPM, PLD, DE | WMT ✓ | Approved with a stated limit: an unclassified balance sheet has none |
+| `CURRENT_ASSETS` | ifrs-full | `CurrentAssets` | instant | SAP, NTR | SAP, NTR ✓ | Approved |
+| `CURRENT_LIABILITIES` | us-gaap | `LiabilitiesCurrent` | USD, instant | Same filers as `CURRENT_ASSETS` | WMT, MNST ✓ | Approved with a stated limit: same as above |
+| `CURRENT_LIABILITIES` | ifrs-full | `CurrentLiabilities` | instant | SAP, NTR | SAP, NTR ✓ | Approved |
+| `CASH_AND_EQUIVALENTS` | us-gaap | `CashAndCashEquivalentsAtCarryingValue` | USD, instant | PLD, DUK, DE, WMT, GOOGL, MRNA, MNST, HON. Not JPM (a bank) | WMT, MNST, PLD ✓ | Approved with a stated limit: banks tag other cash concepts |
+| `CASH_AND_EQUIVALENTS` | ifrs-full | `CashAndCashEquivalents` | instant | SAP, NTR | SAP, NTR ✓ | Approved |
+| `SHORT_TERM_INVESTMENTS` | us-gaap | Priority list: `ShortTermInvestments`, `MarketableSecuritiesCurrent`, `AvailableForSaleSecuritiesDebtSecuritiesCurrent` (decisions H10, D2) | USD, instant | MNST and HON (443 million) tag the first. GOOGL tags the second (96,135 million), MRNA the third (3,204). DE tags `MarketableSecurities` (1,411), which is not listed | MNST ✓. GOOGL's face shows "Marketable securities" 96,135 and MRNA's "Investments" 3,204, both in current assets ✓ | Approved with a stated limit: one concept for every year of a run; Deere's unclassified balance sheet does not show its line to be current, so Deere shows none |
+| `SHORT_TERM_INVESTMENTS` | ifrs-full | none | none | Neither SAP nor NTR tags a short-term-investments concept; NTR's `ShorttermInvestmentsClassifiedAsCashEquivalents` is part of cash and SAP's `OtherCurrentFinancialAssets` is broader | not applicable | Unsupported |
+| `LONG_TERM_INVESTMENTS` | us-gaap | `LongTermInvestments` | USD, instant | MNST only. GOOGL tags `OtherLongTermInvestments` (68,687 million), MRNA `AvailableForSaleSecuritiesDebtSecuritiesNoncurrent` (2,336) | MNST ✓ | Approved with a stated limit: the other two concepts are not this field |
+| `LONG_TERM_INVESTMENTS` | ifrs-full | none | none | No concept in either filer is long-term investments; SAP's `InvestmentsInAssociates` and NTR's equity-method investment are narrower | not applicable | Unsupported |
+| `NET_PPE` | us-gaap | `PropertyPlantAndEquipmentNet` | USD, instant | PLD, DUK, WMT, MNST. GOOGL tags it to fiscal 2024; HON tags it to fiscal 2022 and, for 2025, only the finance-lease variant (4,629 million); MRNA tags only `PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization`; JPM and DE tag neither | WMT, MNST ✓ | Approved with a stated limit: issuers that tag the finance-lease variant, and unclassified manufacturers (DE), show none |
+| `NET_PPE` | ifrs-full | Priority list: `PropertyPlantAndEquipment`, then `PropertyPlantAndEquipmentIncludingRightofuseAssets` (decision H11) | instant | Neither filer tags the first; both tag the second | SAP ✓ (4,497, of which right-of-use 1,477), NTR ✓ | Approved with a stated limit: the second concept is used alone, only where it is the filer's own single balance-sheet line (the face of both filers reports right-of-use assets inside it), and is never added to the first |
+| `RECEIVABLES` | us-gaap | Priority list: `AccountsReceivableNetCurrent`, then `ReceivablesNetCurrent` (decision H10) | USD, instant | DUK, GOOGL, MRNA, MNST, HON (7,621 million) tag the first. WMT tags the second (11,172 million) and `AccountsReceivableNet` (4,900, not listed). DE and PLD tag only `AccountsReceivableNet` | MNST ✓. WMT's face shows "Receivables, net" 11,172 in current assets ✓ | Approved with a stated limit: one concept for every year of a run; Deere and Prologis show none; an issuer that reports variable-interest-entity receivables on a line of its own shows the other line only (Duke Energy, below) |
+| `RECEIVABLES` | ifrs-full | `CurrentTradeReceivables` | instant | SAP, NTR | SAP ✓ in the note (5,790; the face shows trade and other receivables, 6,675); NTR not checked (5,080 in a note; the face shows 5,675) | Approved with a stated limit: a note-level figure, not the face line |
+| `RETAINED_EARNINGS` | us-gaap | `RetainedEarningsAccumulatedDeficit` | USD, instant | All eight US filers | WMT, MNST, PLD ✓ | Approved |
+| `RETAINED_EARNINGS` | ifrs-full | `RetainedEarnings` | instant | SAP, NTR | SAP, NTR ✓ | Approved |
+| `SHORT_TERM_BORROWINGS` | us-gaap | Priority list: `ShortTermBorrowings`, then `CommercialPaper` (decisions H12, D9) | USD, instant | JPM, DUK, WMT, HON (5,893 million) tag the first. Alphabet tags only the second (0) | WMT ✓ | Approved with a stated limit: commercial paper belongs to short-term borrowings, is read only where `ShortTermBorrowings` is not tagged, is never added to it and is never the current portion of long-term debt; Deere's `DebtCurrent` is a related concept, not a value |
+| `SHORT_TERM_BORROWINGS` | ifrs-full | `ShorttermBorrowings` | instant | NTR. SAP tags `CommercialPapersIssued` (498 million) and a combined current-borrowings concept | NTR ✓ | Approved with a stated limit: a filer that combines it with the current portion shows none |
+| `CURRENT_PORTION_OF_LONG_TERM_DEBT` | us-gaap | `LongTermDebtCurrent` | USD, instant | DUK, WMT, GOOGL. DE tags `DebtCurrent` (13,796 million), which includes short-term borrowings; HON tags `LongTermDebtAndCapitalLeaseObligationsCurrent` (1,546 million), which includes finance leases; MRNA and MNST have none | WMT ✓ | Approved with a stated limit: `DebtCurrent` and the lease-inclusive concept are not mapped |
+| `CURRENT_PORTION_OF_LONG_TERM_DEBT` | ifrs-full | `CurrentPortionOfLongtermBorrowings` | instant | NTR. SAP tags `CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings` (1,600 million), which includes commercial paper | NTR ✓ | Approved with a stated limit: SAP's combined concept is not mapped |
+| `NONCURRENT_LONG_TERM_DEBT` | us-gaap | `LongTermDebtNoncurrent` | USD, instant | DUK, WMT, GOOGL, MRNA (590 million); MNST only at the prior year-end (373.951) | WMT ✓; MNST prior year ✓ | Approved with a stated limit: a filer that tags another noncurrent debt concept shows none |
+| `NONCURRENT_LONG_TERM_DEBT` | ifrs-full | none (`LongtermBorrowings` rejected; decisions H12, H14) | none | SAP (4,550 million, nominal), NTR (9,350, carrying) | NTR ✓. SAP's 4,550 is the nominal amount; its carrying amount is 4,194 (note) | Unsupported for every filer, decided by the project owner (H14): only carrying amounts qualify, Company Facts cannot tell a carrying amount from a nominal one, and one of the two filers tags a nominal amount under the concept |
+| `LONG_TERM_DEBT_TOTAL` | us-gaap | `LongTermDebt` | USD, instant | PLD, DUK, WMT, GOOGL | PLD ✓ (the face's "Debt"); DUK and WMT equal current plus noncurrent; GOOGL (49,085 million) does not (48,543) | Approved with a stated limit: a reconciliation-only field; a total that does not reconcile is a finding for 3.5.2, never repaired here |
+| `LONG_TERM_DEBT_TOTAL` | ifrs-full | none | none | `Borrowings` is 9,863 million for NTR (long-term only; the 873 of short-term debt is outside it) and 6,150 for SAP (nominal, including commercial paper) | not applicable | Unsupported: the two filers use it for different quantities |
+| `LEASE_LIABILITIES_AS_DEBT` | us-gaap | `FinanceLeaseLiability` | USD, instant | DUK, DE, WMT, GOOGL, MRNA. `OperatingLeaseLiability` (tagged by JPM, PLD, DUK, DE, WMT, GOOGL, MRNA) is never this field | WMT ✓ (856 + 5,905 = 6,761 on the face) | Approved with a stated limit: finance leases only, as Shared definitions §6 requires |
+| `LEASE_LIABILITIES_AS_DEBT` | ifrs-full | `LeaseLiabilities` | instant | SAP (1,684 million), NTR (1,283) | SAP ✓ (254 + 1,430 in the note), NTR ✓ (346 + 937 on the face) | Approved: all IFRS 16 lease liabilities count |
+| `PREFERRED_STOCK` | us-gaap | `PreferredStockValue` | USD, instant | PLD (64 million), MRNA (0) | PLD ✓ (63.948) | Approved with a stated limit: a filer with none tags no value |
+| `PREFERRED_STOCK` | ifrs-full | none | none | Neither filer reports preference shares, so no concept can be shown to carry them | not applicable | Unsupported |
+| `NONCONTROLLING_INTEREST` | us-gaap | `MinorityInterest` | USD, instant | PLD, DUK, DE, WMT | WMT ✓ (6,270 nonredeemable) | Approved with a stated limit: redeemable noncontrolling interest (WMT 293 million, DE 51) is a mezzanine item reported on its own and is not in this field |
+| `NONCONTROLLING_INTEREST` | ifrs-full | `NoncontrollingInterests` | instant | SAP (488 million), NTR (42) | SAP, NTR ✓ | Approved |
+
+**Honeywell** (decision H9) was read for presence at 2025-12-31 and was not compared with its rendered statement. It tags
+`Assets` 73,681 million, `AssetsCurrent` 30,387, `LiabilitiesCurrent` 23,414, cash 12,487, `ShortTermInvestments` 443,
+`AccountsReceivableNetCurrent` 7,621, retained earnings 50,964, `ShortTermBorrowings` 5,893, `FinanceLeaseLiability` 64,
+`MinorityInterest` 1,126, and no preferred stock, `LongTermDebtCurrent`, `LongTermDebtNoncurrent` or `Liabilities`. It
+tags a direct `LongTermDebt` of 29,046 million beside `LongTermDebtAndCapitalLeaseObligations` (27,141) and
+`LongTermDebtAndCapitalLeaseObligationsCurrent` (1,546); neither of the last two is a mapped part. That is a second test
+case for the reconciliation rule of Shared definitions §6, with Alphabet.
+
+#### Related concepts of the debt fields
+
+A related concept is tagged by a filer for part of the same quantity and is never a
+value. The balance-sheet series reports it beside an absent date (`related_concept`) and as a note on a present value, and
+[Shared definitions §6](STEP_3_5_SHARED_DEFINITIONS.md#total-debt) reads that report.
+
+| Field | Taxonomy | Related concepts | Seen in |
+| :--- | :--- | :--- | :--- |
+| `SHORT_TERM_BORROWINGS` | us-gaap | `DebtCurrent` | Deere (13,796 million, with the current portion) |
+| `SHORT_TERM_BORROWINGS` | ifrs-full | `CommercialPapersIssued`, `CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings` | SAP (498 and 1,600 million) |
+| `CURRENT_PORTION_OF_LONG_TERM_DEBT` | us-gaap | `DebtCurrent`, `LongTermDebtAndCapitalLeaseObligationsCurrent` | Deere; Honeywell (1,546 million, with finance leases) |
+| `CURRENT_PORTION_OF_LONG_TERM_DEBT` | ifrs-full | `CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings` | SAP |
+| `NONCURRENT_LONG_TERM_DEBT` | us-gaap | `LongTermDebtAndCapitalLeaseObligations` | Honeywell (27,141 million) |
+| `NONCURRENT_LONG_TERM_DEBT` | ifrs-full | none: the mapping is unsupported, so the field is `unavailable` and no related concept is read | Nutrien, SAP |
+| `LEASE_LIABILITIES_AS_DEBT` | us-gaap | `FinanceLeaseLiabilityCurrent`, `FinanceLeaseLiabilityNoncurrent` | Honeywell (the parts of its 64 million) |
+| `RECEIVABLES` | us-gaap | `AccountsAndOtherReceivablesNetCurrent` | Duke Energy (receivables of variable interest entities) |
+
+Result for the four cases of the review, from the trimmed filings: Deere's short-term borrowings and current portion are
+absent with `DebtCurrent` tagged; Honeywell's current portion and noncurrent debt are absent with their lease-inclusive
+concepts tagged and its short-term borrowings (5,893 million) are present; Nutrien's noncurrent debt is unsupported and
+SAP's current portion and short-term borrowings are absent with their combined concepts tagged; Alphabet's three
+components are present (commercial paper 0, current portion 1,996 million, noncurrent 46,547 million), with no related
+concept to report.
+
+**Duke Energy's receivables (checked against its rendered balance sheet, R6 of `0001326160-26-000014`).** The face shows
+"Receivables (net of allowance for doubtful accounts)" of 16 million at 2025-12-31 and 1,889 million at 2024-12-31, and
+"Receivables of VIEs" of 4,214 and 2,170 million on a separate line. `AccountsReceivableNetCurrent` equals the first line
+for both years ✓, and the second line is `AccountsAndOtherReceivablesNetCurrent`. The fall to 16 million is real: the receivables
+moved into the variable interest entities. The mapping is therefore limited: **for an issuer that reports receivables of
+variable interest entities on a line of their own, the field is the other line only**, and the related concept is reported
+beside the value so that a consumer can see it. It is not summed.
+
+**Extra submissions pages.** A frequent filer's older filings are not in the `recent` block of its submissions data but in
+the extra pages `filings.files` lists (JPMorgan's recent block starts 2025-10-24 and 71 pages of about a month each hold
+the rest). The balance-sheet series reads those pages, newest first and at most twelve, only when no annual filing made
+after the oldest requested year-end and within two years of it is in the recent block. For JPMorgan, 2023-12-31 then
+resolves from the fiscal 2024 report (`0000019617-25-000270`, in page 008, filed 2025-02-14); pages 001 to 007 hold no
+annual filing, which the company facts confirm (no annual report between 2025-02-25 and 2025-10-23).
+
+**Period behavior, all rows.** Every observation is an instant at a fiscal year-end (52/53-week ends such as Deere's
+2025-11-02 and Walmart's 2026-01-31 included). No row is a duration. A comparative year-end the anchor filing does not
+report is found in an earlier annual filing for most fields (Alphabet's net PP&E at 2024-12-31 and 2023-12-31, Walmart's
+finance leases at 2025-01-31). A year-end can carry two values from two filings when the later one restated it (SAP at
+2023-12-31, Alphabet's `LongTermDebt`); these are the conflicts the selection rule resolves by taking the newest eligible
+filing's value.
+
+### 5.4 Derived totals
+
+**Total liabilities.** The identity is total liabilities and equity, minus total equity including noncontrolling interest,
+minus any temporary equity tagged at the same date: `LiabilitiesAndStockholdersEquity` −
+`StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest` − the temporary equity, which is
+`TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests` if tagged, else
+`RedeemableNoncontrollingInterestEquityCarryingAmount` if tagged, else none. Deere tags both at the same value (51
+million at 2025-11-02), which is why the first takes precedence and the two are never added. Under IFRS the identity is
+`EquityAndLiabilities` − `Equity`.
+
+Reconciliation against the directly tagged `Liabilities`, over every annual year-end in the filer's Company Facts at which
+the direct value and every derivation term are tagged. Each check is one year-end in one annual filing, so a year-end that
+two filings report counts twice.
+
+| Filer | Taxonomy | Checks | Year-ends | Mismatches |
+| :--- | :--- | ---: | :--- | ---: |
+| JPMorgan | us-gaap | 13 | 2008-12-31 to 2015-12-31 | 0 |
+| Prologis | us-gaap | 28 | 2010-12-31 to 2025-12-31 | 0 |
+| Deere | us-gaap | 36 | 2008-10-31 to 2025-11-02; temporary equity of 14, 92, 97, 82 or 51 million enters 15 of the checks | 0 |
+| Nutrien | ifrs-full | 16 | 2017-12-31 to 2025-12-31 | 0 |
+| SAP | ifrs-full | 18 | 2016-12-31 to 2025-12-31 | **4** |
+
+- **US GAAP: 77 checks, no mismatch.** The derivation equals the tagged value to the dollar for every filer that tags both.
+  JPMorgan after 2015, Alphabet and Moderna tag `Liabilities` and no total equity including noncontrolling interest, so
+  the derivation cannot be evaluated for them and the direct value is used. Duke Energy, Walmart and Monster tag no
+  `Liabilities`. Moderna tags `TemporaryEquityCarryingAmountAttributableToParent` in three years; it is outside the
+  identity above and no filer in the set tags it beside the other terms.
+- **IFRS: four mismatches, all by one million, all SAP.** At 2025-12-31 SAP tags total liabilities of 25,288 and total
+  equity of 45,073, and total equity and liabilities of 70,362; the derived value is 25,289. The rendered statement of
+  financial position shows the same three figures, so the filing's lines do not add because each is rounded to millions.
+  The other three mismatches are 2017-12-31 in the 2018 filing, 2018-12-31 in the 2020 filing and 2023-12-31 in the 2024
+  filing.
+- **Disposition:** the US GAAP derivation is approved with a stated limit. The IFRS derivation is **unsupported**: one
+  mismatch makes it so, as H3 states. SAP and Nutrien both tag `Liabilities` directly, so no IFRS issuer in the set needs it.
+- **Honeywell** tags no `Liabilities` at any year-end and tags total equity including noncontrolling interest
+  (15,030 million at 2025-12-31). The derivation gives 58,651 million (73,681 − 15,030; no temporary equity tagged). No
+  reconciliation is possible for it.
+- **What the derivation supplies:** Duke Energy 142,717 million at 2025-12-31 (195,736 − 53,019) and Walmart 178,488 million
+  at 2026-01-31 (284,668 − 105,887 − 293), neither of which tags `Liabilities`. Monster tags neither `Liabilities` nor
+  total equity including noncontrolling interest, so its total liabilities stay unavailable.
+
+No other field has an exact accounting identity that fills the same kind of gap, so no other derivation is named.
+
+### 5.5 Share-count coverage
+
+`COMMON_SHARES_OUTSTANDING` at the latest year-end, by the two paths the existing resolver reads: the direct
+`us-gaap:CommonStockSharesOutstanding`, and `CommonStockSharesIssued` minus `TreasuryStockCommonShares` at the same date.
+Counts are shares. The cover-page count (`dei:EntityCommonStockSharesOutstanding`) is not used.
+
+| Issuer | Year-end | Direct | Issued | Treasury | Issued minus treasury | Result |
+| :--- | :--- | ---: | ---: | ---: | ---: | :--- |
+| JPMorgan | 2025-12-31 | 2,696,200,000 | 4,104,933,895 | 1,408,661,319 | 2,696,272,576 | Direct |
+| Prologis | 2025-12-31 | 929,153,000 | 929,153,000 | not tagged | not available | Direct |
+| Duke Energy | 2025-12-31 | 778,000,000 | not tagged | not tagged | not available | Direct |
+| Deere | 2025-11-02 | 270,400,000 | 536,431,204 | 266,079,164 | 270,352,040 | Direct |
+| Moderna | 2025-12-31 | 394,000,000 | 394,000,000 | not tagged | not available | Direct |
+| Monster | 2025-12-31 | 978,113,000 | 1,132,906,000 | 154,793,000 | 978,113,000 | Direct, and the fallback agrees |
+| Alphabet | 2025-12-31 | 12,088,000,000 | 12,088,000,000 | not tagged | not available | Direct (one combined count for the three classes) |
+| **Walmart** | 2026-01-31 | **not tagged** | **not tagged** | not tagged | not available | **No count** |
+| **SAP** | 2025-12-31 | not tagged | not tagged (`ifrs-full:NumberOfSharesIssued`, 1,229,000,000, is read by neither path) | not tagged (`ifrs-full:TreasuryShares` is a EUR amount, 6,948 million) | not available | **No count** |
+| **Nutrien** | 2025-12-31 | not tagged | not tagged | not tagged | not available | **No count** |
+
+- **Walmart:** the last year-end with a `CommonStockSharesOutstanding` or `CommonStockSharesIssued` fact is 2012-01-31.
+  The balance sheet tags `CommonStockValue` (797 million, a dollar amount) and authorized shares only. Every year-end
+  from 2013-01-31 to 2026-01-31, fourteen, has no count; all of the latest five are affected. The cover-page count is
+  tagged each year and is forbidden.
+- **SAP:** both existing paths read us-gaap concepts only, and SAP reports under ifrs-full. It tags the number of shares
+  issued (1,229 million at 2025-12-31, at eleven year-ends) but no treasury share count, so issued minus treasury is not
+  available under IFRS either. All of the latest five year-ends are affected.
+- **Nutrien:** the existing paths read us-gaap only. Nutrien tags `ifrs-full:NumberOfSharesOutstanding` at the year-ends
+  2018 to 2024 (491,025,446 at 2024-12-31) and not at 2025-12-31, so an IFRS direct path would cover four of the latest
+  five year-ends and not the latest. All of the latest five are affected today.
+- **Disposition of the first check: failed.** Three of the ten regression issuers got no count from either path at their
+  latest year-end. This stopped 3.5.1b under [A.1](STEP_3_5_1_SLICE_PLAN.md#a1-decisions-f1-to-f10-2026-10-25), H4, and
+  the project owner decided the outcome in H7. The paths below are the ones H7 adds. Honeywell, added by H9, tags a
+  direct count of 635,300,000 and issued 957,600,000 with no treasury count: **Direct**.
+
+#### Paths added by decision H7
+
+| Issuer | Year-end | IFRS direct path (`ifrs-full:NumberOfSharesOutstanding`) | Cover-page count (`dei:EntityCommonStockSharesOutstanding`, non-dimensional) | Result |
+| :--- | :--- | ---: | :--- | :--- |
+| Walmart | 2026-01-31 | not applicable (us-gaap) | 7,972,402,501 at 2026-03-11, in `0000104169-26-000055` | **Cover-page count** |
+| SAP | 2025-12-31 | not tagged | 1,228,504,232 at 2025-12-31, in `0001104659-26-020058`; unchanged in the two earlier filings | **Cover-page count** |
+| Nutrien | 2025-12-31 | tagged to 2024-12-31 (491,025,446) and not at 2025-12-31 | **not tagged**: the cover page of `0001193125-26-081326` (rendered `R1`) has no share count, and Company Facts holds a cover count for the filings of 2019 to 2021 only | **None: `unavailable` for market cap** |
+| Alphabet | 2025-12-31 | not applicable | per-class counts only, none in Company Facts | Not needed: the balance sheet tags a combined count |
+
+- **Nutrien** is `unavailable` for market cap. Its IFRS direct count is for the year-end before the latest; an older
+  year's count is never substituted, so the consumer must compare the count's date with the fiscal year-end. Of its
+  latest five year-ends, four have an IFRS direct count and none has a cover count after 2020.
+- **Cover counts of the other issuers** (all non-dimensional, in the latest annual filing): JPMorgan 2,697,032,375 at
+  2026-01-31, Prologis 929,559,000 at 2026-02-11, Duke Energy 777,670,866 at 2026-01-31, Moderna 394,939,424 at
+  2026-02-13, Monster 978,270,734 at 2026-02-13, Deere 270,445,437 at 2025-11-28, Honeywell 635,675,701 at
+  2026-01-23. They are not used, because each has a balance-sheet count.
+- **The two counts differ in date.** Walmart's cover count is dated 38 days after its year-end; a share repurchase or an
+  issuance between the two dates is in it. That is the limitation Shared definitions §4 states.
+- **No IFRS issued-minus-treasury path:** SAP tags `ifrs-full:NumberOfSharesIssued` (1,229,000,000) and
+  `ifrs-full:TreasuryShares` as a euro amount (6,948 million), and no treasury share count; Nutrien tags neither. No
+  concept in the evidence is a count of treasury shares, so the path is not added.
+
+### 5.6 Findings the owner decides
+
+Each finding of the first pass was decided by the project owner (H7 to H12) or by the implementer under delegation; the
+decision is named beside it.
+
+- **The share-count gap** (§5.5): decided by H7. The IFRS derivation (§5.4): unsupported, H8.
+- **Deere cannot supply the inputs of two strategies.** Its balance sheet is unclassified: no current assets, no current
+  liabilities and no net PP&E. Altman Z (a manufacturer's model), Beneish's asset-quality index and invested capital
+  are `unavailable` for it. Honeywell, with a classified balance sheet, is added by H9 so that the regression set has a
+  manufacturer that can supply them (its net PP&E is tagged to fiscal 2022 and, for later years, only as the
+  finance-lease variant, so invested capital stays `unavailable` for it too).
+- **Walmart's receivables:** decided by H10 (the priority list).
+- **Absent versus unsupported:** decided by H10. The convention applies only when none of the listed concepts is tagged and
+  never to an unsupported mapping. The IFRS short-term and long-term investments and preferred stock are unsupported, so
+  they are `unavailable` under IFRS, not zero. Deere's `MarketableSecurities` is not a listed concept, so Deere's
+  short-term investments would read as not tagged although it holds 1,411 million; 3.5.2 must treat the issuer's
+  unclassified balance sheet as a reason not to read the absence as zero.
+- **IFRS debt:** decided by H12 and, for every filer, by the project owner (H14). Only carrying amounts qualify, so the
+  IFRS noncurrent long-term debt mapping is unsupported and so is the IFRS direct total. **Consequence for the project owner:** total debt, and through it EV, the
+  valuation multiples, Interest Coverage's zero-debt outcome and Magic Formula's earnings yield, cannot be assembled for
+  any IFRS filer, Nutrien included. The rule 3.5.2 needs: a component whose mapping is unsupported makes total debt
+  `unavailable` and is never read as zero. Supporting a filer such as Nutrien needs either a verified carrying-amount
+  concept or an evidence list of issuers, both outside this slice.
+- **Alphabet's `LongTermDebt`** (49,085) does not equal its current plus noncurrent parts (48,543): a test case for the
+  reconciliation of Shared definitions §6 (H12). Honeywell's direct total beside unmapped parts is the second.
 
 ## 6. Depreciation evidence
 
@@ -266,6 +535,12 @@ requires for Beneish's depreciation index.
 - That Yahoo's list of stock dividends is complete (Commerce Bancshares, §4.2).
 - That a split effective after a filing and announced before it is never reflected in that filing (§4.5).
 - Any non-US exchange ticker. Only US listings were queried.
+- Balance-sheet instants of a filer outside the ten of [§5.1](#51-the-regression-issuer-set): presence was read for ten
+  issuers, and the value check for five filers' rendered statements.
+- Filings before 2008 for the derived-total reconciliation, and the many US filers that tag no total equity including
+  noncontrolling interest (the identity cannot be evaluated for them).
+- A balance sheet where temporary equity is tagged under a concept other than the two named in
+  [§5.4](#54-derived-totals); none was found in the set.
 
 ## Appendix A: Requests made
 
@@ -284,6 +559,35 @@ response is committed; the responses are under the ignored `.tmp/` folder.
 The SAP and Nutrien accessions came from the checked-in fixture submissions, not from a request. A pause of 0.4 s separated each
 request from the last.
 
+**Slice 3.5.1b, 2026-10-25: 44 SEC requests, 43 answered 200 and 1 answered 503 and was repeated.** Under the budget of
+about 60. A pause of 0.4 s separated each request from the last.
+
+| Pattern | Count |
+| :--- | ---: |
+| `data.sec.gov/submissions/CIK<cik>.json` and `data.sec.gov/api/xbrl/companyfacts/CIK<cik>.json`, for the ten issuers of [§5.1](#51-the-regression-issuer-set) | 20 |
+| `www.sec.gov/Archives/edgar/data/<cik>/<accession, no dashes>/FilingSummary.xml` (WMT, PLD, MNST, SAP, NTR) | 5 |
+| The same folder's `R<n>.htm` rendered statements: Walmart (4), Monster (2), Prologis (2), Nutrien (1) | 9 |
+| SAP's rendered statements and notes (`R2`, `R4`, `R94`, `R95`, `R146`, `R147`, `R161`, `R163`, and `R164` twice) | 10 |
+
 **Yahoo: 8 chart requests** (one per `Ticker.history` or `Ticker.splits` call): NVIDIA history unadjusted and adjusted,
 Apple history, and `Ticker.splits` for NVIDIA, Apple, Commerce Bancshares, Tootsie Roll and Walmart. The library's own
 internal requests were not counted separately. Not above the budget of about 10.
+
+**Slice 3.5.1b, decisions H7 to H12, 2026-10-25: 12 further SEC requests, all answered 200.** With the 44 above, 56 of
+about 60. A pause of 0.4 s separated each request from the last.
+
+| Pattern | Count |
+| :--- | ---: |
+| `data.sec.gov/submissions/CIK<cik>.json` and `data.sec.gov/api/xbrl/companyfacts/CIK<cik>.json`, Honeywell | 2 |
+| `www.sec.gov/Archives/edgar/data/<cik>/<accession, no dashes>/R1.htm`, Nutrien's cover page | 1 |
+| The same folders' rendered pages looked for the balance sheets of Alphabet and Moderna: Alphabet `R2`, `R5`, `R7`, `R8`, `R3`; Moderna `R2`, `R5`, `R7`, `R3`. Only Alphabet `R3` and Moderna `R3` were balance sheets | 9 |
+
+The cover-page counts of the other issuers were read from the Company Facts already held under `.tmp/`.
+
+**Review of the pull request, 2026-10-26: 3 further SEC requests, all answered 200.** With the 56 above, 59 of about 60. A
+pause of 0.4 s separated each request from the last.
+
+| Pattern | Count |
+| :--- | ---: |
+| `www.sec.gov/Archives/edgar/data/<cik>/<accession, no dashes>/FilingSummary.xml` and `R6.htm`, Duke Energy | 2 |
+| `data.sec.gov/submissions/CIK0000019617-submissions-008.json`, JPMorgan | 1 |

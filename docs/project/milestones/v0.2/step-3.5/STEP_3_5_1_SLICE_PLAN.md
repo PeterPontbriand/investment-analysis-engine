@@ -38,8 +38,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 3.5.1a | [As-filed SIC code and applicability](#351a--as-filed-sic-code-and-applicability) | Complete | 2026-10-25 |
-| 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | Next | |
-| 3.5.1c | [Annual period fields](#351c--annual-period-fields) | Planned | |
+| 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | Complete | 2026-10-25 |
+| 3.5.1c | [Annual period fields](#351c--annual-period-fields) | Next | |
 | 3.5.1d | [Split history and the market-cap price basis](#351d--split-history-and-the-market-cap-price-basis) | Planned | |
 
 3.5.1a is implemented on the branch that carries this plan and merges as one pull request. Each later sub-slice has its
@@ -98,8 +98,39 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
     coverage across the regression issuer set of the contract's [§5](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#5-acceptance-criteria)
     plus Walmart, recording the direct concept and the fallback (`CommonStockSharesIssued` minus
     `TreasuryStockCommonShares`) separately, with a row and a disposition in the evidence record. If a large filer gets
-    no count from either path, 3.5.1b stops and asks the project owner before 3.5.2 is planned. The cover-page count
-    stays forbidden ([Shared definitions §4](STEP_3_5_SHARED_DEFINITIONS.md#share-count-rule)).- **Scope:** the new `PeriodKind` member; the series request and its provider protocol; the SEC implementation; the
+    no count from either path, 3.5.1b stops and records it (H4, H7). The regression issuer set is named once, in the
+    [mapping evidence record](STEP_3_5_1_MAPPING_EVIDENCE.md#5-field-mappings)
+    ([A.1](#a1-decisions-f1-to-f10-2026-10-25), H1).
+  - **Share-count gap (H7).** The check found no count at the latest year-end for Walmart, SAP and Nutrien. The
+    balance-sheet paths gain an IFRS direct path (`ifrs-full:NumberOfSharesOutstanding`), and a cover-page fallback is
+    added for market cap only, as its own `basis` of the existing field so that no existing resolution changes. The
+    rule is in [Shared definitions §4](STEP_3_5_SHARED_DEFINITIONS.md#share-count-rule).
+  - **Lists of equivalent concepts (H10).** Receivables and short-term investments map to a priority list of concepts
+    the evidence shows are the same line item. One issuer uses one concept for every year of a run, and the resolved
+    input names it. The absent-component zero of [Shared definitions §3](STEP_3_5_SHARED_DEFINITIONS.md#absent-component-convention)
+    applies only when none of the listed concepts is tagged, never to an unsupported mapping.
+  - **Net PP&E under IFRS (H11).** The plain concept where the filer reports it; the concept that includes right-of-use
+    assets only where that is the filer's own single balance-sheet line; the two are never summed.
+  - **IFRS debt (H12).** Only carrying amounts qualify. The structured data cannot tell a carrying amount from a nominal
+    one, so the IFRS noncurrent long-term debt mapping is recorded unsupported for every filer (H14); 3.5.2 reads an
+    unsupported component as `unavailable`, never as zero, and an absent debt component as zero only under the rule of
+    Shared definitions §6 (H13).
+  - **Test case for 3.5.2 (H12).** Alphabet's direct long-term-debt total (49,085 million at 2025-12-31) does not equal
+    its current and noncurrent parts (48,543 million), the case for the reconciliation rule of Shared definitions §6,
+    which marks the affected component `unavailable`. Honeywell is the other: it tags a direct `LongTermDebt` of 29,046
+    million and neither mapped part, and the parts it tags under other concepts add to 28,687 million.
+  - **Derived totals (H3).** A field may be derived only when the derivation is an exact accounting identity and every
+    term is tagged at the same date in the same filing. Total liabilities is total liabilities and equity, minus total
+    equity including noncontrolling interest, minus any temporary equity (redeemable noncontrolling interest or similar
+    mezzanine items) where tagged. A derived value is recorded as `SourceKind` derived with its lineage and a derived
+    `provider_field`, as `CommonStockSharesIssued` minus `TreasuryStockCommonShares` is. A derivation is approved only
+    where the evidence shows it equals the directly tagged value for every filer of the regression set that tags both;
+    one mismatch makes it unsupported. Each derivation is named in the evidence record. A derivation that is not an
+    exact identity stays forbidden.
+  - **Versions (H5).** The financial-fact cache version is bumped at every place that sets it. `PeriodKind` gaining
+    `instant` adds an enum value to the schemas and stored evidence that list it and changes no stored shape, so the
+    schemas are regenerated and no document version is bumped.
+- **Scope:** the new `PeriodKind` member; the series request and its provider protocol; the SEC implementation; the
   resolver entry; the 17 fields with their us-gaap and ifrs-full mappings; the cache version; trimmed fixtures; the
   field-mapping rows of the evidence record for these fields, and the share-count coverage check and its row; tests. The
   file list is in [B.2](#b2-351b-files).
@@ -231,7 +262,7 @@ Approved by the project owner. Each is stated in the sections above; this table 
 | F3 | The header file | Read from `<accession>.hdr.sgml`. One request per run, for the anchor filing only; an exact URL pattern; outside the four-document limit; kept as filing evidence with accession, filing date and acceptance time; boundary-checked. The plan keeps it for the analysis scope, as the snapshot's other filing evidence is kept, and adds no persistent cache: an as-filed header never changes, so a persistent cache is an optimization that can be added later without changing any shape. **No persistent header cache: approved** by the project owner on review of the plan (G3). |
 | F4 | Evidence storage | The evidence record; fixtures trimmed to the facts used, following the `evaluation/fixtures/sec_edgar` precedent; no full Company Facts payload is checked in; each sub-slice adds the fixtures its tests need. |
 | F5 | Instants | An additional `PeriodKind` member; a new exact-date series request leaving the latest-only behavior unchanged; the financial-fact cache version bumped under the AGENTS.md §4 stored-shape rule. |
-| F6 | Market-cap price basis | See [A.2](#a2-the-share-count-scaling-window-2026-10-25), which carries the project owner's refinement of the share-count window. |
+| F6 | Market-cap price basis | See [A.2](#a2-the-share-count-scaling-window-2026-10-25), which carries the project owner's refinement of the share-count window, and H7, which adds a cover-page share count and the scaling window it needs. |
 | F7 | Stock dividends | Adjusted like splits where the split history shows them, never read as issuance. The history shows them as fractional splits and cannot tell them from a small split; the plan states that limit and does not guess. |
 | F8 | Names and places | Reason codes `industry_class_not_applicable` and `industry_class_unknown`; helpers and the industry-class type in `analysis/shared/applicability.py`; header reading in `data/sec_edgar/`. Both placements confirmed against ARCHITECTURE §13. |
 | F9 | Every field in 3.5.1 | Every field of Slice inputs §3 is added in 3.5.1b or 3.5.1c and proven against captured filings; none has a production consumer until 3.5.3. |
@@ -255,6 +286,44 @@ Added on the project owner's review of the plan:
 | G3 | Header cache | No persistent header cache is approved (F3). |
 | G4 | `ReasonCode` schemas | The schemas that list `ReasonCode` values (`momentum`, `fcf-growth`, `runs-compare`) are regenerated with the two new members and no document version bump. Adding enum values changes no stored shape, so the AGENTS.md §4 rule does not apply, and existing payloads still decode. |
 | G5 | Where the gates live | The per-strategy gate constants are not in `analysis/shared/applicability.py`. AGENTS.md §9 makes each strategy own its policy, which classes it refuses is policy, the shared module stays strategy-neutral like the ranking helper, and the constants had no consumer. Each strategy slice declares its `SectorGate` as a named constant in its own package with a test pinning it to its row of the matrix ([Slice inputs §1](STEP_3_5_SLICE_INPUTS.md#1-at-a-glance)). Superseded in 3.5.1a before the pull request opened. |
+| H1 | The regression issuer set | Named once, in the [evidence record](STEP_3_5_1_MAPPING_EVIDENCE.md#5-field-mappings), as Step 3.5's regression set; 3.5.7 reuses it. Kept from the 3.5.1a captures: JPMorgan (bank), Prologis (REIT), Duke Energy (utility), Deere (manufacturer), SAP and Nutrien (IFRS filers), Walmart (non-manufacturer). Three more chosen from evidence: one company with negative EBIT in its latest fiscal year, one with no reported debt, one with several share classes. The record states why each fits, with its CIK and latest annual accession. |
+| H2 | Evidence that approves a mapping | Presence is checked from Company Facts across the whole regression set for all 17 instant fields of [B.4](#b4-the-fields), recording concept, context, units, scale and period behavior. Values are checked against the rendered balance sheet for one US GAAP filer and one IFRS filer per field, at one year-end. Each field and taxonomy gets one disposition: approved, approved with a stated limit, or unsupported. An unsupported field makes its consumers `unavailable`; a neighboring concept never stands in for it. Request budget: about 60 EDGAR requests with the project's SEC identity, which is never printed; raw responses only under `.tmp/`, none committed. |
+| H3 | Derived totals | A field may be derived only when the derivation is an exact accounting identity and every term is tagged at the same date in the same filing. Total liabilities is total liabilities and equity, minus total equity including noncontrolling interest, minus any temporary equity (redeemable noncontrolling interest or similar mezzanine items) where tagged, recorded as a derived value with lineage, following the `CommonStockSharesIssued` minus `TreasuryStockCommonShares` precedent. A derivation is approved only where the evidence shows it equals the directly tagged value for every filer of the set that tags both; one mismatch makes it unsupported, and the work stops and reports. The same rule may apply to another field where the evidence shows the same gap; each derivation is named in this plan and the evidence record. |
+| H4 | When the share-count check stops the work | `COMMON_SHARES_OUTSTANDING` is checked for each regression-set issuer and Walmart at its latest year-end, through the direct concept and through the issued-minus-treasury fallback, each path recorded separately. If any of them gets no count from either path, 3.5.1b stops and reports before any implementation code: which issuers, what they tag instead, and how many of their recent year-ends are affected. The cover-page count stays forbidden. |
+| H5 | Versions | The financial-fact cache version is bumped at every place that sets it (B.2 names FCF-Growth's `CACHE_SCHEMA_VERSION` and the resolver's default; the others are found and listed). `PeriodKind` gaining `instant` adds an enum value to the schemas and stored evidence that list it with no stored shape changed: the schemas are regenerated with `uv run python -m scripts.generate_schemas` and no document version is bumped. |
+| H6 | Plan formatting | The G1 bullet and the **Scope** bullet of the 3.5.1b section are separate lines. |
+| H7 | Share-count gap | An IFRS direct path (`ifrs-full:NumberOfSharesOutstanding`), and an issued-minus-treasury path under IFRS only if an IFRS treasury share *count* concept exists in the evidence (none does). The cover-page count (`dei:EntityCommonStockSharesOutstanding`) is allowed as a fallback for market cap only: after the balance-sheet paths, and only when the anchor filing tags it as a single non-dimensional total; its own date is the share-count date. A cover-page count is scaled by splits whose ex-date is after that date, not after the filing date. Piotroski's dilution test keeps using year-end balance-sheet counts only. A multi-class filer with per-class cover counts and no total stays `unavailable`. Where an issuer's latest annual filing tags no usable cover count, that issuer is `unavailable` for market cap, with the reason. Shared definitions §4 and the contract's Appendix A.12 carry the rule; this reverses the 2026-10-02 rule of A.6, because Walmart has tagged no balance-sheet count since 2012 and the multi-class rule already covers the other reason for the ban. F6 and A.2 are read with it. |
+| H8 | IFRS total liabilities | The IFRS derivation is unsupported: rounding makes it inexact in SAP's filing (four mismatches of one million). The US GAAP derivation stays approved. No tolerance is added. |
+| H9 | A second manufacturer | Deere stays as the unclassified-balance-sheet case. A manufacturer with a classified balance sheet is added to the regression set, chosen from evidence ([evidence §5.1](STEP_3_5_1_MAPPING_EVIDENCE.md#51-the-regression-issuer-set)). |
+| H10 | Lists of equivalent concepts | A field may map to a priority list of concepts only where the evidence shows they are the same line item: receivables (`AccountsReceivableNetCurrent`, then `ReceivablesNetCurrent`) and short-term investments (`ShortTermInvestments`, `MarketableSecuritiesCurrent` and the equivalents the evidence shows). One issuer uses the same concept for every year of a run and the resolved input names it. The absent-component zero of Shared definitions §3 applies only when none of a field's listed concepts is tagged and never to a mapping recorded as unsupported, which stays `unavailable`. Alphabet and Moderna are the cases that motivated it. |
+| H11 | Net PP&E under IFRS | The plain concept where the filer reports it; the concept that includes right-of-use assets only where that is the filer's own single balance-sheet line; never the sum of the two (Shared definitions §6). |
+| H12 | Smaller points | Commercial paper belongs to short-term borrowings and is never mapped to the current portion of long-term debt; B.8's wording is corrected. IFRS debt: only carrying amounts qualify, and a concept holding nominal amounts, or combining commercial paper with the current portion, is unsupported for that field and filer. Alphabet's direct long-term-debt total that does not match its parts is recorded as a test case for 3.5.2's reconciliation rule. `evaluation/fixtures/graham.py` may be edited so its cache version follows the resolver default. H4 is a stop-and-record outcome and the work continues. |
+
+Decided under delegation (2026-10-25), within the standing instructions of the project owner:
+
+| # | Topic | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| D1 | Second manufacturer | Honeywell (CIK 773840, SIC 3724; latest annual `0000773840-26-000013`, 10-K, filed 2026-02-17, year-end 2025-12-31). | It is a manufacturer whose balance sheet is classified (current assets and current liabilities are tagged), the gap Deere leaves. It also tags no `Liabilities`, so the derivation supplies its total (58,651 million). |
+| D2 | Short-term investments list | US GAAP: `ShortTermInvestments`, then `MarketableSecuritiesCurrent`, then `AvailableForSaleSecuritiesDebtSecuritiesCurrent`. Deere's `MarketableSecurities` is not listed. | Alphabet's "Marketable securities" (96,135 million) and Moderna's "Investments" (3,204 million) are current lines on the face of the balance sheet. Deere's balance sheet is unclassified, so its line is not shown to be current. |
+| D3 | IFRS noncurrent long-term debt | Unsupported. Confirmed for every filer by the project owner (H14). | SAP's `LongtermBorrowings` (4,550 million) is a nominal amount against a carrying amount of 4,194 million, and Company Facts cannot tell a nominal amount from a carrying one. Approving the concept would give SAP a wrong value, and a list of excluded issuers is a hard-coded exception. Consequence: IFRS total debt cannot be assembled until the owner decides otherwise ([evidence §5.6](STEP_3_5_1_MAPPING_EVIDENCE.md#56-findings-the-owner-decides)). |
+| D4 | Total-liabilities derivation per date | A date with no tagged `Liabilities` is derived from the terms of one filing; a date with one is read directly. | The identity is exact where the evidence shows it holds, so a run that mixes the two gives the same value; it is not a priority list. |
+| D5 | Instant request shape | The requested period ends must be consecutive fiscal year-ends, each gap within the existing annual-duration tolerance (335 to 395 days). | It makes the 52/53-week rule testable for an instant request and rejects quarter-ends and stub dates. |
+| D6 | Cover-page fallback shape | A `basis` of the existing field (`cover_page`), not a new field or an option. | The year-end path and every consumer of it, Graham's BVPS included, are untouched. |
+| D7 | New module | `data/sec_edgar/instant_series.py`. | Placement only; see B.2. |
+| D8 | Absent reasons | Seven: not tagged, other concept, conflict, unsupported, basis mismatch, after the boundary, no anchor filing. | 3.5.2 needs to tell "the filer has none" from "the data cannot say". |
+| D9 | Commercial paper | US GAAP short-term borrowings is the list `ShortTermBorrowings`, then `CommercialPaper`; the second is read only where the first is not tagged, one concept per run. | H12 puts commercial paper in short-term borrowings. Alphabet tags only it (0). |
+| D10 | Related-concept report | An absence of reason not tagged or other concept carries `related_concept` (the first related concept tagged at the date); a present value carries a note `related_concept_tagged=...`. The lists are in the evidence record and hold only what the regression set showed. | 3.5.2 needs to apply H13 without reading the filing again. |
+| D11 | Paging rule | Pages are read only by the balance-sheet series, when no eligible annual filing made after the oldest requested year-end and within two years of it is in the recent block; newest page first, at most twelve, each once per adapter; a page name must be the issuer's own. The snapshot gains the listed pages and nothing else reads them. | Nothing the existing fields resolve changes. Twelve pages cover a frequent filer's last year. |
+
+Added on the project owner's review of the pull request (2026-10-26):
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| H13 | Absent debt components | An absent debt component is zero only when its mapping is not unsupported for the taxonomy and none of the related concepts the evidence records for it is tagged at that date; otherwise it is `unavailable`. The related concepts per debt field are in the evidence record. The series reports, for each absent date, the related concept tagged. `CommercialPaper` is added to the short-term borrowings list, read only where `ShortTermBorrowings` is not tagged (D9). Shared definitions §6 states the rule, and that IFRS total debt and EV are `unavailable` while the IFRS noncurrent mapping is unsupported. |
+| H14 | IFRS noncurrent long-term debt | Unsupported for every filer. Decided by the project owner; D3 recorded the same disposition under delegation. |
+| H15 | Submissions paging | The extra pages of the submissions data are read, bounded and only when the recent block does not reach back far enough for the request (D11). JPMorgan's earlier year-ends resolve, and no stored output changes. |
+| H16 | Duke Energy receivables | The 16 million is a real face line: the receivables moved to a separate line of variable interest entities (4,214 million), which is a related concept. The field is limited to the line the concept names, and the related concept is reported beside it. |
+
 ### A.2 The share-count scaling window (2026-10-25)
 
 F6 as approved scaled the fiscal year-end share count by every split from that year-end up to the price data's
@@ -275,6 +344,10 @@ The project owner decided the same day:
   reflected in the filing.
 - **Worked example and tests:** the Walmart fiscal 2024 case is the worked example in the evidence record and a test of
   3.5.1d ([B.10](#b10-351d-tests)).
+- **A cover-page count (H7):** it is dated by its own cover date and has no filing-date window. It is scaled by every
+  split whose ex-date is after that date, up to the price data's adjustment date, because the cover count is taken
+  after the fiscal year-end and the filing date is not its basis. A split between the cover date and the filing date
+  is applied to a cover-page count and is not applied to a year-end count taken from the same filing.
 - **Documents amended with this plan:** Shared definitions §3 and §4, the contract's Appendix A.11, and the two Slice
   inputs lines that named the unadjusted close and the split between the share-count and price dates.
 
@@ -307,11 +380,11 @@ no SIC; no code reads a SIC.
 | :--- | :--- | :--- |
 | Provenance | `data/financial/provenance.py` | `PeriodKind.INSTANT` |
 | Fields | `data/financial/facts.py` | 17 new `FinancialField` members, each routed to the currency unit in `_expected_unit` (an unrouted field falls through to per-share) |
-| Request | `data/financial/facts.py` | `InstantSeriesRequest` (subject, field, provider, boundary, the requested period ends) and the provider protocol that serves it; `FinancialFactRequest` is not extended |
-| SEC | `data/sec_edgar/financial_facts.py` | the exact-date selection for a requested period end: eligible annual filings, the boundary, the taxonomy of the anchor filing, one currency, conflicts reported |
-| Resolver | `data/financial/resolver.py` | an entry that resolves an `InstantSeriesRequest` into one `ResolvedInput` per date present and the dates absent, with the resolution trace |
-| Cache | `data/financial/cache.py` and the sites that set its schema version | the version bumped; an older entry is refused and fetched again |
-| Fixtures | `evaluation/fixtures/sec_edgar/instant_facts/` (new) | trimmed facts of the filings the evidence uses |
+| Request | `data/financial/facts.py` | `InstantSeriesRequest` (subject, field, provider, boundary, the requested period ends), `InstantSeriesFacts` with its absences, `ProviderAmountSource` for the terms of a derivation, and the provider protocol that serves them; `FinancialFactRequest` is not extended |
+| SEC | `data/sec_edgar/instant_series.py` (new) and `data/sec_edgar/financial_facts.py` | the mappings per taxonomy and the exact-date selection for a requested period end (eligible annual filings, the boundary, the taxonomy of the anchor filing, one currency, conflicts reported), kept in a module of their own because `financial_facts.py` is over two thousand lines; the adapter method and the share-count paths of H7 stay in `financial_facts.py` |
+| Resolver | `data/financial/resolver.py` | an entry that resolves an `InstantSeriesRequest` into one `ResolvedInput` per date present and the dates absent, with the resolution trace; the unit routing of the new fields |
+| Cache | `data/financial/resolver.py`, `strategies/fcf_growth/input_resolver.py`, `evaluation/fixtures/graham.py` | the sites that set the financial-fact cache version, bumped (H5, H12); the cache itself needs no change: an older entry is refused by its version and fetched again |
+| Fixtures | `evaluation/fixtures/sec_edgar/instant_facts/` (new) | trimmed facts of the filings the evidence uses, and for JPMorgan the extra submissions pages that hold its older annual reports |
 | Evidence | `docs/project/milestones/v0.2/step-3.5/STEP_3_5_1_MAPPING_EVIDENCE.md` | the field-mapping rows for these fields |
 
 Starting point to confirm first: the places that set the cache schema version (`CACHE_SCHEMA_VERSION = 2` in
@@ -339,6 +412,13 @@ common shares outstanding.
 | 3.5.1c | sales, cost of revenue, gross profit, operating income, SG&A, D&A, depreciation alone, interest expense (gross), pretax income, income tax expense, net income, income from continuing operations, discontinued operations | period amount |
 
 The fields have no production consumer until 3.5.3. Tests and the live evidence are their only users until then.
+
+**What 3.5.2 must do with them** (decisions H7 to H12): compare the date of a year-end share count with the anchor
+fiscal year-end and go to the cover-page basis when they differ, because the year-end selection returns the latest
+tagged year (Nutrien's IFRS count is for the year before); read a component whose mapping is unsupported, or that is
+absent for a reason other than "not tagged", as `unavailable` and never as zero; read an IFRS total debt as `unavailable`
+while the noncurrent long-term debt mapping is unsupported; and use Alphabet and Honeywell as the reconciliation cases of
+Shared definitions §6.
 
 ### B.5 3.5.1d files
 
@@ -424,14 +504,35 @@ Piotroski needs. `NOT_APPLICABLE` becomes `MetricStatus.NOT_APPLICABLE` and `UNA
   currency are each rejected or reported as the rules require.
 - A value from an earlier filing for a year-end the anchor filing does not report (the comparative rule of Shared
   definitions §3) passes the same boundary check and the same taxonomy and currency.
-- A direct long-term-debt total is returned beside its parts and is not added to them here; commercial paper is its own
-  field; a US GAAP operating-lease liability is not the lease field and an IFRS lease liability is.
+- A direct long-term-debt total is returned beside its parts and is not added to them here; commercial paper belongs to
+  short-term borrowings and is never the current portion of long-term debt; a US GAAP operating-lease liability is not
+  the lease field and an IFRS lease liability is.
+- **Derived total liabilities (H3):** a match with the tagged value, a mismatch reported, and a missing term; temporary
+  equity subtracted where tagged and never added twice; the IFRS derivation is not offered (H8).
+- **Equivalent concepts (H10):** the first listed concept that is tagged is used for every date of a run and is named in
+  the resolved input; a date the run's concept does not cover is absent with its own reason, not filled from another
+  listed concept; a field with no listed concept tagged is absent as not tagged; an unsupported mapping is reported as
+  unsupported.
+- **Net PP&E under IFRS (H11) and unsupported IFRS mappings (H8, H12):** the plain concept wins, the right-of-use
+  variant is used alone, the two are never summed; short-term investments, long-term investments, the direct debt
+  total, noncurrent debt and preferred stock are unsupported under IFRS.
+- **Related concepts (H13):** Deere, Honeywell, Nutrien and Alphabet each give the expected present, absent or
+  related-concept result for the debt components (Deere's `DebtCurrent`, Honeywell's lease-inclusive concepts, Nutrien's
+  unsupported noncurrent debt, Alphabet's commercial paper and parts); commercial paper is read only where
+  `ShortTermBorrowings` is not tagged; Duke Energy's receivables report the related variable-interest-entity concept.
+- **Submissions pages (H15):** JPMorgan's earlier year-ends resolve from the extra pages, newest first and once; no page
+  is read when the recent block reaches back far enough or by any other request; at most twelve pages are read; a page
+  that is not the issuer's own, or whose range is invalid, is ignored.
+- **Cover-page fallback (H7):** a separate `basis`; used only when tagged as a single non-dimensional total in the
+  anchor filing; its own date is the share-count date; a multi-class filer with per-class counts only gives none; the
+  existing year-end path never returns it.
 - The cache: an entry stored under the older version is refused and fetched again; a new entry round-trips.
 - Graham's latest-only selection returns what it returned before, for every stored fixture.
-- **Share-count coverage (G1):** from trimmed captured filings, `COMMON_SHARES_OUTSTANDING` resolves for each issuer of the
-  regression set by the direct concept or by the issued-minus-treasury fallback, and the test records which; Walmart,
-  which no longer tags the direct concept, is the fallback case or is recorded as having no count; the cover-page count
-  is never used; an issuer with no count from either path is `unavailable`, not zero.
+- **Share-count coverage (G1, H4, H7):** from trimmed captured filings, `COMMON_SHARES_OUTSTANDING` resolves for each issuer
+  of the regression set at its latest year-end by the direct concept, the IFRS direct concept or the issued-minus-treasury
+  fallback, and the test records which path gave it. Walmart, SAP and Nutrien give no year-end count on any
+  balance-sheet path; the cover-page basis gives Walmart's and SAP's count and gives Nutrien none, which is `unavailable`,
+  not zero. The year-end basis never returns a cover-page count.
 
 ### B.9 3.5.1c tests
 
@@ -486,7 +587,8 @@ unchanged; a failure would mean a strategy file was touched.
 | Document | 3.5.1a | 3.5.1b | 3.5.1c | 3.5.1d |
 | :--- | :--- | :--- | :--- | :--- |
 | `STEP_3_5_1_MAPPING_EVIDENCE.md` | live-check note | field rows | field and depreciation rows | split-history live-check note |
-| `STEP_3_5_SHARED_DEFINITIONS.md` | none (amended by the planning commit) | none | none | none |
+| `STEP_3_5_SHARED_DEFINITIONS.md` | none (amended by the planning commit) | §3 (absent-component convention, H10) and §4 (share-count rule, H7) | none | none |
+| `STEP_3_5_CONTRACT_AND_SLICE_PLAN.md` | none | Appendix A.12 (H7 reverses part of A.6) | none | none |
 | `docs/user/GLOSSARY.md` | "industry class", "as-filed SIC code" | none | none | "split-adjusted close" |
 | `docs/user/FINANCE_MATH.md` | none: no formula | none | none | none until 3.5.2 states the market cap |
 | `docs/project/PROVIDER_DEBUGGING.md` | the header request, if it lists the live checks | none | none | the split-history request, if it lists the live checks |

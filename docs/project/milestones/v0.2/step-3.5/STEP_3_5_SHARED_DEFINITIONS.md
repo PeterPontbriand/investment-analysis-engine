@@ -144,6 +144,15 @@ a diagnostic saying so:
 Filers do not tag a line they do not have, so for these items an absent element is the normal way
 a filing says "none", and requiring an explicit zero would make EV unavailable for most issuers.
 
+- **Equivalent concepts:** a field may map to a priority list of concepts where the evidence shows they are the same
+  line item (receivables, short-term investments). The convention applies only when none of the listed
+  concepts is tagged for the year-end. One issuer uses one concept for every year of a run, so a year the run's concept
+  does not cover is absent, not zero. Alphabet (marketable securities) and Moderna (investments) tag
+  short-term investments under other names than `ShortTermInvestments`; Walmart tags receivables as
+  `ReceivablesNetCurrent`.
+- **Unsupported mappings:** the convention never applies to a field whose mapping is recorded as unsupported for the
+  taxonomy. The field is `unavailable`.
+
 The convention never applies to the critical inputs each definition below names. Debt is not
 covered by it: [total debt](#total-debt) has its own, stricter rule. These two are the only cases
 in which an absent element yields a number.
@@ -162,7 +171,8 @@ in which an absent element yields a number.
     market cap;
   - without one: the current quote, through the existing quote boundary and its freshness rules.
   A one-day historical download is never used as a quote.
-- **Split adjustment:** the share count is scaled by every split whose ex-date is after the filing date of the filing
+- **Split adjustment:** a cover-page count is scaled by every split whose ex-date is after the cover date, and a
+  balance-sheet count by every split whose ex-date is after the filing date of the filing
   the count was taken from, up to the adjustment date of the price data. The accession and filing date are those in the
   count's own provenance; the anchor filing is not assumed, because a later filing's comparative restates an earlier
   year-end for splits up to that later filing's own date. A filing restates its share counts for a split effective before
@@ -180,11 +190,15 @@ in which an absent element yields a number.
 - **One observation:** the count at fiscal year-end *t*, as the existing resolver returns it:
   reported directly, or as shares issued minus treasury shares at the same date. The share-count
   date is that fiscal year-end.
-- **Not the cover page.** The later cover-page count is never used, even though it is closer to
-  the price date. It is not a balance-sheet fact, and filers with several classes report it per
-  class.
-- **No count at year-end *t*:** market cap is `unavailable`. An older year's count is never
-  substituted.
+- **IFRS filers:** `ifrs-full:NumberOfSharesOutstanding` is a direct path. There is no IFRS
+  issued-minus-treasury path: no IFRS treasury share count exists in the evidence.
+- **Cover-page fallback:** when the balance-sheet paths give no count at year-end *t*, the cover-page count
+  (`dei:EntityCommonStockSharesOutstanding`) of the anchor filing is used for market cap, and only when the filing
+  tags it as a single non-dimensional total. Its own date is the share-count date, and the result says that the
+  count is a cover-page count. Filers that report only per-class cover counts, with no total, have no usable count.
+  Piotroski's dilution test never uses it: it compares year-end balance-sheet counts.
+- **No count at year-end *t* by any path:** market cap is `unavailable`. An older year's balance-sheet count is
+  never substituted.
 - **Conflicting counts** for the same date make market cap `unavailable`
   ([§3](#period-alignment)).
 - **Several share classes:** when the filer reports counts per class and no unambiguous total,
@@ -225,15 +239,30 @@ evidence:
 
 | What the filing reports for the year-end | Treatment |
 | :--- | :--- |
-| At least one mapped debt concept | Each absent component is zero, with a diagnostic. The filer demonstrably tags its debt. |
-| No mapped debt concept, and interest expense is absent or zero | Total debt is zero ("no reported debt"), with a diagnostic. |
-| No mapped debt concept, but interest expense is positive | Total debt is `unavailable`: the issuer has debt the mapping does not see. |
+| At least one mapped debt concept at the year-end | An absent component is zero, with a diagnostic, only when its mapping is not unsupported for the taxonomy and none of the [related concepts](#related-debt-concepts) recorded for it is tagged at that date. Otherwise the component is `unavailable`. |
+| No mapped debt concept, no related concept tagged, no component unsupported for the taxonomy, and interest expense absent or zero | Total debt is zero ("no reported debt"), with a diagnostic. |
+| No mapped debt concept, but interest expense is positive, a related concept is tagged, or a component is unsupported | Total debt is `unavailable`: the issuer has debt the mapping does not see. |
 
 - **Direct totals:** where a filer reports both a direct long-term-debt total and its current and
   noncurrent parts, they must reconcile, and the total is never added to its parts. A mismatch
   makes the affected component `unavailable`.
-- **Short-term borrowings are not current maturities.** Commercial paper and similar borrowings
-  are their own component and never stand in for the current portion of long-term debt.
+- **Short-term borrowings are not current maturities.** Commercial paper belongs to short-term borrowings
+  (`CommercialPaper` is read only where `ShortTermBorrowings` is not tagged, and never added to it) and never stands in
+  for the current portion of long-term debt.
+
+#### Related debt concepts
+
+A related concept is one the evidence shows a filer tags for part of the same quantity, without being the line item of
+the mapped concept: Deere's `DebtCurrent` (short-term borrowings and the current portion together), Honeywell's
+`LongTermDebtAndCapitalLeaseObligationsCurrent` and `LongTermDebtAndCapitalLeaseObligations` (debt with finance
+leases), SAP's combined current-borrowings concept. They are recorded per debt field in the
+[mapping evidence](STEP_3_5_1_MAPPING_EVIDENCE.md#related-concepts-of-the-debt-fields). A related concept is never a
+value; the balance-sheet series reports, for each absent date, which related concept is tagged, and the rule above reads
+that report.
+
+- **IFRS:** the noncurrent long-term debt mapping is unsupported for every IFRS filer, decided by the project owner, so
+  an IFRS issuer's total debt is `unavailable`, and so is every metric that needs it, EV included, while the mapping is
+  unsupported. Nutrien's noncurrent debt is never read as zero.
 - Every consumer of a debt figure uses this rule, including Piotroski's long-term debt and
   Interest Coverage's zero-debt outcome.
 

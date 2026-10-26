@@ -51,7 +51,7 @@ from investment_analysis_engine.strategies.fcf_growth.calculators import (
 from investment_analysis_engine.strategies.fcf_growth.models import AnnualGrowthObservation, FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
-CACHE_SCHEMA_VERSION = 2
+CACHE_SCHEMA_VERSION = 3
 _ANNUAL_FIELDS = (
     FinancialField.OPERATING_CASH_FLOW,
     FinancialField.CAPITAL_EXPENDITURES,
