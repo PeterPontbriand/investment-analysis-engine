@@ -115,6 +115,24 @@ Classes follow [Shared definitions §1](STEP_3_5_SHARED_DEFINITIONS.md#1-applica
 - **An IFRS filer is classified by the same codes.** SAP falls in no range and Nutrien is a manufacturer, so Altman's
   model selection (Z for manufacturers) applies to a foreign private issuer too.
 
+### 3.5 Fixtures and the live check
+
+Slice 3.5.1a keeps the header lines its reader uses (the accession, filing date and acceptance time, and each
+registrant's CIK and `ASSIGNED-SIC`) from the headers above, under
+`investment_analysis_engine/evaluation/fixtures/sec_edgar/filing_headers/`, with a checksum file. Nothing else of a
+header is kept.
+
+| Fixture | Accession |
+| :--- | :--- |
+| `riot_fy2015`, `riot_fy2022` | `0001079973-16-000870`, `0001558370-23-002704` |
+| `mara_fy2015`, `mara_fy2022` | `0001104659-16-108696`, `0001493152-23-007879` |
+| `jpm_fy2025`, `trv_fy2025` | `0001628280-26-008131`, `0000086312-26-000065` |
+| `pld_fy2025` (two registrants), `duk_fy2025` (eight registrants) | `0001193125-26-051453`, `0001326160-26-000014` |
+| `de_fy2025`, `sap_fy2025`, `ntr_fy2025` | `0001104659-25-122321`, `0001104659-26-020058`, `0001193125-26-081326` |
+
+One `live_network` check, `test_sec_edgar_filing_header_response_shape` in `tests/live/test_provider_response_shape.py`,
+requests one header and asserts the shape of the fields the reader uses, never a code.
+
 ## 4. Price and split evidence
 
 Throwaway script under `.tmp/`, yfinance 1.6.0, `Ticker.history(..., auto_adjust=False, actions=True)` and

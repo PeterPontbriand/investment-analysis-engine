@@ -37,8 +37,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| 3.5.1a | [As-filed SIC code and applicability](#351a--as-filed-sic-code-and-applicability) | In progress | |
-| 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | Planned | |
+| 3.5.1a | [As-filed SIC code and applicability](#351a--as-filed-sic-code-and-applicability) | Complete | 2026-10-25 |
+| 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | Next | |
 | 3.5.1c | [Annual period fields](#351c--annual-period-fields) | Planned | |
 | 3.5.1d | [Split history and the market-cap price basis](#351d--split-history-and-the-market-cap-price-basis) | Planned | |
 
