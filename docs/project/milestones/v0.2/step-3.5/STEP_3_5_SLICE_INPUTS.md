@@ -133,7 +133,8 @@ shares outstanding.
 
 - As-filed SIC code from the selected filing's SEC header (SD §1).
 - Split and stock-dividend history from the historical market-data boundary.
-- Unadjusted historical close on or before a requested `as_of` (SD §4).
+- Split-adjusted historical close, without dividend adjustment, on or before a requested `as_of` (SD §4). The provider has
+  no unadjusted close.
 
 **Entry criterion: SIC evidence**
 
@@ -200,7 +201,7 @@ taken as zero.
 **Tests**
 
 - Market cap: count at year-end *t* only; no count is `unavailable`; conflicting counts are
-  `unavailable`; a split between the two dates scales the count; per-class counts with no total
+  `unavailable`; a split after the filing date of the count's source scales the count and one before it does not; per-class counts with no total
   are `unavailable`; a one-day historical download is never used as a quote.
 - EV: each absent-component case; missing cash is `unavailable`; negative EV is a valid number.
 - Invested capital: IC ≤ 0 makes dependent ratios `not_applicable`.

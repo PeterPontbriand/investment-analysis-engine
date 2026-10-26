@@ -109,6 +109,9 @@ boundary, or when the data-quality check fails; `provider_error` when the market
   of the same issuer.
 - **Point-in-time:** a strategy uses the latest annual filing with a filing date on or before
   `context.effective_as_of`. Restatements follow the existing amendment-selection rules.
+- **Exception, split history:** the price data is adjusted by the provider for every later split, so splits after the
+  boundary are used, only to undo that adjustment ([§4](#4-market-capitalization)). They never change the market cap
+  at the boundary, and no other input uses information from after it.
 
 ### Period alignment
 
@@ -153,14 +156,24 @@ in which an absent element yields a number.
   balance sheet at fiscal year-end *t* of the selected filing. See
   [share-count rule](#share-count-rule).
 - **Price:**
-  - with a requested `as_of`: the unadjusted close on the last trading day on or before `as_of`,
-    from the historical market-data boundary;
+  - with a requested `as_of`: the split-adjusted close, without dividend adjustment, on the last trading day on or
+    before `as_of`, from the historical market-data boundary. The provider has no unadjusted close; the
+    split-adjusted close and the split history together recover it. The dividend-adjusted series is never used for
+    market cap;
   - without one: the current quote, through the existing quote boundary and its freshness rules.
   A one-day historical download is never used as a quote.
-- **Split adjustment:** if a split occurred between the share-count date and the price date, the
-  share count is scaled by the split ratio.
+- **Split adjustment:** the share count is scaled by every split whose ex-date is after the filing date of the filing
+  the count was taken from, up to the adjustment date of the price data. The accession and filing date are those in the
+  count's own provenance; the anchor filing is not assumed, because a later filing's comparative restates an earlier
+  year-end for splits up to that later filing's own date. A filing restates its share counts for a split effective before
+  it is issued (SEC Staff Accounting Bulletin Topic 4.C), so such a split is already in the count and is not applied
+  again. Stock dividends appear in the split history as fractional splits and are scaled the same way; they are not
+  issuance.
+- **Effect:** the market cap is the same as the one the unadjusted price and the unscaled count of the same date give. The
+  formula and the value are unchanged; this states only how it is computed. Splits after `as_of` are used only to undo the
+  provider's retroactive adjustment ([§3](#3-data-sources-periods-and-point-in-time)).
 - **Critical inputs:** shares and price.
-- **Both dates stay visible** in the result: the share-count date and the price date.
+- **Dates stay visible** in the result: the share-count date, the filing date of the count's source and the price date.
 
 ### Share-count rule
 
@@ -178,7 +191,8 @@ in which an absent element yields a number.
   market cap is `unavailable`. Where one total is reported, it is valued at the requested ticker's
   price.
 - **Limitation, stated in the guides:** buybacks and issuance between the fiscal year-end and the
-  price date are not reflected.
+  price date are not reflected. A split announced before the filing but effective just after it is assumed not to be
+  reflected in the filing.
 
 ## 5. EBIT, D&A and EBITDA
 
