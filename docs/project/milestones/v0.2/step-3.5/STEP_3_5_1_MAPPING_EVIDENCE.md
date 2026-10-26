@@ -323,7 +323,7 @@ Facts value equals the rendered value to the filer's own rounding.
 | `SHORT_TERM_INVESTMENTS` | ifrs-full | none | none | Neither SAP nor NTR tags a short-term-investments concept; NTR's `ShorttermInvestmentsClassifiedAsCashEquivalents` is part of cash and SAP's `OtherCurrentFinancialAssets` is broader | not applicable | Unsupported |
 | `LONG_TERM_INVESTMENTS` | us-gaap | `LongTermInvestments` | USD, instant | MNST only. GOOGL tags `OtherLongTermInvestments` (68,687 million), MRNA `AvailableForSaleSecuritiesDebtSecuritiesNoncurrent` (2,336) | MNST ✓ | Approved with a stated limit: the other two concepts are not this field |
 | `LONG_TERM_INVESTMENTS` | ifrs-full | none | none | No concept in either filer is long-term investments; SAP's `InvestmentsInAssociates` and NTR's equity-method investment are narrower | not applicable | Unsupported |
-| `NET_PPE` | us-gaap | `PropertyPlantAndEquipmentNet` | USD, instant | PLD, DUK, WMT, MNST. GOOGL tags it to fiscal 2024; HON tags it to fiscal 2022 and, for 2025, only the finance-lease variant (4,629 million); MRNA tags only `PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization`; JPM and DE tag neither | WMT, MNST ✓ | Approved with a stated limit: issuers that tag the finance-lease variant, and unclassified manufacturers (DE), show none |
+| `NET_PPE` | us-gaap | Priority list: `PropertyPlantAndEquipmentNet`, then `PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization` (decision D12) | USD, instant | PLD, DUK, WMT, MNST tag the first. HON (4,629 million) and MRNA (2,134) tag only the second, and GOOGL tags the first to fiscal 2024 and the second at 2025-12-31 (246,597). JPM and DE tag neither | WMT, MNST ✓. MRNA's face "Property, plant and equipment, net" is the second concept (2,134 ✓), and GOOGL's "Property and equipment, net" is the first at 2024 (171,036) and the second at 2025 (246,597) ✓: one line, two concepts | Approved with a stated limit: one concept for every year of a run, so a filer that changed concept (Alphabet) has the years the chosen concept covers and the others absent as another concept; unclassified manufacturers (DE) and banks show none |
 | `NET_PPE` | ifrs-full | Priority list: `PropertyPlantAndEquipment`, then `PropertyPlantAndEquipmentIncludingRightofuseAssets` (decision H11) | instant | Neither filer tags the first; both tag the second | SAP ✓ (4,497, of which right-of-use 1,477), NTR ✓ | Approved with a stated limit: the second concept is used alone, only where it is the filer's own single balance-sheet line (the face of both filers reports right-of-use assets inside it), and is never added to the first |
 | `RECEIVABLES` | us-gaap | Priority list: `AccountsReceivableNetCurrent`, then `ReceivablesNetCurrent` (decision H10) | USD, instant | DUK, GOOGL, MRNA, MNST, HON (7,621 million) tag the first. WMT tags the second (11,172 million) and `AccountsReceivableNet` (4,900, not listed). DE and PLD tag only `AccountsReceivableNet` | MNST ✓. WMT's face shows "Receivables, net" 11,172 in current assets ✓ | Approved with a stated limit: one concept for every year of a run; Deere and Prologis show none; an issuer that reports variable-interest-entity receivables on a line of its own shows the other line only (Duke Energy, below) |
 | `RECEIVABLES` | ifrs-full | `CurrentTradeReceivables` | instant | SAP, NTR | SAP ✓ in the note (5,790; the face shows trade and other receivables, 6,675); NTR not checked (5,080 in a note; the face shows 5,675) | Approved with a stated limit: a note-level figure, not the face line |
@@ -523,10 +523,84 @@ decision is named beside it.
 - **Alphabet's `LongTermDebt`** (49,085) does not equal its current plus noncurrent parts (48,543): a test case for the
   reconciliation of Shared definitions §6 (H12). Honeywell's direct total beside unmapped parts is the second.
 
+### 5.7 Annual field mappings (slice 3.5.1c)
+
+The 13 completed-annual fields of [Slice inputs §3](STEP_3_5_SLICE_INPUTS.md#3-351--data-mappings-and-applicability), read
+from the Company Facts of the eleven issuers of [§5.1](#51-the-regression-issuer-set) for the anchor filing's fiscal year and the
+two before it (a duration of 335 to 395 days, fiscal period `FY`, an annual form; quarters, year-to-date periods and stub years
+are rejected). Rules that apply to every row:
+
+- **One concept per series.** A field maps to a priority list only where the evidence shows the concepts are the same line
+  item. The series uses the first listed concept that reports the newest fiscal year any listed concept reports. A year that
+  concept does not report is absent; no other listed concept fills it. Overlapping concepts are never summed.
+- **Values** were compared with the rendered income statement and cash-flow statement of the filings: Walmart (`R3`, `R8`),
+  Alphabet (`R5`, `R10`), Moderna (`R5`), Monster (`R4`, `R7`) and Honeywell (`R3`, `R7`) for US GAAP, SAP (`R2`, `R6`) and
+  Nutrien (`R2`, `R4`) for IFRS. A tick means the Company Facts value equals the rendered value to the filer's own rounding.
+  A concept no checked filer shows on a face statement is "not checked".
+- **Order differs from Slice inputs for revenue.** `Revenues` is listed before `RevenueFromContractWithCustomerExcludingAssessedTax`:
+  Walmart tags both, net sales (706,413 million) as the second and total revenues (713,163) as the first, and the face total is the first.
+
+| Field | Taxonomy | Concept list | Reported by (fiscal year of the anchor filing, millions) | Value check | Disposition |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `SALES` | us-gaap | `Revenues`; `RevenueFromContractWithCustomerExcludingAssessedTax`; `RevenueFromContractWithCustomerIncludingAssessedTax` | First: JPM 182,447, PLD 8,790, DE 45,684, WMT 713,163, GOOGL 402,836. Second: MRNA 1,944, MNST 8,294, HON 37,442. Third: DUK 31,741 | WMT, GOOGL, MRNA, MNST, HON ✓ | Approved with a stated limit: the third concept (Duke Energy) and the first for JPM, PLD and DE were not rendered-checked |
+| `SALES` | ifrs-full | `Revenue`; `RevenueFromContractsWithCustomers` | First: SAP 36,800. Second: NTR 26,885 (face "Sales") | SAP, NTR ✓ | Approved |
+| `COST_OF_REVENUE` | us-gaap | `CostOfRevenue`; `CostOfGoodsAndServicesSold` | First: WMT 535,395, GOOGL 162,535. Second: MRNA 868, MNST 3,662, HON 23,613. Banks, PLD, DUK and DE tag neither | WMT, GOOGL, MRNA, MNST, HON ✓ | Approved with a stated limit: filers that report no cost line show none |
+| `COST_OF_REVENUE` | ifrs-full | `CostOfSales` | SAP 9,986, NTR 17,602 | SAP, NTR ✓ | Approved |
+| `GROSS_PROFIT` | us-gaap | `GrossProfit` | MNST 4,632 only | MNST ✓ | Approved with a stated limit: most filers report none, and gross profit is then sales less cost of revenue (computed by 3.5.2, never here) |
+| `GROSS_PROFIT` | ifrs-full | `GrossProfit` | SAP 26,814, NTR 8,347 | SAP, NTR ✓ | Approved |
+| `OPERATING_INCOME` | us-gaap | `OperatingIncomeLoss` | PLD 4,358, DUK 8,626, WMT 29,825, MRNA −3,074, MNST 2,419, GOOGL 129,039, HON 8,127; DE to fiscal 2024; JPM none | WMT, GOOGL, MRNA, MNST ✓; HON's has no face line (a note figure), not checked | Approved with a stated limit: a bank shows none |
+| `OPERATING_INCOME` | ifrs-full | `ProfitLossFromOperatingActivities` | SAP 9,617, NTR 3,736 | SAP ✓; NTR ✓ against "Earnings before finance costs and income taxes", which includes other items | Approved with a stated limit: Nutrien's line is its earnings before finance costs |
+| `SELLING_GENERAL_ADMINISTRATIVE` | us-gaap | `SellingGeneralAndAdministrativeExpense` | DE 4,663, WMT 147,943, HON 5,450. GOOGL reports sales and marketing (28,693) and general and administrative (21,482) apart; MRNA tags its "Selling, general and administrative" line (1,018) as general and administrative | WMT ✓ (face "Operating, selling, general and administrative expenses"), HON ✓ | Approved with a stated limit: a filer that reports the lines apart, or under another concept, shows none |
+| `SELLING_GENERAL_ADMINISTRATIVE` | ifrs-full | none | SAP reports sales and marketing (8,879) and general and administration (1,633); NTR selling expenses (3,320) and general and administrative (600) | not applicable | Unsupported: no concept is the combined line, and the sum of two lines is not a reported figure. IFRS Beneish is therefore unavailable until the owner decides otherwise (SGAI has no value) |
+| `DEPRECIATION_AND_AMORTIZATION` | us-gaap | `DepreciationDepletionAndAmortization`; `DepreciationAndAmortization`; `DepreciationAmortizationAndAccretionNet` | First: DUK 7,704, DE 2,229, MRNA 211, MNST 114, HON 1,388. Second: PLD 2,626. Third: JPM 8,821, WMT 14,203. GOOGL tags none (depreciation alone) | WMT ✓ (third concept = the face line), MNST ✓, HON ✓ (identity below) | Approved with a stated limit: the three are the cash-flow line of different filers; the third concept's name includes accretion and was checked only for Walmart |
+| `DEPRECIATION_AND_AMORTIZATION` | ifrs-full | `DepreciationAndAmortisationExpense`; `AdjustmentsForDepreciationAndAmortisationExpense` | First: NTR 2,369 (tags both names at one value). Second: SAP 1,311 | SAP ✓, NTR ✓ | Approved |
+| `DEPRECIATION` | us-gaap | `Depreciation` | GOOGL 21,136 ("Depreciation of property and equipment"), HON 546 | GOOGL ✓, HON ✓ | Approved with a stated limit: two of eleven issuers report it; Beneish's DEPI also needs net PP&E at the same dates ([§6](#6-depreciation-evidence)) |
+| `DEPRECIATION` | ifrs-full | none | SAP tags depreciation of right-of-use assets only (275). NTR tags property, plant and equipment (1,633) and right-of-use assets (427) apart, and intangible amortization (242) apart; their sum is 2,302, not its 2,369 | not applicable | Unsupported: no concept is the year's depreciation, and parts that do not add to the combined figure are not a derivation. Every IFRS Beneish run uses the D&A basis |
+| `INTEREST_EXPENSE` | us-gaap | `InterestExpense`; `InterestExpenseNonoperating` | First: DUK 3,634, DE 3,170, PLD 1,002 (PLD tags both with one value), JPM to 2023. Second: GOOGL 736. WMT's `InterestExpenseDebt` (2,318, with finance leases 481 apart) and HON's `InterestAndDebtExpense` (1,344, "Interest and other financial charges") are not this field | not on a face statement for the checked filers (GOOGL's is in a note): not checked | Approved with a stated limit: a filer that reports interest as debt interest and lease interest apart, or with other charges, shows none |
+| `INTEREST_EXPENSE` | ifrs-full | `InterestExpense` | SAP 492 (of finance costs 1,377), NTR 746 (finance costs 687 after 71 of capitalized borrowing costs) | note-level, not checked | Approved with a stated limit: a gross interest figure from the notes, not the face's finance costs |
+| `PRETAX_INCOME` | us-gaap | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | JPM 72,595, PLD 3,769, DUK 5,712, WMT 29,469, MRNA −2,768, MNST 2,483, GOOGL 158,826, HON 5,476. DE tags a longer concept that includes equity-method results (6,257) | WMT, GOOGL, MRNA, MNST, HON ✓ | Approved with a stated limit: Deere shows none |
+| `PRETAX_INCOME` | ifrs-full | `ProfitLossBeforeTax` | SAP 10,270, NTR 3,049 | SAP, NTR ✓ | Approved |
+| `INCOME_TAX_EXPENSE` | us-gaap | `IncomeTaxExpenseBenefit` | Nine of the eleven: JPM, PLD, DUK, DE, WMT, MRNA, MNST, GOOGL, HON | WMT, GOOGL, MRNA, MNST, HON ✓ | Approved |
+| `INCOME_TAX_EXPENSE` | ifrs-full | `IncomeTaxExpenseContinuingOperations` | SAP 2,944, NTR 752 | SAP, NTR ✓ | Approved |
+| `NET_INCOME` | us-gaap | `NetIncomeLoss` (attributable to the parent) | JPM 57,048, PLD 3,328, DUK 4,968, DE 5,027, WMT 21,893, MRNA −2,822, GOOGL 132,170, HON 4,729. MNST tags only `ProfitLoss` (1,905) | WMT, GOOGL, MRNA, HON ✓ | Approved with a stated limit: `ProfitLoss` includes the noncontrolling share (Walmart 22,270 against 21,893, Honeywell 4,772 against 4,729) and is not a stand-in, so a filer that tags only it (Monster, which has no noncontrolling interest) shows none |
+| `NET_INCOME` | ifrs-full | `ProfitLossAttributableToOwnersOfParent` | SAP 7,161, NTR 2,267 | SAP, NTR ✓ | Approved |
+| `INCOME_FROM_CONTINUING_OPERATIONS` | us-gaap | `IncomeLossFromContinuingOperations` (attributable to the parent) | DUK 4,911, HON 4,461 | HON by arithmetic: net income 4,729 less the parent's share of the discontinued result (268) is 4,461; the face's 4,468 includes the noncontrolling share | Approved with a stated limit: only two of eleven tag it, and the figure is the parent's share |
+| `INCOME_FROM_CONTINUING_OPERATIONS` | ifrs-full | `IncomeFromContinuingOperationsAttributableToOwnersOfParent` | SAP 7,161 | SAP ✓ | Approved with a stated limit: only SAP tags it; Nutrien reports neither this nor a discontinued result |
+| `DISCONTINUED_OPERATIONS` | us-gaap | `IncomeLossFromDiscontinuedOperationsNetOfTax` | DUK 1, HON 304 | HON ✓ (face "Net income from discontinued operations") | Approved with a stated limit: it includes the noncontrolling share; the parent's share (268) is another concept and is not mapped |
+| `DISCONTINUED_OPERATIONS` | ifrs-full | `ProfitLossFromDiscontinuedOperations` | SAP 0 | SAP ✓ | Approved |
+
+**What the new fields leave unavailable, by filer.** Bank (JPMorgan): cost of revenue, gross profit, operating income, SG&A. Alphabet: gross profit,
+SG&A, and net PP&E for fiscal 2025 under the first concept. Walmart: gross profit, interest expense, continuing and discontinued income.
+Moderna: SG&A. Monster: net income and interest expense. Deere: pre-tax income. Honeywell: interest expense and gross profit. Nutrien and SAP: SG&A and depreciation alone.
+
 ## 6. Depreciation evidence
 
-Empty. Slice 3.5.1c fills it with the evidence [Slice inputs §3](STEP_3_5_SLICE_INPUTS.md#3-351--data-mappings-and-applicability)
-requires for Beneish's depreciation index.
+The evidence [Slice inputs §3](STEP_3_5_SLICE_INPUTS.md#3-351--data-mappings-and-applicability) requires for Beneish's depreciation
+index. The values are in [§5.7](#57-annual-field-mappings-slice-351c).
+
+| Case | US GAAP | IFRS |
+| :--- | :--- | :--- |
+| A filing reporting depreciation alone | Alphabet, fiscal 2025: "Depreciation of property and equipment" 21,136 million (`Depreciation`) and no combined D&A concept | none: SAP tags only right-of-use depreciation (275), Nutrien tags property, plant and equipment (1,633) and right-of-use assets (427) apart |
+| A filing reporting only combined D&A | Walmart 14,203, Monster 114, Moderna 211, Deere 2,229, Duke Energy 7,704, Prologis 2,626, JPMorgan 8,821 | SAP 1,311 (cash-flow adjustment) |
+| A filing reporting both | Honeywell, fiscal 2023 to 2025: depreciation 490, 493 and 546 million and amortization (`AdjustmentForAmortization`) 514, 659 and 842 | Nutrien: D&A 2,369 beside depreciation of property, plant and equipment 1,633, of right-of-use assets 427 and amortization of intangibles 242 |
+
+- **The identity D&A = depreciation + amortization** holds to the dollar for Honeywell in fiscal 2023 (490 + 514 = 1,004) and fiscal 2025
+  (546 + 842 = 1,388); in fiscal 2024 the lines the filer rounds to millions differ by one million (493 + 659 = 1,152 against 1,153). The
+  concepts mean what the table assumes. Under IFRS it does not close for Nutrien (1,633 + 427 + 242 = 2,302 against 2,369), so no IFRS
+  depreciation concept is shown to be the year's depreciation.
+- **The year's expense, not the accumulated balance.** `Depreciation` is a duration of a fiscal year in both filers (Alphabet 21,136 for
+  2025; Honeywell 546 against an accumulated depreciation of 7,431 million at 2025-12-31). The accumulated balance is a different concept and is
+  an instant.
+- **Net PP&E for the same dates.** Honeywell tags only the finance-lease-inclusive concept (4,629 million at 2025-12-31, 4,457 at
+  2024-12-31), and so does Moderna; Alphabet tags the plain concept to 2024 and the inclusive one at 2025. Both concepts are the filer's own
+  face line, and the net PP&E mapping of 3.5.1b is extended to the pair (decision D12). With it, net PP&E is obtainable at the two year-ends
+  for every filer that reports depreciation alone except Alphabet, whose concept changed between them (one concept per run: one year absent).
+- **The DEPI algebra, by hand, against Honeywell's fiscal 2025 filing** (`0000773840-26-000013`). DEPI = [depreciation ÷ (depreciation +
+  net PP&E)] of the prior year ÷ the same for the year = [493 ÷ (493 + 4,457)] ÷ [546 ÷ (546 + 4,629)] = 0.09960 ÷ 0.10551 = 0.944. A test
+  repeats it from the captured facts.
+- **Outcome.** The US GAAP depreciation-alone mapping is **approved with a stated limit**: two of eleven issuers tag it, and the index also
+  needs net PP&E at both dates. The IFRS mapping is **unsupported**: every IFRS Beneish run uses the D&A basis, and an IFRS Beneish run is
+  unavailable anyway while IFRS SG&A is unsupported ([§5.7](#57-annual-field-mappings-slice-351c)).
 
 ## 7. Not yet verified
 
@@ -591,3 +665,14 @@ pause of 0.4 s separated each request from the last.
 | :--- | ---: |
 | `www.sec.gov/Archives/edgar/data/<cik>/<accession, no dashes>/FilingSummary.xml` and `R6.htm`, Duke Energy | 2 |
 | `data.sec.gov/submissions/CIK0000019617-submissions-008.json`, JPMorgan | 1 |
+
+**Slice 3.5.1c, 2026-10-26: 13 SEC requests, all answered 200.** Under the budget of about 60. A pause of 0.4 s separated each request from the
+last.
+
+| Pattern | Count |
+| :--- | ---: |
+| `www.sec.gov/Archives/edgar/data/<cik>/<accession, no dashes>/R<n>.htm` rendered statements: Walmart `R3` and `R8`, SAP `R6`, Nutrien `R2` and `R4`, Monster `R4` and `R7`, Alphabet `R9` (an equity page, read in error) and `R10`, Honeywell `R3` and `R7` | 11 |
+| `.../FilingSummary.xml`, Honeywell | 1 |
+| `data.sec.gov/submissions/CIK0000019617-submissions-018.json`, JPMorgan (the page of its fiscal 2023 report) | 1 |
+
+The Company Facts, submissions and statements already held under `.tmp/` were read again without a request.

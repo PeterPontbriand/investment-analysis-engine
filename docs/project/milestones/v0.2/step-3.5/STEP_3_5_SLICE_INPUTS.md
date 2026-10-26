@@ -273,6 +273,12 @@ Two sub-slices: 3.5.4a Altman, 3.5.4b Beneish.
   the D&A basis with its diagnostic; depreciation alone in one year only gives the D&A basis for
   both; neither gives `unavailable`; the basis appears in every view and in stored-run replay.
 
+**Receivables index and related concepts:** receivables are unavailable for the Beneish receivables index when the
+balance-sheet series reports a related concept tagged at either of the two year-ends. Duke Energy fiscal 2025 is the case:
+its receivables moved to "Receivables of VIEs", so the mapped line fell from 1,889 to 16 million and the index would
+measure the move, not the receivables. Decided by the project owner (2026-10-26,
+[plan A.1, H17](STEP_3_5_1_SLICE_PLAN.md#a1-decisions-f1-to-f10-2026-10-25)); a test case for it is due in 3.5.4b.
+
 **Entry criterion for 3.5.4b:** 3.5.1's depreciation evidence is complete, and the DEPI algebra
 (period expense over expense plus net PP&E, prior year over current year) has been checked by hand
 against one captured filing.

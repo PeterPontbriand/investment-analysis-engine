@@ -339,6 +339,19 @@ Require explicit user confirmation before:
 
 Dependabot pull requests are never merged: reapply the same version bump on a project branch, and Dependabot then closes its own pull request. Commits on `main` are authored by project contributors only.
 
+### Commit and pull request titles
+
+`main` is squash-merged, so a pull request's title is the first line of its commit. Titles follow Conventional Commits, as
+`main` used them through #170: `type(scope): description (unit)`.
+
+- `type` is one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `build` or `perf`.
+- `scope` is a short lowercase tag for the package or work stream, such as `swc`, `lay`, `ph` or `step-3.5`.
+- `unit` is the plan's identifier, such as `3.5.1c`, when there is one.
+- The description is lowercase, imperative or descriptive, with no trailing period.
+
+Example: `feat(step-3.5): annual period fields and the depreciation evidence (3.5.1c)`. Commits on a branch may use any
+wording, since they are squashed.
+
 ## 12. Context index
 
 - To find current or next work, start at the sequence table in

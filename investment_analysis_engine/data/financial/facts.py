@@ -105,6 +105,7 @@ def _expected_unit(field_name: FinancialField) -> FinancialUnit:
             FinancialField.CAPITAL_EXPENDITURES,
         )
         or field_name in INSTANT_SERIES_FIELDS
+        or field_name in ANNUAL_PERIOD_FIELDS
     ):
         return FinancialUnit.CURRENCY
     if field_name in (
@@ -162,6 +163,19 @@ class FinancialField(StrEnum):
     LEASE_LIABILITIES_AS_DEBT = "lease_liabilities_as_debt"
     PREFERRED_STOCK = "preferred_stock"
     NONCONTROLLING_INTEREST = "noncontrolling_interest"
+    SALES = "sales"
+    COST_OF_REVENUE = "cost_of_revenue"
+    GROSS_PROFIT = "gross_profit"
+    OPERATING_INCOME = "operating_income"
+    SELLING_GENERAL_ADMINISTRATIVE = "selling_general_administrative"
+    DEPRECIATION_AND_AMORTIZATION = "depreciation_and_amortization"
+    DEPRECIATION = "depreciation"
+    INTEREST_EXPENSE = "interest_expense"
+    PRETAX_INCOME = "pretax_income"
+    INCOME_TAX_EXPENSE = "income_tax_expense"
+    NET_INCOME = "net_income"
+    INCOME_FROM_CONTINUING_OPERATIONS = "income_from_continuing_operations"
+    DISCONTINUED_OPERATIONS = "discontinued_operations"
 
 
 class FinancialUnit(StrEnum):
@@ -197,6 +211,25 @@ INSTANT_SERIES_FIELDS = frozenset(
     }
 )
 
+# Income-statement and cash-flow amounts of a completed fiscal year, served by the completed-annual series request.
+ANNUAL_PERIOD_FIELDS = frozenset(
+    {
+        FinancialField.SALES,
+        FinancialField.COST_OF_REVENUE,
+        FinancialField.GROSS_PROFIT,
+        FinancialField.OPERATING_INCOME,
+        FinancialField.SELLING_GENERAL_ADMINISTRATIVE,
+        FinancialField.DEPRECIATION_AND_AMORTIZATION,
+        FinancialField.DEPRECIATION,
+        FinancialField.INTEREST_EXPENSE,
+        FinancialField.PRETAX_INCOME,
+        FinancialField.INCOME_TAX_EXPENSE,
+        FinancialField.NET_INCOME,
+        FinancialField.INCOME_FROM_CONTINUING_OPERATIONS,
+        FinancialField.DISCONTINUED_OPERATIONS,
+    }
+)
+
 # The basis of a common-share count taken from the cover page of an annual filing, as against the balance-sheet
 # count at a fiscal year-end that the basis "fiscal_year_end" asks for.
 COVER_PAGE_BASIS = "cover_page"
@@ -209,13 +242,16 @@ _MAX_YEAR_END_GAP_DAYS = 395
 # These provider-neutral fields support requests for multiple completed annual
 # observations. Provider-specific eligibility and identity rules remain in the
 # individual adapters rather than becoming properties of ``FinancialField``.
-_COMPLETED_ANNUAL_SERIES_FIELDS = frozenset(
-    {
-        FinancialField.EPS,
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
-        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
-    }
+_COMPLETED_ANNUAL_SERIES_FIELDS = (
+    frozenset(
+        {
+            FinancialField.EPS,
+            FinancialField.OPERATING_CASH_FLOW,
+            FinancialField.CAPITAL_EXPENDITURES,
+            FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
+        }
+    )
+    | ANNUAL_PERIOD_FIELDS
 )
 
 

@@ -50,7 +50,7 @@ def test_valuation_field_members() -> None:
     assert FinancialField.OPERATING_CASH_FLOW.value == "operating_cash_flow"
     assert FinancialField.CAPITAL_EXPENDITURES.value == "capital_expenditures"
     assert FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES.value == "weighted_average_diluted_shares"
-    assert len(list(FinancialField)) == 27
+    assert len(list(FinancialField)) == 40
 
 
 def test_valuation_unit_members() -> None:

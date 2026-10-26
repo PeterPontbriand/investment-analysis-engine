@@ -12,6 +12,7 @@ from investment_analysis_engine.core.clock import effective_as_of
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.cache import ResolvedInputCacheKey, ResolvedInputCacheProtocol
 from investment_analysis_engine.data.financial.facts import (
+    ANNUAL_PERIOD_FIELDS,
     INSTANT_SERIES_FIELDS,
     FinancialFactRequest,
     FinancialFactsProvider,
@@ -1556,6 +1557,7 @@ def _field_unit(field_name: FinancialField) -> FinancialUnit:
             FinancialField.CAPITAL_EXPENDITURES,
         )
         or field_name in INSTANT_SERIES_FIELDS
+        or field_name in ANNUAL_PERIOD_FIELDS
     ):
         return FinancialUnit.CURRENCY
     if field_name in (FinancialField.COMMON_SHARES_OUTSTANDING, FinancialField.PREFERRED_SHARES_OUTSTANDING):

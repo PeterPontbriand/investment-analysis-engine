@@ -17,6 +17,7 @@ from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
+    ANNUAL_PERIOD_FIELDS,
     COVER_PAGE_BASIS,
     FinancialFactRequest,
     FinancialField,
@@ -37,6 +38,7 @@ from investment_analysis_engine.data.financial.provenance import (
 )
 from investment_analysis_engine.data.http_json import JsonFetcher, fetch_json
 from investment_analysis_engine.data.provider_failure import failure_record
+from investment_analysis_engine.data.sec_edgar.annual_series import annual_concepts, select_annual_period_facts
 from investment_analysis_engine.data.sec_edgar.filing_document import (
     FilingFetcher,
     FilingHeaderFetcher,
@@ -119,13 +121,16 @@ _BALANCE_SHEET_FIELDS: Mapping[FinancialField, tuple[str, FinancialUnit]] = {
 # as unavailable when ticker-to-CIK identity cannot be established. Legacy SEC
 # valuation fields retain their existing provider-error behavior until their
 # separately reviewed compatibility boundary is reconciled.
-_SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
-    {
-        FinancialField.EPS,
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
-        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
-    }
+_SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = (
+    frozenset(
+        {
+            FinancialField.EPS,
+            FinancialField.OPERATING_CASH_FLOW,
+            FinancialField.CAPITAL_EXPENDITURES,
+            FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
+        }
+    )
+    | ANNUAL_PERIOD_FIELDS
 )
 
 # SEC Company Facts monetary cash-flow fields describe the issuer, so an exact
@@ -133,11 +138,14 @@ _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY = frozenset(
 # rows. Per-share fields describe an issuer share unit; until affirmative unit
 # evidence is implemented, multiple ticker rows cannot prove that the requested
 # listed security uses that same unit and therefore remain fail-closed.
-_SEC_ISSUER_LEVEL_COMPLETED_ANNUAL_FIELDS = frozenset(
-    {
-        FinancialField.OPERATING_CASH_FLOW,
-        FinancialField.CAPITAL_EXPENDITURES,
-    }
+_SEC_ISSUER_LEVEL_COMPLETED_ANNUAL_FIELDS = (
+    frozenset(
+        {
+            FinancialField.OPERATING_CASH_FLOW,
+            FinancialField.CAPITAL_EXPENDITURES,
+        }
+    )
+    | ANNUAL_PERIOD_FIELDS
 )
 _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS = frozenset(
     {
@@ -588,6 +596,42 @@ class SecEdgarFinancialFactsAdapter:
                 break
         return acceptance, forms
 
+    def _with_older_acceptance_times(  # noqa: PLR0913
+        self,
+        *,
+        cik: str,
+        pages: tuple[SubmissionPage, ...],
+        acceptance: Mapping[str, datetime],
+        company_facts: object,
+        request: FinancialFactRequest,
+        taxonomy: str,
+        boundary: datetime,
+    ) -> Mapping[str, datetime]:
+        """Add the acceptance times of the older annual filings the series needs, from the extra submissions pages.
+
+        A frequent filer's older filings are not in the recent block, so their facts would carry only the end of the
+        filing date as their availability. The Company Facts name each annual filing and its filing date; the extra
+        page that holds that date is read, for at most the ``observation_count`` newest filings with no acceptance time
+        and at most ``_MAX_SUBMISSION_PAGES`` pages, each once per adapter. Nothing is read when every annual filing of
+        the series is in the recent block.
+        """
+        filed = _annual_filing_dates(company_facts, _annual_concept_names(request.field_name, taxonomy))
+        newest = sorted(((day, accession) for accession, day in filed.items() if day <= boundary.date()), reverse=True)
+        missing = [
+            (day, accession) for day, accession in newest[: request.observation_count] if accession not in acceptance
+        ]
+        needed: list[SubmissionPage] = []
+        for day, _accession in missing:
+            page = next((item for item in pages if item.filing_from <= day <= item.filing_to), None)
+            if page is not None and page not in needed:
+                needed.append(page)
+        if not needed:
+            return acceptance
+        merged = dict(acceptance)
+        for page in needed[:_MAX_SUBMISSION_PAGES]:
+            merged.update(_acceptance_times({"filings": {"recent": self._submission_page(cik, page)}}))
+        return merged
+
     def _submission_page(self, cik: str, page: SubmissionPage) -> object:
         """Fetch one extra submissions page once per adapter; its history never changes except by appending."""
         key = (cik, page.name)
@@ -607,7 +651,7 @@ class SecEdgarFinancialFactsAdapter:
             return None
         return identities.get(request.ticker)
 
-    def fetch_facts(  # noqa: PLR0911, PLR0912
+    def fetch_facts(  # noqa: PLR0911, PLR0912, PLR0915
         self, request: FinancialFactRequest, *, effective_as_of: datetime
     ) -> tuple[ProviderFact, ...]:
         """Return supported SEC facts, or explicit unavailability.
@@ -646,6 +690,7 @@ class SecEdgarFinancialFactsAdapter:
                 acceptance_by_accession = snapshot.acceptance_by_accession
                 provider_now = snapshot.retrieved_at
                 anchor_accession = snapshot.latest_annual_accession
+                pages = snapshot.submission_pages
             else:
                 company_facts = self._fetch_company_document(_COMPANY_FACTS_URL.format(cik=cik))
                 submissions = self._fetch_company_document(_SUBMISSIONS_URL.format(cik=cik))
@@ -657,7 +702,29 @@ class SecEdgarFinancialFactsAdapter:
                     as_of=request.as_of or effective_as_of,
                 )
                 anchor_accession = eligible_accessions[0] if eligible_accessions else None
+                pages = _submission_pages(submissions, cik)
             taxonomy = snapshot.taxonomy if snapshot is not None and snapshot.taxonomy is not None else "us-gaap"
+            if request.field_name in _SEC_COMPLETED_ANNUAL_FIELDS:
+                acceptance_by_accession = self._with_older_acceptance_times(
+                    cik=cik,
+                    pages=pages,
+                    acceptance=acceptance_by_accession,
+                    company_facts=company_facts,
+                    request=request,
+                    taxonomy=taxonomy,
+                    boundary=request.as_of or effective_as_of,
+                )
+            if request.field_name in ANNUAL_PERIOD_FIELDS:
+                facts = select_annual_period_facts(
+                    company_facts,
+                    request=request,
+                    cik=cik,
+                    acceptance_by_accession=acceptance_by_accession,
+                    retrieved_at=provider_now,
+                    taxonomy=taxonomy,
+                    boundary=request.as_of or effective_as_of,
+                )
+                return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.OPERATING_CASH_FLOW:
                 candidates = _annual_operating_cash_flow_candidates(
                     company_facts,
@@ -913,6 +980,56 @@ def _submission_filing_dates(payload: object) -> dict[str, date]:
         except ValueError:
             continue
     return result
+
+
+# The concepts each completed-annual field reads, per taxonomy, so that the filings that report them can be listed.
+_ANNUAL_CONCEPT_NAMES: Mapping[FinancialField, Mapping[str, tuple[str, ...]]] = {
+    FinancialField.OPERATING_CASH_FLOW: {
+        "us-gaap": ("NetCashProvidedByUsedInOperatingActivities",),
+        "ifrs-full": ("CashFlowsFromUsedInOperatingActivities",),
+    },
+    FinancialField.CAPITAL_EXPENDITURES: {
+        "us-gaap": ("PaymentsToAcquirePropertyPlantAndEquipment",),
+        "ifrs-full": ("PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",),
+    },
+    FinancialField.EPS: {"us-gaap": ("EarningsPerShareDiluted",), "ifrs-full": ("DilutedEarningsLossPerShare",)},
+    FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES: {
+        "us-gaap": ("WeightedAverageNumberOfDilutedSharesOutstanding",),
+        "ifrs-full": ("AdjustedWeightedAverageShares",),
+    },
+}
+
+
+def _annual_concept_names(field_name: FinancialField, taxonomy: str) -> tuple[str, ...]:
+    """Return the concepts a completed-annual field reads under a taxonomy."""
+    return _ANNUAL_CONCEPT_NAMES.get(field_name, {}).get(taxonomy, ()) or annual_concepts(field_name, taxonomy)
+
+
+def _annual_filing_dates(payload: object, concepts: tuple[str, ...]) -> dict[str, date]:
+    """Return accession -> filing date for the annual filings that report any of ``concepts`` in Company Facts."""
+    found: dict[str, date] = {}
+    if not isinstance(payload, Mapping):
+        return found
+    facts = payload.get("facts")
+    if not isinstance(facts, Mapping):
+        return found
+    for namespace in facts.values():
+        if not isinstance(namespace, Mapping):
+            continue
+        for name in concepts:
+            units = namespace.get(name)
+            units = units.get("units") if isinstance(units, Mapping) else None
+            for observations in units.values() if isinstance(units, Mapping) else ():
+                for observation in observations if isinstance(observations, Sequence) else ():
+                    if not isinstance(observation, Mapping) or observation.get("form") not in _COMPLETED_ANNUAL_FORMS:
+                        continue
+                    accession, filed = observation.get("accn"), observation.get("filed")
+                    if isinstance(accession, str) and isinstance(filed, str):
+                        try:
+                            found[accession] = date.fromisoformat(filed)
+                        except ValueError:
+                            continue
+    return found
 
 
 def _submission_pages(payload: object, cik: str) -> tuple[SubmissionPage, ...]:

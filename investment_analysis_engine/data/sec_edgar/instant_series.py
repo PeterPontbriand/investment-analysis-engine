@@ -46,7 +46,10 @@ US_GAAP_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
         "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
     ),
     FinancialField.LONG_TERM_INVESTMENTS: ("LongTermInvestments",),
-    FinancialField.NET_PPE: ("PropertyPlantAndEquipmentNet",),
+    FinancialField.NET_PPE: (
+        "PropertyPlantAndEquipmentNet",
+        "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
+    ),
     FinancialField.RECEIVABLES: ("AccountsReceivableNetCurrent", "ReceivablesNetCurrent"),
     FinancialField.RETAINED_EARNINGS: ("RetainedEarningsAccumulatedDeficit",),
     FinancialField.SHORT_TERM_BORROWINGS: ("ShortTermBorrowings", "CommercialPaper"),
