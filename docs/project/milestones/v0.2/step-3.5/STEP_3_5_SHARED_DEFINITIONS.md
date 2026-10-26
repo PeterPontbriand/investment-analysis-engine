@@ -144,6 +144,15 @@ a diagnostic saying so:
 Filers do not tag a line they do not have, so for these items an absent element is the normal way
 a filing says "none", and requiring an explicit zero would make EV unavailable for most issuers.
 
+- **Equivalent concepts:** a field may map to a priority list of concepts where the evidence shows they are the same
+  line item (receivables, short-term investments). The convention applies only when none of the listed
+  concepts is tagged for the year-end. One issuer uses one concept for every year of a run, so a year the run's concept
+  does not cover is absent, not zero. Alphabet (marketable securities) and Moderna (investments) tag
+  short-term investments under other names than `ShortTermInvestments`; Walmart tags receivables as
+  `ReceivablesNetCurrent`.
+- **Unsupported mappings:** the convention never applies to a field whose mapping is recorded as unsupported for the
+  taxonomy. The field is `unavailable`.
+
 The convention never applies to the critical inputs each definition below names. Debt is not
 covered by it: [total debt](#total-debt) has its own, stricter rule. These two are the only cases
 in which an absent element yields a number.
@@ -162,7 +171,8 @@ in which an absent element yields a number.
     market cap;
   - without one: the current quote, through the existing quote boundary and its freshness rules.
   A one-day historical download is never used as a quote.
-- **Split adjustment:** the share count is scaled by every split whose ex-date is after the filing date of the filing
+- **Split adjustment:** a cover-page count is scaled by every split whose ex-date is after the cover date, and a
+  balance-sheet count by every split whose ex-date is after the filing date of the filing
   the count was taken from, up to the adjustment date of the price data. The accession and filing date are those in the
   count's own provenance; the anchor filing is not assumed, because a later filing's comparative restates an earlier
   year-end for splits up to that later filing's own date. A filing restates its share counts for a split effective before
@@ -180,11 +190,15 @@ in which an absent element yields a number.
 - **One observation:** the count at fiscal year-end *t*, as the existing resolver returns it:
   reported directly, or as shares issued minus treasury shares at the same date. The share-count
   date is that fiscal year-end.
-- **Not the cover page.** The later cover-page count is never used, even though it is closer to
-  the price date. It is not a balance-sheet fact, and filers with several classes report it per
-  class.
-- **No count at year-end *t*:** market cap is `unavailable`. An older year's count is never
-  substituted.
+- **IFRS filers:** `ifrs-full:NumberOfSharesOutstanding` is a direct path. There is no IFRS
+  issued-minus-treasury path: no IFRS treasury share count exists in the evidence.
+- **Cover-page fallback:** when the balance-sheet paths give no count at year-end *t*, the cover-page count
+  (`dei:EntityCommonStockSharesOutstanding`) of the anchor filing is used for market cap, and only when the filing
+  tags it as a single non-dimensional total. Its own date is the share-count date, and the result says that the
+  count is a cover-page count. Filers that report only per-class cover counts, with no total, have no usable count.
+  Piotroski's dilution test never uses it: it compares year-end balance-sheet counts.
+- **No count at year-end *t* by any path:** market cap is `unavailable`. An older year's balance-sheet count is
+  never substituted.
 - **Conflicting counts** for the same date make market cap `unavailable`
   ([§3](#period-alignment)).
 - **Several share classes:** when the filer reports counts per class and no unambiguous total,

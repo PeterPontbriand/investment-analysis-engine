@@ -409,7 +409,7 @@ would have had to decide policy while coding. Each was decided:
 | Applicability criterion | "Financial issuers, REITs and utilities receive `not_applicable`" | The criterion defers to the matrix | The old wording contradicted the matrix for Piotroski and for utilities |
 | Industry class | Current SIC from EDGAR submissions, stored in the instrument profile | The SIC as filed with the selected annual filing, kept as filing evidence | The submissions SIC is today's value. Applying it to a historical run is look-ahead |
 | Leases in EV | Operating leases "always excluded", justified by ASC 842 and IFRS 16 | Each framework's own accounting, with no normalization and a stated comparability limit | The IFRS 16 justification was wrong: IFRS EBITDA is before lease cost |
-| Share count for market cap | "From the selected filing" | The balance-sheet count at fiscal year-end *t*; the cover-page count is never used | The date was undefined. This is the count the existing resolver returns |
+| Share count for market cap | "From the selected filing" | The balance-sheet count at fiscal year-end *t*; the cover-page count is never used (reversed in part by [A.12](#a12-share-count-from-the-cover-page-and-equivalent-concepts-2026-10-25)) | The date was undefined. This is the count the existing resolver returns |
 | Multi-class issuers | "Valued at the primary listing's price" | `unavailable` when the filer reports no unambiguous total count | The existing resolver already rejects ambiguous class values |
 | Duplicate issuers in a ranking | Keep the first listed | Keep the alphabetically first ticker | "First listed" made the result depend on input order. Excluding every duplicate would drop an issuer from a watchlist holding two of its share classes |
 | Tied positions | Unstated | Competition ranking (1, 1, 3); ticker order is display only | Tests and presentation need one convention |
@@ -503,3 +503,19 @@ Decided by the project owner while the [3.5.1 slice plan](STEP_3_5_1_SLICE_PLAN.
 | Effect | | The market cap equals the one [Shared definitions §4](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization) defines; the formula and the value are unchanged, and only how it is computed is stated | |
 
 Limitation: a split announced before the filing but effective just after it is assumed not to be reflected in the filing.
+
+### A.12 Share count from the cover page, and equivalent concepts (2026-10-25)
+
+Decided by the project owner after the share-count check of 3.5.1b
+([evidence §5.5](STEP_3_5_1_MAPPING_EVIDENCE.md#55-share-count-coverage)) found no balance-sheet count at the latest
+year-end for Walmart, SAP and Nutrien ([slice plan, H7 to H12](STEP_3_5_1_SLICE_PLAN.md#a1-decisions-f1-to-f10-2026-10-25)):
+
+| Topic | Before | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| Cover-page share count | Never used (A.6, 2026-10-02) | A fallback for market cap only: after the balance-sheet paths, and only when the anchor filing tags it as a single non-dimensional total; its own date is the share-count date | A.6 reversed. Walmart has tagged no balance-sheet count since 2012, so market cap and everything built on it would be `unavailable` for it. The other reason for the ban, per-class cover counts, is covered by the multi-class rule: a filer with only per-class counts stays `unavailable` |
+| IFRS share count | Not read | `ifrs-full:NumberOfSharesOutstanding` is a direct balance-sheet path; no IFRS treasury share count exists in the evidence, so there is no issued-minus-treasury path | SAP and Nutrien report under IFRS, and the existing paths read us-gaap only |
+| Scaling a cover-page count | By splits after the filing date | By splits whose ex-date is after the cover date | The cover date, not the filing date, is the date of the count |
+| Piotroski's dilution test | Year-end balance-sheet counts | Unchanged: year-end balance-sheet counts only | The cover count is not a year-end fact |
+| Equivalent concepts | One concept per field | A priority list where the evidence shows the same line item; one concept for every year of a run; the absent-component zero only when none is tagged and never for an unsupported mapping | Alphabet and Moderna tag short-term investments under other names; Walmart tags receivables under another |
+
+The 2026-10-02 rule in A.6 is kept as recorded.
