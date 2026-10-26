@@ -38,7 +38,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 3.5.1a | [As-filed SIC code and applicability](#351a--as-filed-sic-code-and-applicability) | Complete | 2026-10-25 |
-| 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | Next | |
+| 3.5.1b | [Balance-sheet instants](#351b--balance-sheet-instants) | In progress | |
 | 3.5.1c | [Annual period fields](#351c--annual-period-fields) | Planned | |
 | 3.5.1d | [Split history and the market-cap price basis](#351d--split-history-and-the-market-cap-price-basis) | Planned | |
 
@@ -99,7 +99,21 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
     plus Walmart, recording the direct concept and the fallback (`CommonStockSharesIssued` minus
     `TreasuryStockCommonShares`) separately, with a row and a disposition in the evidence record. If a large filer gets
     no count from either path, 3.5.1b stops and asks the project owner before 3.5.2 is planned. The cover-page count
-    stays forbidden ([Shared definitions §4](STEP_3_5_SHARED_DEFINITIONS.md#share-count-rule)).- **Scope:** the new `PeriodKind` member; the series request and its provider protocol; the SEC implementation; the
+    stays forbidden ([Shared definitions §4](STEP_3_5_SHARED_DEFINITIONS.md#share-count-rule)). The regression issuer set
+    is named once, in the [mapping evidence record](STEP_3_5_1_MAPPING_EVIDENCE.md#5-field-mappings)
+    ([A.1](#a1-decisions-f1-to-f10-2026-10-25), H1).
+  - **Derived totals (H3).** A field may be derived only when the derivation is an exact accounting identity and every
+    term is tagged at the same date in the same filing. Total liabilities is total liabilities and equity, minus total
+    equity including noncontrolling interest, minus any temporary equity (redeemable noncontrolling interest or similar
+    mezzanine items) where tagged. A derived value is recorded as `SourceKind` derived with its lineage and a derived
+    `provider_field`, as `CommonStockSharesIssued` minus `TreasuryStockCommonShares` is. A derivation is approved only
+    where the evidence shows it equals the directly tagged value for every filer of the regression set that tags both;
+    one mismatch makes it unsupported. Each derivation is named in the evidence record. A derivation that is not an
+    exact identity stays forbidden.
+  - **Versions (H5).** The financial-fact cache version is bumped at every place that sets it. `PeriodKind` gaining
+    `instant` adds an enum value to the schemas and stored evidence that list it and changes no stored shape, so the
+    schemas are regenerated and no document version is bumped.
+- **Scope:** the new `PeriodKind` member; the series request and its provider protocol; the SEC implementation; the
   resolver entry; the 17 fields with their us-gaap and ifrs-full mappings; the cache version; trimmed fixtures; the
   field-mapping rows of the evidence record for these fields, and the share-count coverage check and its row; tests. The
   file list is in [B.2](#b2-351b-files).
@@ -255,6 +269,13 @@ Added on the project owner's review of the plan:
 | G3 | Header cache | No persistent header cache is approved (F3). |
 | G4 | `ReasonCode` schemas | The schemas that list `ReasonCode` values (`momentum`, `fcf-growth`, `runs-compare`) are regenerated with the two new members and no document version bump. Adding enum values changes no stored shape, so the AGENTS.md §4 rule does not apply, and existing payloads still decode. |
 | G5 | Where the gates live | The per-strategy gate constants are not in `analysis/shared/applicability.py`. AGENTS.md §9 makes each strategy own its policy, which classes it refuses is policy, the shared module stays strategy-neutral like the ranking helper, and the constants had no consumer. Each strategy slice declares its `SectorGate` as a named constant in its own package with a test pinning it to its row of the matrix ([Slice inputs §1](STEP_3_5_SLICE_INPUTS.md#1-at-a-glance)). Superseded in 3.5.1a before the pull request opened. |
+| H1 | The regression issuer set | Named once, in the [evidence record](STEP_3_5_1_MAPPING_EVIDENCE.md#5-field-mappings), as Step 3.5's regression set; 3.5.7 reuses it. Kept from the 3.5.1a captures: JPMorgan (bank), Prologis (REIT), Duke Energy (utility), Deere (manufacturer), SAP and Nutrien (IFRS filers), Walmart (non-manufacturer). Three more chosen from evidence: one company with negative EBIT in its latest fiscal year, one with no reported debt, one with several share classes. The record states why each fits, with its CIK and latest annual accession. |
+| H2 | Evidence that approves a mapping | Presence is checked from Company Facts across the whole regression set for all 17 instant fields of [B.4](#b4-the-fields), recording concept, context, units, scale and period behavior. Values are checked against the rendered balance sheet for one US GAAP filer and one IFRS filer per field, at one year-end. Each field and taxonomy gets one disposition: approved, approved with a stated limit, or unsupported. An unsupported field makes its consumers `unavailable`; a neighboring concept never stands in for it. Request budget: about 60 EDGAR requests with the project's SEC identity, which is never printed; raw responses only under `.tmp/`, none committed. |
+| H3 | Derived totals | A field may be derived only when the derivation is an exact accounting identity and every term is tagged at the same date in the same filing. Total liabilities is total liabilities and equity, minus total equity including noncontrolling interest, minus any temporary equity (redeemable noncontrolling interest or similar mezzanine items) where tagged, recorded as a derived value with lineage, following the `CommonStockSharesIssued` minus `TreasuryStockCommonShares` precedent. A derivation is approved only where the evidence shows it equals the directly tagged value for every filer of the set that tags both; one mismatch makes it unsupported, and the work stops and reports. The same rule may apply to another field where the evidence shows the same gap; each derivation is named in this plan and the evidence record. |
+| H4 | When the share-count check stops the work | `COMMON_SHARES_OUTSTANDING` is checked for each regression-set issuer and Walmart at its latest year-end, through the direct concept and through the issued-minus-treasury fallback, each path recorded separately. If any of them gets no count from either path, 3.5.1b stops and reports before any implementation code: which issuers, what they tag instead, and how many of their recent year-ends are affected. The cover-page count stays forbidden. |
+| H5 | Versions | The financial-fact cache version is bumped at every place that sets it (B.2 names FCF-Growth's `CACHE_SCHEMA_VERSION` and the resolver's default; the others are found and listed). `PeriodKind` gaining `instant` adds an enum value to the schemas and stored evidence that list it with no stored shape changed: the schemas are regenerated with `uv run python -m scripts.generate_schemas` and no document version is bumped. |
+| H6 | Plan formatting | The G1 bullet and the **Scope** bullet of the 3.5.1b section are separate lines. |
+
 ### A.2 The share-count scaling window (2026-10-25)
 
 F6 as approved scaled the fiscal year-end share count by every split from that year-end up to the price data's
