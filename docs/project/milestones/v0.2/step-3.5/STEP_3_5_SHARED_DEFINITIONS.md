@@ -239,15 +239,30 @@ evidence:
 
 | What the filing reports for the year-end | Treatment |
 | :--- | :--- |
-| At least one mapped debt concept | Each absent component is zero, with a diagnostic. The filer demonstrably tags its debt. |
-| No mapped debt concept, and interest expense is absent or zero | Total debt is zero ("no reported debt"), with a diagnostic. |
-| No mapped debt concept, but interest expense is positive | Total debt is `unavailable`: the issuer has debt the mapping does not see. |
+| At least one mapped debt concept at the year-end | An absent component is zero, with a diagnostic, only when its mapping is not unsupported for the taxonomy and none of the [related concepts](#related-debt-concepts) recorded for it is tagged at that date. Otherwise the component is `unavailable`. |
+| No mapped debt concept, no related concept tagged, no component unsupported for the taxonomy, and interest expense absent or zero | Total debt is zero ("no reported debt"), with a diagnostic. |
+| No mapped debt concept, but interest expense is positive, a related concept is tagged, or a component is unsupported | Total debt is `unavailable`: the issuer has debt the mapping does not see. |
 
 - **Direct totals:** where a filer reports both a direct long-term-debt total and its current and
   noncurrent parts, they must reconcile, and the total is never added to its parts. A mismatch
   makes the affected component `unavailable`.
-- **Short-term borrowings are not current maturities.** Commercial paper and similar borrowings
-  are their own component and never stand in for the current portion of long-term debt.
+- **Short-term borrowings are not current maturities.** Commercial paper belongs to short-term borrowings
+  (`CommercialPaper` is read only where `ShortTermBorrowings` is not tagged, and never added to it) and never stands in
+  for the current portion of long-term debt.
+
+#### Related debt concepts
+
+A related concept is one the evidence shows a filer tags for part of the same quantity, without being the line item of
+the mapped concept: Deere's `DebtCurrent` (short-term borrowings and the current portion together), Honeywell's
+`LongTermDebtAndCapitalLeaseObligationsCurrent` and `LongTermDebtAndCapitalLeaseObligations` (debt with finance
+leases), SAP's combined current-borrowings concept. They are recorded per debt field in the
+[mapping evidence](STEP_3_5_1_MAPPING_EVIDENCE.md#related-concepts-of-the-debt-fields). A related concept is never a
+value; the balance-sheet series reports, for each absent date, which related concept is tagged, and the rule above reads
+that report.
+
+- **IFRS:** the noncurrent long-term debt mapping is unsupported for every IFRS filer, decided by the project owner, so
+  an IFRS issuer's total debt is `unavailable`, and so is every metric that needs it, EV included, while the mapping is
+  unsupported. Nutrien's noncurrent debt is never read as zero.
 - Every consumer of a debt figure uses this rule, including Piotroski's long-term debt and
   Interest Coverage's zero-debt outcome.
 

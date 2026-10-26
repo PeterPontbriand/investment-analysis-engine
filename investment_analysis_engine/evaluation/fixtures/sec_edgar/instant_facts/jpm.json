@@ -678,8 +678,173 @@
    }
   }
  },
+ "pages": {
+  "CIK0000019617-submissions-001.json": {
+   "acceptanceDateTime": [],
+   "accessionNumber": [],
+   "filingDate": [],
+   "form": [],
+   "primaryDocument": []
+  },
+  "CIK0000019617-submissions-002.json": {
+   "acceptanceDateTime": [],
+   "accessionNumber": [],
+   "filingDate": [],
+   "form": [],
+   "primaryDocument": []
+  },
+  "CIK0000019617-submissions-003.json": {
+   "acceptanceDateTime": [],
+   "accessionNumber": [],
+   "filingDate": [],
+   "form": [],
+   "primaryDocument": []
+  },
+  "CIK0000019617-submissions-004.json": {
+   "acceptanceDateTime": [],
+   "accessionNumber": [],
+   "filingDate": [],
+   "form": [],
+   "primaryDocument": []
+  },
+  "CIK0000019617-submissions-005.json": {
+   "acceptanceDateTime": [],
+   "accessionNumber": [],
+   "filingDate": [],
+   "form": [],
+   "primaryDocument": []
+  },
+  "CIK0000019617-submissions-006.json": {
+   "acceptanceDateTime": [],
+   "accessionNumber": [],
+   "filingDate": [],
+   "form": [],
+   "primaryDocument": []
+  },
+  "CIK0000019617-submissions-007.json": {
+   "acceptanceDateTime": [],
+   "accessionNumber": [],
+   "filingDate": [],
+   "form": [],
+   "primaryDocument": []
+  },
+  "CIK0000019617-submissions-008.json": {
+   "acceptanceDateTime": [
+    "2025-02-14T21:17:07.000Z"
+   ],
+   "accessionNumber": [
+    "0000019617-25-000270"
+   ],
+   "filingDate": [
+    "2025-02-14"
+   ],
+   "form": [
+    "10-K"
+   ],
+   "primaryDocument": [
+    "jpm-20241231.htm"
+   ]
+  }
+ },
  "submissions": {
   "filings": {
+   "files": [
+    {
+     "filingFrom": "2025-09-22",
+     "filingTo": "2025-10-23",
+     "name": "CIK0000019617-submissions-001.json"
+    },
+    {
+     "filingFrom": "2025-08-18",
+     "filingTo": "2025-09-21",
+     "name": "CIK0000019617-submissions-002.json"
+    },
+    {
+     "filingFrom": "2025-07-16",
+     "filingTo": "2025-08-17",
+     "name": "CIK0000019617-submissions-003.json"
+    },
+    {
+     "filingFrom": "2025-06-10",
+     "filingTo": "2025-07-15",
+     "name": "CIK0000019617-submissions-004.json"
+    },
+    {
+     "filingFrom": "2025-05-01",
+     "filingTo": "2025-06-09",
+     "name": "CIK0000019617-submissions-005.json"
+    },
+    {
+     "filingFrom": "2025-03-28",
+     "filingTo": "2025-04-30",
+     "name": "CIK0000019617-submissions-006.json"
+    },
+    {
+     "filingFrom": "2025-02-26",
+     "filingTo": "2025-03-27",
+     "name": "CIK0000019617-submissions-007.json"
+    },
+    {
+     "filingFrom": "2025-01-22",
+     "filingTo": "2025-02-25",
+     "name": "CIK0000019617-submissions-008.json"
+    },
+    {
+     "filingFrom": "2024-12-10",
+     "filingTo": "2025-01-21",
+     "name": "CIK0000019617-submissions-009.json"
+    },
+    {
+     "filingFrom": "2024-11-05",
+     "filingTo": "2024-12-09",
+     "name": "CIK0000019617-submissions-010.json"
+    },
+    {
+     "filingFrom": "2024-10-02",
+     "filingTo": "2024-11-04",
+     "name": "CIK0000019617-submissions-011.json"
+    },
+    {
+     "filingFrom": "2024-08-27",
+     "filingTo": "2024-10-01",
+     "name": "CIK0000019617-submissions-012.json"
+    },
+    {
+     "filingFrom": "2024-07-23",
+     "filingTo": "2024-08-26",
+     "name": "CIK0000019617-submissions-013.json"
+    },
+    {
+     "filingFrom": "2024-06-17",
+     "filingTo": "2024-07-22",
+     "name": "CIK0000019617-submissions-014.json"
+    },
+    {
+     "filingFrom": "2024-05-13",
+     "filingTo": "2024-06-16",
+     "name": "CIK0000019617-submissions-015.json"
+    },
+    {
+     "filingFrom": "2024-04-04",
+     "filingTo": "2024-05-12",
+     "name": "CIK0000019617-submissions-016.json"
+    },
+    {
+     "filingFrom": "2024-02-28",
+     "filingTo": "2024-04-03",
+     "name": "CIK0000019617-submissions-017.json"
+    },
+    {
+     "filingFrom": "2024-01-19",
+     "filingTo": "2024-02-27",
+     "name": "CIK0000019617-submissions-018.json"
+    },
+    {
+     "filingFrom": "2023-12-06",
+     "filingTo": "2024-01-18",
+     "name": "CIK0000019617-submissions-019.json"
+    }
+   ],
    "recent": {
     "acceptanceDateTime": [
      "2026-02-13T21:20:00.000Z"

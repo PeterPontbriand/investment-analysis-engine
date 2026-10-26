@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time
 from typing import Final
 
@@ -49,7 +49,7 @@ US_GAAP_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
     FinancialField.NET_PPE: ("PropertyPlantAndEquipmentNet",),
     FinancialField.RECEIVABLES: ("AccountsReceivableNetCurrent", "ReceivablesNetCurrent"),
     FinancialField.RETAINED_EARNINGS: ("RetainedEarningsAccumulatedDeficit",),
-    FinancialField.SHORT_TERM_BORROWINGS: ("ShortTermBorrowings",),
+    FinancialField.SHORT_TERM_BORROWINGS: ("ShortTermBorrowings", "CommercialPaper"),
     FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT: ("LongTermDebtCurrent",),
     FinancialField.NONCURRENT_LONG_TERM_DEBT: ("LongTermDebtNoncurrent",),
     FinancialField.LONG_TERM_DEBT_TOTAL: ("LongTermDebt",),
@@ -75,6 +75,25 @@ IFRS_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
     FinancialField.LEASE_LIABILITIES_AS_DEBT: ("LeaseLiabilities",),
     FinancialField.PREFERRED_STOCK: (),
     FinancialField.NONCONTROLLING_INTEREST: ("NoncontrollingInterests",),
+}
+
+# Concepts the evidence records as related to a field without being the same line item. A related concept is never a
+# value: where the field is absent at a date and a related concept is tagged, the absence says so, and the metric
+# that reads the field decides what that means (an absent debt component is zero only when no related concept is
+# tagged). The lists hold what the regression set showed and nothing speculative.
+US_GAAP_RELATED: Final[Mapping[FinancialField, tuple[str, ...]]] = {
+    FinancialField.RECEIVABLES: ("AccountsAndOtherReceivablesNetCurrent",),
+    FinancialField.SHORT_TERM_BORROWINGS: ("DebtCurrent",),
+    FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT: ("DebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
+    FinancialField.NONCURRENT_LONG_TERM_DEBT: ("LongTermDebtAndCapitalLeaseObligations",),
+    FinancialField.LEASE_LIABILITIES_AS_DEBT: ("FinanceLeaseLiabilityCurrent", "FinanceLeaseLiabilityNoncurrent"),
+}
+IFRS_RELATED: Final[Mapping[FinancialField, tuple[str, ...]]] = {
+    FinancialField.SHORT_TERM_BORROWINGS: (
+        "CommercialPapersIssued",
+        "CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",
+    ),
+    FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT: ("CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings",),
 }
 
 # Total liabilities is derived, for US GAAP only, where a date has no tagged ``Liabilities``: total liabilities and
@@ -175,7 +194,29 @@ def select_instant_series(request: InstantSeriesRequest, source: InstantSource) 
         absences[day] = (
             derived if isinstance(derived, InstantAbsence) else _missing(day, concepts, chosen, by_concept, namespace)
         )
+    related = IFRS_RELATED if namespace == IFRS_FULL else US_GAAP_RELATED
+    for day, absence in list(absences.items()):
+        if absence.reason in {InstantAbsenceReason.NOT_TAGGED, InstantAbsenceReason.OTHER_CONCEPT}:
+            absences[day] = replace(
+                absence, related_concept=_related_tagged(source, namespace, related.get(request.field_name, ()), day)
+            )
+    for day, fact in list(facts.items()):
+        found = _related_tagged(source, namespace, related.get(request.field_name, ()), day)
+        if found is not None:
+            facts[day] = replace(fact, notes=(*fact.notes, f"related_concept_tagged={found}"))
     return _one_currency(request, InstantSeriesFacts(facts=tuple(facts.values()), absences=_ordered(absences)))
+
+
+def _related_tagged(source: InstantSource, namespace: str, concepts: tuple[str, ...], day: date) -> str | None:
+    """Return the first related concept tagged at ``day`` in an eligible filing on the anchor taxonomy."""
+    return next(
+        (
+            f"{namespace}:{name}"
+            for name in concepts
+            if any(item.end == day for item in _observations(source, namespace, name).usable)
+        ),
+        None,
+    )
 
 
 def _date_checks(

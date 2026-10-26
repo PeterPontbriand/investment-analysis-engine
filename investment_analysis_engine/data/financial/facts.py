@@ -388,11 +388,16 @@ class InstantAbsence:
             date in any eligible filing; ``OTHER_CONCEPT`` says that the concept chosen for the run is not tagged for
             it while another listed concept is, and nothing is substituted.
         detail: A non-empty explanation.
+        related_concept: For ``NOT_TAGGED`` and ``OTHER_CONCEPT``, the first concept the evidence records as related to
+            the field (one that may hold part of the same quantity, such as Deere's ``DebtCurrent`` for the current
+            portion of long-term debt) that is tagged at the date, as ``<taxonomy>:<concept>``; otherwise ``None``.
+            It is never used as a value.
     """
 
     period_end: date
     reason: InstantAbsenceReason
     detail: str
+    related_concept: str | None = None
 
     def __post_init__(self) -> None:
         """Require an explanation."""

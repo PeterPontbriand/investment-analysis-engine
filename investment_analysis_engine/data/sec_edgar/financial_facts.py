@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from types import MappingProxyType
 from typing import cast
 from zoneinfo import ZoneInfo
@@ -89,6 +90,11 @@ _PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "Pref
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
+_SUBMISSION_PAGE_URL = "https://data.sec.gov/submissions/{name}"
+# An extra page names one stretch of an issuer's filings (about a month for the most frequent filers). A balance-sheet
+# series reads at most this many of them, so the cost of an issuer that files constantly stays bounded.
+_MAX_SUBMISSION_PAGES = 12
+_SUBMISSION_PAGE_NAME = re.compile(r"^CIK(\d{10})-submissions-\d{3}\.json$")
 
 
 class _MissingCikError(FinancialProviderError):
@@ -185,6 +191,15 @@ class _AnnualEpsParseContext:
 
 
 @dataclass(frozen=True)
+class SubmissionPage:
+    """One extra page of an issuer's submissions history, as the `filings.files` list names it."""
+
+    name: str
+    filing_from: date
+    filing_to: date
+
+
+@dataclass(frozen=True)
 class _SecShareObservation:
     """One raw SEC share-count observation used for provider-specific derivation."""
 
@@ -214,6 +229,7 @@ class SecEdgarAnalysisSnapshot:
     filing_forms: Mapping[str, str] = field(default_factory=dict)
     filing_dates: Mapping[str, date] = field(default_factory=dict)
     current_tickers: tuple[str, ...] = ()
+    submission_pages: tuple[SubmissionPage, ...] = ()
 
 
 _ACTIVE_SNAPSHOT: ContextVar[SecEdgarAnalysisSnapshot | None] = ContextVar("sec_edgar_analysis_snapshot", default=None)
@@ -260,6 +276,7 @@ class SecEdgarFinancialFactsAdapter:
         self._header_fetcher = header_fetcher
         self._header_policy = header_policy or FilingHeaderPolicy()
         self._header_texts: dict[tuple[str, str], tuple[str, datetime]] = {}
+        self._submission_page_documents: dict[tuple[str, str], object] = {}
         self._clock = clock or utc_now
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
         self._ticker_to_cik: dict[str, str] | None = None
@@ -313,6 +330,7 @@ class SecEdgarFinancialFactsAdapter:
             filing_forms=MappingProxyType(_submission_strings(submissions_raw, "form")),
             filing_dates=MappingProxyType(_submission_filing_dates(submissions_raw)),
             current_tickers=_submission_tickers(submissions_raw),
+            submission_pages=_submission_pages(submissions_raw, cik),
         )
 
     def resolve_as_filed_sic(self, snapshot: SecEdgarAnalysisSnapshot) -> AsFiledSicResolution:
@@ -501,10 +519,11 @@ class SecEdgarFinancialFactsAdapter:
                 return _all_absent(
                     request, InstantAbsenceReason.UNSUPPORTED, "The analysis snapshot is for another issuer."
                 )
+            acceptance, forms = self._filings_reaching_back(snapshot, request.period_ends[0], boundary)
             eligible = {
                 accession: accepted
-                for accession in snapshot.eligible_annual_accessions
-                if (accepted := snapshot.acceptance_by_accession.get(accession)) is not None and accepted <= boundary
+                for accession, accepted in acceptance.items()
+                if forms.get(accession) in _COMPLETED_ANNUAL_FORMS and accepted <= boundary
             }
             anchor = max(eligible, key=lambda accession: eligible[accession], default=None)
             namespaces = snapshot.accession_taxonomies.get(anchor, frozenset()) if anchor is not None else frozenset()
@@ -528,6 +547,55 @@ class SecEdgarFinancialFactsAdapter:
             raise FinancialProviderError(
                 msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID
             ) from exc
+
+    def _filings_reaching_back(
+        self, snapshot: SecEdgarAnalysisSnapshot, oldest: date, boundary: datetime
+    ) -> tuple[dict[str, datetime], dict[str, str]]:
+        """Return the acceptance times and forms of the recent filings, with older pages added when they are needed.
+
+        A year-end is reported by the annual filing made after it and by the next year's filing, which repeats it as a
+        comparative. The recent block is enough when an annual filing accepted at the boundary or before was filed
+        after ``oldest`` and within two years of it. Otherwise the extra pages the submissions data lists are read,
+        nearest to that window first, until one is enough or ``_MAX_SUBMISSION_PAGES`` have been read. Nothing else
+        reads these pages, so no other resolution changes.
+        """
+        acceptance = dict(snapshot.acceptance_by_accession)
+        forms = dict(snapshot.filing_forms)
+        dates = dict(snapshot.filing_dates)
+        window_end = oldest + timedelta(days=2 * 365)
+
+        def enough() -> bool:
+            return any(
+                forms.get(accession) in _COMPLETED_ANNUAL_FORMS
+                and accepted <= boundary
+                and oldest < dates.get(accession, accepted.date()) <= window_end
+                for accession, accepted in acceptance.items()
+            )
+
+        if enough() or snapshot.cik is None:
+            return acceptance, forms
+        pages = sorted(
+            (page for page in snapshot.submission_pages if page.filing_to > oldest and page.filing_from <= window_end),
+            key=lambda page: page.filing_from,
+            reverse=True,
+        )
+        for page in pages[:_MAX_SUBMISSION_PAGES]:
+            wrapped = {"filings": {"recent": self._submission_page(snapshot.cik, page)}}
+            acceptance.update(_acceptance_times(wrapped))
+            forms.update(_submission_strings(wrapped, "form"))
+            dates.update(_submission_filing_dates(wrapped))
+            if enough():
+                break
+        return acceptance, forms
+
+    def _submission_page(self, cik: str, page: SubmissionPage) -> object:
+        """Fetch one extra submissions page once per adapter; its history never changes except by appending."""
+        key = (cik, page.name)
+        if key not in self._submission_page_documents:
+            self._submission_page_documents[key] = self._fetch_company_document(
+                _SUBMISSION_PAGE_URL.format(name=page.name)
+            )
+        return self._submission_page_documents[key]
 
     def resolve_security_identity(self, request: SecurityIdentityRequest) -> SecurityIdentity | None:
         """Return current SEC ticker-title and CIK evidence when available."""
@@ -845,6 +913,33 @@ def _submission_filing_dates(payload: object) -> dict[str, date]:
         except ValueError:
             continue
     return result
+
+
+def _submission_pages(payload: object, cik: str) -> tuple[SubmissionPage, ...]:
+    """Return the extra submissions pages the issuer's own document lists, skipping any entry that is not usable.
+
+    A page is usable when its name is the issuer's own `CIK<cik>-submissions-NNN.json` and its filing range is valid.
+    """
+    filings = payload.get("filings") if isinstance(payload, Mapping) else None
+    listed = filings.get("files") if isinstance(filings, Mapping) else None
+    if not isinstance(listed, Sequence) or isinstance(listed, (str, bytes)):
+        return ()
+    pages: list[SubmissionPage] = []
+    for entry in listed:
+        if not isinstance(entry, Mapping):
+            continue
+        name, first, last = entry.get("name"), entry.get("filingFrom"), entry.get("filingTo")
+        if not isinstance(name, str) or not isinstance(first, str) or not isinstance(last, str):
+            continue
+        matched = _SUBMISSION_PAGE_NAME.match(name)
+        try:
+            filing_from, filing_to = date.fromisoformat(first), date.fromisoformat(last)
+        except ValueError:
+            continue
+        if matched is None or matched.group(1) != cik or filing_from > filing_to:
+            continue
+        pages.append(SubmissionPage(name, filing_from, filing_to))
+    return tuple(pages)
 
 
 def _submission_tickers(payload: object) -> tuple[str, ...]:

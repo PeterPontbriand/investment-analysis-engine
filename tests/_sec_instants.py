@@ -54,6 +54,7 @@ class FixtureFetcher:
             "/companyfacts/": document["companyfacts"] if companyfacts is None else companyfacts,
             "/submissions/": document["submissions"] if submissions is None else submissions,
         }
+        self.pages: dict[str, object] = dict(document.get("pages", {}))
         self.calls: list[str] = []
 
     def __call__(
@@ -64,6 +65,9 @@ class FixtureFetcher:
         assert provider_id == SEC_PROVIDER_ID
         assert isinstance(not_found, ProviderFailureKind)
         self.calls.append(url)
+        for name, page in self.pages.items():
+            if url.endswith(f"/submissions/{name}"):
+                return page
         for marker, document in self.documents.items():
             if marker in url:
                 return document

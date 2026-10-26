@@ -503,18 +503,20 @@ def test_a_direct_debt_total_is_returned_beside_its_parts_and_is_never_added_to_
         assert series("HON", field, count=1).facts == ()
 
 
-def test_commercial_paper_is_not_the_current_portion_and_operating_leases_are_not_the_lease_field() -> None:
+def test_commercial_paper_is_short_term_borrowings_only_and_operating_leases_are_not_the_lease_field() -> None:
     concepts = {
         "CommercialPaper": [("USD", [_row("2025-12-31", 77.0, _NEW)])],
         "OperatingLeaseLiability": [("USD", [_row("2025-12-31", 55.0, _NEW)])],
         "DebtCurrent": [("USD", [_row("2025-12-31", 99.0, _NEW)])],
     }
-    for field in (
-        FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT,
-        FinancialField.SHORT_TERM_BORROWINGS,
-        FinancialField.LEASE_LIABILITIES_AS_DEBT,
-    ):
+    for field in (FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT, FinancialField.LEASE_LIABILITIES_AS_DEBT):
         assert _series(concepts, field, ends=(_Y25,)).facts == ()
+    paper = _series(concepts, FinancialField.SHORT_TERM_BORROWINGS, ends=(_Y25,))
+    assert _values(paper) == {_Y25: 77.0}
+    assert paper.facts[0].provider_field == "us-gaap:CommercialPaper"
+    # Commercial paper is used only where ShortTermBorrowings is not tagged, and the two are never added.
+    both = {**concepts, "ShortTermBorrowings": [("USD", [_row("2025-12-31", 10.0, _NEW)])]}
+    assert _values(_series(both, FinancialField.SHORT_TERM_BORROWINGS, ends=(_Y25,))) == {_Y25: 10.0}
     finance = {**concepts, "FinanceLeaseLiability": [("USD", [_row("2025-12-31", 11.0, _NEW)])]}
     assert _values(_series(finance, FinancialField.LEASE_LIABILITIES_AS_DEBT, ends=(_Y25,))) == {_Y25: 11.0}
     ifrs = {"LeaseLiabilities": [("EUR", [_row("2025-12-31", 8.0, _NEW)])]}

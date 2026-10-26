@@ -112,8 +112,9 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
   - **Net PP&E under IFRS (H11).** The plain concept where the filer reports it; the concept that includes right-of-use
     assets only where that is the filer's own single balance-sheet line; the two are never summed.
   - **IFRS debt (H12).** Only carrying amounts qualify. The structured data cannot tell a carrying amount from a nominal
-    one, so the IFRS noncurrent long-term debt mapping is recorded unsupported (see D3); 3.5.2 must read an unsupported
-    component as `unavailable`, never as zero.
+    one, so the IFRS noncurrent long-term debt mapping is recorded unsupported for every filer (H14); 3.5.2 reads an
+    unsupported component as `unavailable`, never as zero, and an absent debt component as zero only under the rule of
+    Shared definitions §6 (H13).
   - **Test case for 3.5.2 (H12).** Alphabet's direct long-term-debt total (49,085 million at 2025-12-31) does not equal
     its current and noncurrent parts (48,543 million), the case for the reconciliation rule of Shared definitions §6,
     which marks the affected component `unavailable`. Honeywell is the other: it tags a direct `LongTermDebt` of 29,046
@@ -304,12 +305,24 @@ Decided under delegation (2026-10-25), within the standing instructions of the p
 | :--- | :--- | :--- | :--- |
 | D1 | Second manufacturer | Honeywell (CIK 773840, SIC 3724; latest annual `0000773840-26-000013`, 10-K, filed 2026-02-17, year-end 2025-12-31). | It is a manufacturer whose balance sheet is classified (current assets and current liabilities are tagged), the gap Deere leaves. It also tags no `Liabilities`, so the derivation supplies its total (58,651 million). |
 | D2 | Short-term investments list | US GAAP: `ShortTermInvestments`, then `MarketableSecuritiesCurrent`, then `AvailableForSaleSecuritiesDebtSecuritiesCurrent`. Deere's `MarketableSecurities` is not listed. | Alphabet's "Marketable securities" (96,135 million) and Moderna's "Investments" (3,204 million) are current lines on the face of the balance sheet. Deere's balance sheet is unclassified, so its line is not shown to be current. |
-| D3 | IFRS noncurrent long-term debt | Unsupported. | SAP's `LongtermBorrowings` (4,550 million) is a nominal amount against a carrying amount of 4,194 million, and Company Facts cannot tell a nominal amount from a carrying one. Approving the concept would give SAP a wrong value, and a list of excluded issuers is a hard-coded exception. Consequence: IFRS total debt cannot be assembled until the owner decides otherwise ([evidence §5.6](STEP_3_5_1_MAPPING_EVIDENCE.md#56-findings-the-owner-decides)). |
+| D3 | IFRS noncurrent long-term debt | Unsupported. Confirmed for every filer by the project owner (H14). | SAP's `LongtermBorrowings` (4,550 million) is a nominal amount against a carrying amount of 4,194 million, and Company Facts cannot tell a nominal amount from a carrying one. Approving the concept would give SAP a wrong value, and a list of excluded issuers is a hard-coded exception. Consequence: IFRS total debt cannot be assembled until the owner decides otherwise ([evidence §5.6](STEP_3_5_1_MAPPING_EVIDENCE.md#56-findings-the-owner-decides)). |
 | D4 | Total-liabilities derivation per date | A date with no tagged `Liabilities` is derived from the terms of one filing; a date with one is read directly. | The identity is exact where the evidence shows it holds, so a run that mixes the two gives the same value; it is not a priority list. |
 | D5 | Instant request shape | The requested period ends must be consecutive fiscal year-ends, each gap within the existing annual-duration tolerance (335 to 395 days). | It makes the 52/53-week rule testable for an instant request and rejects quarter-ends and stub dates. |
 | D6 | Cover-page fallback shape | A `basis` of the existing field (`cover_page`), not a new field or an option. | The year-end path and every consumer of it, Graham's BVPS included, are untouched. |
 | D7 | New module | `data/sec_edgar/instant_series.py`. | Placement only; see B.2. |
 | D8 | Absent reasons | Seven: not tagged, other concept, conflict, unsupported, basis mismatch, after the boundary, no anchor filing. | 3.5.2 needs to tell "the filer has none" from "the data cannot say". |
+| D9 | Commercial paper | US GAAP short-term borrowings is the list `ShortTermBorrowings`, then `CommercialPaper`; the second is read only where the first is not tagged, one concept per run. | H12 puts commercial paper in short-term borrowings. Alphabet tags only it (0). |
+| D10 | Related-concept report | An absence of reason not tagged or other concept carries `related_concept` (the first related concept tagged at the date); a present value carries a note `related_concept_tagged=...`. The lists are in the evidence record and hold only what the regression set showed. | 3.5.2 needs to apply H13 without reading the filing again. |
+| D11 | Paging rule | Pages are read only by the balance-sheet series, when no eligible annual filing made after the oldest requested year-end and within two years of it is in the recent block; newest page first, at most twelve, each once per adapter; a page name must be the issuer's own. The snapshot gains the listed pages and nothing else reads them. | Nothing the existing fields resolve changes. Twelve pages cover a frequent filer's last year. |
+
+Added on the project owner's review of the pull request (2026-10-26):
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| H13 | Absent debt components | An absent debt component is zero only when its mapping is not unsupported for the taxonomy and none of the related concepts the evidence records for it is tagged at that date; otherwise it is `unavailable`. The related concepts per debt field are in the evidence record. The series reports, for each absent date, the related concept tagged. `CommercialPaper` is added to the short-term borrowings list, read only where `ShortTermBorrowings` is not tagged (D9). Shared definitions §6 states the rule, and that IFRS total debt and EV are `unavailable` while the IFRS noncurrent mapping is unsupported. |
+| H14 | IFRS noncurrent long-term debt | Unsupported for every filer. Decided by the project owner; D3 recorded the same disposition under delegation. |
+| H15 | Submissions paging | The extra pages of the submissions data are read, bounded and only when the recent block does not reach back far enough for the request (D11). JPMorgan's earlier year-ends resolve, and no stored output changes. |
+| H16 | Duke Energy receivables | The 16 million is a real face line: the receivables moved to a separate line of variable interest entities (4,214 million), which is a related concept. The field is limited to the line the concept names, and the related concept is reported beside it. |
 
 ### A.2 The share-count scaling window (2026-10-25)
 
@@ -371,7 +384,7 @@ no SIC; no code reads a SIC.
 | SEC | `data/sec_edgar/instant_series.py` (new) and `data/sec_edgar/financial_facts.py` | the mappings per taxonomy and the exact-date selection for a requested period end (eligible annual filings, the boundary, the taxonomy of the anchor filing, one currency, conflicts reported), kept in a module of their own because `financial_facts.py` is over two thousand lines; the adapter method and the share-count paths of H7 stay in `financial_facts.py` |
 | Resolver | `data/financial/resolver.py` | an entry that resolves an `InstantSeriesRequest` into one `ResolvedInput` per date present and the dates absent, with the resolution trace; the unit routing of the new fields |
 | Cache | `data/financial/resolver.py`, `strategies/fcf_growth/input_resolver.py`, `evaluation/fixtures/graham.py` | the sites that set the financial-fact cache version, bumped (H5, H12); the cache itself needs no change: an older entry is refused by its version and fetched again |
-| Fixtures | `evaluation/fixtures/sec_edgar/instant_facts/` (new) | trimmed facts of the filings the evidence uses |
+| Fixtures | `evaluation/fixtures/sec_edgar/instant_facts/` (new) | trimmed facts of the filings the evidence uses, and for JPMorgan the extra submissions pages that hold its older annual reports |
 | Evidence | `docs/project/milestones/v0.2/step-3.5/STEP_3_5_1_MAPPING_EVIDENCE.md` | the field-mapping rows for these fields |
 
 Starting point to confirm first: the places that set the cache schema version (`CACHE_SCHEMA_VERSION = 2` in
@@ -503,6 +516,13 @@ Piotroski needs. `NOT_APPLICABLE` becomes `MetricStatus.NOT_APPLICABLE` and `UNA
 - **Net PP&E under IFRS (H11) and unsupported IFRS mappings (H8, H12):** the plain concept wins, the right-of-use
   variant is used alone, the two are never summed; short-term investments, long-term investments, the direct debt
   total, noncurrent debt and preferred stock are unsupported under IFRS.
+- **Related concepts (H13):** Deere, Honeywell, Nutrien and Alphabet each give the expected present, absent or
+  related-concept result for the debt components (Deere's `DebtCurrent`, Honeywell's lease-inclusive concepts, Nutrien's
+  unsupported noncurrent debt, Alphabet's commercial paper and parts); commercial paper is read only where
+  `ShortTermBorrowings` is not tagged; Duke Energy's receivables report the related variable-interest-entity concept.
+- **Submissions pages (H15):** JPMorgan's earlier year-ends resolve from the extra pages, newest first and once; no page
+  is read when the recent block reaches back far enough or by any other request; at most twelve pages are read; a page
+  that is not the issuer's own, or whose range is invalid, is ignored.
 - **Cover-page fallback (H7):** a separate `basis`; used only when tagged as a single non-dimensional total in the
   anchor filing; its own date is the share-count date; a multi-class filer with per-class counts only gives none; the
   existing year-end path never returns it.
