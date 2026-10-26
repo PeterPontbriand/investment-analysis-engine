@@ -30,6 +30,10 @@ def historical_index_kind(index: pd.Index[Any]) -> HistoricalIndexKind | None:
     return None
 
 
+class SplitHistoryEndsBeforeRequestError(ValueError):
+    """The requested day is later than the day the split-adjusted response was adjusted to."""
+
+
 class NoEligibleObservationsError(ValueError):
     """No observation exists at or before the requested point-in-time boundary."""
 
@@ -219,8 +223,15 @@ def split_adjusted_close_on_or_before(history: SplitAdjustedHistory, as_of: date
     """Return the date and split-adjusted close of the last session on or before ``as_of``.
 
     Raises:
+        SplitHistoryEndsBeforeRequestError: If ``as_of`` is later than the response's adjustment date: the response has
+            no session on that day, and the last session before it would be silently an older one.
         NoEligibleObservationsError: If no session exists on or before ``as_of``.
     """
+    if as_of > history.adjustment_date:
+        raise SplitHistoryEndsBeforeRequestError(
+            f"The split-adjusted history ends at its adjustment date {history.adjustment_date}, "
+            f"before the requested {as_of}."
+        )
     sessions = [
         value.date() if isinstance(value, datetime) else value  # pd.Timestamp is a datetime
         for value in history.close.index

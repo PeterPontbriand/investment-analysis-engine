@@ -26,6 +26,7 @@ from investment_analysis_engine.data.market_data import (
     SplitAdjustedHistory,
     SplitAdjustedHistoryProvider,
     SplitEvent,
+    SplitHistoryEndsBeforeRequestError,
     split_adjusted_close_on_or_before,
 )
 from investment_analysis_engine.data.repositories.market_data import MarketDataCacheKey, SQLiteMarketDataRepository
@@ -105,7 +106,7 @@ def test_the_close_is_the_last_session_on_or_before_the_requested_day() -> None:
     assert session == date(2024, 4, 30)
     assert close == pytest.approx(86.402, abs=1e-3)
     assert split_adjusted_close_on_or_before(history, date(2024, 4, 28))[0] == date(2024, 4, 26)
-    assert split_adjusted_close_on_or_before(history, date(2030, 1, 1))[0] == date(2024, 6, 11)
+    assert split_adjusted_close_on_or_before(history, date(2026, 10, 26))[0] == date(2024, 6, 11)
     with pytest.raises(NoEligibleObservationsError, match="No close exists on or before 2024-04-25"):
         split_adjusted_close_on_or_before(history, date(2024, 4, 25))
 
@@ -400,3 +401,53 @@ def test_a_provider_without_the_capability_is_a_defect_not_an_empty_answer(migra
     assert not isinstance(Plain(), SplitAdjustedHistoryProvider)
     with pytest.raises(TypeError, match="no split-adjusted history"):
         _client(Plain(), migrated_database).fetch_split_adjusted_history("NVDA", START, use_cache=True)
+
+
+def test_a_request_later_than_the_adjustment_date_is_refused_not_answered_with_an_older_session() -> None:
+    history = _history()
+    with pytest.raises(
+        SplitHistoryEndsBeforeRequestError,
+        match="ends at its adjustment date 2026-10-26, before the requested 2026-10-27",
+    ):
+        split_adjusted_close_on_or_before(history, date(2026, 10, 27))
+    ended = replace(history, adjustment_date=date(2024, 6, 12))
+    assert split_adjusted_close_on_or_before(ended, date(2024, 6, 12))[0] == date(2024, 6, 11)
+    with pytest.raises(SplitHistoryEndsBeforeRequestError):
+        split_adjusted_close_on_or_before(ended, date(2024, 6, 13))
+
+
+def test_a_stored_response_is_reused_for_an_as_of_only_when_it_was_adjusted_on_or_after_it(
+    migrated_database: SQLiteDatabase,
+) -> None:
+    provider = _Provider(_history())
+    _client(provider, migrated_database).fetch_split_adjusted_history("NVDA", START, use_cache=True)
+    assert provider.calls == 1
+
+    covered = _client(provider, migrated_database).fetch_split_adjusted_history(
+        "NVDA", START, use_cache=True, as_of=date(2026, 10, 26)
+    )
+    assert provider.calls == 1
+    assert covered.resolution is not None
+    assert covered.resolution.source_kind is SourceKind.CACHE
+    earlier = _client(provider, migrated_database).fetch_split_adjusted_history(
+        "NVDA", START, use_cache=True, as_of=date(2024, 4, 30)
+    )
+    assert provider.calls == 1
+    assert earlier.resolution is not None
+    assert earlier.resolution.source_kind is SourceKind.CACHE
+
+    # The stored response was adjusted on 2026-10-26; a run at a later day does not reuse it and fetches again.
+    provider.history = _history(adjustment_date=date(2026, 10, 28))
+    later = _client(provider, migrated_database).fetch_split_adjusted_history(
+        "NVDA", START, use_cache=True, as_of=date(2026, 10, 27)
+    )
+    assert provider.calls == 2
+    assert later.resolution is not None
+    assert later.resolution.source_kind is SourceKind.PROVIDER
+    assert later.adjustment_date == date(2026, 10, 28)
+    # The new response replaced the stored one, so the same request is now served from storage.
+    again = _client(provider, migrated_database).fetch_split_adjusted_history(
+        "NVDA", START, use_cache=True, as_of=date(2026, 10, 27)
+    )
+    assert provider.calls == 2
+    assert again.adjustment_date == date(2026, 10, 28)

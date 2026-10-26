@@ -365,6 +365,7 @@ Decided under delegation during 3.5.1d (2026-10-26):
 | D20 | The live path | `adjusted_on` is the day the share count must be scaled to. A stored response adjusted on another day is refused and fetched again; without it a stored response is returned however old, with its original adjustment date. | A split since the response is in neither its closes nor its events. |
 | D21 | One function for both counts | `scale_share_count(count, after, adjustment_date, events)` takes the date after which splits apply: the filing date of a year-end count, or the cover date of a cover-page count (H7). | The rule is the same; only the date of the count differs. |
 | D22 | Composition | `cli_support` passes the split variant to the cached client. | Without it the cached client has no variant and never stores a split-adjusted response. No consumer reads one yet. |
+| D23 | A response that ends before `as_of` | On review of the pull request: `fetch_split_adjusted_history` takes the run's `as_of` and reuses a stored response only when its adjustment date is on or after it, otherwise it fetches again; `split_adjusted_close_on_or_before` refuses an `as_of` later than the response's adjustment date (`SplitHistoryEndsBeforeRequestError`). Tests cover a stored response that covers `as_of`, one that does not, and the refusal. | The historical cache TTL can be unlimited, and a stored response that ended before the requested day has no session on it: the last session on or before `as_of` would silently be an older one. |
 
 ### A.2 The share-count scaling window (2026-10-25)
 

@@ -166,7 +166,13 @@ class CachedHistoricalDataClient(BaseDataClient):
         )
 
     def fetch_split_adjusted_history(
-        self, ticker: str, start_date: str, *, use_cache: bool, adjusted_on: date | None = None
+        self,
+        ticker: str,
+        start_date: str,
+        *,
+        use_cache: bool,
+        adjusted_on: date | None = None,
+        as_of: date | None = None,
     ) -> SplitAdjustedHistory:
         """Return the split-adjusted close and split history from ``start_date``, reusing an eligible stored response.
 
@@ -181,6 +187,8 @@ class CachedHistoricalDataClient(BaseDataClient):
             adjusted_on: For the live path, the day the share count must be scaled to. A stored response adjusted on
                 another day is refused and fetched again, because a split since then is in neither its closes nor its
                 events.
+            as_of: For a run at a requested day, that day. A stored response is reused only when it was adjusted on or
+                after it: one that ended earlier has no session on the day, and the close it would give is an older one.
         """
         provider = self._provider
         if not isinstance(provider, SplitAdjustedHistoryProvider):
@@ -199,6 +207,7 @@ class CachedHistoricalDataClient(BaseDataClient):
             and entry.split_history is not None
             and entry.data.context.price_adjustment == SPLIT_ADJUSTED_PRICE
             and (adjusted_on is None or entry.split_history.adjustment_date == adjusted_on)
+            and (as_of is None or entry.split_history.adjustment_date >= as_of)
             and not self._expired(entry.cached_at, f"{ticker}:{provider_id}:{start_date}:{variant}")
         ):
             return SplitAdjustedHistory(
