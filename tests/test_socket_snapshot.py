@@ -1,9 +1,11 @@
 """Prove the ``WinError 10055`` hook attaches one snapshot to the right report and never changes an outcome.
 
 Each hook case runs a tiny inner pytest session that loads the real hook with a fake collector, so the snapshot
-reaches the failure output exactly as it does for the project's own suite. The real collector runs only on Windows.
+reaches the failure output exactly as it does for the project's own suite. The real collector runs only on Windows,
+and not on CI runners, where a cold hosted runner can exceed its collection timeout.
 """
 
+import os
 import sys
 
 import pytest
@@ -159,6 +161,11 @@ def test_the_hook_does_nothing_without_a_collector_off_windows(
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="the real collector uses Windows PowerShell")
+@pytest.mark.skipif(
+    bool(os.environ.get("CI")),
+    reason="the real collector is skipped on CI runners because a cold hosted runner can exceed the collection "
+    "timeout (issue #186)",
+)
 def test_the_real_collector_returns_every_section() -> None:
     from tests._socket_snapshot import collect_socket_snapshot  # noqa: PLC0415
 
