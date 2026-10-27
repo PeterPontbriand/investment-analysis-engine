@@ -204,7 +204,10 @@ in which an absent element yields a number.
      this CIK, on a registered title that is a share of the issuer. Class designations and "ordinary shares" are
      accepted; depositary shares, units, warrants and preferred securities are refused (`incompatible_units`); a
      missing or unreadable cover is `unavailable` (`missing_fact`). The check works with `as_of`, because the cover of
-     a filing on or before the boundary is historical evidence.
+     a filing on or before the boundary is historical evidence. The accepted titles are common stock, common shares,
+     ordinary shares and the class designations of the captured covers, with or without a par-value clause; a title
+     outside that list is `unavailable` (`missing_fact`), never affirmed
+     ([vocabulary and evidence](STEP_3_5_2_LISTING_EVIDENCE.md#6-the-title-vocabulary)).
   4. **The share-count rule for several classes below holds:** Alphabet's single combined count is valued at the
      requested ticker's price, and per-class counts with no total are `unavailable`.
 - **Limitation, stated in the guides:** a ticker renamed after the anchor filing does not match the cover and is

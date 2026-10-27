@@ -11,7 +11,7 @@ requests, at most three per check, and never run in the default test run, the ma
 continuous-integration workflow. The local Ollama service is not an online dependency and is not checked.
 
 The check bodies live in one module, [`investment_analysis_engine/data/provider_checks.py`](../../investment_analysis_engine/data/provider_checks.py). The live
-tests and the `health` command call the same functions, so a probe is written once. The exceptions are the SEC filing-header test, which makes a single request to the SEC archive for a filing header and checks the fields the industry-class reader uses, and the Yahoo split-history test, which makes two requests (the unadjusted download and the currency lookup) and checks the columns, the split ratios and the adjustment date.
+tests and the `health` command call the same functions, so a probe is written once. The exceptions are the SEC filing-header test, which makes a single request to the SEC archive for a filing header and checks the fields the industry-class reader uses, the SEC cover test, which makes a single request to the SEC archive for the rendered cover of an annual filing and checks the rows the listing check reads (the document type, the registrant's CIK and, for each registered security, its title, trading symbol and exchange), and the Yahoo split-history test, which makes two requests (the unadjusted download and the currency lookup) and checks the columns, the split ratios and the adjustment date.
 
 ## 1. Running the checks
 
@@ -24,6 +24,7 @@ tests and the `health` command call the same functions, so a probe is written on
 | The live tests, with kept results (Git Bash, Linux, macOS) | `bash scripts/run-live-checks.sh` |
 | One live test only | add `-k yahoo` or `-k sec_edgar` to either wrapper |
 | The SEC filing-header test only | add `-k filing_header` to either wrapper |
+| The SEC cover test only | add `-k sec_edgar_cover` to either wrapper |
 | The Yahoo split-history test only | add `-k split_adjusted` to either wrapper |
 | The live tests directly | `uv run pytest --live tests/live` |
 

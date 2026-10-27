@@ -24,6 +24,12 @@ from investment_analysis_engine.analysis.shared.split_adjustment import scale_sh
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.market_data import SplitEvent
+from investment_analysis_engine.data.sec_edgar.cover_listing import (
+    CoverUnavailableReason,
+    ListingEvidence,
+    ListingResolution,
+    SecurityKind,
+)
 
 ANCHOR_FILING_FORMS = frozenset({"10-K", "10-K/A"})
 
@@ -62,6 +68,68 @@ class ListingCheck:
                 raise ValueError("An affirmed listing check carries no reason.")
         elif self.reason_code is None or self.reason is None or not self.reason.strip():
             raise ValueError("A refused listing check requires a reason code and a non-empty reason.")
+
+
+_REFUSED_KINDS = {
+    SecurityKind.DEPOSITARY_SHARE: "a depositary share",
+    SecurityKind.UNIT: "a unit",
+    SecurityKind.WARRANT: "a warrant",
+    SecurityKind.PREFERRED: "a preferred security",
+}
+_UNAVAILABLE_REASONS = {
+    CoverUnavailableReason.PROVIDER_UNSUPPORTED: "the provider does not read filing covers",
+    CoverUnavailableReason.NO_ANALYSIS_SCOPE: "no analysis scope is active for the provider",
+    CoverUnavailableReason.SUBJECT_MISMATCH: "the active analysis scope is for another ticker",
+    CoverUnavailableReason.NO_ANCHOR_FILING: "there is no anchor annual filing at the boundary",
+    CoverUnavailableReason.FORM_UNAVAILABLE: "the anchor filing's form is unknown",
+    CoverUnavailableReason.ACCEPTANCE_UNAVAILABLE: "the anchor filing's acceptance time is unknown",
+    CoverUnavailableReason.ACCEPTED_AFTER_BOUNDARY: "the anchor filing was accepted after the boundary",
+    CoverUnavailableReason.COVER_MISSING: "the filing has no rendered cover",
+    CoverUnavailableReason.COVER_UNREADABLE: "the cover cannot be read without guessing",
+    CoverUnavailableReason.NO_REGISTRATION_TABLE: "the cover has no table of registered securities",
+    CoverUnavailableReason.FORM_MISMATCH: "the cover names a different form than the anchor filing",
+    CoverUnavailableReason.CIK_MISMATCH: "the cover does not name the issuer's CIK",
+    CoverUnavailableReason.AMBIGUOUS_LISTING: "the cover lists the ticker under different titles",
+}
+
+
+def listing_check_from_resolution(resolution: ListingResolution) -> ListingCheck:
+    """Return the listing check a cover resolution gives.
+
+    A share of the issuer is affirmed. A depositary share, unit, warrant or preferred security is refused with
+    ``incompatible_units``. A ticker the cover does not list, a title outside the vocabulary and a cover that could
+    not be read are refused with ``missing_fact``.
+    """
+    evidence = resolution.evidence
+    if evidence is None:
+        assert resolution.reason is not None  # the resolution type guarantees one of the two
+        return ListingCheck(
+            affirmed=False,
+            reason_code=ReasonCode.MISSING_FACT,
+            reason=f"No cover could be read for the listing check: {_UNAVAILABLE_REASONS[resolution.reason]}.",
+        )
+    return _check_listed_security(evidence)
+
+
+def _check_listed_security(evidence: ListingEvidence) -> ListingCheck:
+    """Return the listing check for a cover that was read."""
+    if evidence.kind is SecurityKind.SHARE:
+        return ListingCheck(affirmed=True, accession=evidence.accession)
+    if evidence.kind in _REFUSED_KINDS:
+        return ListingCheck(
+            affirmed=False,
+            accession=evidence.accession,
+            reason_code=ReasonCode.INCOMPATIBLE_UNITS,
+            reason=f"{evidence.ticker} is registered as {_REFUSED_KINDS[evidence.kind]} ({evidence.title!r}), "
+            "not as a share of the issuer.",
+        )
+    if evidence.kind is SecurityKind.NOT_LISTED:
+        reason = f"The cover of {evidence.accession} does not list {evidence.ticker} under this CIK."
+    else:
+        reason = f"{evidence.ticker} is registered under a title outside the share vocabulary ({evidence.title!r})."
+    return ListingCheck(
+        affirmed=False, accession=evidence.accession, reason_code=ReasonCode.MISSING_FACT, reason=reason
+    )
 
 
 @dataclass(frozen=True)
