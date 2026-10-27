@@ -42,6 +42,8 @@ class ReasonCode(StrEnum):
     INSTRUMENT_KIND_NOT_APPLICABLE = "instrument_kind_not_applicable"
     INDUSTRY_CLASS_NOT_APPLICABLE = "industry_class_not_applicable"
     INDUSTRY_CLASS_UNKNOWN = "industry_class_unknown"
+    UNSUPPORTED_MAPPING = "unsupported_mapping"
+    DEBT_NOT_VISIBLE = "debt_not_visible"
 
 
 @dataclass(frozen=True)

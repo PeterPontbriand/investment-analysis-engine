@@ -1,4 +1,4 @@
-"""Pure deterministic calculations for the FCF & earnings-growth strategy (Slice B).
+"""Pure deterministic calculations for the FCF & earnings-growth strategy.
 
 Every function here is pure: it performs no provider/cache/filesystem/clock/
 language-model access and infers no periods or accounting bases.  The metric
@@ -6,7 +6,8 @@ helpers never raise for invalid or nonmeaningful inputs and never return
 ``NaN`` or infinity; they return typed ``MetricResult`` objects whose
 ``reason_code`` and ``reason`` explain every non-ok outcome.
 Data selection, sign normalization, and provenance assembly happen outside
-these functions (Slice C and later).
+these functions, in the input resolver. Free cash flow and the FCF yield are shared metrics, computed in
+``investment_analysis_engine/analysis/shared/cash_flow.py``.
 
 Formulas follow ``docs/user/FINANCE_MATH.md`` and the normative contract in
 ``docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md``:
@@ -14,8 +15,7 @@ Formulas follow ``docs/user/FINANCE_MATH.md`` and the normative contract in
 - free cash flow = operating cash flow - positive normalized CapEx;
 - growth percent = ``(current - prior) / prior * 100`` with a strictly positive prior;
 - CAGR percent = ``((ending / beginning) ** (1 / N) - 1) * 100`` with strictly
-  positive endpoints and at least one elapsed year;
-- FCF yield percent = ``free cash flow / current market capitalization * 100``.
+  positive endpoints and at least one elapsed year.
 """
 
 from __future__ import annotations
@@ -45,33 +45,6 @@ def _invalid_request(reason: str) -> MetricResult:
 def _unavailable(reason_code: ReasonCode, reason: str) -> MetricResult:
     """Return an unavailable result for a failed business-level precondition."""
     return MetricResult.failure(MetricStatus.UNAVAILABLE, reason_code, reason)
-
-
-def compute_free_cash_flow(operating_cash_flow: float, normalized_capital_expenditures: float) -> MetricResult:
-    """Compute free cash flow for one completed fiscal year.
-
-    Free cash flow may be negative; sign normalization is a data-resolution
-    concern outside this pure function.
-
-    Args:
-        operating_cash_flow: Net cash provided by operating activities (annual).
-        normalized_capital_expenditures: Positive normalized CapEx amount (annual).
-
-    Returns:
-        ``ok`` with the free cash flow in the inputs' units (may be negative),
-        or ``not_applicable`` with ``invalid_request`` when an input is
-        non-finite or the subtraction overflows the finite double range.
-    """
-    if not math.isfinite(operating_cash_flow):
-        return _invalid_request(f"operating_cash_flow must be finite (received {operating_cash_flow!r}).")
-    if not math.isfinite(normalized_capital_expenditures):
-        return _invalid_request(
-            f"normalized_capital_expenditures must be finite (received {normalized_capital_expenditures!r})."
-        )
-    free_cash_flow = operating_cash_flow - normalized_capital_expenditures
-    if not math.isfinite(free_cash_flow):
-        return _invalid_request("Free cash flow overflows the finite double range for the supplied inputs.")
-    return MetricResult.ok(free_cash_flow)
 
 
 def compute_fcf_per_diluted_share(free_cash_flow: float, diluted_shares: float) -> MetricResult:
@@ -126,39 +99,6 @@ def compute_cagr(beginning: float, ending: float, elapsed_years: int) -> MetricR
     if not math.isfinite(cagr_percent):
         return _invalid_request("CAGR overflows the finite double range for the supplied inputs.")
     return MetricResult.ok(cagr_percent)
-
-
-def compute_fcf_yield(free_cash_flow: float, market_capitalization: float) -> MetricResult:
-    """Compute the informational free-cash-flow yield as a percentage.
-
-    The numerator is annual and the denominator is current.  The yield is
-    supporting context only and must not affect classification under
-    ``method_version = 1``.
-
-    Args:
-        free_cash_flow: Latest completed fiscal-year free cash flow (annual).
-        market_capitalization: Current market capitalization, strictly positive.
-
-    Returns:
-        ``ok`` with the yield percent (may be negative), ``unavailable`` with
-        ``market_cap_unavailable`` when the market capitalization is not
-        strictly positive, or ``not_applicable`` with ``invalid_request``
-        when an input is non-finite or the result overflows the finite double
-        range.
-    """
-    if not math.isfinite(free_cash_flow):
-        return _invalid_request(f"free_cash_flow must be finite (received {free_cash_flow!r}).")
-    if not math.isfinite(market_capitalization):
-        return _invalid_request(f"market_capitalization must be finite (received {market_capitalization!r}).")
-    if market_capitalization <= 0:
-        return _unavailable(
-            ReasonCode.MARKET_CAP_UNAVAILABLE,
-            f"market_capitalization must be strictly positive (received {market_capitalization}).",
-        )
-    fcf_yield_percent = free_cash_flow / market_capitalization * 100.0
-    if not math.isfinite(fcf_yield_percent):
-        return _invalid_request("FCF yield overflows the finite double range for the supplied inputs.")
-    return MetricResult.ok(fcf_yield_percent)
 
 
 def _trend_classification(fcf_cagr: MetricResult, eps_cagr: MetricResult) -> TrendClassification:

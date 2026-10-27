@@ -218,6 +218,21 @@ A transformation that restates per-share values after the number of shares chang
 ### Split-adjusted close
 A closing price restated for every stock split after its date and for nothing else, so a dividend paid later does not change it. It is the price on the same basis as a share count scaled by those splits, and the two together give the market capitalization the shares and the price had on the day. It is not the dividend-adjusted close that the [Momentum](GLOSSARY.md#momentum-analyzer) series uses. A stock dividend appears in the provider's split history as a fractional split (1.05) and is treated like a split; it is not counted as new shares issued.
 
+### Market Capitalization
+Common shares outstanding times the price, both on the basis of the same date: the share count is scaled by every stock split after the date it was taken, and the price is the split-adjusted close. It is available only for an issuer whose annual filing is a 10-K, whose quote currency equals its filing currency, and whose listing on the filing's cover page is a share of the issuer. See [Financial Math](FINANCE_MATH.md#shared-metrics).
+
+### EBITDA
+Earnings before interest, taxes, depreciation and amortization, taken here as reported operating income (EBIT) plus depreciation and amortization of the cash-flow statement. Lease cost sits above or below it according to the accounting framework, so a US GAAP and an IFRS filer are not fully comparable.
+
+### Enterprise Value (EV)
+Market capitalization plus total debt, preferred stock and noncontrolling interest, minus cash and short-term investments. It may be negative.
+
+### Total Debt
+Short-term borrowings, the current portion of long-term debt, noncurrent long-term debt and the lease liabilities counted as debt. A missing debt figure is never assumed to be zero without evidence that the filer has none.
+
+### Invested Capital
+Net working capital (without cash, short-term investments and the debt in current liabilities) plus net property, plant and equipment: Greenblatt's tangible capital employed. Goodwill and intangibles are excluded.
+
 ### BVPS (Book Value Per Share)
 Book value attributable to common shareholders divided by period-end common shares outstanding. BVPS is an accounting measure of net assets per common share, not a market price. When using SEC EDGAR data, Investment Analysis Engine derives it from eligible fiscal-year-end balance-sheet components rather than claiming a direct SEC BVPS field.
 

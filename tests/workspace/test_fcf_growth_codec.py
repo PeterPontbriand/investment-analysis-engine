@@ -400,14 +400,14 @@ def test_decoding_is_pure_and_does_not_mutate_payload(monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         "investment_analysis_engine.strategies.fcf_growth.analyzer.FCFEarningsGrowthAnalyzer.run_analysis", unexpected
     )
-    for name in (
-        "compute_free_cash_flow",
-        "compute_fcf_per_diluted_share",
-        "compute_cagr",
-        "compute_fcf_yield",
-        "classify_fcf_earnings_growth",
+    for target in (
+        "investment_analysis_engine.strategies.fcf_growth.calculators.compute_fcf_per_diluted_share",
+        "investment_analysis_engine.strategies.fcf_growth.calculators.compute_cagr",
+        "investment_analysis_engine.strategies.fcf_growth.calculators.classify_fcf_earnings_growth",
+        "investment_analysis_engine.analysis.shared.cash_flow.compute_free_cash_flow",
+        "investment_analysis_engine.analysis.shared.cash_flow.compute_fcf_yield",
     ):
-        monkeypatch.setattr(f"investment_analysis_engine.strategies.fcf_growth.calculators.{name}", unexpected)
+        monkeypatch.setattr(target, unexpected)
     restored = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(restored, FCFEarningsGrowthResult)
     assert restored.fcf_cagr.value == 0.0
