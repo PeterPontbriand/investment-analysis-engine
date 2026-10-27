@@ -194,8 +194,8 @@ selection; no SIC in the instrument profile; no schema migration.
 
 **New data:** none beyond 3.5.1.
 
-**Sub-slices:** 3.5.2a the ranking helper, 3.5.2b the pure shared metrics, 3.5.2c the shared input assembly, 3.5.2d
-FCF-Growth adopts the shared market cap ([slice plan](STEP_3_5_2_SLICE_PLAN.md)).
+**Sub-slices:** 3.5.2a the ranking helper, 3.5.2b the pure shared metrics, 3.5.2c the listing check, 3.5.2d the shared
+input assembly, 3.5.2e FCF-Growth adopts the shared market cap ([slice plan](STEP_3_5_2_SLICE_PLAN.md)).
 
 **Result shape:** each shared metric is a pure function over resolved facts that returns a
 `MetricResult` plus the operands and provenance it used. Market cap also returns its share-count

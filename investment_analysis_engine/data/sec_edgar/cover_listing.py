@@ -22,7 +22,7 @@ from html.parser import HTMLParser
 from typing import Protocol, runtime_checkable
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.data.sec_edgar.filing_document import _read_bounded
+from investment_analysis_engine.data.sec_edgar.filing_document import read_bounded
 
 COVER_REPORT_NAME = "R1.htm"
 _COVER_URL_PATTERN = re.compile(
@@ -34,6 +34,7 @@ _CONCEPT = re.compile(r"showAR\(\s*this,\s*'defref_(?P<prefix>[A-Za-z0-9-]+)_(?P
 _DOCUMENT_TYPE = "DocumentType"
 _CIK = "EntityCentralIndexKey"
 _TITLE_CONCEPTS = frozenset({"Security12bTitle", "Security12gTitle"})
+_SEPARATORS = str.maketrans({".": "-", "/": "-"})
 _SYMBOL = "TradingSymbol"
 _EXCHANGE = "SecurityExchangeName"
 _NO_SYMBOL = "NoTradingSymbolFlag"
@@ -102,7 +103,7 @@ def fetch_cover(
         FinancialProviderError: A transport fault, a 404, a cover over the size limit or one that is not UTF-8,
             carrying the kind of the failure and *provider_id*.
     """
-    return _read_bounded(
+    return read_bounded(
         url,
         pattern=_COVER_URL_PATTERN,
         noun="cover",
@@ -234,26 +235,36 @@ _SHARE_DESIGNATIONS = (
     "common stock",
     "common shares",
     "class a common stock",
+    "class b common stock",
     "class a ordinary shares",
     "class c capital stock",
     "ordinary shares",
 )
-_PAR = r"\$(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)"
-# Each par-value clause is a form on a captured cover; a designation alone is also a title ("Ordinary Shares").
+# An amount is a decimal ("$0.01", "$.01") or a mixed fraction ("$1-2/3").
+_PAR = r"\$(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+|[0-9]+-[0-9]+/[0-9]+)"
+# Each clause is a form on a captured cover; a designation alone is also a title ("Ordinary Shares").
 _PAR_CLAUSES = (
     rf", {_PAR} par value",
     rf", par value {_PAR} per share",
     rf", {_PAR} par value per share",
     rf", par value {_PAR}",
     rf" {_PAR} par value",
+    ", without par value",
+    r" \(no par value\)",
+    rf" \({_PAR} par value\)",
+    rf" \(par value {_PAR} per share\)",
+    r", par value [0-9]+-[0-9]+/[0-9]+ cents per share",
+    r", par value chf [0-9]+(?:\.[0-9]+)? per share",
+    r" \(\u20ac[0-9]+(?:\.[0-9]+)? nominal value per share\)",
 )
 _SHARE_TITLE = re.compile(
     "(?:" + "|".join(re.escape(item) for item in _SHARE_DESIGNATIONS) + ")(?:" + "|".join(_PAR_CLAUSES) + ")?"
 )
-_DEPOSITARY_PREFIXES = ("depositary shares", "american depositary shares")
+_DEPOSITARY_PREFIXES = ("depositary shares", "american depositary shares", "dep shs")
 _UNIT_PREFIXES = ("units",)
 _WARRANT_PREFIXES = ("warrants",)
 _PREFERRED_SUFFIXES = ("preferred stock",)
+_PREFERRED_SERIES = re.compile(r".*preferred stock, series [a-z]+")
 
 
 def classify_title(title: str) -> SecurityKind:
@@ -265,7 +276,7 @@ def classify_title(title: str) -> SecurityKind:
         return SecurityKind.UNIT
     if normalized.startswith(_WARRANT_PREFIXES):
         return SecurityKind.WARRANT
-    if normalized.endswith(_PREFERRED_SUFFIXES):
+    if normalized.endswith(_PREFERRED_SUFFIXES) or _PREFERRED_SERIES.fullmatch(normalized):
         return SecurityKind.PREFERRED
     if _SHARE_TITLE.fullmatch(normalized):
         return SecurityKind.SHARE
@@ -351,6 +362,11 @@ class _ReportParser(HTMLParser):
             self._cell.append(data)
 
 
+def _symbol_key(symbol: str) -> str:
+    """Return a trading symbol as compared: trimmed, upper-cased, with ``.``, ``-`` and ``/`` the same separator."""
+    return symbol.strip().upper().translate(_SEPARATORS)
+
+
 def _row_value(cells: list[str]) -> str | None:
     """Return the one value a row holds across its period columns, or ``None`` when it holds none."""
     values = {cell for cell in cells if cell}
@@ -411,7 +427,8 @@ def read_cover_listing(  # noqa: PLR0911, PLR0913
 
     Args:
         markup: The text of the rendered cover (``R1.htm``).
-        ticker: The requested ticker; only a row whose trading symbol equals it is classified.
+        ticker: The requested ticker; only a row whose trading symbol equals it, with ``.``, ``-`` and ``/`` read as the
+            same separator, is classified.
         cik: The issuer's CIK; a cover that does not name it is refused.
         accession: The anchor filing's accession.
         form: The anchor filing's form as the submissions data gives it; the cover must name the same one.
@@ -436,11 +453,12 @@ def read_cover_listing(  # noqa: PLR0911, PLR0913
     if not cover.registered:
         return ListingResolution(reason=CoverUnavailableReason.NO_REGISTRATION_TABLE)
     wanted = ticker.strip().upper()
+    wanted_key = _symbol_key(wanted)
     if len(set(cover.ciks)) > 1 and any(item.cik is None for item in cover.registered):
         return ListingResolution(reason=CoverUnavailableReason.COVER_UNREADABLE)
     # A cover with one registrant key belongs to it; a combined cover's securities belong to the nearest key above.
     own = [item for item in cover.registered if len(set(cover.ciks)) == 1 or item.cik == issuer]
-    matches = [item for item in own if (item.symbol or "").strip().upper() == wanted]
+    matches = [item for item in own if _symbol_key(item.symbol or "") == wanted_key]
     if any(item.exchange is None for item in matches):
         return ListingResolution(reason=CoverUnavailableReason.COVER_UNREADABLE)
     titles = {" ".join(item.title.split()) for item in matches}

@@ -304,6 +304,186 @@ _CASES = [
         SecurityKind.SHARE,
         "Common Stock $0.01 Par Value",
     ),
+    # The widened sample: the latest 10-K of large filers whose titles are not those above.
+    ("brk_fy2025", "1067983", "0001193125-26-083899", "10-K", "BRK.B", SecurityKind.SHARE, "Class B Common Stock"),
+    ("brk_fy2025", "1067983", "0001193125-26-083899", "10-K", "BRK.A", SecurityKind.SHARE, "Class A Common Stock"),
+    (
+        "brk_fy2025",
+        "1067983",
+        "0001193125-26-083899",
+        "10-K",
+        "BRK27",
+        SecurityKind.OTHER,
+        "1.125% Senior Notes due 2027",
+    ),
+    ("pg_fy2026", "80424", "0000080424-26-000103", "10-K", "PG", SecurityKind.SHARE, "Common Stock, without Par Value"),
+    ("pg_fy2026", "80424", "0000080424-26-000103", "10-K", "PG26D", SecurityKind.OTHER, "0.110% Notes due 2026"),
+    (
+        "pep_fy2025",
+        "77476",
+        "0000077476-26-000007",
+        "10-K",
+        "PEP",
+        SecurityKind.SHARE,
+        "Common Stock, par value 1-2/3 cents per share",
+    ),
+    (
+        "pep_fy2025",
+        "77476",
+        "0000077476-26-000007",
+        "10-K",
+        "PEP26",
+        SecurityKind.OTHER,
+        "2.625% Senior Notes Due 2026",
+    ),
+    (
+        "cat_fy2025",
+        "18230",
+        "0000018230-26-000008",
+        "10-K",
+        "CAT",
+        SecurityKind.SHARE,
+        "Common Stock ($1.00 par value)",
+    ),
+    (
+        "cat_fy2025",
+        "18230",
+        "0000018230-26-000008",
+        "10-K",
+        "CAT35",
+        SecurityKind.OTHER,
+        "5.3% Debentures due September 15, 2035",
+    ),
+    (
+        "lin_fy2025",
+        "1707925",
+        "0001628280-26-011430",
+        "10-K",
+        "LIN",
+        SecurityKind.SHARE,
+        "Ordinary shares (\u20ac0.001 nominal value per share)",
+    ),
+    (
+        "cb_fy2025",
+        "896159",
+        "0000896159-26-000005",
+        "10-K",
+        "CB",
+        SecurityKind.SHARE,
+        "Common Shares, par value CHF 0.50 per share",
+    ),
+    (
+        "cb_fy2025",
+        "896159",
+        "0000896159-26-000005",
+        "10-K",
+        "CB/27",
+        SecurityKind.OTHER,
+        "Guarantee of Chubb INA Holdings LLC 0.875% Senior Notes due 2027",
+    ),
+    ("lly_fy2025", "59478", "0000059478-26-000013", "10-K", "LLY", SecurityKind.SHARE, "Common Stock (no par value)"),
+    ("lly_fy2025", "59478", "0000059478-26-000013", "10-K", "LLY26", SecurityKind.OTHER, "1.625% Notes due 2026"),
+    (
+        "t_fy2025",
+        "732717",
+        "0000732717-26-000120",
+        "10-K",
+        "T",
+        SecurityKind.SHARE,
+        "Common Shares (Par Value $1.00 Per Share)",
+    ),
+    (
+        "t_fy2025",
+        "732717",
+        "0000732717-26-000120",
+        "10-K",
+        "T PRA",
+        SecurityKind.DEPOSITARY_SHARE,
+        "Depositary Shares, each representing a 1/1000th interest in a share of"
+        "5.000% Perpetual Preferred Stock, Series A",
+    ),
+    (
+        "t_fy2025",
+        "732717",
+        "0000732717-26-000120",
+        "10-K",
+        "T 25B",
+        SecurityKind.OTHER,
+        "AT&T Inc. 3.550% Global Notes due November 18, 2025",
+    ),
+    (
+        "wfc_fy2025",
+        "72971",
+        "0000072971-26-000133",
+        "10-K",
+        "WFC",
+        SecurityKind.SHARE,
+        "Common Stock, par value $1-2/3",
+    ),
+    (
+        "wfc_fy2025",
+        "72971",
+        "0000072971-26-000133",
+        "10-K",
+        "WFC.PRL",
+        SecurityKind.PREFERRED,
+        "7.5% Non-Cumulative Perpetual Convertible Class A Preferred Stock, Series L",
+    ),
+    (
+        "wfc_fy2025",
+        "72971",
+        "0000072971-26-000133",
+        "10-K",
+        "WFC.PRY",
+        SecurityKind.DEPOSITARY_SHARE,
+        "Depositary Shares, each representing a 1/1000th interest in a share of "
+        "Non-Cumulative Perpetual Class A Preferred Stock, Series Y",
+    ),
+    (
+        "c_fy2025",
+        "831001",
+        "0000831001-26-000011",
+        "10-K",
+        "C",
+        SecurityKind.SHARE,
+        "Common Stock, par value $.01 per share",
+    ),
+    (
+        "c_fy2025",
+        "831001",
+        "0000831001-26-000011",
+        "10-K",
+        "C PR R",
+        SecurityKind.DEPOSITARY_SHARE,
+        "Dep Shs, represent 1/1,000th interest in a share of 6.250% Noncum Pref Stk, Ser II",
+    ),
+    (
+        "bac_fy2025",
+        "70858",
+        "0000070858-26-000157",
+        "10-K",
+        "BAC",
+        SecurityKind.SHARE,
+        "Common Stock, par value $0.01 per share",
+    ),
+    (
+        "bac_fy2025",
+        "70858",
+        "0000070858-26-000157",
+        "10-K",
+        "BAC PRL",
+        SecurityKind.PREFERRED,
+        "7.25% Non-Cumulative Perpetual Convertible Preferred Stock, Series L",
+    ),
+    (
+        "bac_fy2025",
+        "70858",
+        "0000070858-26-000157",
+        "10-K",
+        "BAC PRE",
+        SecurityKind.DEPOSITARY_SHARE,
+        "Depositary Shares, each representing a 1/1,000th interest in a share",
+    ),
 ]
 
 
@@ -352,6 +532,56 @@ def test_the_ticker_is_matched_case_insensitively_and_exactly() -> None:
     assert _listing(jpm, ticker=" jpm ").evidence.kind is SecurityKind.SHARE  # type: ignore[union-attr]
     for near in ("JP", "JPMX", "JPM-PR-D", "J P M"):
         assert _listing(jpm, ticker=near).evidence.kind is SecurityKind.NOT_LISTED  # type: ignore[union-attr]
+
+
+_BRK_CIK = "1067983"
+_BRK_ACCESSION = "0001193125-26-083899"
+
+
+@pytest.mark.parametrize("ticker", ["BRK.B", "BRK-B", "BRK/B", " brk-b "])
+def test_a_dot_a_dash_and_a_slash_are_the_same_separator_in_the_requested_ticker(ticker: str) -> None:
+    evidence = _listing(_read("brk_fy2025"), ticker=ticker, cik=_BRK_CIK, accession=_BRK_ACCESSION).evidence
+    assert evidence is not None
+    assert (evidence.kind, evidence.title) == (SecurityKind.SHARE, "Class B Common Stock")
+    assert evidence.ticker == ticker.strip().upper()
+
+
+def test_a_separator_is_never_removed_or_added() -> None:
+    brk = _read("brk_fy2025")
+    for near in ("BRKB", "BRK B", "BRK..B", "BRK.", "BRK"):
+        evidence = _listing(brk, ticker=near, cik=_BRK_CIK, accession=_BRK_ACCESSION).evidence
+        assert evidence is not None
+        assert evidence.kind is SecurityKind.NOT_LISTED
+    nly = _read("nly_fy2025")
+    # A preferred ticker whose form differs beyond the separator is not listed.
+    cik, accession = "1043219", "0001043219-26-000013"
+    assert _listing(nly, ticker="NLY.F", cik=cik, accession=accession).evidence.kind is SecurityKind.PREFERRED  # type: ignore[union-attr]
+    assert _listing(nly, ticker="NLY-PF", cik=cik, accession=accession).evidence.kind is SecurityKind.NOT_LISTED  # type: ignore[union-attr]
+
+
+def _listed(symbol: str, title: str) -> tuple[str, ...]:
+    return (
+        _row("Security12bTitle", "Title", title),
+        _row("TradingSymbol", "Trading Symbol", symbol),
+        _row("SecurityExchangeName", "Exchange", "NYSE"),
+    )
+
+
+def test_two_rows_that_collide_after_normalization_with_different_titles_are_ambiguous() -> None:
+    collide = _cover(_CIK_ROW, *_listed("AB.C", "Class A Common Stock"), *_listed("AB-C", "Class B Common Stock"))
+    assert _listing(collide, ticker="AB/C").reason is CoverUnavailableReason.AMBIGUOUS_LISTING
+    assert _listing(collide, ticker="AB.C").reason is CoverUnavailableReason.AMBIGUOUS_LISTING
+    same = _cover(_CIK_ROW, *_listed("AB.C", "Class A Common Stock"), *_listed("AB-C", "Class A Common Stock"))
+    resolution = _listing(same, ticker="AB/C")
+    assert resolution.evidence is not None
+    assert resolution.evidence.kind is SecurityKind.SHARE
+
+
+def test_a_separator_never_joins_the_securities_of_two_registrants() -> None:
+    other_cik = _row("EntityCentralIndexKey", "Entity Central Index Key", "0000000042")
+    combined = _cover(_CIK_ROW, *_listed("AB.C", "Common stock"), other_cik, *_listed("XY-Z", "Common stock"))
+    assert _listing(combined, ticker="XY.Z").evidence.kind is SecurityKind.NOT_LISTED  # type: ignore[union-attr]
+    assert _listing(combined, ticker="AB-C").evidence.kind is SecurityKind.SHARE  # type: ignore[union-attr]
 
 
 def test_a_ticker_absent_from_the_cover_is_not_listed() -> None:
@@ -409,6 +639,21 @@ def test_an_amended_cover_without_a_registration_table_is_refused_without_readin
     )
     resolution = _listing(stripped, ticker="IPGP", cik="1111928", accession="0001111928-26-000068", form="10-K/A")
     assert resolution.reason is CoverUnavailableReason.NO_REGISTRATION_TABLE
+
+
+def test_a_captured_page_that_is_not_a_cover_is_unreadable() -> None:
+    # Disney's first report is the audit information, not the cover.
+    resolution = _listing(_read("dis_fy2025"), ticker="DIS", cik="1744489", accession="0001744489-25-000155")
+    assert resolution.reason is CoverUnavailableReason.COVER_UNREADABLE
+
+
+def test_a_captured_cover_that_lists_the_symbol_before_the_title_is_unreadable() -> None:
+    # BlackRock's rows run symbol, title, exchange; reading them in the usual order would attach each symbol to the
+    # title above it, so the cover is refused rather than guessed at.
+    assert (
+        _listing(_read("blk_fy2025"), ticker="BLK", cik="2012383", accession="0001193125-26-071966").reason
+        is CoverUnavailableReason.COVER_UNREADABLE
+    )
 
 
 def test_a_page_that_is_not_a_cover_is_unreadable() -> None:
@@ -514,8 +759,30 @@ def test_a_second_report_table_and_nested_tables_do_not_add_rows() -> None:
         ("Units", SecurityKind.UNIT),
         ("Warrants", SecurityKind.WARRANT),
         ("7.00% Series A Cumulative Preferred Stock", SecurityKind.PREFERRED),
+        ("Class B Common Stock", SecurityKind.SHARE),
+        ("Class B common stock, par value $0.01 per share", SecurityKind.SHARE),
+        ("Common Stock, without Par Value", SecurityKind.SHARE),
+        ("Common Stock (no par value)", SecurityKind.SHARE),
+        ("Common Stock ($1.00 par value)", SecurityKind.SHARE),
+        ("Common Shares (Par Value $1.00 Per Share)", SecurityKind.SHARE),
+        ("Common Stock, par value $1-2/3", SecurityKind.SHARE),
+        ("Common Stock, par value 1-2/3 cents per share", SecurityKind.SHARE),
+        ("Common Shares, par value CHF 0.50 per share", SecurityKind.SHARE),
+        ("Ordinary shares (€0.001 nominal value per share)", SecurityKind.SHARE),
+        (
+            "Dep Shs, represent 1/1,000th interest in a share of 6.250% Noncum Pref Stk, Ser II",
+            SecurityKind.DEPOSITARY_SHARE,
+        ),
+        ("7.5% Non-Cumulative Perpetual Convertible Class A Preferred Stock, Series L", SecurityKind.PREFERRED),
         # Not on a captured cover: outside the vocabulary, so neither a share nor mistaken for one.
-        ("Class B Common Stock, $0.01 par value", SecurityKind.OTHER),
+        ("Class B-1 common stock, par value $0.0001 per share", SecurityKind.OTHER),
+        ("Class D Common Stock", SecurityKind.OTHER),
+        ("Common Stock, par value 1-2/3 cents", SecurityKind.OTHER),
+        ("Common Stock, par value CHF per share", SecurityKind.OTHER),
+        ("Ordinary shares (€0.001 par value per share)", SecurityKind.OTHER),
+        ("Preferred Stock, Series", SecurityKind.OTHER),
+        ("Floating Rate Preferred Hybrid Income Term Securities", SecurityKind.OTHER),
+        ("1.125% Senior Notes due 2027", SecurityKind.OTHER),
         ("Common Stock Purchase Rights", SecurityKind.OTHER),
         ("Common stock and warrants", SecurityKind.OTHER),
         ("Redeemable warrants, each exercisable for one share", SecurityKind.OTHER),

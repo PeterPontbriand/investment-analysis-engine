@@ -133,7 +133,7 @@ def fetch_filing(
         FinancialProviderError: A transport fault, a 404, a document over the size limit or one that is not UTF-8,
             carrying the kind of the failure and *provider_id*.
     """
-    return _read_bounded(
+    return read_bounded(
         url,
         pattern=_FILING_URL_PATTERN,
         noun="filing",
@@ -166,7 +166,7 @@ def fetch_filing_header(
     match = _HEADER_URL_PATTERN.fullmatch(url)
     if match is None or match.group("folder") != match.group("accession").replace("-", ""):
         raise ValueError("Unsupported filing header URL.")
-    return _read_bounded(
+    return read_bounded(
         url,
         pattern=_HEADER_URL_PATTERN,
         noun="filing header",
@@ -179,7 +179,7 @@ def fetch_filing_header(
     )
 
 
-def _read_bounded(  # noqa: PLR0913
+def read_bounded(  # noqa: PLR0913
     url: str,
     *,
     pattern: re.Pattern[str],
