@@ -4,7 +4,7 @@ Live source evidence behind the listing check of [slice 3.5.2c](STEP_3_5_2_SLICE
 which document of an annual filing carries the registered securities, how its rows are laid out, what each captured
 cover lists for a ticker, and the title vocabulary those covers support. The rules are owned by
 [Shared definitions §4](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization); the decisions drawn from this record are
-P1 to P18 of [A.6](STEP_3_5_2_SLICE_PLAN.md#a6-decided-under-delegation-during-352c-2026-10-26). Nothing here overrides
+P1 to P21 of [A.6](STEP_3_5_2_SLICE_PLAN.md#a6-decided-under-delegation-during-352c-2026-10-26). Nothing here overrides
 either.
 
 > **This document is not a test fixture and holds no executable expected data.** It records research observations used to
@@ -26,11 +26,11 @@ either.
   fail-closed rule ([§7](#7-amended-annual-reports)).
 - **Nothing contradicts K5″, M2 or the limits of the delegation.**
 - **A widened sample of 49 more covers** (the latest 10-K of large filers) raised the share tickers affirmed from 33 of
-  50 to 47 of 50; the other three are unreadable covers, and none is `other` ([§5.6](#56-the-widened-sample)).
+  50 to 47 of 50, and the corrections that followed to 50 of 50; none is `other` or unreadable ([§5.6](#56-the-widened-sample)).
 - **`.`, `-` and `/` are one separator** when a ticker is compared with a cover's symbol, shown by Berkshire Hathaway's
   `BRK.B` ([§5.6](#56-the-widened-sample), P17).
-- **Three covers cannot be read:** Disney's first report is not the cover, and BlackRock's and Microsoft's rows run
-  symbol before title (P18).
+- **Three covers needed a rule:** Disney's first report is not the cover (P19), BlackRock's and Microsoft's rows run
+  symbol before title (P20), and Microsoft lists its symbol against its notes too (P21).
 - **What it does not show:** coverage across the market. Seventy-one covers were read, and a title form not on one of
   them is not in the vocabulary ([§8](#8-not-yet-verified)).
 
@@ -55,7 +55,7 @@ the exchange and the registrant's CIK. Two documents of the accession folder car
 | :--- | :--- | :--- | :--- |
 | Rendered cover, `R1.htm` | 34,156 to 135,601 bytes over 22 covers (median about 77 KB) | Yes, as table rows named by their XBRL element | About a third of a page is the report table; the rest is hidden definitions. |
 | Primary document (inline XBRL) | 2,616,620 bytes (Alphabet, fiscal 2025); 4,094,188 bytes (Adaptimmune, fiscal 2024) | Yes, as tagged facts with contexts | What Graham's verifier reads, under a bound of 8 MiB. |
-| `FilingSummary.xml` | 55,785 (Alphabet), 60,504 (Annaly), 72,211 (Medtronic fiscal 2019) | No | Lists the reports; the cover was the first report, `R1.htm`, with category "Cover" and position 1, in all three. |
+| `FilingSummary.xml` | 55,785 (Alphabet), 60,504 (Annaly), 72,211 (Medtronic fiscal 2019), 86,703 (Disney) | No | Lists the reports; the cover was the first report, `R1.htm`, with category "Cover" and position 1, in all three. |
 
 - **R1 was the cover in every capture.** All 22 pages have a report table with a `Document Type` row and an
   `Entity Central Index Key` row; 19 also have `Security12bTitle`, `TradingSymbol` and `SecurityExchangeName` rows.
@@ -181,9 +181,13 @@ capital stock; its outcome is the one the check gives with the vocabulary of P7.
 - **Before the widening: 33 of 50 share tickers affirmed (66%).** The other 17 were 14 titles outside the vocabulary
   (class B common stock, "without par value", "no par value", a parenthesized par value, par value in cents, in Swiss
   francs, as a mixed fraction, and a euro nominal value) and 3 unreadable covers.
-- **After: 47 of 50 affirmed (94%).** Each added form is explicit and backed by the cover named in [§6](#6-the-title-vocabulary).
-- **Still not affirmed: three share tickers, all unreadable covers, none `other`.** `MSFT` (rows run symbol, title,
-  exchange), `BLK` (the same) and `DIS` (the first report is the audit information, not the cover).
+- **After the widening: 47 of 50 affirmed (94%).** Each added form is explicit and backed by the cover named in [§6](#6-the-title-vocabulary). The other three were unreadable covers: `MSFT` and `BLK` (rows run symbol, title, exchange) and `DIS` (the first report is the audit information, not the cover).
+- **After the corrections that followed: 50 of 50 affirmed (100%).** One rule for the rows of a security (P20) reads
+  `BLK` and `MSFT`; the filing summary names Disney's cover, `R2.htm` (P19); and Microsoft's symbol, listed against its
+  stock and two notes, is the stock's (P21). No share ticker is `other` or unreadable.
+- **Disney's filing summary** marks two reports with the menu category `Cover`, the audit information (`R1.htm`) and the
+  cover (`R2.htm`), as the summaries of Alphabet and Annaly do; the short name ("Cover", "Cover Page", "COVER PAGE")
+  tells them apart. The cover of Disney's filing is `R2.htm`, 64,929 bytes.
 - **Exxon Mobil's cover is under CIK 34088,** while the SEC's ticker file maps `XOM` to CIK 2115436, which holds no 10-K
   yet. A run that resolves `XOM` to the newer key would meet `cik_mismatch` on that cover.
 
@@ -199,7 +203,7 @@ capital stock; its outcome is the one the check gives with the vocabulary of P7.
 | Linde | LIN | 1707925 | `0001628280-26-011430` | Ordinary shares (€0.001 nominal value per share) | Share, affirmed (form added) |
 | Chubb | CB | 896159 | `0000896159-26-000005` | Common Shares, par value CHF 0.50 per share | Share, affirmed (form added) |
 | Apple | AAPL | 320193 | `0000320193-25-000079` | Common Stock, $0.00001 par value per share | Share, affirmed |
-| Microsoft | MSFT | 789019 | `0001193125-26-323660` | Common stock, $0.00000625 par value per share | Unreadable cover (symbol row before its title), `missing_fact` |
+| Microsoft | MSFT | 789019 | `0001193125-26-323660` | Common stock, $0.00000625 par value per share | Share, affirmed (the symbol is also listed against two notes) |
 | Amazon | AMZN | 1018724 | `0001018724-26-000004` | Common Stock, par value $.01 per share | Share, affirmed |
 | Meta Platforms | META | 1326801 | `0001628280-26-003942` | Class A Common Stock, $0.000006 par value | Share, affirmed |
 | NVIDIA | NVDA | 1045810 | `0001045810-26-000021` | Common Stock, $0.001 par value per share | Share, affirmed |
@@ -221,7 +225,7 @@ capital stock; its outcome is the one the check gives with the vocabulary of P7.
 | Lockheed Martin | LMT | 936468 | `0001628280-26-004195` | Common Stock, $1 par value | Share, affirmed |
 | Boeing | BA | 12927 | `0001628280-26-004357` | Common Stock, $5.00 Par Value | Share, affirmed |
 | United Parcel Service | UPS | 1090727 | `0001628280-26-008432` | Class B common stock, par value $0.01 per share | Share, affirmed (form added) |
-| Walt Disney | DIS | 1744489 | `0001744489-25-000155` | Audit information, not the cover (first report) | Unreadable cover, `missing_fact` |
+| Walt Disney | DIS | 1744489 | `0001744489-25-000155` | Common Stock, $0.01 par value | Share, affirmed (cover read through `FilingSummary.xml`: `R2.htm`) |
 | Comcast | CMCSA | 1166691 | `0001628280-26-004994` | Class A Common Stock, $0.01 par value | Share, affirmed |
 | Verizon | VZ | 732712 | `0000732712-26-000007` | Common Stock, par value $0.10 | Share, affirmed |
 | AT&T | T | 732717 | `0000732717-26-000120` | Common Shares (Par Value $1.00 Per Share) | Share, affirmed (form added) |
@@ -231,7 +235,7 @@ capital stock; its outcome is the one the check gives with the vocabulary of P7.
 | Bank of America | BAC | 70858 | `0000070858-26-000157` | Common Stock, par value $0.01 per share | Share, affirmed |
 | Citigroup | C | 831001 | `0000831001-26-000011` | Common Stock, par value $.01 per share | Share, affirmed |
 | Wells Fargo | WFC | 72971 | `0000072971-26-000133` | Common Stock, par value $1-2/3 | Share, affirmed (form added) |
-| BlackRock | BLK | 2012383 | `0001193125-26-071966` | Common Stock, $.01 par value | Unreadable cover (symbol row before its title), `missing_fact` |
+| BlackRock | BLK | 2012383 | `0001193125-26-071966` | Common Stock, $.01 par value | Share, affirmed (symbol rows above their titles) |
 | T-Mobile US | TMUS | 1283699 | `0001283699-26-000010` | Common Stock, par value $0.00001 per share | Share, affirmed |
 | Ford | F | 37996 | `0000037996-26-000015` | Common Stock, par value $.01 per share | Share, affirmed |
 | General Motors | GM | 1467858 | `0001467858-26-000013` | Common Stock, $0.01 par value | Share, affirmed |
@@ -242,10 +246,10 @@ capital stock; its outcome is the one the check gives with the vocabulary of P7.
 
 ### 5.7 Other securities on the widened covers
 
-Across the 46 readable covers whose rows the reader takes in order, the check classifies 316 registered securities: 48
+Across the 49 readable covers, the check classifies 322 registered securities: 51
 shares, 26 depositary shares (Oracle, Boeing, AT&T, Goldman Sachs, Bank of America and Wells Fargo among them,
 refused with `incompatible_units`), 2 preferred securities (`BAC PrL` and `WFC.PRL`, each "Preferred Stock, Series L",
-refused) and 240 others, all `missing_fact`.
+refused) and 243 others, all `missing_fact` (the other notes of Microsoft and BlackRock among them).
 
 - **Others are debt and hybrids:** notes, senior notes, debentures, guarantees of a subsidiary's notes (Chubb, Wells
   Fargo), medium-term notes (Goldman Sachs, Bank of America), trust-preferred securities and hybrid income term
@@ -297,6 +301,9 @@ followed by one par-value clause; the list below gives the cover that backs each
   clause each (CB, PEP, LIN); "no par value" without parentheses is outside the vocabulary.
 - **Ticker comparison:** a cover's symbol and the requested ticker are compared with `.`, `-` and `/` read as one
   separator (P17); a separator is never removed (`BRKB` is not `BRK.B`).
+- **Debt on a share's symbol:** a title of the form "N% Notes due YYYY" (MSFT, 789019,
+  `0001193125-26-323660`: "3.125% Notes due 2028", "2.625% Notes due 2033") may share the symbol of exactly one share
+  title (P21); any other mix is ambiguous.
 
 ## 7. Amended annual reports
 
@@ -333,8 +340,12 @@ table. Seven amended covers were read.
 - **Covers before cover-page tagging.** One was read (Medtronic fiscal 2019). A run with an early `as_of` meets more of
   them and gets `no_registration_table`.
 - **An anchor filing whose first report is not the cover.** One was found in the widened sample (Disney); the reader
-  refuses it (P2, P18). How often it happens among all filers is not known.
-- **A cover whose symbol row precedes its title.** Two were found (BlackRock, Microsoft); the reader refuses them (P18).
+  finds the cover through the filing summary (P19). How often it happens among all filers is not known, and a summary
+  that marks the cover under another short name is outside the rule and is refused.
+- **Rows in an order not seen.** Three layouts occur on the 71 covers (P20). A cover with several securities, symbol rows
+  above their titles and no member headers is on none of them; the rule would give each symbol to the title above it, and
+  two symbols on one title are refused.
+- **A ticker shared with debt** in another form than "N% Notes due YYYY" is ambiguous (P21).
 
 ---
 
@@ -368,3 +379,8 @@ A pause of 0.5 s separated each request from the last.
 The identity the project configures was sent on every request and is not recorded here. A pause of 0.25 s separated each
 request from the last. No raw response is committed; the responses are under the ignored `.tmp/` folder, and the
 committed fixtures are trimmed to the 13 covers that add a title form, a refusal or a cover that cannot be read.
+
+**The corrections that followed, 2026-10-27: 2 requests, both answered 200.** Disney's `FilingSummary.xml` (86,703 bytes)
+and its cover `R2.htm` (64,929 bytes). Microsoft's cover was already captured. The committed fixtures add Microsoft's
+cover, Disney's cover and a trimmed copy of Disney's summary (its first three reports); BlackRock's was trimmed again,
+keeping the order of its rows.

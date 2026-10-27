@@ -46,6 +46,7 @@ from investment_analysis_engine.data.sec_edgar.cover_listing import (
     CoverUnavailableReason,
     ListingResolution,
     cover_url,
+    fetch_anchor_cover,
     fetch_cover,
     read_cover_listing,
 )
@@ -298,7 +299,7 @@ class SecEdgarFinancialFactsAdapter:
         self._header_texts: dict[tuple[str, str], tuple[str, datetime]] = {}
         self._cover_fetcher = cover_fetcher
         self._cover_policy = cover_policy or CoverReaderPolicy()
-        self._cover_texts: dict[tuple[str, str], tuple[str, datetime]] = {}
+        self._cover_texts: dict[tuple[str, str], tuple[str, str, datetime]] = {}
         self._submission_page_documents: dict[tuple[str, str], object] = {}
         self._clock = clock or utc_now
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
@@ -427,7 +428,7 @@ class SecEdgarFinancialFactsAdapter:
         if accepted_at > snapshot.as_of:
             return ListingResolution(reason=CoverUnavailableReason.ACCEPTED_AFTER_BOUNDARY)
         try:
-            url = cover_url(snapshot.cik, accession)
+            cover_url(snapshot.cik, accession)
         except ValueError as exc:
             msg = f"SEC listed a filing that cannot be addressed: {exc}"
             raise FinancialProviderError(
@@ -436,8 +437,10 @@ class SecEdgarFinancialFactsAdapter:
         cached = self._cover_texts.get((snapshot.cik, accession))
         if cached is None:
             try:
-                text = self._cover_fetcher(
-                    url,
+                text, url = fetch_anchor_cover(
+                    snapshot.cik,
+                    accession,
+                    fetcher=self._cover_fetcher,
                     headers=self._headers,
                     policy=self._cover_policy,
                     not_found=ProviderFailureKind.NO_DATA,
@@ -447,9 +450,9 @@ class SecEdgarFinancialFactsAdapter:
                 if exc.kind is ProviderFailureKind.NO_DATA:
                     return ListingResolution(reason=CoverUnavailableReason.COVER_MISSING)
                 raise
-            cached = (text, self._clock())
+            cached = (text, url, self._clock())
             self._cover_texts[(snapshot.cik, accession)] = cached
-        text, retrieved_at = cached
+        text, url, retrieved_at = cached
         return read_cover_listing(
             text,
             ticker=request.ticker,

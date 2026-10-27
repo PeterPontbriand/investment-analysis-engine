@@ -3,13 +3,14 @@
 The cover of an annual report lists each security registered under Section 12(b) with its title, trading symbol and
 exchange. The SEC renders that cover as the first report of the filing (``R1.htm``), a few tens of kilobytes beside a
 primary document of several megabytes, and each row of the report names its XBRL concept, so a filer's own row labels
-never matter. Only the row group of the requested ticker is classified; the other securities of the cover do not
-affect the outcome.
+never matter. When the first report is not the cover, the filing's ``FilingSummary.xml`` names it. Only the row group
+of the requested ticker is classified; the other securities of the cover do not affect the outcome.
 
 The title vocabulary is an explicit list of title forms, each backed by a captured cover
 (``docs/project/milestones/v0.2/step-3.5/STEP_3_5_2_LISTING_EVIDENCE.md``). A title outside it is neither affirmed nor
 mistaken for a share: it is reported as ``other``. A cover that cannot be read, that names another form or another
-registrant, or that lists the ticker under two different titles, is refused rather than guessed at.
+registrant, or that lists the ticker under two different titles, is refused rather than guessed at. The one
+exception is a ticker shared by one share and debt titles of an explicit form, which is the share's.
 """
 
 import math
@@ -22,13 +23,21 @@ from html.parser import HTMLParser
 from typing import Protocol, runtime_checkable
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.sec_edgar.filing_document import read_bounded
 
 COVER_REPORT_NAME = "R1.htm"
+SUMMARY_NAME = "FilingSummary.xml"
+_REPORT_NAME = re.compile(r"R[0-9]{1,4}\.htm")
 _COVER_URL_PATTERN = re.compile(
-    r"https://www\.sec\.gov/Archives/edgar/data/(?P<cik>[0-9]+)/(?P<folder>[0-9]{18})/R1\.htm"
+    r"https://www\.sec\.gov/Archives/edgar/data/(?P<cik>[0-9]+)/(?P<folder>[0-9]{18})/R[0-9]{1,4}\.htm"
+)
+_SUMMARY_URL_PATTERN = re.compile(
+    r"https://www\.sec\.gov/Archives/edgar/data/(?P<cik>[0-9]+)/(?P<folder>[0-9]{18})/FilingSummary\.xml"
 )
 _ACCESSION = re.compile(r"[0-9]{10}-[0-9]{2}-[0-9]{6}")
+_MEMBER_ROW = re.compile(r"showAR\(\s*this,\s*'defref_[^']*=")
+_MEMBER = "(member)"
 _CONCEPT = re.compile(r"showAR\(\s*this,\s*'defref_(?P<prefix>[A-Za-z0-9-]+)_(?P<name>[A-Za-z0-9]+)'")
 
 _DOCUMENT_TYPE = "DocumentType"
@@ -44,27 +53,40 @@ _NO_SYMBOL = "NoTradingSymbolFlag"
 class CoverReaderPolicy:
     """Limit a cover read to one rendered report.
 
-    The largest cover captured, a combined filing of eight registrants, is about 136 KB; the limit is 512 KiB.
+    The largest cover captured, a combined filing of eight registrants, is about 136 KB; the limit is 512 KiB. The
+    largest ``FilingSummary.xml`` captured is about 87 KB (Disney); its limit is also 512 KiB.
     """
 
     timeout_seconds: float = 20.0
     max_cover_bytes: int = 512 * 1024
+    max_summary_bytes: int = 512 * 1024
 
     def __post_init__(self) -> None:
         """Reject unbounded or invalid transport settings."""
         if not math.isfinite(self.timeout_seconds) or self.timeout_seconds <= 0:
             raise ValueError("Cover timeout must be finite and positive.")
-        if self.max_cover_bytes <= 0:
-            raise ValueError("Cover size limit must be positive.")
+        if self.max_cover_bytes <= 0 or self.max_summary_bytes <= 0:
+            raise ValueError("Cover size limits must be positive.")
 
 
-def cover_url(cik: str, accession: str) -> str:
-    """Construct the URL of a filing's rendered cover solely from validated filing identifiers."""
+def _filing_url(cik: str, accession: str, name: str) -> str:
     if not re.fullmatch(r"[0-9]{1,10}", cik) or int(cik) == 0:
         raise ValueError("Invalid filing CIK.")
     if not _ACCESSION.fullmatch(accession):
         raise ValueError("Invalid filing accession.")
-    return f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{COVER_REPORT_NAME}"
+    return f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{name}"
+
+
+def cover_url(cik: str, accession: str, report: str = COVER_REPORT_NAME) -> str:
+    """Construct the URL of a filing's rendered cover solely from validated filing identifiers and a report name."""
+    if not _REPORT_NAME.fullmatch(report):
+        raise ValueError("Invalid report name.")
+    return _filing_url(cik, accession, report)
+
+
+def summary_url(cik: str, accession: str) -> str:
+    """Construct the URL of a filing's ``FilingSummary.xml`` solely from validated filing identifiers."""
+    return _filing_url(cik, accession, SUMMARY_NAME)
 
 
 class CoverFetcher(Protocol):
@@ -94,23 +116,25 @@ def fetch_cover(
     not_found: ProviderFailureKind,
     provider_id: str,
 ) -> str:
-    """Read one rendered cover under the same transport rules as a filing: no redirect, no retry, bounded, UTF-8.
+    """Read one rendered report or ``FilingSummary.xml``: no redirect, no retry, bounded, UTF-8.
 
-    The read does not consult ``FilingReaderPolicy.max_documents``: a cover is not a filing document.
+    The transport rules are those of a filing document. The read does not consult ``FilingReaderPolicy.max_documents``:
+    a cover is not a filing document.
 
     Raises:
         ValueError: The URL or the declared identity is not acceptable; a defect of the caller.
         FinancialProviderError: A transport fault, a 404, a cover over the size limit or one that is not UTF-8,
             carrying the kind of the failure and *provider_id*.
     """
+    summary = _SUMMARY_URL_PATTERN.fullmatch(url) is not None
     return read_bounded(
         url,
-        pattern=_COVER_URL_PATTERN,
-        noun="cover",
-        accept="text/html",
+        pattern=_SUMMARY_URL_PATTERN if summary else _COVER_URL_PATTERN,
+        noun="cover summary" if summary else "cover",
+        accept="application/xml" if summary else "text/html",
         headers=headers,
         timeout_seconds=policy.timeout_seconds,
-        max_bytes=policy.max_cover_bytes,
+        max_bytes=policy.max_summary_bytes if summary else policy.max_cover_bytes,
         not_found=not_found,
         provider_id=provider_id,
     )
@@ -265,6 +289,8 @@ _UNIT_PREFIXES = ("units",)
 _WARRANT_PREFIXES = ("warrants",)
 _PREFERRED_SUFFIXES = ("preferred stock",)
 _PREFERRED_SERIES = re.compile(r".*preferred stock, series [a-z]+")
+# A debt title of an explicit form: "3.125% Notes due 2028" (Microsoft lists its notes under the symbol of its stock).
+_DEBT_TITLE = re.compile(r"[0-9]+(?:\.[0-9]+)?% notes due [0-9]{4}")
 
 
 def classify_title(title: str) -> SecurityKind:
@@ -281,6 +307,11 @@ def classify_title(title: str) -> SecurityKind:
     if _SHARE_TITLE.fullmatch(normalized):
         return SecurityKind.SHARE
     return SecurityKind.OTHER
+
+
+def _is_debt_title(title: str) -> bool:
+    """Return whether a title is a debt title of an explicit form on a captured cover."""
+    return _DEBT_TITLE.fullmatch(" ".join(title.split()).lower()) is not None
 
 
 # --- the rendered cover --------------------------------------------------------------------------------------------
@@ -337,9 +368,12 @@ class _ReportParser(HTMLParser):
         elif tag in ("td", "th") and self._cells is not None:
             self._cell = []
         elif tag == "a" and self._cells is not None and not self._cells and self._cell is not None:
-            match = _CONCEPT.search(values.get("onclick", ""))
+            onclick = values.get("onclick", "")
+            match = _CONCEPT.search(onclick)
             if match is not None and match.group("prefix") == "dei":
                 self._concept = match.group("name")
+            elif _MEMBER_ROW.search(onclick) is not None:
+                self._concept = _MEMBER
         elif tag == "br" and self._cell is not None:
             self._cell.append(" ")
 
@@ -389,9 +423,18 @@ def _read_cover(markup: str) -> _Cover:
     if not parser.found:
         raise _CoverError("The page holds no report table.")
     cover = _Cover()
+    # A security starts at its title. A symbol, exchange or no-symbol row belongs to the nearest title above it in the
+    # same block, a block being the rows between two member headers; one that precedes every title of its block
+    # belongs to the first title of the block. The exchange row of a block with no title is the registrant's own and
+    # belongs to no security; a symbol row with no title is unreadable.
     current: _Registered | None = None
+    loose: list[tuple[str, str]] = []
     for concept, cells in parser.rows:
         if concept is None:
+            continue
+        if concept == _MEMBER:
+            _refuse_untitled_symbol(loose)
+            loose, current = [], None
             continue
         value = _row_value(cells)
         if concept == _DOCUMENT_TYPE and value is not None:
@@ -399,16 +442,32 @@ def _read_cover(markup: str) -> _Cover:
         elif concept == _CIK and value is not None:
             cover.ciks.append(_normalized_cik(value))
         elif concept in _TITLE_CONCEPTS and value is not None:
+            first = current is None
             current = _Registered(value, cover.ciks[-1] if cover.ciks else None)
             cover.registered.append(current)
+            if first:
+                for pending_concept, pending_value in loose:
+                    _attach(current, pending_concept, pending_value)
+                loose = []
         elif concept in (_SYMBOL, _EXCHANGE, _NO_SYMBOL) and value is not None:
             if current is None:
-                raise _CoverError("A symbol or exchange row precedes every registered title.")
-            attribute = {_SYMBOL: "symbol", _EXCHANGE: "exchange", _NO_SYMBOL: "no_symbol"}[concept]
-            if getattr(current, attribute) not in (None, value):
-                raise _CoverError("A registered title has two different symbols or exchanges.")
-            setattr(current, attribute, value)
+                loose.append((concept, value))
+            else:
+                _attach(current, concept, value)
+    _refuse_untitled_symbol(loose)
     return cover
+
+
+def _refuse_untitled_symbol(loose: list[tuple[str, str]]) -> None:
+    if any(concept == _SYMBOL for concept, _ in loose):
+        raise _CoverError("A symbol row belongs to no registered title.")
+
+
+def _attach(security: _Registered, concept: str, value: str) -> None:
+    attribute = {_SYMBOL: "symbol", _EXCHANGE: "exchange", _NO_SYMBOL: "no_symbol"}[concept]
+    if getattr(security, attribute) not in (None, value):
+        raise _CoverError("A registered title has two different symbols or exchanges.")
+    setattr(security, attribute, value)
 
 
 def read_cover_listing(  # noqa: PLR0911, PLR0913
@@ -463,7 +522,11 @@ def read_cover_listing(  # noqa: PLR0911, PLR0913
         return ListingResolution(reason=CoverUnavailableReason.COVER_UNREADABLE)
     titles = {" ".join(item.title.split()) for item in matches}
     if len(titles) > 1:
-        return ListingResolution(reason=CoverUnavailableReason.AMBIGUOUS_LISTING)
+        # A symbol shared by one share and debt titles of explicit forms is the share's; any other mix is refused.
+        shares = [item for item in titles if classify_title(item) is SecurityKind.SHARE]
+        if len(shares) != 1 or not all(_is_debt_title(item) for item in titles if item != shares[0]):
+            return ListingResolution(reason=CoverUnavailableReason.AMBIGUOUS_LISTING)
+        titles = set(shares)
     title = titles.pop() if titles else None
     return ListingResolution(
         evidence=ListingEvidence(
@@ -478,3 +541,102 @@ def read_cover_listing(  # noqa: PLR0911, PLR0913
             retrieved_at=retrieved_at,
         )
     )
+
+
+def looks_like_cover(markup: str) -> bool:
+    """Return whether a rendered report is a cover: its table has a document type row and a registrant key row."""
+    parser = _ReportParser()
+    parser.feed(markup)
+    parser.close()
+    concepts = {concept for concept, cells in parser.rows if concept is not None and _row_value(cells) is not None}
+    return parser.found and _DOCUMENT_TYPE in concepts and _CIK in concepts
+
+
+_SUMMARY_COVER_NAMES = frozenset({"cover", "cover page"})
+
+
+class _SummaryParser(HTMLParser):
+    """Collect the reports of a ``FilingSummary.xml`` as (file name, short name, menu category)."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.reports: list[dict[str, str]] = []
+        self._tag: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        del attrs  # the summary's values are element text
+        if tag == "report":
+            self.reports.append({})
+        self._tag = tag if tag in ("htmlfilename", "shortname", "menucategory") else None
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == self._tag:
+            self._tag = None
+
+    def handle_data(self, data: str) -> None:
+        if self._tag is not None and self.reports:
+            report = self.reports[-1]
+            report[self._tag] = report.get(self._tag, "") + data
+
+
+def cover_report_from_summary(summary: str) -> str | None:
+    """Return the file name of the one report a ``FilingSummary.xml`` marks as the cover, or ``None``.
+
+    A report is marked as the cover when its menu category is ``Cover`` and its short name is "Cover" or "Cover Page"
+    (any case). The category alone marks two reports on the captured summaries, the cover and the audit information.
+    No such report, or more than one, or a file name that is not ``R<n>.htm``, gives ``None``.
+    """
+    parser = _SummaryParser()
+    parser.feed(summary)
+    parser.close()
+    marked = [
+        report.get("htmlfilename", "").strip()
+        for report in parser.reports
+        if report.get("menucategory", "").strip().lower() == "cover"
+        and " ".join(report.get("shortname", "").split()).lower() in _SUMMARY_COVER_NAMES
+    ]
+    if len(marked) != 1 or _REPORT_NAME.fullmatch(marked[0]) is None:
+        return None
+    return marked[0]
+
+
+def fetch_anchor_cover(  # noqa: PLR0913
+    cik: str,
+    accession: str,
+    *,
+    fetcher: CoverFetcher,
+    headers: Mapping[str, str],
+    policy: CoverReaderPolicy,
+    not_found: ProviderFailureKind,
+    provider_id: str,
+) -> tuple[str, str]:
+    """Return the text and URL of an anchor filing's cover: ``R1.htm``, or the report its summary marks as the cover.
+
+    The first read is always ``R1.htm``. Only when that page is not a cover is ``FilingSummary.xml`` read once; if it
+    marks exactly one other report as the cover, that report is read. A summary that is missing or marks no cover or
+    more than one leaves the first page, which the reader refuses as unreadable.
+
+    Raises:
+        ValueError: The identifiers or the declared identity are not acceptable; a defect of the caller.
+        FinancialProviderError: A transport fault, or a 404 of the first page or of the marked report, carrying
+            *not_found* for the 404.
+    """
+    first_url = cover_url(cik, accession)
+
+    def read(url: str) -> str:
+        return fetcher(url, headers=headers, policy=policy, not_found=not_found, provider_id=provider_id)
+
+    first = read(first_url)
+    if looks_like_cover(first):
+        return first, first_url
+    try:
+        summary = read(summary_url(cik, accession))
+    except FinancialProviderError as exc:
+        if exc.kind is not not_found:
+            raise
+        return first, first_url
+    report = cover_report_from_summary(summary)
+    if report is None or report == COVER_REPORT_NAME:
+        return first, first_url
+    url = cover_url(cik, accession, report)
+    return read(url), url

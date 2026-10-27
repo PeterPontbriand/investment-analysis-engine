@@ -25,9 +25,13 @@ from investment_analysis_engine.data.sec_edgar.cover_listing import (
     ListingResolution,
     SecurityKind,
     classify_title,
+    cover_report_from_summary,
     cover_url,
+    fetch_anchor_cover,
     fetch_cover,
+    looks_like_cover,
     read_cover_listing,
+    summary_url,
 )
 from investment_analysis_engine.data.sec_edgar.filing_document import FilingHeaderPolicy, FilingReaderPolicy
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
@@ -641,19 +645,141 @@ def test_an_amended_cover_without_a_registration_table_is_refused_without_readin
     assert resolution.reason is CoverUnavailableReason.NO_REGISTRATION_TABLE
 
 
-def test_a_captured_page_that_is_not_a_cover_is_unreadable() -> None:
+def test_a_captured_page_that_is_not_a_cover_is_unreadable_on_its_own() -> None:
     # Disney's first report is the audit information, not the cover.
     resolution = _listing(_read("dis_fy2025"), ticker="DIS", cik="1744489", accession="0001744489-25-000155")
     assert resolution.reason is CoverUnavailableReason.COVER_UNREADABLE
+    assert not looks_like_cover(_read("dis_fy2025"))
+    assert looks_like_cover(_read("dis_fy2025_cover"))
+    assert not looks_like_cover("<html></html>")
 
 
-def test_a_captured_cover_that_lists_the_symbol_before_the_title_is_unreadable() -> None:
-    # BlackRock's rows run symbol, title, exchange; reading them in the usual order would attach each symbol to the
-    # title above it, so the cover is refused rather than guessed at.
-    assert (
-        _listing(_read("blk_fy2025"), ticker="BLK", cik="2012383", accession="0001193125-26-071966").reason
-        is CoverUnavailableReason.COVER_UNREADABLE
+def test_a_captured_cover_that_lists_the_symbol_before_the_title_gives_each_symbol_to_the_title_of_its_block() -> None:
+    # BlackRock's rows run member header, symbol, title, exchange: each symbol sits above the title it belongs to.
+    ids = {"cik": "2012383", "accession": "0001193125-26-071966"}
+    blk = _read("blk_fy2025")
+    common = _listing(blk, ticker="BLK", **ids).evidence  # type: ignore[arg-type]
+    notes = _listing(blk, ticker="BLK 35", **ids).evidence  # type: ignore[arg-type]
+    assert common is not None
+    assert notes is not None
+    assert (common.kind, common.title) == (SecurityKind.SHARE, "Common Stock, $.01 par value")
+    assert (notes.kind, notes.title) == (SecurityKind.OTHER, "3.750% Notes due 2035")
+
+
+def _member(label: str) -> str:
+    link = (
+        '<a class="a" href="javascript:void(0);" onclick="Show.showAR( this, '
+        "'defref_us-gaap_StatementClassOfStockAxis=us-gaap_CommonStockMember', window );\">"
     )
+    return f'<tr class="rh"><td class="pl">{link}{label}</a></td><td class="text">&#160;</td></tr>'
+
+
+def _symbol(value: str) -> str:
+    return _row("TradingSymbol", "Trading Symbol", value)
+
+
+def _title(value: str) -> str:
+    return _row("Security12bTitle", "Title", value)
+
+
+def _exchange(value: str = "NYSE") -> str:
+    return _row("SecurityExchangeName", "Exchange", value)
+
+
+def _kind(markup: str, ticker: str) -> tuple[SecurityKind, str | None]:
+    evidence = _listing(markup, ticker=ticker).evidence
+    assert evidence is not None
+    return evidence.kind, evidence.title
+
+
+def test_one_rule_groups_title_first_symbol_first_and_headerless_covers() -> None:
+    two = (("AAA", "Common stock"), ("AAA 30", "3.000% Notes due 2030"))
+    title_first = _cover(_CIK_ROW, *[r for s, ti in two for r in (_member(ti), _title(ti), _symbol(s), _exchange())])
+    symbol_first = _cover(_CIK_ROW, *[r for s, ti in two for r in (_member(ti), _symbol(s), _title(ti), _exchange())])
+    headerless = _cover(_CIK_ROW, *[r for s, ti in two for r in (_title(ti), _symbol(s), _exchange())])
+    for markup in (title_first, symbol_first, headerless):
+        assert _kind(markup, "AAA") == (SecurityKind.SHARE, "Common stock")
+        assert _kind(markup, "AAA 30") == (SecurityKind.OTHER, "3.000% Notes due 2030")
+
+
+def test_a_symbol_above_every_title_of_its_block_belongs_to_the_first_title_of_the_block() -> None:
+    markup = _cover(
+        _CIK_ROW,
+        _member("a"),
+        _symbol("AAA"),
+        _exchange(),
+        _title("Common stock"),
+        _member("b"),
+        _symbol("BBB"),
+        _title("Units"),
+        _exchange(),
+    )
+    assert _kind(markup, "AAA") == (SecurityKind.SHARE, "Common stock")
+    assert _kind(markup, "BBB") == (SecurityKind.UNIT, "Units")
+
+
+def test_a_block_after_a_member_header_never_lends_its_rows_to_the_title_before_it() -> None:
+    markup = _cover(
+        _CIK_ROW, _member("a"), _title("Common stock"), _symbol("AAA"), _exchange(), _member("b"), _symbol("BBB")
+    )
+    assert _listing(markup, ticker="AAA").reason is CoverUnavailableReason.COVER_UNREADABLE
+
+
+def test_the_exchange_row_of_a_block_with_no_title_belongs_to_no_security() -> None:
+    entity_level = _cover(_CIK_ROW, *_COMMON, _member("registrant"), _exchange("NASDAQ"))
+    assert _kind(entity_level, "JPM") == (SecurityKind.SHARE, "Common stock")
+    untitled_symbol = _cover(_CIK_ROW, *_COMMON, _member("registrant"), _symbol("ZZZ"))
+    assert _listing(untitled_symbol, ticker="JPM").reason is CoverUnavailableReason.COVER_UNREADABLE
+
+
+# --- a ticker shared with debt ------------------------------------------------------------------------------------
+
+
+def test_microsoft_lists_its_symbol_against_its_stock_and_two_notes_and_is_affirmed() -> None:
+    ids = {"cik": "789019", "accession": "0001193125-26-323660"}
+    evidence = _listing(_read("msft_fy2025"), ticker="MSFT", **ids).evidence  # type: ignore[arg-type]
+    assert evidence is not None
+    assert (evidence.kind, evidence.title) == (SecurityKind.SHARE, "Common stock, $0.00000625 par value per share")
+
+
+def _shared(*titles: str) -> str:
+    return _cover(_CIK_ROW, *[r for ti in titles for r in (_member(ti), _title(ti), _symbol("AAA"), _exchange())])
+
+
+def test_a_share_with_debt_titles_of_an_explicit_form_on_its_symbol_is_the_shares() -> None:
+    markup = _shared("Common stock", "3.125% Notes due 2028", "2.625% notes due 2033")
+    assert _kind(markup, "AAA") == (SecurityKind.SHARE, "Common stock")
+    assert _kind(_shared("3.125% Notes due 2028", "Common stock"), "AAA") == (SecurityKind.SHARE, "Common stock")
+
+
+@pytest.mark.parametrize(
+    "titles",
+    [
+        ("Common stock", "Depositary Shares"),
+        ("Common stock", "6.50% Series D Preferred Stock"),
+        ("Common stock", "Units"),
+        ("Common stock", "Class B Common Stock"),
+        ("Common stock", "3.125% Notes due 2028", "Depositary Shares"),
+        ("Common stock", "Senior Notes due 2028"),
+        ("Common stock", "3.125% Notes due 2028 and 2030"),
+        ("Common stock", "3.125% Guaranteed Notes due 2028"),
+        ("3.125% Notes due 2028", "2.625% Notes due 2033"),
+    ],
+)
+def test_any_other_mix_of_titles_on_one_symbol_is_ambiguous(titles: tuple[str, ...]) -> None:
+    assert _listing(_shared(*titles), ticker="AAA").reason is CoverUnavailableReason.AMBIGUOUS_LISTING
+
+
+def test_the_same_share_title_on_two_exchanges_is_one_share_beside_debt() -> None:
+    markup = _cover(
+        _CIK_ROW,
+        *_COMMON,
+        _member("n"),
+        _title("3.125% Notes due 2028"),
+        _symbol("JPM"),
+        _exchange(),
+    )
+    assert _kind(markup, "JPM") == (SecurityKind.SHARE, "Common stock")
 
 
 def test_a_page_that_is_not_a_cover_is_unreadable() -> None:
@@ -715,7 +841,7 @@ def test_the_same_title_listed_twice_is_one_listing() -> None:
 def test_a_row_with_two_different_values_or_a_symbol_without_a_title_is_unreadable() -> None:
     two_values = _cover(_row("EntityCentralIndexKey", "CIK", "0000019617", "0000000001"), *_COMMON)
     assert _listing(two_values, ticker="JPM").reason is CoverUnavailableReason.COVER_UNREADABLE
-    orphan = _cover(_CIK_ROW, _row("TradingSymbol", "Trading Symbol", "JPM"))
+    orphan = _cover(_CIK_ROW, _row("TradingSymbol", "Trading Symbol", "JPM"))  # no title anywhere
     assert _listing(orphan, ticker="JPM").reason is CoverUnavailableReason.COVER_UNREADABLE
     twice = _cover(_CIK_ROW, *_COMMON, _row("TradingSymbol", "Trading Symbol", "JPMX"))
     assert _listing(twice, ticker="JPM").reason is CoverUnavailableReason.COVER_UNREADABLE
@@ -848,7 +974,7 @@ def test_a_request_normalizes_and_requires_its_parts() -> None:
 def test_the_fixture_checksums_match_the_files() -> None:
     lines = (FIXTURES / "SHA256SUMS").read_text(encoding="utf-8").splitlines()
     listed = {line.split("  ")[1]: line.split("  ")[0] for line in lines}
-    assert set(listed) == {path.name for path in FIXTURES.glob("*.r1.htm")}
+    assert set(listed) == {path.name for path in FIXTURES.iterdir() if path.name != "SHA256SUMS"}
     for name, digest in listed.items():
         assert hashlib.sha256((FIXTURES / name).read_bytes()).hexdigest() == digest
 
@@ -886,8 +1012,11 @@ def test_the_url_is_built_only_from_validated_identifiers() -> None:
         _URL.replace("https://", "http://"),
         _URL + "?x=1",
         _URL.replace("19617/", "19617/../"),
-        _URL.replace("R1.htm", "R2.htm"),
-        _URL.replace("R1.htm", "FilingSummary.xml"),
+        _URL.replace("R1.htm", "R12345.htm"),
+        _URL.replace("R1.htm", "r2.htm"),
+        _URL.replace("R1.htm", "R2.htm.bak"),
+        _URL.replace("R1.htm", "R.htm"),
+        _URL.replace("R1.htm", "filingsummary.xml"),
         _URL.replace("000162828026008131/", "00016282802600813/"),
         _URL.replace("19617", "abc"),
         _URL.replace("/Archives", "//Archives"),
@@ -896,6 +1025,34 @@ def test_the_url_is_built_only_from_validated_identifiers() -> None:
 def test_the_transport_enforces_the_exact_url_pattern(url: str) -> None:
     with pytest.raises(ValueError, match="Unsupported cover URL"):
         _fetch(url)
+
+
+def test_a_report_name_and_the_summary_are_addressed_only_from_validated_parts() -> None:
+    assert cover_url("19617", _ACCESSION, "R2.htm") == _URL.replace("R1.htm", "R2.htm")
+    assert summary_url("19617", _ACCESSION) == _URL.replace("R1.htm", "FilingSummary.xml")
+    for report in ("../R2.htm", "R2.htm?x=1", "R.htm", "R12345.htm", "FilingSummary.xml"):
+        with pytest.raises(ValueError, match="Invalid report"):
+            cover_url("19617", _ACCESSION, report)
+    with pytest.raises(ValueError, match="Invalid filing"):
+        summary_url("0", _ACCESSION)
+
+
+def test_the_summary_is_read_under_its_own_limit_and_type() -> None:
+    summary = _URL.replace("R1.htm", "FilingSummary.xml")
+    opener = _opener(b"<FilingSummary/>")
+    with patch("investment_analysis_engine.data.sec_edgar.filing_document.build_opener", return_value=opener):
+        assert _fetch(summary, policy=CoverReaderPolicy(max_cover_bytes=1, max_summary_bytes=64)) == "<FilingSummary/>"
+    assert opener.open.call_args.args[0].get_header("Accept") == "application/xml"
+    opener.open.return_value.__enter__.return_value.read.assert_called_once_with(65)
+    with (
+        patch(
+            "investment_analysis_engine.data.sec_edgar.filing_document.build_opener",
+            return_value=_opener(b"x" * 65),
+        ),
+        pytest.raises(FinancialProviderError) as oversized,
+    ):
+        _fetch(summary, policy=CoverReaderPolicy(max_summary_bytes=64))
+    assert oversized.value.kind is ProviderFailureKind.UNEXPECTED_RESPONSE
 
 
 def test_the_transport_requires_an_identity() -> None:
@@ -959,9 +1116,152 @@ def test_a_404_takes_the_kind_the_caller_passes_and_a_server_fault_is_unreachabl
 def test_the_default_policy_holds_the_largest_captured_cover_and_rejects_unbounded_settings() -> None:
     largest_captured = 135_601
     assert CoverReaderPolicy().max_cover_bytes > 3 * largest_captured
-    for kwargs in ({"timeout_seconds": 0.0}, {"timeout_seconds": float("inf")}, {"max_cover_bytes": 0}):
+    assert CoverReaderPolicy().max_summary_bytes > 5 * 86_703  # Disney's FilingSummary.xml, the largest captured
+    for kwargs in (
+        {"timeout_seconds": 0.0},
+        {"timeout_seconds": float("inf")},
+        {"max_cover_bytes": 0},
+        {"max_summary_bytes": 0},
+    ):
         with pytest.raises(ValueError, match="Cover"):
             CoverReaderPolicy(**kwargs)
+
+
+# --- the filing summary ------------------------------------------------------------------------------------------
+
+
+def _summary(*reports: tuple[str, str, str]) -> str:
+    body = "".join(
+        f"<Report><HtmlFileName>{name}</HtmlFileName><ShortName>{short}</ShortName>"
+        f"<MenuCategory>{category}</MenuCategory></Report>"
+        for name, short, category in reports
+    )
+    return f"<FilingSummary><MyReports>{body}</MyReports></FilingSummary>"
+
+
+def test_the_summary_marks_the_cover_by_its_category_and_its_short_name() -> None:
+    disney = (FIXTURES / "dis_fy2025.filing_summary.xml").read_text(encoding="utf-8")
+    # The category alone marks two reports, the audit information and the cover.
+    assert disney.count("<MenuCategory>Cover</MenuCategory>") == 2
+    assert cover_report_from_summary(disney) == "R2.htm"
+    assert (
+        cover_report_from_summary(_summary(("R1.htm", "COVER PAGE", "Cover"), ("R2.htm", "Audit", "Cover"))) == "R1.htm"
+    )
+    assert cover_report_from_summary(_summary(("R7.htm", " Cover  Page ", "cover"))) == "R7.htm"
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "",
+        "<FilingSummary/>",
+        _summary(("R1.htm", "Audit Information", "Cover")),
+        _summary(("R1.htm", "Cover", "Statements")),
+        _summary(("R1.htm", "Cover", "Cover"), ("R2.htm", "Cover Page", "Cover")),
+        _summary(("../R2.htm", "Cover", "Cover")),
+        _summary(("R2.html", "Cover", "Cover")),
+        _summary(("", "Cover", "Cover")),
+    ],
+)
+def test_a_summary_that_marks_no_cover_or_several_or_an_unaddressable_one_names_none(summary: str) -> None:
+    assert cover_report_from_summary(summary) is None
+
+
+class _Pages:
+    """Serve filing pages by URL and record the requests."""
+
+    def __init__(self, pages: dict[str, str | BaseException]) -> None:
+        self.pages = pages
+        self.urls: list[str] = []
+
+    def __call__(
+        self,
+        url: str,
+        *,
+        headers: Mapping[str, str],  # noqa: ARG002
+        policy: CoverReaderPolicy,  # noqa: ARG002
+        not_found: ProviderFailureKind,
+        provider_id: str,
+    ) -> str:
+        self.urls.append(url)
+        page = self.pages.get(url)
+        if page is None:
+            raise FinancialProviderError("gone", kind=not_found, provider_id=provider_id)
+        if isinstance(page, BaseException):
+            raise page
+        return page
+
+
+_DIS = {"cik": "1744489", "accession": "0001744489-25-000155"}
+_DIS_BASE = "https://www.sec.gov/Archives/edgar/data/1744489/000174448925000155/"
+
+
+def _anchor(pages: _Pages, **ids: str) -> tuple[str, str]:
+    return fetch_anchor_cover(
+        ids.get("cik", _DIS["cik"]),
+        ids.get("accession", _DIS["accession"]),
+        fetcher=pages,
+        headers=_HEADERS,
+        policy=CoverReaderPolicy(),
+        not_found=ProviderFailureKind.NO_DATA,
+        provider_id="sec_edgar",
+    )
+
+
+def _disney_pages() -> _Pages:
+    return _Pages(
+        {
+            _DIS_BASE + "R1.htm": _read("dis_fy2025"),
+            _DIS_BASE + "FilingSummary.xml": (FIXTURES / "dis_fy2025.filing_summary.xml").read_text(encoding="utf-8"),
+            _DIS_BASE + "R2.htm": _read("dis_fy2025_cover"),
+        }
+    )
+
+
+def test_a_filing_whose_first_report_is_not_the_cover_is_read_through_its_summary() -> None:
+    pages = _disney_pages()
+    text, url = _anchor(pages)
+    assert (text, url) == (_read("dis_fy2025_cover"), _DIS_BASE + "R2.htm")
+    assert pages.urls == [_DIS_BASE + "R1.htm", _DIS_BASE + "FilingSummary.xml", _DIS_BASE + "R2.htm"]
+    evidence = _listing(text, ticker="DIS", **_DIS).evidence  # type: ignore[arg-type]
+    assert evidence is not None
+    assert (evidence.kind, evidence.title) == (SecurityKind.SHARE, "Common Stock, $0.01 par value")
+
+
+def test_a_filing_whose_first_report_is_the_cover_makes_no_further_request() -> None:
+    pages = _Pages({_URL: _read("jpm_fy2025")})
+    assert _anchor(pages, cik="19617", accession=_ACCESSION) == (_read("jpm_fy2025"), _URL)
+    assert pages.urls == [_URL]
+
+
+def test_a_summary_that_cannot_name_the_cover_leaves_the_first_page_unreadable() -> None:
+    first = _read("dis_fy2025")
+    for summary in (
+        FinancialProviderError("gone", kind=ProviderFailureKind.NO_DATA, provider_id="sec_edgar"),
+        _summary(("R1.htm", "Audit Information", "Cover")),
+        _summary(("R1.htm", "Cover", "Cover"), ("R2.htm", "Cover", "Cover")),
+        _summary(("R1.htm", "Cover", "Cover")),
+    ):
+        pages = _Pages({_DIS_BASE + "R1.htm": first, _DIS_BASE + "FilingSummary.xml": summary})
+        assert _anchor(pages) == (first, _DIS_BASE + "R1.htm")
+        assert pages.urls == [_DIS_BASE + "R1.htm", _DIS_BASE + "FilingSummary.xml"]
+    assert _listing(first, ticker="DIS", **_DIS).reason is CoverUnavailableReason.COVER_UNREADABLE  # type: ignore[arg-type]
+
+
+def test_a_summary_fault_or_a_missing_marked_report_raises_and_a_missing_first_page_does_too() -> None:
+    fault = FinancialProviderError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
+    pages = _disney_pages()
+    pages.pages[_DIS_BASE + "FilingSummary.xml"] = fault
+    with pytest.raises(FinancialProviderError) as caught:
+        _anchor(pages)
+    assert caught.value.kind is ProviderFailureKind.UNREACHABLE
+    pages = _disney_pages()
+    del pages.pages[_DIS_BASE + "R2.htm"]
+    with pytest.raises(FinancialProviderError) as missing:
+        _anchor(pages)
+    assert missing.value.kind is ProviderFailureKind.NO_DATA
+    with pytest.raises(FinancialProviderError):
+        _anchor(_Pages({}))
 
 
 # --- the adapter -------------------------------------------------------------------------------------------------
@@ -977,7 +1277,7 @@ class _Sec:
         self,
         *,
         ticker: str = "JPM",
-        cover: str | BaseException | None = None,
+        cover: str | BaseException | dict[str, str] | None = None,
         cik: str = "19617",
         accession: str = _ACCESSION,
         form: str = "10-K",
@@ -1017,12 +1317,16 @@ class _Sec:
         *,
         headers: Mapping[str, str],  # noqa: ARG002
         policy: CoverReaderPolicy,  # noqa: ARG002
-        not_found: ProviderFailureKind,  # noqa: ARG002
-        provider_id: str,  # noqa: ARG002
+        not_found: ProviderFailureKind,
+        provider_id: str,
     ) -> str:
         self.cover_urls.append(url)
         if isinstance(self._cover, BaseException):
             raise self._cover
+        if isinstance(self._cover, dict):
+            if url not in self._cover:
+                raise FinancialProviderError("gone", kind=not_found, provider_id=provider_id)
+            return self._cover[url]
         return self._cover
 
     def header(self, url: str, **_kwargs: object) -> str:
@@ -1067,6 +1371,30 @@ def test_the_adapter_reads_the_anchor_cover_once_per_scope_however_often_it_is_a
     assert first.evidence.accepted_at == datetime(2026, 2, 13, 21, 20, tzinfo=UTC)
     assert first.evidence.source_url == _URL
     assert sec.cover_urls == [_URL]
+
+
+def test_the_adapter_reads_a_filing_whose_cover_is_not_the_first_report_once_per_scope() -> None:
+    sec = _Sec(
+        ticker="DIS",
+        cik="1744489",
+        accession="0001744489-25-000155",
+        accepted="2025-11-13T11:44:29.000Z",
+        cover={
+            _DIS_BASE + "R1.htm": _read("dis_fy2025"),
+            _DIS_BASE + "FilingSummary.xml": (FIXTURES / "dis_fy2025.filing_summary.xml").read_text(encoding="utf-8"),
+            _DIS_BASE + "R2.htm": _read("dis_fy2025_cover"),
+        },
+    )
+    adapter = sec.adapter()
+    with adapter.analysis_scope(subject_id="DIS", provider_id=SEC_PROVIDER_ID, as_of=_BOUNDARY):
+        request = CoverListingRequest("DIS", SEC_PROVIDER_ID)
+        first = adapter.resolve_cover_listing(request)
+        second = adapter.resolve_cover_listing(request)
+    assert first == second
+    assert first.evidence is not None
+    assert (first.evidence.kind, first.evidence.source_url) == (SecurityKind.SHARE, _DIS_BASE + "R2.htm")
+    assert sec.cover_urls == [_DIS_BASE + "R1.htm", _DIS_BASE + "FilingSummary.xml", _DIS_BASE + "R2.htm"]
+    assert sec.document_urls == []
 
 
 def test_the_adapter_works_with_and_without_as_of() -> None:
