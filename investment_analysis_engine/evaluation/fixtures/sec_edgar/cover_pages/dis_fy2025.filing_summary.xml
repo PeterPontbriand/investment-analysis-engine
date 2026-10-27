@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='utf-8'?>
+<FilingSummary>
+  <Version>3.25.3</Version>
+  <ProcessingTime/>
+  <ReportFormat>html</ReportFormat>
+  <ContextCount>712</ContextCount>
+  <ElementCount>715</ElementCount>
+  <EntityCount>1</EntityCount>
+  <FootnotesReported>true</FootnotesReported>
+  <SegmentCount>196</SegmentCount>
+  <ScenarioCount>0</ScenarioCount>
+  <TuplesReported>false</TuplesReported>
+  <UnitCount>9</UnitCount>
+  <MyReports>
+        <Report instance="dis-20250927.htm">
+      <IsDefault>false</IsDefault>
+      <HasEmbeddedReports>false</HasEmbeddedReports>
+      <HtmlFileName>R1.htm</HtmlFileName>
+      <LongName>0000001 - Document - Audit Information</LongName>
+      <ReportType>Sheet</ReportType>
+      <Role>http://corporate.disney.go.com/role/AuditInformation</Role>
+      <ShortName>Audit Information</ShortName>
+      <MenuCategory>Cover</MenuCategory>
+      <Position>1</Position>
+    </Report>
+    <Report instance="dis-20250927.htm">
+      <IsDefault>false</IsDefault>
+      <HasEmbeddedReports>false</HasEmbeddedReports>
+      <HtmlFileName>R2.htm</HtmlFileName>
+      <LongName>9952151 - Document - Cover</LongName>
+      <ReportType>Sheet</ReportType>
+      <Role>http://corporate.disney.go.com/role/Cover</Role>
+      <ShortName>Cover</ShortName>
+      <MenuCategory>Cover</MenuCategory>
+      <Position>2</Position>
+    </Report>
+    <Report instance="dis-20250927.htm">
+      <IsDefault>false</IsDefault>
+      <HasEmbeddedReports>false</HasEmbeddedReports>
+      <HtmlFileName>R3.htm</HtmlFileName>
+      <LongName>9952152 - Statement - CONSOLIDATED STATEMENTS OF INCOME</LongName>
+      <ReportType>Sheet</ReportType>
+      <Role>http://corporate.disney.go.com/role/CONSOLIDATEDSTATEMENTSOFINCOME</Role>
+      <ShortName>CONSOLIDATED STATEMENTS OF INCOME</ShortName>
+      <MenuCategory>Statements</MenuCategory>
+      <Position>3</Position>
+    </Report>
+  </MyReports>
+</FilingSummary>

@@ -39,6 +39,17 @@ from investment_analysis_engine.data.financial.provenance import (
 from investment_analysis_engine.data.http_json import JsonFetcher, fetch_json
 from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.sec_edgar.annual_series import annual_concepts, select_annual_period_facts
+from investment_analysis_engine.data.sec_edgar.cover_listing import (
+    CoverFetcher,
+    CoverListingRequest,
+    CoverReaderPolicy,
+    CoverUnavailableReason,
+    ListingResolution,
+    cover_url,
+    fetch_anchor_cover,
+    fetch_cover,
+    read_cover_listing,
+)
 from investment_analysis_engine.data.sec_edgar.filing_document import (
     FilingFetcher,
     FilingHeaderFetcher,
@@ -270,6 +281,8 @@ class SecEdgarFinancialFactsAdapter:
         filing_policy: FilingReaderPolicy | None = None,
         header_fetcher: FilingHeaderFetcher = fetch_filing_header,
         header_policy: FilingHeaderPolicy | None = None,
+        cover_fetcher: CoverFetcher = fetch_cover,
+        cover_policy: CoverReaderPolicy | None = None,
     ) -> None:
         """Initialize the adapter with injectable transport, clock, and SEC identity.
 
@@ -284,6 +297,9 @@ class SecEdgarFinancialFactsAdapter:
         self._header_fetcher = header_fetcher
         self._header_policy = header_policy or FilingHeaderPolicy()
         self._header_texts: dict[tuple[str, str], tuple[str, datetime]] = {}
+        self._cover_fetcher = cover_fetcher
+        self._cover_policy = cover_policy or CoverReaderPolicy()
+        self._cover_texts: dict[tuple[str, str], tuple[str, str, datetime]] = {}
         self._submission_page_documents: dict[tuple[str, str], object] = {}
         self._clock = clock or utc_now
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
@@ -381,6 +397,69 @@ class SecEdgarFinancialFactsAdapter:
             cik=snapshot.cik,
             accession=accession,
             filing_date=snapshot.filing_dates.get(accession),
+            boundary=snapshot.as_of,
+            source_url=url,
+            retrieved_at=retrieved_at,
+        )
+
+    def resolve_cover_listing(self, request: CoverListingRequest) -> ListingResolution:  # noqa: PLR0911
+        """Resolve what the anchor filing's cover registers for the requested ticker.
+
+        One cover request is made for the anchor filing, outside the filing-document limit, and its text is kept for
+        the life of the adapter because a filed cover never changes; the boundary check is made on every call. The
+        read works with ``as_of``: the cover of a filing accepted at or before the boundary is historical evidence.
+        A cover that is missing or unreadable, or that fails a check, gives the reason none could be read. A
+        transport fault raises the classified ``FinancialProviderError``.
+        """
+        snapshot = _ACTIVE_SNAPSHOT.get()
+        if request.provider_id != SEC_PROVIDER_ID or snapshot is None:
+            return ListingResolution(reason=CoverUnavailableReason.NO_ANALYSIS_SCOPE)
+        if snapshot.subject_id != request.ticker:
+            return ListingResolution(reason=CoverUnavailableReason.SUBJECT_MISMATCH)
+        accession = snapshot.latest_annual_accession
+        if snapshot.cik is None or accession is None:
+            return ListingResolution(reason=CoverUnavailableReason.NO_ANCHOR_FILING)
+        form = snapshot.filing_forms.get(accession)
+        if not form:
+            return ListingResolution(reason=CoverUnavailableReason.FORM_UNAVAILABLE)
+        accepted_at = snapshot.acceptance_by_accession.get(accession)
+        if accepted_at is None:
+            return ListingResolution(reason=CoverUnavailableReason.ACCEPTANCE_UNAVAILABLE)
+        if accepted_at > snapshot.as_of:
+            return ListingResolution(reason=CoverUnavailableReason.ACCEPTED_AFTER_BOUNDARY)
+        try:
+            cover_url(snapshot.cik, accession)
+        except ValueError as exc:
+            msg = f"SEC listed a filing that cannot be addressed: {exc}"
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID
+            ) from exc
+        cached = self._cover_texts.get((snapshot.cik, accession))
+        if cached is None:
+            try:
+                text, url = fetch_anchor_cover(
+                    snapshot.cik,
+                    accession,
+                    fetcher=self._cover_fetcher,
+                    headers=self._headers,
+                    policy=self._cover_policy,
+                    not_found=ProviderFailureKind.NO_DATA,
+                    provider_id=SEC_PROVIDER_ID,
+                )
+            except FinancialProviderError as exc:
+                if exc.kind is ProviderFailureKind.NO_DATA:
+                    return ListingResolution(reason=CoverUnavailableReason.COVER_MISSING)
+                raise
+            cached = (text, url, self._clock())
+            self._cover_texts[(snapshot.cik, accession)] = cached
+        text, url, retrieved_at = cached
+        return read_cover_listing(
+            text,
+            ticker=request.ticker,
+            cik=snapshot.cik,
+            accession=accession,
+            form=form,
+            accepted_at=accepted_at,
             boundary=snapshot.as_of,
             source_url=url,
             retrieved_at=retrieved_at,

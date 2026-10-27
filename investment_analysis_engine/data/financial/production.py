@@ -17,6 +17,12 @@ from investment_analysis_engine.data.instrument_profile import (
     InstrumentKindProvider,
     InstrumentKindRequest,
 )
+from investment_analysis_engine.data.sec_edgar.cover_listing import (
+    CoverListingProvider,
+    CoverListingRequest,
+    CoverUnavailableReason,
+    ListingResolution,
+)
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.security_identity import (
     SecurityIdentity,
@@ -92,3 +98,10 @@ class ProductionFinancialFactsProvider:
         if provider is None or not isinstance(provider, InstrumentKindProvider):
             return None
         return provider.resolve_instrument_kind(request)
+
+    def resolve_cover_listing(self, request: CoverListingRequest) -> ListingResolution:
+        """Route an optional cover-listing request without widening numeric facts."""
+        provider = self._providers.get(request.provider_id)
+        if not isinstance(provider, CoverListingProvider):
+            return ListingResolution(reason=CoverUnavailableReason.PROVIDER_UNSUPPORTED)
+        return provider.resolve_cover_listing(request)

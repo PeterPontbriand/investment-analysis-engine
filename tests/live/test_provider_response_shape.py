@@ -8,6 +8,7 @@ the check's own detail as the assertion message.
 
 import math
 import re
+from datetime import UTC, datetime
 
 import pytest
 
@@ -15,6 +16,12 @@ from investment_analysis_engine.cli_health import build_provider_clients
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.provider_checks import PROVIDER_CHECKS, ProviderCheckEntry
+from investment_analysis_engine.data.sec_edgar.cover_listing import (
+    CoverReaderPolicy,
+    cover_url,
+    fetch_cover,
+    read_cover_listing,
+)
 from investment_analysis_engine.data.sec_edgar.filing_document import (
     FilingHeaderPolicy,
     fetch_filing_header,
@@ -64,6 +71,43 @@ def test_sec_edgar_filing_header_response_shape() -> None:
     assert filer is not None, "the header has no <FILER> block"
     assert re.search(r"^<CIK>[0-9]{10}$", filer.group(1), re.MULTILINE)
     assert re.search(r"^<ASSIGNED-SIC>[0-9]{4}$", filer.group(1), re.MULTILINE)
+
+
+def test_sec_edgar_cover_response_shape() -> None:
+    """Request one rendered cover, the listing check's one request, and check its shape, never a value."""
+    identity = (settings.sec_user_agent or "").strip()
+    assert identity, "SEC access is not configured: set SEC_USER_AGENT."
+    accession = "0001628280-26-008131"
+    url = cover_url("19617", accession)
+    text = fetch_cover(
+        url,
+        headers={"User-Agent": identity},
+        policy=CoverReaderPolicy(),
+        not_found=ProviderFailureKind.NO_DATA,
+        provider_id=SEC_PROVIDER_ID,
+    )
+    for concept in (
+        "DocumentType",
+        "EntityCentralIndexKey",
+        "Security12bTitle",
+        "TradingSymbol",
+        "SecurityExchangeName",
+    ):
+        assert f"defref_dei_{concept}'" in text, f"the cover has no {concept} row"
+    resolution = read_cover_listing(
+        text,
+        ticker="JPM",
+        cik="19617",
+        accession=accession,
+        form="10-K",
+        accepted_at=datetime(2026, 2, 13, tzinfo=UTC),
+        boundary=datetime.now(UTC),
+        source_url=url,
+        retrieved_at=datetime.now(UTC),
+    )
+    assert resolution.reason is None, f"the live cover could not be read: {resolution.reason}"
+    assert resolution.evidence is not None
+    assert resolution.evidence.title, "the requested ticker's row has no title"
 
 
 def test_yahoo_split_adjusted_history_response_shape() -> None:
