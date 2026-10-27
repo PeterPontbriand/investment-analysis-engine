@@ -64,7 +64,11 @@ introduced.
 | The inputs are valid but the value has no economic meaning (for example, EV/EBITDA with negative EBITDA) | `not_applicable` |
 
 - Each non-`ok` result carries a `ReasonCode`. Existing codes are reused where one fits; 3.5.1 adds
-  the codes no existing one covers, such as sector applicability and unknown SIC.
+  the codes no existing one covers, such as sector applicability and unknown SIC. 3.5.2b adds `unsupported_mapping` and
+  `debt_not_visible`. A balance-sheet value absent at a year-end maps to a code by one table: `not_tagged`,
+  `other_concept` and `no_anchor_filing` give `missing_fact`; `conflict` gives `ambiguous_fact`; `unsupported` gives
+  `unsupported_mapping`; `after_boundary` gives `not_available_as_of`; `basis_mismatch` gives `incompatible_scope`.
+  `nonpositive_denominator` is added by the first slice that produces it.
 - No value is ever `NaN` or `Inf`. A ratio with a zero or non-positive denominator is `unavailable`
   or `not_applicable` with a reason code, as each definition below states.
 - **What is not a `MetricResult`:** strategy-level scores, zones, bands, completeness and
@@ -187,11 +191,24 @@ in which an absent element yields a number.
 - **Effect:** the market cap is the same as the one the unadjusted price and the unscaled count of the same date give. The
   formula and the value are unchanged; this states only how it is computed. Splits after `as_of` are used only to undo the
   provider's retroactive adjustment ([§3](#3-data-sources-periods-and-point-in-time)).
-- **Security unit and currency:** the market cap uses the existing fail-closed rule,
-  `evaluate_security_unit_compatibility` (`investment_analysis_engine/data/security_unit.py`), as Graham does. It is
-  available only when the quote currency equals the filing currency and the evidence affirms an ordinary share at 1:1.
-  Otherwise it is `unavailable`. SAP's market cap is therefore `unavailable`: SAP files in EUR and its listed ADR is
-  quoted in USD.
+- **Availability, security unit and currency:** the market cap does not use the security-unit rule of Graham
+  (`evaluate_security_unit_compatibility`): that rule refuses every run with `as_of`, every filer other than a us-gaap
+  10-K filer, and any cover with more than one class title (Alphabet). The market cap is available only when all four
+  hold:
+  1. **The anchor annual filing is a 10-K** (`incompatible_scope` otherwise). A 20-F or 40-F filer is a foreign private
+     issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show. SAP's market cap
+     is therefore `unavailable`.
+  2. **The quote currency equals the filing currency** (`incompatible_currency` otherwise). When either is unknown, the
+     market cap is `unavailable`.
+  3. **A listing check on the anchor 10-K's cover affirms the requested ticker.** The ticker must appear there under
+     this CIK, on a registered title that is a share of the issuer. Class designations and "ordinary shares" are
+     accepted; depositary shares, units, warrants and preferred securities are refused (`incompatible_units`); a
+     missing or unreadable cover is `unavailable` (`missing_fact`). The check works with `as_of`, because the cover of
+     a filing on or before the boundary is historical evidence.
+  4. **The share-count rule for several classes below holds:** Alphabet's single combined count is valued at the
+     requested ticker's price, and per-class counts with no total are `unavailable`.
+- **Limitation, stated in the guides:** a ticker renamed after the anchor filing does not match the cover and is
+  `unavailable`.
 - **Critical inputs:** shares and price.
 - **Dates stay visible** in the result: the share-count date, the filing date of the count's source and the price date.
 

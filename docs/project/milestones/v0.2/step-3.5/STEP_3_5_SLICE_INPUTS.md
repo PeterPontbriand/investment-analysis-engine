@@ -207,8 +207,9 @@ taken as zero.
 - Market cap: count at year-end *t* only; no count is `unavailable`; conflicting counts are
   `unavailable`; a split after the filing date of the count's source scales the count and one before it does not; per-class counts with no total
   are `unavailable`; a one-day historical download is never used as a quote.
-  - Security unit and currency (decision K5): a quote currency that differs from the filing currency, or evidence that
-    does not affirm an ordinary share at 1:1, makes it `unavailable`. SAP (EUR filer, USD ADR) is the case.
+  - Availability (decision K5″, which supersedes K5): a filing other than a 10-K gives `incompatible_scope`, a quote
+    currency that differs from the filing currency or is unknown gives `incompatible_currency`, and a listing check
+    that does not affirm the ticker gives its own code. SAP (a 20-F filer in EUR with a USD ADR) is `incompatible_scope`.
   - Nutrien has no share count and is `unavailable`, never zero.
   - The Walmart and NVIDIA scaling cases of the 3.5.1 plan's B.10, now through the market cap.
 - Gross profit (decision K6): the reported figure is used; otherwise sales minus cost of revenue when both are
@@ -219,7 +220,8 @@ taken as zero.
     current assets are not tagged is `unavailable`. Deere's EV is `unavailable`.
   - Total debt: Alphabet and Honeywell reconcile a direct total with its parts as Shared definitions §6 states;
     Monster has zero debt (it tags `InterestPaidNet`, not interest expense); Nutrien's IFRS total debt is `unavailable`.
-- Invested capital: IC ≤ 0 makes dependent ratios `not_applicable`.
+- Invested capital: IC ≤ 0 is an `ok` value; a missing critical input is `unavailable`. A ratio that divides by it
+  decides what a nonpositive value means (decision L5).
 - FCF yield (decision K4): the yield is `unavailable` with `incompatible_period` when FCF-Growth's latest observation
   does not end at year-end *t*; it is never computed from an older year.
 - FCF-Growth: FCF yield becomes available through the shared market cap with its formula and
@@ -333,7 +335,8 @@ Three sub-slices: 3.5.5a Valuation Multiples, 3.5.5b Interest Coverage, 3.5.5c R
 **Tests**
 
 - Valuation Multiples: EBITDA ≤ 0 and EV ≤ 0 are `not_applicable`; a negative FCF yield is
-  reported with its sign note; FCF yield equals FCF-Growth's value for the same run.
+  reported with its sign note; FCF yield equals FCF-Growth's value for the same run. The reason code
+  `nonpositive_denominator` is added by the first slice that produces it (decision L5).
 - Interest Coverage: each band boundary at equality; zero debt with no interest is
   `not_applicable` with the favorable band; no interest with debt is `unavailable`; net-only
   interest is `unavailable`; negative EBIT is `ok` and Distressed.
@@ -361,7 +364,8 @@ Two sub-slices: 3.5.6a the analyzer, 3.5.6b the ranked view.
 **Tests**
 
 - Analyzer: EBIT ≤ 0, IC ≤ 0 and EV ≤ 0 are `not_applicable`; financial issuers and utilities are
-  `not_applicable`.
+  `not_applicable`. The reason code `nonpositive_denominator` is added by the first slice that produces it (decision
+  L5).
 - Ranked view: built from stored runs with provider, cache, clock and calculator disabled; mixed
   `as_of` values refuse; fewer than ten eligible members return values without ranks; two runs of
   the strategy for one ticker refuse and name the duplicates; two share classes of one issuer keep

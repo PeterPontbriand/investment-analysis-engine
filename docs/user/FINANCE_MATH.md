@@ -334,6 +334,77 @@ The `display_only` and `confirmation` policies do not change the historical clas
 
 See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_GROWTH.md).
 
+## Shared metrics
+
+These metrics are defined once and used by every strategy that needs them. Each is a pure calculation over resolved inputs; every result is a typed outcome that is either `ok` with a finite number or `unavailable` with a reason code and a reason. Nothing missing becomes zero, neutral or `NaN`, except the absent components named below. Balance-sheet values are instants at the anchor fiscal year-end *t*; annual values are those of the fiscal year ending at *t*. Free cash flow and the FCF yield keep their entries under [Free Cash Flow & Earnings Growth Strategy](#free-cash-flow--earnings-growth-strategy).
+
+### Market capitalization
+
+```text
+market_cap = scaled_share_count * price
+scaled_share_count = share_count * product of the ratios of every split with
+                     after < ex_date <= adjustment_date
+```
+
+- **Share count:** the common shares outstanding at fiscal year-end *t*, reported directly or as shares issued minus treasury shares at the same date. When no balance-sheet path gives a count at *t*, the single non-dimensional cover-page count of the anchor filing is used and the result says so. A year-end count dated other than *t* (an older year's count) is `unavailable` with `incompatible_period` and is never substituted. Conflicting counts, and per-class counts with no total, are `unavailable`. One combined count for several share classes is valued at the requested ticker's price.
+- **Price:** the split-adjusted close, without dividend adjustment, on the last trading day on or before the boundary.
+- **Split scaling:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. A filing restates its counts for a split effective before it is issued, so such a split is not applied again. A split after the boundary still scales the count, because it undoes the provider's adjustment of the price; it never changes the market cap at the boundary.
+- **Availability:** market cap is available only when all four hold, and each refusal has its reason code.
+  1. The anchor annual filing is a 10-K (`incompatible_scope`). A 20-F or 40-F filer is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show.
+  2. The quote currency equals the filing currency (`incompatible_currency`). When either is unknown, market cap is `unavailable`.
+  3. A listing check on the anchor 10-K's cover affirms the requested ticker, under the issuer's CIK, on a registered title that is a share of the issuer. A depositary share, unit, warrant or preferred security is refused (`incompatible_units`), and a missing or unreadable cover is `unavailable` (`missing_fact`).
+  4. A share count and a price are present (the code of the missing input).
+- **Limitations:** buybacks and issuance between the fiscal year-end and the price date are not reflected. A split announced before the filing but effective just after it is assumed not to be reflected in the filing. A ticker renamed after the anchor filing does not match the cover and is `unavailable`.
+- **Critical inputs:** the share count and the price.
+
+### Gross profit, EBIT, depreciation and amortization, EBITDA
+
+```text
+gross_profit = reported gross profit, else sales - cost_of_revenue (both reported)
+EBIT         = reported operating income            (may be negative)
+D&A          = depreciation, depletion and amortization of the cash-flow statement
+EBITDA       = EBIT + D&A
+```
+
+Gross profit is never taken from operating income; a filer that reports neither form has none. EBIT is never rebuilt from pretax income plus interest. When EBIT or D&A is missing, EBITDA is `unavailable` with `missing_fact`. Critical inputs: operating income (EBIT), D&A (EBITDA), and for gross profit either the reported figure or both sales and cost of revenue.
+
+### Total debt
+
+```text
+total_debt = short_term_borrowings + current_portion_of_long_term_debt
+           + noncurrent_long_term_debt + lease_liabilities_counted_as_debt
+```
+
+A missing debt figure is not assumed to be zero. An absent component counts as zero, with a diagnostic, only with supporting evidence:
+
+| What the filing reports for the year-end | Treatment |
+| :--- | :--- |
+| At least one debt component | An absent component is zero only when no concept is tagged for it (`not_tagged`) and none of its recorded related concepts is tagged at that date. Otherwise total debt is `unavailable`: `debt_not_visible` when a related concept is tagged, `unsupported_mapping` when the mapping is unsupported, and the absence's own code otherwise. |
+| No component, no related concept, no unsupported mapping, and interest expense absent or zero | Total debt is zero ("no reported debt"). |
+| No component, but a related concept is tagged or interest expense is not zero | `unavailable` with `debt_not_visible`. |
+| No component, and a mapping is unsupported | `unavailable` with `unsupported_mapping`, which takes precedence. |
+
+The direct long-term-debt total only reconciles. When it and both the current portion and the noncurrent long-term debt are present, it must equal their sum exactly, with no tolerance; otherwise total debt is `unavailable` with `ambiguous_fact` and both parts are the affected components. The direct total is never added to its parts and never used as a value. An IFRS issuer's total debt is `unavailable` with `unsupported_mapping` while the IFRS noncurrent long-term debt mapping is unsupported.
+
+### Enterprise value
+
+```text
+EV = market_cap + total_debt + preferred_stock + noncontrolling_interest
+     - cash_and_equivalents - short_term_investments
+```
+
+The critical inputs are market cap, total debt and cash. Preferred stock, noncontrolling interest and short-term investments are zero, with a diagnostic, only when the filing tags no concept for them (`not_tagged`), never when the mapping is unsupported or another concept is tagged. Short-term investments are zero only when current assets are tagged at the year-end: on an unclassified balance sheet (Deere's) a missing line does not show that the filer has none, so EV is `unavailable`. A negative EV is a valid number.
+
+### Invested capital
+
+```text
+IC = (current_assets - cash - short_term_investments)
+   - (current_liabilities - short_term_borrowings - current_portion_of_long_term_debt)
+   + net_ppe
+```
+
+The critical inputs are current assets, current liabilities, net PP&E and cash. Short-term investments are zero when `not_tagged`. Short-term borrowings and the current portion of long-term debt follow the debt-component rule of total debt. Net PP&E is taken as reported, and goodwill and intangibles are excluded. An IC at or below zero is an `ok` value; a ratio that divides by it decides what that means.
+
 ## Cross-sectional ranking
 
 A ranking orders a fixed set of members, such as the tickers of one watchlist refresh, over one or more metrics. It is a pure calculation over the members it is given: it reads no market, assumes no wider universe and imputes no value. Each metric has a direction, higher is better or lower is better.

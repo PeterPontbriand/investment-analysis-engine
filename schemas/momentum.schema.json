@@ -654,7 +654,9 @@
         "not_requested",
         "instrument_kind_not_applicable",
         "industry_class_not_applicable",
-        "industry_class_unknown"
+        "industry_class_unknown",
+        "unsupported_mapping",
+        "debt_not_visible"
       ],
       "title": "ReasonCode",
       "type": "string"

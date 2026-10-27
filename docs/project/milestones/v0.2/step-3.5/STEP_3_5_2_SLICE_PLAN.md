@@ -20,7 +20,8 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
     number.
   - A change to a persisted shape bumps that shape's version field, with no migration or compatibility decoder
     ([AGENTS.md §4](../../../../../AGENTS.md)). Each sub-slice lists such a change among its user-visible changes.
-  - Where a sub-slice meets a data case no decision covers, it stops and asks the project owner (K17).
+  - Where a sub-slice meets a data case no decision covers, it stops and asks the project owner (K17). The one
+    delegation is the title vocabulary of the listing check (K5″b).
   - The managed quality gate after every sub-slice, and explicit authorization before the next begins.
   - No registry, plugin loader or factory is added; the new code is plain functions and frozen types.
 - **Where the detail lives:** the file inventories, result shapes, tests and documentation changes are in
@@ -35,8 +36,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 3.5.2a | [Slice plan and ranking helper](#352a--slice-plan-and-ranking-helper) | Complete | 2026-10-26 |
-| 3.5.2b | [Pure shared metrics](#352b--pure-shared-metrics) | Next | |
-| 3.5.2c | [Shared input assembly](#352c--shared-input-assembly) | Planned | |
+| 3.5.2b | [Pure shared metrics](#352b--pure-shared-metrics) | Complete | 2026-10-26 |
+| 3.5.2c | [Shared input assembly](#352c--shared-input-assembly) | Next | |
 | 3.5.2d | [FCF-Growth adopts the shared market cap](#352d--fcf-growth-adopts-the-shared-market-cap) | Planned | |
 
 3.5.2a is implemented on the branch that carries this plan and merges as one pull request, as 3.5.1a did. Each later
@@ -68,20 +69,27 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
 
 - **Problem:** market cap, gross profit, EBIT, D&A, EBITDA, total debt, EV and invested capital are defined in prose
   only, and FCF and FCF yield live in FCF-Growth's own package, where a second strategy would have to import them.
-- **Decision (K5 to K8, K12, K14, K16):**
+- **Decision (K5″ to K8, K12, K14, K16, L1 to L7):**
   - Each metric is a pure function over resolved facts, with no I/O, that returns a `MetricResult` plus the operands and
     provenance it used, in the module K14 names.
-  - Market cap applies the fail-closed security-unit rule (K5). Gross profit is reported, else sales minus cost of
+  - Market cap is available only for a 10-K anchor filing, equal known quote and filing currencies, a listing check
+    that affirms the ticker and the share-count rule for several classes (K5″, which supersedes K5). The pure
+    function only takes the listing check's outcome (K5″a). Gross profit is reported, else sales minus cost of
     revenue (K6). Short-term investments are zero-if-absent only on a classified balance sheet (K7).
+  - The functions take the types 3.5.1 already returns: a balance-sheet value is a `ResolvedInput` or an
+    `InstantAbsence`, and an annual value is a `ResolvedInput` or `None` (L1). One table maps an absence reason to a
+    reason code (L2). Market cap has its own frozen result type; every other metric shares one (L3).
   - `compute_free_cash_flow` and `compute_fcf_yield` move to `analysis/shared/cash_flow.py` unchanged in behavior; the
     copies in FCF-Growth are deleted and FCF-Growth imports them from there (K8).
-  - Three reason codes are added: `unsupported_mapping`, `debt_not_visible` and `nonpositive_denominator` (K12). The
-    schemas that list `ReasonCode` are regenerated with no document version bump (G4 of the 3.5.1 plan).
+  - Two reason codes are added: `unsupported_mapping` and `debt_not_visible`. `nonpositive_denominator` is added by
+    the first slice that produces it, because invested capital at or below zero is an `ok` value here (L5, which
+    amends K12). The schemas that list `ReasonCode` are regenerated with no document version bump (G4 of the 3.5.1
+    plan).
   - The planning labels in `strategies/fcf_growth/calculators.py`'s module docstring are replaced by durable wording
     (K16).
-- **Scope:** the six modules of [B.2](#b2-352b-files), the moved FCF functions and their tests, the reason codes and the
-  regenerated schemas, and the `FINANCE_MATH.md` entry of every shared metric.
-- **Branch:** `feat/step-3-5-2b-shared-metrics`, off `main` after the 3.5.2a pull request merges.
+- **Scope:** the modules of [B.2](#b2-352b-files), the moved FCF functions and their tests, the two reason codes and
+  the regenerated schemas, and the `FINANCE_MATH.md` entry of every shared metric.
+- **Branch:** `feat/step-3-5-2b-shared-metrics`, off `main` after the 3.5.2a pull request merged.
 - **Detail:** [files](#b2-352b-files), [result shapes](#b5-result-shapes), [tests](#b7-352b-tests).
 
 ### 3.5.2c — Shared input assembly
@@ -90,7 +98,11 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
   and annual inputs at one year-end. Left to each consumer, seven strategies would assemble them seven ways. Two gaps on
   `main` also block it: the production financial-facts provider does not route the balance-sheet series, and the
   split-history provider protocol cannot carry the arguments the cached client takes.
-- **Decision (K3, K4, K15):**
+- **Decision (K3, K4, K5″a, K5″b, K15):**
+  - **The listing check is the first step**, before the assembly (K5″a): it reads the anchor 10-K's cover and returns
+    the outcome the market-cap function takes. Which registered titles count as a share of the issuer, and which are
+    refused, is decided by the implementer from captured covers and recorded in this plan (K5″b). The step stops and
+    asks if it cannot show the depositary-share refusal on a real 10-K filer.
   - One assembly in `analysis/shared/metric_inputs.py` finds the anchor year-end *t*, resolves the share-count path
     (year-end count, else the cover-page count; Shared definitions §4), the price with or without `as_of`, the split
     history, and the balance-sheet and annual inputs at *t*.
@@ -103,7 +115,8 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
     sessions are read by exchange-local date. The guides state the limitation (K15).
   - `ProductionFinancialFactsProvider` routes `fetch_instant_series`, and a split-history provider protocol that
     declares `as_of` and `adjusted_on` is added beside the existing one (D20 and D23 of the 3.5.1 plan).
-- **Scope:** the assembly module, the two gaps, fixtures and tests. The file list is in [B.3](#b3-352c-files).
+- **Scope:** the listing check (cover reading, parser rule, captured covers and the refusal case), the assembly
+  module, the two gaps, fixtures and tests. The file list is in [B.3](#b3-352c-files).
 - **Branch:** `feat/step-3-5-2c-input-assembly`, off `main` after the 3.5.2b pull request merges.
 - **Detail:** [files](#b3-352c-files), [result shapes](#b5-result-shapes), [tests](#b8-352c-tests).
 
@@ -140,7 +153,8 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
 - No supported IFRS noncurrent long-term debt: IFRS total debt and EV stay `unavailable` while that mapping is
   unsupported ([Shared definitions §6](STEP_3_5_SHARED_DEFINITIONS.md#total-debt)).
 - No migration or compatibility decoder. Shapes that change are versioned ([B.10](#b10-user-visible-changes)).
-- No delegation of data-mapping decisions to the implementer (K17).
+- No delegation of data-mapping decisions to the implementer (K17), except the listing check's title vocabulary
+  (K5″b).
 
 ## 5. Acceptance criteria
 
@@ -161,11 +175,13 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
   [B.7](#b7-352b-tests), including the named issuers.
 - FCF-Growth imports FCF and FCF yield from `analysis/shared/cash_flow.py`; no copy remains in its package and no
   strategy imports another strategy's calculators.
-- The regenerated schemas list the three new reason codes and nothing else changes in them.
+- The regenerated schemas list the two new reason codes and nothing else changes in them.
 - The gate passes.
 
 **3.5.2c**
 
+- The listing check affirms the requested ticker on a real 10-K cover, and refuses a depositary share on a real 10-K
+  filer's cover, a missing cover and a title that is not a share of the issuer.
 - One assembly returns, for an issuer and a boundary, the inputs the shared metrics need, or the reason each is
   unavailable. Year-end *t* is found once and every input is taken at it.
 - The balance-sheet series is reachable through the production provider, and the split-history protocol carries `as_of`
@@ -229,6 +245,38 @@ Points where a decision above needed a more exact statement. They add no behavio
 | Naming diagnostic | When the kept class lacks a metric another class has, the helper reports it as its own diagnostic (`kept_class_lacks_metric`) naming both tickers, in addition to the ordinary exclusion and the deduplication diagnostic. If no other class has the value, no naming diagnostic is added. |
 | Result fields | The result lists the eligible members in ticker order whether or not ranks exist, and the ranked members in display order (position, then ticker) only when the minimum is met. Ranks, percentiles, sums and positions are typed fields; none is a `MetricResult`. |
 
+### A.3 Decisions at the start of 3.5.2b (2026-10-26)
+
+Approved by the project owner. K5″ supersedes the K5 row of A.1, which is left as recorded.
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| K5″ (supersedes K5) | Market-cap availability | Market cap does not use `evaluate_security_unit_compatibility`. That rule's evidence (`resolve_security_unit` in `data/sec_edgar/financial_facts.py`) refuses every run with `as_of`, every filer other than a us-gaap 10-K filer, and any cover with more than one class title (Alphabet). Market cap is available only when all four hold: (1) the anchor annual filing is a 10-K, because a 20-F or 40-F filer is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show; (2) the quote currency equals the filing currency, and when either is unknown market cap is `unavailable`; (3) a listing check on the anchor 10-K's cover affirms the requested ticker, which must appear there under this CIK on a registered title that is a share of the issuer (class designations and "ordinary shares" are accepted; depositary shares, units, warrants and preferred securities are refused; a missing or unreadable cover is `unavailable`; the check works with `as_of`, because the cover of a filing on or before the boundary is historical evidence); (4) the existing count rule for several classes (Alphabet's single combined count is valued at the requested ticker's price, and per-class counts with no total are `unavailable`). Graham's security-unit verifier and its rule are unchanged. A ticker renamed after the anchor filing does not match the cover and is `unavailable`, a limitation the guides state. |
+| K5″a | Placement of the listing check | The listing check (cover reading, parser rule, captured covers and the refusal case) is the first step of 3.5.2c, before the assembly. In 3.5.2b the pure market-cap function only takes its outcome. |
+| K5″b | Title vocabulary | Which registered titles count as a share of the issuer, and which are refused, is delegated to the implementer of 3.5.2c. It is decided from captured covers, under the standing delegation for data-mapping judgment, and recorded in this plan. That step stops and asks if it cannot show the depositary-share refusal on a real 10-K filer. K17 is otherwise unchanged. |
+| L1 | Operand types | The pure functions take the types 3.5.1 already returns, and no new operand type duplicates one. A balance-sheet value at year-end *t* is a `ResolvedInput` or an `InstantAbsence`. An annual value at *t* is a `ResolvedInput`, or `None` for "reported none for year *t*"; the assembly passes `None` only for a real absence and never calls a metric after a provider error. Market cap additionally takes the price and its date, the split events and adjustment date, the anchor filing's form, the filing and quote currencies, and the listing check's outcome. An input unavailable for another reason (no share count, conflicting or per-class counts, no price) arrives as a typed absence carrying a reason code and a reason message: one small frozen type, `InputUnavailable`. |
+| L2 | Absence reason codes | One table maps an absence reason to a reason code, used by every metric: `not_tagged`, `other_concept` and `no_anchor_filing` give `missing_fact`; `conflict` gives `ambiguous_fact`; `unsupported` gives `unsupported_mapping`; `after_boundary` gives `not_available_as_of`; `basis_mismatch` gives `incompatible_scope`. The absent-component zero applies only to `not_tagged`. |
+| L3 | Result types | Market cap has its own frozen result type, which FCF-Growth stores in 3.5.2d. Every other metric shares one frozen type: the `MetricResult`, the named operands, the components taken as zero, and diagnostic messages. A module not named in K14, `metric_evidence.py`, holds the shared type and the table of L2. |
+| L4 | Issuer test inputs | The issuer cases (Alphabet, Honeywell, Monster, Nutrien, Deere, Walmart, SAP) take their inputs from the real SEC adapter serving the captured 3.5.1 fixtures, through `tests/_sec_instants.py` and the resolver; numbers are never retyped from the evidence record. NVIDIA has no SEC fixture and stays synthetic, with the figures of the 3.5.1 plan's B.10. Edge rows of the rules use synthetic inputs. |
+| L5 | `nonpositive_denominator` | Not added in 3.5.2b; it is added by the first slice that produces it (a ratio over invested capital, or EV/EBITDA, in 3.5.5 or 3.5.6). 3.5.2b adds only `unsupported_mapping` and `debt_not_visible`. Invested capital ≤ 0 is returned as an `ok` value. This amends K12. |
+| L6 | File scope | Authorized up front, beyond the files of B.2: the `analysis` row's description in `docs/project/ARCHITECTURE.md`, `docs/user/GLOSSARY.md`, `tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_calculators.py` and `tests/workspace/test_fcf_growth_codec.py`. |
+| L7 | Moved tests | The tests of the two moved FCF functions move to `tests/analysis/shared/test_cash_flow.py` with their expected values unchanged. FCF-Growth's calculator test file keeps its other tests. |
+
+### A.4 Wording the plan settles (3.5.2b)
+
+Points where a decision above needed a more exact statement. They add no behavior beyond the decision; the project owner can reverse any.
+
+| Topic | Wording |
+| :--- | :--- |
+| Order of market-cap checks | Form first (`incompatible_scope`), then currency (`incompatible_currency`), then the listing check (its own code), then the share count and the price (the input's own code), then the year-end count's date (`incompatible_period`). A 20-F filer in a foreign currency is therefore `incompatible_scope`. Only the form `10-K` qualifies; an amended form such as `10-K/A` is refused. |
+| Several failing debt components | With at least one component present, an unsupported mapping decides; otherwise the first failing component in the order short-term borrowings, current portion, noncurrent long-term debt, lease liabilities. The message names that component. |
+| Nothing present, other absences | With no component present, precedence is: an unsupported mapping, then a tagged related concept, then interest expense that is not zero (both `debt_not_visible`), then any other absence that cannot say there is no debt (`other_concept`, `conflict`, `after_boundary`, `basis_mismatch`, `no_anchor_filing`) with the code of the L2 table. Only when none applies is total debt zero. Interest expense of any nonzero value, not only a positive one, counts as visible interest. |
+| Direct total beside absent parts | The direct total is reconciliation-only: with it present and a part absent, the parts' own absences decide, and a part absent as `not_tagged` with no related concept is zero whatever the total says. A direct total present beside two clean absences and no other component therefore gives zero debt. No regression issuer has that shape (Honeywell's parts carry related concepts). |
+| Affected components | When the direct total does not reconcile, the result is `unavailable` with `ambiguous_fact`; both long-term parts are its operands and a diagnostic names them as the affected components. |
+| EV and the other metrics' propagation | EV takes market cap and total debt as `MetricResult`s; when either is not `ok` EV is `unavailable` with that result's own code, and the order of the other checks is cash, preferred stock, noncontrolling interest, short-term investments. |
+| Short-term investments and Honeywell | The classified-balance-sheet zero is shown with Walmart's real inputs, which tag current assets and no short-term investments. Honeywell tags current assets and a short-term investments line (443 million), so its case shows the line subtracted; with the line absent the same current assets give zero. |
+| Reason message | Every non-`ok` result carries a non-empty reason; an overflow of the finite range is `not_applicable` with `invalid_request`, as the moved FCF functions do. |
+
 ---
 
 ## Appendix B: File inventories, tests and documentation
@@ -250,16 +298,19 @@ because the code can move before the sub-slice begins.
 
 | Area | File | Change |
 | :--- | :--- | :--- |
-| Market cap | `analysis/shared/market_cap.py` (new) | the shared market-cap type and the pure function: share count (with basis and date), the filing date of its source, the splits applied through `scale_share_count`, the price and its date, and the security-unit outcome |
+| Shared type | `analysis/shared/metric_evidence.py` (new) | the result type every metric but market cap shares (L3), `InputUnavailable`, and the one table that maps an absence reason to a reason code (L2) |
+| Market cap | `analysis/shared/market_cap.py` (new) | the shared market-cap type and the pure function: share count (with basis and date), the filing date of its source, the splits applied through `scale_share_count`, the price and its date, the form, the currencies and the listing check's outcome (K5″); the outcome's small frozen type is defined here and produced by 3.5.2c |
 | Operating | `analysis/shared/operating_metrics.py` (new) | gross profit (K6), EBIT, D&A, EBITDA |
 | Debt and EV | `analysis/shared/enterprise_value.py` (new) | total debt (the table of Shared definitions §6, the reconciliation rule, related concepts, the unsupported IFRS component) and EV (K7), each component returned with the absent ones taken as zero |
-| Capital | `analysis/shared/invested_capital.py` (new) | invested capital; IC ≤ 0 is `nonpositive_denominator` for a dependent ratio |
+| Capital | `analysis/shared/invested_capital.py` (new) | invested capital; IC ≤ 0 is an `ok` value (L5) |
 | Cash flow | `analysis/shared/cash_flow.py` (new) | `compute_free_cash_flow` and `compute_fcf_yield`, moved |
 | FCF-Growth | `strategies/fcf_growth/calculators.py`, `strategies/fcf_growth/input_resolver.py` | the two functions deleted from the first; the second imports `compute_free_cash_flow` from `analysis/shared/cash_flow.py`; the planning labels in the module docstring replaced (K16) |
-| Reason codes | `core/metric_result.py` | `UNSUPPORTED_MAPPING`, `DEBT_NOT_VISIBLE`, `NONPOSITIVE_DENOMINATOR` |
+| Reason codes | `core/metric_result.py` | `UNSUPPORTED_MAPPING`, `DEBT_NOT_VISIBLE` |
 | Schemas | `schemas/momentum.schema.json`, `schemas/fcf-growth.schema.json`, `schemas/runs-compare.schema.json` | regenerated (`uv run python -m scripts.generate_schemas`): each lists the `ReasonCode` values |
 | Existing tests | `tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_calculators.py`, `tests/workspace/test_fcf_growth_codec.py` | the FCF tests move beside the functions; the codec test patches `strategies.fcf_growth.calculators.compute_free_cash_flow` and `compute_fcf_yield` by name (lines 404 and 407 on `main`), so its patch targets are updated. Both files are in 3.5.2b's scope only if its authorization names them (`AGENTS.md` §4) |
+| New tests | `tests/analysis/shared/test_metric_evidence.py`, `test_market_cap.py`, `test_operating_metrics.py`, `test_enterprise_value.py`, `test_invested_capital.py`, `test_cash_flow.py`, and the helper `_issuer_inputs.py` (new) | [B.7](#b7-352b-tests); the helper reads the issuers' inputs through the SEC adapter (L4) |
 | Finance math | `docs/user/FINANCE_MATH.md` | an entry for every shared metric; the market-cap wording of K9 waits for 3.5.2d |
+| Glossary and architecture | `docs/user/GLOSSARY.md`, `docs/project/ARCHITECTURE.md` | market capitalization, EBITDA, enterprise value, total debt and invested capital; the `analysis` row's description (L6) |
 
 Starting points to confirm first: (1) every importer of the two FCF functions, which on `main` are the FCF-Growth input
 resolver (`compute_free_cash_flow`, line 49) and its tests and the codec test above; `compute_fcf_yield` has no
@@ -274,13 +325,21 @@ mention of the shared metrics; that edit needs authorization when 3.5.2b is auth
 
 | Area | File | Change |
 | :--- | :--- | :--- |
+| Listing check (K5″a, first step) | `data/sec_edgar/` (a listing-check module beside `security_unit.py`) and the fixtures and tests it needs | reads the anchor 10-K's cover and returns the outcome `analysis/shared/market_cap.py` takes: affirmed with the accession read, or refused with `incompatible_units` (a depositary share, unit, warrant or preferred security) or `missing_fact` (a missing or unreadable cover). The title vocabulary is decided from captured covers and recorded here (K5″b) |
 | Assembly | `analysis/shared/metric_inputs.py` (new) | year-end *t*; the share-count path (year-end count when its date is *t*, else the cover-page count, else `unavailable`); the price with or without `as_of` (K15) and the split history; the balance-sheet and annual inputs at *t*; each input or the reason it is unavailable |
 | Year-end *t* | `data/sec_edgar/financial_facts.py` (only if the first step shows the snapshot lacks it) | expose the anchor filing's fiscal year-end from data the adapter already fetches |
 | Production provider | `data/financial/production.py` | `fetch_instant_series` routed by `request.provider_id`, as `fetch_facts` is |
 | Split protocol | `data/market_data.py` | a provider protocol beside `SplitAdjustedHistoryProvider` that declares `as_of` and `adjusted_on`, which `CachedMarketDataClient.fetch_split_adjusted_history` takes (`data/cached_client.py`); the existing protocol, which the Yahoo client implements, is unchanged |
 | Fixtures | `evaluation/fixtures/` (as the tests need) | trimmed share-count, price and split-history cases for the issuers of [B.8](#b8-352c-tests) |
 
-Starting points to confirm first: (1) **what the SEC snapshot exposes for the anchor filing's year-end (K4).**
+Starting points to confirm first: (0) **the listing check (K5″a).** The cover parser is `parse_unit_document` in
+`data/sec_edgar/security_unit.py` and its evidence is `resolve_security_unit` in `data/sec_edgar/financial_facts.py`;
+Graham's use of both is unchanged. The covers to capture are those of Alphabet (several class titles, all affirmed),
+a filer whose ordinary shares are described as such, a real 10-K filer whose cover lists depositary shares, units,
+warrants or preferred securities, and a filing whose cover cannot be read. The captured covers decide the title
+vocabulary; the step stops and asks if it cannot show the depositary-share refusal on a real 10-K filer. The check
+reads the cover of a filing on or before the boundary, so it works with `as_of`. (1) **what the SEC snapshot exposes for
+the anchor filing's year-end (K4).**
 `SecEdgarAnalysisSnapshot` (`data/sec_edgar/financial_facts.py`) holds acceptance times, forms, taxonomies, primary
 documents and filing dates, and no report date. The submissions payload the adapter already fetches carries a
 `reportDate` per filing next to `filingDate` and `acceptanceDateTime` (the fixtures of
@@ -325,12 +384,22 @@ RankedMember (frozen)
   ranks, percentiles: tuple[float, ...]  per metric, in the order of the requested metrics
   rank_sum: float; position: int       competition position (1, 1, 3)
 
-Shared metric                          3.5.2b
+MetricEvidence (frozen)                3.5.2b, every metric but market cap
   result: MetricResult                 status, finite value, reason code and reason
-  operands, provenance                 every input used, with its source, date and filing
-  market cap adds                      share count, basis (year-end or cover page), share-count date, filing date of
-                                       the count's source, price, price date, splits applied
-  total debt and EV add                each component, and which absent components were taken as zero
+  operands: tuple[Operand, ...]        every resolved input used, under its name, with its provenance
+  zero_components: tuple[str, ...]     the components taken as zero because the filing reports none
+  diagnostics: tuple[str, ...]         why a component is zero, what is affected, how a total was derived
+MarketCapEvidence (frozen)             3.5.2b, stored by FCF-Growth in 3.5.2d
+  result: MetricResult                 status, finite value, reason code and reason
+  share_count: ResolvedInput | None    the count as filed, with its provenance
+  share_count_basis, share_count_date  year-end or cover page; the fiscal year-end or the date of the cover
+  share_count_filing_date              the filing date of the count's source
+  scaled_share_count, splits_applied   the count on the price's basis, and the splits that scaled it
+  price, price_date                    the split-adjusted close and its date
+  form, filing_currency, quote_currency  the anchor filing's form and the two currencies
+  listing_check: ListingCheck | None   affirmed (with the accession read) or refused (reason code and reason)
+InputUnavailable (frozen)              an input unavailable for a reason other than a balance-sheet absence
+  reason_code, reason                  the code the dependent metric reports, and a non-empty explanation
 
 Metric inputs                          3.5.2c
   year_end: date (t) or reason         one anchor year-end for every input
@@ -367,32 +436,41 @@ out by hand, never produced by the code under test.
 
 ### B.7 3.5.2b tests
 
-- **Market cap:** [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-352--shared-metrics-and-ranking-helper)'s cases (count at
-  year-end *t* only; no count; conflicting counts; a split after the filing date of the count's source scales and one
-  before does not; per-class counts with no total; a one-day download is never a quote). **SAP** is `unavailable`
-  through the security-unit rule (K5), and a currency mismatch gives `incompatible_currency`. **Nutrien** has no share
-  count and is `unavailable`. **Walmart and NVIDIA** are the scaling cases of the 3.5.1 plan's B.10, now through the
-  market cap: NVIDIA's 2,464,000,000 shares scaled by the 10-for-1 split give 24,640,000,000 and the market cap of the
-  unadjusted price and unscaled count; Walmart's count taken after its 3-for-1 split is not scaled again, and scaling
-  from the year-end gives a result three times larger as the negative case.
+Tests are in `tests/analysis/shared/`, one file per module. Expected values are written by hand or read from the
+captured fixtures for the issuer cases (L4); the code under test never produces them.
+
+- **Market cap (K5″):** [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-352--shared-metrics-and-ranking-helper)'s cases
+  (count at year-end *t* only; no count; conflicting counts; a split after the filing date of the count's source scales
+  and one before does not; per-class counts with no total). Each K5″ refusal gives its code: a filing other than a 10-K
+  is `incompatible_scope`, a currency mismatch or an unknown currency is `incompatible_currency`, a refused listing
+  gives the check's own code (`incompatible_units`, `missing_fact`), and no count or price gives the input's code.
+  **SAP** is `incompatible_scope` (20-F), not through the security-unit rule. **Alphabet**'s combined count is valued at
+  a synthetic GOOGL price. **Nutrien**'s IFRS year-end count is dated before *t* and is `incompatible_period`. **Walmart
+  and NVIDIA** are the scaling cases of the 3.5.1 plan's B.10, now through the market cap: NVIDIA's 2,464,000,000 shares
+  from the filing of 2024-02-21, scaled by the 10-for-1 split of 2024-06-10, give 24,640,000,000, and 86.402 ×
+  24,640,000,000 equals 864.02 × 2,464,000,000; Walmart's count taken after its 3-for-1 split is not scaled again, and
+  scaling from the year-end gives a result three times larger as the negative case. A cover-page count dated after the
+  filing's split date is scaled from its own date.
 - **Gross profit (K6):** the reported figure is used; sales minus cost of revenue when no figure is reported, with both
   provenances; one of the two missing is `unavailable`; operating income is never used. Monster reports it, Walmart
   derives it.
 - **EBIT, D&A, EBITDA:** reported operating income only, never rebuilt from pretax income; absent D&A makes EBITDA
   `unavailable`; a negative EBIT is a valid number.
-- **Total debt and EV:** each row of the total-debt table; a missing cash is `unavailable`; negative EV is a valid
-  number. **Alphabet and Honeywell** are the reconciliation cases of Shared definitions §6 (a direct total that does not
-  equal its parts is `ambiguous_fact`). **Monster** is the zero-debt case: it tags `InterestPaidNet`, not interest
-  expense, and no debt concept, so total debt is zero with a diagnostic. **Nutrien**'s IFRS total debt is `unavailable`
-  with `unsupported_mapping`. A related concept tagged, or positive interest expense with no mapped debt, gives
-  `debt_not_visible`.
-- **Short-term investments (K7):** absent on a classified balance sheet (Honeywell) is zero with a diagnostic; absent
-  where current assets are not tagged (**Deere**) is `unavailable`, so Deere's EV is `unavailable`.
-- **Invested capital:** IC ≤ 0 gives `nonpositive_denominator` for a dependent ratio; a missing critical input gives
-  `unavailable`.
+- **Total debt and EV:** each row of the total-debt table, and the precedence of `unsupported_mapping`; a missing cash
+  is `unavailable`; negative EV is a valid number. **Alphabet** is `ambiguous_fact` (its direct total of 49,085 million
+  does not equal 1,996 + 46,547 million). **Honeywell** is `debt_not_visible` (its current portion and noncurrent debt
+  are tagged only as debt with finance leases). **Monster** is zero debt: it tags `InterestPaidNet`, not interest
+  expense, and no debt concept. **Nutrien**'s IFRS total debt is `unsupported_mapping`. **Deere** is `debt_not_visible`
+  (its combined current debt is a related concept).
+- **Short-term investments (K7):** absent on a classified balance sheet is zero with a diagnostic (Walmart's real
+  inputs); absent where current assets are not tagged is `unavailable`, so Deere's EV is `unavailable`.
+- **Invested capital:** IC ≤ 0 is an `ok` value; a missing critical input is `unavailable`.
+- **The absence table (L2):** every member of `InstantAbsenceReason` has its code, and a new member fails a test until it
+  is mapped.
+- **Every result:** finite numbers only; a non-`ok` result carries a reason code and a non-empty reason.
 - **FCF and FCF yield:** the moved functions pass the tests that exercised them in FCF-Growth, unchanged in expected
-  value; FCF-Growth's behavior is unchanged.
-- **Reason codes:** the three members exist and the regenerated schemas validate.
+  value, in `tests/analysis/shared/test_cash_flow.py` (L7); FCF-Growth's behavior is unchanged.
+- **Reason codes:** the two members exist and the regenerated schemas validate.
 
 ### B.8 3.5.2c tests
 
@@ -406,8 +484,13 @@ out by hand, never produced by the code under test.
   download is never a quote; a response that ends before `as_of` is refused.
 - **Provider gaps (K3):** the production provider returns an instant series through the SEC adapter and refuses it for an
   unrouted provider; the new split protocol carries `as_of` and `adjusted_on` and the cached client satisfies it.
-- **Issuer cases:** Walmart and NVIDIA through the assembly with the split rules; SAP's currency mismatch; Deere's
-  unclassified balance sheet; Monster's empty debt.
+- **Issuer cases:** Walmart and NVIDIA through the assembly with the split rules; SAP's 20-F filing, which refuses
+  market cap by its form (K5″), and its currency mismatch; Alphabet's combined count with a listing check that
+  affirms GOOGL on a cover of several class titles; Deere's unclassified balance sheet; Monster's empty debt.
+- **Listing check (K5″a, K5″b):** a cover that lists the ticker on a class designation or on ordinary shares is
+  affirmed; a real 10-K filer's cover listing depositary shares, units, warrants or preferred securities is refused
+  with `incompatible_units`; a missing or unreadable cover is `missing_fact`; a ticker absent from the cover, or
+  listed under another CIK, is refused; the check works with `as_of`.
 - **Point-in-time:** nothing filed, priced or classified after the boundary is taken, apart from the splits that undo
   the provider's adjustment.
 
@@ -428,7 +511,9 @@ out by hand, never produced by the code under test.
 ### B.10 User-visible changes
 
 - 3.5.2a: none.
-- 3.5.2b: three reason codes; the three schemas that enumerate them are regenerated. No stored run changes meaning.
+- 3.5.2b: two reason codes (`unsupported_mapping`, `debt_not_visible`); the three schemas that enumerate them
+  (`momentum`, `fcf-growth` and `runs-compare`) are regenerated, with no document version bump. No stored run changes
+  meaning.
 - 3.5.2c: none expected; the pull request states any it finds.
 - 3.5.2d: FCF-Growth's stored result changes shape (`SCHEMA_VERSION` 5 to 6, with the codec and document versions), so a
   run stored before it is refused by version when read. FCF yield is shown where it was always unavailable. The text,
@@ -447,11 +532,11 @@ descriptor or wiring file was touched.
 | Document | 3.5.2a | 3.5.2b | 3.5.2c | 3.5.2d |
 | :--- | :--- | :--- | :--- | :--- |
 | `STEP_3_5_CONTRACT_AND_SLICE_PLAN.md` | §2 rows, §3, Appendix A.13 | status rows | status rows | status rows, 3.5.2 closed |
-| `STEP_3_5_SHARED_DEFINITIONS.md` | §3 (K7), §4 (K5), §5 (K6), §9 (K13) | as the code requires | as the code requires | none |
-| `STEP_3_5_SLICE_INPUTS.md` | §4 tests (K4 to K7, K11, gross profit), §8 Glossary line | none | none | none |
+| `STEP_3_5_SHARED_DEFINITIONS.md` | §3 (K7), §4 (K5), §5 (K6), §9 (K13) | §2 (the two reason codes and the absence table), §4 (K5″) | as the code requires | none |
+| `STEP_3_5_SLICE_INPUTS.md` | §4 tests (K4 to K7, K11, gross profit), §8 Glossary line | §4 (K5″, invested capital), §7 and §8 (L5) | none | none |
 | `docs/user/FINANCE_MATH.md` | the ranking entry | an entry for every shared metric | none | "market capitalization at the boundary" |
-| `docs/user/GLOSSARY.md` | none: ranking terms arrive with the ranked view in 3.5.6 | market cap, EBITDA, EV and invested capital terms, if absent | none | none |
+| `docs/user/GLOSSARY.md` | none: ranking terms arrive with the ranked view in 3.5.6 | market capitalization, EBITDA, enterprise value, total debt and invested capital | none | none |
 | `docs/user/strategies/FCF_GROWTH.md` | none | none | none | the yield and its limitations (K15) |
-| `docs/project/ARCHITECTURE.md` | none | the `analysis` row's "Owns" text, if it needs it (authorize first) | none | none |
+| `docs/project/ARCHITECTURE.md` | none | the `analysis` row's description (authorized by L6) | none | none |
 | `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` | none: its sequence table lists Step 3.5 as one row, not 3.5.2 | none | none | none |
 | This plan | status rows | status rows | status rows | status rows |

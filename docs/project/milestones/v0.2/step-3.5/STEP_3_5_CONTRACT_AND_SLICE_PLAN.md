@@ -59,8 +59,8 @@ next begins.
 | 3.5.1c | [Annual period fields](STEP_3_5_1_SLICE_PLAN.md#351c--annual-period-fields) | Complete | 2026-10-26 |
 | 3.5.1d | [Split history and the market-cap price basis](STEP_3_5_1_SLICE_PLAN.md#351d--split-history-and-the-market-cap-price-basis) | Complete | 2026-10-26 |
 | 3.5.2a | [Slice plan and ranking helper](STEP_3_5_2_SLICE_PLAN.md#352a--slice-plan-and-ranking-helper) | Complete | 2026-10-26 |
-| 3.5.2b | [Pure shared metrics](STEP_3_5_2_SLICE_PLAN.md#352b--pure-shared-metrics) | Next | |
-| 3.5.2c | [Shared input assembly](STEP_3_5_2_SLICE_PLAN.md#352c--shared-input-assembly) | Planned | |
+| 3.5.2b | [Pure shared metrics](STEP_3_5_2_SLICE_PLAN.md#352b--pure-shared-metrics) | Complete | 2026-10-26 |
+| 3.5.2c | [Shared input assembly](STEP_3_5_2_SLICE_PLAN.md#352c--shared-input-assembly) | Next | |
 | 3.5.2d | [FCF-Growth adopts the shared market cap](STEP_3_5_2_SLICE_PLAN.md#352d--fcf-growth-adopts-the-shared-market-cap) | Planned | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |

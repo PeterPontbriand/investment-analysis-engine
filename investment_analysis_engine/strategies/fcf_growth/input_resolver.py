@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from investment_analysis_engine.analysis.shared.cash_flow import compute_free_cash_flow
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
@@ -43,11 +44,7 @@ from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.quality import QualityContext, QualityDecision, QualityOutcome
 from investment_analysis_engine.data.quality_reporting import publish_quality
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from investment_analysis_engine.strategies.fcf_growth.calculators import (
-    compute_cagr,
-    compute_fcf_per_diluted_share,
-    compute_free_cash_flow,
-)
+from investment_analysis_engine.strategies.fcf_growth.calculators import compute_cagr, compute_fcf_per_diluted_share
 from investment_analysis_engine.strategies.fcf_growth.models import AnnualGrowthObservation, FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
