@@ -195,7 +195,7 @@ in which an absent element yields a number.
   (`evaluate_security_unit_compatibility`): that rule refuses every run with `as_of`, every filer other than a us-gaap
   10-K filer, and any cover with more than one class title (Alphabet). The market cap is available only when all four
   hold:
-  1. **The anchor annual filing is a 10-K** (`incompatible_scope` otherwise). A 20-F or 40-F filer is a foreign private
+  1. **The anchor annual filing is a 10-K or 10-K/A** (`incompatible_scope` otherwise). A 20-F or 40-F filer is a foreign private
      issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show. SAP's market cap
      is therefore `unavailable`.
   2. **The quote currency equals the filing currency** (`incompatible_currency` otherwise). When either is unknown, the
@@ -273,9 +273,12 @@ evidence:
 | No mapped debt concept, no related concept tagged, no component unsupported for the taxonomy, and interest expense absent or zero | Total debt is zero ("no reported debt"), with a diagnostic. |
 | No mapped debt concept, but interest expense is positive, a related concept is tagged, or a component is unsupported | Total debt is `unavailable`: the issuer has debt the mapping does not see. |
 
-- **Direct totals:** where a filer reports both a direct long-term-debt total and its current and
-  noncurrent parts, they must reconcile, and the total is never added to its parts. A mismatch
-  makes the affected component `unavailable`.
+- **Direct totals:** where a filer reports a direct long-term-debt total, it must reconcile with its current and
+  noncurrent parts, and the total is never added to its parts or used as a value. A part absent as `not_tagged` with
+  no related concept counts as zero for the check. A mismatch makes total debt `unavailable`: `ambiguous_fact` when a
+  part is present, with both parts as the affected components, and `debt_not_visible` when neither is. A part absent
+  for any other reason, or with a related concept, keeps its own outcome. The check comes before the other component
+  rules, so a filer that tags only the direct total never has zero debt.
 - **Short-term borrowings are not current maturities.** Commercial paper belongs to short-term borrowings
   (`CommercialPaper` is read only where `ShortTermBorrowings` is not tagged, and never added to it) and never stands in
   for the current portion of long-term debt.

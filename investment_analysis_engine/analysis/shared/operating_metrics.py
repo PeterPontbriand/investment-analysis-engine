@@ -89,7 +89,8 @@ def compute_ebitda(operating_income: AnnualValue, depreciation_and_amortization:
         if item is None
     ]
     if operating_income is None or depreciation_and_amortization is None:
-        return unavailable(ReasonCode.MISSING_FACT, f"EBITDA needs {' and '.join(absent)}, which is not reported.")
+        verb = "are" if len(absent) > 1 else "is"
+        return unavailable(ReasonCode.MISSING_FACT, f"EBITDA needs {' and '.join(absent)}, which {verb} not reported.")
     return _finite(
         operating_income.value + depreciation_and_amortization.value,
         (

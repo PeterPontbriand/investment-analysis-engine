@@ -1,12 +1,18 @@
 """Total debt and enterprise value."""
 
 import math
+from datetime import date
 from typing import Any
 
 import pytest
 
-from investment_analysis_engine.analysis.shared.enterprise_value import compute_enterprise_value, compute_total_debt
-from investment_analysis_engine.analysis.shared.metric_evidence import MetricEvidence
+from investment_analysis_engine.analysis.shared.enterprise_value import (
+    EnterpriseValueEvidence,
+    compute_enterprise_value,
+    compute_total_debt,
+)
+from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence, ShareCountBasis
+from investment_analysis_engine.analysis.shared.metric_evidence import MetricEvidence, Operand
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.facts import FinancialField as F
 from investment_analysis_engine.data.financial.facts import InstantAbsenceReason as R
@@ -219,7 +225,7 @@ def test_a_direct_total_one_unit_off_is_ambiguous_with_no_tolerance() -> None:
     _unavailable(evidence, ReasonCode.AMBIGUOUS_FACT)
 
 
-def test_where_only_the_total_is_present_the_parts_own_absences_decide() -> None:
+def test_where_the_parts_carry_related_concepts_their_own_absences_decide() -> None:
     # Honeywell's shape: a direct total, short-term borrowings, and parts that carry related concepts.
     total = synthetic("total", 29_046.0)
     related = absent(R.NOT_TAGGED, related="us-gaap:LongTermDebtAndCapitalLeaseObligations")
@@ -231,8 +237,47 @@ def test_where_only_the_total_is_present_the_parts_own_absences_decide() -> None
         ),
         ReasonCode.DEBT_NOT_VISIBLE,
     )
-    # Parts that are clean absences are zero whatever the total says: the total is never a value.
-    assert _ok(_synthetic_debt(short_term_borrowings=synthetic("stb", 5.0), long_term_debt_total=total)) == 5.0
+
+
+def test_a_part_absent_for_another_reason_keeps_its_own_outcome_beside_a_direct_total() -> None:
+    evidence = _synthetic_debt(
+        current_portion_of_long_term_debt=synthetic("cp", 40.0),
+        noncurrent_long_term_debt=absent(R.CONFLICT),
+        long_term_debt_total=synthetic("total", 100.0),
+    )
+    _unavailable(evidence, ReasonCode.AMBIGUOUS_FACT)
+    assert [operand.name for operand in evidence.operands] == ["current_portion_of_long_term_debt"]
+
+
+def test_a_direct_total_with_both_parts_absent_and_clean_is_debt_not_visible() -> None:
+    evidence = _synthetic_debt(short_term_borrowings=synthetic("stb", 5.0), long_term_debt_total=synthetic("t", 29.0))
+    _unavailable(evidence, ReasonCode.DEBT_NOT_VISIBLE)
+    # Even when nothing else is reported, a filer that tags only the direct total never has zero debt.
+    _unavailable(_synthetic_debt(long_term_debt_total=synthetic("t", 29.0)), ReasonCode.DEBT_NOT_VISIBLE)
+
+
+def test_a_direct_total_equal_to_the_one_present_part_reconciles_and_the_clean_part_is_zero() -> None:
+    evidence = _synthetic_debt(
+        noncurrent_long_term_debt=synthetic("nc", 60.0), long_term_debt_total=synthetic("total", 60.0)
+    )
+    assert _ok(evidence) == 60.0
+    assert "current_portion_of_long_term_debt" in evidence.zero_components
+    assert [operand.name for operand in evidence.operands] == ["noncurrent_long_term_debt"]
+
+
+def test_a_direct_total_unequal_to_the_one_present_part_is_ambiguous_with_that_part_named() -> None:
+    evidence = _synthetic_debt(
+        current_portion_of_long_term_debt=synthetic("cp", 40.0), long_term_debt_total=synthetic("total", 60.0)
+    )
+    _unavailable(evidence, ReasonCode.AMBIGUOUS_FACT)
+    assert [operand.name for operand in evidence.operands] == ["current_portion_of_long_term_debt"]
+    assert any("Affected components" in note for note in evidence.diagnostics)
+
+
+def test_a_zero_direct_total_with_both_parts_clean_reconciles_to_zero() -> None:
+    evidence = _synthetic_debt(long_term_debt_total=synthetic("total", 0.0))
+    assert _ok(evidence) == 0.0
+    assert len(evidence.zero_components) == 4
 
 
 def test_total_debt_overflow_is_not_a_number() -> None:
@@ -245,11 +290,33 @@ def test_total_debt_overflow_is_not_a_number() -> None:
 
 # --- enterprise value ---------------------------------------------------------------------------------------------
 
-_MARKET_CAP = MetricResult.ok(600_000_000_000.0)
-_DEBT = MetricResult.ok(51_523_000_000.0)
+_YEAR_END = date(2025, 12, 31)
 
 
-def _ev(**changes: Any) -> MetricEvidence:
+def _cap_evidence(result: MetricResult) -> MarketCapEvidence:
+    return MarketCapEvidence(
+        result=result,
+        share_count=synthetic("common_shares_outstanding", 3_000_000_000.0),
+        share_count_basis=ShareCountBasis.YEAR_END,
+        share_count_date=_YEAR_END,
+        scaled_share_count=3_000_000_000.0,
+        price=200.0,
+        price_date=_YEAR_END,
+        form="10-K",
+        filing_currency="USD",
+        quote_currency="USD",
+    )
+
+
+def _debt_evidence(result: MetricResult) -> MetricEvidence:
+    return MetricEvidence(result=result, operands=(Operand("short_term_borrowings", synthetic("stb", 1.0)),))
+
+
+_MARKET_CAP = _cap_evidence(MetricResult.ok(600_000_000_000.0))
+_DEBT = _debt_evidence(MetricResult.ok(51_523_000_000.0))
+
+
+def _ev(**changes: Any) -> EnterpriseValueEvidence:
     arguments: dict[str, Any] = {
         "market_cap": _MARKET_CAP,
         "total_debt": _DEBT,
@@ -263,10 +330,54 @@ def _ev(**changes: Any) -> MetricEvidence:
     return compute_enterprise_value(**arguments)
 
 
+def _ev_ok(evidence: EnterpriseValueEvidence) -> float:
+    assert evidence.result.status is MetricStatus.OK
+    assert evidence.result.value is not None
+    assert math.isfinite(evidence.result.value)
+    return evidence.result.value
+
+
+def _ev_unavailable_with(evidence: EnterpriseValueEvidence, code: ReasonCode) -> None:
+    assert evidence.result.status is MetricStatus.UNAVAILABLE
+    assert evidence.result.value is None
+    assert evidence.result.reason_code is code
+    assert evidence.result.reason is not None
+    assert evidence.result.reason.strip()
+
+
+def test_ev_keeps_the_market_cap_and_total_debt_evidence_it_used() -> None:
+    evidence = _ev()
+    assert evidence.market_cap is _MARKET_CAP
+    assert evidence.total_debt is _DEBT
+    assert evidence.market_cap.share_count is not None
+    assert (evidence.market_cap.scaled_share_count, evidence.market_cap.price) == (3_000_000_000.0, 200.0)
+    assert [operand.name for operand in evidence.total_debt.operands] == ["short_term_borrowings"]
+
+
+def test_ev_keeps_the_evidence_when_it_is_unavailable_too() -> None:
+    refused_cap = _cap_evidence(MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.INCOMPATIBLE_SCOPE, "20-F"))
+    evidence = _ev(market_cap=refused_cap)
+    _ev_unavailable_with(evidence, ReasonCode.INCOMPATIBLE_SCOPE)
+    assert evidence.market_cap is refused_cap
+    assert evidence.total_debt is _DEBT
+    assert evidence.market_cap.price == 200.0
+
+
+def test_ev_shows_the_zero_components_of_debt_and_its_own_apart() -> None:
+    debt = _synthetic_debt(short_term_borrowings=synthetic("stb", 100.0))
+    evidence = _ev(total_debt=debt)
+    assert evidence.total_debt.zero_components == (
+        "current_portion_of_long_term_debt",
+        "noncurrent_long_term_debt",
+        "lease_liabilities_as_debt",
+    )
+    assert evidence.zero_components == ("preferred_stock", "short_term_investments")
+
+
 def test_walmart_ev_with_absent_preferred_stock_and_short_term_investments_taken_as_zero() -> None:
     evidence = compute_enterprise_value(
         market_cap=_MARKET_CAP,
-        total_debt=MetricResult.ok(_ok(_debt("WMT"))),
+        total_debt=_debt("WMT"),
         preferred_stock=balance("WMT", F.PREFERRED_STOCK),
         noncontrolling_interest=balance("WMT", F.NONCONTROLLING_INTEREST),
         cash_and_equivalents=balance("WMT", F.CASH_AND_EQUIVALENTS),
@@ -274,7 +385,8 @@ def test_walmart_ev_with_absent_preferred_stock_and_short_term_investments_taken
         current_assets=balance("WMT", F.CURRENT_ASSETS),
     )
     # 600,000 + 51,523 + 0 + 6,270 - 10,727 - 0 million.
-    assert _ok(evidence) == 647_066_000_000.0
+    assert _ev_ok(evidence) == 647_066_000_000.0
+    assert evidence.total_debt.result.value == 51_523_000_000.0
     assert evidence.zero_components == ("preferred_stock", "short_term_investments")
     assert [operand.name for operand in evidence.operands] == ["cash_and_equivalents", "noncontrolling_interest"]
 
@@ -286,7 +398,7 @@ def test_honeywell_classified_balance_sheet_reads_an_absent_short_term_investmen
         short_term_investments=balance("HON", F.SHORT_TERM_INVESTMENTS),
         current_assets=balance("HON", F.CURRENT_ASSETS),
     )
-    assert _ok(evidence) == 600_000e6 + 51_523e6 + 6_270e6 - 10_727e6 - 443e6
+    assert _ev_ok(evidence) == 600_000e6 + 51_523e6 + 6_270e6 - 10_727e6 - 443e6
     # The same classified current assets with the line absent give zero.
     assert "short_term_investments" in _ev(current_assets=balance("HON", F.CURRENT_ASSETS)).zero_components
 
@@ -297,7 +409,7 @@ def test_deeres_unclassified_balance_sheet_makes_short_term_investments_and_so_e
         current_assets=balance("DE", F.CURRENT_ASSETS),
         cash_and_equivalents=balance("DE", F.CASH_AND_EQUIVALENTS),
     )
-    _unavailable(evidence, ReasonCode.MISSING_FACT)
+    _ev_unavailable_with(evidence, ReasonCode.MISSING_FACT)
     assert evidence.result.reason is not None
     assert "unclassified" in evidence.result.reason
 
@@ -305,45 +417,46 @@ def test_deeres_unclassified_balance_sheet_makes_short_term_investments_and_so_e
 def test_deeres_ev_is_unavailable_through_total_debt_as_well() -> None:
     evidence = compute_enterprise_value(
         market_cap=_MARKET_CAP,
-        total_debt=_debt("DE").result,
+        total_debt=_debt("DE"),
         preferred_stock=balance("DE", F.PREFERRED_STOCK),
         noncontrolling_interest=balance("DE", F.NONCONTROLLING_INTEREST),
         cash_and_equivalents=balance("DE", F.CASH_AND_EQUIVALENTS),
         short_term_investments=balance("DE", F.SHORT_TERM_INVESTMENTS),
         current_assets=balance("DE", F.CURRENT_ASSETS),
     )
-    _unavailable(evidence, ReasonCode.DEBT_NOT_VISIBLE)
+    _ev_unavailable_with(evidence, ReasonCode.DEBT_NOT_VISIBLE)
+    assert evidence.total_debt.result.reason_code is ReasonCode.DEBT_NOT_VISIBLE
 
 
 def test_nutriens_ev_is_unavailable_with_an_unsupported_mapping() -> None:
     evidence = compute_enterprise_value(
         market_cap=_MARKET_CAP,
-        total_debt=_debt("NTR").result,
+        total_debt=_debt("NTR"),
         preferred_stock=balance("NTR", F.PREFERRED_STOCK),
         noncontrolling_interest=balance("NTR", F.NONCONTROLLING_INTEREST),
         cash_and_equivalents=balance("NTR", F.CASH_AND_EQUIVALENTS),
         short_term_investments=balance("NTR", F.SHORT_TERM_INVESTMENTS),
         current_assets=balance("NTR", F.CURRENT_ASSETS),
     )
-    _unavailable(evidence, ReasonCode.UNSUPPORTED_MAPPING)
+    _ev_unavailable_with(evidence, ReasonCode.UNSUPPORTED_MAPPING)
 
 
 def test_ev_may_be_negative() -> None:
-    evidence = _ev(market_cap=MetricResult.ok(1.0), total_debt=MetricResult.ok(0.0))
-    assert _ok(evidence) == 1.0 + 6_270e6 - 10_727e6
-    assert _ok(evidence) < 0
+    evidence = _ev(market_cap=_cap_evidence(MetricResult.ok(1.0)), total_debt=_debt_evidence(MetricResult.ok(0.0)))
+    assert _ev_ok(evidence) == 1.0 + 6_270e6 - 10_727e6
+    assert _ev_ok(evidence) < 0
 
 
 @pytest.mark.parametrize("name", ["market_cap", "total_debt"])
 def test_ev_needs_market_cap_and_total_debt(name: str) -> None:
     failed = MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.MISSING_FACT, "nothing")
-    evidence = _ev(**{name: failed})
-    _unavailable(evidence, ReasonCode.MISSING_FACT)
+    wrap = _cap_evidence if name == "market_cap" else _debt_evidence
+    _ev_unavailable_with(_ev(**{name: wrap(failed)}), ReasonCode.MISSING_FACT)
 
 
 def test_ev_needs_cash_with_the_tables_code() -> None:
-    _unavailable(_ev(cash_and_equivalents=absent(R.CONFLICT)), ReasonCode.AMBIGUOUS_FACT)
-    _unavailable(_ev(cash_and_equivalents=absent(R.NOT_TAGGED)), ReasonCode.MISSING_FACT)
+    _ev_unavailable_with(_ev(cash_and_equivalents=absent(R.CONFLICT)), ReasonCode.AMBIGUOUS_FACT)
+    _ev_unavailable_with(_ev(cash_and_equivalents=absent(R.NOT_TAGGED)), ReasonCode.MISSING_FACT)
 
 
 @pytest.mark.parametrize("name", ["preferred_stock", "noncontrolling_interest", "short_term_investments"])
@@ -356,7 +469,7 @@ def test_ev_needs_cash_with_the_tables_code() -> None:
     ],
 )
 def test_an_optional_component_is_zero_only_for_not_tagged(name: str, reason: R, code: ReasonCode) -> None:
-    _unavailable(_ev(**{name: absent(reason)}), code)
+    _ev_unavailable_with(_ev(**{name: absent(reason)}), code)
 
 
 def test_a_not_tagged_optional_component_is_zero_with_a_diagnostic() -> None:
@@ -366,5 +479,8 @@ def test_a_not_tagged_optional_component_is_zero_with_a_diagnostic() -> None:
 
 
 def test_ev_overflow_is_not_a_number() -> None:
-    evidence = _ev(market_cap=MetricResult.ok(1.7e308), total_debt=MetricResult.ok(1.7e308))
+    evidence = _ev(
+        market_cap=_cap_evidence(MetricResult.ok(1.7e308)), total_debt=_debt_evidence(MetricResult.ok(1.7e308))
+    )
     assert evidence.result.status is MetricStatus.NOT_APPLICABLE
+    assert evidence.market_cap.result.value == 1.7e308

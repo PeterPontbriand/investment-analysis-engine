@@ -350,7 +350,7 @@ scaled_share_count = share_count * product of the ratios of every split with
 - **Price:** the split-adjusted close, without dividend adjustment, on the last trading day on or before the boundary.
 - **Split scaling:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. A filing restates its counts for a split effective before it is issued, so such a split is not applied again. A split after the boundary still scales the count, because it undoes the provider's adjustment of the price; it never changes the market cap at the boundary.
 - **Availability:** market cap is available only when all four hold, and each refusal has its reason code.
-  1. The anchor annual filing is a 10-K (`incompatible_scope`). A 20-F or 40-F filer is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show.
+  1. The anchor annual filing is a 10-K or a 10-K/A (`incompatible_scope`). A 20-F or 40-F filer, or an amendment of either, is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show.
   2. The quote currency equals the filing currency (`incompatible_currency`). When either is unknown, market cap is `unavailable`.
   3. A listing check on the anchor 10-K's cover affirms the requested ticker, under the issuer's CIK, on a registered title that is a share of the issuer. A depositary share, unit, warrant or preferred security is refused (`incompatible_units`), and a missing or unreadable cover is `unavailable` (`missing_fact`).
   4. A share count and a price are present (the code of the missing input).
@@ -384,7 +384,7 @@ A missing debt figure is not assumed to be zero. An absent component counts as z
 | No component, but a related concept is tagged or interest expense is not zero | `unavailable` with `debt_not_visible`. |
 | No component, and a mapping is unsupported | `unavailable` with `unsupported_mapping`, which takes precedence. |
 
-The direct long-term-debt total only reconciles. When it and both the current portion and the noncurrent long-term debt are present, it must equal their sum exactly, with no tolerance; otherwise total debt is `unavailable` with `ambiguous_fact` and both parts are the affected components. The direct total is never added to its parts and never used as a value. An IFRS issuer's total debt is `unavailable` with `unsupported_mapping` while the IFRS noncurrent long-term debt mapping is unsupported.
+The direct long-term-debt total only reconciles. When it is present, each of the current portion and the noncurrent long-term debt that is absent as `not_tagged` with no related concept counts as zero, and the two must equal the total exactly, with no tolerance. A mismatch makes total debt `unavailable`: with `ambiguous_fact` when at least one part is present, both parts being the affected components, and with `debt_not_visible` when neither is. A part absent for any other reason, or with a related concept, keeps its own outcome. This check comes before the other component rules, so a filer that tags only the direct total never has zero debt. The direct total is never added to its parts and never used as a value. An IFRS issuer's total debt is `unavailable` with `unsupported_mapping` while the IFRS noncurrent long-term debt mapping is unsupported.
 
 ### Enterprise value
 

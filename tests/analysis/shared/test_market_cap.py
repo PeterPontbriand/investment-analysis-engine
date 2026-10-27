@@ -89,9 +89,22 @@ def test_market_cap_is_the_count_times_the_price_and_records_what_it_used() -> N
 # --- the refusals of the fail-closed rule -------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("form", ["20-F", "40-F", "10-K/A", "10-Q"])
-def test_a_filing_other_than_a_10k_is_incompatible_scope(form: str) -> None:
+@pytest.mark.parametrize("form", ["20-F", "20-F/A", "40-F", "40-F/A", "10-Q"])
+def test_a_filing_other_than_a_domestic_annual_report_is_incompatible_scope(form: str) -> None:
     _refused(_cap(form=form), ReasonCode.INCOMPATIBLE_SCOPE)
+
+
+@pytest.mark.parametrize("form", ["10-K", "10-K/A", " 10-k/a "])
+def test_a_10k_and_a_10ka_qualify(form: str) -> None:
+    assert _ok(_cap(form=form)) == 20_000.0
+
+
+def test_a_price_without_its_date_is_refused() -> None:
+    with pytest.raises(ValueError, match="price_date"):
+        _cap(price_date=None)
+    # Without a price, the date may be absent.
+    no_price = InputUnavailable(ReasonCode.MISSING_FACT, "no price")
+    _refused(_cap(price=no_price, price_date=None), ReasonCode.MISSING_FACT)
 
 
 def test_sap_a_20f_filer_in_euro_with_a_dollar_adr_is_incompatible_scope_through_its_form() -> None:

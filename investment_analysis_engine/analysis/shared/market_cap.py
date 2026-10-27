@@ -3,8 +3,8 @@
 The function is pure. Market cap = common shares outstanding x price, with the count scaled by every split after the
 date it was taken (``scale_share_count``). It is available only when all of these hold, and each refusal has its code:
 
-- the anchor annual filing is a 10-K (``incompatible_scope``): a 20-F or 40-F filer may list a depositary receipt at a
-  ratio the structured data cannot show;
+- the anchor annual filing is a 10-K or a 10-K/A (``incompatible_scope``): a 20-F or 40-F filer, or their amendments,
+  may list a depositary receipt at a ratio the structured data cannot show;
 - the quote currency equals the filing currency, both known (``incompatible_currency``);
 - a listing check of the anchor filing's cover affirms the requested ticker as a share of the issuer (the check's own
   reason code);
@@ -25,7 +25,7 @@ from investment_analysis_engine.core.metric_result import MetricResult, MetricSt
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.market_data import SplitEvent
 
-ANCHOR_FILING_FORM = "10-K"
+ANCHOR_FILING_FORMS = frozenset({"10-K", "10-K/A"})
 
 
 class ShareCountBasis(StrEnum):
@@ -131,7 +131,7 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
 
     Args:
         year_end: The anchor fiscal year-end *t*.
-        form: The anchor filing's form; only ``10-K`` qualifies.
+        form: The anchor filing's form; only ``10-K`` and ``10-K/A`` qualify.
         filing_currency: The filing's currency, ``None`` when unknown.
         quote_currency: The price's currency, ``None`` when unknown.
         listing_check: The outcome of the cover listing check.
@@ -143,7 +143,12 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
         price_date: The date of the price.
         split_events: The provider's split history.
         adjustment_date: The date up to which the provider adjusted the price.
+
+    Raises:
+        ValueError: If a price is given without its ``price_date``.
     """
+    if not isinstance(price, InputUnavailable) and price_date is None:
+        raise ValueError("A price requires its price_date, which stays visible with the market cap.")
     base = MarketCapEvidence(
         result=_UNDECIDED,
         share_count_basis=share_count_basis,
@@ -154,12 +159,12 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
         quote_currency=quote_currency,
         listing_check=listing_check,
     )
-    if form.strip().upper() != ANCHOR_FILING_FORM:
+    if form.strip().upper() not in ANCHOR_FILING_FORMS:
         return _refuse(
             base,
             ReasonCode.INCOMPATIBLE_SCOPE,
-            f"The anchor filing is a {form}, not a {ANCHOR_FILING_FORM}: the listing may be a depositary receipt at a "
-            "ratio the structured data cannot show.",
+            f"The anchor filing is a {form}, not one of {sorted(ANCHOR_FILING_FORMS)}: the listing may be a depositary "
+            "receipt at a ratio the structured data cannot show.",
         )
     if not filing_currency or not quote_currency or filing_currency.strip().upper() != quote_currency.strip().upper():
         return _refuse(

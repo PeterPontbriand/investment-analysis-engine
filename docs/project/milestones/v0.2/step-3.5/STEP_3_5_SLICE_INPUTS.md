@@ -207,7 +207,7 @@ taken as zero.
 - Market cap: count at year-end *t* only; no count is `unavailable`; conflicting counts are
   `unavailable`; a split after the filing date of the count's source scales the count and one before it does not; per-class counts with no total
   are `unavailable`; a one-day historical download is never used as a quote.
-  - Availability (decision K5″, which supersedes K5): a filing other than a 10-K gives `incompatible_scope`, a quote
+  - Availability (decision K5″, which supersedes K5): a filing other than a 10-K or 10-K/A gives `incompatible_scope`, a quote
     currency that differs from the filing currency or is unknown gives `incompatible_currency`, and a listing check
     that does not affirm the ticker gives its own code. SAP (a 20-F filer in EUR with a USD ADR) is `incompatible_scope`.
   - Nutrien has no share count and is `unavailable`, never zero.
@@ -218,7 +218,8 @@ taken as zero.
 - EV: each absent-component case; missing cash is `unavailable`; negative EV is a valid number.
   - Short-term investments (decision K7): absent on a classified balance sheet is zero with a diagnostic; absent where
     current assets are not tagged is `unavailable`. Deere's EV is `unavailable`.
-  - Total debt: Alphabet and Honeywell reconcile a direct total with its parts as Shared definitions §6 states;
+  - Total debt: Alphabet is the case where a direct total is reconciled with its parts, as Shared definitions §6
+    states; Honeywell is `debt_not_visible` (related concepts beside a direct total);
     Monster has zero debt (it tags `InterestPaidNet`, not interest expense); Nutrien's IFRS total debt is `unavailable`.
 - Invested capital: IC ≤ 0 is an `ok` value; a missing critical input is `unavailable`. A ratio that divides by it
   decides what a nonpositive value means (decision L5).

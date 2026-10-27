@@ -128,6 +128,15 @@ def test_ebitda_needs_both(income: float | None, depreciation: float | None, nam
     _unavailable(evidence, ReasonCode.MISSING_FACT)
     assert evidence.result.reason is not None
     assert named in evidence.result.reason
+    assert evidence.result.reason.endswith("which is not reported.")
+
+
+def test_ebitda_with_both_inputs_missing_says_which_are_not_reported() -> None:
+    evidence = compute_ebitda(None, None)
+    _unavailable(evidence, ReasonCode.MISSING_FACT)
+    assert evidence.result.reason == (
+        "EBITDA needs operating_income and depreciation_and_amortization, which are not reported."
+    )
 
 
 def test_google_has_operating_income_but_no_depreciation_so_no_ebitda() -> None:
