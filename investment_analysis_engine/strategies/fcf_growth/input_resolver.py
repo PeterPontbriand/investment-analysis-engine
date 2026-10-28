@@ -40,6 +40,7 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
+from investment_analysis_engine.data.financial.resolver import FactsNotAvailableAsOf
 from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.quality import QualityContext, QualityDecision, QualityOutcome
 from investment_analysis_engine.data.quality_reporting import publish_quality
@@ -567,6 +568,11 @@ def _resolve_field(  # noqa: PLR0913
     )
     try:
         facts = provider.fetch_facts(request, effective_as_of=effective_as_of)
+    except FactsNotAvailableAsOf as exc:
+        reason = str(exc)
+        return _FieldResolution(reason_code=ReasonCode.NOT_AVAILABLE_AS_OF, reason=reason), trace.append(
+            _event(field.value, ResolutionStage.PROVIDER, ResolutionOutcome.UNAVAILABLE, reason, now=resolved_at)
+        )
     except FinancialProviderError as exc:
         reason = f"{field.value} provider failed: {exc}"
         return _FieldResolution(

@@ -49,6 +49,16 @@ from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.quality import QualityContext, QualityDecision, QualityOutcome
 from investment_analysis_engine.data.quality_reporting import publish_quality
 
+
+class FactsNotAvailableAsOf(Exception):  # noqa: N818 - a signal of unavailability, not an error
+    """A provider's answer that the subject has nothing public at the boundary, with the message to show.
+
+    It is not a ``FinancialProviderError``: the provider worked and the input is unavailable as of the boundary, so
+    no provider failure is recorded and no provider check runs. A resolver reports it as an unavailable input whose
+    reason is the message, and a reason code where its result carries one (``not_available_as_of``).
+    """
+
+
 # ---------------------------------------------------------------------------
 # InputResolutionResult
 # ---------------------------------------------------------------------------
@@ -699,6 +709,21 @@ class InputResolver:
         )
         try:
             facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
+        except FactsNotAvailableAsOf as exc:
+            reason = str(exc)
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        ResolutionOutcome.UNAVAILABLE,
+                        reason,
+                        now=self._clock(),
+                    )
+                ),
+            )
         except FinancialProviderError as exc:
             reason = f"Provider error: {exc}"
             return InputResolutionResult(
@@ -1290,7 +1315,7 @@ class InputResolver:
             provider_fact_id=stored.provider_fact_id,
         )
 
-    def _resolve_provider(
+    def _resolve_provider(  # noqa: PLR0911
         self,
         request: FinancialFactRequest,
         use_cache: bool,
@@ -1306,6 +1331,21 @@ class InputResolver:
         )
         try:
             facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
+        except FactsNotAvailableAsOf as exc:
+            reason = str(exc)
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        ResolutionOutcome.UNAVAILABLE,
+                        reason,
+                        now=self._clock(),
+                    )
+                ),
+            )
         except FinancialProviderError as exc:
             reason = f"Provider error: {exc}"
             return InputResolutionResult(

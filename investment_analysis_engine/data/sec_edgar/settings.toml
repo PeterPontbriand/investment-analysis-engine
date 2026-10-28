@@ -1,0 +1,3 @@
+# Ticker = CIK overrides that name the registrant a ticker stands for, for example XOM = 34088. An override wins over
+# SEC's ticker file. The shipped table is empty; add entries in providers/sec_edgar.toml in the settings folder.
+[ticker_overrides]

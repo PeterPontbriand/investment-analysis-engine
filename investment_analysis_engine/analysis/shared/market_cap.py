@@ -7,7 +7,8 @@ date it was taken (``scale_share_count``). It is available only when all of thes
   may list a depositary receipt at a ratio the structured data cannot show;
 - the quote currency equals the filing currency, both known (``incompatible_currency``);
 - a listing check of the anchor filing's cover affirms the requested ticker as a share of the issuer (the check's own
-  reason code);
+  reason code); a ticker renamed since the anchor filing is affirmed when the anchor cover's one share line is the
+  renamed line of the registrant's latest annual cover, and the check records both accessions and symbols;
 - a share count and a price are present (the input's own reason code). A year-end count must be dated at the fiscal
   year-end *t* (``incompatible_period``); several classes are valued as one combined count at the requested ticker's
   price, and per-class counts with no total arrive as an unavailable count.
@@ -27,6 +28,7 @@ from investment_analysis_engine.data.market_data import SplitEvent
 from investment_analysis_engine.data.sec_edgar.cover_listing import (
     CoverUnavailableReason,
     ListingEvidence,
+    ListingRename,
     ListingResolution,
     SecurityKind,
 )
@@ -48,16 +50,19 @@ class ListingCheck:
     Attributes:
         affirmed: Whether the cover lists the ticker, under this CIK, on a registered title that is a share of the
             issuer.
-        accession: The accession of the filing read; ``None`` only when no cover could be read.
+        accession: The accession of the anchor filing whose cover was read; ``None`` only when no cover could be read.
         reason_code: For a refusal, ``incompatible_units`` (a depositary share, unit, warrant or preferred security) or
             ``missing_fact`` (a missing or unreadable cover); ``None`` when affirmed.
         reason: For a refusal, a non-empty explanation; ``None`` when affirmed.
+        rename: Set when the ticker is not on the anchor cover but is the renamed one share line of the registrant's
+            latest annual cover; it records both accessions and both symbols as filed.
     """
 
     affirmed: bool
     accession: str | None = None
     reason_code: ReasonCode | None = None
     reason: str | None = None
+    rename: ListingRename | None = None
 
     def __post_init__(self) -> None:
         """Require an accession when affirmed, and a code and a reason when refused."""
@@ -68,6 +73,8 @@ class ListingCheck:
                 raise ValueError("An affirmed listing check carries no reason.")
         elif self.reason_code is None or self.reason is None or not self.reason.strip():
             raise ValueError("A refused listing check requires a reason code and a non-empty reason.")
+        if self.rename is not None and not self.affirmed:
+            raise ValueError("Only an affirmed listing check records a rename.")
 
 
 _REFUSED_KINDS = {
@@ -113,6 +120,8 @@ def listing_check_from_resolution(resolution: ListingResolution) -> ListingCheck
 
 def _check_listed_security(evidence: ListingEvidence) -> ListingCheck:
     """Return the listing check for a cover that was read."""
+    if evidence.kind is SecurityKind.SHARE and evidence.rename is not None:
+        return ListingCheck(affirmed=True, accession=evidence.rename.anchor_accession, rename=evidence.rename)
     if evidence.kind is SecurityKind.SHARE:
         return ListingCheck(affirmed=True, accession=evidence.accession)
     if evidence.kind in _REFUSED_KINDS:

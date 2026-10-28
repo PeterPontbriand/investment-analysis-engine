@@ -58,7 +58,7 @@ uv run ian graham-number KO --as-of 2025-12-31
 uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --as-of 2025-12-31
 ```
 
-A fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary.
+A fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary. A ticker names the registrant it maps to today: with `--as-of`, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.
 
 This distinction helps prevent [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
 

@@ -192,6 +192,10 @@ A strategy's editable defaults, such as window lengths or configured constants, 
 
 A test checks that every declared model has a shipped file that validates, that every shipped file belongs to a descriptor with a model, and that every model is frozen, forbids unknown keys and has no defaults.
 
+### Provider settings
+
+A provider's reviewed overrides use the same mechanism and the same generic loader. The SEC adapter's model, `SecEdgarSettings` in `data/sec_edgar/settings.py`, has one key, the `[ticker_overrides]` table of ticker = CIK entries; the shipped `settings.toml` beside it holds the table empty, and the user's `providers/sec_edgar.toml` in the per-user settings folder is merged over it per key (the loader takes the folder name, `providers` instead of `strategies`). The composition root loads the file with the strategy files at startup, so an invalid file stops every command, and passes the overrides to the adapter's constructor; the adapter never reads settings. A test checks that every `settings.toml` shipped in the package is named by a package-data pattern.
+
 ---
 
 ## 7. Data providers and input resolution
@@ -248,6 +252,12 @@ Implemented production adapters are deliberately narrow:
 - **Yahoo Finance (`yfinance`)** — narrow current-price financial-facts adapter used for quote comparison on the Graham analyses using SEC EDGAR financial facts. It does not claim historical quote support through the financial-facts contract.
 
 The Graham Number's default SEC route pairs SEC financial facts with Yahoo current quote comparison. SEC-backed Growth defaults to three-year-average EPS plus Yahoo quote. An unsupported EPS basis is rejected before provider work.
+
+### Which registrant a ticker names
+
+A ticker names the registrant it maps to today. This is the project's identity rule, stated as a definition and not as a limitation: point-in-time analysis limits the information used, not which company is studied. With `--as-of`, every SEC input is that registrant's evidence as filed or priced at the boundary, even when the ticker belonged to another registrant then.
+
+The SEC adapter maps a ticker to a CIK through SEC's `company_tickers.json`. A ticker the file lists under more than one CIK is refused with a provider failure of kind `no_data` that names the ticker and every CIK, because the order of the file never decides. A reviewed override (see [Provider settings](#provider-settings)) maps a ticker to a CIK instead; it wins over the file, including over that refusal, the provenance of the facts it resolves says `cik_source=override`, and an override naming a CIK SEC has no data for is a `no_data` failure that names the override. When the resolved registrant has filed no annual report at all, the run fails with a `no_data` provider failure; when its annual reports all came after the boundary, the input is unavailable as of the boundary (`not_available_as_of`) through a typed signal that is not a provider failure, so no provider check runs. Both messages name the CIK and the override. The steps to read and write them are in [Provider debugging](PROVIDER_DEBUGGING.md#which-registrant-a-ticker-names).
 
 ### Security identity and instrument applicability
 `SecurityIdentityProvider` is a narrow optional capability beside, not inside, numeric financial facts. The identity capability returns an immutable current descriptive snapshot with normalized ticker, optional instrument name/listing venue/issuer and instrument identifiers, provider identity, and timezone-aware `resolved_at`. SEC retains current ticker-title/CIK evidence from its ticker mapping; Yahoo retains supported instrument metadata, including non-company names where available.

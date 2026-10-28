@@ -64,6 +64,7 @@ include = ["investment_analysis_engine*"]
 investment_analysis_engine = [
     "orchestrator/RUNTIME_AGENTS.md",
     "strategies/*/settings.toml",
+    "data/sec_edgar/settings.toml",
     "evaluation/fixtures/sec_edgar/step_2_5a_d0/*",
     "data/repositories/migration_scripts/env.py",
     "data/repositories/migration_scripts/versions/*.py",

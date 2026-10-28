@@ -33,6 +33,11 @@ from investment_analysis_engine.data.financial.facts import FinancialFactsProvid
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessPolicy
 from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.data.sec_edgar.settings import (
+    PROVIDER_SETTINGS_FOLDER,
+    SEC_EDGAR_ALIAS,
+    SecEdgarSettings,
+)
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_growth.settings import GrahamGrowthSettings
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
@@ -49,7 +54,13 @@ def build_sec_production_provider() -> ProductionFinancialFactsProvider:
             "Set SEC_USER_AGENT to a declared identity such as "
             '"Your Name your-email@example.com" and retry.'
         )
-    sec_edgar = SecEdgarFinancialFactsAdapter(user_agent=user_agent)
+    overrides = {ticker: str(cik) for ticker, cik in sec_edgar_settings().ticker_overrides.items()}
+    # An empty table is the shipped default, so the adapter is then built exactly as it was before overrides existed.
+    sec_edgar = (
+        SecEdgarFinancialFactsAdapter(user_agent=user_agent, ticker_overrides=overrides)
+        if overrides
+        else SecEdgarFinancialFactsAdapter(user_agent=user_agent)
+    )
     return ProductionFinancialFactsProvider(sec_edgar=sec_edgar)
 
 
@@ -81,6 +92,11 @@ def _settings_folder() -> Path:
     return settings.config_dir
 
 
+def sec_edgar_settings() -> SecEdgarSettings:
+    """Return the SEC adapter's validated settings, loaded once per process."""
+    return load_strategy_settings(SEC_EDGAR_ALIAS, SecEdgarSettings, _settings_folder(), PROVIDER_SETTINGS_FOLDER)
+
+
 def momentum_settings() -> MomentumSettings:
     """Return Momentum's validated settings, loaded once per process."""
     return load_strategy_settings(MOMENTUM.alias, MomentumSettings, _settings_folder())
@@ -100,6 +116,7 @@ def load_all_strategy_settings() -> None:
         StrategySettingsError: If a shipped file is missing, a file is not valid TOML or the values break a rule.
     """
     folder = _settings_folder()
+    sec_edgar_settings()
     for descriptor in STRATEGIES:
         if descriptor.settings_type is not None:
             load_strategy_settings(descriptor.alias, descriptor.settings_type, folder)
@@ -111,4 +128,5 @@ __all__ = [
     "graham_growth_settings",
     "load_all_strategy_settings",
     "momentum_settings",
+    "sec_edgar_settings",
 ]

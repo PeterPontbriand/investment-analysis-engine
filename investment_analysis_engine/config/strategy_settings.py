@@ -3,7 +3,8 @@
 A strategy's shipped defaults live in ``settings.toml`` beside the module that defines its settings model. A user may
 override any subset of the keys in ``<settings folder>/strategies/<alias>.toml``. This module merges the two per key
 and validates the result into the settings model the caller names; it knows no strategy. A strategy's settings are
-read once per process.
+read once per process. A provider's settings follow the same rule with the user's file in
+``<settings folder>/providers/<alias>.toml``.
 """
 
 import sys
@@ -18,7 +19,7 @@ from investment_analysis_engine.core.settings_error import StrategySettingsError
 _SHIPPED_FILE_NAME = "settings.toml"
 _USER_FOLDER_NAME = "strategies"
 
-_cache: dict[tuple[str, type[BaseModel], Path], BaseModel] = {}
+_cache: dict[tuple[str, str, type[BaseModel], Path], BaseModel] = {}
 
 
 def clear_strategy_settings_cache() -> None:
@@ -34,18 +35,21 @@ def shipped_settings_path(model: type[BaseModel]) -> Path:
     return Path(module_file).resolve().parent / _SHIPPED_FILE_NAME
 
 
-def user_settings_path(alias: str, settings_folder: Path) -> Path:
-    """Return the path of the user's override file for the strategy ``alias``; the file may not exist."""
-    return settings_folder / _USER_FOLDER_NAME / f"{alias}.toml"
+def user_settings_path(alias: str, settings_folder: Path, user_folder: str = _USER_FOLDER_NAME) -> Path:
+    """Return the path of the user's override file for ``alias`` in ``user_folder``; the file may not exist."""
+    return settings_folder / user_folder / f"{alias}.toml"
 
 
-def load_strategy_settings[T: BaseModel](alias: str, model: type[T], settings_folder: Path) -> T:
+def load_strategy_settings[T: BaseModel](
+    alias: str, model: type[T], settings_folder: Path, user_folder: str = _USER_FOLDER_NAME
+) -> T:
     """Load the shipped defaults of ``model``, apply the user's keys over them and validate the result.
 
     Args:
         alias: The strategy's alias, which names the user's file.
         model: The strategy's settings model; its shipped defaults are ``settings.toml`` beside its module.
         settings_folder: The user's settings folder, which may hold ``strategies/<alias>.toml``.
+        user_folder: The folder of the settings folder that holds the user's file; ``providers`` for a provider.
 
     Returns:
         The validated settings, the same object on every call with the same arguments.
@@ -56,14 +60,14 @@ def load_strategy_settings[T: BaseModel](alias: str, model: type[T], settings_fo
             from and, when a key is at fault, the key and the rule it broke; it never includes the value. A
             missing user file is normal.
     """
-    key = (alias, model, settings_folder)
+    key = (user_folder, alias, model, settings_folder)
     cached = _cache.get(key)
     if cached is not None:
         if not isinstance(cached, model):
             raise TypeError(f"The cached settings for {alias} are not a {model.__name__}.")
         return cached
     shipped_path = shipped_settings_path(model)
-    user_path = user_settings_path(alias, settings_folder)
+    user_path = user_settings_path(alias, settings_folder, user_folder)
     shipped = _read(shipped_path)
     if shipped is None:
         raise StrategySettingsError(f"Settings file {shipped_path} is missing.")
