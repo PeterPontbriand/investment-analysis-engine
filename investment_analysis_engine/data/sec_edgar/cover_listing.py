@@ -11,6 +11,10 @@ The title vocabulary is an explicit list of title forms, each backed by a captur
 mistaken for a share: it is reported as ``other``. A cover that cannot be read, that names another form or another
 registrant, or that lists the ticker under two different titles, is refused rather than guessed at. The one
 exception is a ticker shared by one share and debt titles of an explicit form, which is the share's.
+
+A ticker the anchor cover does not list may have been renamed since. ``read_renamed_listing`` affirms that only when
+the anchor cover registers exactly one share and no depositary share, and the registrant's latest annual cover
+registers the requested ticker as its only share: the one share line is then renamed, not replaced.
 """
 
 import math
@@ -153,7 +157,11 @@ class SecurityKind(StrEnum):
 
 
 class CoverUnavailableReason(StrEnum):
-    """Why no cover could be read for an anchor filing."""
+    """Why no cover could be read for an anchor filing.
+
+    ``NO_ANCHOR_FILING`` says SEC EDGAR has no CIK for the ticker. ``ACCEPTED_AFTER_BOUNDARY`` says the anchor filing,
+    or every annual filing of the registrant, was accepted after the boundary.
+    """
 
     PROVIDER_UNSUPPORTED = "provider_unsupported"
     NO_ANALYSIS_SCOPE = "no_analysis_scope"
@@ -188,6 +196,28 @@ class CoverListingRequest:
 
 
 @dataclass(frozen=True)
+class ListingRename:
+    """The two covers that show one share line renamed: the anchor's and the registrant's latest, symbols as filed."""
+
+    anchor_accession: str
+    anchor_form: str
+    anchor_symbol: str
+    latest_accession: str
+    latest_form: str
+    latest_symbol: str
+
+    def __post_init__(self) -> None:
+        """Require dashed accessions and the symbols and forms of both covers."""
+        for accession in (self.anchor_accession, self.latest_accession):
+            if not _ACCESSION.fullmatch(accession):
+                raise ValueError("A listing rename requires dashed accession numbers.")
+        if not all(
+            item.strip() for item in (self.anchor_form, self.anchor_symbol, self.latest_form, self.latest_symbol)
+        ):
+            raise ValueError("A listing rename requires the forms and symbols of both covers.")
+
+
+@dataclass(frozen=True)
 class ListingEvidence:
     """What the anchor filing's cover registers for the requested ticker, with the filing it was read from.
 
@@ -201,6 +231,9 @@ class ListingEvidence:
         accepted_at: When the SEC accepted the filing, in UTC.
         source_url: The URL the cover was read from.
         retrieved_at: When the cover was read.
+        rename: Set only when the ticker is not on the anchor cover but is the renamed one share line of the
+            registrant's latest annual cover; then ``accession``, ``form``, ``title``, ``accepted_at`` and
+            ``source_url`` describe that latest cover, and the rename names the anchor cover too.
     """
 
     ticker: str
@@ -212,9 +245,12 @@ class ListingEvidence:
     accepted_at: datetime
     source_url: str
     retrieved_at: datetime
+    rename: ListingRename | None = None
 
     def __post_init__(self) -> None:
         """Require a title exactly when the ticker is listed, and well-formed filing identifiers."""
+        if self.rename is not None and self.kind is not SecurityKind.SHARE:
+            raise ValueError("A renamed listing is a share.")
         if (self.kind is SecurityKind.NOT_LISTED) != (self.title is None):
             raise ValueError("Listing evidence carries a title exactly when the ticker is listed.")
         if self.title is not None and not self.title.strip():
@@ -470,6 +506,95 @@ def _attach(security: _Registered, concept: str, value: str) -> None:
     setattr(security, attribute, value)
 
 
+def _own_securities(  # noqa: PLR0911
+    markup: str, *, form: str, issuer: str
+) -> list[_Registered] | CoverUnavailableReason:
+    """Return the securities a cover registers for the issuer, or the reason the cover cannot be used."""
+    try:
+        cover = _read_cover(markup)
+    except _CoverError:
+        return CoverUnavailableReason.COVER_UNREADABLE
+    if not cover.document_types or not cover.ciks:
+        return CoverUnavailableReason.COVER_UNREADABLE
+    if cover.document_types != {form.strip().upper()}:
+        return CoverUnavailableReason.FORM_MISMATCH
+    if issuer not in cover.ciks:
+        return CoverUnavailableReason.CIK_MISMATCH
+    if not cover.registered:
+        return CoverUnavailableReason.NO_REGISTRATION_TABLE
+    if len(set(cover.ciks)) > 1 and any(item.cik is None for item in cover.registered):
+        return CoverUnavailableReason.COVER_UNREADABLE
+    # A cover with one registrant key belongs to it; a combined cover's securities belong to the nearest key above.
+    return [item for item in cover.registered if len(set(cover.ciks)) == 1 or item.cik == issuer]
+
+
+def _share_lines(securities: list[_Registered]) -> list[_Registered]:
+    """Return the distinct share lines of the securities; one title and symbol listed twice is one line."""
+    lines: dict[tuple[str, str], _Registered] = {}
+    for item in securities:
+        if classify_title(item.title) is SecurityKind.SHARE:
+            lines.setdefault((" ".join(item.title.split()), _symbol_key(item.symbol or "")), item)
+    return list(lines.values())
+
+
+def read_renamed_listing(  # noqa: PLR0911, PLR0913
+    anchor_markup: str,
+    latest_markup: str,
+    *,
+    ticker: str,
+    cik: str,
+    anchor_accession: str,
+    anchor_form: str,
+    latest_accession: str,
+    latest_form: str,
+    latest_accepted_at: datetime,
+    latest_source_url: str,
+    retrieved_at: datetime,
+) -> ListingEvidence | None:
+    """Return the evidence that *ticker* is the renamed one share line of the issuer, or ``None``.
+
+    The ticker is affirmed only when both hold: the anchor cover registers exactly one share line under this CIK, with a
+    symbol, and no depositary share; and the issuer's latest annual cover registers *ticker* as its only share line.
+    Every other case, including a cover that cannot be read, gives ``None`` and leaves the caller's outcome as it was.
+    The evidence describes the latest cover and records both accessions, forms and symbols as filed.
+    """
+    issuer = cik.zfill(10)
+    anchor = _own_securities(anchor_markup, form=anchor_form, issuer=issuer)
+    latest = _own_securities(latest_markup, form=latest_form, issuer=issuer)
+    if isinstance(anchor, CoverUnavailableReason) or isinstance(latest, CoverUnavailableReason):
+        return None
+    if any(classify_title(item.title) is SecurityKind.DEPOSITARY_SHARE for item in anchor):
+        return None
+    anchor_lines, latest_lines = _share_lines(anchor), _share_lines(latest)
+    if len(anchor_lines) != 1 or len(latest_lines) != 1:
+        return None
+    before, after = anchor_lines[0], latest_lines[0]
+    wanted = ticker.strip().upper()
+    if not before.symbol or not after.symbol or _symbol_key(after.symbol) != _symbol_key(wanted):
+        return None
+    if _symbol_key(before.symbol) == _symbol_key(wanted) or after.exchange is None:
+        return None
+    return ListingEvidence(
+        ticker=wanted,
+        kind=SecurityKind.SHARE,
+        title=" ".join(after.title.split()),
+        cik=issuer,
+        accession=latest_accession,
+        form=latest_form.strip().upper(),
+        accepted_at=latest_accepted_at,
+        source_url=latest_source_url,
+        retrieved_at=retrieved_at,
+        rename=ListingRename(
+            anchor_accession=anchor_accession,
+            anchor_form=anchor_form.strip().upper(),
+            anchor_symbol=before.symbol.strip(),
+            latest_accession=latest_accession,
+            latest_form=latest_form.strip().upper(),
+            latest_symbol=after.symbol.strip(),
+        ),
+    )
+
+
 def read_cover_listing(  # noqa: PLR0911, PLR0913
     markup: str,
     *,
@@ -498,25 +623,12 @@ def read_cover_listing(  # noqa: PLR0911, PLR0913
     """
     if accepted_at > boundary:
         return ListingResolution(reason=CoverUnavailableReason.ACCEPTED_AFTER_BOUNDARY)
-    try:
-        cover = _read_cover(markup)
-    except _CoverError:
-        return ListingResolution(reason=CoverUnavailableReason.COVER_UNREADABLE)
-    if not cover.document_types or not cover.ciks:
-        return ListingResolution(reason=CoverUnavailableReason.COVER_UNREADABLE)
-    if cover.document_types != {form.strip().upper()}:
-        return ListingResolution(reason=CoverUnavailableReason.FORM_MISMATCH)
     issuer = cik.zfill(10)
-    if issuer not in cover.ciks:
-        return ListingResolution(reason=CoverUnavailableReason.CIK_MISMATCH)
-    if not cover.registered:
-        return ListingResolution(reason=CoverUnavailableReason.NO_REGISTRATION_TABLE)
+    own = _own_securities(markup, form=form, issuer=issuer)
+    if isinstance(own, CoverUnavailableReason):
+        return ListingResolution(reason=own)
     wanted = ticker.strip().upper()
     wanted_key = _symbol_key(wanted)
-    if len(set(cover.ciks)) > 1 and any(item.cik is None for item in cover.registered):
-        return ListingResolution(reason=CoverUnavailableReason.COVER_UNREADABLE)
-    # A cover with one registrant key belongs to it; a combined cover's securities belong to the nearest key above.
-    own = [item for item in cover.registered if len(set(cover.ciks)) == 1 or item.cik == issuer]
     matches = [item for item in own if _symbol_key(item.symbol or "") == wanted_key]
     if any(item.exchange is None for item in matches):
         return ListingResolution(reason=CoverUnavailableReason.COVER_UNREADABLE)

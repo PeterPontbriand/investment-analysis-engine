@@ -25,9 +25,9 @@ import typer
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
-from investment_analysis_engine.config.strategy_settings import clear_strategy_settings_cache
+from investment_analysis_engine.config.component_settings import clear_component_settings_cache
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
-from investment_analysis_engine.core.settings_error import StrategySettingsError
+from investment_analysis_engine.core.settings_error import ComponentSettingsError
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
 from investment_analysis_engine.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
 from investment_analysis_engine.orchestrator.tool_names import ToolName
@@ -252,11 +252,11 @@ def test_the_settings_site_reports_a_descriptor_without_the_model_and_one_with_a
 @pytest.fixture
 def specimen_config_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[Path]:
     """A user settings folder the specimen command reads, with the settings cache and run store emptied around it."""
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
     SPECIMEN_RUN_STORE.clear()
     monkeypatch.setattr(specimen_cli, "settings", SimpleNamespace(config_dir=tmp_path))
     yield tmp_path
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
     SPECIMEN_RUN_STORE.clear()
 
 
@@ -286,7 +286,7 @@ def test_an_invalid_user_setting_is_rejected_naming_the_file_and_the_key(specime
     folder = specimen_config_folder / "strategies"
     folder.mkdir()
     (folder / "specimen-test.toml").write_text("multiplier = -1.0\n", encoding="utf-8")
-    with pytest.raises(StrategySettingsError, match=r"specimen-test\.toml is invalid: multiplier"):
+    with pytest.raises(ComponentSettingsError, match=r"specimen-test\.toml is invalid: multiplier"):
         specimen_cli.specimen_settings()
 
 

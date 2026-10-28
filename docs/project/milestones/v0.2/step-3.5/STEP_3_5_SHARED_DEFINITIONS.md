@@ -204,14 +204,18 @@ in which an absent element yields a number.
      this CIK, on a registered title that is a share of the issuer. Class designations and "ordinary shares" are
      accepted; depositary shares, units, warrants and preferred securities are refused (`incompatible_units`); a
      missing or unreadable cover is `unavailable` (`missing_fact`). The check works with `as_of`, because the cover of
-     a filing on or before the boundary is historical evidence. The accepted titles are common stock, common shares,
+     a filing on or before the boundary is historical evidence. A ticker that is not on the anchor cover is read
+     against the cover of the registrant's latest 10-K or 10-K/A and affirmed only when the anchor cover lists exactly
+     one share line and no depositary share and the latest cover lists the ticker as the only share line: the one share
+     line is renamed, not replaced, and the result records both accessions and symbols ([P22](STEP_3_5_2_SLICE_PLAN.md#a6-decided-under-delegation-during-352c-2026-10-26)).
+     The accepted titles are common stock, common shares,
      ordinary shares and the class designations of the captured covers, with or without a par-value clause; a title
      outside that list is `unavailable` (`missing_fact`), never affirmed
      ([vocabulary and evidence](STEP_3_5_2_LISTING_EVIDENCE.md#6-the-title-vocabulary)).
   4. **The share-count rule for several classes below holds:** Alphabet's single combined count is valued at the
      requested ticker's price, and per-class counts with no total are `unavailable`.
-- **Limitation, stated in the guides:** a ticker renamed after the anchor filing does not match the cover and is
-  `unavailable`.
+- **Limitation, stated in the guides:** a ticker renamed after the anchor filing is affirmed only by the rename rule
+  of item 3; any other renamed ticker does not match the cover and is `unavailable`.
 - **Critical inputs:** shares and price.
 - **Dates stay visible** in the result: the share-count date, the filing date of the count's source and the price date.
 

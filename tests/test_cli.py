@@ -5,6 +5,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import replace
 from datetime import UTC, date, datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -481,23 +482,29 @@ def test_cli_graham_missing_sec_user_agent_is_clean_configuration_error() -> Non
 
 
 @patch("investment_analysis_engine.cli_composition.SecEdgarFinancialFactsAdapter")
-def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adapter: MagicMock) -> None:
+def test_graham_resolver_passes_configured_sec_identity_explicitly(mock_sec_adapter: MagicMock, tmp_path: Path) -> None:
     declared_identity = "investment-analysis-engine-test test@example.invalid"
 
-    with patch.object(settings, "sec_user_agent", declared_identity):
+    with (
+        patch.object(settings, "sec_user_agent", declared_identity),
+        patch("investment_analysis_engine.cli_composition._settings_folder", return_value=tmp_path),
+    ):
         build_graham_resolver(resolver_type=GrahamNumberInputResolver, clock=lambda: datetime.now(UTC))
 
-    mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
+    mock_sec_adapter.assert_called_once_with(user_agent=declared_identity, ticker_overrides={})
 
 
 @patch("investment_analysis_engine.cli_composition.SecEdgarFinancialFactsAdapter")
-def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: MagicMock) -> None:
+def test_graham_growth_default_uses_configured_sec_identity(mock_sec_adapter: MagicMock, tmp_path: Path) -> None:
     declared_identity = "investment-analysis-engine-test test@example.invalid"
 
-    with patch.object(settings, "sec_user_agent", declared_identity):
+    with (
+        patch.object(settings, "sec_user_agent", declared_identity),
+        patch("investment_analysis_engine.cli_composition._settings_folder", return_value=tmp_path),
+    ):
         build_graham_resolver(resolver_type=GrahamGrowthInputResolver, clock=lambda: datetime.now(UTC))
 
-    mock_sec_adapter.assert_called_once_with(user_agent=declared_identity)
+    mock_sec_adapter.assert_called_once_with(user_agent=declared_identity, ticker_overrides={})
 
 
 def test_cli_graham_number_concise_analysis(fixture_resolver: GrahamNumberInputResolver) -> None:

@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.financial.facts import (
     COVER_PAGE_BASIS,
     INSTANT_SERIES_FIELDS,
@@ -26,6 +27,7 @@ from investment_analysis_engine.data.financial.facts import (
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, PeriodKind
 from investment_analysis_engine.data.sec_edgar import financial_facts as module
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.instant_series import InstantSource, select_instant_series
 from tests._sec_instants import (
     FIXTURES,
     NOW,
@@ -286,9 +288,10 @@ def test_a_filing_accepted_after_the_boundary_is_ignored_and_a_later_year_end_is
     assert _reasons(result) == {_Y25: _REASON.AFTER_BOUNDARY}
     one_second = datetime(2025, 2, 20, 16, 0, 0, tzinfo=UTC)
     assert _values(_series(rows, ends=(_Y24,), as_of=one_second)) == {_Y24: 200.0}
-    assert _reasons(_series(rows, ends=(_Y24,), as_of=datetime(2024, 1, 1, tzinfo=UTC))) == {
-        _Y24: _REASON.NO_ANCHOR_FILING
-    }
+    before_any_filing = _series(rows, ends=(_Y24,), as_of=datetime(2024, 1, 1, tzinfo=UTC))
+    assert _reasons(before_any_filing) == {_Y24: _REASON.AFTER_BOUNDARY}
+    assert "filed its first annual report on 2024-02-20" in before_any_filing.absences[0].detail
+    assert "providers/sec_edgar.toml" in before_any_filing.absences[0].detail
 
 
 def test_a_conflicting_duplicate_of_equal_priority_is_reported_not_chosen() -> None:
@@ -371,9 +374,29 @@ def test_unreadable_observations_are_skipped() -> None:
     assert _values(_series(concepts)) == {_Y25: 300.0}
 
 
-def test_a_series_with_no_annual_filing_is_absent_for_that_reason() -> None:
-    result = _series(_assets(("2025-12-31", 300.0, _NEW)), forms={_NEW: "10-Q", _MID: "8-K", _OLD: "S-1"})
-    assert _reasons(result) == dict.fromkeys((_Y23, _Y24, _Y25), _REASON.NO_ANCHOR_FILING)
+def test_a_registrant_with_no_annual_filing_fails_with_no_data_not_an_absence() -> None:
+    with pytest.raises(FinancialProviderError) as caught:
+        _series(
+            {"Assets": [("USD", [_row("2025-12-31", 300.0, _NEW, form="10-Q")])]},
+            forms={_NEW: "10-Q", _MID: "8-K", _OLD: "S-1"},
+        )
+    assert caught.value.kind is ProviderFailureKind.NO_DATA
+    assert "has filed no annual report" in str(caught.value)
+
+
+def test_a_series_with_no_annual_filing_accepted_by_the_boundary_in_the_selection_is_absent_for_that_reason() -> None:
+    source = InstantSource(
+        company_facts={"facts": {"us-gaap": {}}},
+        cik_matches=True,
+        taxonomy="us-gaap",
+        acceptance_by_accession={},
+        accession_taxonomies={},
+        retrieved_at=NOW,
+        boundary=NOW,
+    )
+    request = InstantSeriesRequest("SYN", FinancialField.TOTAL_ASSETS, SEC_PROVIDER_ID, (_Y25,))
+    result = select_instant_series(request, source)
+    assert _reasons(result) == {_Y25: _REASON.NO_ANCHOR_FILING}
 
 
 def test_an_unknown_ticker_is_absent_and_another_provider_is_unsupported() -> None:

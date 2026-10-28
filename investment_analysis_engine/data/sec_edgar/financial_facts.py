@@ -7,7 +7,7 @@ import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
 from types import MappingProxyType
 from typing import cast
@@ -19,6 +19,7 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     COVER_PAGE_BASIS,
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
@@ -45,10 +46,12 @@ from investment_analysis_engine.data.sec_edgar.cover_listing import (
     CoverReaderPolicy,
     CoverUnavailableReason,
     ListingResolution,
+    SecurityKind,
     cover_url,
     fetch_anchor_cover,
     fetch_cover,
     read_cover_listing,
+    read_renamed_listing,
 )
 from investment_analysis_engine.data.sec_edgar.filing_document import (
     FilingFetcher,
@@ -85,6 +88,9 @@ from investment_analysis_engine.data.security_unit import (
 )
 
 SEC_PROVIDER_ID = "sec_edgar"
+CIK_SOURCE_TICKER_FILE = "company_tickers"
+CIK_SOURCE_OVERRIDE = "override"
+CIK_SOURCE_NOTE = "cik_source"
 SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
 SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD = "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding"
 SEC_OPERATING_CASH_FLOW_FIELD = "us-gaap:NetCashProvidedByUsedInOperatingActivities"
@@ -107,6 +113,8 @@ _SUBMISSION_PAGE_URL = "https://data.sec.gov/submissions/{name}"
 # An extra page names one stretch of an issuer's filings (about a month for the most frequent filers). A balance-sheet
 # series reads at most this many of them, so the cost of an issuer that files constantly stays bounded.
 _MAX_SUBMISSION_PAGES = 12
+_OVERRIDE_FILE = "providers/sec_edgar.toml in the settings folder"
+_OVERRIDE_EXAMPLE = "[ticker_overrides] {ticker} = {cik}"
 _SUBMISSION_PAGE_NAME = re.compile(r"^CIK(\d{10})-submissions-\d{3}\.json$")
 
 
@@ -114,6 +122,8 @@ class _MissingCikError(FinancialProviderError):
     """SEC's ticker map has no entry for the ticker: a ticker without a CIK, not a failure to read the map."""
 
 
+# The annual reports whose cover can show that a listed share was renamed: the domestic forms, as market cap admits.
+_RENAME_FORMS = frozenset({"10-K", "10-K/A"})
 _COMPLETED_ANNUAL_FORMS = frozenset({"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"})
 _SEC_EASTERN = ZoneInfo("America/New_York")
 # A completed fiscal year can vary around 365 days, including 52/53-week years.
@@ -249,6 +259,9 @@ class SecEdgarAnalysisSnapshot:
     filing_dates: Mapping[str, date] = field(default_factory=dict)
     current_tickers: tuple[str, ...] = ()
     submission_pages: tuple[SubmissionPage, ...] = ()
+    cik_source: str = CIK_SOURCE_TICKER_FILE
+    after_boundary_message: str | None = None
+    """Set when the registrant's annual filings all came after the boundary: the message to show."""
 
 
 _ACTIVE_SNAPSHOT: ContextVar[SecEdgarAnalysisSnapshot | None] = ContextVar("sec_edgar_analysis_snapshot", default=None)
@@ -283,12 +296,14 @@ class SecEdgarFinancialFactsAdapter:
         header_policy: FilingHeaderPolicy | None = None,
         cover_fetcher: CoverFetcher = fetch_cover,
         cover_policy: CoverReaderPolicy | None = None,
+        ticker_overrides: Mapping[str, str] | None = None,
     ) -> None:
         """Initialize the adapter with injectable transport, clock, and SEC identity.
 
         The caller supplies the declared ``user_agent`` (the composition root takes it from the application
         settings); the adapter never reads the environment. A non-empty identity is required before any SEC
-        request can be made.
+        request can be made. ``ticker_overrides`` maps an upper-case ticker to the ten-digit CIK of the registrant it
+        stands for; it wins over SEC's ticker file, and the composition root loads it from the SEC settings.
         """
         resolved_user_agent = _resolve_sec_user_agent(user_agent)
         self._fetch_json = json_fetcher
@@ -303,7 +318,9 @@ class SecEdgarFinancialFactsAdapter:
         self._submission_page_documents: dict[tuple[str, str], object] = {}
         self._clock = clock or utc_now
         self._headers = {"User-Agent": resolved_user_agent, "Accept": "application/json"}
+        self._ticker_overrides = dict(ticker_overrides or {})
         self._ticker_to_cik: dict[str, str] | None = None
+        self._ambiguous_tickers: dict[str, tuple[str, ...]] = {}
         self._cik_to_tickers: dict[str, frozenset[str]] | None = None
         self._security_identities: dict[str, SecurityIdentity] | None = None
 
@@ -327,14 +344,26 @@ class SecEdgarFinancialFactsAdapter:
                 eligible_annual_accessions=(),
                 taxonomy=None,
             )
-        company_facts_raw = self._fetch_company_document(_COMPANY_FACTS_URL.format(cik=cik))
-        submissions_raw = self._fetch_company_document(_SUBMISSIONS_URL.format(cik=cik))
+        company_facts_raw = self._fetch_registrant_document(_COMPANY_FACTS_URL.format(cik=cik), ticker, cik)
+        submissions_raw = self._fetch_registrant_document(_SUBMISSIONS_URL.format(cik=cik), ticker, cik)
         acceptance_by_accession = _acceptance_times(submissions_raw)
         accession_taxonomies = _accession_taxonomies(company_facts_raw)
         eligible_accessions = _eligible_annual_accessions(
             submissions_raw,
             acceptance_by_accession=acceptance_by_accession,
             as_of=effective_as_of,
+        )
+        pages = _submission_pages(submissions_raw, cik)
+        filing_dates = _submission_filing_dates(submissions_raw)
+        after_boundary_message = self._annual_filing_gap(
+            ticker=ticker,
+            cik=cik,
+            acceptance=acceptance_by_accession,
+            forms=_submission_strings(submissions_raw, "form"),
+            filing_dates=filing_dates,
+            pages=pages,
+            company_facts=company_facts_raw,
+            boundary=effective_as_of,
         )
         latest_accession = eligible_accessions[0] if eligible_accessions else None
         namespaces = accession_taxonomies.get(latest_accession, frozenset()) if latest_accession else frozenset()
@@ -352,9 +381,11 @@ class SecEdgarFinancialFactsAdapter:
             taxonomy=taxonomy,
             primary_documents=MappingProxyType(_submission_strings(submissions_raw, "primaryDocument")),
             filing_forms=MappingProxyType(_submission_strings(submissions_raw, "form")),
-            filing_dates=MappingProxyType(_submission_filing_dates(submissions_raw)),
+            filing_dates=MappingProxyType(filing_dates),
             current_tickers=_submission_tickers(submissions_raw),
-            submission_pages=_submission_pages(submissions_raw, cik),
+            submission_pages=pages,
+            cik_source=self._cik_source(ticker),
+            after_boundary_message=after_boundary_message,
         )
 
     def resolve_as_filed_sic(self, snapshot: SecEdgarAnalysisSnapshot) -> AsFiledSicResolution:
@@ -366,6 +397,8 @@ class SecEdgarFinancialFactsAdapter:
         transport fault raises the classified ``FinancialProviderError``.
         """
         accession = snapshot.latest_annual_accession
+        if snapshot.cik is not None and accession is None and snapshot.after_boundary_message is not None:
+            return AsFiledSicResolution(reason=SicUnavailableReason.ACCEPTED_AFTER_BOUNDARY)
         if snapshot.cik is None or accession is None:
             return AsFiledSicResolution(reason=SicUnavailableReason.NO_ANCHOR_FILING)
         try:
@@ -417,6 +450,8 @@ class SecEdgarFinancialFactsAdapter:
         if snapshot.subject_id != request.ticker:
             return ListingResolution(reason=CoverUnavailableReason.SUBJECT_MISMATCH)
         accession = snapshot.latest_annual_accession
+        if snapshot.cik is not None and accession is None and snapshot.after_boundary_message is not None:
+            return ListingResolution(reason=CoverUnavailableReason.ACCEPTED_AFTER_BOUNDARY)
         if snapshot.cik is None or accession is None:
             return ListingResolution(reason=CoverUnavailableReason.NO_ANCHOR_FILING)
         form = snapshot.filing_forms.get(accession)
@@ -427,33 +462,11 @@ class SecEdgarFinancialFactsAdapter:
             return ListingResolution(reason=CoverUnavailableReason.ACCEPTANCE_UNAVAILABLE)
         if accepted_at > snapshot.as_of:
             return ListingResolution(reason=CoverUnavailableReason.ACCEPTED_AFTER_BOUNDARY)
-        try:
-            cover_url(snapshot.cik, accession)
-        except ValueError as exc:
-            msg = f"SEC listed a filing that cannot be addressed: {exc}"
-            raise FinancialProviderError(
-                msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID
-            ) from exc
-        cached = self._cover_texts.get((snapshot.cik, accession))
+        cached = self._cover_text(snapshot.cik, accession)
         if cached is None:
-            try:
-                text, url = fetch_anchor_cover(
-                    snapshot.cik,
-                    accession,
-                    fetcher=self._cover_fetcher,
-                    headers=self._headers,
-                    policy=self._cover_policy,
-                    not_found=ProviderFailureKind.NO_DATA,
-                    provider_id=SEC_PROVIDER_ID,
-                )
-            except FinancialProviderError as exc:
-                if exc.kind is ProviderFailureKind.NO_DATA:
-                    return ListingResolution(reason=CoverUnavailableReason.COVER_MISSING)
-                raise
-            cached = (text, url, self._clock())
-            self._cover_texts[(snapshot.cik, accession)] = cached
+            return ListingResolution(reason=CoverUnavailableReason.COVER_MISSING)
         text, url, retrieved_at = cached
-        return read_cover_listing(
+        resolution = read_cover_listing(
             text,
             ticker=request.ticker,
             cik=snapshot.cik,
@@ -464,6 +477,89 @@ class SecEdgarFinancialFactsAdapter:
             source_url=url,
             retrieved_at=retrieved_at,
         )
+        if resolution.evidence is None or resolution.evidence.kind is not SecurityKind.NOT_LISTED:
+            return resolution
+        return self._renamed_listing(request, snapshot, anchor=(accession, form, text), fallback=resolution)
+
+    def _cover_text(self, cik: str, accession: str) -> tuple[str, str, datetime] | None:
+        """Return the text, URL and read time of a filing's cover, kept for the life of the adapter; ``None`` on a 404.
+
+        Raises:
+            FinancialProviderError: On a transport fault, or an accession that cannot be addressed.
+        """
+        try:
+            cover_url(cik, accession)
+        except ValueError as exc:
+            msg = f"SEC listed a filing that cannot be addressed: {exc}"
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID
+            ) from exc
+        cached = self._cover_texts.get((cik, accession))
+        if cached is None:
+            try:
+                text, url = fetch_anchor_cover(
+                    cik,
+                    accession,
+                    fetcher=self._cover_fetcher,
+                    headers=self._headers,
+                    policy=self._cover_policy,
+                    not_found=ProviderFailureKind.NO_DATA,
+                    provider_id=SEC_PROVIDER_ID,
+                )
+            except FinancialProviderError as exc:
+                if exc.kind is ProviderFailureKind.NO_DATA:
+                    return None
+                raise
+            cached = (text, url, self._clock())
+            self._cover_texts[(cik, accession)] = cached
+        return cached
+
+    def _renamed_listing(
+        self,
+        request: CoverListingRequest,
+        snapshot: SecEdgarAnalysisSnapshot,
+        *,
+        anchor: tuple[str, str, str],
+        fallback: ListingResolution,
+    ) -> ListingResolution:
+        """Return the renamed listing the registrant's latest annual cover shows, else ``fallback``.
+
+        Only a ticker absent from the anchor cover reaches here, and a run whose anchor is already the latest annual
+        filing (no ``as_of``) makes no request. Otherwise the latest 10-K or 10-K/A cover is read once.
+        """
+        anchor_accession, anchor_form, anchor_text = anchor
+        assert snapshot.cik is not None  # the caller returned for a snapshot without a CIK
+        latest = max(
+            (
+                (accepted, accession)
+                for accession, accepted in snapshot.acceptance_by_accession.items()
+                if snapshot.filing_forms.get(accession) in _RENAME_FORMS
+            ),
+            default=None,
+        )
+        if anchor_form not in _RENAME_FORMS or latest is None or latest[1] == anchor_accession:
+            return fallback
+        latest_accepted_at, latest_accession = latest
+        if latest_accepted_at <= snapshot.acceptance_by_accession.get(anchor_accession, latest_accepted_at):
+            return fallback
+        cached = self._cover_text(snapshot.cik, latest_accession)
+        if cached is None:
+            return fallback
+        latest_text, latest_url, retrieved_at = cached
+        evidence = read_renamed_listing(
+            anchor_text,
+            latest_text,
+            ticker=request.ticker,
+            cik=snapshot.cik,
+            anchor_accession=anchor_accession,
+            anchor_form=anchor_form,
+            latest_accession=latest_accession,
+            latest_form=snapshot.filing_forms[latest_accession],
+            latest_accepted_at=latest_accepted_at,
+            latest_source_url=latest_url,
+            retrieved_at=retrieved_at,
+        )
+        return fallback if evidence is None else ListingResolution(evidence=evidence)
 
     def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:  # noqa: PLR0911
         """Verify the exact source filings inside the current financial snapshot."""
@@ -613,6 +709,19 @@ class SecEdgarFinancialFactsAdapter:
                 if forms.get(accession) in _COMPLETED_ANNUAL_FORMS and accepted <= boundary
             }
             anchor = max(eligible, key=lambda accession: eligible[accession], default=None)
+            if anchor is None:
+                gap = self._annual_filing_gap(
+                    ticker=request.subject_id.strip().upper(),
+                    cik=cik,
+                    acceptance=acceptance,
+                    forms=forms,
+                    filing_dates=snapshot.filing_dates,
+                    pages=snapshot.submission_pages,
+                    company_facts=snapshot.company_facts,
+                    boundary=boundary,
+                )
+                if gap is not None:
+                    return _all_absent(request, InstantAbsenceReason.AFTER_BOUNDARY, gap)
             namespaces = snapshot.accession_taxonomies.get(anchor, frozenset()) if anchor is not None else frozenset()
             company_facts = snapshot.company_facts if isinstance(snapshot.company_facts, Mapping) else {}
             return select_instant_series(
@@ -730,7 +839,18 @@ class SecEdgarFinancialFactsAdapter:
             return None
         return identities.get(request.ticker)
 
-    def fetch_facts(  # noqa: PLR0911, PLR0912, PLR0915
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
+        """Return supported SEC facts, or explicit unavailability; a fact of an overridden ticker says so in its notes.
+
+        See ``_fetch_facts`` for the arguments.
+        """
+        facts = self._fetch_facts(request, effective_as_of=effective_as_of)
+        if request.subject_id.strip().upper() not in self._ticker_overrides:
+            return facts
+        note = f"{CIK_SOURCE_NOTE}={CIK_SOURCE_OVERRIDE}"
+        return tuple(replace(fact, notes=(*fact.notes, note)) for fact in facts)
+
+    def _fetch_facts(  # noqa: PLR0911, PLR0912, PLR0915
         self, request: FinancialFactRequest, *, effective_as_of: datetime
     ) -> tuple[ProviderFact, ...]:
         """Return supported SEC facts, or explicit unavailability.
@@ -751,15 +871,18 @@ class SecEdgarFinancialFactsAdapter:
                 if request.field_name in _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY:
                     return ()
                 raise
-            if (
-                request.field_name in _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS
-                and not self._has_single_ticker_identity(cik)
-            ):
+            # An overridden CIK the ticker file does not list has its tickers read from the submissions data instead.
+            sensitive = request.field_name in _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS
+            ticker_text = request.subject_id.strip().upper()
+            tickers_from_submissions = sensitive and ticker_text in self._ticker_overrides and not self._lists_cik(cik)
+            if sensitive and not tickers_from_submissions and not self._has_single_ticker_identity(cik):
                 return ()
             snapshot = _ACTIVE_SNAPSHOT.get()
             if snapshot is not None and snapshot.subject_id == request.subject_id.strip().upper():
                 if snapshot.cik != cik:
                     return ()
+                if snapshot.after_boundary_message is not None:
+                    raise FactsNotAvailableAsOf(snapshot.after_boundary_message)
                 if request.field_name in _SEC_COMPLETED_ANNUAL_FIELDS and snapshot.taxonomy not in {
                     "us-gaap",
                     "ifrs-full",
@@ -770,9 +893,10 @@ class SecEdgarFinancialFactsAdapter:
                 provider_now = snapshot.retrieved_at
                 anchor_accession = snapshot.latest_annual_accession
                 pages = snapshot.submission_pages
+                submission_tickers = snapshot.current_tickers
             else:
-                company_facts = self._fetch_company_document(_COMPANY_FACTS_URL.format(cik=cik))
-                submissions = self._fetch_company_document(_SUBMISSIONS_URL.format(cik=cik))
+                company_facts = self._fetch_registrant_document(_COMPANY_FACTS_URL.format(cik=cik), ticker_text, cik)
+                submissions = self._fetch_registrant_document(_SUBMISSIONS_URL.format(cik=cik), ticker_text, cik)
                 acceptance_by_accession = _acceptance_times(submissions)
                 provider_now = self._clock()
                 eligible_accessions = _eligible_annual_accessions(
@@ -782,6 +906,21 @@ class SecEdgarFinancialFactsAdapter:
                 )
                 anchor_accession = eligible_accessions[0] if eligible_accessions else None
                 pages = _submission_pages(submissions, cik)
+                gap = self._annual_filing_gap(
+                    ticker=ticker_text,
+                    cik=cik,
+                    acceptance=acceptance_by_accession,
+                    forms=_submission_strings(submissions, "form"),
+                    filing_dates=_submission_filing_dates(submissions),
+                    pages=pages,
+                    company_facts=company_facts,
+                    boundary=request.as_of or effective_as_of,
+                )
+                if gap is not None:
+                    raise FactsNotAvailableAsOf(gap)
+                submission_tickers = _submission_tickers(submissions)
+            if tickers_from_submissions and len({item.strip().upper() for item in submission_tickers}) != 1:
+                return ()
             taxonomy = snapshot.taxonomy if snapshot is not None and snapshot.taxonomy is not None else "us-gaap"
             if request.field_name in _SEC_COMPLETED_ANNUAL_FIELDS:
                 acceptance_by_accession = self._with_older_acceptance_times(
@@ -904,14 +1043,114 @@ class SecEdgarFinancialFactsAdapter:
         )
 
     def _resolve_cik(self, ticker: str) -> str:
+        """Return the CIK a ticker names: its override, else SEC's ticker file, which must list it under one CIK."""
+        overridden = self._ticker_overrides.get(ticker)
+        if overridden is not None:
+            return overridden
         self._load_ticker_metadata()
         ticker_to_cik = self._ticker_to_cik
         assert ticker_to_cik is not None
+        ambiguous = self._ambiguous_tickers.get(ticker)
+        if ambiguous is not None:
+            msg = (
+                f"SEC's ticker file lists {ticker} under more than one CIK ({', '.join(ambiguous)}); the file's order "
+                f"does not decide. Set an override in {_OVERRIDE_FILE} to name the registrant: "
+                f"{_OVERRIDE_EXAMPLE.format(ticker=ticker, cik='<cik>')}."
+            )
+            raise FinancialProviderError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID)
         try:
             return ticker_to_cik[ticker]
         except KeyError as exc:
             msg = f"SEC EDGAR has no CIK mapping for ticker {ticker!r}."
             raise _MissingCikError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID) from exc
+
+    def _cik_source(self, ticker: str) -> str:
+        """Return where the CIK of a ticker comes from: an override, else SEC's ticker file."""
+        return CIK_SOURCE_OVERRIDE if ticker in self._ticker_overrides else CIK_SOURCE_TICKER_FILE
+
+    def _lists_cik(self, cik: str) -> bool:
+        """Return whether SEC's ticker file lists any ticker under the CIK."""
+        self._load_ticker_metadata()
+        return bool(self._cik_to_tickers and cik in self._cik_to_tickers)
+
+    def _fetch_registrant_document(self, url: str, ticker: str, cik: str) -> object:
+        """Fetch one document of the registrant a ticker names; an override SEC lacks is named in the error."""
+        try:
+            return self._fetch_company_document(url)
+        except FinancialProviderError as exc:
+            if exc.kind is not ProviderFailureKind.NO_DATA or ticker not in self._ticker_overrides:
+                raise
+            msg = (
+                f"The override {ticker} = {int(cik)} in {_OVERRIDE_FILE} names a CIK ({cik}) for which SEC has no "
+                "company data."
+            )
+            raise FinancialProviderError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID) from exc
+
+    def _annual_filing_gap(  # noqa: PLR0913
+        self,
+        *,
+        ticker: str,
+        cik: str,
+        acceptance: Mapping[str, datetime],
+        forms: Mapping[str, str],
+        filing_dates: Mapping[str, date],
+        pages: tuple[SubmissionPage, ...],
+        company_facts: object,
+        boundary: datetime,
+    ) -> str | None:
+        """Decide whether the registrant has no annual report, or none by the boundary.
+
+        The recent block of the submissions data is incomplete evidence, so it never decides alone that no annual report
+        exists: a registrant has filed none only when neither source shows one, the submissions data lists no annual
+        form and no Company Facts observation was reported on an annual form. With extra submission pages (older
+        filings that were not read) an absence is established only when the boundary is earlier than every filing the
+        data dates, the pages' ``filingFrom`` included: nothing was filed by then. Otherwise the older filings may hold
+        an annual report, and the existing paging finds the annual ones, so nothing is decided here. Nothing is decided
+        either when an annual filing has no acceptance time.
+
+        Returns:
+            ``None`` when an annual report was accepted at or before the boundary or the absence is not established;
+            otherwise the message for a registrant that had filed no annual report by the boundary.
+
+        Raises:
+            FinancialProviderError: Of kind ``no_data``, when the registrant has filed no annual report at all, a
+                submissions listing with no filings included; the message names the CIK, where it came from and the
+                override that names another registrant.
+        """
+        source = "an override" if ticker in self._ticker_overrides else "SEC's ticker file"
+        override = f"If {ticker} stands for another registrant, set an override in {_OVERRIDE_FILE}: " + (
+            _OVERRIDE_EXAMPLE.format(ticker=ticker, cik="<cik>")
+        )
+        before = f"The registrant CIK {cik} that {ticker} names (from {source})"
+        if pages:
+            dated = [filing_dates.get(accession) or _accepted_date(acceptance, accession) for accession in forms]
+            if None in dated:
+                return None
+            earliest = min([*(item for item in dated if item is not None), *(page.filing_from for page in pages)])
+            if boundary.date() >= earliest:
+                return None
+            return (
+                f"{before} had filed nothing by the boundary {boundary.date().isoformat()}; its earliest filing is "
+                f"dated {earliest.isoformat()}. {override}."
+            )
+        annual = [accession for accession, form in forms.items() if form in _COMPLETED_ANNUAL_FORMS]
+        if not annual:
+            if _reports_annual_form(company_facts):
+                return None
+            msg = f"{before} has filed no annual report. {override}."
+            raise FinancialProviderError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID)
+        accepted = [acceptance.get(accession) for accession in annual]
+        if any(item is None or item <= boundary for item in accepted):
+            return None
+        first = min(
+            filing_dates.get(accession, stamp.date())
+            for accession, stamp in zip(annual, accepted, strict=True)
+            if stamp is not None
+        )
+        return (
+            f"{before} filed its first annual report on {first.isoformat()}, "
+            f"after the boundary {boundary.date().isoformat()}. {override}."
+        )
 
     def _fetch_company_document(self, url: str) -> object:
         """Fetch one per-company SEC document, whose HTTP 404 means SEC has nothing for the company."""
@@ -934,6 +1173,7 @@ class SecEdgarFinancialFactsAdapter:
         _require_mapping(payload, "company-ticker")
         resolved_at = self._clock()
         self._ticker_to_cik = _ticker_cik_map(payload)
+        self._ambiguous_tickers = _ambiguous_ticker_ciks(payload)
         self._cik_to_tickers = _cik_tickers_map(payload)
         self._security_identities = _ticker_identity_map(payload, resolved_at=resolved_at)
 
@@ -943,6 +1183,32 @@ class SecEdgarFinancialFactsAdapter:
         if cik_to_tickers is None:
             return False
         return len(cik_to_tickers.get(cik, ())) == 1
+
+
+def _reports_annual_form(company_facts: object) -> bool:
+    """Return whether any Company Facts observation was reported on an annual form."""
+    facts = company_facts.get("facts") if isinstance(company_facts, Mapping) else None
+    if not isinstance(facts, Mapping):
+        return False
+    for concepts in facts.values():
+        if not isinstance(concepts, Mapping):
+            continue
+        for concept in concepts.values():
+            units = concept.get("units") if isinstance(concept, Mapping) else None
+            if not isinstance(units, Mapping):
+                continue
+            for observations in units.values():
+                if isinstance(observations, Sequence) and not isinstance(observations, (str, bytes)):
+                    for observation in observations:
+                        if isinstance(observation, Mapping) and observation.get("form") in _COMPLETED_ANNUAL_FORMS:
+                            return True
+    return False
+
+
+def _accepted_date(acceptance: Mapping[str, datetime], accession: str) -> date | None:
+    """Return the date a filing was accepted, or ``None`` when the data gives no acceptance time."""
+    stamp = acceptance.get(accession)
+    return None if stamp is None else stamp.date()
 
 
 def _require_mapping(payload: object, name: str) -> None:
@@ -979,6 +1245,21 @@ def _ticker_cik_map(payload: object) -> dict[str, str]:
             continue
         result[ticker.strip().upper()] = cik_text.zfill(10)
     return result
+
+
+def _ambiguous_ticker_ciks(payload: object) -> dict[str, tuple[str, ...]]:
+    """Return, for every ticker SEC's file lists under more than one CIK, those CIKs zero-padded and sorted."""
+    if not isinstance(payload, Mapping):
+        return {}
+    found: dict[str, set[str]] = {}
+    for item in payload.values():
+        if not isinstance(item, Mapping):
+            continue
+        ticker, cik = item.get("ticker"), item.get("cik_str")
+        if not isinstance(ticker, str) or not isinstance(cik, (int, str)) or not str(cik).strip().isdigit():
+            continue
+        found.setdefault(ticker.strip().upper(), set()).add(str(cik).strip().zfill(10))
+    return {ticker: tuple(sorted(ciks)) for ticker, ciks in found.items() if len(ciks) > 1}
 
 
 def _cik_tickers_map(payload: object) -> dict[str, frozenset[str]]:

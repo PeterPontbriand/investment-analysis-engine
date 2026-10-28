@@ -1451,7 +1451,7 @@ def test_a_filing_that_is_not_yet_accepted_at_as_of_is_not_an_anchor() -> None:
         subject_id="JPM", provider_id=SEC_PROVIDER_ID, as_of=datetime(2026, 2, 13, 21, 19, 59, tzinfo=UTC)
     ):
         resolution = adapter.resolve_cover_listing(CoverListingRequest("JPM", SEC_PROVIDER_ID))
-    assert resolution.reason is CoverUnavailableReason.NO_ANCHOR_FILING
+    assert resolution.reason is CoverUnavailableReason.ACCEPTED_AFTER_BOUNDARY
     assert sec.cover_urls == []
 
 

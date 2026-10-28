@@ -26,13 +26,18 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from investment_analysis_engine.config import settings
-from investment_analysis_engine.config.strategy_settings import load_strategy_settings
+from investment_analysis_engine.config.component_settings import load_component_settings
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache, ResolvedInputCacheProtocol
 from investment_analysis_engine.data.financial.facts import FinancialFactsProvider
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessPolicy
 from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.data.sec_edgar.settings import (
+    PROVIDER_SETTINGS_FOLDER,
+    SEC_EDGAR_ALIAS,
+    SecEdgarSettings,
+)
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_growth.settings import GrahamGrowthSettings
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
@@ -49,7 +54,8 @@ def build_sec_production_provider() -> ProductionFinancialFactsProvider:
             "Set SEC_USER_AGENT to a declared identity such as "
             '"Your Name your-email@example.com" and retry.'
         )
-    sec_edgar = SecEdgarFinancialFactsAdapter(user_agent=user_agent)
+    overrides = {ticker: str(cik) for ticker, cik in sec_edgar_settings().ticker_overrides.items()}
+    sec_edgar = SecEdgarFinancialFactsAdapter(user_agent=user_agent, ticker_overrides=overrides)
     return ProductionFinancialFactsProvider(sec_edgar=sec_edgar)
 
 
@@ -81,34 +87,41 @@ def _settings_folder() -> Path:
     return settings.config_dir
 
 
+def sec_edgar_settings() -> SecEdgarSettings:
+    """Return the SEC adapter's validated settings, loaded once per process."""
+    return load_component_settings(SEC_EDGAR_ALIAS, SecEdgarSettings, _settings_folder(), PROVIDER_SETTINGS_FOLDER)
+
+
 def momentum_settings() -> MomentumSettings:
     """Return Momentum's validated settings, loaded once per process."""
-    return load_strategy_settings(MOMENTUM.alias, MomentumSettings, _settings_folder())
+    return load_component_settings(MOMENTUM.alias, MomentumSettings, _settings_folder())
 
 
 def graham_growth_settings() -> GrahamGrowthSettings:
     """Return Graham Growth's validated settings, loaded once per process."""
-    return load_strategy_settings(GRAHAM_GROWTH.alias, GrahamGrowthSettings, _settings_folder())
+    return load_component_settings(GRAHAM_GROWTH.alias, GrahamGrowthSettings, _settings_folder())
 
 
-def load_all_strategy_settings() -> None:
-    """Load and validate the settings of every strategy that declares a settings model.
+def load_all_component_settings() -> None:
+    """Load and validate the settings of every strategy that declares a settings model, and of the SEC adapter.
 
     Called once at startup, so an invalid file stops every command with one message.
 
     Raises:
-        StrategySettingsError: If a shipped file is missing, a file is not valid TOML or the values break a rule.
+        ComponentSettingsError: If a shipped file is missing, a file is not valid TOML or the values break a rule.
     """
     folder = _settings_folder()
+    sec_edgar_settings()
     for descriptor in STRATEGIES:
         if descriptor.settings_type is not None:
-            load_strategy_settings(descriptor.alias, descriptor.settings_type, folder)
+            load_component_settings(descriptor.alias, descriptor.settings_type, folder)
 
 
 __all__ = [
     "build_graham_resolver",
     "build_sec_production_provider",
     "graham_growth_settings",
-    "load_all_strategy_settings",
+    "load_all_component_settings",
     "momentum_settings",
+    "sec_edgar_settings",
 ]

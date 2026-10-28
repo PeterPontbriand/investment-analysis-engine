@@ -31,6 +31,8 @@ either.
   `BRK.B` ([§5.6](#56-the-widened-sample), P17).
 - **Three covers needed a rule:** Disney's first report is not the cover (P19), BlackRock's and Microsoft's rows run
   symbol before title (P20), and Microsoft lists its symbol against its notes too (P21).
+- **A renamed ticker is shown on a real issuer:** Meta Platforms listed `FB` on its fiscal 2020 cover and lists `META` on
+  its latest ([§5.8](#58-a-renamed-ticker), P22).
 - **What it does not show:** coverage across the market. Seventy-one covers were read, and a title form not on one of
   them is not in the vocabulary ([§8](#8-not-yet-verified)).
 
@@ -259,6 +261,27 @@ refused) and 243 others, all `missing_fact` (the other notes of Microsoft and Bl
 - **Citigroup's "Dep Shs, represent 1/1,000th interest in a share of 6.250% Noncum Pref Stk, Ser II" (`C PR R`)** is a
   depositary share by its first words, and is refused as one.
 
+### 5.8 A renamed ticker
+
+Captured on 2026-10-27 for P22. The requested ticker is absent from the anchor cover; the registrant's latest 10-K cover
+lists it as the only share line.
+
+| Issuer | CIK | Accession (form, filed) | Symbol as filed | Title as filed | Role |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Meta Platforms (formerly Facebook) | 1326801 | `0001326801-21-000014` (10-K, 2021-01-28) | `FB` (Nasdaq) | Class A Common Stock, $0.000006 par value | Anchor cover for a run with an `as_of` in 2021 |
+| Meta Platforms | 1326801 | `0001628280-26-003942` (10-K, 2026-01-29) | `META` (Nasdaq) | Class A Common Stock, $0.000006 par value | Latest cover |
+
+- **Outcome for `META` with an `as_of` in 2021:** affirmed as a rename. Each cover lists one share line, the title is the
+  same, and only the symbol differs. The result records both accessions, both forms and both symbols. `FB` is not
+  listed on the latest cover, so `FB` is not a rename.
+- **Refusals** are shown on real anchor covers with a synthetic latest cover for the same CIK, because no real issuer
+  with those anchors has renamed its ticker: Alphabet's fiscal 2025 cover (CIK 1652044, `0001652044-26-000018`) lists two
+  share lines, and JPMorgan's (CIK 19617, `0001628280-26-008131`) lists a share and depositary shares; each stays
+  `not_listed` (`missing_fact`). Synthetic covers also show a latest cover with two share lines, with another symbol, as
+  another form, under another CIK, unreadable or with no registration table, and an anchor share line with no symbol.
+- **The fixtures** are `meta_fy2020.r1.htm` and `meta_fy2025.r1.htm`, the report table of each `R1.htm` (about 15 KB each),
+  listed with their checksums beside the others.
+
 ## 6. The title vocabulary
 
 The vocabulary is an explicit list. A designation is a title, lower-cased with its whitespace collapsed, optionally
@@ -384,3 +407,17 @@ committed fixtures are trimmed to the 13 covers that add a title form, a refusal
 and its cover `R2.htm` (64,929 bytes). Microsoft's cover was already captured. The committed fixtures add Microsoft's
 cover, Disney's cover and a trimmed copy of Disney's summary (its first three reports); BlackRock's was trimmed again,
 keeping the order of its rows.
+
+**The renamed-ticker capture and the ticker-identity check, 2026-10-27: 6 requests, all answered 200.** Under the budget of
+15 for both.
+
+| Pattern | Count |
+| :--- | ---: |
+| `www.sec.gov/files/company_tickers.json` (one ticker under one CIK; no ticker under more than one) | 1 |
+| `data.sec.gov/submissions/CIK0002115436.json` (ExxonMobil Holdings Corp: no 10-K) | 1 |
+| `data.sec.gov/submissions/CIK0001326801.json` and `CIK0001326801-submissions-001.json` (Meta Platforms, the second for the fiscal 2020 accession) | 2 |
+| `www.sec.gov/Archives/edgar/data/1326801/<accession, no dashes>/R1.htm` (fiscal 2020 and the latest 10-K) | 2 |
+
+The identity the project configures was sent on every request and is not recorded here. A pause of 0.5 s separated each
+request from the last. The responses are under the ignored `.tmp/` folder; the two covers are committed trimmed to their
+report table.

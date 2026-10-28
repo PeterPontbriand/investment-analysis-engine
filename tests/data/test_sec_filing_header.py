@@ -472,7 +472,7 @@ def test_a_filing_accepted_after_the_boundary_is_not_an_anchor_so_the_class_is_u
     adapter = sec.adapter()
     snapshot = adapter.create_analysis_snapshot(subject_id="JPM", as_of=datetime(2026, 2, 13, 21, 19, 59, tzinfo=UTC))
     resolution = adapter.resolve_as_filed_sic(snapshot)
-    assert resolution.reason is SicUnavailableReason.NO_ANCHOR_FILING
+    assert resolution.reason is SicUnavailableReason.ACCEPTED_AFTER_BOUNDARY
     assert sec.header_urls == []
 
 

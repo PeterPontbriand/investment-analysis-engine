@@ -14,6 +14,7 @@ from investment_analysis_engine.data.financial.cache import ResolvedInputCacheKe
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     INSTANT_SERIES_FIELDS,
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
@@ -699,6 +700,21 @@ class InputResolver:
         )
         try:
             facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
+        except FactsNotAvailableAsOf as exc:
+            reason = str(exc)
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        ResolutionOutcome.UNAVAILABLE,
+                        reason,
+                        now=self._clock(),
+                    )
+                ),
+            )
         except FinancialProviderError as exc:
             reason = f"Provider error: {exc}"
             return InputResolutionResult(
@@ -1290,7 +1306,7 @@ class InputResolver:
             provider_fact_id=stored.provider_fact_id,
         )
 
-    def _resolve_provider(
+    def _resolve_provider(  # noqa: PLR0911
         self,
         request: FinancialFactRequest,
         use_cache: bool,
@@ -1306,6 +1322,21 @@ class InputResolver:
         )
         try:
             facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
+        except FactsNotAvailableAsOf as exc:
+            reason = str(exc)
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=reason,
+                resolution_trace=trace.append(
+                    _event(
+                        field_name,
+                        ResolutionStage.PROVIDER,
+                        ResolutionOutcome.UNAVAILABLE,
+                        reason,
+                        now=self._clock(),
+                    )
+                ),
+            )
         except FinancialProviderError as exc:
             reason = f"Provider error: {exc}"
             return InputResolutionResult(

@@ -12,7 +12,12 @@ from typing import Any
 import pytest
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
+from investment_analysis_engine.data.financial.facts import (
+    FactsNotAvailableAsOf,
+    FinancialFactRequest,
+    FinancialField,
+    ProviderFact,
+)
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
@@ -155,10 +160,11 @@ def test_later_filing_does_not_leak_across_historical_as_of() -> None:
     adapter, _ = _adapter()
     as_of = datetime(2025, 12, 31, tzinfo=UTC)
 
-    with adapter.analysis_scope(subject_id="ASML", provider_id=SEC_PROVIDER_ID, as_of=as_of):
-        facts = adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW, as_of=as_of), effective_as_of=as_of)
-
-    assert facts == ()
+    with (
+        adapter.analysis_scope(subject_id="ASML", provider_id=SEC_PROVIDER_ID, as_of=as_of),
+        pytest.raises(FactsNotAvailableAsOf, match="filed its first annual report on 2026-02-25"),
+    ):
+        adapter.fetch_facts(_request(FinancialField.OPERATING_CASH_FLOW, as_of=as_of), effective_as_of=as_of)
 
 
 def test_ambiguous_accession_taxonomy_fails_closed() -> None:
