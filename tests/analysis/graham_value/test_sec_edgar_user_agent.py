@@ -35,7 +35,15 @@ class HeaderCaptureFetcher:
         if "/companyfacts/" in url:
             return {"facts": {"us-gaap": {"EarningsPerShareDiluted": {"units": {}}}}}
         if "/submissions/" in url:
-            return {"filings": {"recent": {"accessionNumber": [], "acceptanceDateTime": []}}}
+            return {
+                "filings": {
+                    "recent": {
+                        "accessionNumber": ["0000320193-20-000001"],
+                        "form": ["10-K"],
+                        "acceptanceDateTime": ["2020-02-01T12:00:00.000Z"],
+                    }
+                }
+            }
         msg = f"Unexpected URL: {url}"
         raise AssertionError(msg)
 

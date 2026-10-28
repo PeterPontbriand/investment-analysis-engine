@@ -16,6 +16,7 @@ from investment_analysis_engine.data.financial.cache import (
     ResolvedInputSeriesCacheQuery,
 )
 from investment_analysis_engine.data.financial.facts import (
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
@@ -40,7 +41,6 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
-from investment_analysis_engine.data.financial.resolver import FactsNotAvailableAsOf
 from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.quality import QualityContext, QualityDecision, QualityOutcome
 from investment_analysis_engine.data.quality_reporting import publish_quality

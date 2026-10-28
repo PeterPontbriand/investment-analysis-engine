@@ -157,7 +157,11 @@ class SecurityKind(StrEnum):
 
 
 class CoverUnavailableReason(StrEnum):
-    """Why no cover could be read for an anchor filing."""
+    """Why no cover could be read for an anchor filing.
+
+    ``NO_ANCHOR_FILING`` says SEC EDGAR has no CIK for the ticker. ``ACCEPTED_AFTER_BOUNDARY`` says the anchor filing,
+    or every annual filing of the registrant, was accepted after the boundary.
+    """
 
     PROVIDER_UNSUPPORTED = "provider_unsupported"
     NO_ANALYSIS_SCOPE = "no_analysis_scope"

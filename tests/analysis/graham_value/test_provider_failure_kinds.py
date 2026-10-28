@@ -16,6 +16,7 @@ import pytest
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import (
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
@@ -24,7 +25,6 @@ from investment_analysis_engine.data.financial.facts import (
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.financial.resolver import (
-    FactsNotAvailableAsOf,
     InputResolutionResult,
     InputResolver,
 )

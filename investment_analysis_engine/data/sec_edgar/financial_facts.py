@@ -19,6 +19,7 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     COVER_PAGE_BASIS,
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
@@ -36,7 +37,6 @@ from investment_analysis_engine.data.financial.provenance import (
     FinancialSubjectKind,
     PeriodKind,
 )
-from investment_analysis_engine.data.financial.resolver import FactsNotAvailableAsOf
 from investment_analysis_engine.data.http_json import JsonFetcher, fetch_json
 from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.sec_edgar.annual_series import annual_concepts, select_annual_period_facts
@@ -362,6 +362,7 @@ class SecEdgarFinancialFactsAdapter:
             forms=_submission_strings(submissions_raw, "form"),
             filing_dates=filing_dates,
             pages=pages,
+            company_facts=company_facts_raw,
             boundary=effective_as_of,
         )
         latest_accession = eligible_accessions[0] if eligible_accessions else None
@@ -716,6 +717,7 @@ class SecEdgarFinancialFactsAdapter:
                     forms=forms,
                     filing_dates=snapshot.filing_dates,
                     pages=snapshot.submission_pages,
+                    company_facts=snapshot.company_facts,
                     boundary=boundary,
                 )
                 if gap is not None:
@@ -911,6 +913,7 @@ class SecEdgarFinancialFactsAdapter:
                     forms=_submission_strings(submissions, "form"),
                     filing_dates=_submission_filing_dates(submissions),
                     pages=pages,
+                    company_facts=company_facts,
                     boundary=request.as_of or effective_as_of,
                 )
                 if gap is not None:
@@ -1092,33 +1095,49 @@ class SecEdgarFinancialFactsAdapter:
         forms: Mapping[str, str],
         filing_dates: Mapping[str, date],
         pages: tuple[SubmissionPage, ...],
+        company_facts: object,
         boundary: datetime,
     ) -> str | None:
         """Decide whether the registrant has no annual report, or none by the boundary.
 
-        Only the recent block of the submissions data is evidence, so nothing is decided when it lists no form at
-        all, when the registrant has extra submission pages (older filings that were not read) or when an annual
-        filing has no acceptance time.
+        The recent block of the submissions data is incomplete evidence, so it never decides alone that no annual report
+        exists: a registrant has filed none only when neither source shows one, the submissions data lists no annual
+        form and no Company Facts observation was reported on an annual form. With extra submission pages (older
+        filings that were not read) an absence is established only when the boundary is earlier than every filing the
+        data dates, the pages' ``filingFrom`` included: nothing was filed by then. Otherwise the older filings may hold
+        an annual report, and the existing paging finds the annual ones, so nothing is decided here. Nothing is decided
+        either when an annual filing has no acceptance time.
 
         Returns:
             ``None`` when an annual report was accepted at or before the boundary or the absence is not established;
-            otherwise the message for a registrant whose first annual report came after the boundary.
+            otherwise the message for a registrant that had filed no annual report by the boundary.
 
         Raises:
-            FinancialProviderError: Of kind ``no_data``, when the registrant has filed no annual report at all; the
-                message names the CIK, where it came from and the override that names another registrant.
+            FinancialProviderError: Of kind ``no_data``, when the registrant has filed no annual report at all, a
+                submissions listing with no filings included; the message names the CIK, where it came from and the
+                override that names another registrant.
         """
-        if pages or not forms:
-            return None
-        annual = [accession for accession, form in forms.items() if form in _COMPLETED_ANNUAL_FORMS]
         source = "an override" if ticker in self._ticker_overrides else "SEC's ticker file"
         override = f"If {ticker} stands for another registrant, set an override in {_OVERRIDE_FILE}: " + (
             _OVERRIDE_EXAMPLE.format(ticker=ticker, cik="<cik>")
         )
-        if not annual:
-            msg = (
-                f"The registrant CIK {cik} that {ticker} names (from {source}) has filed no annual report. {override}."
+        before = f"The registrant CIK {cik} that {ticker} names (from {source})"
+        if pages:
+            dated = [filing_dates.get(accession) or _accepted_date(acceptance, accession) for accession in forms]
+            if None in dated:
+                return None
+            earliest = min([*(item for item in dated if item is not None), *(page.filing_from for page in pages)])
+            if boundary.date() >= earliest:
+                return None
+            return (
+                f"{before} had filed nothing by the boundary {boundary.date().isoformat()}; its earliest filing is "
+                f"dated {earliest.isoformat()}. {override}."
             )
+        annual = [accession for accession, form in forms.items() if form in _COMPLETED_ANNUAL_FORMS]
+        if not annual:
+            if _reports_annual_form(company_facts):
+                return None
+            msg = f"{before} has filed no annual report. {override}."
             raise FinancialProviderError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID)
         accepted = [acceptance.get(accession) for accession in annual]
         if any(item is None or item <= boundary for item in accepted):
@@ -1129,8 +1148,8 @@ class SecEdgarFinancialFactsAdapter:
             if stamp is not None
         )
         return (
-            f"The registrant CIK {cik} that {ticker} names (from {source}) filed its first annual report on "
-            f"{first.isoformat()}, after the boundary {boundary.date().isoformat()}. {override}."
+            f"{before} filed its first annual report on {first.isoformat()}, "
+            f"after the boundary {boundary.date().isoformat()}. {override}."
         )
 
     def _fetch_company_document(self, url: str) -> object:
@@ -1164,6 +1183,32 @@ class SecEdgarFinancialFactsAdapter:
         if cik_to_tickers is None:
             return False
         return len(cik_to_tickers.get(cik, ())) == 1
+
+
+def _reports_annual_form(company_facts: object) -> bool:
+    """Return whether any Company Facts observation was reported on an annual form."""
+    facts = company_facts.get("facts") if isinstance(company_facts, Mapping) else None
+    if not isinstance(facts, Mapping):
+        return False
+    for concepts in facts.values():
+        if not isinstance(concepts, Mapping):
+            continue
+        for concept in concepts.values():
+            units = concept.get("units") if isinstance(concept, Mapping) else None
+            if not isinstance(units, Mapping):
+                continue
+            for observations in units.values():
+                if isinstance(observations, Sequence) and not isinstance(observations, (str, bytes)):
+                    for observation in observations:
+                        if isinstance(observation, Mapping) and observation.get("form") in _COMPLETED_ANNUAL_FORMS:
+                            return True
+    return False
+
+
+def _accepted_date(acceptance: Mapping[str, datetime], accession: str) -> date | None:
+    """Return the date a filing was accepted, or ``None`` when the data gives no acceptance time."""
+    stamp = acceptance.get(accession)
+    return None if stamp is None else stamp.date()
 
 
 def _require_mapping(payload: object, name: str) -> None:

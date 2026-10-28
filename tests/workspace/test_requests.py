@@ -257,7 +257,7 @@ def test_round_trip_and_conversion_do_not_read_settings(monkeypatch: pytest.Monk
         pytest.fail("Snapshot reconstruction must not read settings")
 
     monkeypatch.setattr(
-        "investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden_settings
+        "investment_analysis_engine.config.component_settings.load_component_settings", forbidden_settings
     )
     assert MomentumSelection.model_validate_json(momentum.model_dump_json()) == momentum
     assert GrahamNumberSelection.model_validate_json(graham.model_dump_json()) == graham
@@ -413,7 +413,7 @@ def test_all_request_variants_round_trip_without_settings(
         pytest.fail("Request replay must not read settings")
 
     monkeypatch.setattr(
-        "investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden_settings
+        "investment_analysis_engine.config.component_settings.load_component_settings", forbidden_settings
     )
     for selection in all_selections:
         request = AnalysisRequest(ticker=" cnr.to ", selection=selection)
@@ -459,7 +459,7 @@ def no_external_state(monkeypatch: pytest.MonkeyPatch) -> None:
         pytest.fail("Decoding a stored selection must not read mutable/external state")
 
     # Imports have already completed; these guards cover the encode and decode operations.
-    monkeypatch.setattr("investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden)
+    monkeypatch.setattr("investment_analysis_engine.config.component_settings.load_component_settings", forbidden)
     monkeypatch.setattr("builtins.open", forbidden)
     monkeypatch.setattr("pathlib.Path.open", forbidden)
     monkeypatch.setattr("socket.socket", forbidden)

@@ -14,13 +14,13 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import (
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
     ProviderFact,
 )
 from investment_analysis_engine.data.financial.resolution_trace import ResolutionOutcome
-from investment_analysis_engine.data.financial.resolver import FactsNotAvailableAsOf
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,

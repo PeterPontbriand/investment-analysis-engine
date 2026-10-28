@@ -8,6 +8,7 @@ import pytest
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.financial.facts import (
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
@@ -15,7 +16,6 @@ from investment_analysis_engine.data.financial.facts import (
     InstantSeriesRequest,
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
-from investment_analysis_engine.data.financial.resolver import FactsNotAvailableAsOf
 from investment_analysis_engine.data.sec_edgar.cover_listing import (
     CoverListingRequest,
     CoverReaderPolicy,
@@ -33,7 +33,7 @@ NOW = datetime(2026, 10, 27, 12, tzinfo=UTC)
 _OLD_CIK, _NEW_CIK = 34088, 2115436
 
 
-def _observation(year: int, value: float, cik: int) -> dict[str, Any]:
+def _observation(year: int, value: float, cik: int, form: str = "10-K") -> dict[str, Any]:
     return {
         "val": value,
         "start": f"{year}-01-01",
@@ -42,24 +42,24 @@ def _observation(year: int, value: float, cik: int) -> dict[str, Any]:
         "filed": f"{year + 1}-02-01",
         "fy": year,
         "fp": "FY",
-        "form": "10-K",
+        "form": form,
     }
 
 
-def _company_facts(cik: int) -> dict[str, Any]:
-    concept = {"units": {"USD": [_observation(year, 100.0 + year, cik) for year in (2022, 2023, 2024)]}}
+def _company_facts(cik: int, form: str = "10-K") -> dict[str, Any]:
+    concept = {"units": {"USD": [_observation(year, 100.0 + year, cik, form) for year in (2022, 2023, 2024)]}}
     return {"cik": cik, "entityName": f"Issuer {cik}", "facts": {"us-gaap": {_OCF: concept}}}
 
 
 _OCF = "NetCashProvidedByUsedInOperatingActivities"
 
 
-def _submissions(cik: int, forms: Mapping[str, str] | None = None, *, pages: bool = False) -> dict[str, Any]:
+def _submissions(cik: int, forms: Mapping[str, str] | None = None, *, pages: str | None = None) -> dict[str, Any]:
     """Return submissions with the 10-Ks of 2023 to 2025, or the given accession -> form listing."""
     listing = forms or {f"{cik:010d}-{year % 100:02d}-000001": "10-K" for year in (2023, 2024, 2025)}
     names = list(listing)
     stamps = [f"20{name.split('-')[1]}-02-01T12:00:00.000Z" for name in names]
-    files = [{"name": f"CIK{cik:010d}-submissions-001.json", "filingFrom": "2000-01-01", "filingTo": "2019-12-31"}]
+    files = [{"name": f"CIK{cik:010d}-submissions-001.json", "filingFrom": pages, "filingTo": "2019-12-31"}]
     return {
         "tickers": ["XOM"],
         "filings": {
@@ -83,7 +83,9 @@ class _Sec:
         rows: list[tuple[str, int]],
         submissions: Mapping[int, dict[str, Any]],
         covers: Mapping[str, str] | None = None,
+        facts_form: str = "10-K",
     ) -> None:
+        self.facts_form = facts_form
         self.rows = rows
         self.submissions = dict(submissions)
         self.covers = dict(covers or {})
@@ -101,7 +103,7 @@ class _Sec:
         cik = int(url.rsplit("CIK", 1)[1][:10])
         if cik not in self.submissions:
             raise FinancialProviderError("not found", kind=not_found, provider_id=provider_id)
-        return _company_facts(cik) if "/companyfacts/" in url else self.submissions[cik]
+        return _company_facts(cik, self.facts_form) if "/companyfacts/" in url else self.submissions[cik]
 
     def cover(
         self,
@@ -262,7 +264,8 @@ _NO_ANNUAL = {"a-26-1": "8-K", "b-26-2": "10-Q"}
 
 
 def test_a_registrant_that_has_filed_no_annual_report_fails_with_no_data_on_every_request_path() -> None:
-    sec = _Sec([("XOM", _NEW_CIK)], {_NEW_CIK: _submissions(_NEW_CIK, _NO_ANNUAL)})
+    """The shape of ExxonMobil Holdings Corp: quarterly and current reports in both sources, no annual report."""
+    sec = _Sec([("XOM", _NEW_CIK)], {_NEW_CIK: _submissions(_NEW_CIK, _NO_ANNUAL)}, facts_form="10-Q")
     series = InstantSeriesRequest("XOM", FinancialField.TOTAL_ASSETS, SEC_PROVIDER_ID, (NOW.date(),))
     for call in (
         lambda: sec.adapter().create_analysis_snapshot(subject_id="XOM", as_of=None),
@@ -281,11 +284,36 @@ def test_a_registrant_that_has_filed_no_annual_report_fails_with_no_data_on_ever
         assert "XOM = <cik>" in message
 
 
-def test_a_registrant_without_forms_or_with_older_pages_is_not_decided_here() -> None:
-    no_forms = _Sec([("XOM", _NEW_CIK)], {_NEW_CIK: {"filings": {"recent": {}}}})
-    assert no_forms.adapter().create_analysis_snapshot(subject_id="XOM", as_of=None).after_boundary_message is None
-    paged = _Sec([("XOM", _NEW_CIK)], {_NEW_CIK: _submissions(_NEW_CIK, _NO_ANNUAL, pages=True)})
-    assert paged.adapter().create_analysis_snapshot(subject_id="XOM", as_of=None).after_boundary_message is None
+def test_an_empty_recent_block_with_no_annual_facts_is_a_registrant_with_no_annual_report() -> None:
+    sec = _Sec([("XOM", _NEW_CIK)], {_NEW_CIK: {"filings": {"recent": {}}}}, facts_form="10-Q")
+    with pytest.raises(FinancialProviderError) as caught:
+        sec.adapter().create_analysis_snapshot(subject_id="XOM", as_of=None)
+    assert caught.value.kind is ProviderFailureKind.NO_DATA
+
+
+def test_an_empty_or_incomplete_recent_block_with_annual_facts_decides_nothing() -> None:
+    candidates: tuple[dict[str, Any], ...] = ({"filings": {"recent": {}}}, _submissions(_NEW_CIK, _NO_ANNUAL))
+    for submissions in candidates:
+        sec = _Sec([("XOM", _NEW_CIK)], {_NEW_CIK: submissions}, facts_form="10-K")
+        adapter = sec.adapter()
+        snapshot = adapter.create_analysis_snapshot(subject_id="XOM", as_of=None)
+        assert snapshot.after_boundary_message is None
+        with _scope(adapter):
+            # The existing behavior applies: no failure and no after-the-boundary signal.
+            assert adapter.fetch_facts(_ocf_request(), effective_as_of=NOW) == ()
+
+
+def test_a_registrant_with_extra_pages_is_decided_only_when_the_boundary_precedes_every_dated_filing() -> None:
+    sec = _Sec([("XOM", _NEW_CIK)], {_NEW_CIK: _submissions(_NEW_CIK, pages="2000-01-01")}, facts_form="10-Q")
+    # The boundary is inside the history the pages cover: older annual filings may exist, so nothing is decided.
+    snapshot = sec.adapter().create_analysis_snapshot(subject_id="XOM", as_of=datetime(2010, 1, 1, tzinfo=UTC))
+    assert snapshot.after_boundary_message is None
+    # The boundary precedes the page range and the recent block: nothing had been filed, and no page is read.
+    snapshot = sec.adapter().create_analysis_snapshot(subject_id="XOM", as_of=datetime(1999, 1, 1, tzinfo=UTC))
+    assert snapshot.after_boundary_message is not None
+    assert "had filed nothing by the boundary 1999-01-01" in snapshot.after_boundary_message
+    assert "earliest filing is dated 2000-01-01" in snapshot.after_boundary_message
+    assert not any("-submissions-001" in url for url in sec.urls)
 
 
 _BEFORE_FILINGS = datetime(2022, 6, 1, tzinfo=UTC)

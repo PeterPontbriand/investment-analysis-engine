@@ -376,7 +376,10 @@ def test_unreadable_observations_are_skipped() -> None:
 
 def test_a_registrant_with_no_annual_filing_fails_with_no_data_not_an_absence() -> None:
     with pytest.raises(FinancialProviderError) as caught:
-        _series(_assets(("2025-12-31", 300.0, _NEW)), forms={_NEW: "10-Q", _MID: "8-K", _OLD: "S-1"})
+        _series(
+            {"Assets": [("USD", [_row("2025-12-31", 300.0, _NEW, form="10-Q")])]},
+            forms={_NEW: "10-Q", _MID: "8-K", _OLD: "S-1"},
+        )
     assert caught.value.kind is ProviderFailureKind.NO_DATA
     assert "has filed no annual report" in str(caught.value)
 

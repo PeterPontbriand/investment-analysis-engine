@@ -12,9 +12,13 @@ from typing import Any
 import pytest
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
+from investment_analysis_engine.data.financial.facts import (
+    FactsNotAvailableAsOf,
+    FinancialFactRequest,
+    FinancialField,
+    ProviderFact,
+)
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
-from investment_analysis_engine.data.financial.resolver import FactsNotAvailableAsOf
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_ROOT

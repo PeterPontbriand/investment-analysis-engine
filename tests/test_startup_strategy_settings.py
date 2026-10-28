@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from investment_analysis_engine.config.strategy_settings import shipped_settings_path
-from investment_analysis_engine.core.settings_error import StrategySettingsError
+from investment_analysis_engine.config.component_settings import shipped_settings_path
+from investment_analysis_engine.core.settings_error import ComponentSettingsError
 from investment_analysis_engine.main import main
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 
@@ -28,8 +28,8 @@ def test_a_loader_error_prints_the_message_and_exits_with_code_2(
         patch("investment_analysis_engine.utils.logger_util.setup_global_logging"),
         patch("investment_analysis_engine.utils.logger_util.teardown_global_logging"),
         patch(
-            "investment_analysis_engine.cli_composition.load_strategy_settings",
-            side_effect=StrategySettingsError(_MESSAGE),
+            "investment_analysis_engine.cli_composition.load_component_settings",
+            side_effect=ComponentSettingsError(_MESSAGE),
         ),
         pytest.raises(SystemExit) as exit_info,
     ):

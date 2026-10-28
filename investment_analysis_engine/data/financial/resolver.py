@@ -14,6 +14,7 @@ from investment_analysis_engine.data.financial.cache import ResolvedInputCacheKe
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     INSTANT_SERIES_FIELDS,
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
@@ -48,16 +49,6 @@ from investment_analysis_engine.data.financial.resolution_trace import (
 from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.quality import QualityContext, QualityDecision, QualityOutcome
 from investment_analysis_engine.data.quality_reporting import publish_quality
-
-
-class FactsNotAvailableAsOf(Exception):  # noqa: N818 - a signal of unavailability, not an error
-    """A provider's answer that the subject has nothing public at the boundary, with the message to show.
-
-    It is not a ``FinancialProviderError``: the provider worked and the input is unavailable as of the boundary, so
-    no provider failure is recorded and no provider check runs. A resolver reports it as an unavailable input whose
-    reason is the message, and a reason code where its result carries one (``not_available_as_of``).
-    """
-
 
 # ---------------------------------------------------------------------------
 # InputResolutionResult

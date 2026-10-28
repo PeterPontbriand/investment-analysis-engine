@@ -10,14 +10,14 @@ import pytest
 from pydantic import ValidationError
 
 from investment_analysis_engine import cli_composition
-from investment_analysis_engine.config import settings, strategy_settings
-from investment_analysis_engine.config.strategy_settings import (
-    clear_strategy_settings_cache,
-    load_strategy_settings,
+from investment_analysis_engine.config import component_settings, settings
+from investment_analysis_engine.config.component_settings import (
+    clear_component_settings_cache,
+    load_component_settings,
     shipped_settings_path,
     user_settings_path,
 )
-from investment_analysis_engine.core.settings_error import StrategySettingsError
+from investment_analysis_engine.core.settings_error import ComponentSettingsError
 from investment_analysis_engine.data.sec_edgar.settings import (
     PROVIDER_SETTINGS_FOLDER,
     SEC_EDGAR_ALIAS,
@@ -27,13 +27,13 @@ from investment_analysis_engine.data.sec_edgar.settings import (
 
 @pytest.fixture(autouse=True)
 def _isolated_cache() -> Iterator[None]:
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
     yield
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
 
 
 def _load(folder: Path) -> SecEdgarSettings:
-    return load_strategy_settings(SEC_EDGAR_ALIAS, SecEdgarSettings, folder, PROVIDER_SETTINGS_FOLDER)
+    return load_component_settings(SEC_EDGAR_ALIAS, SecEdgarSettings, folder, PROVIDER_SETTINGS_FOLDER)
 
 
 def _write_user(folder: Path, text: str) -> Path:
@@ -65,10 +65,10 @@ def test_a_user_file_overrides_the_shipped_file_per_key(tmp_path: Path, monkeypa
     shipped = tmp_path / "shipped" / "settings.toml"
     shipped.parent.mkdir()
     shipped.write_text("[ticker_overrides]\nXOM = 1\n", encoding="utf-8")
-    monkeypatch.setattr(strategy_settings, "shipped_settings_path", lambda _model: shipped)
+    monkeypatch.setattr(component_settings, "shipped_settings_path", lambda _model: shipped)
     assert _load(tmp_path).ticker_overrides == {"XOM": "0000000001"}
 
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
     _write_user(tmp_path, "[ticker_overrides]\nXOM = 34088\n")
     assert _load(tmp_path).ticker_overrides == {"XOM": "0000034088"}
 
@@ -80,7 +80,7 @@ def test_a_user_file_overrides_the_shipped_file_per_key(tmp_path: Path, monkeypa
 def test_an_invalid_cik_is_refused_naming_the_file_and_the_key_but_not_the_value(tmp_path: Path, text: str) -> None:
     path = _write_user(tmp_path, text)
 
-    with pytest.raises(StrategySettingsError) as error:
+    with pytest.raises(ComponentSettingsError) as error:
         _load(tmp_path)
 
     assert str(error.value).startswith(f"Settings file {path} is invalid: ticker_overrides")
@@ -92,7 +92,7 @@ def test_a_repeated_ticker_and_an_unknown_key_are_refused(tmp_path: Path) -> Non
     with pytest.raises(ValidationError, match="more than once"):
         SecEdgarSettings.model_validate({"ticker_overrides": {"xom": 1, "XOM": 2}})
     _write_user(tmp_path, "unknown = 1\n")
-    with pytest.raises(StrategySettingsError, match="unknown"):
+    with pytest.raises(ComponentSettingsError, match="unknown"):
         _load(tmp_path)
 
 
@@ -123,11 +123,11 @@ def test_loading_every_settings_file_at_startup_includes_the_sec_file(
     _write_user(tmp_path, "[ticker_overrides]\nXOM = 0\n")
     monkeypatch.setattr(cli_composition, "_settings_folder", lambda: tmp_path)
 
-    with pytest.raises(StrategySettingsError, match="sec_edgar.toml"):
-        cli_composition.load_all_strategy_settings()
+    with pytest.raises(ComponentSettingsError, match="sec_edgar.toml"):
+        cli_composition.load_all_component_settings()
 
 
-def test_composition_builds_the_adapter_with_the_identity_alone_when_the_table_is_empty(
+def test_composition_passes_an_empty_override_table_when_the_user_has_none(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     given: dict[str, Any] = {}
@@ -143,4 +143,4 @@ def test_composition_builds_the_adapter_with_the_identity_alone_when_the_table_i
 
     cli_composition.build_sec_production_provider()
 
-    assert given == {"user_agent": "Fixture Tester fixture@example.com"}
+    assert given == {"user_agent": "Fixture Tester fixture@example.com", "ticker_overrides": {}}

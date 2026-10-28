@@ -9,8 +9,10 @@ class SettingsEnvironmentError(ValueError):
     """
 
 
-class StrategySettingsError(ValueError):
-    """Raised when a strategy's settings file is missing, is not valid TOML or does not satisfy its settings model.
+class ComponentSettingsError(ValueError):
+    """Raised when a component's settings file is missing, is not valid TOML or does not satisfy its settings model.
+
+    A component is a strategy or a provider.
 
     The message is one sentence that names the file relative to the project root and, when a key is at fault, the
     key and the rule it broke, never the value, so a command-line entry point can print it as is.

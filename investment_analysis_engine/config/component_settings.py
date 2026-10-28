@@ -1,10 +1,10 @@
-"""The generic loader for a strategy's settings.
+"""The generic loader for the settings of a component: a strategy or a provider.
 
-A strategy's shipped defaults live in ``settings.toml`` beside the module that defines its settings model. A user may
-override any subset of the keys in ``<settings folder>/strategies/<alias>.toml``. This module merges the two per key
-and validates the result into the settings model the caller names; it knows no strategy. A strategy's settings are
-read once per process. A provider's settings follow the same rule with the user's file in
-``<settings folder>/providers/<alias>.toml``.
+A component's shipped defaults live in ``settings.toml`` beside the module that defines its settings model. A user may
+override any subset of the keys in ``<settings folder>/strategies/<alias>.toml`` for a strategy, or in
+``<settings folder>/providers/<alias>.toml`` for a provider. This module merges the two per key and validates the result
+into the settings model the caller names; it knows no strategy and no provider. A component's settings are read once
+per process.
 """
 
 import sys
@@ -14,7 +14,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from investment_analysis_engine.core.settings_error import StrategySettingsError
+from investment_analysis_engine.core.settings_error import ComponentSettingsError
 
 _SHIPPED_FILE_NAME = "settings.toml"
 _USER_FOLDER_NAME = "strategies"
@@ -22,7 +22,7 @@ _USER_FOLDER_NAME = "strategies"
 _cache: dict[tuple[str, str, type[BaseModel], Path], BaseModel] = {}
 
 
-def clear_strategy_settings_cache() -> None:
+def clear_component_settings_cache() -> None:
     """Forget every loaded settings object, so the next load reads the files again; tests use it to isolate."""
     _cache.clear()
 
@@ -40,22 +40,23 @@ def user_settings_path(alias: str, settings_folder: Path, user_folder: str = _US
     return settings_folder / user_folder / f"{alias}.toml"
 
 
-def load_strategy_settings[T: BaseModel](
+def load_component_settings[T: BaseModel](
     alias: str, model: type[T], settings_folder: Path, user_folder: str = _USER_FOLDER_NAME
 ) -> T:
     """Load the shipped defaults of ``model``, apply the user's keys over them and validate the result.
 
     Args:
-        alias: The strategy's alias, which names the user's file.
-        model: The strategy's settings model; its shipped defaults are ``settings.toml`` beside its module.
-        settings_folder: The user's settings folder, which may hold ``strategies/<alias>.toml``.
-        user_folder: The folder of the settings folder that holds the user's file; ``providers`` for a provider.
+        alias: The component's alias, which names the user's file.
+        model: The component's settings model; its shipped defaults are ``settings.toml`` beside its module.
+        settings_folder: The user's settings folder, which may hold ``<user_folder>/<alias>.toml``.
+        user_folder: The folder of the settings folder that holds the user's file: ``strategies`` (the default) for a
+            strategy, ``providers`` for a provider.
 
     Returns:
         The validated settings, the same object on every call with the same arguments.
 
     Raises:
-        StrategySettingsError: If the shipped file is missing, either file is not valid TOML, or the merged
+        ComponentSettingsError: If the shipped file is missing, either file is not valid TOML, or the merged
             values do not satisfy ``model``. The message names, as a full path, the file the offending key came
             from and, when a key is at fault, the key and the rule it broke; it never includes the value. A
             missing user file is normal.
@@ -70,13 +71,13 @@ def load_strategy_settings[T: BaseModel](
     user_path = user_settings_path(alias, settings_folder, user_folder)
     shipped = _read(shipped_path)
     if shipped is None:
-        raise StrategySettingsError(f"Settings file {shipped_path} is missing.")
+        raise ComponentSettingsError(f"Settings file {shipped_path} is missing.")
     user = _read(user_path) or {}
     origins = {name: (user_path if name in user else shipped_path) for name in shipped | user}
     try:
         loaded = model.model_validate(shipped | user)
     except ValidationError as error:
-        raise StrategySettingsError(_describe(error, origins, user_path if user else shipped_path)) from None
+        raise ComponentSettingsError(_describe(error, origins, user_path if user else shipped_path)) from None
     _cache[key] = loaded
     return loaded
 
@@ -89,7 +90,7 @@ def _read(path: Path) -> dict[str, Any] | None:
     except FileNotFoundError:
         return None
     except tomllib.TOMLDecodeError as error:
-        raise StrategySettingsError(f"Settings file {path} is not valid TOML: {str(error).rstrip('.')}.") from None
+        raise ComponentSettingsError(f"Settings file {path} is not valid TOML: {str(error).rstrip('.')}.") from None
 
 
 def _describe(error: ValidationError, origins: dict[str, Path], whole_model_file: Path) -> str:
