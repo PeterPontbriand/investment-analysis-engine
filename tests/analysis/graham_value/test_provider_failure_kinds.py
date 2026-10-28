@@ -16,6 +16,7 @@ import pytest
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import (
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
@@ -23,7 +24,10 @@ from investment_analysis_engine.data.financial.facts import (
     ProviderFact,
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
-from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
+from investment_analysis_engine.data.financial.resolver import (
+    InputResolutionResult,
+    InputResolver,
+)
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
@@ -295,3 +299,15 @@ def test_the_yahoo_clock_guard_is_a_defect_that_propagates_through_the_resolver(
 
     with pytest.raises(ValueError, match="naive datetime"):
         resolver.resolve(_make_request(), use_cache=False)
+
+
+def test_a_not_available_as_of_signal_is_an_unavailable_input_not_a_provider_failure() -> None:
+    signal = FactsNotAvailableAsOf("first annual report on 2020-02-01; set an override")
+
+    for result in (
+        _resolver({FinancialField.EPS: signal}).resolve(_make_request(), use_cache=False),
+        _resolver({FinancialField.EPS: signal}).resolve_three_year_average_eps(_c2c_request(), use_cache=False),
+    ):
+        assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+        assert result.provider_failure is None
+        assert result.reason == "first annual report on 2020-02-01; set an override"

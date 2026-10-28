@@ -11,15 +11,15 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel, ConfigDict
 
-from investment_analysis_engine.config import strategy_settings
-from investment_analysis_engine.config.strategy_settings import (
-    clear_strategy_settings_cache,
-    load_strategy_settings,
+from investment_analysis_engine.config import component_settings
+from investment_analysis_engine.config.component_settings import (
+    clear_component_settings_cache,
+    load_component_settings,
     shipped_settings_path,
     user_settings_path,
 )
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
-from investment_analysis_engine.core.settings_error import StrategySettingsError
+from investment_analysis_engine.core.settings_error import ComponentSettingsError
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy
 from investment_analysis_engine.strategies.graham_growth.settings import GrahamGrowthSettings
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
@@ -31,9 +31,9 @@ STRATEGY_PACKAGES = PACKAGE_ROOT / "strategies"
 @pytest.fixture(autouse=True)
 def _isolated_cache() -> Iterator[None]:
     """Start and end every test with nothing cached."""
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
     yield
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
 
 
 def settings_gaps(
@@ -50,8 +50,8 @@ def settings_gaps(
         if model is None:
             continue
         try:
-            load_strategy_settings(item.alias, model, settings_folder)
-        except StrategySettingsError as error:
+            load_component_settings(item.alias, model, settings_folder)
+        except ComponentSettingsError as error:
             gaps.append(f"{item.alias}: {error}")
         if model.model_config.get("frozen") is not True:
             gaps.append(f"{model.__name__} is not frozen")
@@ -126,7 +126,7 @@ def test_a_model_with_a_default_that_is_not_frozen_or_closed_is_a_gap(
 
     shipped = tmp_path / "settings.toml"
     shipped.write_text("", encoding="utf-8")
-    monkeypatch.setattr(strategy_settings, "shipped_settings_path", lambda _model: shipped)
+    monkeypatch.setattr(component_settings, "shipped_settings_path", lambda _model: shipped)
 
     assert settings_gaps((replace(MOMENTUM, settings_type=Loose),), tmp_path / "user", tmp_path) == [
         "Loose is not frozen",
@@ -139,7 +139,7 @@ def test_graham_growth_settings_build_the_policy_with_the_files_values(tmp_path:
     with shipped_settings_path(GrahamGrowthSettings).open("rb") as handle:
         values = tomllib.load(handle)
 
-    policy = load_strategy_settings("graham-growth", GrahamGrowthSettings, tmp_path).to_policy()
+    policy = load_component_settings("graham-growth", GrahamGrowthSettings, tmp_path).to_policy()
 
     assert policy == GrahamGrowthCalculationPolicy(
         base_pe=values["base_pe"],
@@ -149,7 +149,7 @@ def test_graham_growth_settings_build_the_policy_with_the_files_values(tmp_path:
 
 
 def test_the_shipped_momentum_file_holds_the_documented_values(tmp_path: Path) -> None:
-    assert load_strategy_settings("momentum", MomentumSettings, tmp_path) == MomentumSettings(
+    assert load_component_settings("momentum", MomentumSettings, tmp_path) == MomentumSettings(
         short_window=50, long_window=200, rsi_period=14, history_start_date=date(2021, 1, 1)
     )
 
@@ -168,7 +168,7 @@ def test_each_graham_growth_constant_has_its_own_rule(tmp_path: Path, key: str, 
     user.parent.mkdir(parents=True)
     user.write_text("".join(f"{name} = {item}\n" for name, item in values.items()), encoding="utf-8")
 
-    with pytest.raises(StrategySettingsError) as error:
-        load_strategy_settings("graham-growth", GrahamGrowthSettings, tmp_path)
+    with pytest.raises(ComponentSettingsError) as error:
+        load_component_settings("graham-growth", GrahamGrowthSettings, tmp_path)
 
     assert str(error.value) == f"Settings file {user} is invalid: {key}: {rule}."

@@ -284,6 +284,15 @@ class FinancialProviderError(Exception):
         return provider_reason_code(self.kind)
 
 
+class FactsNotAvailableAsOf(Exception):  # noqa: N818 - a signal of unavailability, not an error
+    """A provider's answer that the subject has nothing public at the boundary, with the message to show.
+
+    It is not a ``FinancialProviderError``: the provider worked and the input is unavailable as of the boundary, so
+    no provider failure is recorded and no provider check runs. A resolver reports it as an unavailable input whose
+    reason is the message, and a reason code where its result carries one (``not_available_as_of``).
+    """
+
+
 # ---------------------------------------------------------------------------
 # FinancialFactRequest
 # ---------------------------------------------------------------------------
@@ -403,7 +412,11 @@ class InstantSeriesRequest:
 
 
 class InstantAbsenceReason(StrEnum):
-    """Why an instant series has no value at a requested date."""
+    """Why an instant series has no value at a requested date.
+
+    ``AFTER_BOUNDARY`` also covers a registrant whose annual reports all came after the boundary. ``NO_ANCHOR_FILING``
+    says the SEC adapter has no CIK for the ticker, or that a selection found no annual filing accepted by the boundary.
+    """
 
     NOT_TAGGED = "not_tagged"
     OTHER_CONCEPT = "other_concept"
@@ -703,6 +716,9 @@ class FinancialFactsProvider(Protocol):
 
         Raises:
             FinancialProviderError: On an operational provider failure.
+            FactsNotAvailableAsOf: When the subject has nothing public at the boundary (for the SEC adapter, a
+                registrant whose first annual report came after it). It is not a failure: the resolver reports an
+                unavailable input with the exception's message and records no provider failure.
         """
         ...
 

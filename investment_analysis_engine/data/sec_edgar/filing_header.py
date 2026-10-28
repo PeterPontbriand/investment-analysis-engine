@@ -21,7 +21,11 @@ _ACCESSION = re.compile(r"[0-9]{10}-[0-9]{2}-[0-9]{6}")
 
 
 class SicUnavailableReason(StrEnum):
-    """Why an as-filed SIC code could not be established for an anchor filing."""
+    """Why an as-filed SIC code could not be established for an anchor filing.
+
+    ``NO_ANCHOR_FILING`` says SEC EDGAR has no CIK for the ticker. ``ACCEPTED_AFTER_BOUNDARY`` says the anchor filing,
+    or every annual filing of the registrant, was accepted after the boundary.
+    """
 
     NO_ANCHOR_FILING = "no_anchor_filing"
     HEADER_MISSING = "header_missing"

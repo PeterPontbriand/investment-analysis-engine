@@ -247,8 +247,8 @@ def test_project_run_never_calls_the_live_analyzer_or_settings() -> None:
     run = _build_run()
     with (
         patch.object(MomentumAnalyzer, "run_analysis", forbidden),
-        patch("investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden),
-        patch("investment_analysis_engine.cli_composition.load_strategy_settings", forbidden),
+        patch("investment_analysis_engine.config.component_settings.load_component_settings", forbidden),
+        patch("investment_analysis_engine.cli_composition.load_component_settings", forbidden),
     ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
@@ -568,7 +568,7 @@ def test_growth_project_run_renders_the_stored_result_not_a_recomputed_one() -> 
 def test_growth_project_run_uses_the_stored_assumptions_not_current_settings() -> None:
     """Replay must never read the live command's current growth assumptions.
 
-    Patches `load_strategy_settings` (the source `graham_growth_settings()` reads) to raise;
+    Patches `load_component_settings` (the source `graham_growth_settings()` reads) to raise;
     replay must still succeed and must show the *stored* policy
     (base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4), never a live default.
     """
@@ -578,8 +578,8 @@ def test_growth_project_run_uses_the_stored_assumptions_not_current_settings() -
         raise AssertionError("Replay must not read current Graham Growth assumption settings.")
 
     with (
-        patch("investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden),
-        patch("investment_analysis_engine.cli_composition.load_strategy_settings", forbidden),
+        patch("investment_analysis_engine.config.component_settings.load_component_settings", forbidden),
+        patch("investment_analysis_engine.cli_composition.load_component_settings", forbidden),
     ):
         rendered = project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
@@ -764,8 +764,8 @@ def test_growth_project_run_never_calls_the_live_analyzer_or_settings() -> None:
         patch(
             "investment_analysis_engine.strategies.graham_growth.analyzer.GrahamGrowthAnalyzer.run_analysis", forbidden
         ),
-        patch("investment_analysis_engine.config.strategy_settings.load_strategy_settings", forbidden),
-        patch("investment_analysis_engine.cli_composition.load_strategy_settings", forbidden),
+        patch("investment_analysis_engine.config.component_settings.load_component_settings", forbidden),
+        patch("investment_analysis_engine.cli_composition.load_component_settings", forbidden),
     ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY

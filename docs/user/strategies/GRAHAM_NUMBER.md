@@ -140,7 +140,7 @@ market-price comparison is unavailable.
 
 For market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
 
-Point-in-time (`--as-of`) analysis is also shared across both Graham strategies — see the [overview's Point-in-time analysis section](GRAHAM.md#point-in-time-analysis).
+Point-in-time (`--as-of`) analysis is also shared across both Graham strategies — see the [overview's Point-in-time analysis section](GRAHAM.md#point-in-time-analysis). A ticker names the registrant it maps to today: with `--as-of`, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.
 
 ## Why another Graham Number calculator may disagree
 

@@ -133,6 +133,7 @@ Inside them:
 
 - `.env` in the settings folder holds your settings and the SEC identity (see below);
 - `strategies/<name>.toml` in the settings folder holds your own values for an analysis method (see [Strategy settings files](#strategy-settings-files));
+- `providers/sec_edgar.toml` in the settings folder holds your reviewed ticker-to-registrant overrides for SEC data (see [Provider settings files](#provider-settings-files));
 - `investment-analysis-engine.sqlite3` in the data folder is the database (see [Local Database Operations](DATABASE.md));
 - `app.log` and a `trajectories` folder in the log folder are the application log and the run telemetry.
 
@@ -166,6 +167,17 @@ Some analysis methods have tunable values: Momentum (the two moving-average wind
 Changes take effect at the next command you run. A watchlist selection keeps the windows and RSI period it was created with, so editing those values changes only selections created afterwards; the first day of the price history applies whenever an analysis or refresh runs. Graham Growth's constants apply when an analysis runs, and each saved run records the constants it used.
 
 Every file is checked at startup, including by `ian --help`. A missing file of your own is normal. If a file is not valid TOML or holds an unknown key or an invalid value, every command stops with exit code 2 and prints one message that gives the full path of the file the key came from, names the key and says what is wrong. The message never repeats the value. Correct the key it names, or delete your file to return to the shipped defaults.
+
+### Provider settings files
+
+SEC EDGAR maps a ticker to a registrant (a CIK) through SEC's own ticker file, and a ticker that SEC has moved to a new registrant, or lists under two, cannot be analyzed from it. To name the registrant yourself, create `providers/sec_edgar.toml` in your settings folder:
+
+```toml
+[ticker_overrides]
+XOM = 34088
+```
+
+Each entry is a ticker and a CIK of up to ten digits, and wins over SEC's file. The shipped table is empty. The file is checked at startup like the strategy files, with the same message for an invalid key or value. [Provider debugging](../project/PROVIDER_DEBUGGING.md#which-registrant-a-ticker-names) lists the messages that point to an override.
 
 ### Optional: local AI
 

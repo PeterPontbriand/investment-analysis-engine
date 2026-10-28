@@ -10,7 +10,7 @@ from typing import Annotated
 
 import typer
 
-from investment_analysis_engine.cli_composition import load_all_strategy_settings
+from investment_analysis_engine.cli_composition import load_all_component_settings
 from investment_analysis_engine.cli_database import app as database_app
 from investment_analysis_engine.cli_health import build_provider_clients
 from investment_analysis_engine.cli_health import register as register_health_command
@@ -43,7 +43,7 @@ from investment_analysis_engine.telemetry.run_context import (
     set_current_run_context,
 )
 
-load_all_strategy_settings()
+load_all_component_settings()
 
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False

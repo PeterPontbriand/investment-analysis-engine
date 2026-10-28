@@ -11,7 +11,7 @@ import typer
 from investment_analysis_engine.cli_support import _parse_as_of, _presentation_mode
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import settings
-from investment_analysis_engine.config.strategy_settings import load_strategy_settings
+from investment_analysis_engine.config.component_settings import load_component_settings
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.workspace.capture import ExecutionCapture
@@ -31,7 +31,7 @@ WATCHLIST_VALUE: Final = 3.0
 
 def specimen_settings() -> SpecimenSettings:
     """Return the specimen's validated settings, loaded once per process."""
-    return load_strategy_settings(ALIAS, SpecimenSettings, settings.config_dir)
+    return load_component_settings(ALIAS, SpecimenSettings, settings.config_dir)
 
 
 def _analyzer() -> SpecimenAnalyzer:

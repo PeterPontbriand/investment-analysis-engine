@@ -14,6 +14,7 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import (
+    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
@@ -124,3 +125,21 @@ def test_a_skipped_diluted_share_failure_leaves_a_trace_event_and_no_failure(kin
 def test_an_exception_that_is_not_a_provider_failure_propagates(defect: BaseException) -> None:
     with pytest.raises(type(defect)):
         _resolve(_FailingField(FinancialField.OPERATING_CASH_FLOW, defect), FCFClassificationBasis.TOTAL_FCF)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [FinancialField.OPERATING_CASH_FLOW, FinancialField.CAPITAL_EXPENDITURES, FinancialField.EPS],
+)
+def test_a_not_available_as_of_signal_is_an_unavailable_input_with_its_reason_code_and_no_failure(
+    field: FinancialField,
+) -> None:
+    message = "first annual report on 2020-02-01; set an override"
+
+    result = _resolve(_FailingField(field, FactsNotAvailableAsOf(message)), FCFClassificationBasis.TOTAL_FCF)
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.NOT_AVAILABLE_AS_OF
+    assert result.reason is not None
+    assert message in result.reason
+    assert result.provider_failure is None

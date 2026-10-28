@@ -31,7 +31,16 @@ class _Fetcher:
         self.documents: dict[str, object] = {
             "company_tickers.json": _TICKER_ROWS,
             "/companyfacts/": _COMPANY_FACTS,
-            "/submissions/": {"filings": {"recent": {}}},
+            "/submissions/": {
+                "filings": {
+                    "recent": {
+                        "accessionNumber": ["0000320193-20-000001"],
+                        "form": ["10-K"],
+                        "filingDate": ["2020-02-01"],
+                        "acceptanceDateTime": ["2020-02-01T12:00:00.000Z"],
+                    }
+                }
+            },
         } | overrides
         self.calls: list[tuple[str, ProviderFailureKind, str]] = []
 

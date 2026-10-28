@@ -265,6 +265,27 @@ The check reads the ticker map and one company-facts document for the probe tick
 | `unexpected response`: `company facts document has no 'facts' mapping` or no `'us-gaap'` mapping | The company-facts document changed. Read how the same module parses `facts`. |
 | `unreachable`: `timed out after 20 s` | The network, or SEC is slow; retry once. |
 
+#### Which registrant a ticker names
+
+A ticker names the registrant SEC's `company_tickers.json` maps it to today, and a run with `--as-of` studies that registrant's evidence as filed or priced at the boundary ([Architecture](ARCHITECTURE.md#which-registrant-a-ticker-names)). The messages below follow from that, and each names the CIK and the override that fixes it:
+
+| Message | What it means | What to do |
+| :--- | :--- | :--- |
+| `SEC's ticker file lists XOM under more than one CIK (...)` | The file lists the ticker twice with different CIKs; `no_data`. The order of the file never decides. | Decide which registrant the ticker stands for and write an override. |
+| `The registrant CIK ... that XOM names (...) has filed no annual report.` | Neither source shows an annual report: the submissions data (the recent block, which may be empty) lists no 10-K, 20-F or 40-F form or amendment, and no Company Facts observation was reported on one. `no_data`, a provider failure that also starts the automatic provider check. A ticker moved to a new holding company shows this. An empty or incomplete recent block alone decides nothing, because the adapter treats that block as possibly incomplete; when the Company Facts show an annual form, the existing behavior applies. | If the ticker stands for another registrant, write an override. |
+| `... filed its first annual report on 2020-02-01, after the boundary 2019-06-01.` | The registrant has annual reports, none accepted by the `--as-of` boundary. Not a failure: the input is unavailable (`not_available_as_of`) and no provider check runs. | Choose a later boundary, or write an override if the ticker stands for another registrant. |
+| `... had filed nothing by the boundary 1999-01-01; its earliest filing is dated 2000-01-01.` | The registrant has older submission pages, and the boundary precedes every dated filing, the pages' `filingFrom` included, so nothing had been filed. Same outcome as the row above (unavailable, `not_available_as_of`) without reading a page. For any other boundary the older filings exist, the annual ones among them are found by the existing paging, and nothing is decided here. | Choose a later boundary, or write an override. |
+| `The override XOM = 99999 in providers/sec_edgar.toml ... names a CIK ... for which SEC has no company data.` | The override names a CIK SEC does not know; `no_data`. | Correct the CIK. |
+
+To write an override, create `providers/sec_edgar.toml` in the settings folder ([Installation](../user/INSTALLATION.md#provider-settings-files)) with a table of ticker = CIK:
+
+```toml
+[ticker_overrides]
+XOM = 34088
+```
+
+The ticker may be written in any case; the CIK is a number or a string of digits (one to ten). An override wins over SEC's file. The facts it resolves carry the note `cik_source=override`, so a saved run shows that the mapping was reviewed rather than read from the file. The shipped file holds the table empty. Raw responses for a check go under `.tmp/`, never in the repository.
+
 ## 4. The application log
 
 Every command writes its log records to one file and prints none of them. A record from one of the project's modules

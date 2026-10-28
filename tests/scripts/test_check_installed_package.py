@@ -38,3 +38,13 @@ def test_the_expected_package_data_lists_the_files_the_project_file_names() -> N
     assert f"{PACKAGE_NAME}/evaluation/fixtures/sec_edgar/step_2_5a_d0/SHA256SUMS" in expected
     assert f"{PACKAGE_NAME}/data/repositories/migration_scripts/env.py" in expected
     assert any(name.endswith("versions/0001_persistence.py") for name in expected)
+
+
+def test_every_settings_file_shipped_in_the_package_matches_a_package_data_pattern() -> None:
+    expected = set(expected_package_data(REPOSITORY_ROOT))
+    shipped = {
+        path.relative_to(REPOSITORY_ROOT).as_posix() for path in (REPOSITORY_ROOT / PACKAGE_NAME).rglob("settings.toml")
+    }
+
+    assert f"{PACKAGE_NAME}/data/sec_edgar/settings.toml" in expected
+    assert shipped <= expected

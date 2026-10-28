@@ -2,7 +2,7 @@ import io
 import logging
 import sys
 
-from investment_analysis_engine.core.settings_error import SettingsEnvironmentError, StrategySettingsError
+from investment_analysis_engine.core.settings_error import ComponentSettingsError, SettingsEnvironmentError
 
 
 def use_utf8_output(*streams: object) -> None:
@@ -57,9 +57,9 @@ def main() -> None:
 
     try:
         from investment_analysis_engine.cli import app  # noqa: PLC0415
-    except StrategySettingsError as error:
-        # A strategy's settings file is read when the commands are defined, so a bad file stops every command
-        # here, with the engine-settings handling above: one message on standard error and no traceback.
+    except ComponentSettingsError as error:
+        # A strategy's or provider's settings file is read when the commands are defined, so a bad file stops every
+        # command here, with the engine-settings handling above: one message on standard error and no traceback.
         print(error, file=sys.stderr)
         teardown_global_logging()
         sys.exit(2)

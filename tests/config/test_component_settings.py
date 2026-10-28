@@ -9,14 +9,14 @@ from pathlib import Path
 
 import pytest
 
-from investment_analysis_engine.config import strategy_settings
-from investment_analysis_engine.config.strategy_settings import (
-    clear_strategy_settings_cache,
-    load_strategy_settings,
+from investment_analysis_engine.config import component_settings
+from investment_analysis_engine.config.component_settings import (
+    clear_component_settings_cache,
+    load_component_settings,
     shipped_settings_path,
     user_settings_path,
 )
-from investment_analysis_engine.core.settings_error import StrategySettingsError
+from investment_analysis_engine.core.settings_error import ComponentSettingsError
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 
 _SHIPPED_DEFAULTS = MomentumSettings(
@@ -33,9 +33,9 @@ history_start_date = "2021-01-01"
 @pytest.fixture(autouse=True)
 def _isolated_cache() -> Iterator[None]:
     """Start and end every test with nothing cached."""
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
     yield
-    clear_strategy_settings_cache()
+    clear_component_settings_cache()
 
 
 def _user_file(folder: Path) -> Path:
@@ -51,8 +51,8 @@ def _write_user(folder: Path, text: str) -> Path:
 
 def _message(folder: Path) -> str:
     """Return the message of the error that loading Momentum's settings raises."""
-    with pytest.raises(StrategySettingsError) as error:
-        load_strategy_settings("momentum", MomentumSettings, folder)
+    with pytest.raises(ComponentSettingsError) as error:
+        load_component_settings("momentum", MomentumSettings, folder)
     return str(error.value)
 
 
@@ -62,7 +62,7 @@ def _use_shipped_file(monkeypatch: pytest.MonkeyPatch, folder: Path, text: str |
     if text is not None:
         path.parent.mkdir(parents=True)
         path.write_text(text, encoding="utf-8")
-    monkeypatch.setattr(strategy_settings, "shipped_settings_path", lambda _model: path)
+    monkeypatch.setattr(component_settings, "shipped_settings_path", lambda _model: path)
     return path
 
 
@@ -79,13 +79,13 @@ def test_the_user_file_is_in_the_strategies_folder_of_the_settings_folder(tmp_pa
 
 
 def test_without_a_user_file_the_shipped_defaults_load(tmp_path: Path) -> None:
-    assert load_strategy_settings("momentum", MomentumSettings, tmp_path) == _SHIPPED_DEFAULTS
+    assert load_component_settings("momentum", MomentumSettings, tmp_path) == _SHIPPED_DEFAULTS
 
 
 def test_a_user_file_may_hold_any_subset_of_the_keys(tmp_path: Path) -> None:
     _write_user(tmp_path, "rsi_period = 21\n")
 
-    assert load_strategy_settings("momentum", MomentumSettings, tmp_path) == _SHIPPED_DEFAULTS.model_copy(
+    assert load_component_settings("momentum", MomentumSettings, tmp_path) == _SHIPPED_DEFAULTS.model_copy(
         update={"rsi_period": 21}
     )
 
@@ -93,11 +93,11 @@ def test_a_user_file_may_hold_any_subset_of_the_keys(tmp_path: Path) -> None:
 def test_an_empty_user_file_changes_nothing(tmp_path: Path) -> None:
     _write_user(tmp_path, "")
 
-    assert load_strategy_settings("momentum", MomentumSettings, tmp_path) == _SHIPPED_DEFAULTS
+    assert load_component_settings("momentum", MomentumSettings, tmp_path) == _SHIPPED_DEFAULTS
 
 
 def test_the_error_is_a_value_error() -> None:
-    assert issubclass(StrategySettingsError, ValueError)
+    assert issubclass(ComponentSettingsError, ValueError)
 
 
 def test_a_missing_shipped_file_is_an_error_that_names_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -160,14 +160,14 @@ def test_a_key_in_neither_file_is_reported_against_the_shipped_file(
 
 def test_a_file_is_read_once_per_process_until_the_cache_is_cleared(tmp_path: Path) -> None:
     _write_user(tmp_path, "rsi_period = 20\n")
-    first = load_strategy_settings("momentum", MomentumSettings, tmp_path)
+    first = load_component_settings("momentum", MomentumSettings, tmp_path)
     _write_user(tmp_path, "rsi_period = 21\n")
 
-    assert load_strategy_settings("momentum", MomentumSettings, tmp_path) is first
+    assert load_component_settings("momentum", MomentumSettings, tmp_path) is first
     assert first.rsi_period == 20
 
-    clear_strategy_settings_cache()
-    reloaded = load_strategy_settings("momentum", MomentumSettings, tmp_path)
+    clear_component_settings_cache()
+    reloaded = load_component_settings("momentum", MomentumSettings, tmp_path)
     assert reloaded is not first
     assert reloaded.rsi_period == 21
 
@@ -176,8 +176,8 @@ def test_the_cache_is_per_settings_folder(tmp_path: Path) -> None:
     other = tmp_path / "other"
     _write_user(other, "rsi_period = 30\n")
 
-    assert load_strategy_settings("momentum", MomentumSettings, tmp_path).rsi_period == 14
-    assert load_strategy_settings("momentum", MomentumSettings, other).rsi_period == 30
+    assert load_component_settings("momentum", MomentumSettings, tmp_path).rsi_period == 14
+    assert load_component_settings("momentum", MomentumSettings, other).rsi_period == 30
 
 
 def test_a_failed_load_is_not_cached(tmp_path: Path) -> None:
@@ -186,4 +186,4 @@ def test_a_failed_load_is_not_cached(tmp_path: Path) -> None:
 
     user.write_text("rsi_period = 22\n", encoding="utf-8")
 
-    assert load_strategy_settings("momentum", MomentumSettings, tmp_path).rsi_period == 22
+    assert load_component_settings("momentum", MomentumSettings, tmp_path).rsi_period == 22
