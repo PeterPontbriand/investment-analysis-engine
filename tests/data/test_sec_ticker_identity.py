@@ -313,12 +313,15 @@ def test_a_registrant_with_extra_pages_is_decided_only_when_the_boundary_precede
     # The boundary is inside the history the pages cover: older annual filings may exist, so nothing is decided.
     snapshot = sec.adapter().create_analysis_snapshot(subject_id="XOM", as_of=datetime(2010, 1, 1, tzinfo=UTC))
     assert snapshot.after_boundary_message is None
+    # The recent block holds no annual filing by then, so the page whose range covers the boundary is read, once.
+    assert sum("-submissions-001" in url for url in sec.urls) == 1
+    requested = len(sec.urls)
     # The boundary precedes the page range and the recent block: nothing had been filed, and no page is read.
     snapshot = sec.adapter().create_analysis_snapshot(subject_id="XOM", as_of=datetime(1999, 1, 1, tzinfo=UTC))
     assert snapshot.after_boundary_message is not None
     assert "had filed nothing by the boundary 1999-01-01" in snapshot.after_boundary_message
     assert "earliest filing is dated 2000-01-01" in snapshot.after_boundary_message
-    assert not any("-submissions-001" in url for url in sec.urls)
+    assert not any("-submissions-001" in url for url in sec.urls[requested:])
 
 
 _BEFORE_FILINGS = datetime(2022, 6, 1, tzinfo=UTC)

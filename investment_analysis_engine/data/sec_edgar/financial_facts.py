@@ -9,8 +9,9 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
+from enum import StrEnum
 from types import MappingProxyType
-from typing import cast
+from typing import Protocol, cast, runtime_checkable
 from zoneinfo import ZoneInfo
 
 from investment_analysis_engine.core.clock import utc_now
@@ -113,6 +114,10 @@ _SUBMISSION_PAGE_URL = "https://data.sec.gov/submissions/{name}"
 # An extra page names one stretch of an issuer's filings (about a month for the most frequent filers). A balance-sheet
 # series reads at most this many of them, so the cost of an issuer that files constantly stays bounded.
 _MAX_SUBMISSION_PAGES = 12
+# The anchor annual filing is looked for in the extra pages only within this many days before the boundary: an issuer
+# files an annual report every year, so the newest one at the boundary was filed inside a year plus the slack of a late
+# filer. Pages older than that window cannot hold the anchor.
+_ANCHOR_WINDOW_DAYS = 400
 _OVERRIDE_FILE = "providers/sec_edgar.toml in the settings folder"
 _OVERRIDE_EXAMPLE = "[ticker_overrides] {ticker} = {cik}"
 _SUBMISSION_PAGE_NAME = re.compile(r"^CIK(\d{10})-submissions-\d{3}\.json$")
@@ -240,6 +245,82 @@ class _SecShareObservation:
     available_at: datetime
 
 
+class AnchorYearEndUnavailableReason(StrEnum):
+    """Why the fiscal year-end of the anchor annual filing cannot be given."""
+
+    NO_ANALYSIS_SCOPE = "no_analysis_scope"
+    SUBJECT_MISMATCH = "subject_mismatch"
+    NO_ANCHOR_FILING = "no_anchor_filing"
+    ACCEPTED_AFTER_BOUNDARY = "accepted_after_boundary"
+    FORM_UNAVAILABLE = "form_unavailable"
+    REPORT_DATE_UNAVAILABLE = "report_date_unavailable"
+
+
+@dataclass(frozen=True)
+class AnchorYearEndRequest:
+    """Request the fiscal year-end of the active analysis scope's anchor annual filing."""
+
+    ticker: str
+    provider_id: str
+
+    def __post_init__(self) -> None:
+        """Normalize the ticker and the provider identifier."""
+        ticker = " ".join(self.ticker.split()).upper()
+        provider_id = " ".join(self.provider_id.split())
+        if not ticker or not provider_id:
+            raise ValueError("An anchor year-end request requires a ticker and a provider.")
+        object.__setattr__(self, "ticker", ticker)
+        object.__setattr__(self, "provider_id", provider_id)
+
+
+@dataclass(frozen=True)
+class AnchorYearEnd:
+    """The anchor annual filing and its fiscal year-end, read from the submissions data already fetched.
+
+    Attributes:
+        year_end: The filing's ``reportDate``: the fiscal year-end *t* every input of the analysis is taken at.
+        accession: The anchor filing's accession.
+        form: The anchor filing's form.
+        filing_date: The anchor filing's filing date, when the submissions data dates it.
+        filing_dates: The filing date of every filing of the recent block, by accession, so the filing date of the
+            source of a fact can be found without another request.
+    """
+
+    year_end: date
+    accession: str
+    form: str
+    filing_date: date | None
+    filing_dates: Mapping[str, date]
+
+
+@dataclass(frozen=True)
+class AnchorYearEndResolution:
+    """The anchor year-end, or the reason there is none with the adapter's message.
+
+    Exactly one of ``anchor`` and ``reason`` is set; ``message`` explains a reason.
+    """
+
+    anchor: AnchorYearEnd | None = None
+    reason: AnchorYearEndUnavailableReason | None = None
+    message: str | None = None
+
+    def __post_init__(self) -> None:
+        """Require the year-end or one reason with its message, never both."""
+        if (self.anchor is None) == (self.reason is None):
+            raise ValueError("An anchor year-end resolution holds either the year-end or the reason, not both.")
+        if self.reason is not None and (self.message is None or not self.message.strip()):
+            raise ValueError("An unavailable anchor year-end requires a message.")
+
+
+@runtime_checkable
+class AnchorYearEndProvider(Protocol):
+    """Optional capability: the fiscal year-end of the active analysis scope's anchor annual filing."""
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
+        """Return the year-end or the reason there is none; it makes no provider request."""
+        ...
+
+
 @dataclass(frozen=True)
 class SecEdgarAnalysisSnapshot:
     """Immutable Company Facts and filing-regime evidence for one analysis."""
@@ -257,6 +338,7 @@ class SecEdgarAnalysisSnapshot:
     primary_documents: Mapping[str, str] = field(default_factory=dict)
     filing_forms: Mapping[str, str] = field(default_factory=dict)
     filing_dates: Mapping[str, date] = field(default_factory=dict)
+    report_dates: Mapping[str, date] = field(default_factory=dict)
     current_tickers: tuple[str, ...] = ()
     submission_pages: tuple[SubmissionPage, ...] = ()
     cik_source: str = CIK_SOURCE_TICKER_FILE
@@ -346,20 +428,18 @@ class SecEdgarFinancialFactsAdapter:
             )
         company_facts_raw = self._fetch_registrant_document(_COMPANY_FACTS_URL.format(cik=cik), ticker, cik)
         submissions_raw = self._fetch_registrant_document(_SUBMISSIONS_URL.format(cik=cik), ticker, cik)
-        acceptance_by_accession = _acceptance_times(submissions_raw)
         accession_taxonomies = _accession_taxonomies(company_facts_raw)
-        eligible_accessions = _eligible_annual_accessions(
-            submissions_raw,
-            acceptance_by_accession=acceptance_by_accession,
-            as_of=effective_as_of,
-        )
         pages = _submission_pages(submissions_raw, cik)
-        filing_dates = _submission_filing_dates(submissions_raw)
+        filings = _FilingColumns(submissions_raw)
+        self._add_anchor_pages(filings, cik=cik, pages=pages, boundary=effective_as_of)
+        acceptance_by_accession = filings.acceptance
+        eligible_accessions = _eligible_from(filings.forms, acceptance_by_accession, effective_as_of)
+        filing_dates = filings.filing_dates
         after_boundary_message = self._annual_filing_gap(
             ticker=ticker,
             cik=cik,
             acceptance=acceptance_by_accession,
-            forms=_submission_strings(submissions_raw, "form"),
+            forms=filings.forms,
             filing_dates=filing_dates,
             pages=pages,
             company_facts=company_facts_raw,
@@ -379,14 +459,44 @@ class SecEdgarFinancialFactsAdapter:
             latest_annual_accession=latest_accession,
             eligible_annual_accessions=eligible_accessions,
             taxonomy=taxonomy,
-            primary_documents=MappingProxyType(_submission_strings(submissions_raw, "primaryDocument")),
-            filing_forms=MappingProxyType(_submission_strings(submissions_raw, "form")),
+            primary_documents=MappingProxyType(filings.primary_documents),
+            filing_forms=MappingProxyType(filings.forms),
             filing_dates=MappingProxyType(filing_dates),
+            report_dates=MappingProxyType(filings.report_dates),
             current_tickers=_submission_tickers(submissions_raw),
             submission_pages=pages,
             cik_source=self._cik_source(ticker),
             after_boundary_message=after_boundary_message,
         )
+
+    def _add_anchor_pages(
+        self, filings: _FilingColumns, *, cik: str, pages: tuple[SubmissionPage, ...], boundary: datetime
+    ) -> None:
+        """Add the filings of the extra pages that can hold the anchor, when the recent block holds none.
+
+        The anchor is the newest annual filing accepted at or before the boundary. When the recent block of the
+        submissions data has none (a frequent filer's annual report is pushed off it by later filings), the pages whose
+        filing range overlaps the ``_ANCHOR_WINDOW_DAYS`` before the boundary are read, newest first, each once per
+        adapter and at most ``_MAX_SUBMISSION_PAGES``, and the reading stops at the first page that holds one. Every
+        filing on the pages read is added, so the anchor's form, report date, filing date, acceptance time and primary
+        document come from the page. Nothing is read when the recent block suffices or no page is in the window.
+        """
+        if filings.eligible(boundary):
+            return
+        day = boundary.date()
+        window = sorted(
+            (
+                page
+                for page in pages
+                if page.filing_to >= day - timedelta(days=_ANCHOR_WINDOW_DAYS) and page.filing_from <= day
+            ),
+            key=lambda page: (page.filing_to, page.filing_from),
+            reverse=True,
+        )
+        for page in window[:_MAX_SUBMISSION_PAGES]:
+            filings.add({"filings": {"recent": self._submission_page(cik, page)}})
+            if filings.eligible(boundary):
+                return
 
     def resolve_as_filed_sic(self, snapshot: SecEdgarAnalysisSnapshot) -> AsFiledSicResolution:
         """Resolve the SIC code the anchor filing's SEC header assigns to the issuer.
@@ -433,6 +543,57 @@ class SecEdgarFinancialFactsAdapter:
             boundary=snapshot.as_of,
             source_url=url,
             retrieved_at=retrieved_at,
+        )
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:  # noqa: PLR0911
+        """Return the fiscal year-end of the anchor annual filing of the active analysis scope.
+
+        The year-end is the ``reportDate`` the submissions data already gives the anchor filing, read when the scope
+        opened, so no request is made. A registrant whose annual filings all came after the boundary gives the
+        adapter's own message. A filing with no report date, or one that is not a date, gives no year-end: it is never
+        guessed from the facts.
+        """
+        snapshot = _ACTIVE_SNAPSHOT.get()
+        if request.provider_id != SEC_PROVIDER_ID or snapshot is None:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.NO_ANALYSIS_SCOPE,
+                message="No SEC analysis scope is active for the ticker.",
+            )
+        if snapshot.subject_id != request.ticker:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.SUBJECT_MISMATCH,
+                message=f"The active analysis scope is for {snapshot.subject_id}, not {request.ticker}.",
+            )
+        accession = snapshot.latest_annual_accession
+        if snapshot.cik is not None and accession is None and snapshot.after_boundary_message is not None:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.ACCEPTED_AFTER_BOUNDARY, message=snapshot.after_boundary_message
+            )
+        if snapshot.cik is None or accession is None:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.NO_ANCHOR_FILING,
+                message=f"SEC EDGAR has no annual filing accepted by the boundary for {request.ticker}.",
+            )
+        form = snapshot.filing_forms.get(accession)
+        if not form:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.FORM_UNAVAILABLE,
+                message=f"The submissions data gives no form for the anchor filing {accession}.",
+            )
+        year_end = snapshot.report_dates.get(accession)
+        if year_end is None:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.REPORT_DATE_UNAVAILABLE,
+                message=f"The submissions data gives no report date for the anchor filing {accession}.",
+            )
+        return AnchorYearEndResolution(
+            anchor=AnchorYearEnd(
+                year_end=year_end,
+                accession=accession,
+                form=form,
+                filing_date=snapshot.filing_dates.get(accession),
+                filing_dates=MappingProxyType(dict(snapshot.filing_dates)),
+            )
         )
 
     def resolve_cover_listing(self, request: CoverListingRequest) -> ListingResolution:  # noqa: PLR0911
@@ -752,8 +913,9 @@ class SecEdgarFinancialFactsAdapter:
         A year-end is reported by the annual filing made after it and by the next year's filing, which repeats it as a
         comparative. The recent block is enough when an annual filing accepted at the boundary or before was filed
         after ``oldest`` and within two years of it. Otherwise the extra pages the submissions data lists are read,
-        nearest to that window first, until one is enough or ``_MAX_SUBMISSION_PAGES`` have been read. Nothing else
-        reads these pages, so no other resolution changes.
+        nearest to that window first, until one is enough or ``_MAX_SUBMISSION_PAGES`` have been read. Only this
+        series and the snapshot's search for the anchor (``_add_anchor_pages``) read these pages, so no other
+        resolution changes.
         """
         acceptance = dict(snapshot.acceptance_by_accession)
         forms = dict(snapshot.filing_forms)
@@ -1342,6 +1504,17 @@ def _submission_filing_dates(payload: object) -> dict[str, date]:
     return result
 
 
+def _submission_report_dates(payload: object) -> dict[str, date]:
+    """Return accession -> report date (the fiscal period end) for recent submissions, skipping any non-date value."""
+    result: dict[str, date] = {}
+    for accession, value in _submission_strings(payload, "reportDate").items():
+        try:
+            result[accession] = date.fromisoformat(value)
+        except ValueError:
+            continue
+    return result
+
+
 # The concepts each completed-annual field reads, per taxonomy, so that the filings that report them can be listed.
 _ANNUAL_CONCEPT_NAMES: Mapping[FinancialField, Mapping[str, tuple[str, ...]]] = {
     FinancialField.OPERATING_CASH_FLOW: {
@@ -1492,6 +1665,44 @@ def _accession_taxonomies(payload: object) -> dict[str, frozenset[str]]:
     return {accession: frozenset(namespaces) for accession, namespaces in mutable.items()}
 
 
+class _FilingColumns:
+    """The per-filing columns of the submissions data read so far: the recent block, then any extra pages added."""
+
+    def __init__(self, payload: object) -> None:
+        self.acceptance: dict[str, datetime] = {}
+        self.forms: dict[str, str] = {}
+        self.filing_dates: dict[str, date] = {}
+        self.report_dates: dict[str, date] = {}
+        self.primary_documents: dict[str, str] = {}
+        self.add(payload)
+
+    def add(self, payload: object) -> None:
+        """Add the filings of one submissions document (the recent block, or an extra page wrapped as one)."""
+        self.acceptance.update(_acceptance_times(payload))
+        self.forms.update(_submission_strings(payload, "form"))
+        self.filing_dates.update(_submission_filing_dates(payload))
+        self.report_dates.update(_submission_report_dates(payload))
+        self.primary_documents.update(_submission_strings(payload, "primaryDocument"))
+
+    def eligible(self, boundary: datetime) -> tuple[str, ...]:
+        """Return the annual accessions accepted at or before ``boundary``, latest first."""
+        return _eligible_from(self.forms, self.acceptance, boundary)
+
+
+def _eligible_from(
+    forms: Mapping[str, str], acceptance_by_accession: Mapping[str, datetime], as_of: datetime
+) -> tuple[str, ...]:
+    """Return the annual accessions among ``forms`` accepted at or before ``as_of``, latest first."""
+    eligible: list[tuple[datetime, str]] = []
+    for accession, form in forms.items():
+        if form not in _COMPLETED_ANNUAL_FORMS:
+            continue
+        accepted_at = acceptance_by_accession.get(accession)
+        if accepted_at is not None and accepted_at <= as_of:
+            eligible.append((accepted_at, accession))
+    return tuple(accession for _, accession in sorted(eligible, reverse=True))
+
+
 def _eligible_annual_accessions(
     payload: object,
     *,
@@ -1499,28 +1710,7 @@ def _eligible_annual_accessions(
     as_of: datetime,
 ) -> tuple[str, ...]:
     """Return annual accessions publicly available at ``as_of``, latest first."""
-    if not isinstance(payload, Mapping):
-        return ()
-    filings = payload.get("filings")
-    if not isinstance(filings, Mapping):
-        return ()
-    recent = filings.get("recent")
-    if not isinstance(recent, Mapping):
-        return ()
-    accessions = recent.get("accessionNumber")
-    forms = recent.get("form")
-    if not isinstance(accessions, Sequence) or isinstance(accessions, (str, bytes)):
-        return ()
-    if not isinstance(forms, Sequence) or isinstance(forms, (str, bytes)):
-        return ()
-    eligible: list[tuple[datetime, str]] = []
-    for accession, form in zip(accessions, forms, strict=False):
-        if not isinstance(accession, str) or form not in _COMPLETED_ANNUAL_FORMS:
-            continue
-        accepted_at = acceptance_by_accession.get(accession)
-        if accepted_at is not None and accepted_at <= as_of:
-            eligible.append((accepted_at, accession))
-    return tuple(accession for _, accession in sorted(eligible, reverse=True))
+    return _eligible_from(_submission_strings(payload, "form"), acceptance_by_accession, as_of)
 
 
 def _enforce_snapshot_regime(

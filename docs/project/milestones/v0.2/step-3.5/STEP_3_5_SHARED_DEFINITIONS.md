@@ -175,10 +175,12 @@ in which an absent element yields a number.
   [share-count rule](#share-count-rule).
 - **Price:**
   - with a requested `as_of`: the split-adjusted close, without dividend adjustment, on the last trading day on or
-    before `as_of`, from the historical market-data boundary. The provider has no unadjusted close; the
+    before `as_of`, from the historical market-data boundary. A date-only `--as-of` includes that day's close, and
+    sessions are read by exchange-local date, as Momentum reads them. The provider has no unadjusted close; the
     split-adjusted close and the split history together recover it. The dividend-adjusted series is never used for
     market cap;
-  - without one: the current quote, through the existing quote boundary and its freshness rules.
+  - without one: the current quote, through the existing quote boundary and its freshness rules. The split history is
+    requested as adjusted on the quote's date, so the count is scaled up to the quote.
   A one-day historical download is never used as a quote.
 - **Split adjustment:** a cover-page count is scaled by every split whose ex-date is after the cover date, and a
   balance-sheet count by every split whose ex-date is after the filing date of the filing
@@ -199,7 +201,8 @@ in which an absent element yields a number.
      issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show. SAP's market cap
      is therefore `unavailable`.
   2. **The quote currency equals the filing currency** (`incompatible_currency` otherwise). When either is unknown, the
-     market cap is `unavailable`.
+     market cap is `unavailable`. The filing currency is that of the monetary facts resolved at *t*, never one
+     requested in a configuration; the quote currency is the quote's, or with `as_of` the split-history response's.
   3. **A listing check on the anchor 10-K's cover affirms the requested ticker.** The ticker must appear there under
      this CIK, on a registered title that is a share of the issuer. Class designations and "ordinary shares" are
      accepted; depositary shares, units, warrants and preferred securities are refused (`incompatible_units`); a
@@ -226,7 +229,8 @@ in which an absent element yields a number.
   date is that fiscal year-end.
 - **IFRS filers:** `ifrs-full:NumberOfSharesOutstanding` is a direct path. There is no IFRS
   issued-minus-treasury path: no IFRS treasury share count exists in the evidence.
-- **Cover-page fallback:** when the balance-sheet paths give no count at year-end *t*, the cover-page count
+- **Cover-page fallback:** when the balance-sheet paths give no count at year-end *t* (a count dated another day is
+  not a count at *t*), the cover-page count
   (`dei:EntityCommonStockSharesOutstanding`) of the anchor filing is used for market cap, and only when the filing
   tags it as a single non-dimensional total. Its own date is the share-count date, and the result says that the
   count is a cover-page count. Filers that report only per-class cover counts, with no total, have no usable count.

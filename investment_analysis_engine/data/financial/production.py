@@ -10,6 +10,11 @@ from investment_analysis_engine.data.financial.facts import (
     AnalysisScopedFinancialFactsProvider,
     FinancialFactRequest,
     FinancialFactsProvider,
+    InstantAbsence,
+    InstantAbsenceReason,
+    InstantSeriesFacts,
+    InstantSeriesProvider,
+    InstantSeriesRequest,
     ProviderFact,
 )
 from investment_analysis_engine.data.instrument_profile import (
@@ -23,7 +28,13 @@ from investment_analysis_engine.data.sec_edgar.cover_listing import (
     CoverUnavailableReason,
     ListingResolution,
 )
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PROVIDER_ID,
+    AnchorYearEndProvider,
+    AnchorYearEndRequest,
+    AnchorYearEndResolution,
+    AnchorYearEndUnavailableReason,
+)
 from investment_analysis_engine.data.security_identity import (
     SecurityIdentity,
     SecurityIdentityProvider,
@@ -65,6 +76,22 @@ class ProductionFinancialFactsProvider:
             return ()
         return provider.fetch_facts(request, effective_as_of=effective_as_of)
 
+    def fetch_instant_series(self, request: InstantSeriesRequest, *, effective_as_of: datetime) -> InstantSeriesFacts:
+        """Dispatch a balance-sheet series to the requested provider, or report every year-end unsupported."""
+        provider = self._providers.get(request.provider_id)
+        if not isinstance(provider, InstantSeriesProvider):
+            return InstantSeriesFacts(
+                absences=tuple(
+                    InstantAbsence(
+                        period_end=day,
+                        reason=InstantAbsenceReason.UNSUPPORTED,
+                        detail=f"Provider {request.provider_id!r} does not serve balance-sheet series.",
+                    )
+                    for day in request.period_ends
+                )
+            )
+        return provider.fetch_instant_series(request, effective_as_of=effective_as_of)
+
     def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:
         """Delegate optional source verification without rewriting its evidence."""
         provider = self._providers.get(request.provider_id)
@@ -98,6 +125,16 @@ class ProductionFinancialFactsProvider:
         if provider is None or not isinstance(provider, InstrumentKindProvider):
             return None
         return provider.resolve_instrument_kind(request)
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
+        """Route an optional anchor year-end request without widening numeric facts."""
+        provider = self._providers.get(request.provider_id)
+        if not isinstance(provider, AnchorYearEndProvider):
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.NO_ANALYSIS_SCOPE,
+                message=f"Provider {request.provider_id!r} does not give an anchor year-end.",
+            )
+        return provider.resolve_anchor_year_end(request)
 
     def resolve_cover_listing(self, request: CoverListingRequest) -> ListingResolution:
         """Route an optional cover-listing request without widening numeric facts."""
