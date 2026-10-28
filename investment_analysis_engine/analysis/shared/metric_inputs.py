@@ -37,21 +37,17 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     COVER_PAGE_BASIS,
-    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
     InstantAbsence,
     InstantAbsenceReason,
     InstantSeriesRequest,
-    ProviderFact,
     financial_facts_analysis_scope,
 )
 from investment_analysis_engine.data.financial.provenance import (
     FinancialSubjectKind,
-    PeriodKind,
     ResolvedInput,
-    SourceKind,
 )
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
 from investment_analysis_engine.data.market_data import (
@@ -519,28 +515,28 @@ def resolve_balance_sheet_values(
     return MappingProxyType(values)
 
 
-def resolve_annual_values(  # noqa: PLR0913
+def resolve_annual_values(
     resolver: InputResolver,
     *,
     anchor: AnchorYearEnd,
     ticker: str,
     fields: Sequence[FinancialField],
     as_of: datetime | None,
-    effective_as_of: datetime,
 ) -> Mapping[FinancialField, AnnualValue | InputUnavailable] | InputUnavailable | MetricInputsFailure:
     """Return each named annual field for the year ending at the anchor year-end.
 
     A field is its resolved input; ``None`` where the filings report none for the year, which includes an observation
     whose period does not end at *t* (it is never returned as *t*'s); or an ``InputUnavailable`` where the latest
-    versions of the year's value conflict. The completed-annual fields are a series: the function reads the provider
-    for it, takes the observations that end at *t* and, as FCF-Growth does, keeps the latest-available version of the
-    period. A registrant whose annual filings all came after the boundary is returned once, as ``not_available_as_of``
-    with the provider's message, and no further field is requested.
+    versions of the year's value conflict. The completed-annual fields are a series: the resolver gives every
+    observation that passed its provider-response checks (``InputResolver.resolve_annual_series``), and this function
+    takes the ones that end at *t* and, as FCF-Growth does, keeps the latest-available version of the period. That
+    selection stays here because it is the shared metrics' rule for *t* and for ``ambiguous_fact``, and the resolver
+    stays provider-neutral. A registrant whose annual filings all came after the boundary is returned once, as
+    ``not_available_as_of`` with the provider's message, and no further field is requested.
 
     Raises:
         ValueError: If a field is not a completed-annual period field.
     """
-    boundary = as_of or effective_as_of
     values: dict[FinancialField, AnnualValue | InputUnavailable] = {}
     for name in fields:
         if name not in ANNUAL_PERIOD_FIELDS:
@@ -548,67 +544,43 @@ def resolve_annual_values(  # noqa: PLR0913
         request = FinancialFactRequest(
             FinancialSubjectKind.SECURITY, ticker, name, SEC_PROVIDER_ID, basis=_ANNUAL_BASIS, as_of=as_of
         )
-        try:
-            facts = resolver.provider.fetch_facts(request, effective_as_of=boundary)
-        except FactsNotAvailableAsOf as exc:
-            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, str(exc))
-        except FinancialProviderError as exc:
-            return _failure(name.value, exc)
-        values[name] = _annual_value(
-            facts, name, anchor.year_end, boundary=boundary, resolved_at=effective_as_of, as_of=as_of
-        )
+        resolution = resolver.resolve_annual_series(request)
+        if resolution.not_available_as_of:
+            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, resolution.reason or "")
+        if resolution.status is CalculationStatus.OK:
+            values[name] = _annual_value(resolution.inputs, name, anchor.year_end)
+        elif resolution.status is CalculationStatus.INPUT_UNAVAILABLE:
+            values[name] = None
+        else:
+            record = resolution.provider_failure
+            return MetricInputsFailure(
+                name.value,
+                resolution.reason or "The provider's answer was rejected.",
+                None if record is None else record.for_input(name.value),
+            )
     return MappingProxyType(values)
 
 
-def _annual_value(  # noqa: PLR0913
-    facts: Sequence[ProviderFact],
-    name: FinancialField,
-    year_end: date,
-    *,
-    boundary: datetime,
-    resolved_at: datetime,
-    as_of: datetime | None,
+def _annual_value(
+    inputs: Sequence[ResolvedInput], name: FinancialField, year_end: date
 ) -> AnnualValue | InputUnavailable:
     """Return the latest-available version of the observation that ends at ``year_end``, ``None`` if there is none."""
     candidates = [
-        fact
-        for fact in facts
-        if fact.field_name is name
-        and fact.period_kind is PeriodKind.COMPLETED_ANNUAL
-        and fact.observation_period_end is not None
-        and fact.observation_period_end.date() == year_end
-        and fact.available_at is not None
-        and fact.available_at <= boundary
+        item
+        for item in inputs
+        if item.observation_period_end is not None
+        and item.observation_period_end.date() == year_end
+        and item.available_at is not None
     ]
     if not candidates:
         return None
-    latest_time = max(fact.available_at for fact in candidates if fact.available_at is not None)
-    latest = [fact for fact in candidates if fact.available_at == latest_time]
-    if len({fact.value for fact in latest}) != 1:
+    latest_time = max(item.available_at for item in candidates if item.available_at is not None)
+    latest = [item for item in candidates if item.available_at == latest_time]
+    if len({item.value for item in latest}) != 1:
         return InputUnavailable(
             ReasonCode.AMBIGUOUS_FACT,
             f"The latest versions of {name.value} for the year ending {year_end} have conflicting values.",
         )
-    chosen = min(latest, key=lambda fact: (fact.provider_fact_id or "", fact.provider_id, fact.provider_field))
-    return ResolvedInput(
-        field_name=chosen.field_name.value,
-        value=chosen.value,
-        source_kind=SourceKind.PROVIDER,
-        resolved_at=resolved_at,
-        basis=chosen.basis,
-        units=chosen.units.value,
-        currency=chosen.currency,
-        provider_id=chosen.provider_id,
-        provider_field=chosen.provider_field,
-        observation_period_start=chosen.observation_period_start,
-        observation_period_end=chosen.observation_period_end,
-        observed_at=chosen.observed_at,
-        available_at=chosen.available_at,
-        as_of=as_of,
-        retrieved_at=chosen.retrieved_at,
-        notes=chosen.notes,
-        fiscal_year=chosen.fiscal_year,
-        period_kind=chosen.period_kind,
-        accounting_scope=chosen.accounting_scope,
-        provider_fact_id=chosen.provider_fact_id,
+    return min(
+        latest, key=lambda item: (item.provider_fact_id or "", item.provider_id or "", item.provider_field or "")
     )

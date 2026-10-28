@@ -183,7 +183,6 @@ def test_annual_values_of_an_issuer_end_at_the_year_end_in_the_same_scope() -> N
                 F.INTEREST_EXPENSE,
             ],
             as_of=None,
-            effective_as_of=LIVE_NOW,
         )
     assert not isinstance(annual, (InputUnavailable, MetricInputsFailure))
     assert len(chosen.fetcher.calls) == 3
@@ -207,7 +206,6 @@ def _annual(stub: FactsStub, *fields: F, boundary: datetime | None = None) -> An
         ticker="WMT",
         fields=fields,
         as_of=boundary,
-        effective_as_of=LIVE_NOW,
     )
 
 
@@ -636,7 +634,6 @@ def _debt_and_ev(ticker: str) -> tuple[Any, Any]:
             ticker=ticker,
             fields=[F.INTEREST_EXPENSE],
             as_of=None,
-            effective_as_of=LIVE_NOW,
         )
     assert not isinstance(balance, (InputUnavailable, MetricInputsFailure))
     assert not isinstance(annual, (InputUnavailable, MetricInputsFailure))
@@ -1087,3 +1084,22 @@ def test_a_cover_page_count_failure_is_returned_not_raised() -> None:
         use_cache=False,
     )
     _failure(outcome, "common_shares_outstanding", ProviderFailureKind.UNREACHABLE, "sec_edgar")
+
+
+# --- an anchor found on the extra submissions pages ----------------------------------------------------------------
+
+
+def test_a_boundary_before_the_newest_annual_filing_uses_the_anchor_found_on_the_pages() -> None:
+    boundary = datetime(2025, 6, 30, tzinfo=UTC)
+    prices = synthetic_history({date(2025, 6, 27): 290.0}, adjustment_date=date(2026, 10, 26))
+    inputs, chosen, _ = _inputs("JPM", as_of=boundary, history=SplitStub(prices))
+    prior = "0000019617-25-000270"
+    assert (inputs.year_end, inputs.form) == (date(2024, 12, 31), "10-K")
+    assert inputs.listing_check.affirmed
+    assert any(prior.replace("-", "") in url for url in chosen.cover_urls)
+    count = _count(inputs)
+    assert count.observation_period_end is not None
+    assert count.observation_period_end.date() == date(2024, 12, 31)
+    # The filing date of the count's source filing is looked up on the page, so the count is scaled from it.
+    assert inputs.share_count_filing_date == date(2025, 2, 14)
+    assert inputs.share_count_basis is ShareCountBasis.YEAR_END

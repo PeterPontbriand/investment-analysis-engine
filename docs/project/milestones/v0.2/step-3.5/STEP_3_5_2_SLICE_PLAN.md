@@ -172,8 +172,11 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
     sessions are read by exchange-local date. The guides state the limitation (K15).
   - `ProductionFinancialFactsProvider` routes `fetch_instant_series`, and a split-history provider protocol that
     declares `as_of` and `adjusted_on` is added beside the existing one (D20 and D23 of the 3.5.1 plan).
-- **Scope:** the assembly module, the two gaps, fixtures and tests. The file list is in [B.4](#b4-352d-files). It is one
-  sub-slice (S5).
+  - **Review corrections ([A.9](#a9-review-decisions-2026-10-28)).** The snapshot finds the anchor on the extra
+    submissions pages when the recent block holds no annual filing at or before the boundary (T1), and annual values
+    come through a new resolver entry, `InputResolver.resolve_annual_series`, not from the provider directly (T2).
+- **Scope:** the assembly module, the two gaps, the two review corrections, fixtures and tests. The file list is in
+  [B.4](#b4-352d-files). It is one sub-slice (S5).
 - **Branch:** `feat/step-3-5-2d-input-assembly`, off `main` after the 3.5.2c pull request merged.
 - **Detail:** [files](#b4-352d-files), [result shapes](#b6-result-shapes), [tests](#b10-352d-tests).
 
@@ -193,6 +196,13 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
     a test asserts every other expected value is unchanged.
   - `FINANCE_MATH.md`'s "current market capitalization" becomes "market capitalization at the boundary", and the stale
     version docstrings in `strategies/fcf_growth/models.py` are corrected (K16).
+  - **Open decision for this sub-slice (T2, [A.9](#a9-review-decisions-2026-10-28)):** whether FCF-Growth's own annual
+    reader (`_resolve_field` in `strategies/fcf_growth/input_resolver.py`, which calls the provider directly and keeps
+    its own cache of the series) moves onto `InputResolver.resolve_annual_series`. For it: one set of provider-response
+    checks and one trace for every consumer of the series. Against it: its cache, its alignment of periods across
+    fields and its stored shape are its own, and a move that changed any stored output would need the version bump of
+    `AGENTS.md` §4. It is decided with the stored-shape change of this sub-slice, and by the project owner if it would
+    change a stored output.
 - **Scope:** the composition sites, the analyzer and result, the stored shape and its versions, fixtures and tests. The
   file list is in [B.5](#b5-352e-files).
 - **Branch:** `feat/step-3-5-2e-fcf-market-cap`, off `main` after the 3.5.2d pull request merges.
@@ -436,10 +446,10 @@ the filings they already list, and their checksum files were refreshed. Nothing 
 | HON | 10-K | 0000773840-26-000013 | 2025-12-31 | 2025-12-31 |
 
 All eleven agree. The extra pages carry the same column (on JPMorgan's two pages that hold a filing, the 10-K filed
-2025-02-14 gives 2024-12-31 and the one filed 2024-02-16 gives 2023-12-31). The anchor filing is chosen from the recent block of the
-submissions data only, as the cover check chooses it, so a boundary older than the recent block has no anchor filing and
-no year-end: the assembly returns that as unavailable with `missing_fact`. That limit is in the snapshot, not in this
-sub-slice.
+2025-02-14 gives 2024-12-31 and the one filed 2024-02-16 gives 2023-12-31). The anchor filing was first chosen from the recent block of
+the submissions data only, so a boundary older than the recent block had no anchor filing and no year-end. The review
+correction T1 ([A.9](#a9-review-decisions-2026-10-28)) lifts that: the snapshot looks for the anchor on the extra pages
+as well.
 
 ### A.8 Wording the plan settles (3.5.2d)
 
@@ -448,14 +458,49 @@ can reverse any.
 
 | Topic | Wording |
 | :--- | :--- |
-| Where the year-end is read | The snapshot keeps the `reportDate` of each filing of the recent block. The adapter gives the anchor filing's year-end, form, filing date and the filing dates of the recent block through an optional capability, `resolve_anchor_year_end`, routed by the production provider like the cover listing. The filing dates let the assembly date the source of a year-end count without another request. |
+| Where the year-end is read | The snapshot keeps the `reportDate` of each filing of the recent block and, since T1, of the extra pages it read for the anchor. The adapter gives the anchor filing's year-end, form, filing date and the filing dates of the recent block through an optional capability, `resolve_anchor_year_end`, routed by the production provider like the cover listing. The filing dates let the assembly date the source of a year-end count without another request. |
 | One scope, one year-end | `anchor_year_end_scope` opens the analysis scope and yields the year-end, so case (a), which is raised when the scope opens, can be returned typed. A consumer calls the other three functions inside the block with the yielded value. A function that needs the year-end takes it as an argument, so none can be called for a registrant that has none. |
 | Case (b) | It is decided once, at the year-end, from the adapter's own message, because the resolver turns `FactsNotAvailableAsOf` into an unavailable result without a code. The balance-sheet and annual functions also return it, once and with no further request, if their provider says it: an `after_boundary` absence, or `FactsNotAvailableAsOf`. |
 | The cover is not read for a form market cap refuses | For an anchor filing other than a 10-K or 10-K/A the cover is not requested, and the listing check says it was not read; the pure function refuses by form first. The share count and the price are still resolved, so the 20-F and 40-F cases show their paths. |
 | A year-end count of another year | It is passed on, with the basis `year_end`, when no cover-page count exists, so the pure function refuses it as `incompatible_period`. It is never replaced by an older year's count. |
 | The quote's date | The quote carries no market time, so its date is its retrieval date, in UTC. A split history adjusted on another day is refused as `incompatible_period`. A boundary after the history's last day, or before its first session, is `not_available_as_of`. |
-| Annual values | The completed-annual fields are a series, so the function reads the provider for the series, keeps the observations that end at *t* and, as FCF-Growth does, the latest-available version of the period. Conflicting latest versions are an `InputUnavailable` of `ambiguous_fact`, never a choice. The function reads the provider directly because the resolver's single-observation contract refuses a series. |
+| Annual values | The completed-annual fields are a series, so the function asks the resolver for the series (`resolve_annual_series`, T2), keeps the observations that end at *t* and, as FCF-Growth does, the latest-available version of the period. Conflicting latest versions are an `InputUnavailable` of `ambiguous_fact`, never a choice. The resolver's single-observation entry refuses a series, which is why the series has an entry of its own. |
 | Failures | A provider failure on any one input returns a `MetricInputsFailure` and no later input of that function is requested. An answer the resolver rejected is the same type with no record. |
+
+### A.9 Review decisions (2026-10-28)
+
+Approved by the project owner after review of the 3.5.2d branch.
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| T1 | Anchor selection reads the extra submissions pages | When the recent block holds no eligible annual filing at or before the boundary, the snapshot looks for the anchor in the extra pages: only pages whose `filingFrom`–`filingTo` range overlaps the 400 days before the boundary, newest first; each page read once per adapter (D11 and D17 of the 3.5.1 plan); the search stops at the first page that holds an eligible annual filing; a page name must be the issuer's own; no page is read when the recent block suffices. The anchor's form, `reportDate`, filing date, acceptance time and taxonomy come from that page, so `resolve_anchor_year_end`, the cover listing (3.5.2c) and the SIC header (3.5.1a) all see it. The filing date of a share count's source is looked up the same way. If no page in the window holds an annual filing, the existing outcome stands. |
+| T2 | Annual values go through the resolver | `InputResolver.resolve_annual_series` is added, uncached like `resolve_instant_series`. It applies the existing provider-response checks and records a resolution trace. `resolve_annual_values` calls it instead of `resolver.provider.fetch_facts` and no longer builds `ResolvedInput`s in the analysis layer. Whether FCF-Growth's own annual reader moves onto this entry is an open decision of 3.5.2e. |
+
+**How T1 is built.** The snapshot reads the recent block, and only when it holds no annual filing accepted at or before
+the boundary does it read pages: those whose range ends no earlier than 400 days before the boundary and starts no
+later than the boundary, newest first, at most twelve (the bound of D11). Every filing on a page read is added to the
+snapshot's form, filing-date, report-date, acceptance-time and primary-document columns, and the anchor is chosen over
+the merged columns by the rule that chose it before: the newest annual filing accepted at or before the boundary. The
+400 days are a named constant of the adapter: an issuer files an annual report every year, so the newest one at the
+boundary was filed within a year and the slack of a late filer; an older page cannot hold the anchor. T1 amends D11 of
+the 3.5.1 plan, which said that only the balance-sheet series reads the pages: the snapshot now reads them too, under
+the same bounds. The non-snapshot path of the adapter, which has no analysis scope, is unchanged.
+
+**What T1 changes for a run.** A run with `as_of` before a frequent filer's newest annual filing used to find no anchor
+when that earlier annual filing was off the recent block, so the share count, the cover check, the SIC header and every
+fact that reads the anchor were unavailable. They now use the correct anchor. A run whose recent block holds the anchor
+reads no more than before. The pull request lists this as a user-visible change for frequent filers' historical runs.
+
+**Where T2's selection lives.** `resolve_annual_series` returns every observation that passed the checks, oldest period
+first and, within a period, earliest available first, with no selection. The choice of the observation that ends at *t*,
+of the latest-available version of it, and of `ambiguous_fact` for a conflict stays in `resolve_annual_values`. The
+reason is that the choice is the shared metrics' rule: it needs *t* and the shared reason codes, neither of which the
+provider-neutral resolver knows, and FCF-Growth, which aligns periods across fields, would choose differently. The
+resolver's checks are: the answer must be for the requested subject, field, provider and basis, and each observation
+must be a completed annual period with both ends, or the whole answer is rejected as a provider failure of kind
+`unexpected_response`; an observation that is not available at the boundary or fails the quality checks is left out and
+the others stand. A provider's `FactsNotAvailableAsOf` is flagged on the result (`not_available_as_of`), because the
+resolver result carries no reason code and case (b) must stay distinguishable from an absent field.
 
 ---
 
@@ -528,8 +573,10 @@ analysis scope's snapshot as `resolve_security_unit` does, and no snapshot type 
 | Year-end *t* | `data/sec_edgar/financial_facts.py` | the snapshot keeps the `reportDate` of each filing it already reads; `AnchorYearEnd`, `AnchorYearEndRequest`, `AnchorYearEndResolution`, `AnchorYearEndUnavailableReason`, the `AnchorYearEndProvider` capability and the adapter's `resolve_anchor_year_end`. No new request |
 | Production provider | `data/financial/production.py` | `fetch_instant_series` routed by `request.provider_id`, as `fetch_facts` is (a provider that does not serve it gives every year-end as an `unsupported` absence), and `resolve_anchor_year_end` routed like the cover listing |
 | Split protocol | `data/market_data.py` | `DatedSplitAdjustedHistoryProvider`, beside `SplitAdjustedHistoryProvider`, declares `as_of` and `adjusted_on`, which `CachedHistoricalDataClient.fetch_split_adjusted_history` takes (`data/cached_client.py`, unchanged). The existing protocol, which the Yahoo client implements, and the client's check against it are unchanged |
+| Anchor on the pages (T1) | `data/sec_edgar/financial_facts.py` | the snapshot adds the filings of the pages that can hold the anchor, when the recent block holds none, before it chooses the anchor ([A.9](#a9-review-decisions-2026-10-28)) |
+| Annual series (T2) | `data/financial/resolver.py` | `AnnualSeriesResolution` and `InputResolver.resolve_annual_series`; the construction of a resolved input from a fact is shared with the single-fact path |
 | Fixtures | `evaluation/fixtures/sec_edgar/instant_facts/`, `annual_facts/` | the `reportDate` column added to the trimmed submissions, and the checksum files refreshed ([A.7](#a7-decisions-at-the-start-of-352d-2026-10-27)); no other fixture is added |
-| Tests | `tests/analysis/shared/test_metric_inputs.py`, `tests/analysis/shared/_metric_input_rig.py`, `tests/data/test_anchor_year_end.py` (new) | [B.10](#b10-352d-tests) |
+| Tests | `tests/analysis/shared/test_metric_inputs.py`, `tests/analysis/shared/_metric_input_rig.py`, `tests/data/test_anchor_year_end.py`, `tests/data/test_anchor_pages.py`, `tests/data/test_annual_series_resolver.py` (new); `tests/data/test_sec_ticker_identity.py` (one test: its "no page is read" check now covers only the second snapshot, and the first is asserted to read the page once; authorized by the project owner on 2026-10-28) | [B.10](#b10-352d-tests) |
 
 Starting points confirmed: (1) the snapshot held no report date; the submissions payload carries `reportDate` per
 filing in the recent block and on the extra pages, `_submission_strings` reads such a column, and no new request was
@@ -621,6 +668,7 @@ MarketCapInputs (frozen)               3.5.2d: the arguments of compute_market_c
   market_cap()                         calls compute_market_cap with them
 resolve_balance_sheet_values(...)      Mapping[FinancialField, ResolvedInput | InstantAbsence], or InputUnavailable or MetricInputsFailure
 resolve_annual_values(...)             Mapping[FinancialField, ResolvedInput | None | InputUnavailable], or InputUnavailable or MetricInputsFailure
+                                       (no effective-time argument: the resolver gives the boundary to the provider)
 DatedSplitAdjustedHistoryProvider      3.5.2d, protocol: fetch_split_adjusted_history(ticker, start_date, *, use_cache, adjusted_on, as_of)
 
 FCF-Growth result                      3.5.2e
@@ -769,6 +817,21 @@ the split-history client and the listing capability of the synthetic cases are s
   raise nothing.
 - **Point-in-time:** nothing filed, priced or classified after the boundary is taken, apart from the splits that undo the
   provider's adjustment.
+- **Anchor on the pages (T1):** JPMorgan with `as_of` before its 2026-02-13 10-K finds the prior 10-K
+  (`0000019617-25-000270`) through its captured pages 004 to 008, newest first, and the snapshot carries that filing's
+  form, report date, filing date, acceptance time, primary document and taxonomy; the cover listing and the SIC header
+  are requested for it; the assembly's share count is dated from the page; the search stops at the first page that holds
+  an annual filing; no page is read when the recent block suffices; a page is read once per adapter; the window bounds
+  the pages read (a page that starts after the boundary or ends before the 400 days is not read); a page that is not the
+  issuer's own is ignored; a page whose annual filing was accepted after the boundary is not the anchor; when no page in
+  the window holds an annual filing the existing outcome stands; a page that cannot be read is the classified provider
+  failure.
+- **Annual series (T2):** every observation that passes the checks is a resolved input, oldest first; the trace records
+  the request and the outcome; the series is not cached; a basis other than the fiscal year is `invalid_input`;
+  `FactsNotAvailableAsOf` is flagged, an empty answer is not; a provider failure keeps its record; an answer for another
+  subject, field, provider or basis, or one that is not a completed annual period, is rejected as a whole; an
+  observation not available at the boundary or failing the quality checks is left out; the SEC adapter's series passes
+  the checks on a captured issuer.
 - **Unchanged:** every existing strategy's output; the tests of the changed fixtures pass unchanged.
 
 ### B.11 3.5.2e tests
@@ -793,8 +856,12 @@ the split-history client and the listing capability of the synthetic cases are s
   meaning.
 - 3.5.2c: none. The capability is routed and called by no production path; no stored shape, command, option or output
   changes.
-- 3.5.2d: none. Nothing calls the assembly in production; the production provider's new routing of the balance-sheet
-  series is reached by no production path; no stored shape, command, option or output changes.
+- 3.5.2d: the snapshot of the SEC adapter finds the anchor annual filing on the extra submissions pages when the
+  recent block holds none at or before the boundary (T1). For a frequent filer's historical run (`--as-of` before its
+  newest annual filing, when the earlier one is off the recent block) the anchor, and so everything that reads it, is
+  now the correct earlier filing instead of unavailable; at most twelve extra requests are made, once per adapter. No
+  stored shape, command or option changes. Nothing else is reached by a production path: nothing calls the assembly, and
+  the production provider's routing of the balance-sheet series and `resolve_annual_series` have no production caller.
 - 3.5.2e: FCF-Growth's stored result changes shape (`SCHEMA_VERSION` 5 to 6, with the codec and document versions), so a
   run stored before it is refused by version when read. FCF yield is shown where it was always unavailable. The text,
   `--json` and checked-in schema of FCF-Growth gain the market-cap evidence.
@@ -821,4 +888,4 @@ descriptor or wiring file was touched.
 | `docs/user/strategies/FCF_GROWTH.md` | none | none | none | none | the yield and its limitations (K15) |
 | `docs/project/ARCHITECTURE.md` | none | the `analysis` row's description (authorized by L6) | none | none | none |
 | `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` | none: its sequence table lists Step 3.5 as one row, not 3.5.2 | none | none | none | none |
-| This plan | status rows | status rows | A.5, A.6, the renaming, status rows | A.7, A.8, B.4, B.6, B.10, status rows | status rows |
+| This plan | status rows | status rows | A.5, A.6, the renaming, status rows | A.7, A.8, A.9, B.4, B.6, B.10, B.12, status rows | status rows |

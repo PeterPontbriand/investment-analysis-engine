@@ -173,6 +173,47 @@ class InstantSeriesResolution:
 
 
 @dataclass(frozen=True)
+class AnnualSeriesResolution:
+    """Outcome of resolving one completed-annual field as a series of fiscal years.
+
+    Invariants:
+        - ``OK`` requires at least one resolved input and no ``reason`` or ``provider_failure``.
+        - Any other status carries no resolved input and a non-empty ``reason``.
+        - ``provider_failure`` is present only with ``PROVIDER_ERROR``.
+        - ``not_available_as_of`` is set only with ``INPUT_UNAVAILABLE``.
+
+    Attributes:
+        status: The resolution outcome.
+        inputs: Every observation the provider reported that passed the checks, oldest period first and, within a
+            period, earliest available first. No selection among them is made here.
+        reason: Non-empty explanation when status is not ``OK``.
+        resolution_trace: Ordered resolver events actually observed for this resolution.
+        provider_failure: The kind and provider of a ``PROVIDER_ERROR`` outcome.
+        not_available_as_of: Whether the provider said the subject has nothing public at the boundary
+            (``FactsNotAvailableAsOf``), as against having no observation of this field.
+    """
+
+    status: CalculationStatus
+    inputs: tuple[ResolvedInput, ...] = ()
+    reason: str | None = None
+    resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
+    provider_failure: ProviderFailureRecord | None = None
+    not_available_as_of: bool = False
+
+    def __post_init__(self) -> None:
+        """Enforce status/value invariants."""
+        if self.status is CalculationStatus.OK:
+            if not self.inputs or self.reason is not None or self.provider_failure is not None:
+                raise ValueError("AnnualSeriesResolution: OK requires inputs and no reason or failure.")
+        elif self.inputs or not self.reason:
+            raise ValueError("AnnualSeriesResolution: a non-OK status requires a reason and no inputs.")
+        if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
+            raise ValueError("AnnualSeriesResolution: provider_failure requires PROVIDER_ERROR.")
+        if self.not_available_as_of and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
+            raise ValueError("AnnualSeriesResolution: not_available_as_of requires INPUT_UNAVAILABLE.")
+
+
+@dataclass(frozen=True)
 class InputResolutionResult:
     """Outcome of a single-fact input resolution.
 
@@ -232,6 +273,8 @@ class InputResolutionResult:
 # value-bearing enumeration changes, and an entry stored under an older version is refused and fetched again.
 # Version 2: ``PeriodKind`` gained ``instant`` and the share-count fact gained the IFRS and cover-page paths.
 DEFAULT_CACHE_SCHEMA_VERSION = 2
+
+_FISCAL_YEAR_BASIS = "fiscal_year"
 
 
 class InputResolver:
@@ -386,6 +429,115 @@ class InputResolver:
             provider_failure=failure,
             resolution_trace=trace.append(
                 _event(request.field_name.value, ResolutionStage.PROVIDER, outcome, reason, now=self._clock())
+            ),
+        )
+
+    def resolve_annual_series(self, request: FinancialFactRequest) -> AnnualSeriesResolution:
+        """Resolve one completed-annual field as the series of fiscal years the provider reports.
+
+        The provider is called once. An answer that does not coherently answer the request (another subject, field,
+        provider or basis, or an observation that is not a completed annual period with both ends) is rejected as a
+        whole, as a ``PROVIDER_ERROR``. An observation that is not temporally eligible at the boundary, or that fails
+        the quality checks, is left out and the others stand. Every remaining observation is returned as a resolved
+        input; choosing the year, and between versions of it, is the caller's. The series is not cached.
+
+        The request must have ``basis="fiscal_year"``; any other basis is ``INVALID_INPUT``.
+        """
+        field_name = request.field_name.value
+        if request.basis != _FISCAL_YEAR_BASIS:
+            reason = f"resolve_annual_series requires basis={_FISCAL_YEAR_BASIS!r} (received {request.basis!r})."
+            return AnnualSeriesResolution(
+                status=CalculationStatus.INVALID_INPUT,
+                reason=reason,
+                resolution_trace=_trace_event(
+                    field_name, ResolutionStage.VALIDATION, ResolutionOutcome.INVALID, reason, now=self._clock()
+                ),
+            )
+        trace = _trace_event(
+            field_name,
+            ResolutionStage.PROVIDER,
+            ResolutionOutcome.ATTEMPTED,
+            f"Requested the {field_name} fiscal-year series from provider {request.provider_id!r}.",
+            now=self._clock(),
+        )
+        try:
+            facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
+        except FactsNotAvailableAsOf as exc:
+            return self._annual_failure(
+                request, trace, CalculationStatus.INPUT_UNAVAILABLE, str(exc), not_available_as_of=True
+            )
+        except FinancialProviderError as exc:
+            return self._annual_failure(
+                request, trace, CalculationStatus.PROVIDER_ERROR, f"Provider error: {exc}", failure=failure_record(exc)
+            )
+        resolved_at = self._clock()
+        kept: list[ProviderFact] = []
+        left_out: list[str] = []
+        for fact in facts:
+            validation = _validate_provider_response(request, fact, resolved_at)
+            rejected = _annual_fact_error(fact)
+            if rejected is None and validation is not None and validation[0] is CalculationStatus.PROVIDER_ERROR:
+                rejected = validation[1]
+            if rejected is not None:
+                return self._annual_failure(
+                    request,
+                    trace,
+                    CalculationStatus.PROVIDER_ERROR,
+                    rejected,
+                    failure=_rejected_answer(request),
+                    outcome=ResolutionOutcome.REJECTED,
+                )
+            if validation is None:
+                kept.append(fact)
+            else:
+                left_out.append(validation[1])
+        if not kept:
+            reason = (
+                "Provider returned no data for the requested field."
+                if not facts
+                else f"No {field_name} observation is eligible at the boundary: {left_out[0]}"
+            )
+            return self._annual_failure(request, trace, CalculationStatus.INPUT_UNAVAILABLE, reason)
+        inputs = tuple(
+            _resolved_from_fact(fact, basis=fact.basis, as_of=request.as_of, resolved_at=resolved_at)
+            for fact in sorted(kept, key=_annual_order)
+        )
+        return AnnualSeriesResolution(
+            status=CalculationStatus.OK,
+            inputs=inputs,
+            resolution_trace=trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.PROVIDER,
+                    ResolutionOutcome.SUCCESS,
+                    f"{len(inputs)} fiscal-year observation(s) resolved; {len(left_out)} left out as ineligible.",
+                    now=self._clock(),
+                )
+            ),
+        )
+
+    def _annual_failure(  # noqa: PLR0913
+        self,
+        request: FinancialFactRequest,
+        trace: ResolutionTrace,
+        status: CalculationStatus,
+        reason: str,
+        *,
+        failure: ProviderFailureRecord | None = None,
+        not_available_as_of: bool = False,
+        outcome: ResolutionOutcome | None = None,
+    ) -> AnnualSeriesResolution:
+        """Build a non-OK annual-series resolution with its closing trace event."""
+        closing = outcome or (
+            ResolutionOutcome.ERROR if status is CalculationStatus.PROVIDER_ERROR else ResolutionOutcome.UNAVAILABLE
+        )
+        return AnnualSeriesResolution(
+            status=status,
+            reason=reason,
+            provider_failure=failure,
+            not_available_as_of=not_available_as_of,
+            resolution_trace=trace.append(
+                _event(request.field_name.value, ResolutionStage.PROVIDER, closing, reason, now=self._clock())
             ),
         )
 
@@ -1412,11 +1564,8 @@ class InputResolver:
                 ),
             )
 
-        ri = ResolvedInput(
-            field_name=field_name,
-            value=fact.value,
-            source_kind=SourceKind.DERIVED if fact.source_facts else SourceKind.PROVIDER,
-            resolved_at=self._clock(),
+        ri = _resolved_from_fact(
+            fact,
             basis=(
                 "latest_provider_quote"
                 if request.field_name is FinancialField.CURRENT_PRICE
@@ -1424,23 +1573,8 @@ class InputResolver:
                 and request.basis is None
                 else fact.basis
             ),
-            units=fact.units.value,
-            currency=fact.currency,
-            provider_id=fact.provider_id,
-            provider_field=fact.provider_field,
-            observation_period_start=fact.observation_period_start,
-            observation_period_end=fact.observation_period_end,
-            observed_at=fact.observed_at,
-            available_at=fact.available_at,
             as_of=request.as_of,
-            retrieved_at=fact.retrieved_at,
-            notes=fact.notes,
-            fiscal_year=fact.fiscal_year,
-            period_kind=fact.period_kind,
-            accounting_scope=fact.accounting_scope,
-            capital_expenditure_sign=fact.capital_expenditure_sign,
-            provider_fact_id=fact.provider_fact_id,
-            lineage=_provider_lineage(fact, resolved_at=self._clock(), as_of=request.as_of),
+            resolved_at=self._clock(),
         )
 
         if request.field_name is FinancialField.CURRENT_PRICE:
@@ -1482,6 +1616,52 @@ class InputResolver:
 # ---------------------------------------------------------------------------
 # Module-level helpers
 # ---------------------------------------------------------------------------
+
+
+def _resolved_from_fact(
+    fact: ProviderFact, *, basis: str | None, as_of: datetime | None, resolved_at: datetime
+) -> ResolvedInput:
+    """Build the resolved input of a provider fact that passed validation, with its provenance and lineage."""
+    return ResolvedInput(
+        field_name=fact.field_name.value,
+        value=fact.value,
+        source_kind=SourceKind.DERIVED if fact.source_facts else SourceKind.PROVIDER,
+        resolved_at=resolved_at,
+        basis=basis,
+        units=fact.units.value,
+        currency=fact.currency,
+        provider_id=fact.provider_id,
+        provider_field=fact.provider_field,
+        observation_period_start=fact.observation_period_start,
+        observation_period_end=fact.observation_period_end,
+        observed_at=fact.observed_at,
+        available_at=fact.available_at,
+        as_of=as_of,
+        retrieved_at=fact.retrieved_at,
+        notes=fact.notes,
+        fiscal_year=fact.fiscal_year,
+        period_kind=fact.period_kind,
+        accounting_scope=fact.accounting_scope,
+        capital_expenditure_sign=fact.capital_expenditure_sign,
+        provider_fact_id=fact.provider_fact_id,
+        lineage=_provider_lineage(fact, resolved_at=resolved_at, as_of=as_of),
+    )
+
+
+def _annual_fact_error(fact: ProviderFact) -> str | None:
+    """Return why a fact is not a completed annual period, which no answer to a fiscal-year request may hold."""
+    if fact.period_kind is not PeriodKind.COMPLETED_ANNUAL:
+        kind = "no" if fact.period_kind is None else fact.period_kind.value
+        return f"Provider fact has {kind} period kind, not a completed annual one."
+    if fact.observation_period_start is None or fact.observation_period_end is None:
+        return "Provider fact is missing its observation period."
+    return None
+
+
+def _annual_order(fact: ProviderFact) -> tuple[datetime, datetime]:
+    """Order observations by period end, then by when each version became available."""
+    assert fact.observation_period_end is not None  # checked before any fact is kept
+    return fact.observation_period_end, fact.available_at or fact.observation_period_end
 
 
 def _event(
