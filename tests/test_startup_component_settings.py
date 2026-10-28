@@ -1,4 +1,4 @@
-"""A bad strategy settings file stops every command at startup with one message and exit code 2."""
+"""A bad strategy or provider settings file stops every command at startup with one message and exit code 2."""
 
 from __future__ import annotations
 

@@ -54,11 +54,16 @@ def _company_facts(cik: int, form: str = "10-K") -> dict[str, Any]:
 _OCF = "NetCashProvidedByUsedInOperatingActivities"
 
 
-def _submissions(cik: int, forms: Mapping[str, str] | None = None, *, pages: str | None = None) -> dict[str, Any]:
+def _submissions(
+    cik: int, forms: Mapping[str, str] | None = None, *, pages: str | None = None, undated: bool = False
+) -> dict[str, Any]:
     """Return submissions with the 10-Ks of 2023 to 2025, or the given accession -> form listing."""
     listing = forms or {f"{cik:010d}-{year % 100:02d}-000001": "10-K" for year in (2023, 2024, 2025)}
     names = list(listing)
     stamps = [f"20{name.split('-')[1]}-02-01T12:00:00.000Z" for name in names]
+    dates = [stamp[:10] for stamp in stamps]
+    if undated:  # the last filing has neither a filing date nor a readable acceptance time
+        dates[-1], stamps[-1] = "n/a", "n/a"
     files = [{"name": f"CIK{cik:010d}-submissions-001.json", "filingFrom": pages, "filingTo": "2019-12-31"}]
     return {
         "tickers": ["XOM"],
@@ -66,7 +71,7 @@ def _submissions(cik: int, forms: Mapping[str, str] | None = None, *, pages: str
             "recent": {
                 "accessionNumber": names,
                 "form": [listing[name] for name in names],
-                "filingDate": [stamp[:10] for stamp in stamps],
+                "filingDate": dates,
                 "acceptanceDateTime": stamps,
                 "primaryDocument": ["a.htm"] * len(names),
             },
@@ -368,3 +373,28 @@ def test_no_anchor_filing_remains_the_reason_for_a_ticker_with_no_cik() -> None:
     assert [i.reason for i in adapter.fetch_instant_series(series, effective_as_of=NOW).absences] == [
         InstantAbsenceReason.NO_ANCHOR_FILING
     ]
+
+
+def test_the_after_the_boundary_signal_is_also_raised_without_an_analysis_scope() -> None:
+    sec = _Sec([("XOM", _OLD_CIK)], {_OLD_CIK: _submissions(_OLD_CIK)})
+    message = sec.adapter().create_analysis_snapshot(subject_id="XOM", as_of=_BEFORE_FILINGS).after_boundary_message
+    assert message is not None
+
+    with pytest.raises(FactsNotAvailableAsOf) as caught:
+        sec.adapter().fetch_facts(_ocf_request(as_of=_BEFORE_FILINGS), effective_as_of=_BEFORE_FILINGS)
+
+    assert not isinstance(caught.value, FinancialProviderError)
+    assert str(caught.value) == message
+
+
+def test_extra_pages_and_a_filing_with_no_date_leave_the_registrant_undecided_even_before_every_dated_filing() -> None:
+    early = datetime(1999, 1, 1, tzinfo=UTC)
+    dated = _Sec([("XOM", _NEW_CIK)], {_NEW_CIK: _submissions(_NEW_CIK, pages="2000-01-01")}, facts_form="10-Q")
+    assert dated.adapter().create_analysis_snapshot(subject_id="XOM", as_of=early).after_boundary_message is not None
+
+    undated = _Sec(
+        [("XOM", _NEW_CIK)], {_NEW_CIK: _submissions(_NEW_CIK, pages="2000-01-01", undated=True)}, facts_form="10-Q"
+    )
+    snapshot = undated.adapter().create_analysis_snapshot(subject_id="XOM", as_of=early)
+
+    assert snapshot.after_boundary_message is None

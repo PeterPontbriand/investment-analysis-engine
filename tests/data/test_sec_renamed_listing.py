@@ -14,13 +14,18 @@ from investment_analysis_engine.data.financial.facts import FinancialProviderErr
 from investment_analysis_engine.data.sec_edgar.cover_listing import (
     CoverListingRequest,
     CoverReaderPolicy,
+    CoverUnavailableReason,
     ListingEvidence,
     ListingRename,
     ListingResolution,
     SecurityKind,
     read_renamed_listing,
 )
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PROVIDER_ID,
+    SecEdgarAnalysisSnapshot,
+    SecEdgarFinancialFactsAdapter,
+)
 
 FIXTURES = PACKAGE_ROOT / "evaluation" / "fixtures" / "sec_edgar" / "cover_pages"
 NOW = datetime(2026, 10, 27, 12, tzinfo=UTC)
@@ -189,7 +194,13 @@ def test_a_refused_listing_check_records_no_rename() -> None:
 class _Sec:
     """Meta Platforms filings and two covers, counting the cover requests."""
 
-    def __init__(self, *, covers: Mapping[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        covers: Mapping[str, str] | None = None,
+        filings: tuple[tuple[str, str, str], ...] | None = None,
+    ) -> None:
+        self.filings = filings or ((_FY2025, "10-K", _ACCEPTED_2025), (_FY2020, "10-K", _ACCEPTED_2020))
         self.cover_urls: list[str] = []
         self.covers = dict(
             covers
@@ -204,16 +215,16 @@ class _Sec:
             return {"0": {"cik_str": 1326801, "ticker": "META", "title": "Meta Platforms, Inc."}}
         if "/companyfacts/" in url:
             return {"cik": 1326801, "entityName": "Meta", "facts": {"us-gaap": {}}}
-        accepted = [_ACCEPTED_2025, _ACCEPTED_2020]
+        accepted = [item[2] for item in self.filings]
         return {
             "tickers": ["META"],
             "filings": {
                 "recent": {
-                    "accessionNumber": [_FY2025, _FY2020],
-                    "form": ["10-K", "10-K"],
+                    "accessionNumber": [item[0] for item in self.filings],
+                    "form": [item[1] for item in self.filings],
                     "filingDate": [stamp[:10] for stamp in accepted],
                     "acceptanceDateTime": accepted,
-                    "primaryDocument": ["a.htm", "b.htm"],
+                    "primaryDocument": ["a.htm"] * len(self.filings),
                 }
             },
         }
@@ -293,3 +304,83 @@ def test_a_latest_cover_that_is_missing_leaves_the_ticker_not_listed() -> None:
 
     assert result.evidence.kind is SecurityKind.NOT_LISTED
     assert result.evidence.rename is None
+
+
+def _anchor_url(accession: str) -> str:
+    return _URL.format(folder=accession.replace("-", ""))
+
+
+def _foreign_anchor_cover() -> str:
+    return _cover("0001326801", ("Ordinary Shares", "FBX"), form="20-F")
+
+
+def test_an_anchor_that_is_not_a_10_k_makes_no_second_request_even_when_a_later_10_k_exists() -> None:
+    anchor_20f = "0001326801-21-000020"
+    sec = _Sec(
+        covers={_anchor_url(anchor_20f): _foreign_anchor_cover(), _anchor_url(_FY2025): _read("meta_fy2025")},
+        filings=((_FY2025, "10-K", _ACCEPTED_2025), (anchor_20f, "20-F", _ACCEPTED_2020)),
+    )
+
+    result = _resolve(sec.adapter(), "META", _BOUNDARY_2021)
+
+    assert result.evidence.kind is SecurityKind.NOT_LISTED
+    assert result.evidence.rename is None
+    assert sec.cover_urls == [_anchor_url(anchor_20f)]
+
+
+def test_a_registrant_with_no_10_k_at_all_makes_no_second_request() -> None:
+    anchor_20f = "0001326801-21-000020"
+    sec = _Sec(
+        covers={_anchor_url(anchor_20f): _foreign_anchor_cover()},
+        filings=((anchor_20f, "20-F", _ACCEPTED_2020),),
+    )
+
+    result = _resolve(sec.adapter(), "META", _BOUNDARY_2021)
+
+    assert result.evidence.kind is SecurityKind.NOT_LISTED
+    assert sec.cover_urls == [_anchor_url(anchor_20f)]
+
+
+def test_a_ticker_on_neither_cover_when_the_anchor_is_the_latest_10_k_makes_no_second_request() -> None:
+    sec = _Sec()
+
+    result = _resolve(sec.adapter({"ZZZ": "0001326801"}), "ZZZ", None)
+
+    assert result.evidence.kind is SecurityKind.NOT_LISTED
+    assert result.evidence.rename is None
+    assert sec.cover_urls == [_anchor_url(_FY2025)]
+
+
+def test_a_latest_10_k_not_accepted_after_the_anchor_leaves_the_ticker_not_listed() -> None:
+    """Two 10-Ks accepted at one instant leave a hand-built snapshot whose anchor is the lower accession.
+
+    The adapter itself picks the higher accession as the anchor, so only such a snapshot reaches this guard.
+    """
+    lower, higher = "0001326801-21-000001", "0001326801-21-000002"
+    moment = datetime(2021, 1, 28, 2, 13, 48, tzinfo=UTC)
+    sec = _Sec(covers={_anchor_url(lower): _read("meta_fy2020"), _anchor_url(higher): _read("meta_fy2025")})
+    adapter = sec.adapter()
+    snapshot = SecEdgarAnalysisSnapshot(
+        subject_id="META",
+        cik="0001326801",
+        as_of=_BOUNDARY_2021,
+        retrieved_at=NOW,
+        company_facts={},
+        acceptance_by_accession={lower: moment, higher: moment},
+        accession_taxonomies={},
+        latest_annual_accession=lower,
+        eligible_annual_accessions=(lower,),
+        taxonomy=None,
+        filing_forms={lower: "10-K", higher: "10-K"},
+    )
+    fallback = ListingResolution(reason=CoverUnavailableReason.COVER_UNREADABLE)
+
+    result = adapter._renamed_listing(  # noqa: SLF001
+        CoverListingRequest("META", SEC_PROVIDER_ID),
+        snapshot,
+        anchor=(lower, "10-K", _read("meta_fy2020")),
+        fallback=fallback,
+    )
+
+    assert result is fallback
+    assert sec.cover_urls == []
