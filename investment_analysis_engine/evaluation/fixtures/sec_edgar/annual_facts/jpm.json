@@ -626,6 +626,9 @@
    ],
    "primaryDocument": [
     "jpm-20241231.htm"
+   ],
+   "reportDate": [
+    "2024-12-31"
    ]
   },
   "CIK0000019617-submissions-018.json": {
@@ -643,6 +646,9 @@
    ],
    "primaryDocument": [
     "jpm-20231231.htm"
+   ],
+   "reportDate": [
+    "2023-12-31"
    ]
   }
  },
@@ -760,6 +766,9 @@
     ],
     "primaryDocument": [
      "jpm-20251231.htm"
+    ],
+    "reportDate": [
+     "2025-12-31"
     ]
    }
   },

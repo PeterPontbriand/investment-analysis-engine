@@ -219,6 +219,38 @@ class SplitAdjustedHistoryProvider(Protocol):
         ...
 
 
+@runtime_checkable
+class DatedSplitAdjustedHistoryProvider(Protocol):
+    """A split-adjusted history boundary that also declares the two days the cached client takes.
+
+    ``SplitAdjustedHistoryProvider`` is unchanged and is what the raw Yahoo client implements; its signature has
+    neither argument. The cached client (``CachedHistoricalDataClient``) takes both, and this protocol declares them
+    so a consumer can pass them. ``runtime_checkable`` tests only that the method exists, so the signature is checked
+    by the type checker.
+    """
+
+    def fetch_split_adjusted_history(
+        self,
+        ticker: str,
+        start_date: str,
+        *,
+        use_cache: bool,
+        adjusted_on: date | None = None,
+        as_of: date | None = None,
+    ) -> SplitAdjustedHistory:
+        """Return the closes from ``start_date`` and every split in that range.
+
+        Args:
+            ticker: The instrument.
+            start_date: First calendar day requested (``YYYY-MM-DD``).
+            use_cache: ``False`` always fetches and neither reads nor writes storage.
+            adjusted_on: For the live path, the day the share count must be scaled to; a stored response adjusted on
+                another day is not reused.
+            as_of: For a run at a requested day, that day; a stored response that ended before it is not reused.
+        """
+        ...
+
+
 def split_adjusted_close_on_or_before(history: SplitAdjustedHistory, as_of: date) -> tuple[date, float]:
     """Return the date and split-adjusted close of the last session on or before ``as_of``.
 

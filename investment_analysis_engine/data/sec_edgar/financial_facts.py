@@ -9,8 +9,9 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
+from enum import StrEnum
 from types import MappingProxyType
-from typing import cast
+from typing import Protocol, cast, runtime_checkable
 from zoneinfo import ZoneInfo
 
 from investment_analysis_engine.core.clock import utc_now
@@ -240,6 +241,82 @@ class _SecShareObservation:
     available_at: datetime
 
 
+class AnchorYearEndUnavailableReason(StrEnum):
+    """Why the fiscal year-end of the anchor annual filing cannot be given."""
+
+    NO_ANALYSIS_SCOPE = "no_analysis_scope"
+    SUBJECT_MISMATCH = "subject_mismatch"
+    NO_ANCHOR_FILING = "no_anchor_filing"
+    ACCEPTED_AFTER_BOUNDARY = "accepted_after_boundary"
+    FORM_UNAVAILABLE = "form_unavailable"
+    REPORT_DATE_UNAVAILABLE = "report_date_unavailable"
+
+
+@dataclass(frozen=True)
+class AnchorYearEndRequest:
+    """Request the fiscal year-end of the active analysis scope's anchor annual filing."""
+
+    ticker: str
+    provider_id: str
+
+    def __post_init__(self) -> None:
+        """Normalize the ticker and the provider identifier."""
+        ticker = " ".join(self.ticker.split()).upper()
+        provider_id = " ".join(self.provider_id.split())
+        if not ticker or not provider_id:
+            raise ValueError("An anchor year-end request requires a ticker and a provider.")
+        object.__setattr__(self, "ticker", ticker)
+        object.__setattr__(self, "provider_id", provider_id)
+
+
+@dataclass(frozen=True)
+class AnchorYearEnd:
+    """The anchor annual filing and its fiscal year-end, read from the submissions data already fetched.
+
+    Attributes:
+        year_end: The filing's ``reportDate``: the fiscal year-end *t* every input of the analysis is taken at.
+        accession: The anchor filing's accession.
+        form: The anchor filing's form.
+        filing_date: The anchor filing's filing date, when the submissions data dates it.
+        filing_dates: The filing date of every filing of the recent block, by accession, so the filing date of the
+            source of a fact can be found without another request.
+    """
+
+    year_end: date
+    accession: str
+    form: str
+    filing_date: date | None
+    filing_dates: Mapping[str, date]
+
+
+@dataclass(frozen=True)
+class AnchorYearEndResolution:
+    """The anchor year-end, or the reason there is none with the adapter's message.
+
+    Exactly one of ``anchor`` and ``reason`` is set; ``message`` explains a reason.
+    """
+
+    anchor: AnchorYearEnd | None = None
+    reason: AnchorYearEndUnavailableReason | None = None
+    message: str | None = None
+
+    def __post_init__(self) -> None:
+        """Require the year-end or one reason with its message, never both."""
+        if (self.anchor is None) == (self.reason is None):
+            raise ValueError("An anchor year-end resolution holds either the year-end or the reason, not both.")
+        if self.reason is not None and (self.message is None or not self.message.strip()):
+            raise ValueError("An unavailable anchor year-end requires a message.")
+
+
+@runtime_checkable
+class AnchorYearEndProvider(Protocol):
+    """Optional capability: the fiscal year-end of the active analysis scope's anchor annual filing."""
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
+        """Return the year-end or the reason there is none; it makes no provider request."""
+        ...
+
+
 @dataclass(frozen=True)
 class SecEdgarAnalysisSnapshot:
     """Immutable Company Facts and filing-regime evidence for one analysis."""
@@ -257,6 +334,7 @@ class SecEdgarAnalysisSnapshot:
     primary_documents: Mapping[str, str] = field(default_factory=dict)
     filing_forms: Mapping[str, str] = field(default_factory=dict)
     filing_dates: Mapping[str, date] = field(default_factory=dict)
+    report_dates: Mapping[str, date] = field(default_factory=dict)
     current_tickers: tuple[str, ...] = ()
     submission_pages: tuple[SubmissionPage, ...] = ()
     cik_source: str = CIK_SOURCE_TICKER_FILE
@@ -382,6 +460,7 @@ class SecEdgarFinancialFactsAdapter:
             primary_documents=MappingProxyType(_submission_strings(submissions_raw, "primaryDocument")),
             filing_forms=MappingProxyType(_submission_strings(submissions_raw, "form")),
             filing_dates=MappingProxyType(filing_dates),
+            report_dates=MappingProxyType(_submission_report_dates(submissions_raw)),
             current_tickers=_submission_tickers(submissions_raw),
             submission_pages=pages,
             cik_source=self._cik_source(ticker),
@@ -433,6 +512,57 @@ class SecEdgarFinancialFactsAdapter:
             boundary=snapshot.as_of,
             source_url=url,
             retrieved_at=retrieved_at,
+        )
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:  # noqa: PLR0911
+        """Return the fiscal year-end of the anchor annual filing of the active analysis scope.
+
+        The year-end is the ``reportDate`` the submissions data already gives the anchor filing, read when the scope
+        opened, so no request is made. A registrant whose annual filings all came after the boundary gives the
+        adapter's own message. A filing with no report date, or one that is not a date, gives no year-end: it is never
+        guessed from the facts.
+        """
+        snapshot = _ACTIVE_SNAPSHOT.get()
+        if request.provider_id != SEC_PROVIDER_ID or snapshot is None:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.NO_ANALYSIS_SCOPE,
+                message="No SEC analysis scope is active for the ticker.",
+            )
+        if snapshot.subject_id != request.ticker:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.SUBJECT_MISMATCH,
+                message=f"The active analysis scope is for {snapshot.subject_id}, not {request.ticker}.",
+            )
+        accession = snapshot.latest_annual_accession
+        if snapshot.cik is not None and accession is None and snapshot.after_boundary_message is not None:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.ACCEPTED_AFTER_BOUNDARY, message=snapshot.after_boundary_message
+            )
+        if snapshot.cik is None or accession is None:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.NO_ANCHOR_FILING,
+                message=f"SEC EDGAR has no annual filing accepted by the boundary for {request.ticker}.",
+            )
+        form = snapshot.filing_forms.get(accession)
+        if not form:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.FORM_UNAVAILABLE,
+                message=f"The submissions data gives no form for the anchor filing {accession}.",
+            )
+        year_end = snapshot.report_dates.get(accession)
+        if year_end is None:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.REPORT_DATE_UNAVAILABLE,
+                message=f"The submissions data gives no report date for the anchor filing {accession}.",
+            )
+        return AnchorYearEndResolution(
+            anchor=AnchorYearEnd(
+                year_end=year_end,
+                accession=accession,
+                form=form,
+                filing_date=snapshot.filing_dates.get(accession),
+                filing_dates=MappingProxyType(dict(snapshot.filing_dates)),
+            )
         )
 
     def resolve_cover_listing(self, request: CoverListingRequest) -> ListingResolution:  # noqa: PLR0911
@@ -1335,6 +1465,17 @@ def _submission_filing_dates(payload: object) -> dict[str, date]:
     """Return accession -> SEC filing date for recent submissions, skipping any value that is not a date."""
     result: dict[str, date] = {}
     for accession, value in _submission_strings(payload, "filingDate").items():
+        try:
+            result[accession] = date.fromisoformat(value)
+        except ValueError:
+            continue
+    return result
+
+
+def _submission_report_dates(payload: object) -> dict[str, date]:
+    """Return accession -> report date (the fiscal period end) for recent submissions, skipping any non-date value."""
+    result: dict[str, date] = {}
+    for accession, value in _submission_strings(payload, "reportDate").items():
         try:
             result[accession] = date.fromisoformat(value)
         except ValueError:
