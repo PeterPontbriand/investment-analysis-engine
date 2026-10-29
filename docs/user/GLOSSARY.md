@@ -392,7 +392,7 @@ The explicit FCF measure whose CAGR controls the growth screen: `total_fcf` by d
 The FCF-growth strategy's financial screen outcomes. `PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.
 
 ### FCF Yield
-Latest completed annual FCF divided by current market capitalization, expressed as a percentage. It mixes an annual numerator with a current denominator and is informational only in the current method.
+Latest completed annual FCF divided by market capitalization at the boundary, expressed as a percentage. Its numerator covers a completed year and its denominator is taken at the boundary; it is informational only in the current method.
 
 ### Forward Policy
 The rule controlling how optional FY1/FY2 analyst-consensus EPS evidence is treated: `display_only`, `confirmation`, or `hard_gate`. Only `hard_gate` can alter an otherwise passing historical classification.

@@ -1,12 +1,14 @@
 """Deterministic preservation and corruption checks for FCF workspace evidence."""
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 import pytest
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.analysis.shared.market_cap import ListingCheck, MarketCapEvidence, ShareCountBasis
+from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow, AppliedAdjustment
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
@@ -17,6 +19,7 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionTrace,
 )
 from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
+from investment_analysis_engine.data.sec_edgar.cover_listing import ListingRename
 from investment_analysis_engine.data.security_identity import SecurityIdentity
 from investment_analysis_engine.data.security_unit import (
     SecurityUnitDocument,
@@ -64,6 +67,29 @@ def _input(name: str, value: float, *, units: str = "currency") -> ResolvedInput
         available_at=STAMP,
         retrieved_at=STAMP,
         notes=("First", "Second"),
+    )
+
+
+def _market_cap(*, rename: ListingRename | None = None) -> MarketCapEvidence:
+    """Market capitalization at the boundary with every part of its evidence present."""
+    return MarketCapEvidence(
+        result=MetricResult.ok(1600.0),
+        share_count=_input("common_shares_outstanding", 100.0, units="shares"),
+        share_count_basis=ShareCountBasis.YEAR_END,
+        share_count_date=date(2025, 12, 31),
+        share_count_filing_date=date(2026, 2, 10),
+        scaled_share_count=200.0,
+        provider_adjustments=(AppliedAdjustment(date(2026, 3, 2), 2.0, AdjustmentWindow.COUNT_TO_PRICE),),
+        price=8.0,
+        price_date=date(2026, 9, 9),
+        form="10-K",
+        filing_currency="USD",
+        quote_currency="USD",
+        listing_check=ListingCheck(
+            affirmed=True,
+            accession="0000000000-26-000001" if rename is None else rename.anchor_accession,
+            rename=rename,
+        ),
     )
 
 
@@ -154,7 +180,7 @@ def _result() -> FCFEarningsGrowthResult:
         fcf_per_share_cagr=MetricResult.ok(0.0),
         eps_cagr=MetricResult.ok(0.0),
         trend_classification=TrendClassification.NEITHER_GROWING,
-        market_capitalization=_input("market_capitalization", 1600.0),
+        market_capitalization=_market_cap(),
         fcf_yield=MetricResult.ok(5.0),
         forward_evidence=ForwardEvidence(
             status=ForwardEvidenceStatus.UNAVAILABLE,
@@ -186,8 +212,8 @@ def _run(result: FCFEarningsGrowthResult | None = None) -> AnalysisRun:
         started_at=STAMP,
         completed_at=STAMP,
         method_version=2,
-        result_schema_version=5,
-        evidence_codec_version=3,
+        result_schema_version=6,
+        evidence_codec_version=4,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(result or _result()),
     )
@@ -201,7 +227,7 @@ def test_full_native_result_round_trip() -> None:
     assert restored == original
     assert restored.diagnostics == original.diagnostics
     assert restored.annual_observations[0].free_cash_flow is not original.annual_observations[0].free_cash_flow
-    assert (restored.method_version, restored.schema_version) == (2, 5)
+    assert (restored.method_version, restored.schema_version) == (2, 6)
     assert encode_native(restored) == run.result_evidence
 
 
@@ -465,3 +491,71 @@ def test_cached_history_and_absent_per_share_evidence_round_trip() -> None:
         ),
     )
     assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result
+
+
+def test_a_run_stored_under_result_schema_5_is_refused_by_version() -> None:
+    run = _run().model_copy(update={"result_schema_version": 5})
+    with pytest.raises(UnsupportedRunVersionError):
+        decode_evidence(run, EVIDENCE_BY_KEY)
+
+
+def test_a_native_result_of_schema_5_is_not_decoded() -> None:
+    payload = _run().result_evidence
+    assert isinstance(payload, dict)
+    stale = {**payload, "result": {**payload["result"], "schema_version": 5}}
+    with pytest.raises(InvalidStoredRunError):
+        decode_evidence(_run().model_copy(update={"result_evidence": stale}), EVIDENCE_BY_KEY)
+
+
+def test_a_renamed_listing_and_every_market_cap_part_round_trip() -> None:
+    rename = ListingRename(
+        anchor_accession="0001326801-21-000014",
+        anchor_form="10-K",
+        anchor_symbol="FB",
+        latest_accession="0001628280-26-003942",
+        latest_form="10-K",
+        latest_symbol="META",
+    )
+    result = replace(_result(), market_capitalization=_market_cap(rename=rename))
+    restored = decode_evidence(_run(result), EVIDENCE_BY_KEY)
+    assert isinstance(restored, FCFEarningsGrowthResult)
+    assert restored == result
+    assert restored.market_capitalization is not None
+    assert restored.market_capitalization.listing_check is not None
+    assert restored.market_capitalization.listing_check.rename == rename
+    assert restored.market_capitalization.provider_adjustments == (
+        AppliedAdjustment(date(2026, 3, 2), 2.0, AdjustmentWindow.COUNT_TO_PRICE),
+    )
+
+
+def test_a_refused_market_cap_with_its_known_inputs_round_trips_with_an_unavailable_yield() -> None:
+    refused = MarketCapEvidence(
+        result=MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.INCOMPATIBLE_UNITS, "A depositary share."),
+        form="10-K",
+        filing_currency="USD",
+        quote_currency="USD",
+        share_count_basis=ShareCountBasis.COVER_PAGE,
+        share_count_filing_date=date(2026, 2, 10),
+        price_date=date(2026, 9, 9),
+        listing_check=ListingCheck(
+            affirmed=False,
+            accession="0000000000-26-000001",
+            reason_code=ReasonCode.INCOMPATIBLE_UNITS,
+            reason="A depositary share.",
+        ),
+    )
+    result = replace(
+        _result(),
+        market_capitalization=refused,
+        fcf_yield=MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.INCOMPATIBLE_UNITS, "A depositary share."),
+    )
+    assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result
+
+
+def test_market_cap_evidence_requires_a_requested_yield() -> None:
+    with pytest.raises(ValueError, match="requires include_fcf_yield=true"):
+        replace(
+            _result(),
+            policy=FCFEarningsGrowthPolicy(include_fcf_yield=False),
+            fcf_yield=MetricResult.failure(MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "Not requested"),
+        )

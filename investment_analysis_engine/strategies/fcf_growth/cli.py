@@ -4,6 +4,9 @@ The CLI tier pairs these with the FCF Growth core bundle and adds the command to
 registers itself.
 """
 
+from collections.abc import Callable
+from datetime import datetime, timedelta
+
 import typer
 
 from investment_analysis_engine.cli_composition import build_sec_production_provider
@@ -18,6 +21,7 @@ from investment_analysis_engine.cli_support import (
     _parse_as_of,
     _presentation_mode,
     _production_financial_cache,
+    _production_historical_client,
     _resolve_ticker,
     execution_errors,
     exit_code_of,
@@ -26,11 +30,19 @@ from investment_analysis_engine.cli_support import (
     stored_configuration,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.data.financial.cache import ResolvedInputSeriesCacheProtocol
+from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessPolicy
+from investment_analysis_engine.data.financial.resolver import InputResolver
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.data.market_data import DatedSplitAdjustedHistoryProvider
+from investment_analysis_engine.data.yfinance.client import YFinanceClient
 from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.strategies.fcf_growth.analyzer import MarketCapDependencies
 from investment_analysis_engine.strategies.fcf_growth.execution import (
     execute_fcf_growth,
     from_fcf_growth_capture,
@@ -109,6 +121,31 @@ def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
     )
 
 
+def _market_cap_dependencies(
+    provider: ProductionFinancialFactsProvider,
+    cache: ResolvedInputSeriesCacheProtocol,
+    historical_client: DatedSplitAdjustedHistoryProvider,
+    *,
+    clock: Callable[[], datetime],
+) -> MarketCapDependencies:
+    """Compose the FCF yield's dependencies once per run: the quote, the split history and the cover listing.
+
+    The quote and the share counts come through the production provider and the run's financial cache, with the quote's
+    own freshness policy; the split history comes through the cached historical client, as Momentum's prices do; the
+    cover is read through the production provider. No new cache is created.
+    """
+    return MarketCapDependencies(
+        resolver=InputResolver(
+            provider,
+            cache=cache,
+            clock=clock,
+            quote_freshness_policy=QuoteFreshnessPolicy(timedelta(seconds=settings.quote_cache_ttl_seconds)),
+        ),
+        split_history=historical_client,
+        listing=provider,
+    )
+
+
 def refresh(
     ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
@@ -116,7 +153,12 @@ def refresh(
     require_job_ticker(ticker)
     config = stored_configuration(selection.to_fcf_config)
     executed_at = utc_now()
-    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
+    with (
+        _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache,
+        _production_historical_client(
+            YFinanceClient(), use_cache=selection.use_cache, clock=lambda: executed_at
+        ) as historical_client,
+    ):
         provider = build_sec_production_provider()
         resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: executed_at)
         capture = execute_fcf_growth(
@@ -127,6 +169,7 @@ def refresh(
             executed_at=executed_at,
             use_cache=selection.use_cache,
             provider=provider,
+            market_data=_market_cap_dependencies(provider, cache, historical_client, clock=lambda: executed_at),
             profile_cache=profile_cache,
         )
     return from_fcf_growth_capture(capture)
@@ -187,8 +230,14 @@ def command(  # noqa: PLR0913
             forward_policy=_fcf_forward_policy(forward_policy),
         )
         config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency)
-        with _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache:
+        with (
+            _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache,
+            _production_historical_client(
+                YFinanceClient(), use_cache=not no_cache, clock=lambda: executed_at
+            ) as historical_client,
+        ):
             provider = build_sec_production_provider()
+            market_data = _market_cap_dependencies(provider, cache, historical_client, clock=lambda: executed_at)
             resolver = ProductionAnnualGrowthSeriesResolver(
                 provider,
                 cache=cache,
@@ -216,6 +265,7 @@ def command(  # noqa: PLR0913
                         executed_at=executed_at,
                         use_cache=not no_cache,
                         provider=provider,
+                        market_data=market_data,
                         profile_cache=profile_cache,
                     ),
                     normalize=stage.after_analysis(from_fcf_growth_capture),

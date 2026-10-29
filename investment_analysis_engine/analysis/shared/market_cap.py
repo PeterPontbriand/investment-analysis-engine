@@ -1,7 +1,8 @@
 """Market capitalization at a boundary: a filed share count on the basis of a split-adjusted price.
 
-The function is pure. Market cap = common shares outstanding x price, with the count scaled by every split after the
-date it was taken (``scale_share_count``). It is available only when all of these hold, and each refusal has its code:
+The function is pure. Market cap = common shares outstanding x price, with the count put on the basis of the price
+by the provider's split adjustments of two windows (``scale_share_count``). It is available only when all of these
+hold, and each refusal has its code:
 
 - the anchor annual filing is a 10-K or a 10-K/A (``incompatible_scope``): a 20-F or 40-F filer, or their amendments,
   may list a depositary receipt at a ratio the structured data cannot show;
@@ -11,7 +12,9 @@ date it was taken (``scale_share_count``). It is available only when all of thes
   renamed line of the registrant's latest annual cover, and the check records both accessions and symbols;
 - a share count and a price are present (the input's own reason code). A year-end count must be dated at the fiscal
   year-end *t* (``incompatible_period``); several classes are valued as one combined count at the requested ticker's
-  price, and per-class counts with no total arrive as an unavailable count.
+  price, and per-class counts with no total arrive as an unavailable count;
+- an adjustment between the count's date and the price date has a recognizable split ratio (``ambiguous_fact``
+  otherwise): it may be a spin-off, which does not change the share count.
 """
 
 import math
@@ -21,7 +24,7 @@ from datetime import date
 from enum import StrEnum
 
 from investment_analysis_engine.analysis.shared.metric_evidence import InputUnavailable
-from investment_analysis_engine.analysis.shared.split_adjustment import scale_share_count
+from investment_analysis_engine.analysis.shared.split_adjustment import AppliedAdjustment, scale_share_count
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.market_data import SplitEvent
@@ -155,7 +158,9 @@ class MarketCapEvidence:
         share_count_date: The date of the count: the fiscal year-end, or the date of the cover page.
         share_count_filing_date: The filing date of the count's source.
         scaled_share_count: The count on the basis of the price, after the splits applied.
-        splits_applied: The splits that scaled the count.
+        provider_adjustments: The provider's split-history events that scaled the count, each with the window it fell
+            in: between the count and the price (a recognizable split ratio) or after the price (undoing the provider's
+            adjustment of the close). The provider reports splits and other adjustments, such as a spin-off, alike.
         price: The split-adjusted close, without dividend adjustment.
         price_date: The date of the price.
         form: The anchor filing's form.
@@ -170,7 +175,7 @@ class MarketCapEvidence:
     share_count_date: date | None = None
     share_count_filing_date: date | None = None
     scaled_share_count: float | None = None
-    splits_applied: tuple[SplitEvent, ...] = field(default=())
+    provider_adjustments: tuple[AppliedAdjustment, ...] = field(default=())
     price: float | None = None
     price_date: date | None = None
     form: str | None = None
@@ -281,13 +286,19 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
             MetricStatus.NOT_APPLICABLE,
         )
     after = share_count_filing_date if share_count_basis is ShareCountBasis.YEAR_END else count_date
-    scaled = scale_share_count(share_count.value, after, adjustment_date, split_events)
-    base = replace(
-        base,
-        scaled_share_count=scaled,
-        splits_applied=tuple(event for event in split_events if after < event.ex_date <= adjustment_date),
-    )
-    market_cap = scaled * price
+    assert price_date is not None  # a price is given only with its date
+    scaling = scale_share_count(share_count.value, after, price_date, adjustment_date, split_events)
+    if scaling.unrecognized is not None:
+        return _refuse(
+            base,
+            ReasonCode.AMBIGUOUS_FACT,
+            f"The provider reports an adjustment with ex-date {scaling.unrecognized.ex_date} and ratio "
+            f"{scaling.unrecognized.ratio:g} between the share count ({after}) and the price ({price_date}) that is "
+            "not a recognizable split ratio; it may be a spin-off or a stock dividend, which would not change the "
+            "share count the way a split does, so the share count on the price's basis is undetermined.",
+        )
+    base = replace(base, scaled_share_count=scaling.count, provider_adjustments=scaling.applied)
+    market_cap = scaling.count * price
     if not math.isfinite(market_cap):
         return _refuse(
             base,

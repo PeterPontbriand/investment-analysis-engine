@@ -22,6 +22,7 @@ from investment_analysis_engine.strategies.fcf_growth.input_resolver import Prod
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import Classification, ForwardPolicy
+from tests._fcf_market_data import fcf_market_data
 from tests.analysis.fcf_earnings_growth.test_fcf_earnings_growth_input_resolver import NOW
 
 
@@ -36,7 +37,7 @@ def _analyzer() -> FCFEarningsGrowthAnalyzer:
     )
     provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(facts))
     resolver = ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW)
-    return FCFEarningsGrowthAnalyzer(resolver)
+    return FCFEarningsGrowthAnalyzer(resolver, fcf_market_data(with_data=True))
 
 
 def test_analyzer_composes_approved_history_into_canonical_result() -> None:
@@ -50,9 +51,10 @@ def test_analyzer_composes_approved_history_into_canonical_result() -> None:
     assert result.selected_observation_count == 6
     assert result.fcf_cagr.status is MetricStatus.OK
     assert result.eps_cagr.status is MetricStatus.OK
-    assert result.fcf_yield.status is MetricStatus.UNAVAILABLE
-    assert result.fcf_yield.reason_code is ReasonCode.MARKET_CAP_UNAVAILABLE
-    assert result.market_capitalization is None
+    assert result.fcf_yield.status is MetricStatus.OK
+    assert result.fcf_yield.value == pytest.approx(10.0)
+    assert result.market_capitalization is not None
+    assert result.market_capitalization.result.value == pytest.approx(1300.0)
 
 
 def test_hard_gate_is_indeterminate_when_unapproved_consensus_is_unavailable() -> None:
@@ -95,12 +97,12 @@ def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
     assert "derivation: free_cash_flow / weighted_average_diluted_shares" in diagnostics
     assert "Diagnostics" in diagnostics
     assert "provider/success" in diagnostics
-    assert payload["schema_version"] == 9
-    assert payload["result_schema_version"] == 5
+    assert payload["schema_version"] == 10
+    assert payload["result_schema_version"] == 6
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["analysis"] == "fcf_earnings_growth"
-    assert payload["market_capitalization"] is None
-    assert payload["fcf_yield"]["value"] is None
+    assert payload["market_capitalization"]["result"]["value"] == 1300.0
+    assert payload["fcf_yield"]["value"] == pytest.approx(10.0)
     assert payload["fcf_per_share_cagr"]["status"] == "ok"
     assert "NaN" not in document
 

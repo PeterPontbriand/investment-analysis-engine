@@ -62,6 +62,39 @@ Both FCF growth measures are reported. Total-company FCF controls classification
 
 See [Financial Math & Data Conventions](../FINANCE_MATH.md#free-cash-flow--earnings-growth-strategy) for the normative formulas and edge-case rules.
 
+## FCF yield
+
+The command also shows an informational FCF yield: the latest completed fiscal year's free cash flow divided by the company's [market capitalization at the boundary](../FINANCE_MATH.md#market-capitalization), as a percentage. It never changes the classification or the execution status.
+
+- **When it is shown.** The concise view has a `FCF yield:` line only when the yield is a number. The yield requires the latest fiscal year to end at the fiscal year-end of the most recent annual report at the boundary, the year the share count is taken at; otherwise it is unavailable, and an older year is never used.
+- **What it needs.** A share count from the annual report (or its cover page), a split-adjusted closing price, the splits since the count was taken, and a check of the annual report's cover that the ticker is a share of the company. Without `--as-of` the price is the current quote; with `--as-of` it is the closing price on the last trading day on or before that date.
+- **When it is unavailable.** The line is left out and a warning, `FCF yield is unavailable:`, gives the reason: for example a filer of a 20-F or 40-F, a ticker that is a depositary share, unit or warrant on the cover, a quote and annual figures in different currencies, or no share count. When a market-data provider fails, the warning names the provider and the kind of failure (such as `yfinance` and `rate_limited`) and never repeats the provider's own message. The run is still a completed run: its status, classification and exit code are the same as without the yield, and no provider check is made. The failure is not recorded as a provider failure of the run.
+- **No request when it is not wanted.** For an ETF no market data is requested. When no completed fiscal year could be resolved there is nothing to divide, and none is requested either.
+
+`--details` adds the evidence behind the market capitalization under the calculation notes:
+
+```text
+Market capitalization: 1,300.00 USD
+  Share count: 200 (year end, dated 2025-01-01; source filed 2025-02-01)
+  Share count on the price's basis: 400
+  Provider split adjustments applied:
+    2025-03-03 ×2 (between the share count and the price)
+  Price: 3.25 USD (split-adjusted close, 2026-10-28)
+  Currencies: filing USD, quote USD
+  Listing check: affirmed on 0000000000-25-000001
+```
+
+The share count line names its basis (`year end` or `cover page`), the date of the count and the date the filing it came from was filed. A ticker renamed since the annual report is shown with both reports: `affirmed; FB on 10-K <accession>, renamed META on 10-K <accession>`. `--diagnostics` shows the same lines, and `--json` carries the whole `market_capitalization` part, with every field above and the provenance of the share count.
+
+### Limits of the yield
+
+- With a date-only `--as-of`, the price includes that day's close, and a session is read by its exchange-local date, as Momentum reads its prices.
+- The share count is the count at the fiscal year-end, so buybacks and issuance between the year-end and the price date are not reflected.
+- A filing restates its counts for a split effective before it is issued. A split announced before the filing but effective just after it is assumed not to be reflected in the filing.
+- The provider's split history reports splits and other adjustments alike. A provider adjustment for a spin-off (Honeywell's appear as ×1.061 and ×0.9535), or a stock dividend outside the recognized split ratios (Commerce Bancshares' ×1.05), between the filing and the price makes the yield unavailable, with the event's date and ratio in the warning; the share count is not guessed. The same adjustment after the price date, which the provider applied to the historical close, is undone and does not make it unavailable. Ordinary splits such as 2-for-1, 3-for-1, 10-for-1 and 3-for-2, and reverse splits, are applied.
+- A filer of a 20-F or 40-F (a foreign private issuer) is unavailable, because its US listing may be a depositary receipt at a ratio the structured data cannot show. A listing that is not a share of the company on the annual report's cover (a depositary share, unit, warrant or preferred security) is unavailable.
+- The yield uses an annual numerator and a market denominator, so it is context, not a valuation.
+
 ## Historical period
 
 The automatic policy tries these spans in order:
@@ -135,7 +168,7 @@ uv run ian fcf-growth MSFT --as-of 2025-12-31
 ## Presentation modes
 
 - The default view shows the classification, basis, period, principal metrics, source summary, warnings, and limitation.
-- `--details` adds a compact annual input table, calculation formulas, share counts and optional-metric reasons, using readable monetary magnitudes.
+- `--details` adds a compact annual input table, calculation formulas, share counts, the [market capitalization evidence](#fcf-yield) behind the FCF yield, and optional-metric reasons, using readable monetary magnitudes.
 - `--diagnostics` retains full annual provider fields, dates, notes, recursive lineage, provider attempts, candidate selection/rejection, cache behavior, and execution trace information.
 - `--json` returns the complete versioned typed result for software integration.
 
@@ -193,7 +226,7 @@ Positive FCF and diluted-EPS growth can be evidence of strengthening cash-genera
 - future growth; or
 - an investment recommendation.
 
-FCF yield may appear as optional context when compatible market-capitalization evidence is available, but it never changes classification in the current method version.
+FCF yield may appear as optional context when market capitalization at the boundary is available, but it never changes classification in the current method version.
 
 ## Watchlist options
 

@@ -126,7 +126,7 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         assert second.exit_code == 0, second.output
     assert not first.stderr
     assert not second.stderr
-    assert len(databases) == 2
+    assert len(databases) == (4 if strategy == "fcf-growth" else 2)  # FCF-Growth also opens the historical store
     for instance in databases:
         with pytest.raises(RuntimeError, match="closed"), instance.read():
             pass

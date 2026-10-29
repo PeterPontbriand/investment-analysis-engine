@@ -15,6 +15,7 @@ from investment_analysis_engine.analysis.shared.market_cap import (
     compute_market_cap,
 )
 from investment_analysis_engine.analysis.shared.metric_evidence import InputUnavailable
+from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow, AppliedAdjustment
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.data.market_data import SplitEvent
@@ -80,7 +81,7 @@ def test_market_cap_is_the_count_times_the_price_and_records_what_it_used() -> N
     assert evidence.share_count_basis is ShareCountBasis.YEAR_END
     assert evidence.share_count_date == date(2025, 12, 31)
     assert evidence.share_count_filing_date == date(2026, 2, 10)
-    assert (evidence.scaled_share_count, evidence.splits_applied) == (1_000.0, ())
+    assert (evidence.scaled_share_count, evidence.provider_adjustments) == (1_000.0, ())
     assert (evidence.price, evidence.price_date) == (20.0, date(2025, 12, 31))
     assert (evidence.form, evidence.filing_currency, evidence.quote_currency) == ("10-K", "USD", "USD")
     assert evidence.listing_check is _AFFIRMED
@@ -266,7 +267,9 @@ def test_nvidia_the_count_scaled_by_the_june_split_gives_the_market_cap_of_the_u
         split_events=events,
     )
     assert evidence.scaled_share_count == 24_640_000_000.0
-    assert evidence.splits_applied == (SplitEvent(date(2024, 6, 10), 10.0),)
+    assert evidence.provider_adjustments == (
+        AppliedAdjustment(date(2024, 6, 10), 10.0, AdjustmentWindow.PRICE_TO_ADJUSTMENT),
+    )
     assert adjusted_close == pytest.approx(86.402, abs=1e-3)
     # 86.402 x 24,640,000,000 equals 864.02 x 2,464,000,000.
     assert _ok(evidence) == pytest.approx(864.02 * 2_464_000_000, rel=1e-6)
@@ -285,11 +288,13 @@ def test_walmart_fiscal_2024_a_count_from_a_filing_after_its_split_is_not_scaled
     }
     after_the_split = _cap(share_count_filing_date=date(2024, 3, 15), **common)
     assert _ok(after_the_split) == 2_690_000_000.0 * 3 * 60.0
-    assert after_the_split.splits_applied == ()
+    assert after_the_split.provider_adjustments == ()
     # Negative case: scaling from the year-end counts the split twice and gives three times the value.
     from_the_year_end = _cap(share_count_filing_date=date(2024, 1, 31), **common)
     assert _ok(from_the_year_end) == 3 * _ok(after_the_split)
-    assert from_the_year_end.splits_applied == events
+    assert from_the_year_end.provider_adjustments == (
+        AppliedAdjustment(date(2024, 2, 26), 3.0, AdjustmentWindow.COUNT_TO_PRICE),
+    )
 
 
 def test_a_cover_page_count_dated_after_the_filings_split_date_is_scaled_and_one_before_is_not() -> None:
@@ -303,8 +308,11 @@ def test_a_cover_page_count_dated_after_the_filings_split_date_is_scaled_and_one
     before = _cap(share_count=synthetic("shares", 100.0, day=date(2024, 6, 9)), **common)
     after = _cap(share_count=synthetic("shares", 100.0, day=date(2024, 6, 10)), **common)
     # A cover dated on the ex-date already reflects the split; one a day earlier does not.
-    assert (_ok(before), before.splits_applied) == (100.0 * 10.0 * 20.0, (split,))
-    assert (_ok(after), after.splits_applied) == (100.0 * 20.0, ())
+    assert (_ok(before), before.provider_adjustments) == (
+        100.0 * 10.0 * 20.0,
+        (AppliedAdjustment(split.ex_date, 10.0, AdjustmentWindow.COUNT_TO_PRICE),),
+    )
+    assert (_ok(after), after.provider_adjustments) == (100.0 * 20.0, ())
 
 
 def test_a_cover_count_is_scaled_from_its_own_date_not_the_filing_date() -> None:
@@ -317,7 +325,7 @@ def test_a_cover_count_is_scaled_from_its_own_date_not_the_filing_date() -> None
         year_end=date(2023, 12, 31),
     )
     assert _ok(evidence) == 100.0 * 20.0
-    assert evidence.splits_applied == ()
+    assert evidence.provider_adjustments == ()
 
 
 def test_a_split_after_the_price_date_still_scales_the_count_up_to_the_adjustment_date() -> None:
@@ -325,3 +333,71 @@ def test_a_split_after_the_price_date_still_scales_the_count_up_to_the_adjustmen
     evidence = _cap(split_events=(split,), price=10.0)
     assert _ok(evidence) == 1_000.0 * 2.0 * 10.0
     assert _ok(_cap(split_events=(split,), adjustment_date=date(2026, 3, 4))) == 20_000.0
+
+
+# --- the two windows (W1) ------------------------------------------------------------------------------------------
+
+
+def test_an_event_after_the_price_date_is_applied_whatever_its_ratio() -> None:
+    # Honeywell's two provider adjustments, both after a price dated 2025-06-30: they undo the adjustment of the close.
+    events = _events("hon")
+    count = synthetic("common_shares_outstanding", 649_800_000.0, day=date(2024, 12, 31))
+    evidence = _cap(
+        year_end=date(2024, 12, 31),
+        share_count=count,
+        share_count_filing_date=date(2025, 2, 14),
+        price=230.2,
+        price_date=date(2025, 6, 30),
+        split_events=events,
+    )
+    assert [(item.ex_date, item.ratio, item.window) for item in evidence.provider_adjustments] == [
+        (date(2025, 10, 30), 1.061, AdjustmentWindow.PRICE_TO_ADJUSTMENT),
+        (date(2026, 6, 29), 0.9535, AdjustmentWindow.PRICE_TO_ADJUSTMENT),
+    ]
+    assert evidence.scaled_share_count == pytest.approx(649_800_000.0 * 1.061 * 0.9535)
+
+
+def test_an_event_between_the_count_and_the_price_with_a_recognizable_ratio_is_applied() -> None:
+    evidence = _cap(
+        share_count_filing_date=date(2024, 2, 21),
+        year_end=date(2024, 1, 28),
+        share_count=synthetic("common_shares_outstanding", 2_464_000_000.0, day=date(2024, 1, 28)),
+        price=120.0,
+        price_date=date(2024, 9, 30),
+        split_events=_events("nvda"),
+    )
+    assert [item.window for item in evidence.provider_adjustments] == [AdjustmentWindow.COUNT_TO_PRICE]
+    assert _ok(evidence) == 24_640_000_000.0 * 120.0
+
+
+def test_an_event_between_the_count_and_the_price_with_an_unrecognized_ratio_is_unavailable_naming_it() -> None:
+    # Honeywell live: every event after the filing date is before the price date.
+    evidence = _cap(
+        share_count_filing_date=date(2026, 2, 17),
+        price=219.26,
+        price_date=date(2026, 10, 28),
+        adjustment_date=date(2026, 10, 29),
+        split_events=_events("hon"),
+    )
+    assert evidence.result.status is MetricStatus.UNAVAILABLE
+    assert evidence.result.reason_code is ReasonCode.AMBIGUOUS_FACT
+    assert evidence.result.reason is not None
+    assert "2026-06-29" in evidence.result.reason
+    assert "0.9535" in evidence.result.reason
+    assert evidence.scaled_share_count is None
+    assert evidence.provider_adjustments == ()
+
+
+def test_the_live_path_puts_every_event_after_the_count_in_the_second_window() -> None:
+    split = SplitEvent(date(2026, 3, 5), 2.0)
+    evidence = _cap(
+        split_events=(split,), price=10.0, price_date=date(2026, 10, 28), adjustment_date=date(2026, 10, 28)
+    )
+    assert [item.window for item in evidence.provider_adjustments] == [AdjustmentWindow.COUNT_TO_PRICE]
+    spin_off = _cap(
+        split_events=(SplitEvent(date(2026, 3, 5), 0.9535),),
+        price=10.0,
+        price_date=date(2026, 10, 28),
+        adjustment_date=date(2026, 10, 28),
+    )
+    assert spin_off.result.reason_code is ReasonCode.AMBIGUOUS_FACT

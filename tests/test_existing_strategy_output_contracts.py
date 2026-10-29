@@ -18,6 +18,7 @@ from investment_analysis_engine.strategies.fcf_growth.input_resolver import Prod
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis
+from tests._fcf_market_data import fcf_market_data
 
 
 @pytest.mark.parametrize("basis", list(FCFClassificationBasis))
@@ -41,7 +42,8 @@ def test_dilution_changes_the_selected_explanation(basis: FCFClassificationBasis
         ProductionAnnualGrowthSeriesResolver(
             FixtureAnnualFinancialFactsProvider(facts),
             clock=lambda: now,
-        )
+        ),
+        fcf_market_data(),
     ).run_analysis(
         "ACME",
         FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(classification_basis=basis), currency="USD"),
@@ -66,7 +68,8 @@ def test_fcf_effective_boundary_controls_resolution_not_only_result_label() -> N
         ProductionAnnualGrowthSeriesResolver(
             FixtureAnnualFinancialFactsProvider(facts),
             clock=lambda: datetime(2026, 9, 11, tzinfo=UTC),
-        )
+        ),
+        fcf_market_data(),
     ).run_analysis(
         "ACME",
         FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),

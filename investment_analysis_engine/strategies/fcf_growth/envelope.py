@@ -12,8 +12,11 @@ strategy's own.
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Final
 
+from investment_analysis_engine.analysis.shared.market_cap import ShareCountBasis
+from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.provenance import (
     AccountingScope,
@@ -38,7 +41,7 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 9
+DOCUMENT_SCHEMA_VERSION: Final = 10
 
 
 class FCFResolvedInputPart(DocumentPart):
@@ -116,6 +119,53 @@ class FCFForwardEvidencePart(DocumentPart):
     confirms_positive_growth: bool | None
 
 
+class FCFProviderAdjustmentPart(DocumentPart):
+    """One provider split adjustment that scaled the share count: its ex-date, ratio and the window it fell in."""
+
+    ex_date: date
+    ratio: float
+    window: AdjustmentWindow
+
+
+class FCFListingRenamePart(DocumentPart):
+    """The two covers that show one share line renamed, with the symbols as filed."""
+
+    anchor_accession: str
+    anchor_form: str
+    anchor_symbol: str
+    latest_accession: str
+    latest_form: str
+    latest_symbol: str
+
+
+class FCFListingCheckPart(DocumentPart):
+    """The listing check's outcome: affirmed with the accession read, or refused with its code and reason."""
+
+    affirmed: bool
+    accession: str | None
+    reason_code: ReasonCode | None
+    reason: str | None
+    rename: FCFListingRenamePart | None
+
+
+class FCFMarketCapPart(DocumentPart):
+    """Market capitalization at the boundary with the share count, price and splits behind it."""
+
+    result: MetricResultPart
+    share_count: FCFResolvedInputPart | None
+    share_count_basis: ShareCountBasis | None
+    share_count_date: date | None
+    share_count_filing_date: date | None
+    scaled_share_count: float | None
+    provider_adjustments: tuple[FCFProviderAdjustmentPart, ...]
+    price: float | None
+    price_date: date | None
+    form: str | None
+    filing_currency: str | None
+    quote_currency: str | None
+    listing_check: FCFListingCheckPart | None
+
+
 class FCFBody(DocumentPart):
     """The keys only the FCF Growth document writes."""
 
@@ -135,13 +185,13 @@ class FCFBody(DocumentPart):
     fcf_per_share_cagr: MetricResultPart
     eps_cagr: MetricResultPart
     trend_classification: TrendClassification
-    market_capitalization: FCFResolvedInputPart | None
+    market_capitalization: FCFMarketCapPart | None
     fcf_yield: MetricResultPart
     forward_evidence: FCFForwardEvidencePart
 
 
 class FCFDocument(StrategyDocumentTail, FCFBody, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The FCF Growth document, version 8, as ``fcf-growth --json`` and ``runs show --json`` write it.
+    """The FCF Growth document, version 10, as ``fcf-growth --json`` and ``runs show --json`` write it.
 
     The shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.
     """
@@ -153,7 +203,11 @@ __all__ = [
     "FCFDocument",
     "FCFForwardEvidencePart",
     "FCFLineagePart",
+    "FCFListingCheckPart",
+    "FCFListingRenamePart",
+    "FCFMarketCapPart",
     "FCFObservationPart",
     "FCFPolicyPart",
+    "FCFProviderAdjustmentPart",
     "FCFResolvedInputPart",
 ]

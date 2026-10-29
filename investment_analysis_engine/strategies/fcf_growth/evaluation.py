@@ -6,6 +6,7 @@ from dataclasses import replace
 from typing import Final
 
 from investment_analysis_engine.data.financial.facts import ProviderFact
+from investment_analysis_engine.data.financial.resolver import InputResolver
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixture_context import FixtureContext, FixtureRequirement, selected_variant
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
@@ -13,12 +14,14 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FCF_GROWTH_PERIOD_AS_OF_FIXTURE_ID,
     FCF_GROWTH_SUCCESS_FIXTURE_ID,
     FixtureAnnualFinancialFactsProvider,
+    FixtureMarketCapProvider,
+    FixtureSplitHistoryProvider,
     fcf_growth_nonmeaningful_facts,
     fcf_growth_period_as_of_facts,
     fcf_growth_success_facts,
 )
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_IDS
-from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer, MarketCapDependencies
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolDependencies
@@ -54,15 +57,22 @@ def _annual_facts(fixture_id: str | None) -> tuple[ProviderFact, ...]:
 
 
 def compose(context: FixtureContext) -> FCFEarningsGrowthToolDependencies:
-    """Build FCF & Earnings Growth's dependencies from the selected annual facts."""
+    """Build FCF & Earnings Growth's dependencies: annual facts, and market data for the success fixture."""
     clock_at = context.clock_at
     fixture_id = selected_variant(context.fixture_ids, FIXTURE_IDS, label="FCF/Earnings Growth facts")
     annual_facts = _annual_facts(fixture_id)
     annual_provider = context.sec_fpi_provider or FixtureAnnualFinancialFactsProvider(
         tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_facts)
     )
+    with_data = fixture_id == FCF_GROWTH_SUCCESS_FIXTURE_ID
+    market_data = FixtureMarketCapProvider(clock_at, with_data=with_data)
     return FCFEarningsGrowthToolDependencies(
         analyzer=FCFEarningsGrowthAnalyzer(
-            ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock_at)
+            ProductionAnnualGrowthSeriesResolver(annual_provider, clock=lambda: clock_at),
+            MarketCapDependencies(
+                resolver=InputResolver(market_data, clock=lambda: clock_at),
+                split_history=FixtureSplitHistoryProvider(clock_at, with_data=with_data),
+                listing=market_data,
+            ),
         ),
     )

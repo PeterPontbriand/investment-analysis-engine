@@ -795,8 +795,8 @@ def _fcf_run(
         started_at=NOW,
         completed_at=NOW,
         method_version=2,
-        result_schema_version=5,
-        evidence_codec_version=3,
+        result_schema_version=6,
+        evidence_codec_version=4,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(result),
         instrument_profile=profile,
@@ -872,7 +872,7 @@ def test_fcf_project_run_json_matches_the_stored_result() -> None:
         project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
     )
     assert payload["ticker"] == "KO"
-    assert payload["result_schema_version"] == 5
+    assert payload["result_schema_version"] == 6
 
 
 def test_fcf_project_run_defaults_to_concise() -> None:

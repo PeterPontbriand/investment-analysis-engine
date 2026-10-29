@@ -26,6 +26,7 @@ from investment_analysis_engine.strategies.graham_growth.calculation import Grah
 from investment_analysis_engine.strategies.graham_growth.service import run_graham_growth_analysis
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputAssembly
 from investment_analysis_engine.strategies.graham_number.service import run_graham_number_analysis
+from tests._fcf_market_data import fcf_market_data
 
 NOW = datetime(2026, 8, 30, 18, 0, tzinfo=UTC)
 
@@ -132,7 +133,7 @@ def test_known_etf_short_circuits_company_fcf_before_annual_fact_resolution() ->
     resolver = MagicMock()
     profile = _profile(InstrumentKind.ETF, "ETF")
 
-    result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
+    result = FCFEarningsGrowthAnalyzer(resolver, fcf_market_data()).run_analysis(
         "FLSW",
         FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=NOW, use_cache=True, instrument_profile=profile),
@@ -145,7 +146,7 @@ def test_known_etf_short_circuits_company_fcf_before_annual_fact_resolution() ->
     assert result.fcf_cagr.status is MetricStatus.NOT_APPLICABLE
     assert result.fcf_per_share_cagr.status is MetricStatus.NOT_APPLICABLE
     assert result.eps_cagr.status is MetricStatus.NOT_APPLICABLE
-    assert result.schema_version == 5
+    assert result.schema_version == 6
     resolver.resolve.assert_not_called()
 
 
@@ -224,7 +225,7 @@ def test_fcf_profile_mismatch_precedes_applicability_and_resolution(known_etf: b
     resolver = MagicMock()
     profile = _profile(InstrumentKind.ETF, "ETF") if known_etf else _profile(None, "MUTUALFUND")
     with pytest.raises(ValueError, match="Instrument profile ticker does not match") as error:
-        FCFEarningsGrowthAnalyzer(resolver).run_analysis(
+        FCFEarningsGrowthAnalyzer(resolver, fcf_market_data()).run_analysis(
             "OTHER",
             FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
             AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),
@@ -237,7 +238,7 @@ def test_fcf_profile_mismatch_precedes_applicability_and_resolution(known_etf: b
 def test_fcf_etf_result_retains_caller_owned_messages_and_boundaries(include_yield: bool) -> None:
     resolver = MagicMock()
     profile = _profile(InstrumentKind.ETF, "ETF")
-    result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(
+    result = FCFEarningsGrowthAnalyzer(resolver, fcf_market_data()).run_analysis(
         " flsw ",
         FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(include_fcf_yield=include_yield), currency="USD"),
         AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),

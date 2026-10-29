@@ -1,5 +1,5 @@
 {
-  "schema_version": 9,
+  "schema_version": 10,
   "analysis": "fcf_earnings_growth",
   "method": "reported_fcf_eps_cagr",
   "ticker": "KO",
@@ -23,7 +23,7 @@
     "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
-  "result_schema_version": 5,
+  "result_schema_version": 6,
   "method_version": 2,
   "policy": {
     "historical_horizon": "longest_available",
@@ -1485,33 +1485,64 @@
   },
   "trend_classification": "neither_growing",
   "market_capitalization": {
-    "field_name": "market_capitalization",
-    "value": 1600.0,
-    "source_kind": "provider",
-    "resolved_at": "<wall-clock>",
-    "origin_source_kind": null,
-    "basis": null,
-    "units": "currency",
-    "currency": "USD",
-    "provider_id": "sec_edgar",
-    "provider_field": null,
-    "observation_period_start": null,
-    "observation_period_end": null,
-    "observed_at": null,
-    "available_at": "2026-09-10T12:00:00+00:00",
-    "as_of": null,
-    "retrieved_at": "<wall-clock>",
-    "cache_schema_version": null,
-    "lineage": null,
-    "notes": [
-      "First",
-      "Second"
+    "result": {
+      "status": "ok",
+      "value": 1600.0,
+      "reason_code": null,
+      "reason": null
+    },
+    "share_count": {
+      "field_name": "common_shares_outstanding",
+      "value": 100.0,
+      "source_kind": "provider",
+      "resolved_at": "<wall-clock>",
+      "origin_source_kind": null,
+      "basis": null,
+      "units": "shares",
+      "currency": "USD",
+      "provider_id": "sec_edgar",
+      "provider_field": null,
+      "observation_period_start": null,
+      "observation_period_end": null,
+      "observed_at": null,
+      "available_at": "2026-09-10T12:00:00+00:00",
+      "as_of": null,
+      "retrieved_at": "<wall-clock>",
+      "cache_schema_version": null,
+      "lineage": null,
+      "notes": [
+        "First",
+        "Second"
+      ],
+      "fiscal_year": null,
+      "period_kind": null,
+      "accounting_scope": null,
+      "capital_expenditure_sign": null,
+      "provider_fact_id": null
+    },
+    "share_count_basis": "year_end",
+    "share_count_date": "2025-12-31",
+    "share_count_filing_date": "2026-02-10",
+    "scaled_share_count": 200.0,
+    "provider_adjustments": [
+      {
+        "ex_date": "2026-03-02",
+        "ratio": 2.0,
+        "window": "count_to_price"
+      }
     ],
-    "fiscal_year": null,
-    "period_kind": null,
-    "accounting_scope": null,
-    "capital_expenditure_sign": null,
-    "provider_fact_id": null
+    "price": 8.0,
+    "price_date": "2026-09-09",
+    "form": "10-K",
+    "filing_currency": "USD",
+    "quote_currency": "USD",
+    "listing_check": {
+      "affirmed": true,
+      "accession": "0000000000-26-000001",
+      "reason_code": null,
+      "reason": null,
+      "rename": null
+    }
   },
   "fcf_yield": {
     "status": "ok",

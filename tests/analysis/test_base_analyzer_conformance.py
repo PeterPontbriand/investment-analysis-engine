@@ -45,6 +45,7 @@ from investment_analysis_engine.strategies.graham_number.calculation import Grah
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig
 from scripts.repository_root import REPOSITORY_ROOT
+from tests._fcf_market_data import fcf_market_data
 from tests._strategy_roles import ANALYZER_ROLES
 
 _STRATEGY_PACKAGE = PACKAGE_ROOT / "strategies"
@@ -101,7 +102,7 @@ def _fcf_analyzer() -> FCFEarningsGrowthAnalyzer:
     )
     provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(facts))
     resolver = ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW)
-    return FCFEarningsGrowthAnalyzer(resolver)
+    return FCFEarningsGrowthAnalyzer(resolver, fcf_market_data())
 
 
 def _fcf_config() -> FCFEarningsGrowthConfig:

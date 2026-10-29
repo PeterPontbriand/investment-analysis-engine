@@ -32,6 +32,7 @@ from investment_analysis_engine.data.yfinance.client import YFinanceClient
 from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
+    FixtureSplitHistoryProvider,
     annual_series,
 )
 from investment_analysis_engine.evaluation.fixtures.graham import SECURITY_ID
@@ -130,8 +131,14 @@ def enter_fixture_providers(stack: ExitStack, command: str) -> None:
                 side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
             )
         )
-    for yahoo in ("momentum", "graham_number", "graham_growth"):
+    for yahoo in ("momentum", "graham_number", "graham_growth", "fcf_growth"):
         stack.enter_context(patch(f"investment_analysis_engine.strategies.{yahoo}.cli.YFinanceClient", _FixtureYahoo))
+    stack.enter_context(
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.cli._production_historical_client",
+            side_effect=lambda *_a, **_k: nullcontext(FixtureSplitHistoryProvider(utc_now(), with_data=False)),
+        )
+    )
 
 
 def run_command(command: str, mode: str) -> CommandOutput:

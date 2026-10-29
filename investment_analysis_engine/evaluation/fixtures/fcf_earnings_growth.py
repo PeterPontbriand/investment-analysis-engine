@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
+from types import MappingProxyType
 from typing import Final
 
+import pandas as pd
+
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialField,
@@ -20,6 +24,27 @@ from investment_analysis_engine.data.financial.provenance import (
     FinancialSubjectKind,
     PeriodKind,
 )
+from investment_analysis_engine.data.market_data import (
+    SPLIT_ADJUSTED_PRICE,
+    MarketDataContext,
+    SplitAdjustedHistory,
+    SplitEvent,
+)
+from investment_analysis_engine.data.sec_edgar.cover_listing import (
+    CoverListingRequest,
+    CoverUnavailableReason,
+    ListingEvidence,
+    ListingResolution,
+    SecurityKind,
+)
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PROVIDER_ID,
+    AnchorYearEnd,
+    AnchorYearEndRequest,
+    AnchorYearEndResolution,
+    AnchorYearEndUnavailableReason,
+)
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 FCF_GROWTH_SUCCESS_FIXTURE_ID: Final = "fcf_growth_success"
 FCF_GROWTH_NONMEANINGFUL_FIXTURE_ID: Final = "fcf_growth_nonmeaningful"
@@ -183,3 +208,158 @@ def fcf_growth_period_as_of_facts() -> tuple[ProviderFact, ...]:
         else fact
         for fact in facts
     )
+
+
+FCF_GROWTH_YEAR_END: Final = date(2025, 1, 1)
+"""The fiscal year-end *t* of the success fixture: where its latest annual observation ends."""
+FCF_GROWTH_FILING_DATE: Final = date(2025, 2, 1)
+FCF_GROWTH_ACCESSION: Final = "0000000000-25-000001"
+FCF_GROWTH_SHARE_COUNT: Final = 200.0
+FCF_GROWTH_SPLIT: Final = SplitEvent(date(2025, 3, 3), 2.0)
+"""A 2-for-1 split after the filing, so the count on the price's basis is 400 shares."""
+FCF_GROWTH_PRICE: Final = 3.25
+FCF_GROWTH_MARKET_CAP: Final = 1300.0
+"""400 scaled shares at 3.25: the latest free cash flow of 130 is a yield of 10 percent."""
+
+_FIXTURE_CIK = "0000000001"
+_FIXTURE_COVER_URL = "https://www.sec.gov/Archives/edgar/data/1/000000000025000001/R1.htm"
+
+
+def _share_count_fact(retrieved_at: datetime) -> ProviderFact:
+    """Build the year-end share count the success fixture's anchor filing reports."""
+    return ProviderFact(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id="ACME",
+        field_name=FinancialField.COMMON_SHARES_OUTSTANDING,
+        value=FCF_GROWTH_SHARE_COUNT,
+        units=FinancialUnit.SHARES,
+        provider_id=SEC_PROVIDER_ID,
+        provider_field="fixture.common_shares_outstanding",
+        retrieved_at=retrieved_at,
+        basis="fiscal_year_end",
+        observation_period_end=datetime.combine(FCF_GROWTH_YEAR_END, time.min, tzinfo=UTC),
+        available_at=datetime.combine(FCF_GROWTH_FILING_DATE, time.min, tzinfo=UTC),
+        notes=(f"accession={FCF_GROWTH_ACCESSION}",),
+    )
+
+
+def _quote_fact(retrieved_at: datetime) -> ProviderFact:
+    """Build the current quote of the success fixture."""
+    return ProviderFact(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id="ACME",
+        field_name=FinancialField.CURRENT_PRICE,
+        value=FCF_GROWTH_PRICE,
+        units=FinancialUnit.CURRENCY_PER_SHARE,
+        provider_id=YFINANCE_PROVIDER_ID,
+        provider_field="fixture.last_price",
+        retrieved_at=retrieved_at,
+        basis="latest_provider_quote",
+        currency="USD",
+    )
+
+
+class FixtureMarketCapProvider:
+    """Serve the success fixture's share count, quote, anchor year-end and cover without any network access.
+
+    Without data it serves nothing: no fact, no anchor year-end and no cover, so a case that does not select the
+    market-data fixture has an FCF yield that is unavailable and makes no request.
+    """
+
+    def __init__(self, retrieved_at: datetime, *, with_data: bool) -> None:
+        """Retain the clock and whether the fixture holds the success fixture's market data."""
+        self._retrieved_at = retrieved_at
+        self._with_data = with_data
+        self.requests: list[FinancialFactRequest] = []
+
+    def fetch_facts(
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,  # noqa: ARG002
+    ) -> tuple[ProviderFact, ...]:
+        """Return the share count at the fiscal year-end or the quote, when the fixture holds them."""
+        self.requests.append(request)
+        if not self._with_data or request.subject_id != "ACME":
+            return ()
+        if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING and request.basis == "fiscal_year_end":
+            return (_share_count_fact(self._retrieved_at),) if request.provider_id == SEC_PROVIDER_ID else ()
+        if request.field_name is FinancialField.CURRENT_PRICE and request.provider_id == YFINANCE_PROVIDER_ID:
+            return (_quote_fact(self._retrieved_at),)
+        return ()
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:  # noqa: ARG002
+        """Return the success fixture's anchor filing and fiscal year-end, or why there is none."""
+        if not self._with_data:
+            return AnchorYearEndResolution(
+                reason=AnchorYearEndUnavailableReason.NO_ANALYSIS_SCOPE,
+                message="The fixture holds no market data for this case.",
+            )
+        return AnchorYearEndResolution(
+            anchor=AnchorYearEnd(
+                year_end=FCF_GROWTH_YEAR_END,
+                accession=FCF_GROWTH_ACCESSION,
+                form="10-K",
+                filing_date=FCF_GROWTH_FILING_DATE,
+                filing_dates=MappingProxyType({FCF_GROWTH_ACCESSION: FCF_GROWTH_FILING_DATE}),
+            )
+        )
+
+    def resolve_cover_listing(self, request: CoverListingRequest) -> ListingResolution:
+        """Return the success fixture's cover, which registers the ticker as common stock, or why none was read."""
+        if not self._with_data:
+            return ListingResolution(reason=CoverUnavailableReason.COVER_MISSING)
+        return ListingResolution(
+            evidence=ListingEvidence(
+                ticker=request.ticker,
+                kind=SecurityKind.SHARE,
+                title="Common Stock, $0.01 par value",
+                cik=_FIXTURE_CIK,
+                accession=FCF_GROWTH_ACCESSION,
+                form="10-K",
+                accepted_at=datetime.combine(FCF_GROWTH_FILING_DATE, time.min, tzinfo=UTC),
+                source_url=_FIXTURE_COVER_URL,
+                retrieved_at=self._retrieved_at,
+            )
+        )
+
+
+class FixtureSplitHistoryProvider:
+    """Serve the success fixture's split-adjusted history, adjusted on the day the live path asks for."""
+
+    def __init__(self, retrieved_at: datetime, *, with_data: bool) -> None:
+        """Retain the clock and whether the fixture holds the success fixture's split history."""
+        self._retrieved_at = retrieved_at
+        self._with_data = with_data
+        self.use_cache_seen: list[bool] = []
+
+    def fetch_split_adjusted_history(
+        self,
+        ticker: str,  # noqa: ARG002
+        start_date: str,  # noqa: ARG002
+        *,
+        use_cache: bool,
+        adjusted_on: date | None = None,
+        as_of: date | None = None,
+    ) -> SplitAdjustedHistory:
+        """Return the fixture's closes and its one split, or raise the no-data failure of a case without them."""
+        self.use_cache_seen.append(use_cache)
+        if not self._with_data:
+            raise DataFetchError(
+                "fixture split history is not selected", kind=ProviderFailureKind.NO_DATA, provider_id="fixture_market"
+            )
+        day = as_of or adjusted_on or self._retrieved_at.date()
+        frame = pd.DataFrame({"Close": [FCF_GROWTH_PRICE]}, index=pd.DatetimeIndex([day]))
+        return SplitAdjustedHistory(
+            close=frame,
+            events=(FCF_GROWTH_SPLIT,),
+            context=MarketDataContext(
+                provider_id="fixture_market",
+                observation_interval="1d",
+                data_as_of=day,
+                currency="USD",
+                observation_count=1,
+                price_adjustment=SPLIT_ADJUSTED_PRICE,
+            ),
+            adjustment_date=adjusted_on or day,
+        )

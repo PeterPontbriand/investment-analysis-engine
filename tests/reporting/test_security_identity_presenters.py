@@ -47,6 +47,7 @@ from investment_analysis_engine.strategies.graham_number.calculation import (
 from investment_analysis_engine.strategies.graham_number.presenter import GrahamNumberPresentation, render_graham_number
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig, MomentumMetrics
 from investment_analysis_engine.strategies.momentum.presenter import MomentumPresentation, render_momentum
+from tests._fcf_market_data import fcf_market_data
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
 
@@ -160,7 +161,9 @@ def _fcf_result() -> FCFEarningsGrowthResult:
         for index, fact in enumerate(annual_series(range(2020, 2026)))
     )
     provider = ProductionFinancialFactsProvider(sec_edgar=FixtureAnnualFinancialFactsProvider(facts))
-    analyzer = FCFEarningsGrowthAnalyzer(ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW))
+    analyzer = FCFEarningsGrowthAnalyzer(
+        ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: NOW), fcf_market_data()
+    )
     return analyzer.run_analysis(
         "ACME",
         FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
@@ -191,7 +194,7 @@ def test_json_contracts_expose_same_snapshot_and_deliberate_versions() -> None:
         json.loads(render_fcf_earnings_growth(fcf_result, PresentationMode.JSON, identity)),
     )
 
-    assert [document["schema_version"] for document in documents] == [10, 10, 10, 9]
+    assert [document["schema_version"] for document in documents] == [10, 10, 10, 10]
     for document in documents:
         snapshot = document["security_identity"]
         assert snapshot["ticker"] == "ACME"
