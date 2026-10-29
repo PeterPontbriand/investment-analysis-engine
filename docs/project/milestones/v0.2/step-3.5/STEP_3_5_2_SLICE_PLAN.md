@@ -5,7 +5,8 @@ It covers six sub-slices. It was written against `main` at `3305ec3`; 3.5.2c was
 ([A.5](#a5-decisions-at-the-start-of-352c-2026-10-26)); 3.5.2d began from `main` at `8397dee`
 ([A.7](#a7-decisions-at-the-start-of-352d-2026-10-27)); 3.5.2e began from `main` at `28c38b1`, and added 3.5.2f
 ([A.10](#a10-decisions-at-the-start-of-352e-2026-10-28)); a review correction of the share-count scaling is recorded in
-[A.12](#a12-review-decisions-2026-10-28).
+[A.12](#a12-review-decisions-2026-10-28); 3.5.2f began from `main` at `c3e121c`, and its decisions are recorded in
+[A.13](#a13-decisions-at-the-start-of-352f-2026-10-28).
 
 Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
@@ -47,7 +48,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.2c | [Listing check for market capitalization](#352c--listing-check-for-market-capitalization) | Complete | 2026-10-26 |
 | 3.5.2d | [Shared input assembly](#352d--shared-input-assembly) | Complete | 2026-10-28 |
 | 3.5.2e | [FCF-Growth adopts the shared market cap](#352e--fcf-growth-adopts-the-shared-market-cap) | Complete | 2026-10-28 |
-| 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Next | |
+| 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Complete | 2026-10-29 |
 
 3.5.2a is implemented on the branch that carries this plan and merges as one pull request, as 3.5.1a did. Each later
 sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`, after the previous pull request merges.
@@ -229,13 +230,17 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
   `strategies/fcf_growth/input_resolver.py`), which calls the provider directly. The provider-response checks and the
   resolution trace of `InputResolver.resolve_annual_series` (T2) therefore apply to every consumer of the series but
   this one.
-- **Decision (V1):** the reader moves onto `InputResolver.resolve_annual_series`. The resolver entry gains caching
-  through the existing series-cache protocol, so FCF-Growth keeps its cache. Its acceptance is that every stored
-  FCF-Growth output and cache entry is unchanged, and the sub-slice stops if any would change.
-- **Scope:** FCF-Growth's annual reader, the resolver entry and its tests. The starting points are in
-  [B.15](#b15-352f-starting-points).
-- **Branch:** `feat/step-3-5-2f-fcf-annual-reader`, off `main` after the 3.5.2e pull request merges.
-- **Detail:** [B.15](#b15-352f-starting-points).
+- **Decision (V1, amended by [A.13](#a13-decisions-at-the-start-of-352f-2026-10-28)):** the reader moves onto
+  `InputResolver.resolve_annual_series`, and every stored FCF-Growth output and cache entry is unchanged, apart from
+  the cases A.13 names (Y1, Y4, Y7) and the resolution trace. The cache stays in FCF-Growth, around the entry (Y2): it
+  reads its own cache first and calls the entry only on a miss, so stored entries are byte-identical. The entry gains
+  no cache parameter and no hook; it gains a typed list of the observations it left out (Y5) and the provider's error
+  detail (Y6). FCF-Growth keeps its own checks, normalization and selection (X3, Y3), and when no observation of a
+  field remains its outcome follows a fixed precedence, not the order of the answer (Y7).
+- **Scope:** FCF-Growth's annual reader, the resolver entry, the shared assembly's reading of the entry and their
+  tests. The files as built are in [B.15](#b15-352f-as-built).
+- **Branch:** `feat/step-3-5-2f-fcf-annual-reader`, off `main` at `c3e121c`.
+- **Detail:** [B.15](#b15-352f-as-built).
 
 ## 4. Scope limits
 
@@ -307,8 +312,10 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
 
 **3.5.2f**
 
-- FCF-Growth's annual reader calls `InputResolver.resolve_annual_series`, and every stored FCF-Growth output and
-  every cache entry is unchanged. The gate passes.
+- FCF-Growth's annual reader calls `InputResolver.resolve_annual_series`. Every FCF-Growth value, status, reason code,
+  reason message, classification, observation, provenance, lineage and cache entry is unchanged except in the cases of
+  Y1 and Y7, and a cache entry written before the change is reused unchanged. The resolution trace changes
+  ([B.12](#b12-user-visible-changes)). The gate passes.
 
 ## 6. Background
 
@@ -585,6 +592,29 @@ project owner can reverse any row. W1 amends the share-count scaling of Shared d
 | W1d | Labels and the stored shape | The field `splits_applied` of `MarketCapEvidence` is renamed `provider_adjustments`, each item an `AppliedAdjustment` (ex-date, ratio, window `count_to_price` or `price_to_adjustment`); the details view says "provider split adjustments", with the window of each. | The shape exists only in this unreleased sub-slice, so the rename and the added window are covered by the bumps already made (result schema 5 to 6, document 9 to 10, evidence codec 3 to 4), and no further version changes. |
 | W1e | Stock dividends (F7) | F7 is reversed inside the second window. Commerce Bancshares' 1.05 and Tootsie Roll's 1.03 are refused there and applied after the price date; the market cap is unavailable for a count taken before such a dividend and a price after it. | The project owner accepted the reversal: the history cannot tell a small split from a stock dividend or a spin-off, and a wrong share count is worse than an unavailable one. |
 | W1f | Captured evidence | `evaluation/fixtures/sec_edgar/split_history/hon.json` with its `SHA256SUMS` entry: Honeywell's five events and six trimmed closes (2025-06-30, 2025-10-29, 2025-10-30, 2026-06-26, 2026-06-29 and the last session). One Yahoo download of the history from 2015-01-01 and its currency lookup: two requests, raw response under `.tmp/` only. | Within the budget of five requests. |
+
+### A.13 Decisions at the start of 3.5.2f (2026-10-28)
+
+Approved by the project owner on 2026-10-28 (X1 to X4) and 2026-10-29 (Y1 to Y7). V1 stands, amended by Y2.
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| V1 | The reader and the entry (already recorded) | The reader moves onto `InputResolver.resolve_annual_series`; the entry gains caching through the existing series-cache protocol. Amended by Y2: the cache stays in FCF-Growth and the entry gains none. |
+| X1 | What "unchanged" means | Identical before and after: every value, status, reason code, reason message, classification, observation, provenance, lineage and cache entry of every FCF-Growth run. The resolution trace may change, because it records how the run resolved, not what it found; any change to it is listed as a user-visible change to `--diagnostics`. No version bump: the stored shape does not change. Any other change stops the work. |
+| X2 | Cache keys stay FCF-Growth's | FCF-Growth keeps its existing cache and `CACHE_SCHEMA_VERSION` (3), so stored entries are unchanged and a cache written before the change is read after it. `resolve_annual_values` passes none and stays uncached (T2). The validity rule `_cached_field_valid` stays in `strategies/fcf_growth/input_resolver.py`, unchanged in behavior. The entry takes no cache (Y2). |
+| X3 | What moves | Only fetching and checking provider responses move to the entry. Aligning periods across the four fields, capital-expenditure sign normalization, the diluted-share basis rules and building observations stay in FCF-Growth. |
+| X4 | One sub-slice | The first step pins the outputs. |
+| Y1 | An incoherent answer | The entry's whole-answer rejection is adopted. An answer containing a fact for another subject, field or basis, or a non-annual or unbounded period, is a provider error (`unexpected_response`), as the resolver's single-fact path and PH.2c already treat an incoherent answer. FCF-Growth's per-fact skipping was the one exception. An approved exception to X1: such a run becomes a provider error with its provider-failure record, instead of `input_unavailable`. No mode switch on the entry. |
+| Y2 | The cache stays in FCF-Growth (amends V1 and X2) | FCF-Growth reads its own cache first exactly as before. Only on a miss does it call `resolve_annual_series`, which is uncached and takes no cache parameter and no hook. FCF-Growth then applies its own checks, capital-expenditure normalization and selection, and writes the cache entry exactly as before. Stored entries are byte-identical, and an entry written before the change is reused. |
+| Y3 | FCF-Growth's checks | FCF-Growth re-applies its own checks to what the entry returns, including dropping a fact with no `available_at` on a live run, and keeps the checks the entry lacks (scope, units, currency, fiscal-year label, `provider_fact_id`, capex sign). The checks the entry also performs (subject, field, basis, period kind and bounds) stay in `_fact_rejection` because the cache read applies them to stored entries; on a provider answer they never fire. |
+| Y4 | Timestamps | The quality-event timestamp and `as_of` the entry passes to its quality check differ from the ones FCF-Growth passed. Treated like the trace: allowed and recorded. No output of the comparison was reached by it. |
+| Y5 | What the entry left out | `AnnualSeriesResolution.left_out` lists the observations left out of the series, each a `LeftOutObservation` with its period end, its `LeftOutReason` (`NOT_AVAILABLE_AT_BOUNDARY` or `FAILED_QUALITY_CHECK`) and its reason. For the shared assembly (`resolve_annual_values`): when no kept observation ends at *t* but one ending at *t* was left out as not available at the boundary, the field is an `InputUnavailable` with `not_available_as_of`, not `None`. |
+| Y6 | No reason-text parsing | The entry's result carries `provider_error_detail`, the provider's own message of a provider failure, which FCF-Growth's unchanged message "<field> provider failed: <detail>" needs. FCF-Growth builds no message by editing the entry's reason, and no prefix constant exists. |
+| Y7 | When no observation of a field remains | The outcome is fixed by precedence, independent of the order of the provider's answer: (1) an observation that was available at the boundary but rejected by FCF-Growth's own checks (currency, units, scope, fiscal-year label, fact ID, capex sign, non-positive period) gives that check's reason code and message; among several, the one with the earliest period end, then the lowest fact ID. (2) Otherwise `not_available_as_of`, with the "not publicly available at the analysis boundary" message when any observation was left out as `NOT_AVAILABLE_AT_BOUNDARY` (by the entry, or by FCF-Growth's own availability check), and with the "later than the analysis boundary" message otherwise. "The first rejection in the provider's order wins" was an order-dependence defect, and Y7 replaces it. |
+
+**What Y7 changes.** Eight orderings of mixed answers whose observations are all unusable change; they are listed in
+[B.12](#b12-user-visible-changes). Every answer with a valid observation, and every answer whose unusable observations
+are all of one kind, gives the outcome it gave before.
 
 ---
 
@@ -1005,7 +1035,35 @@ network call.
   so the FCF yield, `unavailable` with `ambiguous_fact` and a warning naming the event; an adjustment after the price
   date is applied as before. The evidence calls the events provider split adjustments, each with its window
   (`provider_adjustments`), and the details view says so. No version changes beyond those above.
-- 3.5.2f: none by decision (V1): every stored FCF-Growth output and cache entry is unchanged.
+- 3.5.2f, `--diagnostics` (the resolution trace; no stored value changes):
+  - each annual field gains a provider event `attempted`: "Requested the <field> fiscal-year series from provider
+    'sec_edgar'.";
+  - the provider success message "Annual field series resolved from provider." becomes "N fiscal-year observation(s)
+    resolved; M left out as ineligible.";
+  - an empty provider answer reads `unavailable`: "Provider returned no data for the requested field."; a provider
+    failure reads `error`: "Provider error: <message>". The run's reason, "No usable <field> facts were returned." or
+    "<field> provider failed: <message>", is unchanged;
+  - cache hit and miss events are unchanged.
+- 3.5.2f, an incoherent provider answer (Y1): an answer with a fact for another subject, field or basis, or a
+  non-annual or unbounded period, is a provider error (`unexpected_response`) with its provider-failure record, instead
+  of `input_unavailable` with the fact skipped. Only a provider that answers incoherently can show it.
+- 3.5.2f, a field with no usable observation (Y7): the outcome no longer depends on the order of the answer. In the
+  eight orderings below, a field whose observations are all unusable changes (L: filed after the boundary; Q: fails
+  the quality check; B: available but in another currency):
+
+  | Answer (in the provider's order) | Before | After |
+  | :--- | :--- | :--- |
+  | historical L, B | `not_available_as_of`, "not publicly available" | `incompatible_currency` |
+  | historical Q, L | `not_available_as_of`, "later than" | `not_available_as_of`, "not publicly available" |
+  | historical Q, B | `not_available_as_of`, "later than" | `incompatible_currency` |
+  | historical L, Q, B | `not_available_as_of`, "not publicly available" | `incompatible_currency` |
+  | historical L, B, Q | `not_available_as_of`, "not publicly available" | `incompatible_currency` |
+  | historical Q, L, B | `not_available_as_of`, "later than" | `incompatible_currency` |
+  | historical Q, B, L | `not_available_as_of`, "later than" | `incompatible_currency` |
+  | live Q, B | `not_available_as_of`, "later than" | `incompatible_currency` |
+
+  A field whose observations are all of one kind, and a field with a valid observation, are unchanged. Among several
+  rejections of the same kind the earliest period end, then the lowest fact ID, is the one reported.
 
 ### B.13 TOOL_DEVELOPMENT edit sites
 
@@ -1031,21 +1089,40 @@ descriptor or wiring file was touched.
 | `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` | none: its sequence table lists Step 3.5 as one row, not 3.5.2 | none | none | none | none |
 | This plan | status rows | status rows | A.5, A.6, the renaming, status rows | A.7, A.8, A.9, B.4, B.6, B.10, B.12, status rows | A.10, A.11, 3.5.2f, B.5, B.6, B.11, B.12, B.15, status rows |
 
-### B.15 3.5.2f starting points
+### B.15 3.5.2f as built
 
-3.5.2f has no slice plan yet beyond this entry; the starting points to confirm first are:
+Paths are under `investment_analysis_engine/` unless they start with `tests/` or `docs/`.
 
-- **The reader:** `_resolve_field` in `strategies/fcf_growth/input_resolver.py`, which calls the provider directly and
-  keeps its own cache of each series; `resolve_annual_growth_series`, which aligns the periods across the four fields and
-  builds the observations; and `ProductionAnnualGrowthSeriesResolver`, which opens the analysis scope.
-- **Its cache keys:** `CACHE_SCHEMA_VERSION` (3) in the same file, `_cached_field_valid` and `_to_cache_input`, which decide
-  what a stored series is and when it is reused. The acceptance of V1 is that these entries are unchanged.
-- **The series-cache protocol:** `ResolvedInputSeriesCacheProtocol` and `ResolvedInputSeriesCacheQuery` in
-  `data/financial/cache.py`, which `InputResolver.resolve_annual_series` (uncached, T2) would use.
-- **The entry:** `InputResolver.resolve_annual_series` and `AnnualSeriesResolution` in `data/financial/resolver.py`, and
-  `resolve_annual_values` in `analysis/shared/metric_inputs.py`, its other caller.
-- **The tests that pin the outputs:** `tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_input_resolver.py`,
-  `test_production_composition.py`, `test_sec_edgar_integration.py`, `tests/workspace/test_fcf_growth_codec.py`,
-  `tests/evaluation/cases/test_fcf_growth.py` and the golden suite, `tests/data/test_annual_series_resolver.py` and
-  `tests/analysis/fcf_earnings_growth/test_fcf_availability_and_cache_eligibility.py`.
-- **Stop condition:** if any stored FCF-Growth output or cache entry would change, the sub-slice stops and asks.
+| Area | File | Change |
+| :--- | :--- | :--- |
+| Reader | `strategies/fcf_growth/input_resolver.py` | `_resolve_field` reads its cache as before and, on a miss, calls `InputResolver.resolve_annual_series`, then applies `_fact_rejection`, normalization and selection and writes the cache as before ([Y2](#a13-decisions-at-the-start-of-352f-2026-10-28)); `_provider_fact_of` rebuilds a provider fact from a resolved input and is shared with `_cached_field_valid`; `_entry_failure` and `_no_selection_reason` map the entry's failures and apply the precedence of Y7 |
+| Removed | `strategies/fcf_growth/input_resolver.py` | the direct `provider.fetch_facts` call with its `FactsNotAvailableAsOf` and `FinancialProviderError` handling, the provider-stage trace events it built, and the first-rejection-in-answer-order rule |
+| Entry | `data/financial/resolver.py` | `AnnualSeriesResolution` gains `left_out` (`LeftOutObservation`, `LeftOutReason`) and `provider_error_detail`; `_boundary_error` is split out of `_validate_provider_response`, which gives the same answer. No cache parameter, no hook |
+| Shared assembly | `analysis/shared/metric_inputs.py` | `resolve_annual_values` returns `not_available_as_of` when the observation at *t* was left out as not available at the boundary (Y5) |
+| Expected output | `tests/expected_output/strategy_documents/fcf-growth-*.json`, `tests/expected_output/direct_commands/fcf-growth.json` | regenerated; the diff is the resolution trace only |
+| New tests | `tests/analysis/fcf_earnings_growth/test_fcf_annual_reader_entry.py`, `tests/analysis/fcf_earnings_growth/test_fcf_no_observation_precedence.py`, and one test in `tests/analysis/shared/test_metric_inputs.py` | see [B.16](#b16-352f-tests) |
+
+`_fact_rejection` keeps the checks the entry also performs because the cache read applies it to stored entries (Y3).
+`docs/user/strategies/FCF_GROWTH.md` names no trace event and is unchanged, and so is the milestone plan's sequence
+table, which lists Step 3.5 as one row.
+
+### B.16 3.5.2f tests
+
+- **Pinned comparison (X4):** before the change, the FCF-Growth assemblies, analyzer results and cache writes of 2,536
+  tests (the golden suite and the tests named for this slice) were captured outside the repository: 141 assemblies, 36
+  results and 792 cache writes. After the change every value, status, reason, observation, provenance, lineage and cache
+  entry is identical; only the resolution trace of 515 records differs.
+- **A pre-change cache entry (Y2):** `test_fcf_annual_reader_entry.py` spells out the entries as stored before the
+  change, shows they are reused unchanged with no provider request, that a miss fetches each field once and stores the
+  same entries, and that an entry under another schema version is refused and fetched again.
+- **An incoherent answer (Y1):** five parametrized cases (subject, field, basis, period kind, period bounds) give a
+  provider error with `unexpected_response`.
+- **Precedence (Y7):** `test_fcf_no_observation_precedence.py` runs every ordering of every combination of the four
+  kinds, historical and live: each gives one outcome, the precedence outcome; a combination with a valid observation
+  gives the outcome of the valid one alone; the earliest period, then the lowest fact ID, is chosen among own
+  rejections.
+- **The shared assembly (Y5):** `test_metric_inputs.py` shows a year filed only after the boundary is
+  `not_available_as_of` and a different year filed late is not.
+- **Trace expectations:** no existing test asserted a trace event of this reader apart from the stored expected
+  output, which was regenerated; the 18 strategy-document files and the direct-command file are the only expectations
+  that changed.

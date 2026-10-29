@@ -63,8 +63,8 @@ next begins.
 | 3.5.2c | [Listing check for market capitalization](STEP_3_5_2_SLICE_PLAN.md#352c--listing-check-for-market-capitalization) | Complete | 2026-10-26 |
 | 3.5.2d | [Shared input assembly](STEP_3_5_2_SLICE_PLAN.md#352d--shared-input-assembly) | Complete | 2026-10-28 |
 | 3.5.2e | [FCF-Growth adopts the shared market cap](STEP_3_5_2_SLICE_PLAN.md#352e--fcf-growth-adopts-the-shared-market-cap) | Complete | 2026-10-28 |
-| 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](STEP_3_5_2_SLICE_PLAN.md#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Next | |
-| 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
+| 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](STEP_3_5_2_SLICE_PLAN.md#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Complete | 2026-10-29 |
+| 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Next | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
 | 3.5.6 | [Magic Formula and ranked refresh view](#356--magic-formula-and-ranked-refresh-view) | Planned | |

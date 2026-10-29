@@ -6,6 +6,7 @@ import math
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from enum import StrEnum
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.clock import effective_as_of
@@ -172,6 +173,28 @@ class InstantSeriesResolution:
             raise ValueError("InstantSeriesResolution: provider_failure requires PROVIDER_ERROR.")
 
 
+class LeftOutReason(StrEnum):
+    """Why ``InputResolver.resolve_annual_series`` left an observation out of the series it returned."""
+
+    NOT_AVAILABLE_AT_BOUNDARY = "not_available_at_boundary"
+    FAILED_QUALITY_CHECK = "failed_quality_check"
+
+
+@dataclass(frozen=True)
+class LeftOutObservation:
+    """One observation a provider reported that is not in the series, with the reason it was left out.
+
+    Attributes:
+        observation_period_end: The end of the observation's period.
+        why: The kind of reason, which a caller branches on.
+        reason: The explanation, for display only.
+    """
+
+    observation_period_end: datetime | None
+    why: LeftOutReason
+    reason: str
+
+
 @dataclass(frozen=True)
 class AnnualSeriesResolution:
     """Outcome of resolving one completed-annual field as a series of fiscal years.
@@ -191,6 +214,10 @@ class AnnualSeriesResolution:
         provider_failure: The kind and provider of a ``PROVIDER_ERROR`` outcome.
         not_available_as_of: Whether the provider said the subject has nothing public at the boundary
             (``FactsNotAvailableAsOf``), as against having no observation of this field.
+        left_out: The observations the provider reported that are not in ``inputs``, in the provider's order, each
+            with the reason it was left out. Empty when none was.
+        provider_error_detail: The provider's own error message, present only when the provider failed (as against
+            an answer the resolver rejected, whose explanation is ``reason``).
     """
 
     status: CalculationStatus
@@ -199,9 +226,13 @@ class AnnualSeriesResolution:
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     provider_failure: ProviderFailureRecord | None = None
     not_available_as_of: bool = False
+    left_out: tuple[LeftOutObservation, ...] = ()
+    provider_error_detail: str | None = None
 
     def __post_init__(self) -> None:
         """Enforce status/value invariants."""
+        if self.provider_error_detail is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
+            raise ValueError("AnnualSeriesResolution: provider_error_detail requires PROVIDER_ERROR.")
         if self.status is CalculationStatus.OK:
             if not self.inputs or self.reason is not None or self.provider_failure is not None:
                 raise ValueError("AnnualSeriesResolution: OK requires inputs and no reason or failure.")
@@ -468,11 +499,16 @@ class InputResolver:
             )
         except FinancialProviderError as exc:
             return self._annual_failure(
-                request, trace, CalculationStatus.PROVIDER_ERROR, f"Provider error: {exc}", failure=failure_record(exc)
+                request,
+                trace,
+                CalculationStatus.PROVIDER_ERROR,
+                f"Provider error: {exc}",
+                failure=failure_record(exc),
+                provider_error_detail=str(exc),
             )
         resolved_at = self._clock()
         kept: list[ProviderFact] = []
-        left_out: list[str] = []
+        left_out: list[LeftOutObservation] = []
         for fact in facts:
             validation = _validate_provider_response(request, fact, resolved_at)
             rejected = _annual_fact_error(fact)
@@ -490,14 +526,27 @@ class InputResolver:
             if validation is None:
                 kept.append(fact)
             else:
-                left_out.append(validation[1])
+                boundary_error = _boundary_error(request, fact)
+                left_out.append(
+                    LeftOutObservation(
+                        observation_period_end=fact.observation_period_end,
+                        why=(
+                            LeftOutReason.FAILED_QUALITY_CHECK
+                            if boundary_error is None
+                            else LeftOutReason.NOT_AVAILABLE_AT_BOUNDARY
+                        ),
+                        reason=validation[1],
+                    )
+                )
         if not kept:
             reason = (
                 "Provider returned no data for the requested field."
                 if not facts
-                else f"No {field_name} observation is eligible at the boundary: {left_out[0]}"
+                else f"No {field_name} observation is eligible at the boundary: {left_out[0].reason}"
             )
-            return self._annual_failure(request, trace, CalculationStatus.INPUT_UNAVAILABLE, reason)
+            return self._annual_failure(
+                request, trace, CalculationStatus.INPUT_UNAVAILABLE, reason, left_out=tuple(left_out)
+            )
         inputs = tuple(
             _resolved_from_fact(fact, basis=fact.basis, as_of=request.as_of, resolved_at=resolved_at)
             for fact in sorted(kept, key=_annual_order)
@@ -505,6 +554,7 @@ class InputResolver:
         return AnnualSeriesResolution(
             status=CalculationStatus.OK,
             inputs=inputs,
+            left_out=tuple(left_out),
             resolution_trace=trace.append(
                 _event(
                     field_name,
@@ -526,6 +576,8 @@ class InputResolver:
         failure: ProviderFailureRecord | None = None,
         not_available_as_of: bool = False,
         outcome: ResolutionOutcome | None = None,
+        left_out: tuple[LeftOutObservation, ...] = (),
+        provider_error_detail: str | None = None,
     ) -> AnnualSeriesResolution:
         """Build a non-OK annual-series resolution with its closing trace event."""
         closing = outcome or (
@@ -536,6 +588,8 @@ class InputResolver:
             reason=reason,
             provider_failure=failure,
             not_available_as_of=not_available_as_of,
+            left_out=left_out,
+            provider_error_detail=provider_error_detail,
             resolution_trace=trace.append(
                 _event(request.field_name.value, ResolutionStage.PROVIDER, closing, reason, now=self._clock())
             ),
@@ -1885,6 +1939,21 @@ def _bvps_component_alignment_error(
     return error
 
 
+def _boundary_error(request: FinancialFactRequest, fact: ProviderFact) -> str | None:
+    """Return why a fact was not available at a historical request's boundary, ``None`` if it was or there is none."""
+    if request.as_of is None:
+        return None
+    # Historical: available_at is required and must be <= as_of.
+    if fact.available_at is None:
+        return "Historical request requires available_at; fact has no available_at."
+    if fact.available_at > request.as_of:
+        return (
+            f"Fact available_at ({fact.available_at.isoformat()}) is later than "
+            f"request as_of ({request.as_of.isoformat()})."
+        )
+    return None
+
+
 def _validate_provider_response(
     request: FinancialFactRequest,
     fact: ProviderFact,
@@ -1926,20 +1995,9 @@ def _validate_provider_response(
         if not passed:
             return (CalculationStatus.PROVIDER_ERROR, message)
 
-    # Temporal eligibility.
-    if request.as_of is not None:
-        # Historical: available_at is required and must be <= as_of.
-        if fact.available_at is None:
-            return (
-                CalculationStatus.INPUT_UNAVAILABLE,
-                "Historical request requires available_at; fact has no available_at.",
-            )
-        if fact.available_at > request.as_of:
-            return (
-                CalculationStatus.INPUT_UNAVAILABLE,
-                f"Fact available_at ({fact.available_at.isoformat()}) is later than "
-                f"request as_of ({request.as_of.isoformat()}).",
-            )
+    boundary_error = _boundary_error(request, fact)
+    if boundary_error is not None:
+        return (CalculationStatus.INPUT_UNAVAILABLE, boundary_error)
     error = financial_quality_error(
         fact,
         input_id=f"{request.subject_id}:{request.field_name.value}:{request.provider_id}",

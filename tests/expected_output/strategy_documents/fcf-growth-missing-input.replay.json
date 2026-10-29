@@ -90,8 +90,14 @@
     {
       "field_name": "operating_cash_flow",
       "stage": "provider",
-      "outcome": "rejected",
-      "message": "No usable operating_cash_flow facts were returned."
+      "outcome": "attempted",
+      "message": "Requested the operating_cash_flow fiscal-year series from provider 'sec_edgar'."
+    },
+    {
+      "field_name": "operating_cash_flow",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider returned no data for the requested field."
     },
     {
       "field_name": "security_identity",

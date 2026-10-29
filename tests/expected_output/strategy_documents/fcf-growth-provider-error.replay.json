@@ -99,8 +99,14 @@
     {
       "field_name": "operating_cash_flow",
       "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested the operating_cash_flow fiscal-year series from provider 'sec_edgar'."
+    },
+    {
+      "field_name": "operating_cash_flow",
+      "stage": "provider",
       "outcome": "error",
-      "message": "operating_cash_flow provider failed: fixture provider failure"
+      "message": "Provider error: fixture provider failure"
     },
     {
       "field_name": "security_identity",
