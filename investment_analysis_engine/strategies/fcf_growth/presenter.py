@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from investment_analysis_engine.analysis.shared.market_cap import ListingCheck, MarketCapEvidence
+from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
@@ -273,6 +274,12 @@ def _details(
     return lines
 
 
+_WINDOW_LABELS = {
+    AdjustmentWindow.COUNT_TO_PRICE: "between the share count and the price",
+    AdjustmentWindow.PRICE_TO_ADJUSTMENT: "after the price, undoing the provider's adjustment of the close",
+}
+
+
 def _day(value: date | None) -> str:
     """Format an optional calendar date."""
     return "unavailable" if value is None else value.isoformat()
@@ -306,11 +313,14 @@ def _market_cap_detail_lines(market_cap: MarketCapEvidence | None) -> list[str]:
         )
     if market_cap.scaled_share_count is not None:
         lines.append(f"  Share count on the price's basis: {market_cap.scaled_share_count:,.0f}")
-    if market_cap.splits_applied:
-        splits = ", ".join(f"{_day(item.ex_date)} ×{item.ratio:g}" for item in market_cap.splits_applied)
-        lines.append(f"  Splits applied: {splits}")
+    if market_cap.provider_adjustments:
+        lines.append("  Provider split adjustments applied:")
+        lines.extend(
+            f"    {_day(item.ex_date)} ×{item.ratio:g} ({_WINDOW_LABELS[item.window]})"
+            for item in market_cap.provider_adjustments
+        )
     elif market_cap.scaled_share_count is not None:
-        lines.append("  Splits applied: none")
+        lines.append("  Provider split adjustments applied: none")
     if market_cap.price is not None:
         lines.append(
             f"  Price: {format_money(market_cap.price, market_cap.quote_currency)} "

@@ -4,7 +4,8 @@ The slice plan for [slice 3.5.2](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#352--shared
 It covers six sub-slices. It was written against `main` at `3305ec3`; 3.5.2c was split in two at `b650c3b`
 ([A.5](#a5-decisions-at-the-start-of-352c-2026-10-26)); 3.5.2d began from `main` at `8397dee`
 ([A.7](#a7-decisions-at-the-start-of-352d-2026-10-27)); 3.5.2e began from `main` at `28c38b1`, and added 3.5.2f
-([A.10](#a10-decisions-at-the-start-of-352e-2026-10-28)).
+([A.10](#a10-decisions-at-the-start-of-352e-2026-10-28)); a review correction of the share-count scaling is recorded in
+[A.12](#a12-review-decisions-2026-10-28).
 
 Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
@@ -189,7 +190,8 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
   `market_capitalization` is a bare resolved input that cannot hold a share count, a price and the splits applied.
 - **Decision (K4, K9, K10, K11, K16, V1 to V6):**
   - `market_capitalization` becomes the shared market-cap type: value, share count with its basis (year-end or cover
-    page) and date, the filing date of the count's source, price and price date, the splits applied, and provenance.
+    page) and date, the filing date of the count's source, price and price date, the provider split adjustments applied with their window ([W1](#a12-review-decisions-2026-10-28)),
+    and provenance.
   - `SCHEMA_VERSION` goes from 5 to 6, with the codec and document versions as `AGENTS.md` §4 requires.
     `METHOD_VERSION` stays 2: the contract calls this evidence becoming available, not a formula change.
   - A market-data failure makes the yield `unavailable` with `provider_error` and a warning. The run's
@@ -567,6 +569,23 @@ owner can reverse any.
 | Quote freshness | The resolver that reads the quote and the share counts shares the run's financial cache and uses the quote freshness policy of the settings, as Graham's resolver does; no table or cache is added. |
 | Fixtures | The success fixture's share count, split history, quote and cover are Python fixtures in `evaluation/fixtures/fcf_earnings_growth.py`, like the annual facts, so there is no checksum file. Every other case gets fixture providers that hold nothing. The case expectations are not edited; the yield's value is asserted by a test. |
 
+### A.12 Review decisions (2026-10-28)
+
+Approved by the project owner after review of the 3.5.2e branch. W1a to W1f were decided by the implementer under the
+standing data-mapping delegation (same terms as 3.5.2c: from captured evidence, failing closed, an explicit rule); the
+project owner can reverse any row. W1 amends the share-count scaling of Shared definitions §4 and reverses F7 of the
+3.5.1 plan inside the second window.
+
+| # | Topic | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| W1 | Two windows for the provider's split history | Events whose ex-date is after the price date and not after the adjustment date are always applied, whatever their ratio: they undo the provider's retroactive adjustment of the historical close. Events whose ex-date is after the count's date (the filing date of a year-end count's source, or a cover-page count's own date) and not after the price date are applied only when the ratio is a recognizable split ratio (W1a). Any other ratio there makes the market cap `unavailable` (W1b) with a message naming the event's ex-date and ratio. On the live path the price date is the quote's date, so every event after the count's date is in the second window. | The two Honeywell runs scaled the filed count by ×0.9535 (2026-06-29) live, and by ×1.061 (2025-10-30) and ×0.9535 with `--as-of 2025-06-30`. These are the provider's adjustments for spin-offs, and a spin-off does not change the share count. After the price date, scaling only undoes the adjustment of that close, so the `as_of` result is right. Between the count and the price, scaling assumes the shares really changed, which is wrong for a spin-off: Honeywell's live market cap came out near 132.8 billion where 635.3 million shares at 219.26 give about 139.3 billion. |
+| W1a | The ratio rule | A closed set, `RECOGNIZED_SPLIT_RATIOS` in `analysis/shared/split_adjustment.py`: a forward split is *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q*, and a reverse split is its reciprocal. Ratios are compared exactly with the provider's float; there is no tolerance. | Captured ratios: NVIDIA 10.0 and Walmart 3.0 (accepted; both are 10-for-1 and 3-for-1); Commerce Bancshares 1.05, and Honeywell 1.00533, 1.011, 1.032, 1.061 and 0.9535 (refused, none is *p*-for-*q* with *q* up to 4 and *p* up to 100). Honeywell's five events are every event of its history since 2015 (captured 2026-10-28). Tootsie Roll's 1.03 is not captured; it is refused by the same rule. The forms beyond 10 and 3 (2-for-1, 3-for-2, 5-for-4, reverse splits) are the ordinary vocabulary of splits and are not in a captured history: a ratio that is not listed is refused, so an unlisted real split makes the market cap unavailable and never a wrong number (fail closed). The set is a named constant, not a tolerance, as `AGENTS.md` §3 requires. |
+| W1b | Reason code | `ambiguous_fact`. | The share count on the price's basis is undetermined because the history cannot say whether the event changed the shares. `ambiguous_fact` is the existing code for a value that cannot be chosen from conflicting or insufficient evidence (conflicting counts, a direct total that does not reconcile). `incompatible_period` was rejected because the count's date is right, and `missing_fact` because the facts are present. |
+| W1c | Window edges | The price date belongs to the second window (the close of an ex-date is on the post-split basis, so a count taken before it must be scaled). The first window starts after the later of the price date and the count's date. An event on or before the count's date is never applied (a filing restates its counts for a split effective before it is issued). | An event after the count's date and before the price date is the only kind that can change the count between the two. Events between a price that precedes the count and the count are already in the count and in the adjusted close. |
+| W1d | Labels and the stored shape | The field `splits_applied` of `MarketCapEvidence` is renamed `provider_adjustments`, each item an `AppliedAdjustment` (ex-date, ratio, window `count_to_price` or `price_to_adjustment`); the details view says "provider split adjustments", with the window of each. | The shape exists only in this unreleased sub-slice, so the rename and the added window are covered by the bumps already made (result schema 5 to 6, document 9 to 10, evidence codec 3 to 4), and no further version changes. |
+| W1e | Stock dividends (F7) | F7 is reversed inside the second window. Commerce Bancshares' 1.05 and Tootsie Roll's 1.03 are refused there and applied after the price date; the market cap is unavailable for a count taken before such a dividend and a price after it. | The project owner accepted the reversal: the history cannot tell a small split from a stock dividend or a spin-off, and a wrong share count is worse than an unavailable one. |
+| W1f | Captured evidence | `evaluation/fixtures/sec_edgar/split_history/hon.json` with its `SHA256SUMS` entry: Honeywell's five events and six trimmed closes (2025-06-30, 2025-10-29, 2025-10-30, 2026-06-26, 2026-06-29 and the last session). One Yahoo download of the history from 2015-01-01 and its currency lookup: two requests, raw response under `.tmp/` only. | Within the budget of five requests. |
+
 ---
 
 ## Appendix B: File inventories, tests and documentation
@@ -660,6 +679,7 @@ As built. Paths are under `investment_analysis_engine/` unless they start with `
 
 | Area | File | Change |
 | :--- | :--- | :--- |
+| Provider adjustments (W1) | `analysis/shared/split_adjustment.py`, `analysis/shared/market_cap.py` | `scale_share_count` takes the price date and returns the scaled count, the applied adjustments with their window and the first unrecognized event; `RECOGNIZED_SPLIT_RATIOS`; `compute_market_cap` refuses with `ambiguous_fact` naming the event; `splits_applied` becomes `provider_adjustments`. `analysis/shared/metric_inputs.py` is unchanged: it already passes the price date |
 | Result | `strategies/fcf_growth/models.py` | `market_capitalization` is `MarketCapEvidence`; `SCHEMA_VERSION` 5 to 6; the invariants of [A.11](#a11-wording-the-plan-settles-352e); the stale version docstrings and the "method_version = 2 / schema_version = 4" comment corrected (K16) |
 | Analyzer | `strategies/fcf_growth/analyzer.py` | `MarketCapDependencies` and the analyzer's second constructor argument; the yield decided by `anchor_year_end_scope`, `resolve_market_cap_inputs`, `MarketCapInputs.market_cap()` and `compute_fcf_yield`, `unavailable` with `provider_error` and a warning on a market-data failure (K10, V3) |
 | Stored shape | `strategies/fcf_growth/envelope.py`, `strategies/fcf_growth/presenter.py`, `schemas/fcf-growth.schema.json` | `DOCUMENT_SCHEMA_VERSION` 9 to 10; the parts `FCFMarketCapPart`, `FCFSplitPart`, `FCFListingCheckPart` and `FCFListingRenamePart`; the details and diagnostics lines of V4; the schema regenerated. The codec (`strategies/fcf_growth/codec.py`) needed no change: it validates the result dataclass, which now holds the shared type |
@@ -705,7 +725,8 @@ MarketCapEvidence (frozen)             3.5.2b, stored by FCF-Growth in 3.5.2d
   share_count: ResolvedInput | None    the count as filed, with its provenance
   share_count_basis, share_count_date  year-end or cover page; the fiscal year-end or the date of the cover
   share_count_filing_date              the filing date of the count's source
-  scaled_share_count, splits_applied   the count on the price's basis, and the splits that scaled it
+  scaled_share_count, provider_adjustments   the count on the price's basis, and the provider split adjustments that
+                                       scaled it, each with its window (W1: count_to_price or price_to_adjustment)
   price, price_date                    the split-adjusted close and its date
   form, filing_currency, quote_currency  the anchor filing's form and the two currencies
   listing_check: ListingCheck | None   affirmed (with the accession read) or refused (reason code and reason)
@@ -944,6 +965,13 @@ network call.
   renamed ticker, and a refusal with its reason; the JSON document has every field.
 - **Composition (V6):** the command (with and without `--no-cache`) and `refresh` each build the market-data dependencies
   once, from the production provider, the historical client and the run's cache, and pass `use_cache` through.
+- **Provider split adjustments (W1):** an event after the price date is applied whatever its ratio (Honeywell with
+  `--as-of 2025-06-30`); an event between the count and the price with a recognizable ratio is applied (NVIDIA); one
+  with an unrecognized ratio makes the market cap `unavailable` with `ambiguous_fact` naming its ex-date and ratio
+  (Honeywell live, and an FCF-Growth run with a spin-off adjustment); the live path puts every event after the count in
+  the second window; each captured ratio's outcome (NVIDIA, Walmart accepted; Commerce Bancshares and Honeywell's five
+  refused); the window edges; the rule is a closed set. The golden case's yield and every other expected value are
+  unchanged.
 - **Output contracts:** the existing strategy output-contract tests, Graham's and Momentum's included, pass unchanged
   apart from the market-cap part; the side-by-side headline is equal with and without a market cap.
 
@@ -972,6 +1000,11 @@ network call.
   the failure kind and changes neither the run's status nor its classification. A run now makes market-data
   requests (the quote, the split history and the anchor cover) when the yield is wanted. The side-by-side headline is
   unchanged.
+- 3.5.2e, review correction W1: the share count is no longer scaled by a provider adjustment between its date and the
+  price date unless the ratio is a recognizable split ratio. A spin-off or a stock dividend there makes market cap, and
+  so the FCF yield, `unavailable` with `ambiguous_fact` and a warning naming the event; an adjustment after the price
+  date is applied as before. The evidence calls the events provider split adjustments, each with its window
+  (`provider_adjustments`), and the details view says so. No version changes beyond those above.
 - 3.5.2f: none by decision (V1): every stored FCF-Growth output and cache entry is unchanged.
 
 ### B.13 TOOL_DEVELOPMENT edit sites

@@ -116,7 +116,7 @@ async def test_the_success_case_has_its_yield_with_the_evidence_visible(monkeypa
     assert evidence is not None
     assert evidence.result.value == pytest.approx(1300.0)
     assert (evidence.scaled_share_count, evidence.price) == (400.0, 3.25)
-    assert [event.ratio for event in evidence.splits_applied] == [2.0]
+    assert [event.ratio for event in evidence.provider_adjustments] == [2.0]
     assert evidence.listing_check is not None
     assert evidence.listing_check.affirmed
     assert evidence.price_date == EXECUTED_AT.date()

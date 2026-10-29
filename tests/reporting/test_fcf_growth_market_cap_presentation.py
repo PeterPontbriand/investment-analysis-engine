@@ -57,7 +57,8 @@ def test_the_details_view_shows_the_whole_evidence() -> None:
         f"  Share count: {FCF_GROWTH_SHARE_COUNT:,.0f} (year end, dated 2025-01-01; source filed 2025-02-01)" in lines
     )
     assert "  Share count on the price's basis: 400" in lines
-    assert "  Splits applied: 2025-03-03 ×2" in lines
+    assert "  Provider split adjustments applied:" in lines
+    assert "    2025-03-03 ×2 (between the share count and the price)" in lines
     assert f"  Price: {FCF_GROWTH_PRICE:,.2f} USD (split-adjusted close, {CLOCK.date().isoformat()})" in lines
     assert "  Currencies: filing USD, quote USD" in lines
     assert f"  Listing check: affirmed on {FCF_GROWTH_ACCESSION}" in lines
@@ -106,7 +107,7 @@ def test_the_json_document_holds_the_whole_evidence() -> None:
         "share_count_date",
         "share_count_filing_date",
         "scaled_share_count",
-        "splits_applied",
+        "provider_adjustments",
         "price",
         "price_date",
         "form",
@@ -120,7 +121,7 @@ def test_the_json_document_holds_the_whole_evidence() -> None:
     assert part["share_count_basis"] == "year_end"
     assert (part["share_count_date"], part["share_count_filing_date"]) == ("2025-01-01", "2025-02-01")
     assert part["scaled_share_count"] == 400.0
-    assert part["splits_applied"] == [{"ex_date": "2025-03-03", "ratio": 2.0}]
+    assert part["provider_adjustments"] == [{"ex_date": "2025-03-03", "ratio": 2.0, "window": "count_to_price"}]
     assert (part["price"], part["price_date"]) == (FCF_GROWTH_PRICE, CLOCK.date().isoformat())
     assert (part["form"], part["filing_currency"], part["quote_currency"]) == ("10-K", "USD", "USD")
     assert part["listing_check"] == {
@@ -158,7 +159,9 @@ def test_the_checked_in_schema_describes_the_market_cap_part() -> None:
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
 
     assert schema["properties"]["market_capitalization"]["anyOf"][0] == {"$ref": "#/$defs/FCFMarketCapPart"}
-    assert {"FCFMarketCapPart", "FCFListingCheckPart", "FCFListingRenamePart", "FCFSplitPart"} <= set(schema["$defs"])
+    assert {"FCFMarketCapPart", "FCFListingCheckPart", "FCFListingRenamePart", "FCFProviderAdjustmentPart"} <= set(
+        schema["$defs"]
+    )
 
 
 @pytest.mark.parametrize("mode", list(PresentationMode))

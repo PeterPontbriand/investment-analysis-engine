@@ -77,7 +77,8 @@ The command also shows an informational FCF yield: the latest completed fiscal y
 Market capitalization: 1,300.00 USD
   Share count: 200 (year end, dated 2025-01-01; source filed 2025-02-01)
   Share count on the price's basis: 400
-  Splits applied: 2025-03-03 ×2
+  Provider split adjustments applied:
+    2025-03-03 ×2 (between the share count and the price)
   Price: 3.25 USD (split-adjusted close, 2026-10-28)
   Currencies: filing USD, quote USD
   Listing check: affirmed on 0000000000-25-000001
@@ -90,6 +91,7 @@ The share count line names its basis (`year end` or `cover page`), the date of t
 - With a date-only `--as-of`, the price includes that day's close, and a session is read by its exchange-local date, as Momentum reads its prices.
 - The share count is the count at the fiscal year-end, so buybacks and issuance between the year-end and the price date are not reflected.
 - A filing restates its counts for a split effective before it is issued. A split announced before the filing but effective just after it is assumed not to be reflected in the filing.
+- The provider's split history reports splits and other adjustments alike. A provider adjustment for a spin-off (Honeywell's appear as ×1.061 and ×0.9535), or a stock dividend outside the recognized split ratios (Commerce Bancshares' ×1.05), between the filing and the price makes the yield unavailable, with the event's date and ratio in the warning; the share count is not guessed. The same adjustment after the price date, which the provider applied to the historical close, is undone and does not make it unavailable. Ordinary splits such as 2-for-1, 3-for-1, 10-for-1 and 3-for-2, and reverse splits, are applied.
 - A filer of a 20-F or 40-F (a foreign private issuer) is unavailable, because its US listing may be a depositary receipt at a ratio the structured data cannot show. A listing that is not a share of the company on the annual report's cover (a depositary share, unit, warrant or preferred security) is unavailable.
 - The yield uses an annual numerator and a market denominator, so it is context, not a valuation.
 

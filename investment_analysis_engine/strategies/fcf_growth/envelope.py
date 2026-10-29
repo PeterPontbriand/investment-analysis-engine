@@ -16,6 +16,7 @@ from datetime import date
 from typing import Final
 
 from investment_analysis_engine.analysis.shared.market_cap import ShareCountBasis
+from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.provenance import (
     AccountingScope,
@@ -118,11 +119,12 @@ class FCFForwardEvidencePart(DocumentPart):
     confirms_positive_growth: bool | None
 
 
-class FCFSplitPart(DocumentPart):
-    """One split of the provider's history: its ex-date and the new shares per old share."""
+class FCFProviderAdjustmentPart(DocumentPart):
+    """One provider split adjustment that scaled the share count: its ex-date, ratio and the window it fell in."""
 
     ex_date: date
     ratio: float
+    window: AdjustmentWindow
 
 
 class FCFListingRenamePart(DocumentPart):
@@ -155,7 +157,7 @@ class FCFMarketCapPart(DocumentPart):
     share_count_date: date | None
     share_count_filing_date: date | None
     scaled_share_count: float | None
-    splits_applied: tuple[FCFSplitPart, ...]
+    provider_adjustments: tuple[FCFProviderAdjustmentPart, ...]
     price: float | None
     price_date: date | None
     form: str | None
@@ -206,6 +208,6 @@ __all__ = [
     "FCFMarketCapPart",
     "FCFObservationPart",
     "FCFPolicyPart",
+    "FCFProviderAdjustmentPart",
     "FCFResolvedInputPart",
-    "FCFSplitPart",
 ]

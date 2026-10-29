@@ -182,14 +182,27 @@ in which an absent element yields a number.
   - without one: the current quote, through the existing quote boundary and its freshness rules. The split history is
     requested as adjusted on the quote's date, so the count is scaled up to the quote.
   A one-day historical download is never used as a quote.
-- **Split adjustment:** a cover-page count is scaled by every split whose ex-date is after the cover date, and a
-  balance-sheet count by every split whose ex-date is after the filing date of the filing
-  the count was taken from, up to the adjustment date of the price data. The accession and filing date are those in the
+- **Provider split adjustments, in two windows.** The provider's split history reports splits and other adjustments
+  alike: a spin-off appears as a ratio such as 1.061 or 0.9535, and a spin-off does not change the share count. A
+  cover-page count is scaled by the events whose ex-date is after the cover date, and a balance-sheet count by those
+  whose ex-date is after the filing date of the filing the count was taken from, up to the adjustment date of the price
+  data, in two windows:
+  1. **After the price date** (and not after the adjustment date): always applied, whatever the ratio. The provider
+     adjusted the historical close for the event and the count of that date is untouched by it, so scaling undoes the
+     retroactive adjustment of the price.
+  2. **After the count's date and not after the price date:** applied only when the ratio is recognizable, where
+     a ratio is a recognizable split ratio when it is *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q* (2-for-1, 3-for-1, 10-for-1, 3-for-2, 5-for-4, ...), or the reciprocal of one (a reverse split, 1-for-10 is 0.1), compared exactly (`RECOGNIZED_SPLIT_RATIOS` in `analysis/shared/split_adjustment.py`). Any other ratio makes the market cap `unavailable` with `ambiguous_fact`, and the message names the
+     event's ex-date and ratio, because the history cannot say whether the shares changed. On the live path the price
+     date is the quote's date, so every event after the count's date is in this window. A stock dividend such as
+     Commerce Bancshares' 1.05 or Tootsie Roll's 1.03 is refused here (W1 of the 3.5.2 plan reverses F7 of the 3.5.1
+     plan inside this window).
+
+  The evidence lists the applied events as provider split adjustments, each with its window.
+  The accession and filing date are those in the count's own provenance; The accession and filing date are those in the
   count's own provenance; the anchor filing is not assumed, because a later filing's comparative restates an earlier
   year-end for splits up to that later filing's own date. A filing restates its share counts for a split effective before
   it is issued (SEC Staff Accounting Bulletin Topic 4.C), so such a split is already in the count and is not applied
-  again. Stock dividends appear in the split history as fractional splits and are scaled the same way; they are not
-  issuance.
+  again.
 - **Effect:** the market cap is the same as the one the unadjusted price and the unscaled count of the same date give. The
   formula and the value are unchanged; this states only how it is computed. Splits after `as_of` are used only to undo the
   provider's retroactive adjustment ([§3](#3-data-sources-periods-and-point-in-time)).

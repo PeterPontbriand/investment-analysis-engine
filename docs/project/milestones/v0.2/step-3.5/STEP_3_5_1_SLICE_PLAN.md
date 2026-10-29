@@ -182,7 +182,7 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
     never change the as-of market cap ([Shared definitions §3](STEP_3_5_SHARED_DEFINITIONS.md#3-data-sources-periods-and-point-in-time)).
   - **Stock dividends (F7):** Yahoo reports them as fractional splits (1.05, 1.03) that cannot be told from a small
     split. They scale a share count exactly as a split does and are not issuance. No code counts or labels them, and the
-    limitation is stated in the guides.
+    limitation is stated in the guides. *Amended by W1 of the [3.5.2 slice plan](STEP_3_5_2_SLICE_PLAN.md#a12-review-decisions-2026-10-28): between the count's date and the price date a ratio that is not a recognizable split ratio makes the market cap unavailable.*
   - **Limitation:** a split announced before the filing but effective just after it is assumed not to be reflected in the
     filing.
   - The market cap itself is 3.5.2. This sub-slice supplies the price, the splits and a pure function that scales a count.
@@ -270,7 +270,7 @@ Approved by the project owner. Each is stated in the sections above; this table 
 | F4 | Evidence storage | The evidence record; fixtures trimmed to the facts used, following the `evaluation/fixtures/sec_edgar` precedent; no full Company Facts payload is checked in; each sub-slice adds the fixtures its tests need. |
 | F5 | Instants | An additional `PeriodKind` member; a new exact-date series request leaving the latest-only behavior unchanged; the financial-fact cache version bumped under the AGENTS.md §4 stored-shape rule. |
 | F6 | Market-cap price basis | See [A.2](#a2-the-share-count-scaling-window-2026-10-25), which carries the project owner's refinement of the share-count window, and H7, which adds a cover-page share count and the scaling window it needs. |
-| F7 | Stock dividends | Adjusted like splits where the split history shows them, never read as issuance. The history shows them as fractional splits and cannot tell them from a small split; the plan states that limit and does not guess. |
+| F7 | Stock dividends | Adjusted like splits where the split history shows them, never read as issuance. The history shows them as fractional splits and cannot tell them from a small split; the plan states that limit and does not guess. Amended by [W1 of the 3.5.2 plan](STEP_3_5_2_SLICE_PLAN.md#a12-review-decisions-2026-10-28). |
 | F8 | Names and places | Reason codes `industry_class_not_applicable` and `industry_class_unknown`; helpers and the industry-class type in `analysis/shared/applicability.py`; header reading in `data/sec_edgar/`. Both placements confirmed against ARCHITECTURE §13. |
 | F9 | Every field in 3.5.1 | Every field of Slice inputs §3 is added in 3.5.1b or 3.5.1c and proven against captured filings; none has a production consumer until 3.5.3. |
 | F10 | Live checks | One `live_network` check for the header request (3.5.1a) and one for the split-history request (3.5.1d), in `tests/live/test_provider_response_shape.py`, under the conditions of AGENTS.md §3. |

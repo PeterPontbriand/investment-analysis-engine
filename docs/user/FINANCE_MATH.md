@@ -342,19 +342,19 @@ These metrics are defined once and used by every strategy that needs them. Each 
 
 ```text
 market_cap = scaled_share_count * price
-scaled_share_count = share_count * product of the ratios of every split with
-                     after < ex_date <= adjustment_date
+scaled_share_count = share_count * product of the ratios of the provider split adjustments
+                     of the two windows below, with after < ex_date <= adjustment_date
 ```
 
 - **Share count:** the common shares outstanding at fiscal year-end *t*, reported directly or as shares issued minus treasury shares at the same date. When no balance-sheet path gives a count at *t*, the single non-dimensional cover-page count of the anchor filing is used and the result says so. A year-end count dated other than *t* (an older year's count) is `unavailable` with `incompatible_period` and is never substituted. Conflicting counts, and per-class counts with no total, are `unavailable`. One combined count for several share classes is valued at the requested ticker's price.
 - **Price:** the split-adjusted close, without dividend adjustment, on the last trading day on or before the boundary.
-- **Split scaling:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. A filing restates its counts for a split effective before it is issued, so such a split is not applied again. A split after the boundary still scales the count, because it undoes the provider's adjustment of the price; it never changes the market cap at the boundary.
+- **Provider split adjustments:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. The provider's split history reports splits and other adjustments alike (a spin-off appears as a ratio such as 0.9535), and only a split changes the share count, so the events apply in two windows. An event after the price date is always applied, whatever its ratio: it undoes the provider's adjustment of the historical close and never changes the market cap at the boundary. An event after `after` and not after the price date is applied only when its ratio is a recognizable split ratio: *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q*, or the reciprocal of one. Any other ratio, such as a spin-off or a stock dividend of 1.05, makes market cap `unavailable` with `ambiguous_fact`, naming the event. Without `--as-of` the price date is the quote's date, so every event after the count's date is in the second window. A filing restates its counts for a split effective before it is issued, so such a split is not applied again.
 - **Availability:** market cap is available only when all four hold, and each refusal has its reason code.
   1. The anchor annual filing is a 10-K or a 10-K/A (`incompatible_scope`). A 20-F or 40-F filer, or an amendment of either, is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show.
   2. The quote currency equals the filing currency (`incompatible_currency`). When either is unknown, market cap is `unavailable`.
   3. A listing check on the anchor 10-K's cover affirms the requested ticker, under the issuer's CIK, on a registered title that is a share of the issuer. A depositary share, unit, warrant or preferred security is refused (`incompatible_units`), and a missing or unreadable cover is `unavailable` (`missing_fact`).
   4. A share count and a price are present (the code of the missing input).
-- **Limitations:** buybacks and issuance between the fiscal year-end and the price date are not reflected. A split announced before the filing but effective just after it is assumed not to be reflected in the filing. A ticker renamed after the anchor filing does not match the cover and is `unavailable`.
+- **Limitations:** buybacks and issuance between the fiscal year-end and the price date are not reflected. A split announced before the filing but effective just after it is assumed not to be reflected in the filing. A spin-off or stock dividend between the count and the price makes market cap unavailable. A ticker renamed after the anchor filing does not match the cover and is `unavailable`.
 - **Critical inputs:** the share count and the price.
 
 ### Gross profit, EBIT, depreciation and amortization, EBITDA

@@ -20,6 +20,7 @@ from investment_analysis_engine.analysis.shared.metric_inputs import (
     resolve_balance_sheet_values,
     resolve_market_cap_inputs,
 )
+from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow, AppliedAdjustment
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import (
@@ -444,7 +445,9 @@ def test_nvidias_split_after_the_count_scales_it_to_the_price_basis() -> None:
     evidence = inputs.market_cap()
     assert evidence.result.status is MetricStatus.OK
     assert evidence.scaled_share_count == 24_640_000_000.0  # the 10-for-1 split of 2024-06-10 follows the filing
-    assert evidence.splits_applied == (SplitEvent(date(2024, 6, 10), 10.0),)
+    assert evidence.provider_adjustments == (
+        AppliedAdjustment(date(2024, 6, 10), 10.0, AdjustmentWindow.PRICE_TO_ADJUSTMENT),
+    )
     assert evidence.result.value == pytest.approx(86.402 * 24_640_000_000.0)
     assert evidence.result.value == pytest.approx(864.02 * 2_464_000_000.0)  # the unadjusted close of the day
 
@@ -544,7 +547,7 @@ def test_walmarts_count_taken_after_its_split_is_not_scaled_again() -> None:
     evidence = inputs.market_cap()
     assert evidence.result.status is MetricStatus.OK
     assert evidence.share_count_basis is ShareCountBasis.COVER_PAGE
-    assert evidence.splits_applied == ()  # the 3-for-1 split of 2024-02-26 precedes the count of 2026-03-11
+    assert evidence.provider_adjustments == ()  # the 3-for-1 split of 2024-02-26 precedes the count of 2026-03-11
     assert evidence.scaled_share_count == 7_972_402_501.0
     assert evidence.result.value == pytest.approx(7_972_402_501.0 * 130.0)
     assert evidence.listing_check is not None

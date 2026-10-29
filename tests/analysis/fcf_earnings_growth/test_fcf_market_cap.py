@@ -14,6 +14,7 @@ import pytest
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.analysis.shared.market_cap import ShareCountBasis
+from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow, AppliedAdjustment
 from investment_analysis_engine.cli_support import exit_code_of
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
@@ -28,7 +29,7 @@ from investment_analysis_engine.data.financial.facts import (
 )
 from investment_analysis_engine.data.financial.resolver import InputResolver
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
-from investment_analysis_engine.data.market_data import SplitAdjustedHistory
+from investment_analysis_engine.data.market_data import SplitAdjustedHistory, SplitEvent
 from investment_analysis_engine.data.sec_edgar.cover_listing import CoverListingRequest, ListingResolution
 from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
@@ -191,7 +192,9 @@ def test_the_yield_is_the_latest_free_cash_flow_over_the_market_cap_at_the_year_
     assert evidence.share_count_date == FCF_GROWTH_YEAR_END
     assert evidence.share_count_filing_date == FCF_GROWTH_FILING_DATE
     assert evidence.scaled_share_count == FCF_GROWTH_SHARE_COUNT * FCF_GROWTH_SPLIT.ratio
-    assert evidence.splits_applied == (FCF_GROWTH_SPLIT,)
+    assert evidence.provider_adjustments == (
+        AppliedAdjustment(FCF_GROWTH_SPLIT.ex_date, FCF_GROWTH_SPLIT.ratio, AdjustmentWindow.COUNT_TO_PRICE),
+    )
     assert evidence.price == FCF_GROWTH_PRICE
     assert evidence.price_date == CLOCK.date()
     assert (evidence.form, evidence.filing_currency, evidence.quote_currency) == ("10-K", "USD", "USD")
@@ -377,3 +380,34 @@ def test_a_boundary_is_passed_to_the_assembly_for_the_requested_day() -> None:
     assert result.requested_as_of == datetime(2026, 9, 1, tzinfo=UTC)
     assert result.market_capitalization is not None
     assert result.market_capitalization.price_date == date(2026, 9, 1)
+
+
+class SpinOffProvider(FixtureSplitHistoryProvider):
+    """A split history whose only event is a provider adjustment for a spin-off, as Honeywell's is."""
+
+    def fetch_split_adjusted_history(
+        self,
+        ticker: str,
+        start_date: str,
+        *,
+        use_cache: bool,
+        adjusted_on: date | None = None,
+        as_of: date | None = None,
+    ) -> SplitAdjustedHistory:
+        history = super().fetch_split_adjusted_history(
+            ticker, start_date, use_cache=use_cache, adjusted_on=adjusted_on, as_of=as_of
+        )
+        return replace(history, events=(SplitEvent(FCF_GROWTH_SPLIT.ex_date, 0.9535),))
+
+
+def test_a_spin_off_adjustment_between_the_filing_and_the_price_makes_the_yield_unavailable() -> None:
+    result = _run(_dependencies(SpyProvider(), SpinOffProvider(CLOCK, with_data=True)))
+
+    assert result.fcf_yield.status is MetricStatus.UNAVAILABLE
+    assert result.fcf_yield.reason_code is ReasonCode.AMBIGUOUS_FACT
+    assert "2025-03-03" in (result.fcf_yield.reason or "")
+    assert "0.9535" in (result.fcf_yield.reason or "")
+    assert result.market_capitalization is not None
+    assert result.market_capitalization.scaled_share_count is None
+    assert result.execution_status is CalculationStatus.OK
+    assert any(warning.startswith("FCF yield is unavailable") for warning in result.warnings)

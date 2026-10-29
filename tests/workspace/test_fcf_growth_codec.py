@@ -8,6 +8,7 @@ import pytest
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.analysis.shared.market_cap import ListingCheck, MarketCapEvidence, ShareCountBasis
+from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow, AppliedAdjustment
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
@@ -18,7 +19,6 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionTrace,
 )
 from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentKindEvidence, InstrumentProfile
-from investment_analysis_engine.data.market_data import SplitEvent
 from investment_analysis_engine.data.sec_edgar.cover_listing import ListingRename
 from investment_analysis_engine.data.security_identity import SecurityIdentity
 from investment_analysis_engine.data.security_unit import (
@@ -79,7 +79,7 @@ def _market_cap(*, rename: ListingRename | None = None) -> MarketCapEvidence:
         share_count_date=date(2025, 12, 31),
         share_count_filing_date=date(2026, 2, 10),
         scaled_share_count=200.0,
-        splits_applied=(SplitEvent(date(2026, 3, 2), 2.0),),
+        provider_adjustments=(AppliedAdjustment(date(2026, 3, 2), 2.0, AdjustmentWindow.COUNT_TO_PRICE),),
         price=8.0,
         price_date=date(2026, 9, 9),
         form="10-K",
@@ -523,7 +523,9 @@ def test_a_renamed_listing_and_every_market_cap_part_round_trip() -> None:
     assert restored.market_capitalization is not None
     assert restored.market_capitalization.listing_check is not None
     assert restored.market_capitalization.listing_check.rename == rename
-    assert restored.market_capitalization.splits_applied == (SplitEvent(date(2026, 3, 2), 2.0),)
+    assert restored.market_capitalization.provider_adjustments == (
+        AppliedAdjustment(date(2026, 3, 2), 2.0, AdjustmentWindow.COUNT_TO_PRICE),
+    )
 
 
 def test_a_refused_market_cap_with_its_known_inputs_round_trips_with_an_unavailable_yield() -> None:

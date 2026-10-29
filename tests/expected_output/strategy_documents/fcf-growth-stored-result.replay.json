@@ -1524,10 +1524,11 @@
     "share_count_date": "2025-12-31",
     "share_count_filing_date": "2026-02-10",
     "scaled_share_count": 200.0,
-    "splits_applied": [
+    "provider_adjustments": [
       {
         "ex_date": "2026-03-02",
-        "ratio": 2.0
+        "ratio": 2.0,
+        "window": "count_to_price"
       }
     ],
     "price": 8.0,
