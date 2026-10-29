@@ -31,6 +31,8 @@ from investment_analysis_engine.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
+from investment_analysis_engine.data.quality import QualityDecision
+from investment_analysis_engine.data.quality_reporting import quality_observer
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     RETRIEVED_AT,
@@ -45,6 +47,7 @@ from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsG
 from tests._sec_labeled_annual import sec_annual_fact
 
 NOW = datetime(2026, 3, 1, tzinfo=UTC)
+BOUNDARY = datetime(2026, 1, 1, tzinfo=UTC)
 YEARS = range(2020, 2026)
 FIELDS = (
     FinancialField.OPERATING_CASH_FLOW,
@@ -268,3 +271,35 @@ def test_an_incoherent_answer_is_a_provider_error_as_a_whole(corrupt: Callable[[
 
 def test_a_coherent_answer_with_the_same_facts_resolves() -> None:
     assert _resolve(_AnswerProvider(None)).status is CalculationStatus.OK
+
+
+def test_a_cached_entry_that_fails_the_quality_check_at_the_boundary_is_refused_with_its_reason() -> None:
+    """The cache read applies the quality check to a stored entry, publishing the reason and never reusing it."""
+    cache = InMemoryResolvedInputCache(clock=lambda: NOW)
+    for field in FIELDS:
+        for year in YEARS:
+            key, entry = _stored(field, year)
+            cache.put(replace(key, analysis_as_of=BOUNDARY), replace(entry, as_of=BOUNDARY))
+    # Available before the boundary, but its period ends after it.
+    key, entry = _stored(FinancialField.OPERATING_CASH_FLOW, 2027)
+    cache.put(
+        replace(key, analysis_as_of=BOUNDARY),
+        replace(entry, as_of=BOUNDARY, available_at=datetime(2025, 6, 1, tzinfo=UTC)),
+    )
+    rejected: list[QualityDecision] = []
+    with quality_observer(rejected.append):
+        result = resolve_annual_growth_series(
+            policy=FCFEarningsGrowthPolicy(),
+            subject_id="ACME",
+            currency="USD",
+            as_of=BOUNDARY,
+            effective_as_of=BOUNDARY,
+            provider=_ForbiddenProvider(),
+            cache=cache,
+            clock=lambda: NOW,
+        )
+    assert result.status is CalculationStatus.OK
+    assert [item.fiscal_year for item in result.observations] == list(YEARS)
+    assert [
+        (decision.rule_id, decision.reason) for decision in rejected if decision.rule_id == "financial.cached_series"
+    ] == [("financial.cached_series", "The annual observation is later than the analysis boundary.")]

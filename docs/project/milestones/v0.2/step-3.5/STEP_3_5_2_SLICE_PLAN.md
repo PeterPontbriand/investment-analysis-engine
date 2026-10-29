@@ -1114,7 +1114,10 @@ table, which lists Step 3.5 as one row.
   entry is identical; only the resolution trace of 515 records differs.
 - **A pre-change cache entry (Y2):** `test_fcf_annual_reader_entry.py` spells out the entries as stored before the
   change, shows they are reused unchanged with no provider request, that a miss fetches each field once and stores the
-  same entries, and that an entry under another schema version is refused and fetched again.
+  same entries, that an entry under another schema version is refused and fetched again, and that a cached entry
+  available before the boundary whose period ends after it fails the quality check of the cache read, is not reused
+  and publishes "The annual observation is later than the analysis boundary." as its reason (the same outcome as
+  before the change).
 - **An incoherent answer (Y1):** five parametrized cases (subject, field, basis, period kind, period bounds) give a
   provider error with `unexpected_response`.
 - **Precedence (Y7):** `test_fcf_no_observation_precedence.py` runs every ordering of every combination of the four
