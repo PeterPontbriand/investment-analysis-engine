@@ -15,6 +15,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
@@ -35,11 +36,11 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
 )
 
 # ---------------------------------------------------------------------------
-# Fixed identifiers (method_version = 2 / schema_version = 4)
+# Fixed identifiers (METHOD_VERSION and SCHEMA_VERSION)
 # ---------------------------------------------------------------------------
 
 METHOD_VERSION = 2
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +58,7 @@ class FCFEarningsGrowthPolicy:
     """Investor-selectable controls for one analysis run.
 
     The minimum automatic horizon is fixed at three elapsed years and is not
-    configurable in ``method_version = 1``.
+    configurable in the current method version.
 
     Attributes:
         historical_horizon: Requested elapsed-year horizon.
@@ -271,9 +272,9 @@ class FCFEarningsGrowthResult:
     """Complete typed result for one free-cash-flow & earnings-growth analysis.
 
     ``strategy_id``, ``method_id``, ``method_version`` and ``schema_version``
-    are fixed for ``method_version = 1`` and are not constructor arguments;
-    changing them requires a schema or method version increment per the
-    design contract.
+    are fixed by ``METHOD_VERSION`` and ``SCHEMA_VERSION`` and are not
+    constructor arguments; changing them requires a schema or method version
+    increment per the design contract.
 
     Invariants enforced at construction:
         - ``selected_observation_count`` equals the number of annual observations.
@@ -287,10 +288,10 @@ class FCFEarningsGrowthResult:
           FCF yield metric.
 
     Attributes:
-        schema_version: Machine-readable result schema version (fixed at 1).
+        schema_version: Machine-readable result schema version (``SCHEMA_VERSION``).
         strategy_id: Stable analysis-family identifier.
         method_id: Financial-method identifier.
-        method_version: Method semantics version (fixed at 1).
+        method_version: Method semantics version (``METHOD_VERSION``).
         ticker: Requested security identifier.
         requested_as_of: Timezone-aware requested analysis boundary, if any.
         effective_as_of: Timezone-aware effective analysis boundary used.
@@ -308,7 +309,8 @@ class FCFEarningsGrowthResult:
         fcf_cagr: Free-cash-flow compound annual growth (percent).
         eps_cagr: Diluted-EPS compound annual growth (percent).
         trend_classification: Historical relationship description.
-        market_capitalization: Current market capitalization fact, when resolved.
+        market_capitalization: Market capitalization at the boundary with the share count, price and splits behind
+            it; ``None`` when the yield is not requested, no market data was requested, or none could be obtained.
         fcf_yield: Informational free-cash-flow yield (percent); never affects classification.
         forward_evidence: Forward consensus evidence block.
         warnings: Material data-quality warnings for the run.
@@ -340,7 +342,7 @@ class FCFEarningsGrowthResult:
     fcf_per_share_cagr: MetricResult
     eps_cagr: MetricResult
     trend_classification: TrendClassification
-    market_capitalization: ResolvedInput | None = None
+    market_capitalization: MarketCapEvidence | None = None
     fcf_yield: MetricResult
     forward_evidence: ForwardEvidence
     warnings: tuple[str, ...] = ()
@@ -376,6 +378,7 @@ class FCFEarningsGrowthResult:
         ):
             msg = "include_fcf_yield=false requires fcf_yield to be not_applicable/not_requested."
             raise ValueError(msg)
+        self._validate_market_capitalization()
 
         if self.instrument_profile is not None and self.instrument_profile.ticker != self.ticker.strip().upper():
             msg = "Instrument profile ticker does not match the FCF & Earnings Growth result ticker."
@@ -415,6 +418,15 @@ class FCFEarningsGrowthResult:
                 "classification_reason_code and a non-empty classification_reason."
             )
             raise ValueError(msg)
+
+    def _validate_market_capitalization(self) -> None:
+        """Require market-capitalization evidence only for a requested yield, and for every yield that is a number."""
+        if self.market_capitalization is not None and not self.policy.include_fcf_yield:
+            raise ValueError("market_capitalization requires include_fcf_yield=true.")
+        if self.fcf_yield.status is MetricStatus.OK and (
+            self.market_capitalization is None or self.market_capitalization.result.status is not MetricStatus.OK
+        ):
+            raise ValueError("An ok fcf_yield requires an ok market_capitalization.")
 
     def _validate_provider_failure(self) -> None:
         """Require a recorded provider failure to accompany a provider-error outcome."""

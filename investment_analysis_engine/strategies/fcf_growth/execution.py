@@ -31,7 +31,7 @@ from investment_analysis_engine.core.failure_classification import provider_fail
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
-from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
+from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer, MarketCapDependencies
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
 from investment_analysis_engine.workspace.capture import ExecutionCapture
@@ -59,6 +59,7 @@ def execute_fcf_growth(  # noqa: PLR0913
     executed_at: datetime,
     use_cache: bool,
     provider: object,
+    market_data: MarketCapDependencies,
     profile_cache: InstrumentProfileResolver | None = None,
 ) -> FCFGrowthCapture:
     """Compose the profile and run the existing FCF/Earnings Growth analyzer.
@@ -73,6 +74,7 @@ def execute_fcf_growth(  # noqa: PLR0913
         use_cache: Whether resolved-input caching is enabled.
         provider: The production provider, used as both the primary and
             Yahoo identity candidate, exactly as the CLI composes it today.
+        market_data: The borrowed, already-composed dependencies of the optional FCF yield.
         profile_cache: When supplied, resolves the profile through the
             durable P2-Profiles cache instead of composing live every call.
 
@@ -86,7 +88,7 @@ def execute_fcf_growth(  # noqa: PLR0913
         profile_cache=profile_cache,
     )
     context = AnalysisContext(as_of=as_of, executed_at=executed_at, use_cache=use_cache, instrument_profile=profile)
-    result = FCFEarningsGrowthAnalyzer(resolver).run_analysis(ticker, config, context)
+    result = FCFEarningsGrowthAnalyzer(resolver, market_data).run_analysis(ticker, config, context)
     return FCFGrowthCapture(result=result, profile=profile)
 
 

@@ -62,7 +62,8 @@ next begins.
 | 3.5.2b | [Pure shared metrics](STEP_3_5_2_SLICE_PLAN.md#352b--pure-shared-metrics) | Complete | 2026-10-26 |
 | 3.5.2c | [Listing check for market capitalization](STEP_3_5_2_SLICE_PLAN.md#352c--listing-check-for-market-capitalization) | Complete | 2026-10-26 |
 | 3.5.2d | [Shared input assembly](STEP_3_5_2_SLICE_PLAN.md#352d--shared-input-assembly) | Complete | 2026-10-28 |
-| 3.5.2e | [FCF-Growth adopts the shared market cap](STEP_3_5_2_SLICE_PLAN.md#352e--fcf-growth-adopts-the-shared-market-cap) | Next | |
+| 3.5.2e | [FCF-Growth adopts the shared market cap](STEP_3_5_2_SLICE_PLAN.md#352e--fcf-growth-adopts-the-shared-market-cap) | Complete | 2026-10-28 |
+| 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](STEP_3_5_2_SLICE_PLAN.md#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Next | |
 | 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Planned | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
@@ -186,7 +187,7 @@ its own quality gate and authorization.
   history, and the balance-sheet and annual inputs at that year-end), so no consumer builds them itself. FCF-Growth's
   FCF yield adopts the shared market cap, with no formula change. The ranking helper is a pure,
   analysis-agnostic function, tested here on synthetic inputs before Magic Formula consumes it.
-  The slice is five sub-slices, each with its own branch, managed gate and authorization
+  The slice is six sub-slices, each with its own branch, managed gate and authorization
   ([A.13](#a13-352-sub-slices-and-scope-2026-10-26)); the listing check that decides whether a ticker is a share of
   the issuer is its own sub-slice, 3.5.2c, and the assembly follows it as 3.5.2d.
 - **Scope:** shared metric functions and their tests, gross profit included; the listing check of the anchor
@@ -196,7 +197,7 @@ its own quality gate and authorization.
   and `adjusted_on`; FCF-Growth's market-cap wiring; `FINANCE_MATH.md` entries for every shared metric.
 - **Detail:** [Shared definitions §4–§9](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization),
   [Slice inputs §4](STEP_3_5_SLICE_INPUTS.md#4-352--shared-metrics-and-ranking-helper) and the
-  [slice plan for 3.5.2a to 3.5.2e](STEP_3_5_2_SLICE_PLAN.md).
+  [slice plan for 3.5.2a to 3.5.2f](STEP_3_5_2_SLICE_PLAN.md).
 
 ### 3.5.3 — Piotroski F-Score
 

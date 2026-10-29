@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
@@ -64,6 +65,7 @@ def _make_result(**overrides: object) -> FCFEarningsGrowthResult:
         ),
         "eps_cagr": MetricResult.ok(-2.0),
         "trend_classification": TrendClassification.FCF_GROWING_EARNINGS_NOT,
+        "market_capitalization": MarketCapEvidence(result=MetricResult.ok(100.0)),
         "fcf_yield": MetricResult.ok(5.0),
         "forward_evidence": _forward_unavailable(),
         "period_start": PERIOD_START,
@@ -394,11 +396,11 @@ class TestFCFEarningsGrowthResult:
 
     def test_fixed_identifiers(self) -> None:
         result = _make_result()
-        assert result.schema_version == 5
+        assert result.schema_version == 6
         assert result.strategy_id == "fcf_earnings_growth"
         assert result.method_id == "reported_fcf_eps_cagr"
         assert result.method_version == 2
-        assert models_module.SCHEMA_VERSION == 5
+        assert models_module.SCHEMA_VERSION == 6
         assert models_module.METHOD_VERSION == 2
 
     @pytest.mark.parametrize(
@@ -529,9 +531,27 @@ class TestFCFEarningsGrowthResult:
                 fcf_yield=MetricResult.ok(5.0),
             )
 
+    def test_an_ok_yield_requires_an_ok_market_cap(self) -> None:
+        refused = MarketCapEvidence(
+            result=MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.MISSING_FACT, "No share count.")
+        )
+        for market_capitalization in (None, refused):
+            with pytest.raises(ValueError, match="ok fcf_yield requires an ok market_capitalization"):
+                _make_result(market_capitalization=market_capitalization)
+
+    def test_market_cap_evidence_requires_a_requested_yield(self) -> None:
+        with pytest.raises(ValueError, match="requires include_fcf_yield=true"):
+            _make_result(
+                policy=FCFEarningsGrowthPolicy(include_fcf_yield=False),
+                fcf_yield=MetricResult.failure(
+                    MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "FCF yield was not requested."
+                ),
+            )
+
     def test_include_fcf_yield_false_valid_with_not_requested(self) -> None:
         result = _make_result(
             policy=FCFEarningsGrowthPolicy(include_fcf_yield=False),
+            market_capitalization=None,
             fcf_yield=MetricResult.failure(
                 MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "FCF yield was not requested."
             ),

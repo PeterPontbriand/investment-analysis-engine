@@ -170,6 +170,261 @@
       "title": "FCFLineagePart",
       "type": "object"
     },
+    "FCFListingCheckPart": {
+      "additionalProperties": false,
+      "description": "The listing check's outcome: affirmed with the accession read, or refused with its code and reason.",
+      "properties": {
+        "accession": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Accession"
+        },
+        "affirmed": {
+          "title": "Affirmed",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rename": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFListingRenamePart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "affirmed",
+        "accession",
+        "reason_code",
+        "reason",
+        "rename"
+      ],
+      "title": "FCFListingCheckPart",
+      "type": "object"
+    },
+    "FCFListingRenamePart": {
+      "additionalProperties": false,
+      "description": "The two covers that show one share line renamed, with the symbols as filed.",
+      "properties": {
+        "anchor_accession": {
+          "title": "Anchor Accession",
+          "type": "string"
+        },
+        "anchor_form": {
+          "title": "Anchor Form",
+          "type": "string"
+        },
+        "anchor_symbol": {
+          "title": "Anchor Symbol",
+          "type": "string"
+        },
+        "latest_accession": {
+          "title": "Latest Accession",
+          "type": "string"
+        },
+        "latest_form": {
+          "title": "Latest Form",
+          "type": "string"
+        },
+        "latest_symbol": {
+          "title": "Latest Symbol",
+          "type": "string"
+        }
+      },
+      "required": [
+        "anchor_accession",
+        "anchor_form",
+        "anchor_symbol",
+        "latest_accession",
+        "latest_form",
+        "latest_symbol"
+      ],
+      "title": "FCFListingRenamePart",
+      "type": "object"
+    },
+    "FCFMarketCapPart": {
+      "additionalProperties": false,
+      "description": "Market capitalization at the boundary with the share count, price and splits behind it.",
+      "properties": {
+        "filing_currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Filing Currency"
+        },
+        "form": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Form"
+        },
+        "listing_check": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFListingCheckPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Price"
+        },
+        "price_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Price Date"
+        },
+        "quote_currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Quote Currency"
+        },
+        "result": {
+          "$ref": "#/$defs/MetricResultPart"
+        },
+        "scaled_share_count": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Scaled Share Count"
+        },
+        "share_count": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FCFResolvedInputPart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "share_count_basis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ShareCountBasis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "share_count_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Share Count Date"
+        },
+        "share_count_filing_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Share Count Filing Date"
+        },
+        "splits_applied": {
+          "items": {
+            "$ref": "#/$defs/FCFSplitPart"
+          },
+          "title": "Splits Applied",
+          "type": "array"
+        }
+      },
+      "required": [
+        "result",
+        "share_count",
+        "share_count_basis",
+        "share_count_date",
+        "share_count_filing_date",
+        "scaled_share_count",
+        "splits_applied",
+        "price",
+        "price_date",
+        "form",
+        "filing_currency",
+        "quote_currency",
+        "listing_check"
+      ],
+      "title": "FCFMarketCapPart",
+      "type": "object"
+    },
     "FCFObservationPart": {
       "additionalProperties": false,
       "description": "One completed fiscal year with every component preserved.",
@@ -537,6 +792,27 @@
         "provider_fact_id"
       ],
       "title": "FCFResolvedInputPart",
+      "type": "object"
+    },
+    "FCFSplitPart": {
+      "additionalProperties": false,
+      "description": "One split of the provider's history: its ex-date and the new shares per old share.",
+      "properties": {
+        "ex_date": {
+          "format": "date",
+          "title": "Ex Date",
+          "type": "string"
+        },
+        "ratio": {
+          "title": "Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ex_date",
+        "ratio"
+      ],
+      "title": "FCFSplitPart",
       "type": "object"
     },
     "FailureReasonCode": {
@@ -981,6 +1257,15 @@
       "title": "SecurityIdentityPart",
       "type": "object"
     },
+    "ShareCountBasis": {
+      "description": "Where a share count was taken from.",
+      "enum": [
+        "year_end",
+        "cover_page"
+      ],
+      "title": "ShareCountBasis",
+      "type": "string"
+    },
     "SourceKind": {
       "description": "How a resolved input value was obtained.",
       "enum": [
@@ -1006,7 +1291,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The FCF Growth document, version 8, as ``fcf-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+  "description": "The FCF Growth document, version 10, as ``fcf-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
   "properties": {
     "analysis": {
       "const": "fcf_earnings_growth",
@@ -1099,7 +1384,7 @@
     "market_capitalization": {
       "anyOf": [
         {
-          "$ref": "#/$defs/FCFResolvedInputPart"
+          "$ref": "#/$defs/FCFMarketCapPart"
         },
         {
           "type": "null"

@@ -345,7 +345,7 @@ FCF_GROWTH: Final = StrategyDescriptor(
     config_schema_version=FCF_GROWTH_CONFIG_SCHEMA_VERSION,
     method_version=FCF_GROWTH_METHOD_VERSION,
     result_schema_version=FCF_GROWTH_RESULT_SCHEMA_VERSION,
-    evidence_codec_version=3,
+    evidence_codec_version=4,
     json_envelope=FCFDocument,
     settings_type=None,
 )

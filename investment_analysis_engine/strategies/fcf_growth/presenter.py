@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import date
+
+from investment_analysis_engine.analysis.shared.market_cap import ListingCheck, MarketCapEvidence
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
@@ -29,9 +32,9 @@ from investment_analysis_engine.strategies.fcf_growth.envelope import (
     DOCUMENT_SCHEMA_VERSION,
     FCFDocument,
     FCFForwardEvidencePart,
+    FCFMarketCapPart,
     FCFObservationPart,
     FCFPolicyPart,
-    FCFResolvedInputPart,
 )
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
@@ -196,6 +199,7 @@ def _technical_details(
     lines = [*_concise(result, identity_resolution), "", "Details"]
     lines.append(f"FCF yield: {_metric(result.fcf_yield)}")
     lines.append(f"Forward EPS: {_metric(result.forward_evidence.actual_to_fy1_growth)}")
+    lines.extend(_market_cap_detail_lines(result.market_capitalization))
     lines.extend(_identity_detail_lines(identity_resolution))
     lines.extend(_kind_detail_lines(instrument_profile))
     for observation in result.annual_observations:
@@ -252,6 +256,7 @@ def _details(
         lines.append(f"{item.fiscal_year} | {' | '.join(values)} | {per_share}")
         if item.weighted_average_diluted_shares is not None:
             lines.append(f"  Weighted-average diluted shares: {investor_value(item.weighted_average_diluted_shares)}")
+    lines.extend(_market_cap_detail_lines(result.market_capitalization))
     lines.extend(
         [
             "Free cash flow = operating cash flow − normalized capital expenditures.",
@@ -266,6 +271,66 @@ def _details(
     if instrument_profile and instrument_profile.kind_evidence:
         lines.append(_kind_detail_lines(instrument_profile)[0])
     return lines
+
+
+def _day(value: date | None) -> str:
+    """Format an optional calendar date."""
+    return "unavailable" if value is None else value.isoformat()
+
+
+def _listing_detail(check: ListingCheck | None) -> str:
+    """Describe the listing check: the accession or accessions of the cover or covers it read, or why it refused."""
+    if check is None:
+        return "not performed"
+    if check.rename is not None:
+        rename = check.rename
+        return (
+            f"affirmed; {rename.anchor_symbol} on {rename.anchor_form} {rename.anchor_accession}, "
+            f"renamed {rename.latest_symbol} on {rename.latest_form} {rename.latest_accession}"
+        )
+    if check.affirmed:
+        return f"affirmed on {check.accession}"
+    return f"refused — {check.reason}"
+
+
+def _market_cap_detail_lines(market_cap: MarketCapEvidence | None) -> list[str]:
+    """Return the market-capitalization evidence the details view shows, or nothing when none was resolved."""
+    if market_cap is None:
+        return []
+    lines = [f"Market capitalization: {_market_cap_value(market_cap)}"]
+    if market_cap.share_count is not None:
+        basis = (market_cap.share_count_basis.value if market_cap.share_count_basis else "unknown").replace("_", " ")
+        lines.append(
+            f"  Share count: {market_cap.share_count.value:,.0f} ({basis}, dated {_day(market_cap.share_count_date)}; "
+            f"source filed {_day(market_cap.share_count_filing_date)})"
+        )
+    if market_cap.scaled_share_count is not None:
+        lines.append(f"  Share count on the price's basis: {market_cap.scaled_share_count:,.0f}")
+    if market_cap.splits_applied:
+        splits = ", ".join(f"{_day(item.ex_date)} ×{item.ratio:g}" for item in market_cap.splits_applied)
+        lines.append(f"  Splits applied: {splits}")
+    elif market_cap.scaled_share_count is not None:
+        lines.append("  Splits applied: none")
+    if market_cap.price is not None:
+        lines.append(
+            f"  Price: {format_money(market_cap.price, market_cap.quote_currency)} "
+            f"(split-adjusted close, {_day(market_cap.price_date)})"
+        )
+    filing, quote = market_cap.filing_currency or "unknown", market_cap.quote_currency or "unknown"
+    lines.append(f"  Currencies: filing {filing}, quote {quote}")
+    lines.append(f"  Listing check: {_listing_detail(market_cap.listing_check)}")
+    return lines
+
+
+def _market_cap_value(market_cap: MarketCapEvidence) -> str:
+    """Return the market capitalization as a money amount, or why it is unavailable."""
+    return _metric_money(market_cap.result, market_cap.filing_currency)
+
+
+def _metric_money(metric: MetricResult, currency: str | None) -> str:
+    if metric.status is MetricStatus.OK and metric.value is not None:
+        return format_money(metric.value, currency)
+    return f"unavailable — {metric.reason or 'No meaningful value is available.'}"
 
 
 def _diagnostics(
@@ -368,7 +433,7 @@ def _document(
         market_capitalization=(
             None
             if result.market_capitalization is None
-            else FCFResolvedInputPart.model_validate(result.market_capitalization, from_attributes=True)
+            else FCFMarketCapPart.model_validate(result.market_capitalization, from_attributes=True)
         ),
         fcf_yield=metric_result_part(result.fcf_yield),
         forward_evidence=FCFForwardEvidencePart.model_validate(result.forward_evidence, from_attributes=True),

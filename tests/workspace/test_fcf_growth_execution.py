@@ -40,6 +40,7 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     ForwardEvidenceStatus,
     TrendClassification,
 )
+from tests._fcf_market_data import fcf_market_data
 
 NOW = datetime(2026, 9, 18, 12, tzinfo=UTC)
 
@@ -51,7 +52,7 @@ def _resolver() -> ProductionAnnualGrowthSeriesResolver:
 
 def _ok_result() -> FCFEarningsGrowthResult:
     """A real, fully computed result from the fixture provider chain."""
-    return FCFEarningsGrowthAnalyzer(_resolver()).run_analysis(
+    return FCFEarningsGrowthAnalyzer(_resolver(), fcf_market_data()).run_analysis(
         "ACME",
         FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=NOW, use_cache=True),
@@ -169,6 +170,7 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
             executed_at=NOW,
             use_cache=True,
             provider=object(),
+            market_data=fcf_market_data(),
         )
 
     assert capture.result is canned
@@ -197,6 +199,7 @@ def test_known_etf_profile_is_not_applicable_through_the_real_analyzer() -> None
             executed_at=NOW,
             use_cache=True,
             provider=object(),
+            market_data=fcf_market_data(),
         )
 
     assert capture.result.execution_status is CalculationStatus.NOT_APPLICABLE
@@ -219,6 +222,7 @@ def test_partial_forward_evidence_is_preserved_unmodified() -> None:
             executed_at=NOW,
             use_cache=True,
             provider=object(),
+            market_data=fcf_market_data(),
         )
 
     assert capture.result.forward_evidence.status is ForwardEvidenceStatus.UNAVAILABLE
@@ -244,6 +248,7 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
             executed_at=NOW,
             use_cache=True,
             provider=object(),
+            market_data=fcf_market_data(),
         )
 
     assert isinstance(capture, FCFGrowthCapture)

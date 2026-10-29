@@ -317,14 +317,14 @@ Classification is separate from software execution status. `INDETERMINATE` is no
 
 ### Optional FCF yield
 
-When compatible market-capitalization evidence is available:
+When [market capitalization at the boundary](#market-capitalization) is available:
 
 ```text
 fcf_yield_percent =
-    latest_completed_fiscal_year_fcf / current_market_capitalization * 100
+    latest_completed_fiscal_year_fcf / market_capitalization_at_the_boundary * 100
 ```
 
-The numerator is annual while the denominator is current, so both dates must remain visible. FCF yield is informational only and has no pass threshold in the current method version.
+The numerator is annual and the denominator is the market capitalization at the boundary, so both dates remain visible. The yield is computed only when the latest completed fiscal year ends at the anchor filing's fiscal year-end *t*, which the market capitalization is also taken at; otherwise it is `unavailable` with `incompatible_period`, and an older year is never used. When market capitalization is `unavailable`, the yield is `unavailable` with its reason code, and a market-data failure makes it `unavailable` with `provider_error`. FCF yield is informational only and has no pass threshold in the current method version.
 
 ### Optional forward EPS evidence
 

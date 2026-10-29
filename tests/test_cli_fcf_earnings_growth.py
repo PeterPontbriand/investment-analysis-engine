@@ -19,6 +19,7 @@ from investment_analysis_engine.data.instrument_profile import InstrumentKind, I
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
+    FixtureSplitHistoryProvider,
     annual_series,
 )
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
@@ -42,6 +43,10 @@ def disable_live_instrument_profile_resolution() -> Iterator[None]:
         patch(
             "investment_analysis_engine.strategies.fcf_growth.cli._production_financial_cache",
             side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
+        ),
+        patch(
+            "investment_analysis_engine.strategies.fcf_growth.cli._production_historical_client",
+            side_effect=lambda *_a, **_k: nullcontext(FixtureSplitHistoryProvider(utc_now(), with_data=False)),
         ),
     ):
         yield

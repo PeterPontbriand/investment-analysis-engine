@@ -10,5 +10,5 @@ FCF per diluted share CAGR: +10.20%
 Diluted EPS CAGR: +17.61%
 Trend: Both free cash flow and diluted EPS increased over the measured period.
 Source: SEC EDGAR; latest evidence available 2025-02-01
-Warning: No evidence-approved market-capitalization provider mapping is available.
+Warning: FCF yield is unavailable: Provider 'sec_edgar' does not give an anchor year-end.
 Limitation: Historical financial strength does not establish market opportunity, scarcity, durability of moat, or an investment recommendation.

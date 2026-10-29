@@ -1,5 +1,5 @@
 {
-  "schema_version": 9,
+  "schema_version": 10,
   "analysis": "fcf_earnings_growth",
   "method": "reported_fcf_eps_cagr",
   "ticker": "ACME",
@@ -27,7 +27,7 @@
     "resolved_at": null
   },
   "instrument_kind": null,
-  "result_schema_version": 5,
+  "result_schema_version": 6,
   "method_version": 2,
   "policy": {
     "historical_horizon": "longest_available",
@@ -67,8 +67,8 @@
   "fcf_yield": {
     "status": "unavailable",
     "value": null,
-    "reason_code": "market_cap_unavailable",
-    "reason": "No evidence-approved market-capitalization provider mapping is available."
+    "reason_code": "missing_fact",
+    "reason": "No completed fiscal year of free cash flow was resolved."
   },
   "forward_evidence": {
     "status": "unavailable",
@@ -90,7 +90,7 @@
     "confirms_positive_growth": null
   },
   "warnings": [
-    "No evidence-approved market-capitalization provider mapping is available."
+    "FCF yield is unavailable: No completed fiscal year of free cash flow was resolved."
   ],
   "limitations": [
     "Historical financial strength does not establish market opportunity, scarcity, durability of moat, or an investment recommendation."

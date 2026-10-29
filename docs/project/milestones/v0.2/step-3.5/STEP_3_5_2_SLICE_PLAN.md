@@ -1,17 +1,19 @@
 # Step 3.5 slice 3.5.2 — Shared metrics and ranking helper: Slice Plan
 
 The slice plan for [slice 3.5.2](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#352--shared-metrics-and-ranking-helper) of Step 3.5.
-It covers five sub-slices. It was written against `main` at `3305ec3`; 3.5.2c was split in two at `b650c3b`
+It covers six sub-slices. It was written against `main` at `3305ec3`; 3.5.2c was split in two at `b650c3b`
 ([A.5](#a5-decisions-at-the-start-of-352c-2026-10-26)); 3.5.2d began from `main` at `8397dee`
-([A.7](#a7-decisions-at-the-start-of-352d-2026-10-27)).
+([A.7](#a7-decisions-at-the-start-of-352d-2026-10-27)); 3.5.2e began from `main` at `28c38b1`, and added 3.5.2f
+([A.10](#a10-decisions-at-the-start-of-352e-2026-10-28)).
 
 Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
 ## 1. At a glance
 
 - **What this plan does:** defines the metrics every screening strategy shares, once, and the code that feeds them, in
-  five steps: the ranking helper (3.5.2a); the pure shared metrics (3.5.2b); the listing check for market cap (3.5.2c);
-  the shared input assembly (3.5.2d); and FCF-Growth's adoption of the shared market cap (3.5.2e).
+  six steps: the ranking helper (3.5.2a); the pure shared metrics (3.5.2b); the listing check for market cap (3.5.2c);
+  the shared input assembly (3.5.2d); FCF-Growth's adoption of the shared market cap (3.5.2e); and FCF-Growth's
+  annual reader on the shared resolver entry (3.5.2f).
 - **What it is not:** a strategy, a ranked view, a valuation multiple or a threshold. No new strategy is added, and the
   FCF and FCF-yield formulas do not change. Full list: [Scope limits](#4-scope-limits).
 - **Rules every sub-slice follows:**
@@ -43,7 +45,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.2b | [Pure shared metrics](#352b--pure-shared-metrics) | Complete | 2026-10-26 |
 | 3.5.2c | [Listing check for market capitalization](#352c--listing-check-for-market-capitalization) | Complete | 2026-10-26 |
 | 3.5.2d | [Shared input assembly](#352d--shared-input-assembly) | Complete | 2026-10-28 |
-| 3.5.2e | [FCF-Growth adopts the shared market cap](#352e--fcf-growth-adopts-the-shared-market-cap) | Next | |
+| 3.5.2e | [FCF-Growth adopts the shared market cap](#352e--fcf-growth-adopts-the-shared-market-cap) | Complete | 2026-10-28 |
+| 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Next | |
 
 3.5.2a is implemented on the branch that carries this plan and merges as one pull request, as 3.5.1a did. Each later
 sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`, after the previous pull request merges.
@@ -184,7 +187,7 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
 
 - **Problem:** FCF-Growth's optional FCF yield is always unavailable, because no market-cap evidence exists. Its stored
   `market_capitalization` is a bare resolved input that cannot hold a share count, a price and the splits applied.
-- **Decision (K9, K10, K11, K16):**
+- **Decision (K4, K9, K10, K11, K16, V1 to V6):**
   - `market_capitalization` becomes the shared market-cap type: value, share count with its basis (year-end or cover
     page) and date, the filing date of the count's source, price and price date, the splits applied, and provenance.
   - `SCHEMA_VERSION` goes from 5 to 6, with the codec and document versions as `AGENTS.md` §4 requires.
@@ -196,17 +199,41 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
     a test asserts every other expected value is unchanged.
   - `FINANCE_MATH.md`'s "current market capitalization" becomes "market capitalization at the boundary", and the stale
     version docstrings in `strategies/fcf_growth/models.py` are corrected (K16).
-  - **Open decision for this sub-slice (T2, [A.9](#a9-review-decisions-2026-10-28)):** whether FCF-Growth's own annual
-    reader (`_resolve_field` in `strategies/fcf_growth/input_resolver.py`, which calls the provider directly and keeps
-    its own cache of the series) moves onto `InputResolver.resolve_annual_series`. For it: one set of provider-response
-    checks and one trace for every consumer of the series. Against it: its cache, its alignment of periods across
-    fields and its stored shape are its own, and a move that changed any stored output would need the version bump of
-    `AGENTS.md` §4. It is decided with the stored-shape change of this sub-slice, and by the project owner if it would
-    change a stored output.
+  - **No market-data request when the yield is not wanted (V2):** with `include_fcf_yield` false, for a
+    provider-confirmed ETF, and when no fiscal year of free cash flow was resolved, no quote, split history, share
+    count, year-end or cover is requested, and `market_capitalization` stays empty.
+  - **The yield requires the year-end (K4):** it is computed only when FCF-Growth's latest observation ends at the
+    anchor year-end *t*; otherwise it is `unavailable` with `incompatible_period`. The filing currency of the market
+    cap is the currency of that observation's monetary facts (N6).
+  - **A market-data failure (V3)** names the provider and the failure kind from the provider-failure record, never the
+    provider's own text; the run-level `provider_failure` stays empty and the market-cap evidence is empty.
+  - **What the user sees (V4):** the concise view keeps its FCF yield line when it is `ok`; `--details` shows the
+    market cap's evidence; `--json` and the checked-in schema carry the whole of it; the side-by-side headline does not
+    change.
+  - **Caching and composition (V5, V6):** `--no-cache` and a refresh's `use_cache` reach the quote and the split
+    history, the cover is read once per analysis scope, and no cache is added. The command, `refresh` and the execution
+    adapter compose the market-data dependencies once per run; the evaluation tier composes fixture providers.
+  - **FCF-Growth's own annual reader (V1)** moves onto `InputResolver.resolve_annual_series` in its own sub-slice,
+    [3.5.2f](#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry), not here.
 - **Scope:** the composition sites, the analyzer and result, the stored shape and its versions, fixtures and tests. The
   file list is in [B.5](#b5-352e-files).
 - **Branch:** `feat/step-3-5-2e-fcf-market-cap`, off `main` after the 3.5.2d pull request merges.
-- **Detail:** [files](#b5-352e-files), [result shapes](#b6-result-shapes), [tests](#b11-352e-tests).
+- **Detail:** [files](#b5-352e-files), [result shapes](#b6-result-shapes), [tests](#b11-352e-tests),
+  [decisions](#a10-decisions-at-the-start-of-352e-2026-10-28).
+
+### 3.5.2f — FCF-Growth's annual reader on the shared resolver entry
+
+- **Problem:** FCF-Growth reads its annual series through its own function (`_resolve_field` in
+  `strategies/fcf_growth/input_resolver.py`), which calls the provider directly. The provider-response checks and the
+  resolution trace of `InputResolver.resolve_annual_series` (T2) therefore apply to every consumer of the series but
+  this one.
+- **Decision (V1):** the reader moves onto `InputResolver.resolve_annual_series`. The resolver entry gains caching
+  through the existing series-cache protocol, so FCF-Growth keeps its cache. Its acceptance is that every stored
+  FCF-Growth output and cache entry is unchanged, and the sub-slice stops if any would change.
+- **Scope:** FCF-Growth's annual reader, the resolver entry and its tests. The starting points are in
+  [B.15](#b15-352f-starting-points).
+- **Branch:** `feat/step-3-5-2f-fcf-annual-reader`, off `main` after the 3.5.2e pull request merges.
+- **Detail:** [B.15](#b15-352f-starting-points).
 
 ## 4. Scope limits
 
@@ -272,6 +299,14 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
 - A market-data failure leaves the run's status and classification unchanged and the yield `unavailable` with
   `provider_error`.
 - Stored runs under result schema 5 are refused by version, never misread. The gate passes.
+- With the yield not wanted, or for an ETF, no market-data request is made. A latest observation that ends before
+  the year-end gives `incompatible_period`, and a market-data failure's warning names the provider and the kind and
+  holds no provider text.
+
+**3.5.2f**
+
+- FCF-Growth's annual reader calls `InputResolver.resolve_annual_series`, and every stored FCF-Growth output and
+  every cache entry is unchanged. The gate passes.
 
 ## 6. Background
 
@@ -474,7 +509,7 @@ Approved by the project owner after review of the 3.5.2d branch.
 | # | Topic | Decision |
 | :--- | :--- | :--- |
 | T1 | Anchor selection reads the extra submissions pages | When the recent block holds no eligible annual filing at or before the boundary, the snapshot looks for the anchor in the extra pages: only pages whose `filingFrom`–`filingTo` range overlaps the 400 days before the boundary, newest first; each page read once per adapter (D11 and D17 of the 3.5.1 plan); the search stops at the first page that holds an eligible annual filing; a page name must be the issuer's own; no page is read when the recent block suffices. The anchor's form, `reportDate`, filing date, acceptance time and taxonomy come from that page, so `resolve_anchor_year_end`, the cover listing (3.5.2c) and the SIC header (3.5.1a) all see it. The filing date of a share count's source is looked up the same way. If no page in the window holds an annual filing, the existing outcome stands. |
-| T2 | Annual values go through the resolver | `InputResolver.resolve_annual_series` is added, uncached like `resolve_instant_series`. It applies the existing provider-response checks and records a resolution trace. `resolve_annual_values` calls it instead of `resolver.provider.fetch_facts` and no longer builds `ResolvedInput`s in the analysis layer. Whether FCF-Growth's own annual reader moves onto this entry is an open decision of 3.5.2e. |
+| T2 | Annual values go through the resolver | `InputResolver.resolve_annual_series` is added, uncached like `resolve_instant_series`. It applies the existing provider-response checks and records a resolution trace. `resolve_annual_values` calls it instead of `resolver.provider.fetch_facts` and no longer builds `ResolvedInput`s in the analysis layer. FCF-Growth's own annual reader moves onto this entry in 3.5.2f ([V1](#a10-decisions-at-the-start-of-352e-2026-10-28)). |
 
 **How T1 is built.** The snapshot reads the recent block, and only when it holds no annual filing accepted at or before
 the boundary does it read pages: those whose range ends no earlier than 400 days before the boundary and starts no
@@ -501,6 +536,36 @@ must be a completed annual period with both ends, or the whole answer is rejecte
 `unexpected_response`; an observation that is not available at the boundary or fails the quality checks is left out and
 the others stand. A provider's `FactsNotAvailableAsOf` is flagged on the result (`not_available_as_of`), because the
 resolver result carries no reason code and case (b) must stay distinguishable from an absent field.
+
+### A.10 Decisions at the start of 3.5.2e (2026-10-28)
+
+Approved by the project owner. K4, K9 to K11, K16, N6 and S6 stand as recorded.
+
+| # | Topic | Decision |
+| :--- | :--- | :--- |
+| V1 | FCF-Growth's own annual reader | `_resolve_field` in `strategies/fcf_growth/input_resolver.py` moves onto `InputResolver.resolve_annual_series` as its own sub-slice, 3.5.2f, after 3.5.2e and not in it. Its acceptance is that every stored FCF-Growth output and cache entry is unchanged, and it stops if any would change. The resolver entry gains caching through the existing series-cache protocol, so FCF-Growth keeps its cache. |
+| V2 | No market-data request when the yield is not wanted | When `include_fcf_yield` is false, or the instrument is a provider-confirmed ETF, the market-cap inputs are not resolved at all: no quote, no split history, no cover request. `market_capitalization` stays empty, as today. |
+| V3 | A market-data failure (K10) | The yield is `unavailable` with `provider_error`. The warning names the provider and the failure kind, taken from the provider-failure record and never from the provider's own error text (the PH.2 rule). The run-level `provider_failure` stays empty, because the run succeeded, and the market-cap evidence keeps the record. `execution_status` and the classification are unchanged, and no automatic provider check fires. |
+| V4 | What the user sees | **Concise view:** the FCF yield line, as now, when it is `ok`. **`--details` view:** the market cap's evidence: share count, basis, its date and source filing date, price and price date, splits applied, and the listing check's accession or accessions (two for a renamed ticker, P22). **`--json` and the checked-in schema:** the whole market-cap evidence. **Side-by-side headline:** unchanged. |
+| V5 | Caching | `--no-cache` and a refresh's `use_cache` reach the quote and the split history. The cover read stays per analysis scope (N3). No new cache. |
+| V6 | Composition | The command, `refresh` and the execution adapter build the market-data dependencies once per run (S1): the Yahoo client and the cached historical client through `_production_historical_client`, composed as Momentum's are, plus the cover-listing capability through the production provider. The orchestrator tool's dependencies are built in `evaluation.py`; no other site builds `FCFEarningsGrowthToolDependencies` or the analyzer. The evaluation tier gets fixture providers for the quote, the split history and the cover (K11), so the golden suite makes no network call. |
+
+### A.11 Wording the plan settles (3.5.2e)
+
+Points where a decision above needed a more exact statement. They add no behavior beyond the decision; the project
+owner can reverse any.
+
+| Topic | Wording |
+| :--- | :--- |
+| No fiscal year resolved | With no completed fiscal year of free cash flow there is no numerator, and the currency of N6 has no observation to come from. The yield is `unavailable` with `missing_fact`, and no market data is requested (V2 extended to this case). |
+| The year-end does not match (K4) | The yield is `unavailable` with `incompatible_period`, `market_capitalization` is empty and no quote, split history, share count or cover is requested; the year-end is the only request made. |
+| The year-end is unavailable (S6) | Case (b) gives the yield `unavailable` with `not_available_as_of` and the adapter's message; an adapter that gives no year-end gives `missing_fact`. Case (a) and a failure on any market-data input are V3. |
+| A market cap that is refused | The yield carries the market cap's own status, reason code and reason (`incompatible_scope`, `incompatible_currency`, `incompatible_units`, `incompatible_period`, `missing_fact`, `not_available_as_of`), and the evidence keeps every input known so far, as the shared type does. |
+| Warning | Every yield that is not a number adds one warning, `FCF yield is unavailable: ` and the yield's reason, in place of the warning that said no market-capitalization mapping existed. A failure with no provider-failure record, such as an answer the resolver rejected, says only that the input could not be obtained from its provider. |
+| Invariants of the result | `market_capitalization` requires `include_fcf_yield`, and a yield that is `ok` requires a market cap that is `ok`. |
+| Dependencies | `MarketCapDependencies` (resolver, split-history client, cover-listing capability) is a frozen type in `strategies/fcf_growth/analyzer.py` that the analyzer receives at construction, with no default. The CLI composes it and `execute_fcf_growth` receives it as `market_data`, so the execution adapter builds the analyzer from what the command or `refresh` composed once for the run. |
+| Quote freshness | The resolver that reads the quote and the share counts shares the run's financial cache and uses the quote freshness policy of the settings, as Graham's resolver does; no table or cache is added. |
+| Fixtures | The success fixture's share count, split history, quote and cover are Python fixtures in `evaluation/fixtures/fcf_earnings_growth.py`, like the annual facts, so there is no checksum file. Every other case gets fixture providers that hold nothing. The case expectations are not edited; the yield's value is asserted by a test. |
 
 ---
 
@@ -591,22 +656,25 @@ identity rule of issue #190 and on the renamed-ticker rule P22.
 
 ### B.5 3.5.2e files
 
+As built. Paths are under `investment_analysis_engine/` unless they start with `tests/`, `schemas/` or `docs/`.
+
 | Area | File | Change |
 | :--- | :--- | :--- |
-| Result | `strategies/fcf_growth/models.py` | `market_capitalization` becomes the shared type; `SCHEMA_VERSION` 5 to 6; the stale version docstrings and the "method_version = 2 / schema_version = 4" comment corrected (K16) |
-| Analyzer | `strategies/fcf_growth/analyzer.py`, `strategies/fcf_growth/input_resolver.py` | the market cap resolved through the assembly; the yield computed with `compute_fcf_yield`, `unavailable` with `provider_error` and a warning on a market-data failure (K10) |
-| Stored shape | `strategies/fcf_growth/envelope.py`, `strategies/fcf_growth/presenter.py`, the codec and document models, `schemas/fcf-growth.schema.json` | the new part in the evidence, the presenter and the document; the codec and document versions bumped with the result version |
-| Composition | `strategies/fcf_growth/cli.py` (the command, line 121, and `refresh`, line 192), `strategies/fcf_growth/execution.py` (line 89), `strategies/fcf_growth/evaluation.py` (line 65) | each builds `ProductionAnnualGrowthSeriesResolver` or the analyzer, and gains the market-data dependency |
-| Fixtures | `evaluation/fixtures/fcf_earnings_growth.py` | the success fixture gains a share-count fixture and a split-history fixture (K11) |
-| Tests that construct the analyzer | `tests/analysis/test_instrument_applicability.py` (lines 135, 227, 240), `tests/analysis/test_base_analyzer_conformance.py` (104), `tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_analyzer.py` (39), `tests/analysis/fcf_earnings_growth/test_production_composition.py` (32, 60), `tests/analysis/fcf_earnings_growth/test_sec_edgar_integration.py` (110), `tests/reporting/test_security_identity_presenters.py` (163), `tests/test_existing_strategy_output_contracts.py` (40, 65), `tests/workspace/test_fcf_growth_execution.py` (49, 54) | updated to the new composition; the line numbers are those of `main` at `3305ec3` |
-| Finance math and guide | `docs/user/FINANCE_MATH.md`, `docs/user/strategies/FCF_GROWTH.md` | "market capitalization at the boundary"; the guide states the limitations of K15 and Shared definitions §4 |
+| Result | `strategies/fcf_growth/models.py` | `market_capitalization` is `MarketCapEvidence`; `SCHEMA_VERSION` 5 to 6; the invariants of [A.11](#a11-wording-the-plan-settles-352e); the stale version docstrings and the "method_version = 2 / schema_version = 4" comment corrected (K16) |
+| Analyzer | `strategies/fcf_growth/analyzer.py` | `MarketCapDependencies` and the analyzer's second constructor argument; the yield decided by `anchor_year_end_scope`, `resolve_market_cap_inputs`, `MarketCapInputs.market_cap()` and `compute_fcf_yield`, `unavailable` with `provider_error` and a warning on a market-data failure (K10, V3) |
+| Stored shape | `strategies/fcf_growth/envelope.py`, `strategies/fcf_growth/presenter.py`, `schemas/fcf-growth.schema.json` | `DOCUMENT_SCHEMA_VERSION` 9 to 10; the parts `FCFMarketCapPart`, `FCFSplitPart`, `FCFListingCheckPart` and `FCFListingRenamePart`; the details and diagnostics lines of V4; the schema regenerated. The codec (`strategies/fcf_growth/codec.py`) needed no change: it validates the result dataclass, which now holds the shared type |
+| Composition | `strategies/fcf_growth/cli.py` (the command and `refresh`), `strategies/fcf_growth/execution.py`, `strategies/fcf_growth/evaluation.py` | each gains the market-data dependencies ([V6](#a10-decisions-at-the-start-of-352e-2026-10-28)); `tool.py` needed no change, because `FCFEarningsGrowthToolDependencies` holds the analyzer and only `evaluation.py` builds it |
+| Wiring | `strategy_wiring.py` | FCF-Growth's `evidence_codec_version` 3 to 4; `result_schema_version` follows `SCHEMA_VERSION` |
+| Fixtures | `evaluation/fixtures/fcf_earnings_growth.py` | the success fixture's share count, split history, quote, anchor year-end and cover (`FixtureMarketCapProvider`, `FixtureSplitHistoryProvider`) (K11) |
+| Tests that construct the analyzer | `tests/analysis/test_instrument_applicability.py`, `tests/analysis/test_base_analyzer_conformance.py`, `tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_analyzer.py`, `tests/reporting/test_security_identity_presenters.py`, `tests/test_existing_strategy_output_contracts.py`, `tests/workspace/test_fcf_growth_execution.py` | updated to the new composition through `tests/_fcf_market_data.py`; `test_production_composition.py` and `test_sec_edgar_integration.py` build only the annual resolver and are unchanged |
+| Tests that decode the stored evidence or assert its versions | `tests/workspace/test_fcf_growth_codec.py`, `tests/reporting/test_strategy_documents.py`, `tests/workspace/test_failure_reason_codes.py`, `tests/workspace_documents/test_analysis_run_replay.py` | the market-cap evidence in the stored result, and the versions of [B.12](#b12-user-visible-changes) |
+| New tests | `tests/_fcf_market_data.py`, `tests/analysis/fcf_earnings_growth/test_fcf_market_cap.py`, `tests/analysis/fcf_earnings_growth/test_market_data_composition.py`, `tests/reporting/test_fcf_growth_market_cap_presentation.py`, `tests/evaluation/cases/test_fcf_growth_market_cap.py` | [B.11](#b11-352e-tests) |
+| Finance math and guide | `docs/user/FINANCE_MATH.md`, `docs/user/strategies/FCF_GROWTH.md` | "market capitalization at the boundary"; the guide states the yield, V3's warning, the new details lines and the limitations of K15 and Shared definitions §4 |
 
-Starting points to confirm first: (1) every place FCF-Growth's composition is built, which on `main` are
-`strategies/fcf_growth/cli.py` in the command (line 121) and in `refresh` (line 192), `execution.py`, `evaluation.py`,
-and the tool dependency class in `tool.py`, and that no other site (for example the orchestrator handler) builds the
-analyzer; (2) every test that constructs the analyzer, listed above and re-found with a search before the sub-slice
-begins; (3) where the stored evidence of a run decodes `market_capitalization` (`tests/workspace/test_fcf_growth_codec.py`
-and the evidence codec), to list every version that must change with `SCHEMA_VERSION`.
+Starting points confirmed: (1) the analyzer is built in `strategies/fcf_growth/cli.py` (the command and `refresh`),
+`execution.py` and `evaluation.py`, and by no other site; the orchestrator tool handler receives the analyzer and builds
+nothing. (2) The stored evidence decodes `market_capitalization` through the result dataclass in `codec.py`; the versions
+that change with `SCHEMA_VERSION` are listed in [B.12](#b12-user-visible-changes).
 
 ### B.6 Result shapes
 
@@ -672,7 +740,16 @@ resolve_annual_values(...)             Mapping[FinancialField, ResolvedInput | N
 DatedSplitAdjustedHistoryProvider      3.5.2d, protocol: fetch_split_adjusted_history(ticker, start_date, *, use_cache, adjusted_on, as_of)
 
 FCF-Growth result                      3.5.2e
-  market_capitalization: shared type   replaces the bare resolved input; SCHEMA_VERSION 6
+  market_capitalization: MarketCapEvidence | None   replaces the bare resolved input; SCHEMA_VERSION 6
+                                       empty when the yield is not wanted or no market data was requested (V2, K4)
+  fcf_yield: MetricResult              ok only with an ok market_capitalization; otherwise unavailable with the
+                                       code of the input that failed, and a warning (V3, A.11)
+MarketCapDependencies (frozen)         3.5.2e, defined in strategies/fcf_growth/analyzer.py
+  resolver: InputResolver              share counts and the current quote
+  split_history: DatedSplitAdjustedHistoryProvider
+  listing: CoverListingProvider        the anchor cover's listing check
+FCFMarketCapPart (document)            3.5.2e, DOCUMENT_SCHEMA_VERSION 10: every field of MarketCapEvidence, with
+                                       FCFSplitPart, FCFListingCheckPart and FCFListingRenamePart nested
 ```
 
 ### B.7 3.5.2a tests
@@ -836,17 +913,39 @@ the split-history client and the listing capability of the synthetic cases are s
 
 ### B.11 3.5.2e tests
 
-- **Golden case (K11):** the success fixture's FCF yield is `ok` with its share count, price and splits visible; every
-  other expected value of every FCF-Growth case is unchanged, asserted by a test.
-- **Failure (K10):** a market-data failure gives the yield `unavailable` with `provider_error` and a warning; the run's
-  `execution_status` and the classification equal those of the same run without a market cap; no automatic provider
-  check fires.
-- **Stored shape:** a run stored under schema 5 is refused by version (`UnsupportedRunVersionError`); a schema-6 run
-  round-trips through the codec and replays with provider, cache, clock and calculator disabled; the checked-in schema
-  is regenerated.
-- **Composition:** the command, `refresh`, the execution adapter and the evaluation fixture each build the analyzer with
-  the market-data dependency.
-- **Output contracts:** the existing strategy output-contract tests pass unchanged apart from the market-cap part.
+Offline throughout: the market data of every test is the evaluation fixtures' providers, and the golden suite makes no
+network call.
+
+- **Golden case (K11):** `tests/evaluation/cases/test_fcf_growth_market_cap.py`. FCF-01's FCF yield is `ok` (10 percent:
+  130 over 400 scaled shares at 3.25) with its share count, price, splits and listing check visible, and the test
+  rejects the network. Every expected numerical and domain value of the five cases is pinned field by field and is
+  unchanged, and none names the yield or the market cap; the other cases hold no market data. The existing golden tests
+  pass unchanged.
+- **No request when not wanted (V2):** with the yield off, for a known ETF and with no resolved fiscal year, no fact, year-end,
+  cover or split-history request is made.
+- **Failure (K10, V3):** a split-history failure, a quote failure and a scope that cannot open (case a) each give the
+  yield `unavailable` with `provider_error` and one warning that names the provider and the kind and holds none of the
+  provider's text, in the warning, the yield's reason or the JSON document. The run-level `provider_failure` is empty;
+  `execution_status`, the classification and the rest of the result equal those of the same run without market data;
+  the outcome is `completed`, the exit code is 0 and no provider failure reaches the capture, so no check fires.
+- **Year-end (K4, S6):** a latest observation ending before *t* gives `incompatible_period` and requests neither a
+  quote nor a split history nor a cover; case (b) gives `not_available_as_of` with the adapter's message; an adapter with
+  no year-end gives `missing_fact`.
+- **Caching (V5):** with `use_cache=False` the quote and the split history are requested every run, and `True` reaches the
+  split history as `True`; the cover is requested once per run.
+- **Boundary:** with `as_of` the price is the close on that day.
+- **Stored shape:** a run stored under result schema 5 is refused by version (`UnsupportedRunVersionError`), and a native
+  result of schema 5 is not decoded; a schema-6 run round-trips through the codec with every part of the evidence,
+  including a renamed listing and a refused market cap; a stored run replays in every presentation mode with the
+  analyzer, the calculators, the assembly and the clock disabled; the checked-in schema describes the new parts and is
+  regenerated; the result invariants raise.
+- **What the user sees (V4):** the concise view has the yield line and none of the evidence; the details view has the
+  share count, basis, dates, scaled count, splits, price, currencies and the listing check, with both accessions of a
+  renamed ticker, and a refusal with its reason; the JSON document has every field.
+- **Composition (V6):** the command (with and without `--no-cache`) and `refresh` each build the market-data dependencies
+  once, from the production provider, the historical client and the run's cache, and pass `use_cache` through.
+- **Output contracts:** the existing strategy output-contract tests, Graham's and Momentum's included, pass unchanged
+  apart from the market-cap part; the side-by-side headline is equal with and without a market cap.
 
 ### B.12 User-visible changes
 
@@ -862,9 +961,18 @@ the split-history client and the listing capability of the synthetic cases are s
   now the correct earlier filing instead of unavailable; at most twelve extra requests are made, once per adapter. No
   stored shape, command or option changes. Nothing else is reached by a production path: nothing calls the assembly, and
   the production provider's routing of the balance-sheet series and `resolve_annual_series` have no production caller.
-- 3.5.2e: FCF-Growth's stored result changes shape (`SCHEMA_VERSION` 5 to 6, with the codec and document versions), so a
-  run stored before it is refused by version when read. FCF yield is shown where it was always unavailable. The text,
-  `--json` and checked-in schema of FCF-Growth gain the market-cap evidence.
+- 3.5.2e: FCF-Growth's stored result changes shape. Three versions change: the result `SCHEMA_VERSION` 5 to 6, the
+  `--json` document's `DOCUMENT_SCHEMA_VERSION` 9 to 10, and FCF-Growth's `evidence_codec_version` 3 to 4.
+  `METHOD_VERSION` stays 2. A run stored before it is refused by version when read, with no migration or
+  compatibility decoder. The FCF yield is shown (as `FCF yield:` in the concise view) where it was always
+  unavailable, and a yield that cannot be computed adds the warning `FCF yield is unavailable: ` with its reason. The
+  `--details` and `--diagnostics` views gain the market capitalization lines (share count, basis, dates, scaled
+  count, splits, price, currencies, listing check with its accession or accessions), `--json` and the checked-in
+  schema gain the `market_capitalization` part, and a market-data failure is a warning that names the provider and
+  the failure kind and changes neither the run's status nor its classification. A run now makes market-data
+  requests (the quote, the split history and the anchor cover) when the yield is wanted. The side-by-side headline is
+  unchanged.
+- 3.5.2f: none by decision (V1): every stored FCF-Growth output and cache entry is unchanged.
 
 ### B.13 TOOL_DEVELOPMENT edit sites
 
@@ -878,14 +986,33 @@ descriptor or wiring file was touched.
 
 | Document | 3.5.2a | 3.5.2b | 3.5.2c | 3.5.2d | 3.5.2e |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `STEP_3_5_CONTRACT_AND_SLICE_PLAN.md` | §2 rows, §3, Appendix A.13 | status rows | §2 rows (the renaming), §3.5.2, status rows | status rows | status rows, 3.5.2 closed |
+| `STEP_3_5_CONTRACT_AND_SLICE_PLAN.md` | §2 rows, §3, Appendix A.13 | status rows | §2 rows (the renaming), §3.5.2, status rows | status rows | status rows, the 3.5.2f row |
 | `STEP_3_5_SHARED_DEFINITIONS.md` | §3 (K7), §4 (K5), §5 (K6), §9 (K13) | §2 (the two reason codes and the absence table), §4 (K5″) | §4 item 3: the vocabulary's outcome in one sentence, linking to the evidence | §4: the price rule of K15, the live path's split history (S2), the filing currency (N6) and the year-end count's date (S4) | none |
 | `STEP_3_5_2_LISTING_EVIDENCE.md` | none | none | new: the captured covers, the sizes, the requests | none | none |
 | `STEP_3_5_SLICE_INPUTS.md` | §4 tests (K4 to K7, K11, gross profit), §8 Glossary line | §4 (K5″, invested capital), §7 and §8 (L5) | line 197 names the sub-slices by their new letters (review correction) | none | none |
 | `docs/project/PROVIDER_DEBUGGING.md` | none | none | the cover request, where the live checks are listed | none | none |
 | `docs/user/FINANCE_MATH.md` | the ranking entry | an entry for every shared metric | none | none | "market capitalization at the boundary" |
 | `docs/user/GLOSSARY.md` | none: ranking terms arrive with the ranked view in 3.5.6 | market capitalization, EBITDA, enterprise value, total debt and invested capital | none: "listing check" arrives with the user-facing text of 3.5.2e, if that text needs it | none | "listing check", if needed |
-| `docs/user/strategies/FCF_GROWTH.md` | none | none | none | none | the yield and its limitations (K15) |
+| `docs/user/strategies/FCF_GROWTH.md` | none | none | none | none | the yield, its warning and details lines, and its limitations (K15, Shared definitions §4) |
 | `docs/project/ARCHITECTURE.md` | none | the `analysis` row's description (authorized by L6) | none | none | none |
 | `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` | none: its sequence table lists Step 3.5 as one row, not 3.5.2 | none | none | none | none |
-| This plan | status rows | status rows | A.5, A.6, the renaming, status rows | A.7, A.8, A.9, B.4, B.6, B.10, B.12, status rows | status rows |
+| This plan | status rows | status rows | A.5, A.6, the renaming, status rows | A.7, A.8, A.9, B.4, B.6, B.10, B.12, status rows | A.10, A.11, 3.5.2f, B.5, B.6, B.11, B.12, B.15, status rows |
+
+### B.15 3.5.2f starting points
+
+3.5.2f has no slice plan yet beyond this entry; the starting points to confirm first are:
+
+- **The reader:** `_resolve_field` in `strategies/fcf_growth/input_resolver.py`, which calls the provider directly and
+  keeps its own cache of each series; `resolve_annual_growth_series`, which aligns the periods across the four fields and
+  builds the observations; and `ProductionAnnualGrowthSeriesResolver`, which opens the analysis scope.
+- **Its cache keys:** `CACHE_SCHEMA_VERSION` (3) in the same file, `_cached_field_valid` and `_to_cache_input`, which decide
+  what a stored series is and when it is reused. The acceptance of V1 is that these entries are unchanged.
+- **The series-cache protocol:** `ResolvedInputSeriesCacheProtocol` and `ResolvedInputSeriesCacheQuery` in
+  `data/financial/cache.py`, which `InputResolver.resolve_annual_series` (uncached, T2) would use.
+- **The entry:** `InputResolver.resolve_annual_series` and `AnnualSeriesResolution` in `data/financial/resolver.py`, and
+  `resolve_annual_values` in `analysis/shared/metric_inputs.py`, its other caller.
+- **The tests that pin the outputs:** `tests/analysis/fcf_earnings_growth/test_fcf_earnings_growth_input_resolver.py`,
+  `test_production_composition.py`, `test_sec_edgar_integration.py`, `tests/workspace/test_fcf_growth_codec.py`,
+  `tests/evaluation/cases/test_fcf_growth.py` and the golden suite, `tests/data/test_annual_series_resolver.py` and
+  `tests/analysis/fcf_earnings_growth/test_fcf_availability_and_cache_eligibility.py`.
+- **Stop condition:** if any stored FCF-Growth output or cache entry would change, the sub-slice stops and asks.
