@@ -194,3 +194,16 @@ def test_the_side_by_side_headline_is_the_same_with_and_without_a_market_cap() -
 
     assert [cell.key for cell in with_data.cells] == ["fcf_cagr", "eps_cagr", "classification"]
     assert with_data == without
+
+
+def test_the_details_view_says_none_when_no_provider_adjustment_scaled_the_count() -> None:
+    result = fcf_result()
+    assert result.market_capitalization is not None
+    unscaled = replace(result.market_capitalization, provider_adjustments=(), scaled_share_count=FCF_GROWTH_SHARE_COUNT)
+
+    lines = render_fcf_earnings_growth(
+        replace(result, market_capitalization=unscaled), PresentationMode.DETAILS
+    ).splitlines()
+
+    assert "  Provider split adjustments applied: none" in lines
+    assert "  Provider split adjustments applied:" not in lines
