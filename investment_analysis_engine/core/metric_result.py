@@ -44,6 +44,8 @@ class ReasonCode(StrEnum):
     INDUSTRY_CLASS_UNKNOWN = "industry_class_unknown"
     UNSUPPORTED_MAPPING = "unsupported_mapping"
     DEBT_NOT_VISIBLE = "debt_not_visible"
+    NONPOSITIVE_DENOMINATOR = "nonpositive_denominator"
+    INSUFFICIENT_TESTS = "insufficient_tests"
 
 
 @dataclass(frozen=True)

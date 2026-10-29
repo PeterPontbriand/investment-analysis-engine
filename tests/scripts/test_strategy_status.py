@@ -29,20 +29,20 @@ def test_every_declared_strategy_is_done(alias: str, capsys: pytest.CaptureFixtu
 
 
 def test_an_undeclared_name_reports_its_missing_sites_and_exits_1(capsys: pytest.CaptureFixture[str]) -> None:
-    assert strategy_status.main(["piotroski"]) == 1
+    assert strategy_status.main(["example_undeclared"]) == 1
     lines = capsys.readouterr().out.splitlines()
-    assert "missing  vocabulary  investment_analysis_engine/strategies/piotroski/vocabulary.py" in lines
+    assert "missing  vocabulary  investment_analysis_engine/strategies/example_undeclared/vocabulary.py" in lines
     assert any(
         "has no descriptor; declare it in investment_analysis_engine/strategy_wiring.py" in line for line in lines
     )
-    assert "missing  guide  docs/user/strategies/PIOTROSKI.md" in lines
+    assert "missing  guide  docs/user/strategies/EXAMPLE_UNDECLARED.md" in lines
 
 
 def test_an_alias_is_used_for_the_command_and_the_guide(capsys: pytest.CaptureFixture[str]) -> None:
-    assert strategy_status.main(["piotroski", "--alias", "f-score"]) == 1
+    assert strategy_status.main(["example_undeclared", "--alias", "example-alias"]) == 1
     lines = capsys.readouterr().out.splitlines()
-    assert "missing  guide  docs/user/strategies/F_SCORE.md" in lines
-    assert "missing  schema  schemas/f-score.schema.json" in lines
+    assert "missing  guide  docs/user/strategies/EXAMPLE_ALIAS.md" in lines
+    assert "missing  schema  schemas/example-alias.schema.json" in lines
 
 
 def test_an_import_failure_is_the_first_gap_and_exits_1(

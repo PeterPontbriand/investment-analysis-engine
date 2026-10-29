@@ -40,7 +40,8 @@ substituted. Source evidence, a worked example and the arithmetic oracle are in 
 
 **Inputs**
 
-- Total assets (TA) at three fiscal year-ends: *t*, *t−1* and *t−2*. The earliest is never
+- Total assets (TA) at three fiscal year-ends: *t*, *t−1* and *t−2*, found as
+  [Shared definitions §3](STEP_3_5_SHARED_DEFINITIONS.md#period-alignment) states. The earliest is never
   replaced by a later one.
 - Net income (NI), sales and gross profit for years *t* and *t−1*; operating cash flow (CFO) for
   year *t*.
@@ -67,7 +68,10 @@ substituted. Source evidence, a worked example and the arithmetic oracle are in 
   no point. The two stated exceptions are test 5's zero-debt case and test 7, where an unchanged
   share count passes.
 - Total assets, sales and current liabilities must be positive wherever they are a denominator;
-  otherwise the test is unavailable.
+  otherwise the test is unavailable (`nonpositive_denominator`).
+- Currency and taxonomy are checked per test: operands in different currencies make that test unavailable
+  (`incompatible_currency`), and a us-gaap and ifrs-full mix makes the affected tests unavailable
+  (`incompatible_scope`).
 - Negative net income, CFO and gross profit are valid inputs. Zero current assets and zero LTD are
   valid inputs.
 
@@ -107,13 +111,18 @@ below is fixed for the method and shown in the result; none is a user option.
 - **Long-term debt:** current portion of long-term debt + long-term debt, as the paper's "total
   long-term debt". Short-term borrowings and lease liabilities are excluded. Absent components
   follow SD §6's total-debt rule.
-- **Zero debt:** a firm with no long-term debt in either year passes test 5. It cannot reduce
-  leverage further, and failing it would penalize the strongest balance sheets.
+- **Zero debt:** a firm with no long-term debt in either year passes test 5, whatever its assets, so a missing *t−2*
+  total assets does not make the test unavailable in that case. It cannot reduce leverage further, and failing it would
+  penalize the strongest balance sheets.
 - **Dilution:** test 7 uses the change in split-adjusted shares outstanding, not the paper's
   equity-issuance test.
   - Issuance proceeds include option exercises, which would fail nearly every issuer.
   - Issuance evidence is also unreliable in structured filings: Apple reports no issuance-proceeds
     concept after fiscal 2021.
+  - The two counts are compared only when both come from the same filing, which puts them on one split basis (a filing
+    restates its counts for splits effective before it is issued), and on the same path, direct or issued less
+    treasury. A *t−1* count from another filing, or a direct count with a derived one, makes the test unavailable
+    (`ambiguous_fact`). The test has no price, so it needs no market data.
   - The cost, stated in the guide: this measures net dilution. A firm can issue shares and still
     pass when buybacks exceed issuance, as Apple did in fiscal 2024.
 - **How it is named:** the user guide and `FINANCE_MATH.md` open with this statement: "This

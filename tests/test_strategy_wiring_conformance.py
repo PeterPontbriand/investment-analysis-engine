@@ -761,7 +761,7 @@ def test_t24_a_duplicate_json_envelope_is_rejected_naming_the_rule_and_both_desc
 # ---------------------------------------------------------------------------
 
 _SITES = load_sites()
-_UNDECLARED = strategy_names("piotroski")
+_UNDECLARED = strategy_names("example_undeclared")
 
 
 def _names_of(descriptor: StrategyDescriptor) -> StrategyNames:
