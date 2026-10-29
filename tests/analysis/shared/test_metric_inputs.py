@@ -245,6 +245,24 @@ def test_a_version_available_after_the_boundary_is_not_used() -> None:
     assert held.as_of == datetime(2026, 3, 5, tzinfo=UTC)
 
 
+def test_a_year_filed_only_after_the_boundary_is_not_available_as_of_not_absent() -> None:
+    boundary = datetime(2026, 3, 5, tzinfo=UTC)
+    stub = FactsStub(
+        annual={
+            F.SALES: [(100.0, date(2025, 1, 31), _EARLIER), (101.0, date(2026, 1, 31), _LATER)],
+            F.OPERATING_INCOME: [(5.0, date(2026, 1, 31), _LATER)],
+            F.NET_INCOME: [(3.0, date(2025, 1, 31), _LATER)],
+        }
+    )
+    values = _annual(stub, F.SALES, F.OPERATING_INCOME, F.NET_INCOME, boundary=boundary)
+    assert not isinstance(values, (InputUnavailable, MetricInputsFailure))
+    for name in (F.SALES, F.OPERATING_INCOME):
+        late = _unavailable(values[name])
+        assert late.reason_code is ReasonCode.NOT_AVAILABLE_AS_OF
+        assert "later than request as_of" in late.reason
+    assert values[F.NET_INCOME] is None  # only another year was filed late
+
+
 def test_conflicting_latest_versions_are_unavailable_not_chosen() -> None:
     stub = FactsStub(annual={F.SALES: [(100.0, date(2026, 1, 31), _LATER), (101.0, date(2026, 1, 31), _LATER)]})
     values = _annual(stub, F.SALES)

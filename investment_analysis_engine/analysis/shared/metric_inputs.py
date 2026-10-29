@@ -49,7 +49,12 @@ from investment_analysis_engine.data.financial.provenance import (
     FinancialSubjectKind,
     ResolvedInput,
 )
-from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
+from investment_analysis_engine.data.financial.resolver import (
+    InputResolutionResult,
+    InputResolver,
+    LeftOutObservation,
+    LeftOutReason,
+)
 from investment_analysis_engine.data.market_data import (
     DatedSplitAdjustedHistoryProvider,
     NoEligibleObservationsError,
@@ -547,10 +552,9 @@ def resolve_annual_values(
         resolution = resolver.resolve_annual_series(request)
         if resolution.not_available_as_of:
             return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, resolution.reason or "")
-        if resolution.status is CalculationStatus.OK:
-            values[name] = _annual_value(resolution.inputs, name, anchor.year_end)
-        elif resolution.status is CalculationStatus.INPUT_UNAVAILABLE:
-            values[name] = None
+        if resolution.status in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE):
+            value = _annual_value(resolution.inputs, name, anchor.year_end)
+            values[name] = value if value is not None else _left_out_at(resolution.left_out, anchor.year_end)
         else:
             record = resolution.provider_failure
             return MetricInputsFailure(
@@ -559,6 +563,18 @@ def resolve_annual_values(
                 None if record is None else record.for_input(name.value),
             )
     return MappingProxyType(values)
+
+
+def _left_out_at(left_out: Sequence[LeftOutObservation], year_end: date) -> InputUnavailable | None:
+    """Return ``not_available_as_of`` when the observation that ends at ``year_end`` was filed after the boundary."""
+    for item in left_out:
+        if (
+            item.why is LeftOutReason.NOT_AVAILABLE_AT_BOUNDARY
+            and item.observation_period_end is not None
+            and item.observation_period_end.date() == year_end
+        ):
+            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, item.reason)
+    return None
 
 
 def _annual_value(

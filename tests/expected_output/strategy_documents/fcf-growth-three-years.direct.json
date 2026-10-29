@@ -1456,26 +1456,50 @@
     {
       "field_name": "operating_cash_flow",
       "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested the operating_cash_flow fiscal-year series from provider 'sec_edgar'."
+    },
+    {
+      "field_name": "operating_cash_flow",
+      "stage": "provider",
       "outcome": "success",
-      "message": "Annual field series resolved from provider."
+      "message": "6 fiscal-year observation(s) resolved; 0 left out as ineligible."
+    },
+    {
+      "field_name": "capital_expenditures",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested the capital_expenditures fiscal-year series from provider 'sec_edgar'."
     },
     {
       "field_name": "capital_expenditures",
       "stage": "provider",
       "outcome": "success",
-      "message": "Annual field series resolved from provider."
+      "message": "6 fiscal-year observation(s) resolved; 0 left out as ineligible."
+    },
+    {
+      "field_name": "eps",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested the eps fiscal-year series from provider 'sec_edgar'."
     },
     {
       "field_name": "eps",
       "stage": "provider",
       "outcome": "success",
-      "message": "Annual field series resolved from provider."
+      "message": "6 fiscal-year observation(s) resolved; 0 left out as ineligible."
+    },
+    {
+      "field_name": "weighted_average_diluted_shares",
+      "stage": "provider",
+      "outcome": "attempted",
+      "message": "Requested the weighted_average_diluted_shares fiscal-year series from provider 'sec_edgar'."
     },
     {
       "field_name": "weighted_average_diluted_shares",
       "stage": "provider",
       "outcome": "success",
-      "message": "Annual field series resolved from provider."
+      "message": "6 fiscal-year observation(s) resolved; 0 left out as ineligible."
     },
     {
       "field_name": "annual_growth_series",

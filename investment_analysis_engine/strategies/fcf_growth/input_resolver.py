@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from investment_analysis_engine.analysis.shared.cash_flow import compute_free_cash_flow
 from investment_analysis_engine.core.analysis_status import CalculationStatus
@@ -16,11 +16,9 @@ from investment_analysis_engine.data.financial.cache import (
     ResolvedInputSeriesCacheQuery,
 )
 from investment_analysis_engine.data.financial.facts import (
-    FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
-    FinancialProviderError,
     FinancialUnit,
     ProviderFact,
     financial_facts_analysis_scope,
@@ -41,7 +39,12 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionStage,
     ResolutionTrace,
 )
-from investment_analysis_engine.data.provider_failure import failure_record
+from investment_analysis_engine.data.financial.resolver import (
+    AnnualSeriesResolution,
+    InputResolver,
+    LeftOutObservation,
+    LeftOutReason,
+)
 from investment_analysis_engine.data.quality import QualityContext, QualityDecision, QualityOutcome
 from investment_analysis_engine.data.quality_reporting import publish_quality
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
@@ -57,6 +60,8 @@ _ANNUAL_FIELDS = (
     FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
 )
 _REQUIRED_ANNUAL_FIELDS = _ANNUAL_FIELDS[:3]
+_NOT_AVAILABLE_AT_BOUNDARY = "The annual fact was not publicly available at the analysis boundary."
+_LATER_THAN_BOUNDARY = "The annual observation is later than the analysis boundary."
 
 
 class ProductionAnnualGrowthSeriesResolver:
@@ -178,6 +183,15 @@ class AnnualGrowthSeriesAssembly:
 
 
 @dataclass(frozen=True)
+class _FactRejection:
+    """One observation this strategy's own checks rejected, with the key that orders it among its peers."""
+
+    code: ReasonCode
+    reason: str
+    order: tuple[datetime, str]
+
+
+@dataclass(frozen=True)
 class _FieldResolution:
     inputs: tuple[ResolvedInput, ...] = ()
     reason_code: ReasonCode | None = None
@@ -267,9 +281,9 @@ def _fact_rejection(  # noqa: PLR0911
     if fact.provider_fact_id is None:
         return ReasonCode.AMBIGUOUS_FACT, "The annual fact lacks a stable provider_fact_id."
     if fact.available_at is None or fact.available_at > as_of:
-        return ReasonCode.NOT_AVAILABLE_AS_OF, "The annual fact was not publicly available at the analysis boundary."
+        return ReasonCode.NOT_AVAILABLE_AS_OF, _NOT_AVAILABLE_AT_BOUNDARY
     if financial_quality_error(fact, input_id=f"{subject_id}:{field.value}", now=as_of, as_of=as_of):
-        return ReasonCode.NOT_AVAILABLE_AS_OF, "The annual observation is later than the analysis boundary."
+        return ReasonCode.NOT_AVAILABLE_AS_OF, _LATER_THAN_BOUNDARY
     expected_units = (
         FinancialUnit.CURRENCY_PER_SHARE
         if field is FinancialField.EPS
@@ -374,6 +388,37 @@ def _to_cache_input(stored: ResolvedInput, resolved_at: datetime) -> ResolvedInp
     )
 
 
+def _rejection_order(fact: ProviderFact) -> tuple[datetime, str]:
+    """Order observations by period end, then fact ID, so a choice among them does not depend on answer order."""
+    return fact.observation_period_end or datetime.min.replace(tzinfo=UTC), fact.provider_fact_id or ""
+
+
+def _no_selection_reason(
+    field: FinancialField,
+    rejections: Sequence[_FactRejection],
+    left_out: Sequence[LeftOutObservation],
+) -> tuple[ReasonCode, str]:
+    """Return why no observation remains, by precedence and never by the order of the provider's answer.
+
+    An observation that was available at the boundary but failed one of this strategy's own checks gives that check's
+    reason; among several, the one with the earliest period end, then the lowest fact ID. Otherwise the field is
+    ``not_available_as_of``: with the message for an observation that was not available at the boundary when any was
+    (left out by the shared entry, or rejected here), and with the quality message otherwise.
+    """
+    own = [item for item in rejections if item.code is not ReasonCode.NOT_AVAILABLE_AS_OF]
+    if own:
+        chosen = min(own, key=lambda item: item.order)
+        return chosen.code, chosen.reason
+    not_available = any(item.why is LeftOutReason.NOT_AVAILABLE_AT_BOUNDARY for item in left_out) or any(
+        item.reason == _NOT_AVAILABLE_AT_BOUNDARY for item in rejections
+    )
+    if not_available:
+        return ReasonCode.NOT_AVAILABLE_AS_OF, _NOT_AVAILABLE_AT_BOUNDARY
+    if rejections or left_out:
+        return ReasonCode.NOT_AVAILABLE_AS_OF, _LATER_THAN_BOUNDARY
+    return ReasonCode.MISSING_FACT, f"No usable {field.value} facts were returned."
+
+
 def _select_provider_facts(  # noqa: PLR0913, PLR0917
     facts: Sequence[ProviderFact],
     field: FinancialField,
@@ -382,14 +427,15 @@ def _select_provider_facts(  # noqa: PLR0913, PLR0917
     effective_as_of: datetime,
     requested_as_of: datetime | None,
     resolved_at: datetime,
+    left_out: Sequence[LeftOutObservation] = (),
 ) -> _FieldResolution:
     eligible: list[ProviderFact] = []
-    rejections: list[tuple[ReasonCode, str]] = []
+    rejections: list[_FactRejection] = []
     identities: dict[str, tuple[object, ...]] = {}
     for fact in facts:
         rejection = _fact_rejection(fact, field, subject_id, currency, effective_as_of)
         if rejection is not None:
-            rejections.append(rejection)
+            rejections.append(_FactRejection(*rejection, order=_rejection_order(fact)))
             continue
         assert fact.provider_fact_id is not None
         identity = _fact_identity(fact)
@@ -432,9 +478,7 @@ def _select_provider_facts(  # noqa: PLR0913, PLR0917
         )
         selected.append(_to_provider_input(chosen[0], chosen[1], resolved_at, requested_as_of, chosen[2]))
     if not selected:
-        code, reason = (
-            rejections[0] if rejections else (ReasonCode.MISSING_FACT, f"No usable {field.value} facts were returned.")
-        )
+        code, reason = _no_selection_reason(field, rejections, left_out)
         return _FieldResolution(reason_code=code, reason=reason)
     return _FieldResolution(inputs=tuple(selected))
 
@@ -460,36 +504,40 @@ def _periods_are_contiguous(previous_end: datetime | None, following_start: date
     return previous_end == following_start or previous_end.date() + timedelta(days=1) == following_start.date()
 
 
+def _provider_fact_of(value: ResolvedInput, subject_id: str) -> ProviderFact:
+    """Rebuild the provider fact a resolved input was made from, as far as its stored fields say."""
+    if value.provider_id is None or value.provider_field is None or value.units is None:
+        raise ValueError("Annual fact has no provider identity.")
+    return ProviderFact(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id=subject_id,
+        field_name=FinancialField(value.field_name),
+        value=value.value,
+        units=FinancialUnit(value.units),
+        provider_id=value.provider_id,
+        provider_field=value.provider_field,
+        retrieved_at=value.retrieved_at or value.resolved_at,
+        basis=value.basis,
+        currency=value.currency,
+        observation_period_start=value.observation_period_start,
+        observation_period_end=value.observation_period_end,
+        observed_at=value.observed_at,
+        available_at=value.available_at,
+        notes=value.notes,
+        fiscal_year=value.fiscal_year,
+        period_kind=value.period_kind,
+        accounting_scope=value.accounting_scope,
+        capital_expenditure_sign=value.capital_expenditure_sign,
+        provider_fact_id=value.provider_fact_id,
+    )
+
+
 def _cached_field_valid(
     value: ResolvedInput, field: FinancialField, subject_id: str, currency: str, as_of: datetime
 ) -> bool:
     """Apply provider-equivalent compatibility checks without renormalizing values."""
     try:
-        if value.provider_id is None or value.provider_field is None or value.units is None:
-            raise ValueError("Cached annual fact has no provider identity.")
-        fact = ProviderFact(
-            subject_kind=FinancialSubjectKind.SECURITY,
-            subject_id=subject_id,
-            field_name=FinancialField(value.field_name),
-            value=value.value,
-            units=FinancialUnit(value.units),
-            provider_id=value.provider_id,
-            provider_field=value.provider_field,
-            retrieved_at=value.retrieved_at or value.resolved_at,
-            basis=value.basis,
-            currency=value.currency,
-            observation_period_start=value.observation_period_start,
-            observation_period_end=value.observation_period_end,
-            observed_at=value.observed_at,
-            available_at=value.available_at,
-            notes=value.notes,
-            fiscal_year=value.fiscal_year,
-            period_kind=value.period_kind,
-            accounting_scope=value.accounting_scope,
-            capital_expenditure_sign=value.capital_expenditure_sign,
-            provider_fact_id=value.provider_fact_id,
-        )
-        rejection = _fact_rejection(fact, field, subject_id, currency, as_of)
+        rejection = _fact_rejection(_provider_fact_of(value, subject_id), field, subject_id, currency, as_of)
         reason = rejection[1] if rejection is not None else None
     except ValueError:
         reason = "Cached annual fact does not satisfy the financial fact contract."
@@ -508,10 +556,28 @@ def _cached_field_valid(
     return True
 
 
+def _entry_failure(field: FinancialField, answer: AnnualSeriesResolution) -> _FieldResolution:
+    """Map a non-OK answer of the shared annual-series entry to this strategy's field outcome."""
+    if answer.status is CalculationStatus.PROVIDER_ERROR:
+        reason = answer.reason or ""
+        if answer.provider_error_detail is not None:
+            reason = f"{field.value} provider failed: {answer.provider_error_detail}"
+        return _FieldResolution(
+            reason_code=ReasonCode.PROVIDER_ERROR,
+            reason=reason,
+            provider_error=True,
+            provider_failure=answer.provider_failure,
+        )
+    if answer.not_available_as_of:
+        return _FieldResolution(reason_code=ReasonCode.NOT_AVAILABLE_AS_OF, reason=answer.reason)
+    code, reason = _no_selection_reason(field, (), answer.left_out)
+    return _FieldResolution(reason_code=code, reason=reason)
+
+
 def _resolve_field(  # noqa: PLR0913
     *,
     field: FinancialField,
-    provider: FinancialFactsProvider,
+    resolver: InputResolver,
     subject_id: str,
     currency: str,
     effective_as_of: datetime,
@@ -566,23 +632,19 @@ def _resolve_field(  # noqa: PLR0913
         as_of=requested_as_of,
         observation_count=required_count,
     )
-    try:
-        facts = provider.fetch_facts(request, effective_as_of=effective_as_of)
-    except FactsNotAvailableAsOf as exc:
-        reason = str(exc)
-        return _FieldResolution(reason_code=ReasonCode.NOT_AVAILABLE_AS_OF, reason=reason), trace.append(
-            _event(field.value, ResolutionStage.PROVIDER, ResolutionOutcome.UNAVAILABLE, reason, now=resolved_at)
-        )
-    except FinancialProviderError as exc:
-        reason = f"{field.value} provider failed: {exc}"
-        return _FieldResolution(
-            reason_code=ReasonCode.PROVIDER_ERROR,
-            reason=reason,
-            provider_error=True,
-            provider_failure=failure_record(exc),
-        ), trace.append(_event(field.value, ResolutionStage.PROVIDER, ResolutionOutcome.ERROR, reason, now=resolved_at))
+    answer = resolver.resolve_annual_series(request)
+    trace = trace.extend(answer.resolution_trace)
+    if answer.status is not CalculationStatus.OK:
+        return _entry_failure(field, answer), trace
     resolution = _select_provider_facts(
-        facts, field, subject_id, currency, effective_as_of, requested_as_of, resolved_at
+        tuple(_provider_fact_of(item, subject_id) for item in answer.inputs),
+        field,
+        subject_id,
+        currency,
+        effective_as_of,
+        requested_as_of,
+        resolved_at,
+        answer.left_out,
     )
     if resolution.reason_code is not None:
         return resolution, trace.append(
@@ -612,15 +674,7 @@ def _resolve_field(  # noqa: PLR0913
                 ),
                 resolved,
             )
-    return resolution, trace.append(
-        _event(
-            field.value,
-            ResolutionStage.PROVIDER,
-            ResolutionOutcome.SUCCESS,
-            "Annual field series resolved from provider.",
-            now=resolved_at,
-        )
-    )
+    return resolution, trace
 
 
 def _assemble_common(
@@ -800,11 +854,12 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
     candidates = _candidate_horizons(policy.historical_horizon)
     required_count = max(candidates) + 1
     trace = ResolutionTrace()
+    resolver = InputResolver(provider, clock=clock)
     resolved_fields: dict[FinancialField, tuple[ResolvedInput, ...]] = {}
     for field in _ANNUAL_FIELDS:
         resolution, field_trace = _resolve_field(
             field=field,
-            provider=provider,
+            resolver=resolver,
             subject_id=normalized_subject,
             currency=normalized_currency,
             effective_as_of=effective_as_of,
