@@ -257,8 +257,10 @@ COVER_PAGE_BASIS = "cover_page"
 
 # Consecutive fiscal year-ends are a year apart, give or take the 52/53-week variation of a fiscal calendar. The
 # bounds are those of the completed-annual duration tolerance, so a quarter-end or a stub date is never a neighbor.
-_MIN_YEAR_END_GAP_DAYS = 335
-_MAX_YEAR_END_GAP_DAYS = 395
+MIN_YEAR_END_GAP_DAYS = 335
+"""The fewest days between consecutive fiscal year-ends, or between a year-end and the one derived before it."""
+MAX_YEAR_END_GAP_DAYS = 395
+"""The most days between consecutive fiscal year-ends, or between a year-end and the one derived before it."""
 
 # These provider-neutral fields support requests for multiple completed annual
 # observations. Provider-specific eligibility and identity rules remain in the
@@ -424,7 +426,7 @@ class InstantSeriesRequest:
             raise ValueError("period_ends must name at least one fiscal year-end.")
         for earlier, later in zip(ordered, ordered[1:], strict=False):
             gap = (later - earlier).days
-            if not _MIN_YEAR_END_GAP_DAYS <= gap <= _MAX_YEAR_END_GAP_DAYS:
+            if not MIN_YEAR_END_GAP_DAYS <= gap <= MAX_YEAR_END_GAP_DAYS:
                 msg = f"period_ends must be consecutive fiscal year-ends ({earlier} and {later} are {gap} days apart)."
                 raise ValueError(msg)
         object.__setattr__(self, "subject_id", _normalize_subject_id(FinancialSubjectKind.SECURITY, self.subject_id))

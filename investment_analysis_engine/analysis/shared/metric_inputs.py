@@ -45,6 +45,8 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     COVER_PAGE_BASIS,
+    MAX_YEAR_END_GAP_DAYS,
+    MIN_YEAR_END_GAP_DAYS,
     SHARE_COUNT_SERIES_FIELD,
     FinancialFactRequest,
     FinancialField,
@@ -84,6 +86,10 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     AnchorYearEndRequest,
     AnchorYearEndUnavailableReason,
 )
+from investment_analysis_engine.data.sec_edgar.instant_series import (
+    SEC_DERIVED_COMMON_SHARES_FIELD,
+    SEC_DIRECT_COMMON_SHARES_FIELDS,
+)
 
 SPLIT_HISTORY_MARGIN_DAYS: Final = 10
 """Calendar days the split-history request starts before the date the share count is scaled from.
@@ -107,12 +113,6 @@ YEAR_END_START_FIELDS: Final = (
 Every listed field that reports a year must give the same start date for it. Two fields are the least that lets a
 disagreement be seen, and three keep a year-end available when one is not tagged (Monster tags no net income). All
 three agreed on every year of every captured issuer (``STEP_3_5_3_INPUT_EVIDENCE.md``).
-"""
-
-YEAR_LENGTH_DAYS: Final = (335, 395)
-"""The least and most days between a derived year-end and the later year-end for the year to count as a fiscal year.
-
-These are the bounds of the completed-annual duration tolerance, the same ones consecutive year-ends must meet.
 """
 
 
@@ -774,10 +774,10 @@ def resolve_year_ends(
     from the period that ends at *t-1*. The start date is read from the latest-available version of each field of
     ``YEAR_END_START_FIELDS`` that reports the year: they must all give the same start (``ambiguous_fact`` if not), at
     least one must report the year (``missing_fact`` if none does), and the derived year-end must lie
-    ``YEAR_LENGTH_DAYS`` before the later one (``incompatible_period`` if not). A period that is not a completed
-    annual period, such as a transition period, is not in the series, so it breaks the chain: the year-end before it is
-    unavailable for ``missing_fact`` and so is every earlier one. A year-end is never taken from the submissions'
-    report dates.
+    ``MIN_YEAR_END_GAP_DAYS`` to ``MAX_YEAR_END_GAP_DAYS`` before the later one (``incompatible_period`` if not). A
+    period that is not a completed annual period, such as a transition period, is not in the series, so it breaks the
+    chain: the year-end before it is unavailable for ``missing_fact`` and so is every earlier one. A year-end is never
+    taken from the submissions' report dates.
 
     A registrant whose annual filings all came after the boundary is returned once, as ``not_available_as_of`` with the
     provider's message.
@@ -844,12 +844,11 @@ def _prior_year_end(series: Mapping[FinancialField, AnnualSeriesResolution], yea
         )
     derived = next(iter(starts)) - timedelta(days=1)
     gap = (year_end - derived).days
-    least, most = YEAR_LENGTH_DAYS
-    if not least <= gap <= most:
+    if not MIN_YEAR_END_GAP_DAYS <= gap <= MAX_YEAR_END_GAP_DAYS:
         return InputUnavailable(
             ReasonCode.INCOMPATIBLE_PERIOD,
             f"The year ending {year_end} began after {derived}, {gap} days earlier; "
-            f"a fiscal year is {least} to {most} days.",
+            f"a fiscal year is {MIN_YEAR_END_GAP_DAYS} to {MAX_YEAR_END_GAP_DAYS} days.",
         )
     return derived
 
@@ -885,8 +884,15 @@ def _year_end_share_count(item: BalanceSheetValue) -> YearEndShareCount | InputU
             ReasonCode.AMBIGUOUS_FACT if accessions else ReasonCode.MISSING_FACT,
             "The share count does not name exactly one filing it was taken from.",
         )
-    derived = item.provider_field is not None and item.provider_field.startswith("derived:")
-    path = ShareCountPath.ISSUED_LESS_TREASURY if derived else ShareCountPath.DIRECT
+    if item.provider_field == SEC_DERIVED_COMMON_SHARES_FIELD:
+        path = ShareCountPath.ISSUED_LESS_TREASURY
+    elif item.provider_field in SEC_DIRECT_COMMON_SHARES_FIELDS.values():
+        path = ShareCountPath.DIRECT
+    else:
+        return InputUnavailable(
+            ReasonCode.MISSING_FACT,
+            f"The share count's provider field {item.provider_field!r} is neither a direct nor a derived share count.",
+        )
     return YearEndShareCount(item, next(iter(accessions)), path)
 
 

@@ -20,7 +20,12 @@ from investment_analysis_engine.data.financial.facts import (
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, PeriodKind
 from investment_analysis_engine.data.financial.resolver import InputResolver
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
-from investment_analysis_engine.data.sec_edgar.instant_series import InstantSource, select_instant_series
+from investment_analysis_engine.data.sec_edgar.instant_series import (
+    SEC_DERIVED_COMMON_SHARES_FIELD,
+    SEC_DIRECT_COMMON_SHARES_FIELDS,
+    InstantSource,
+    select_instant_series,
+)
 from tests._sec_instants import NOW, FixtureFetcher, adapter_for
 
 _SHARES = FinancialField.COMMON_SHARES_OUTSTANDING
@@ -112,12 +117,12 @@ def test_a_direct_count_is_the_newest_filings_value_in_shares_with_no_currency_a
     fact = found[_Y24]
     assert (fact.units, fact.currency, fact.period_kind) == (FinancialUnit.SHARES, None, PeriodKind.INSTANT)
     assert (fact.provider_field, fact.basis, fact.subject_kind) == (
-        "us-gaap:CommonStockSharesOutstanding",
+        SEC_DIRECT_COMMON_SHARES_FIELDS["us-gaap"],
         "fiscal_year_end",
         FinancialSubjectKind.SECURITY,
     )
     assert f"accession={_NEW}" in fact.notes
-    assert found[_Y23].provider_fact_id == f"{_OLD}:us-gaap:CommonStockSharesOutstanding:shares:2023-12-31"
+    assert found[_Y23].provider_fact_id == f"{_OLD}:{SEC_DIRECT_COMMON_SHARES_FIELDS['us-gaap']}:shares:2023-12-31"
     assert result.absences == ()
 
 
@@ -140,14 +145,24 @@ def test_two_values_of_the_newest_filing_at_one_date_are_the_classes_of_a_multi_
     assert _reasons(result) == {_Y25: InstantAbsenceReason.CONFLICT}
 
 
-def test_a_direct_count_that_is_not_positive_is_not_a_count_and_the_derived_path_is_tried() -> None:
+@pytest.mark.parametrize("reported", [0.0, -5.0])
+def test_a_direct_count_that_is_not_positive_is_bad_data_and_the_derived_path_is_not_tried(reported: float) -> None:
     adapter = _adapter(
         {
-            _DIRECT: [_row("2025-12-31", 0.0, _NEW)],
+            _DIRECT: [_row("2025-12-31", reported, _NEW)],
             _ISSUED: [_row("2025-12-31", 1000.0, _NEW)],
             _TREASURY: [_row("2025-12-31", 100.0, _NEW)],
         }
     )
+    result = _series(adapter, ends=(_Y25,))
+    assert result.facts == ()
+    assert _reasons(result) == {_Y25: InstantAbsenceReason.CONFLICT}
+    assert "is not positive" in result.absences[0].detail
+    assert SEC_DIRECT_COMMON_SHARES_FIELDS["us-gaap"] in result.absences[0].detail
+
+
+def test_a_non_positive_count_in_an_older_filing_is_superseded_by_the_newest_filings_positive_one() -> None:
+    adapter = _adapter({_DIRECT: [_row("2025-12-31", 0.0, _MID), _row("2025-12-31", 900.0, _NEW)]})
     assert _by_day(_series(adapter, ends=(_Y25,)))[_Y25].value == 900.0
 
 
@@ -169,7 +184,7 @@ def test_issued_less_treasury_comes_from_the_one_newest_filing_that_tags_both() 
     fact = _by_day(_series(adapter, ends=(_Y24,)))[_Y24]
     assert fact.value == 920.0
     assert (fact.units, fact.currency) == (FinancialUnit.SHARES, None)
-    assert fact.provider_field == "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
+    assert fact.provider_field == SEC_DERIVED_COMMON_SHARES_FIELD
     assert fact.source_transformation == "common shares issued - treasury common shares"
     assert [source.value for source in fact.source_facts] == [1010.0, 90.0]
     assert f"accession={_NEW}" in fact.notes
@@ -229,7 +244,7 @@ def test_an_ifrs_issuer_gets_its_direct_count_and_no_issued_less_treasury_path()
     fact = _by_day(result)[_Y24]
     assert (fact.value, fact.provider_field, fact.units, fact.currency) == (
         491.0,
-        "ifrs-full:NumberOfSharesOutstanding",
+        SEC_DIRECT_COMMON_SHARES_FIELDS["ifrs-full"],
         FinancialUnit.SHARES,
         None,
     )
@@ -283,7 +298,7 @@ def test_the_latest_only_count_is_the_same_single_value_as_before() -> None:
         (fact,) = adapter.fetch_facts(request, effective_as_of=NOW)
     assert (fact.value, fact.provider_field, fact.units) == (
         978_113_000.0,
-        "us-gaap:CommonStockSharesOutstanding",
+        SEC_DIRECT_COMMON_SHARES_FIELDS["us-gaap"],
         FinancialUnit.SHARES,
     )
     assert fact.observation_period_end is not None

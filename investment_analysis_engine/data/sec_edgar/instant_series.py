@@ -209,18 +209,28 @@ def select_instant_series(request: InstantSeriesRequest, source: InstantSource) 
     return _one_currency(request, InstantSeriesFacts(facts=tuple(facts.values()), absences=_ordered(absences)))
 
 
-# The share count's two paths. The direct concept is the one the latest-only path reads for each taxonomy; the derived
-# path (issued less treasury shares) is offered for US GAAP only, as it is there. The derived provider field is the
-# one the latest-only path labels its derived count with.
-_DIRECT_SHARE_CONCEPT: Final[Mapping[str, str]] = {
-    US_GAAP: "CommonStockSharesOutstanding",
-    IFRS_FULL: "NumberOfSharesOutstanding",
+# The common share count's two paths, for the series and for the latest-only path alike. The direct concept is read per
+# taxonomy; the derived path (issued less treasury shares) is offered for US GAAP only. The provider fields are what a
+# count is labelled with, and the only ones a consumer may recognise as a share count.
+US_GAAP_SHARES_OUTSTANDING_CONCEPT: Final = "CommonStockSharesOutstanding"
+IFRS_SHARES_OUTSTANDING_CONCEPT: Final = "NumberOfSharesOutstanding"
+SHARES_ISSUED_CONCEPT: Final = "CommonStockSharesIssued"
+TREASURY_SHARES_CONCEPT: Final = "TreasuryStockCommonShares"
+SEC_DIRECT_COMMON_SHARES_FIELDS: Final[Mapping[str, str]] = {
+    US_GAAP: f"{US_GAAP}:{US_GAAP_SHARES_OUTSTANDING_CONCEPT}",
+    IFRS_FULL: f"{IFRS_FULL}:{IFRS_SHARES_OUTSTANDING_CONCEPT}",
 }
-_SHARES_ISSUED: Final = "CommonStockSharesIssued"
-_SHARES_TREASURY: Final = "TreasuryStockCommonShares"
+"""The provider field of a directly reported common share count, by taxonomy."""
+SEC_DERIVED_COMMON_SHARES_FIELD: Final = (
+    f"derived:{US_GAAP}:{SHARES_ISSUED_CONCEPT}-{US_GAAP}:{TREASURY_SHARES_CONCEPT}"
+)
+"""The provider field of a common share count derived as issued less treasury shares."""
+_DIRECT_SHARE_CONCEPT: Final[Mapping[str, str]] = {
+    US_GAAP: US_GAAP_SHARES_OUTSTANDING_CONCEPT,
+    IFRS_FULL: IFRS_SHARES_OUTSTANDING_CONCEPT,
+}
 _SHARES_UNIT: Final = "shares"
 _SHARES_DERIVATION: Final = "common shares issued - treasury common shares"
-_SHARES_DERIVED_FIELD: Final = f"derived:{US_GAAP}:{_SHARES_ISSUED}-{US_GAAP}:{_SHARES_TREASURY}"
 
 
 def _share_observations(source: InstantSource, namespace: str, concept_name: str) -> _Concept:
@@ -257,11 +267,18 @@ def _select_share_counts(
     """
     direct = _share_observations(source, namespace, _DIRECT_SHARE_CONCEPT[namespace])
     derivable = namespace == US_GAAP
-    issued = _share_observations(source, US_GAAP, _SHARES_ISSUED) if derivable else None
-    treasury = _share_observations(source, US_GAAP, _SHARES_TREASURY) if derivable else None
+    issued = _share_observations(source, US_GAAP, SHARES_ISSUED_CONCEPT) if derivable else None
+    treasury = _share_observations(source, US_GAAP, TREASURY_SHARES_CONCEPT) if derivable else None
     facts: dict[date, ProviderFact] = {}
     for day in pending:
-        result = _select_at([item for item in direct.usable if item.value > 0], day)
+        result = _select_at(direct.usable, day)
+        if isinstance(result, _Observation) and result.value <= 0:
+            absences[day] = _absence(
+                day,
+                InstantAbsenceReason.CONFLICT,
+                f"The reported count {SEC_DIRECT_COMMON_SHARES_FIELDS[namespace]} at {day} is not positive.",
+            )
+            continue
         if isinstance(result, _Observation):
             facts[day] = _direct_share_fact(request, source, namespace, result)
             continue
@@ -269,7 +286,7 @@ def _select_share_counts(
             absences[day] = _absence(
                 day,
                 InstantAbsenceReason.CONFLICT,
-                f"Eligible filings disagree on {namespace}:{_DIRECT_SHARE_CONCEPT[namespace]} at {day}.",
+                f"Eligible filings disagree on {SEC_DIRECT_COMMON_SHARES_FIELDS[namespace]} at {day}.",
             )
             continue
         derived = (
@@ -327,7 +344,7 @@ def _direct_share_fact(
         request,
         source,
         value=item.value,
-        provider_field=f"{namespace}:{_DIRECT_SHARE_CONCEPT[namespace]}",
+        provider_field=SEC_DIRECT_COMMON_SHARES_FIELDS[namespace],
         day=item.end,
         accession=item.accession,
         available_at=item.available_at,
@@ -369,13 +386,13 @@ def _derive_share_count(
             available_at=term.available_at,
             provider_fact_id=f"{accession}:{US_GAAP}:{name}:{_SHARES_UNIT}:{day.isoformat()}",
         )
-        for name, term in ((_SHARES_ISSUED, first), (_SHARES_TREASURY, second))
+        for name, term in ((SHARES_ISSUED_CONCEPT, first), (TREASURY_SHARES_CONCEPT, second))
     )
     return _share_fact(
         request,
         source,
         value=value,
-        provider_field=_SHARES_DERIVED_FIELD,
+        provider_field=SEC_DERIVED_COMMON_SHARES_FIELD,
         day=day,
         accession=accession,
         available_at=first.available_at,

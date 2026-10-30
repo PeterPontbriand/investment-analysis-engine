@@ -14,7 +14,7 @@ from investment_analysis_engine.analysis.shared.metric_evidence import InputUnav
 from investment_analysis_engine.analysis.shared.metric_inputs import ShareCountPath, YearEndShareCount
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
-from investment_analysis_engine.data.sec_edgar.financial_facts import _SEC_DERIVED_COMMON_SHARES_FIELD
+from investment_analysis_engine.data.sec_edgar.instant_series import SEC_DERIVED_COMMON_SHARES_FIELD
 from investment_analysis_engine.strategies.piotroski_calculation import (
     CheckOutcome,
     Completeness,
@@ -526,15 +526,15 @@ def _derived_count(name: str, provider_field: str | None) -> YearEndShareCount:
 def test_a_derived_share_count_with_the_adapters_provider_field_has_a_taxonomy() -> None:
     result = calculate_f_score(
         make(
-            shares_t=_derived_count("shares_t", _SEC_DERIVED_COMMON_SHARES_FIELD),
-            shares_t1=_derived_count("shares_t1", _SEC_DERIVED_COMMON_SHARES_FIELD),
+            shares_t=_derived_count("shares_t", SEC_DERIVED_COMMON_SHARES_FIELD),
+            shares_t1=_derived_count("shares_t1", SEC_DERIVED_COMMON_SHARES_FIELD),
         )
     )
     assert result.tests[6].outcome is PASS
 
 
 def test_a_derived_share_count_against_a_direct_one_is_a_path_conflict_not_a_taxonomy_conflict() -> None:
-    result = calculate_f_score(make(shares_t=_derived_count("shares_t", _SEC_DERIVED_COMMON_SHARES_FIELD)))
+    result = calculate_f_score(make(shares_t=_derived_count("shares_t", SEC_DERIVED_COMMON_SHARES_FIELD)))
     assert result.tests[6].reason_code is ReasonCode.AMBIGUOUS_FACT
 
 

@@ -42,6 +42,10 @@ from investment_analysis_engine.data.financial.facts import (
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, PeriodKind
 from investment_analysis_engine.data.financial.resolver import InputResolver
 from investment_analysis_engine.data.sec_edgar.financial_facts import AnchorYearEnd
+from investment_analysis_engine.data.sec_edgar.instant_series import (
+    SEC_DERIVED_COMMON_SHARES_FIELD,
+    SEC_DIRECT_COMMON_SHARES_FIELDS,
+)
 from tests._sec_instants import ANNUAL_FIXTURES, NOW, FixtureFetcher, load
 from tests.analysis.shared._metric_input_rig import LIVE_NOW, FactsStub, rig
 
@@ -318,8 +322,8 @@ def test_a_second_prior_year_end_cannot_be_known_when_the_prior_is_not() -> None
 
 # --- the share-count series, synthetic ----------------------------------------------------------------------------
 
-_DIRECT = "us-gaap:CommonStockSharesOutstanding"
-_DERIVED = "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
+_DIRECT = SEC_DIRECT_COMMON_SHARES_FIELDS["us-gaap"]
+_DERIVED = SEC_DERIVED_COMMON_SHARES_FIELD
 
 
 @dataclass(frozen=True)
@@ -428,6 +432,16 @@ def test_a_count_whose_provenance_names_two_filings_or_none_is_unavailable() -> 
     result = _series(_counts(_Counts({_T: two, _T1: none}), (_T, _T1)))
     assert _unavailable(result[_T]).reason_code is ReasonCode.AMBIGUOUS_FACT
     assert _unavailable(result[_T1]).reason_code is ReasonCode.MISSING_FACT
+
+
+@pytest.mark.parametrize(
+    "field", ["dei:EntityCommonStockSharesOutstanding", "derived:ifrs-full:A-ifrs-full:B", "stub:shares"]
+)
+def test_a_count_with_a_provider_field_that_is_not_a_share_count_field_is_unavailable_and_names_it(field: str) -> None:
+    unrecognised = _Count(800.0, field)
+    outcome = _unavailable(_series(_counts(_Counts({_T: unrecognised}), (_T,)))[_T])
+    assert outcome.reason_code is ReasonCode.MISSING_FACT
+    assert field in outcome.reason
 
 
 def test_two_notes_that_name_the_same_filing_are_one_filing() -> None:
@@ -615,7 +629,7 @@ def test_nutriens_ifrs_direct_count_is_found_for_the_earlier_years_and_not_for_t
         "0001193125-25-041502",
         ShareCountPath.DIRECT,
     )
-    assert earlier.count.provider_field == "ifrs-full:NumberOfSharesOutstanding"
+    assert earlier.count.provider_field == SEC_DIRECT_COMMON_SHARES_FIELDS["ifrs-full"]
 
 
 @pytest.mark.parametrize("ticker", ["SAP", "WMT"])
