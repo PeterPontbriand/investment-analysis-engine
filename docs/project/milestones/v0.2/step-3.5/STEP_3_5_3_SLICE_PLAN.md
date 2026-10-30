@@ -39,8 +39,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | :--- | :--- | :--- | :--- |
 | 3.5.3a | [Slice plan and the nine-test calculator](#353a--slice-plan-and-the-nine-test-calculator) | Complete | 2026-10-29 |
 | 3.5.3b1 | [Shared year-end functions that need no new evidence](#353b1--shared-year-end-functions-that-need-no-new-evidence) | Complete | 2026-10-29 |
-| 3.5.3b2 | [Year-end discovery, share-count series and captured evidence](#353b2--year-end-discovery-share-count-series-and-captured-evidence) | Next | |
-| 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Planned | |
+| 3.5.3b2 | [Year-end discovery, share-count series and captured evidence](#353b2--year-end-discovery-share-count-series-and-captured-evidence) | Complete | 2026-10-30 |
+| 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Next | |
 | 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Planned | |
 | 3.5.3e | [Repetition checkpoint](#353e--repetition-checkpoint) | Planned | |
 
@@ -102,7 +102,7 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
 - **Scope:** `resolve_year_ends` and `resolve_share_count_series` of [E.2](#e2-shared-assembly-functions); the captured
   fixtures of [U4](#a5-decisions-u1-to-u6-2026-10-29); tests through the assembly functions ([D.2b](#d2b-353b2-tests)).
 - **Branch:** `feat/step-3-5-3b2-year-end-evidence`.
-- **Detail:** [files](#c3b-353b2-files), [tests](#d2b-353b2-tests) and [interfaces](#e2-shared-assembly-functions).
+- **Detail:** [files](#c3b-353b2-files), [tests](#d2b-353b2-tests), [interfaces](#e2-shared-assembly-functions), [decisions](#a6-decided-under-delegation-during-353b2) and [evidence](STEP_3_5_3_INPUT_EVIDENCE.md).
 
 ### 3.5.3c — Side-by-side text layout
 
@@ -270,6 +270,19 @@ Approved by the project owner before 3.5.3b began.
 | U5 | Live-network checks | None new. Year-end discovery and the share-count series read documents the adapter already fetches, and the SIC header request already has its live check. A sub-slice that finds it needs a new request type stops and asks. |
 | U6 | Proof of byte-identical outputs | Run `uv run python -m tests._direct_command_output`, `uv run python -m tests._strategy_document_output`, `uv run python -m tests._workspace_command_output` and `uv run python -m scripts.generate_schemas --check`, and report `git --no-pager diff --stat` showing that no stored output or schema changed. The existing tests of `resolve_balance_sheet_values` and `resolve_annual_values` stay unchanged and pass. |
 
+### A.6 Decided under delegation during 3.5.3b2
+
+Decided from captured evidence, failing closed, with explicit lists; the evidence is in
+[`STEP_3_5_3_INPUT_EVIDENCE.md`](STEP_3_5_3_INPUT_EVIDENCE.md). The project owner approved D2 before its code was written
+and confirmed D1 and D3 on 2026-10-30.
+
+| # | Topic | Decision and evidence |
+| :--- | :--- | :--- |
+| D1 | Field list for year-end discovery (Q2) | Net income, sales and operating cash flow, in that order: `YEAR_END_START_FIELDS` in `analysis/shared/metric_inputs.py`. On 12 issuers and every captured year the start dates of these three and of four other completed-annual fields agree, across all versions ([§4](STEP_3_5_3_INPUT_EVIDENCE.md#4-start-dates-by-field)). Monster tags no net income and gets both earlier year-ends from the other two. The prompt's wording "the shortest list that gives every captured issuer a start date" was corrected at review: the list needs at least two fields so that a disagreement between fields can be detected, and three give redundancy when one field is missing (Monster). Sales alone would already give every captured issuer a start date, which is why the wording needed correcting. |
+| D2 | How share counts are served at named year-ends (Q4) | Option 1: the instant series is extended to a shares unit for `COMMON_SHARES_OUTSTANDING` only. The reason is that it reuses the instant series' tested date selection, boundary and absence handling, while a separate share-count series (Option 2) would duplicate the resolver's series body. Scope was not the deciding factor. `INSTANT_SERIES_FIELDS` is unchanged and currency-only; the field is accepted through the separate constant `SHARE_COUNT_SERIES_FIELD` beside it, and one function, `instant_series_unit`, gives a series field's unit (shares for this field, currency for the rest, an error for any other). No other field has a shares unit. The latest-only `FinancialFactRequest` path, the cover-page path and the resolver are unchanged, and `resolve_balance_sheet_values_at` refuses the field with `ValueError` so a count cannot reach a currency metric. |
+| D3 | The Q5 measurement and its threshold (U3) | Through the real series, nine of the 12 issuers have a count at both *t* and *t−1* (JPM, PLD, DUK, DE, MRNA, MNST, GOOGL, HON, AAPL). Eight of the nine, 89%, have both from one filing; Deere's *t−1* count is from its previous annual report. All nine pairs are on the direct path. The threshold of three-quarters is not crossed and no issuer's two counts come by different paths ([§5](STEP_3_5_3_INPUT_EVIDENCE.md#5-share-counts-at-the-last-two-year-ends)). |
+| IFRS filer | Q14 | SAP, the default. Nutrien, the other IFRS filer, is also in the regression set, so both are captured already. Neither can give long-term debt (test 5), and neither has a count at *t* (test 7), so SAP is no worse a fit; Nutrien's fixture is used where a test needs the IFRS direct count. |
+
 ---
 
 ## Appendix B: Implementation record
@@ -310,12 +323,27 @@ Each sub-slice adds what it met. The earlier record of the same kind is
    must pass the adapter, not the resolver, which reaches the adapter only through the production provider. The guide
    names neither the protocol nor the composition step (3.5.3b1).
 
+6. **Capturing and using SEC fixtures.** The guide sends a reader to the evaluation documents for Golden fixtures and does
+   not describe the SEC adapter's own fixtures: the `instant_facts` and `annual_facts` folders (one trimmed Company Facts and
+   submissions document per issuer, each folder with a `SHA256SUMS` file), that a test needing both the balance-sheet and
+   the annual concepts of an issuer has to merge the two, or how a point-in-time capture is trimmed (3.5.3b2).
+7. **Adding a series to the SEC adapter.** The guide does not say that the production provider forwards each optional
+   provider capability by hand (`data/financial/production.py`), so a new request type needs an edit there; extending the
+   instant series avoided it, but a reader who needs a new capability is not told (3.5.3b2).
+
 ### B.3 Decisions of 3.5.3b to 3.5.3e
 
-3.5.3b2 summarizes here, in a few lines, the field list of Q2, the share-count evidence of Q4 and Q5 (how often *t−1*
-comes from the anchor filing) and the regression-set results, and links `STEP_3_5_3_INPUT_EVIDENCE.md`, which holds them
-([U2](#a5-decisions-u1-to-u6-2026-10-29)). 3.5.3e records the repetition review and the weighing
-of Site 19.
+3.5.3b2 (2026-10-30), evidence in [`STEP_3_5_3_INPUT_EVIDENCE.md`](STEP_3_5_3_INPUT_EVIDENCE.md)
+([U2](#a5-decisions-u1-to-u6-2026-10-29)); the decisions are in [A.6](#a6-decided-under-delegation-during-353b2):
+
+- The field list of Q2 is net income, sales and operating cash flow; the start dates of these and four other fields agree
+  on 12 issuers (D1).
+- Share counts are served through the instant series in shares; of nine issuers with a count at *t* and *t−1*, eight have
+  both from one filing, and all nine are on the direct path (D2, D3).
+- Apple's inputs, captured as of a boundary after its fiscal 2024 report, equal the September record's (the
+  [evidence §6](STEP_3_5_3_INPUT_EVIDENCE.md#6-apples-inputs-as-captured)).
+
+3.5.3e records the repetition review and the weighing of Site 19.
 
 ---
 
@@ -358,10 +386,17 @@ plan and the contract.
 
 ### C.3b 3.5.3b2 files
 
-`analysis/shared/metric_inputs.py` (year-end discovery and the share-count series); the SEC adapter and instant-series
-modules for the share-count paths and the start dates; `tests/analysis/shared/` for each; the captured fixtures of
-[U4](#a5-decisions-u1-to-u6-2026-10-29) and their checksum file; `STEP_3_5_3_INPUT_EVIDENCE.md`. The exact list is
-written when 3.5.3b2 begins, against the `main` of that day.
+| File | Change |
+| :--- | :--- |
+| `analysis/shared/metric_inputs.py` | `YearEnds`, `resolve_year_ends`, `resolve_share_count_series`, the constants `YEAR_END_START_FIELDS` and `YEAR_LENGTH_DAYS`; `resolve_balance_sheet_values_at` refuses the share-count field; the series lookup shared by the two series functions. |
+| `data/financial/facts.py` | `SHARE_COUNT_SERIES_FIELD`, `instant_series_unit`, and `InstantSeriesRequest` accepting the field. |
+| `data/sec_edgar/instant_series.py` | The share-count selector (direct, then issued less treasury from one filing); the related-concept tagging moved into `_note_related_concepts`, a pure move that kept `select_instant_series` under the branch limit. |
+| `evaluation/fixtures/sec_edgar/instant_facts/aapl.json`, `annual_facts/aapl.json` and the two `SHA256SUMS` | New: Apple as of a boundary after its fiscal 2024 report. |
+| `tests/analysis/shared/test_metric_inputs_year_ends.py`, `tests/data/test_instant_series_share_counts.py` | New. |
+| `tests/data/test_instant_series.py` | One assertion: `COMMON_SHARES_OUTSTANDING` leaves the fields the request refuses, and `PREFERRED_SHARES_OUTSTANDING` and `WEIGHTED_AVERAGE_DILUTED_SHARES` join them. |
+| `STEP_3_5_3_INPUT_EVIDENCE.md`, this plan, the contract, Shared definitions | New and amended. |
+
+`data/financial/resolver.py`, `data/financial/production.py` and `data/sec_edgar/financial_facts.py` are unchanged.
 
 ### C.4 3.5.3c files
 
@@ -412,9 +447,24 @@ Synthetic, through the existing rig and the assembly functions:
 
 ### D.2b 3.5.3b2 tests
 
-Through the assembly functions: a transition year that breaks the chain, a start date that is 334 or 396 days from the
-later year-end, a first-year registrant, and the share-count series with its paths. The stored outputs are compared byte
-for byte ([U6](#a5-decisions-u1-to-u6-2026-10-29)).
+`tests/analysis/shared/test_metric_inputs_year_ends.py`, through the assembly functions, on synthetic providers and on the
+captured fixtures (Apple, Monster, JPMorgan, Deere, Nutrien, SAP, Walmart, Alphabet), with expected values written from
+the captured documents:
+
+- year-end discovery: the derivation, a 52-week calendar, a first-year registrant, a transition period that breaks the
+  chain, a missing anchor period, a start date 334, 335, 395 and 396 days back at both steps, a disagreement between
+  fields and between versions of one field, only the latest version deciding, no listed field present, an issuer without
+  net income, a period filed after the boundary, nothing public at the boundary, a provider failure, and the order of
+  the provider's answer;
+- the share-count series: each path with its accession, counts from different filings and by different paths, a
+  provenance naming two filings or none, each absence reason, the shuffled order of dates and answer, a provider failure,
+  the multi-class rejection with no fallback, Monster's derived count, Nutrien's IFRS direct count, issuers with no
+  count, and `resolve_balance_sheet_values_at` refusing the field.
+
+`tests/data/test_instant_series_share_counts.py`: the request and `instant_series_unit`; the selector's paths, conflicts,
+non-positive counts, one-filing rule, IFRS, boundary and taxonomy; the label of a derived count equal to the latest-only
+path's; `resolve_instant_series` returning units `shares` with no currency; and the latest-only count unchanged. The stored
+outputs are compared byte for byte ([U6](#a5-decisions-u1-to-u6-2026-10-29)).
 
 ### D.3 3.5.3c tests
 
