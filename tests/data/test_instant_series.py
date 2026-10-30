@@ -165,7 +165,12 @@ def test_a_request_names_instant_fields_and_consecutive_fiscal_year_ends() -> No
     assert request.subject_id == "WMT"
     assert request.provider_id == "sec_edgar"
     assert request.period_ends == (_Y23, _Y24, _Y25)
-    for field in (FinancialField.EPS, FinancialField.COMMON_SHARES_OUTSTANDING, FinancialField.CURRENT_PRICE):
+    for field in (
+        FinancialField.EPS,
+        FinancialField.PREFERRED_SHARES_OUTSTANDING,
+        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES,
+        FinancialField.CURRENT_PRICE,
+    ):
         with pytest.raises(ValueError, match="not a balance-sheet field"):
             InstantSeriesRequest("WMT", field, "sec_edgar", (_Y25,))
     with pytest.raises(ValueError, match="at least one"):

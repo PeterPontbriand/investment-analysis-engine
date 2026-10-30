@@ -69,7 +69,15 @@ from investment_analysis_engine.data.sec_edgar.filing_header import (
     SicUnavailableReason,
     parse_filing_header,
 )
-from investment_analysis_engine.data.sec_edgar.instant_series import InstantSource, select_instant_series
+from investment_analysis_engine.data.sec_edgar.instant_series import (
+    IFRS_SHARES_OUTSTANDING_CONCEPT,
+    SEC_DERIVED_COMMON_SHARES_FIELD,
+    SHARES_ISSUED_CONCEPT,
+    TREASURY_SHARES_CONCEPT,
+    US_GAAP_SHARES_OUTSTANDING_CONCEPT,
+    InstantSource,
+    select_instant_series,
+)
 from investment_analysis_engine.data.sec_edgar.security_unit import (
     MAPPING_ID,
     UnitMappingError,
@@ -101,7 +109,6 @@ SEC_IFRS_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD = "ifrs-full:AdjustedWeightedAver
 SEC_IFRS_OPERATING_CASH_FLOW_FIELD = "ifrs-full:CashFlowsFromUsedInOperatingActivities"
 SEC_IFRS_CAPITAL_EXPENDITURES_FIELD = "ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"
 SEC_STOCKHOLDERS_EQUITY_FIELD = "us-gaap:StockholdersEquity"
-_SEC_DERIVED_COMMON_SHARES_FIELD = "derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares"
 SEC_COVER_PAGE_SHARES_FIELD = "dei:EntityCommonStockSharesOutstanding"
 _IFRS_FULL = "ifrs-full"
 _US_GAAP = "us-gaap"
@@ -143,7 +150,7 @@ _MAX_ANNUAL_DURATION_DAYS = 395
 _BALANCE_SHEET_FORMS = frozenset({"10-K", "10-K/A"})
 _BALANCE_SHEET_FIELDS: Mapping[FinancialField, tuple[str, FinancialUnit]] = {
     FinancialField.STOCKHOLDERS_EQUITY: ("StockholdersEquity", FinancialUnit.CURRENCY),
-    FinancialField.COMMON_SHARES_OUTSTANDING: ("CommonStockSharesOutstanding", FinancialUnit.SHARES),
+    FinancialField.COMMON_SHARES_OUTSTANDING: (US_GAAP_SHARES_OUTSTANDING_CONCEPT, FinancialUnit.SHARES),
     FinancialField.PREFERRED_SHARES_OUTSTANDING: ("PreferredStockSharesOutstanding", FinancialUnit.SHARES),
 }
 
@@ -2425,7 +2432,7 @@ def _common_shares_facts(
         acceptance_by_accession=acceptance_by_accession,
         retrieved_at=retrieved_at,
         namespace=_IFRS_FULL,
-        concept_override="NumberOfSharesOutstanding",
+        concept_override=IFRS_SHARES_OUTSTANDING_CONCEPT,
     )
     selected_direct = _select_latest_balance_sheet_fact(direct, request=request, now=now)
     if selected_direct:
@@ -2434,7 +2441,7 @@ def _common_shares_facts(
     issued = _select_latest_share_observation(
         _share_concept_observations(
             payload,
-            concept_name="CommonStockSharesIssued",
+            concept_name=SHARES_ISSUED_CONCEPT,
             acceptance_by_accession=acceptance_by_accession,
             retrieved_at=retrieved_at,
         ),
@@ -2444,7 +2451,7 @@ def _common_shares_facts(
     treasury = _select_latest_share_observation(
         _share_concept_observations(
             payload,
-            concept_name="TreasuryStockCommonShares",
+            concept_name=TREASURY_SHARES_CONCEPT,
             acceptance_by_accession=acceptance_by_accession,
             retrieved_at=retrieved_at,
         ),
@@ -2473,7 +2480,7 @@ def _common_shares_facts(
             value=derived_value,
             units=FinancialUnit.SHARES,
             provider_id=SEC_PROVIDER_ID,
-            provider_field=_SEC_DERIVED_COMMON_SHARES_FIELD,
+            provider_field=SEC_DERIVED_COMMON_SHARES_FIELD,
             retrieved_at=max(issued_fact.retrieved_at, treasury_fact.retrieved_at),
             basis="fiscal_year_end",
             observation_period_end=issued_fact.observation_period_end,
@@ -2652,7 +2659,7 @@ def _preferred_shares_facts(  # noqa: PLR0911
         return ()
 
     if not neutral_concepts:
-        if common_fact.provider_field != _SEC_DERIVED_COMMON_SHARES_FIELD:
+        if common_fact.provider_field != SEC_DERIVED_COMMON_SHARES_FIELD:
             return ()
         evidence_pattern = "no preferred/preference concepts plus same-period issued-minus-treasury common shares"
     else:

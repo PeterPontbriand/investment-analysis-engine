@@ -16,6 +16,7 @@ from datetime import UTC, date, datetime, time
 from typing import Final
 
 from investment_analysis_engine.data.financial.facts import (
+    SHARE_COUNT_SERIES_FIELD,
     FinancialField,
     FinancialUnit,
     InstantAbsence,
@@ -24,6 +25,8 @@ from investment_analysis_engine.data.financial.facts import (
     InstantSeriesRequest,
     ProviderAmountSource,
     ProviderFact,
+    ProviderShareSource,
+    instant_series_unit,
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, PeriodKind
 
@@ -153,6 +156,9 @@ class _Observation:
 def select_instant_series(request: InstantSeriesRequest, source: InstantSource) -> InstantSeriesFacts:
     """Return the value at each requested year-end, and the year-ends with none.
 
+    The common share count is selected by ``_select_share_counts`` and is a count of shares, not an amount; every other
+    field is a currency amount.
+
     A year-end after the boundary is absent. The concept is chosen once for the run, as the first listed concept with a
     value at any requested year-end; a year-end that concept does not cover is absent even where another listed
     concept covers it. Where two eligible filings report a year-end, the newest filing's value is used, and two
@@ -165,6 +171,8 @@ def select_instant_series(request: InstantSeriesRequest, source: InstantSource) 
         return InstantSeriesFacts(absences=_ordered(absences))
     namespace = source.taxonomy
     assert namespace is not None
+    if request.field_name is SHARE_COUNT_SERIES_FIELD:
+        return _select_share_counts(request, source, namespace, pending, absences)
     concepts = (US_GAAP_CONCEPTS if namespace == US_GAAP else IFRS_CONCEPTS)[request.field_name]
     derivable = namespace == US_GAAP and request.field_name is FinancialField.TOTAL_LIABILITIES
     if not concepts:
@@ -197,6 +205,226 @@ def select_instant_series(request: InstantSeriesRequest, source: InstantSource) 
         absences[day] = (
             derived if isinstance(derived, InstantAbsence) else _missing(day, concepts, chosen, by_concept, namespace)
         )
+    _note_related_concepts(request, source, namespace, facts, absences)
+    return _one_currency(request, InstantSeriesFacts(facts=tuple(facts.values()), absences=_ordered(absences)))
+
+
+# The common share count's two paths, for the series and for the latest-only path alike. The direct concept is read per
+# taxonomy; the derived path (issued less treasury shares) is offered for US GAAP only. The provider fields are what a
+# count is labelled with, and the only ones a consumer may recognise as a share count.
+US_GAAP_SHARES_OUTSTANDING_CONCEPT: Final = "CommonStockSharesOutstanding"
+IFRS_SHARES_OUTSTANDING_CONCEPT: Final = "NumberOfSharesOutstanding"
+SHARES_ISSUED_CONCEPT: Final = "CommonStockSharesIssued"
+TREASURY_SHARES_CONCEPT: Final = "TreasuryStockCommonShares"
+SEC_DIRECT_COMMON_SHARES_FIELDS: Final[Mapping[str, str]] = {
+    US_GAAP: f"{US_GAAP}:{US_GAAP_SHARES_OUTSTANDING_CONCEPT}",
+    IFRS_FULL: f"{IFRS_FULL}:{IFRS_SHARES_OUTSTANDING_CONCEPT}",
+}
+"""The provider field of a directly reported common share count, by taxonomy."""
+SEC_DERIVED_COMMON_SHARES_FIELD: Final = (
+    f"derived:{US_GAAP}:{SHARES_ISSUED_CONCEPT}-{US_GAAP}:{TREASURY_SHARES_CONCEPT}"
+)
+"""The provider field of a common share count derived as issued less treasury shares."""
+_DIRECT_SHARE_CONCEPT: Final[Mapping[str, str]] = {
+    US_GAAP: US_GAAP_SHARES_OUTSTANDING_CONCEPT,
+    IFRS_FULL: IFRS_SHARES_OUTSTANDING_CONCEPT,
+}
+_SHARES_UNIT: Final = "shares"
+_SHARES_DERIVATION: Final = "common shares issued - treasury common shares"
+
+
+def _share_observations(source: InstantSource, namespace: str, concept_name: str) -> _Concept:
+    """Read the share instants of one concept from the eligible annual filings.
+
+    ``_Observation.currency`` holds the unit name (``shares``) for these.
+    """
+    observations = _concept_units(source.company_facts, namespace, concept_name).get(_SHARES_UNIT)
+    usable: list[_Observation] = []
+    other: list[_Observation] = []
+    if isinstance(observations, Sequence) and not isinstance(observations, (str, bytes)):
+        for raw in observations:
+            parsed = _parse(raw, _SHARES_UNIT, source)
+            if parsed is None:
+                continue
+            same = source.accession_taxonomies.get(parsed.accession, frozenset()) == frozenset({namespace})
+            (usable if same else other).append(parsed)
+    return _Concept(usable=tuple(usable), other_taxonomy=tuple(other))
+
+
+def _select_share_counts(
+    request: InstantSeriesRequest,
+    source: InstantSource,
+    namespace: str,
+    pending: Sequence[date],
+    absences: dict[date, InstantAbsence],
+) -> InstantSeriesFacts:
+    """Return the common share count at each pending year-end, by the direct path else issued less treasury.
+
+    At a date the direct count is the newest filing's value, and two values of equal priority that disagree (the
+    classes of a multi-class issuer) make the date absent as a conflict, with no fallback to the derived path. Only
+    where no direct count is tagged is issued less treasury taken, from the newest single filing that tags both at the
+    date; terms of different filings are never mixed. A count is never taken from another date.
+    """
+    direct = _share_observations(source, namespace, _DIRECT_SHARE_CONCEPT[namespace])
+    derivable = namespace == US_GAAP
+    issued = _share_observations(source, US_GAAP, SHARES_ISSUED_CONCEPT) if derivable else None
+    treasury = _share_observations(source, US_GAAP, TREASURY_SHARES_CONCEPT) if derivable else None
+    facts: dict[date, ProviderFact] = {}
+    for day in pending:
+        result = _select_at(direct.usable, day)
+        if isinstance(result, _Observation) and result.value <= 0:
+            absences[day] = _absence(
+                day,
+                InstantAbsenceReason.CONFLICT,
+                f"The reported count {SEC_DIRECT_COMMON_SHARES_FIELDS[namespace]} at {day} is not positive.",
+            )
+            continue
+        if isinstance(result, _Observation):
+            facts[day] = _direct_share_fact(request, source, namespace, result)
+            continue
+        if result is _CONFLICT:
+            absences[day] = _absence(
+                day,
+                InstantAbsenceReason.CONFLICT,
+                f"Eligible filings disagree on {SEC_DIRECT_COMMON_SHARES_FIELDS[namespace]} at {day}.",
+            )
+            continue
+        derived = (
+            _derive_share_count(request, source, issued.usable, treasury.usable, day)
+            if issued is not None and treasury is not None
+            else None
+        )
+        if isinstance(derived, ProviderFact):
+            facts[day] = derived
+        elif isinstance(derived, InstantAbsence):
+            absences[day] = derived
+        else:
+            absences[day] = _missing_share_count(day, namespace, direct, issued, treasury)
+    return InstantSeriesFacts(facts=tuple(facts.values()), absences=_ordered(absences))
+
+
+def _share_fact(  # noqa: PLR0913
+    request: InstantSeriesRequest,
+    source: InstantSource,
+    *,
+    value: float,
+    provider_field: str,
+    day: date,
+    accession: str,
+    available_at: datetime,
+    notes: tuple[str, ...],
+    sources: tuple[ProviderShareSource, ...] = (),
+) -> ProviderFact:
+    """Build a share-count fact: units ``shares``, no currency, the filing it came from in its notes."""
+    return ProviderFact(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id=request.subject_id,
+        field_name=request.field_name,
+        value=value,
+        units=instant_series_unit(request.field_name),
+        provider_id=SEC_PROVIDER_ID,
+        provider_field=provider_field,
+        retrieved_at=source.retrieved_at,
+        basis="fiscal_year_end",
+        observation_period_end=_end_of(day),
+        available_at=available_at,
+        period_kind=PeriodKind.INSTANT,
+        source_facts=sources,
+        source_transformation=_SHARES_DERIVATION if sources else None,
+        notes=(f"accession={accession}", *notes, "available_at uses EDGAR acceptanceDateTime"),
+        provider_fact_id=f"{accession}:{provider_field}:{_SHARES_UNIT}:{day.isoformat()}",
+    )
+
+
+def _direct_share_fact(
+    request: InstantSeriesRequest, source: InstantSource, namespace: str, item: _Observation
+) -> ProviderFact:
+    """Build the fact of a directly reported count."""
+    return _share_fact(
+        request,
+        source,
+        value=item.value,
+        provider_field=SEC_DIRECT_COMMON_SHARES_FIELDS[namespace],
+        day=item.end,
+        accession=item.accession,
+        available_at=item.available_at,
+        notes=(f"form={item.form}", "definition=period-end common stock shares outstanding; reported directly"),
+    )
+
+
+def _derive_share_count(
+    request: InstantSeriesRequest,
+    source: InstantSource,
+    issued: Sequence[_Observation],
+    treasury: Sequence[_Observation],
+    day: date,
+) -> ProviderFact | InstantAbsence | None:
+    """Derive issued less treasury shares at ``day`` from one filing, or return ``None`` when no filing tags both."""
+    accessions = sorted(
+        {item.accession for item in issued if item.end == day}
+        & {item.accession for item in treasury if item.end == day},
+        key=lambda accession: source.acceptance_by_accession[accession],
+        reverse=True,
+    )
+    if not accessions:
+        return None
+    accession = accessions[0]
+    first, second = _one_value(issued, accession, day), _one_value(treasury, accession, day)
+    if not isinstance(first, _Observation) or not isinstance(second, _Observation):
+        return _absence(day, InstantAbsenceReason.CONFLICT, f"The terms of the share count disagree at {day}.")
+    value = first.value - second.value
+    if first.value <= 0 or second.value < 0 or value <= 0:
+        return _absence(day, InstantAbsenceReason.CONFLICT, f"The derived share count at {day} is not positive.")
+    sources = tuple(
+        ProviderShareSource(
+            subject_id=request.subject_id,
+            provider_id=SEC_PROVIDER_ID,
+            provider_field=f"{US_GAAP}:{name}",
+            value=term.value,
+            retrieved_at=source.retrieved_at,
+            observation_period_end=_end_of(day),
+            available_at=term.available_at,
+            provider_fact_id=f"{accession}:{US_GAAP}:{name}:{_SHARES_UNIT}:{day.isoformat()}",
+        )
+        for name, term in ((SHARES_ISSUED_CONCEPT, first), (TREASURY_SHARES_CONCEPT, second))
+    )
+    return _share_fact(
+        request,
+        source,
+        value=value,
+        provider_field=SEC_DERIVED_COMMON_SHARES_FIELD,
+        day=day,
+        accession=accession,
+        available_at=first.available_at,
+        notes=(f"derivation={_SHARES_DERIVATION}", "every term tagged at the same date in the same filing"),
+        sources=sources,
+    )
+
+
+def _missing_share_count(
+    day: date, namespace: str, direct: _Concept, issued: _Concept | None, treasury: _Concept | None
+) -> InstantAbsence:
+    """Say why a date has no share count."""
+    concepts = [direct, *(item for item in (issued, treasury) if item is not None)]
+    if any(item.end == day for concept in concepts for item in concept.other_taxonomy):
+        return _absence(
+            day,
+            InstantAbsenceReason.BASIS_MISMATCH,
+            f"Only a filing on another taxonomy than {namespace} reports a share count at {day}.",
+        )
+    return _absence(
+        day, InstantAbsenceReason.NOT_TAGGED, f"No {namespace} share count, direct or issued less treasury, at {day}."
+    )
+
+
+def _note_related_concepts(
+    request: InstantSeriesRequest,
+    source: InstantSource,
+    namespace: str,
+    facts: dict[date, ProviderFact],
+    absences: dict[date, InstantAbsence],
+) -> None:
+    """Record, on each absence and fact, the related concept the evidence lists for the field that is tagged there."""
     related = IFRS_RELATED if namespace == IFRS_FULL else US_GAAP_RELATED
     for day, absence in list(absences.items()):
         if absence.reason in {InstantAbsenceReason.NOT_TAGGED, InstantAbsenceReason.OTHER_CONCEPT}:
@@ -207,7 +435,6 @@ def select_instant_series(request: InstantSeriesRequest, source: InstantSource) 
         found = _related_tagged(source, namespace, related.get(request.field_name, ()), day)
         if found is not None:
             facts[day] = replace(fact, notes=(*fact.notes, f"related_concept_tagged={found}"))
-    return _one_currency(request, InstantSeriesFacts(facts=tuple(facts.values()), absences=_ordered(absences)))
 
 
 def _related_tagged(source: InstantSource, namespace: str, concepts: tuple[str, ...], day: date) -> str | None:

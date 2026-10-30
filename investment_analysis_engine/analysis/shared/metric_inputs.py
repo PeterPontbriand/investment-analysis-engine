@@ -32,7 +32,12 @@ from investment_analysis_engine.analysis.shared.market_cap import (
     compute_market_cap,
     listing_check_from_resolution,
 )
-from investment_analysis_engine.analysis.shared.metric_evidence import AnnualValue, BalanceSheetValue, InputUnavailable
+from investment_analysis_engine.analysis.shared.metric_evidence import (
+    AnnualValue,
+    BalanceSheetValue,
+    InputUnavailable,
+    absence_reason_code,
+)
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
@@ -40,6 +45,9 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     COVER_PAGE_BASIS,
+    MAX_YEAR_END_GAP_DAYS,
+    MIN_YEAR_END_GAP_DAYS,
+    SHARE_COUNT_SERIES_FIELD,
     FinancialFactRequest,
     FinancialField,
     FinancialProviderError,
@@ -53,6 +61,7 @@ from investment_analysis_engine.data.financial.provenance import (
     ResolvedInput,
 )
 from investment_analysis_engine.data.financial.resolver import (
+    AnnualSeriesResolution,
     InputResolutionResult,
     InputResolver,
     InstantSeriesResolution,
@@ -77,6 +86,10 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     AnchorYearEndRequest,
     AnchorYearEndUnavailableReason,
 )
+from investment_analysis_engine.data.sec_edgar.instant_series import (
+    SEC_DERIVED_COMMON_SHARES_FIELD,
+    SEC_DIRECT_COMMON_SHARES_FIELDS,
+)
 
 SPLIT_HISTORY_MARGIN_DAYS: Final = 10
 """Calendar days the split-history request starts before the date the share count is scaled from.
@@ -89,6 +102,18 @@ requested range.
 _YEAR_END_BASIS = "fiscal_year_end"
 _ANNUAL_BASIS = "fiscal_year"
 _ASSEMBLED_ANNUAL_FIELDS = ANNUAL_PERIOD_FIELDS | {FinancialField.OPERATING_CASH_FLOW}
+
+YEAR_END_START_FIELDS: Final = (
+    FinancialField.NET_INCOME,
+    FinancialField.SALES,
+    FinancialField.OPERATING_CASH_FLOW,
+)
+"""The completed-annual fields whose period start dates give the year-ends before the anchor, in priority order.
+
+Every listed field that reports a year must give the same start date for it. Two fields are the least that lets a
+disagreement be seen, and three keep a year-end available when one is not tagged (Monster tags no net income). All
+three agreed on every year of every captured issuer (``STEP_3_5_3_INPUT_EVIDENCE.md``).
+"""
 
 
 @dataclass(frozen=True)
@@ -277,17 +302,26 @@ def _anchor_in_scope(resolver: InputResolver, ticker: str) -> AnchorYearEnd | In
     return _unavailable_year_end(resolution.reason, resolution.message)
 
 
-def _source_filing_date(count: ResolvedInput, anchor: AnchorYearEnd) -> date | None:
-    """Return the filing date of the one filing a year-end count was taken from, or ``None`` when it is not dated."""
-    accessions = {
+def _accessions(count: ResolvedInput) -> frozenset[str]:
+    """Return the accessions the notes of ``count`` name."""
+    return frozenset(
         piece.split("=", 1)[1].strip()
         for note in count.notes
         for piece in note.split(";")
         if piece.strip().startswith("accession=")
-    }
-    if len(accessions) != 1:
-        return None
-    return anchor.filing_dates.get(next(iter(accessions)))
+    )
+
+
+def _single_accession(count: ResolvedInput) -> str | None:
+    """Return the one accession the notes of ``count`` name, or ``None`` when they name none or several."""
+    accessions = _accessions(count)
+    return next(iter(accessions)) if len(accessions) == 1 else None
+
+
+def _source_filing_date(count: ResolvedInput, anchor: AnchorYearEnd) -> date | None:
+    """Return the filing date of the one filing a year-end count was taken from, or ``None`` when it is not dated."""
+    accession = _single_accession(count)
+    return None if accession is None else anchor.filing_dates.get(accession)
 
 
 def _count_request(ticker: str, basis: str, as_of: datetime | None) -> FinancialFactRequest:
@@ -567,31 +601,48 @@ def resolve_balance_sheet_values_at(
     year-end is never filled from another, and the values never depend on the order of ``fields`` or ``year_ends``.
 
     Raises:
-        ValueError: If no year-end is requested, or a field is not a balance-sheet field.
+        ValueError: If no year-end is requested, a field is not a balance-sheet field, or a field is the share count,
+            which is a count of shares and not an amount (``resolve_share_count_series`` serves it).
     """
     dates = _requested_dates(year_ends)
+    if SHARE_COUNT_SERIES_FIELD in fields:
+        raise ValueError(f"{SHARE_COUNT_SERIES_FIELD.value} is a share count, not a balance-sheet amount.")
     values: dict[FinancialField, Mapping[date, BalanceSheetValue]] = {}
     for name in _requested_fields(fields):
-        resolution = resolver.resolve_instant_series(
-            InstantSeriesRequest(ticker, name, SEC_PROVIDER_ID, dates, as_of=as_of)
-        )
-        if resolution.status not in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE):
-            record = resolution.provider_failure
-            return MetricInputsFailure(
-                name.value,
-                resolution.reason or "The provider's answer was rejected.",
-                None if record is None else record.for_input(name.value),
-            )
-        by_date = _instant_values(resolution, dates)
-        late = [
-            item
-            for item in by_date.values()
-            if isinstance(item, InstantAbsence) and item.reason is InstantAbsenceReason.AFTER_BOUNDARY
-        ]
-        if len(late) == len(dates):
-            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, late[0].detail)
+        by_date = _instant_series_by_date(resolver, ticker=ticker, name=name, dates=dates, as_of=as_of)
+        if isinstance(by_date, (InputUnavailable, MetricInputsFailure)):
+            return by_date
         values[name] = MappingProxyType(by_date)
     return MappingProxyType(values)
+
+
+def _instant_series_by_date(
+    resolver: InputResolver, *, ticker: str, name: FinancialField, dates: tuple[date, ...], as_of: datetime | None
+) -> dict[date, BalanceSheetValue] | InputUnavailable | MetricInputsFailure:
+    """Return one instant-series field at each date, or the failure, or ``not_available_as_of`` once for every date.
+
+    An absence because a year-end is after the boundary stays that date's absence; when every date is after it, the
+    registrant's annual filings all came after the boundary and the provider's message is returned once.
+    """
+    resolution = resolver.resolve_instant_series(
+        InstantSeriesRequest(ticker, name, SEC_PROVIDER_ID, dates, as_of=as_of)
+    )
+    if resolution.status not in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE):
+        record = resolution.provider_failure
+        return MetricInputsFailure(
+            name.value,
+            resolution.reason or "The provider's answer was rejected.",
+            None if record is None else record.for_input(name.value),
+        )
+    by_date = _instant_values(resolution, dates)
+    late = [
+        item
+        for item in by_date.values()
+        if isinstance(item, InstantAbsence) and item.reason is InstantAbsenceReason.AFTER_BOUNDARY
+    ]
+    if len(late) == len(dates):
+        return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, late[0].detail)
+    return by_date
 
 
 def resolve_balance_sheet_values(
@@ -688,6 +739,161 @@ def resolve_annual_values(
     if isinstance(outcome, (InputUnavailable, MetricInputsFailure)):
         return outcome
     return MappingProxyType({name: outcome[name][anchor.year_end] for name in dict.fromkeys(fields)})
+
+
+@dataclass(frozen=True)
+class YearEnds:
+    """The fiscal year-ends of the three years a multi-year consumer reads.
+
+    Attributes:
+        year_end: *t*, the anchor year-end.
+        prior: *t-1*, or why it is unavailable.
+        second_prior: *t-2*, or why it is unavailable; unavailable whenever ``prior`` is.
+    """
+
+    year_end: date
+    prior: date | InputUnavailable
+    second_prior: date | InputUnavailable
+
+    def __post_init__(self) -> None:
+        """Refuse a *t-2* when *t-1* is unavailable, since *t-2* is derived from *t-1*."""
+        if isinstance(self.prior, InputUnavailable) and not isinstance(self.second_prior, InputUnavailable):
+            raise ValueError("A second prior year-end cannot be known when the prior year-end is unavailable.")
+
+    def available_dates(self) -> tuple[date, ...]:
+        """Return the year-ends that are dates, newest first."""
+        return tuple(item for item in (self.year_end, self.prior, self.second_prior) if isinstance(item, date))
+
+
+def resolve_year_ends(
+    resolver: InputResolver, *, anchor: AnchorYearEnd, ticker: str, as_of: datetime | None
+) -> YearEnds | InputUnavailable | MetricInputsFailure:
+    """Return the anchor year-end *t* with *t-1* and *t-2*, each a date or the reason it is unavailable.
+
+    *t-1* is the day before the start of the completed annual period that ends at *t*; *t-2* is derived the same way
+    from the period that ends at *t-1*. The start date is read from the latest-available version of each field of
+    ``YEAR_END_START_FIELDS`` that reports the year: they must all give the same start (``ambiguous_fact`` if not), at
+    least one must report the year (``missing_fact`` if none does), and the derived year-end must lie
+    ``MIN_YEAR_END_GAP_DAYS`` to ``MAX_YEAR_END_GAP_DAYS`` before the later one (``incompatible_period`` if not). A
+    period that is not a completed annual period, such as a transition period, is not in the series, so it breaks the
+    chain: the year-end before it is unavailable for ``missing_fact`` and so is every earlier one. A year-end is never
+    taken from the submissions' report dates.
+
+    A registrant whose annual filings all came after the boundary is returned once, as ``not_available_as_of`` with the
+    provider's message.
+    """
+    series: dict[FinancialField, AnnualSeriesResolution] = {}
+    for name in YEAR_END_START_FIELDS:
+        request = FinancialFactRequest(
+            FinancialSubjectKind.SECURITY, ticker, name, SEC_PROVIDER_ID, basis=_ANNUAL_BASIS, as_of=as_of
+        )
+        resolution = resolver.resolve_annual_series(request)
+        if resolution.not_available_as_of:
+            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, resolution.reason or "")
+        if resolution.status not in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE):
+            record = resolution.provider_failure
+            return MetricInputsFailure(
+                name.value,
+                resolution.reason or "The provider's answer was rejected.",
+                None if record is None else record.for_input(name.value),
+            )
+        series[name] = resolution
+    prior = _prior_year_end(series, anchor.year_end)
+    second_prior = prior if isinstance(prior, InputUnavailable) else _prior_year_end(series, prior)
+    return YearEnds(anchor.year_end, prior, second_prior)
+
+
+def _prior_year_end(series: Mapping[FinancialField, AnnualSeriesResolution], year_end: date) -> date | InputUnavailable:
+    """Return the year-end before ``year_end`` from the start dates the listed fields give for the year ending then."""
+    starts: set[date] = set()
+    after_boundary: InputUnavailable | None = None
+    for name, resolution in series.items():
+        candidates = [
+            item
+            for item in resolution.inputs
+            if item.observation_period_end is not None
+            and item.observation_period_end.date() == year_end
+            and item.observation_period_start is not None
+            and item.available_at is not None
+        ]
+        if not candidates:
+            after_boundary = after_boundary or _left_out_at(resolution.left_out, year_end)
+            continue
+        newest = max(item.available_at for item in candidates if item.available_at is not None)
+        latest = {
+            item.observation_period_start.date()
+            for item in candidates
+            if item.available_at == newest and item.observation_period_start is not None
+        }
+        if len(latest) != 1:
+            return InputUnavailable(
+                ReasonCode.AMBIGUOUS_FACT,
+                f"The latest versions of {name.value} for the year ending {year_end} give different start dates.",
+            )
+        starts |= latest
+    names = ", ".join(name.value for name in series)
+    if len(starts) > 1:
+        return InputUnavailable(
+            ReasonCode.AMBIGUOUS_FACT,
+            f"The fields {names} give different start dates "
+            f"({', '.join(sorted(day.isoformat() for day in starts))}) for the year ending {year_end}.",
+        )
+    if not starts:
+        return after_boundary or InputUnavailable(
+            ReasonCode.MISSING_FACT, f"None of {names} reports a completed annual period ending {year_end}."
+        )
+    derived = next(iter(starts)) - timedelta(days=1)
+    gap = (year_end - derived).days
+    if not MIN_YEAR_END_GAP_DAYS <= gap <= MAX_YEAR_END_GAP_DAYS:
+        return InputUnavailable(
+            ReasonCode.INCOMPATIBLE_PERIOD,
+            f"The year ending {year_end} began after {derived}, {gap} days earlier; "
+            f"a fiscal year is {MIN_YEAR_END_GAP_DAYS} to {MAX_YEAR_END_GAP_DAYS} days.",
+        )
+    return derived
+
+
+def resolve_share_count_series(
+    resolver: InputResolver, *, ticker: str, year_ends: Sequence[date], as_of: datetime | None
+) -> Mapping[date, YearEndShareCount | InputUnavailable] | InputUnavailable | MetricInputsFailure:
+    """Return the common share count at each named year-end with its filing and path, or why there is none.
+
+    The count is the balance-sheet count at that year-end, by the direct path or issued less treasury shares from one
+    filing (Shared definitions §4); the cover-page count is never used. Each count carries the one accession its
+    provenance names, and a count whose provenance names none or several is unavailable. A year-end is never filled from
+    another, and the result does not depend on the order of ``year_ends`` or of the provider's answer. A registrant
+    whose annual filings all came after the boundary is returned once, as ``not_available_as_of``.
+
+    Raises:
+        ValueError: If no year-end is requested.
+    """
+    dates = _requested_dates(year_ends)
+    by_date = _instant_series_by_date(resolver, ticker=ticker, name=SHARE_COUNT_SERIES_FIELD, dates=dates, as_of=as_of)
+    if isinstance(by_date, (InputUnavailable, MetricInputsFailure)):
+        return by_date
+    return MappingProxyType({day: _year_end_share_count(item) for day, item in by_date.items()})
+
+
+def _year_end_share_count(item: BalanceSheetValue) -> YearEndShareCount | InputUnavailable:
+    """Return the count as a ``YearEndShareCount``, or the reason it is unavailable."""
+    if isinstance(item, InstantAbsence):
+        return InputUnavailable(absence_reason_code(item.reason), item.detail)
+    accessions = _accessions(item)
+    if len(accessions) != 1:
+        return InputUnavailable(
+            ReasonCode.AMBIGUOUS_FACT if accessions else ReasonCode.MISSING_FACT,
+            "The share count does not name exactly one filing it was taken from.",
+        )
+    if item.provider_field == SEC_DERIVED_COMMON_SHARES_FIELD:
+        path = ShareCountPath.ISSUED_LESS_TREASURY
+    elif item.provider_field in SEC_DIRECT_COMMON_SHARES_FIELDS.values():
+        path = ShareCountPath.DIRECT
+    else:
+        return InputUnavailable(
+            ReasonCode.MISSING_FACT,
+            f"The share count's provider field {item.provider_field!r} is neither a direct nor a derived share count.",
+        )
+    return YearEndShareCount(item, next(iter(accessions)), path)
 
 
 class AsFiledSicSource(Protocol):

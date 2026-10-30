@@ -211,6 +211,27 @@ INSTANT_SERIES_FIELDS = frozenset(
     }
 )
 
+# The one share count an instant series also serves: the common shares outstanding at a fiscal year-end. It is a count
+# of shares, so a series for it carries ``FinancialUnit.SHARES`` and no currency. It is kept out of
+# ``INSTANT_SERIES_FIELDS``, which is currency-only, so the latest-only ``FinancialFactRequest`` for the field and its
+# unit are unchanged.
+SHARE_COUNT_SERIES_FIELD = FinancialField.COMMON_SHARES_OUTSTANDING
+
+
+def instant_series_unit(field_name: FinancialField) -> FinancialUnit:
+    """Return the unit an instant series carries for ``field_name``: shares for the share count, else currency.
+
+    Raises:
+        ValueError: If the field is not served by an instant series.
+    """
+    if field_name is SHARE_COUNT_SERIES_FIELD:
+        return FinancialUnit.SHARES
+    if field_name in INSTANT_SERIES_FIELDS:
+        return FinancialUnit.CURRENCY
+    msg = f"{field_name.name} is not served by an instant series."
+    raise ValueError(msg)
+
+
 # Income-statement and cash-flow amounts of a completed fiscal year, served by the completed-annual series request.
 ANNUAL_PERIOD_FIELDS = frozenset(
     {
@@ -236,8 +257,10 @@ COVER_PAGE_BASIS = "cover_page"
 
 # Consecutive fiscal year-ends are a year apart, give or take the 52/53-week variation of a fiscal calendar. The
 # bounds are those of the completed-annual duration tolerance, so a quarter-end or a stub date is never a neighbor.
-_MIN_YEAR_END_GAP_DAYS = 335
-_MAX_YEAR_END_GAP_DAYS = 395
+MIN_YEAR_END_GAP_DAYS = 335
+"""The fewest days between consecutive fiscal year-ends, or between a year-end and the one derived before it."""
+MAX_YEAR_END_GAP_DAYS = 395
+"""The most days between consecutive fiscal year-ends, or between a year-end and the one derived before it."""
 
 # These provider-neutral fields support requests for multiple completed annual
 # observations. Provider-specific eligibility and identity rules remain in the
@@ -378,7 +401,7 @@ class InstantSeriesRequest:
 
     Attributes:
         subject_id: Security symbol (normalized).
-        field_name: One of ``INSTANT_SERIES_FIELDS``.
+        field_name: One of ``INSTANT_SERIES_FIELDS``, or ``SHARE_COUNT_SERIES_FIELD`` (a count of shares).
         provider_id: Non-empty provider identifier (normalized lowercase).
         period_ends: At least one fiscal year-end; consecutive year-ends are a year apart within the annual-duration
             tolerance, so a quarter-end, a year-to-date date or a stub date is refused.
@@ -393,7 +416,7 @@ class InstantSeriesRequest:
 
     def __post_init__(self) -> None:
         """Normalize identifiers and validate the field, the boundary and the dates."""
-        if self.field_name not in INSTANT_SERIES_FIELDS:
+        if self.field_name not in INSTANT_SERIES_FIELDS and self.field_name is not SHARE_COUNT_SERIES_FIELD:
             msg = f"{self.field_name.name} is not a balance-sheet field served by an instant series."
             raise ValueError(msg)
         if self.as_of is not None:
@@ -403,7 +426,7 @@ class InstantSeriesRequest:
             raise ValueError("period_ends must name at least one fiscal year-end.")
         for earlier, later in zip(ordered, ordered[1:], strict=False):
             gap = (later - earlier).days
-            if not _MIN_YEAR_END_GAP_DAYS <= gap <= _MAX_YEAR_END_GAP_DAYS:
+            if not MIN_YEAR_END_GAP_DAYS <= gap <= MAX_YEAR_END_GAP_DAYS:
                 msg = f"period_ends must be consecutive fiscal year-ends ({earlier} and {later} are {gap} days apart)."
                 raise ValueError(msg)
         object.__setattr__(self, "subject_id", _normalize_subject_id(FinancialSubjectKind.SECURITY, self.subject_id))

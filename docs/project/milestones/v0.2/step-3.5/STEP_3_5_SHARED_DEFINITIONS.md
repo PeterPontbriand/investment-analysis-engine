@@ -132,7 +132,8 @@ boundary, or when the data-quality check fails; `provider_error` when the market
   needs several year-ends requests each exact date and never reuses the newest one.
 - **Prior year-ends:** year-end *t−1* is the day before the reported start date of year *t*'s completed annual period,
   and *t−2* is derived the same way from year *t−1*'s period. The start date is read from an explicit, strategy-neutral
-  priority list of completed-annual fields; every listed field present for that year must give the same start date,
+  priority list of completed-annual fields (`YEAR_END_START_FIELDS` in `analysis/shared/metric_inputs.py`: net income, sales
+  and operating cash flow); every listed field present for that year must give the same start date,
   otherwise that year-end is `unavailable` with `ambiguous_fact`, and when no listed field is present it is `unavailable`
   with `missing_fact`. The derived date must be 335
   to 395 days before the later year-end. A transition or stub year is not a completed annual period: it breaks the chain,
