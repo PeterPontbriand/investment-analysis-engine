@@ -82,13 +82,24 @@ def test_every_reason_the_sic_is_unavailable_is_an_unknown_class_naming_that_rea
     assert reason.value in outcome.unknown.reason
 
 
-def test_no_active_scope_is_an_unknown_class_not_an_error() -> None:
-    outcome = resolve_industry_class(
-        _Source(AsFiledSicResolution(reason=SicUnavailableReason.NO_ANCHOR_FILING)), ticker="JPM", as_of=None
-    )
+@pytest.mark.parametrize(
+    "reason",
+    [
+        SicUnavailableReason.NO_ANALYSIS_SCOPE,
+        SicUnavailableReason.SCOPE_MISMATCH,
+        SicUnavailableReason.NO_ANCHOR_FILING,
+    ],
+)
+def test_no_scope_a_mismatched_scope_and_no_anchor_filing_are_each_an_unknown_class_with_their_own_reason(
+    reason: SicUnavailableReason,
+) -> None:
+    outcome = resolve_industry_class(_Source(AsFiledSicResolution(reason=reason)), ticker="JPM", as_of=None)
     assert isinstance(outcome, IndustryClassResolution)
     assert outcome.unknown is not None
-    assert "no_anchor_filing" in outcome.unknown.reason
+    assert reason.value in outcome.unknown.reason
+    assert {r.value for r in SicUnavailableReason if r is not reason}.isdisjoint(
+        {word.strip("().") for word in outcome.unknown.reason.split()}
+    )
 
 
 @pytest.mark.parametrize("kind", [ProviderFailureKind.UNREACHABLE, ProviderFailureKind.RATE_LIMITED])

@@ -24,7 +24,8 @@ class SicUnavailableReason(StrEnum):
     """Why an as-filed SIC code could not be established for an anchor filing.
 
     ``NO_ANCHOR_FILING`` says SEC EDGAR has no CIK for the ticker. ``ACCEPTED_AFTER_BOUNDARY`` says the anchor filing,
-    or every annual filing of the registrant, was accepted after the boundary.
+    or every annual filing of the registrant, was accepted after the boundary. ``NO_ANALYSIS_SCOPE`` says no SEC
+    analysis scope is active. ``SCOPE_MISMATCH`` says the active scope is for another ticker or another boundary.
     """
 
     NO_ANCHOR_FILING = "no_anchor_filing"
@@ -38,6 +39,8 @@ class SicUnavailableReason(StrEnum):
     FILING_DATE_UNAVAILABLE = "filing_date_unavailable"
     FILING_DATE_MISMATCH = "filing_date_mismatch"
     ACCEPTED_AFTER_BOUNDARY = "accepted_after_boundary"
+    NO_ANALYSIS_SCOPE = "no_analysis_scope"
+    SCOPE_MISMATCH = "scope_mismatch"
 
 
 @dataclass(frozen=True)
