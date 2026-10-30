@@ -11,8 +11,10 @@ from typing import Any
 import pytest
 
 from investment_analysis_engine.analysis.shared.metric_evidence import InputUnavailable, MetricEvidence, Operand
+from investment_analysis_engine.analysis.shared.metric_inputs import ShareCountPath, YearEndShareCount
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
+from investment_analysis_engine.data.sec_edgar.financial_facts import _SEC_DERIVED_COMMON_SHARES_FIELD
 from investment_analysis_engine.strategies.piotroski_calculation import (
     CheckOutcome,
     Completeness,
@@ -20,8 +22,6 @@ from investment_analysis_engine.strategies.piotroski_calculation import (
     PiotroskiInputs,
     PiotroskiScoreResult,
     PiotroskiTestResult,
-    ShareCount,
-    ShareCountPath,
     calculate_f_score,
 )
 from tests._sec_instants import NOW
@@ -56,7 +56,9 @@ BASE: dict[str, float] = {
 def fact(name: str, value: float, *, currency: str | None = "USD", field: str | None = None) -> ResolvedInput:
     """Return a resolved input of ``value``, under us-gaap unless ``field`` names another concept."""
     return replace(
-        synthetic(name, float(value)), currency=currency, provider_field=field if field else f"us-gaap:{name}"
+        synthetic(name, float(value)),
+        currency=currency,
+        provider_field=field if field else "us-gaap:" + "".join(word.capitalize() for word in name.split("_")),
     )
 
 
@@ -67,9 +69,9 @@ def evidence(name: str, value: float) -> MetricEvidence:
 
 def share_count(
     name: str, value: float, *, accession: str = ACCESSION, path: ShareCountPath = ShareCountPath.DIRECT
-) -> ShareCount:
+) -> YearEndShareCount:
     """Return a share count of ``value`` taken from ``accession`` by ``path``."""
-    return ShareCount(fact(name, value, currency=None), accession, path)
+    return YearEndShareCount(fact(name, value, currency=None), accession, path)
 
 
 def _build(name: str, value: Any) -> Any:
@@ -491,7 +493,7 @@ def test_a_us_gaap_and_ifrs_full_mix_makes_the_affected_tests_unavailable() -> N
 
 
 def test_share_counts_on_different_taxonomies_make_the_dilution_test_unavailable() -> None:
-    ifrs = ShareCount(
+    ifrs = YearEndShareCount(
         fact("shares_t", 100, currency=None, field="ifrs-full:NumberOfSharesOutstanding"),
         ACCESSION,
         ShareCountPath.DIRECT,
@@ -507,35 +509,63 @@ def test_an_operand_with_no_supported_taxonomy_makes_its_tests_unavailable() -> 
     assert result.tests[0].reason_code is ReasonCode.INCOMPATIBLE_SCOPE
 
 
-def test_a_derived_share_count_takes_its_taxonomy_from_its_components() -> None:
+def _derived_count(name: str, provider_field: str | None) -> YearEndShareCount:
+    """Return an issued-less-treasury count labelled as the adapter labels one, or with ``provider_field`` instead."""
     issued, treasury = fact("issued", 120, currency=None), fact("treasury", 20, currency=None)
     derived = replace(
-        synthetic("shares_t", 100.0),
+        synthetic(name, 100.0),
         source_kind=SourceKind.DERIVED,
         currency=None,
-        provider_field=None,
+        provider_field=provider_field,
         lineage=ComponentLineage("issued less treasury", (issued, treasury)),
         resolved_at=NOW,
     )
-    both = calculate_f_score(
+    return YearEndShareCount(derived, ACCESSION, ShareCountPath.ISSUED_LESS_TREASURY)
+
+
+def test_a_derived_share_count_with_the_adapters_provider_field_has_a_taxonomy() -> None:
+    result = calculate_f_score(
         make(
-            shares_t=ShareCount(derived, ACCESSION, ShareCountPath.ISSUED_LESS_TREASURY),
-            shares_t1=share_count("shares_t1", 100, path=ShareCountPath.ISSUED_LESS_TREASURY),
+            shares_t=_derived_count("shares_t", _SEC_DERIVED_COMMON_SHARES_FIELD),
+            shares_t1=_derived_count("shares_t1", _SEC_DERIVED_COMMON_SHARES_FIELD),
         )
     )
-    assert both.tests[6].outcome is PASS
-    mixed = replace(
-        derived,
-        lineage=ComponentLineage(
-            "issued less treasury", (issued, fact("treasury", 20, currency=None, field="ifrs-full:TreasuryShares"))
-        ),
+    assert result.tests[6].outcome is PASS
+
+
+def test_a_derived_share_count_against_a_direct_one_is_a_path_conflict_not_a_taxonomy_conflict() -> None:
+    result = calculate_f_score(make(shares_t=_derived_count("shares_t", _SEC_DERIVED_COMMON_SHARES_FIELD)))
+    assert result.tests[6].reason_code is ReasonCode.AMBIGUOUS_FACT
+
+
+def test_a_derived_share_count_on_mixed_taxonomies_is_a_scope_conflict() -> None:
+    mixed = "derived:us-gaap:CommonStockSharesIssued-ifrs-full:TreasuryShares"
+    result = calculate_f_score(
+        make(shares_t=_derived_count("shares_t", mixed), shares_t1=_derived_count("shares_t1", mixed))
     )
-    result = calculate_f_score(make(shares_t=ShareCount(mixed, ACCESSION, ShareCountPath.DIRECT)))
     assert result.tests[6].reason_code is ReasonCode.INCOMPATIBLE_SCOPE
-    bare = replace(derived, lineage=None, source_kind=SourceKind.PROVIDER)
-    assert calculate_f_score(make(shares_t=ShareCount(bare, ACCESSION, ShareCountPath.DIRECT))).tests[6].outcome is (
-        UNAVAILABLE
+
+
+def test_an_input_with_no_provider_field_takes_its_taxonomy_from_its_components() -> None:
+    result = calculate_f_score(
+        make(shares_t=_derived_count("shares_t", None), shares_t1=_derived_count("shares_t1", None))
     )
+    assert result.tests[6].outcome is PASS
+    foreign = fact("treasury", 20, currency=None, field="ifrs-full:TreasuryShares")
+    count = _derived_count("shares_t", None)
+    mixed = replace(
+        count.count, lineage=ComponentLineage("issued less treasury", (fact("issued", 120, currency=None), foreign))
+    )
+    scope = calculate_f_score(
+        make(shares_t=YearEndShareCount(mixed, ACCESSION, count.path), shares_t1=_derived_count("shares_t1", None))
+    )
+    assert scope.tests[6].reason_code is ReasonCode.INCOMPATIBLE_SCOPE
+
+
+def test_an_input_with_neither_a_provider_field_nor_components_has_no_taxonomy() -> None:
+    bare = replace(synthetic("net_income_t", 8.0), provider_field=None)
+    result = calculate_f_score(make(net_income_t=bare))
+    assert result.tests[0].reason_code is ReasonCode.INCOMPATIBLE_SCOPE
 
 
 # ---------------------------------------------------------------------------
@@ -559,11 +589,6 @@ def test_an_unavailable_share_count_hands_its_reason_code_to_the_dilution_test()
     result = calculate_f_score(make(shares_t1=missing(ReasonCode.AMBIGUOUS_FACT)))
     assert unavailable_numbers(result) == (7,)
     assert result.tests[6].reason_code is ReasonCode.AMBIGUOUS_FACT
-
-
-def test_a_share_count_requires_an_accession() -> None:
-    with pytest.raises(ValueError, match="accession"):
-        ShareCount(fact("shares_t", 100, currency=None), " ", ShareCountPath.DIRECT)
 
 
 # ---------------------------------------------------------------------------

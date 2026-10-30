@@ -64,7 +64,7 @@ next begins.
 | 3.5.2d | [Shared input assembly](STEP_3_5_2_SLICE_PLAN.md#352d--shared-input-assembly) | Complete | 2026-10-28 |
 | 3.5.2e | [FCF-Growth adopts the shared market cap](STEP_3_5_2_SLICE_PLAN.md#352e--fcf-growth-adopts-the-shared-market-cap) | Complete | 2026-10-28 |
 | 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](STEP_3_5_2_SLICE_PLAN.md#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Complete | 2026-10-29 |
-| 3.5.3a | [Slice plan and the nine-test calculator](STEP_3_5_3_SLICE_PLAN.md#353a--slice-plan-and-the-nine-test-calculator) | In progress | |
+| 3.5.3a | [Slice plan and the nine-test calculator](STEP_3_5_3_SLICE_PLAN.md#353a--slice-plan-and-the-nine-test-calculator) | Complete | 2026-10-29 |
 | 3.5.3b | [Inputs at three year-ends](STEP_3_5_3_SLICE_PLAN.md#353b--inputs-at-three-year-ends) | Next | |
 | 3.5.3c | [Side-by-side text layout](STEP_3_5_3_SLICE_PLAN.md#353c--side-by-side-text-layout) | Planned | |
 | 3.5.3d | [The Piotroski strategy](STEP_3_5_3_SLICE_PLAN.md#353d--the-piotroski-strategy) | Planned | |

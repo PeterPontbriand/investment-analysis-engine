@@ -133,7 +133,8 @@ boundary, or when the data-quality check fails; `provider_error` when the market
 - **Prior year-ends:** year-end *t−1* is the day before the reported start date of year *t*'s completed annual period,
   and *t−2* is derived the same way from year *t−1*'s period. The start date is read from an explicit, strategy-neutral
   priority list of completed-annual fields; every listed field present for that year must give the same start date,
-  otherwise (or when none is present) that year-end is `unavailable` with `ambiguous_fact`. The derived date must be 335
+  otherwise that year-end is `unavailable` with `ambiguous_fact`, and when no listed field is present it is `unavailable`
+  with `missing_fact`. The derived date must be 335
   to 395 days before the later year-end. A transition or stub year is not a completed annual period: it breaks the chain,
   and the earlier year-ends are `unavailable`. The `reportDate` of earlier filings is never used.
 - **Comparatives:** prior-year values come from the anchor filing where it reports them. An earlier

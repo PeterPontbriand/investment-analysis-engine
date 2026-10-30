@@ -37,7 +37,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| 3.5.3a | [Slice plan and the nine-test calculator](#353a--slice-plan-and-the-nine-test-calculator) | In progress | |
+| 3.5.3a | [Slice plan and the nine-test calculator](#353a--slice-plan-and-the-nine-test-calculator) | Complete | 2026-10-29 |
 | 3.5.3b | [Inputs at three year-ends](#353b--inputs-at-three-year-ends) | Next | |
 | 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Planned | |
 | 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Planned | |
@@ -57,7 +57,8 @@ Each sub-slice has its own branch off `main`, named as its section says, after t
   unrounded values, and returns the nine test results, the score, the completeness and the available count.
   `execution_status` and the context fields belong to the analyzer.
 - **Scope:** this plan and the amendments of [C.1](#c1-documents-amended-in-353a); `nonpositive_denominator` and
-  `insufficient_tests` in `ReasonCode` and the regenerated schemas; the calculation module and its tests;
+  `insufficient_tests` in `ReasonCode` and the regenerated schemas; the calculation module and its tests; the
+  share-count types of the shared assembly; the adapter function that names the taxonomy of a provider field;
   the renaming of the example of an undeclared strategy in three test files ([C.2](#c2-353a-files)).
 - **Branch:** `feat/step-3-5-3a-plan-and-calculator` (this branch).
 - **Detail:** [files](#c2-353a-files), [tests](#d1-353a-tests) and [interfaces](#e1-the-calculators-input-and-result).
@@ -168,7 +169,7 @@ Approved by the project owner. Each is summarized in the sections above.
 | # | Topic | Decision and reason |
 | :--- | :--- | :--- |
 | Q1 | Sub-slices | Five, each with its own branch, managed gate and authorization: 3.5.3a the slice plan and the pure nine-test calculator; 3.5.3b the inputs at three year-ends (Q2 to Q7); 3.5.3c the side-by-side text layout (Q12), before the fifth strategy lands; 3.5.3d the strategy through every edit site; 3.5.3e the repetition checkpoint and the guide follow-up. The reason is the 3.5.2 precedent: the plan and pure code, the I/O assembly, the shared layout and the strategy have different inputs and risks. |
-| Q2 | Finding the year-ends *t−1* and *t−2* | *t−1* is the day before the reported start date of year *t*'s completed annual period; *t−2* is derived the same way from year *t−1*'s period. The start date is read from a short, explicit, strategy-neutral priority list of completed-annual fields. Every listed field present for that year must give the same start date; a disagreement makes that year-end unavailable (`ambiguous_fact`), and so does no listed field present. The derived date must be 335 to 395 days before the later year-end. A transition or stub year is not a completed annual period, so it breaks the chain and the earlier year-ends are unavailable. Choosing the field list is mapping judgment, delegated to 3.5.3b under the standing terms: decide from captured evidence only, fail closed, use explicit lists rather than loose patterns, record each decision with its evidence in this plan, and stop if the evidence does not settle it. Rejected: the submissions `reportDate` of earlier annual filings, because it is a filing label that could disagree with the periods the tests compare, and it fails first-year registrants, whose anchor filing has comparatives but who have no earlier 10-K. |
+| Q2 | Finding the year-ends *t−1* and *t−2* | *t−1* is the day before the reported start date of year *t*'s completed annual period; *t−2* is derived the same way from year *t−1*'s period. The start date is read from a short, explicit, strategy-neutral priority list of completed-annual fields. Every listed field present for that year must give the same start date; a disagreement makes that year-end unavailable (`ambiguous_fact`), and no listed field present makes it unavailable (`missing_fact`). The derived date must be 335 to 395 days before the later year-end. A transition or stub year is not a completed annual period, so it breaks the chain and the earlier year-ends are unavailable. Choosing the field list is mapping judgment, delegated to 3.5.3b under the standing terms: decide from captured evidence only, fail closed, use explicit lists rather than loose patterns, record each decision with its evidence in this plan, and stop if the evidence does not settle it. Rejected: the submissions `reportDate` of earlier annual filings, because it is a filing label that could disagree with the periods the tests compare, and it fails first-year registrants, whose anchor filing has comparatives but who have no earlier 10-K. |
 | Q3 | Multi-year assembly | In `analysis/shared/metric_inputs.py`, the balance-sheet function takes several named year-ends. The annual function returns each requested year's value, or why it has none, still by the latest-available-version rule, and also accepts `OPERATING_CASH_FLOW` by name (today it raises, because the field is outside `ANNUAL_PERIOD_FIELDS`). No separate (*t*, *t−1*) pairing helper is added. Existing callers' behavior is unchanged. The interface appendix names the exact functions, signatures and return types, and 3.5.3b implements them as written or stops and asks. |
 | Q4 | Share counts at named year-ends | `COMMON_SHARES_OUTSTANDING` is served through the instant series, with today's two paths: the direct count (including `ifrs-full:NumberOfSharesOutstanding`), and issued minus treasury taken from one filing at the same date. The multi-class rejection is unchanged. The latest-only path stays as it is for market cap. This is mapping judgment, delegated to 3.5.3b under the standing terms, with captured evidence for the regression set, Apple and Monster. |
 | Q5 | Dilution test (test 7) | The counts at *t* and *t−1* are compared only when both come from the same filing. Such a pair is on one split basis, because a filing restates its counts for splits effective before it is issued (SEC Staff Accounting Bulletin Topic 4.C, [contract A.11](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a11-market-cap-price-basis-and-share-count-scaling-2026-10-25)). A *t−1* count from another filing makes the test unavailable (`ambiguous_fact`). Both counts must be on the same path; a direct count with a derived one is unavailable. W1 of the [3.5.2 plan](STEP_3_5_2_SLICE_PLAN.md) does not bear on this test: it governs scaling a count to a price date, and Piotroski has no price, so it needs no market data. 3.5.3b's evidence measures how often *t−1* comes from the anchor filing; if it rarely does, 3.5.3b stops and reports. |
@@ -223,7 +224,9 @@ the project owner can reverse any.
 | Zero debt | When both years' long-term debt is available and zero, test 5 passes before any other check, so neither the assets nor the currency of the debt's parts is examined. |
 | Debt that is not ok | Long-term debt or gross profit evidence whose result is not `ok`, whatever its status, makes its test unavailable with its own reason code. A negative debt figure is compared as given; no rule is added for it. |
 | Dilution inputs | A share count carries its accession and path, which the assembly supplies. Two counts on different filings or paths are `ambiguous_fact`. |
-| Share-count type | The calculation defines `ShareCount` and `ShareCountPath`. The shared assembly returns its own `YearEndShareCount` (E.2) and the analyzer maps it, so the shared layer imports nothing from a strategy and no accepted file changes. |
+| Share-count type | `ShareCountPath` and `YearEndShareCount` are defined once, in `analysis/shared/metric_inputs.py`, in 3.5.3a. The calculation imports them, so the analyzer maps nothing and the shared layer imports nothing from a strategy. The first draft defined a `ShareCount` in the calculation and a second type in the assembly; the project owner corrected it at review. |
+| Taxonomy of a provider field | The first draft read the prefix of the provider field, which gave `derived` for the issued-less-treasury count the SEC adapter labels `derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares`, so test 7 would have been `incompatible_scope` for every derived count. `taxonomy_of_provider_field` in `data/sec_edgar/financial_facts.py` now names the taxonomy of the plain `<taxonomy>:<concept>` form and of the derived form (one taxonomy across its parts, else none), and nothing looser; the calculator uses it, and falls back to an input's components only when the input has no provider field. Found at review. |
+| Outcome code of a year-end with no start date | The approved text of Q2 made "no listed field present" `ambiguous_fact`. The project owner corrected it at review: no listed field present is `missing_fact`, and only a disagreement between present fields is `ambiguous_fact`. Q2 above and [Shared definitions §3](STEP_3_5_SHARED_DEFINITIONS.md#period-alignment) now say so. |
 | Shuffled order and duplicated tests | The calculator takes named fields, so it has no input order to shuffle. The result constructor refuses a duplicated, missing or reordered test, and 3.5.3a tests that. The cases "shuffled input order gives the identical result" of [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score) belong to the assembly (3.5.3b, operands arrive keyed by name) and to the analyzer (3.5.3d, which never emits a test twice). |
 | Sequence rows | The contract's table replaces the 3.5.3 row with the five sub-slices, as it did for 3.5.2. |
 
@@ -287,6 +290,10 @@ of Site 19.
 | `schemas/fcf-growth.schema.json`, `schemas/momentum.schema.json`, `schemas/runs-compare.schema.json` | Regenerated with `uv run python -m scripts.generate_schemas`: the two members in the `ReasonCode` enum, no version bump. |
 | `investment_analysis_engine/strategies/piotroski_calculation.py` | New: the calculation. |
 | `tests/analysis/piotroski/test_piotroski_calculation.py` | New: its tests. |
+| `investment_analysis_engine/analysis/shared/metric_inputs.py` | `ShareCountPath` and `YearEndShareCount`, the one home of the share-count types. |
+| `tests/analysis/shared/test_metric_inputs.py` | The accession check of `YearEndShareCount`. |
+| `investment_analysis_engine/data/sec_edgar/financial_facts.py` | `taxonomy_of_provider_field`. |
+| `tests/data/test_sec_provider_field_taxonomy.py` | New: the function against the adapter's own constants and concept tables. |
 | `tests/scripts/test_strategy_status.py` | The example of an undeclared strategy `piotroski` becomes `example_undeclared`, and the alias `f-score` becomes `example-alias`, with the expected guide and schema names. The tests used the next planned strategy's name as their example, so declaring Piotroski would have broken them. |
 | `tests/test_strategy_wiring_conformance.py` | `strategy_names("piotroski")` becomes `strategy_names("example_undeclared")`, for the same reason. |
 | `tests/workspace_documents/test_analysis_run_replay.py` | The unimplemented method's `analysis_id` and `method_id` become `example_undeclared` and `example_method`, for the same reason. |
@@ -366,9 +373,6 @@ In `investment_analysis_engine/strategies/piotroski_calculation.py` (moving to `
 ```text
 Value = ResolvedInput | InputUnavailable
 
-ShareCount(input: ResolvedInput, accession: str, path: ShareCountPath)
-ShareCountPath: DIRECT | ISSUED_LESS_TREASURY
-
 PiotroskiInputs(                      # frozen; year t, t1 = t-1, t2 = t-2
     total_assets_t, total_assets_t1, total_assets_t2: Value,
     net_income_t, net_income_t1: Value,
@@ -377,7 +381,7 @@ PiotroskiInputs(                      # frozen; year t, t1 = t-1, t2 = t-2
     gross_profit_t, gross_profit_t1: MetricEvidence | InputUnavailable,
     long_term_debt_t, long_term_debt_t1: MetricEvidence | InputUnavailable,
     current_assets_t, current_assets_t1, current_liabilities_t, current_liabilities_t1: Value,
-    shares_t, shares_t1: ShareCount | InputUnavailable,
+    shares_t, shares_t1: YearEndShareCount | InputUnavailable,   # imported from analysis/shared/metric_inputs.py
 )
 
 calculate_f_score(inputs: PiotroskiInputs) -> PiotroskiScoreResult
@@ -397,13 +401,28 @@ PiotroskiTestResult(
 )
 ```
 
+In `investment_analysis_engine/analysis/shared/metric_inputs.py`, defined in 3.5.3a and returned by the share-count series
+of 3.5.3b:
+
+```text
+ShareCountPath: DIRECT | ISSUED_LESS_TREASURY
+
+YearEndShareCount(count: ResolvedInput, accession: str, path: ShareCountPath)   # accession must be non-empty
+```
+
+In `investment_analysis_engine/data/sec_edgar/financial_facts.py`, defined in 3.5.3a:
+
+```text
+taxonomy_of_provider_field(provider_field: str) -> str | None
+```
+
 The analyzer of 3.5.3d adds the fields of Q10 that are not the calculator's: `execution_status`, the industry class and its
 warning, the taxonomy, the anchor year-end and accession, and the method version.
 
 ### E.2 Shared assembly functions
 
 3.5.3b implements these as written in `investment_analysis_engine/analysis/shared/metric_inputs.py`, or stops and asks.
-A year-end is named by a short key (`"t"`, `"t1"`, `"t2"`); the functions never reuse the newest year-end for an older one.
+A year-end is a `date`; the functions never reuse the newest year-end for an older one.
 
 ```text
 @dataclass(frozen=True)
@@ -412,26 +431,23 @@ class YearEnds:
     prior: date | InputUnavailable              # t-1
     second_prior: date | InputUnavailable       # t-2
 
+    def available_dates(self) -> tuple[date, ...]:
+        """The year-ends that are dates, newest first."""
+
 resolve_year_ends(resolver: InputResolver, *, anchor: AnchorYearEnd, ticker: str,
                   as_of: datetime | None) -> YearEnds | InputUnavailable | MetricInputsFailure
 
 resolve_balance_sheet_values_at(resolver: InputResolver, *, ticker: str, fields: Sequence[FinancialField],
-                                year_ends: Mapping[str, date], as_of: datetime | None,
-) -> Mapping[FinancialField, Mapping[str, BalanceSheetValue]] | InputUnavailable | MetricInputsFailure
+                                year_ends: Sequence[date], as_of: datetime | None,
+) -> Mapping[FinancialField, Mapping[date, BalanceSheetValue]] | InputUnavailable | MetricInputsFailure
 
 resolve_annual_values_at(resolver: InputResolver, *, ticker: str, fields: Sequence[FinancialField],
-                         year_ends: Mapping[str, date], as_of: datetime | None,
-) -> Mapping[FinancialField, Mapping[str, AnnualValue | InputUnavailable]] | InputUnavailable | MetricInputsFailure
+                         year_ends: Sequence[date], as_of: datetime | None,
+) -> Mapping[FinancialField, Mapping[date, AnnualValue | InputUnavailable]] | InputUnavailable | MetricInputsFailure
 
-@dataclass(frozen=True)
-class YearEndShareCount:
-    count: ResolvedInput
-    accession: str
-    path: Literal["direct", "issued_less_treasury"]
-
-resolve_share_count_series(resolver: InputResolver, *, ticker: str, year_ends: Mapping[str, date],
+resolve_share_count_series(resolver: InputResolver, *, ticker: str, year_ends: Sequence[date],
                            as_of: datetime | None,
-) -> Mapping[str, YearEndShareCount | InputUnavailable] | InputUnavailable | MetricInputsFailure
+) -> Mapping[date, YearEndShareCount | InputUnavailable] | InputUnavailable | MetricInputsFailure
 
 @dataclass(frozen=True)
 class IndustryClassResolution:
@@ -445,15 +461,17 @@ resolve_industry_class(source: AsFiledSicSource, *, ticker: str,
                        as_of: datetime | None) -> IndustryClassResolution | MetricInputsFailure
 ```
 
-- `AsFiledSicSource` is implemented on the SEC adapter beside `resolve_as_filed_sic`, which it wraps; the shared layer
-  imports no adapter. A resolution that holds a reason is returned as `unknown`, and a provider failure as
-  `MetricInputsFailure`.
-
+- The calls take the year-ends the analyzer asks for, normally `YearEnds.available_dates()`, and key their results by
+  the date. A year-end that `YearEnds` holds as `InputUnavailable` is not requested; the analyzer reports that reason for
+  every operand of that year.
 - `resolve_balance_sheet_values` and `resolve_annual_values` keep their signatures and behavior, as one-year-end calls of
   the functions above, except that `resolve_annual_values` also accepts `OPERATING_CASH_FLOW`.
 - The latest-available-version rule and the `ambiguous_fact` result for conflicting versions apply per requested year.
 - The year-end rule is [Shared definitions §3](STEP_3_5_SHARED_DEFINITIONS.md#period-alignment); the field list that
   gives the start date is a module constant chosen and recorded by 3.5.3b under Q2.
+- `AsFiledSicSource` is implemented on the SEC adapter beside `resolve_as_filed_sic`, which it wraps; the shared layer
+  imports no adapter. A resolution that holds a reason is returned as `unknown`, and a provider failure as
+  `MetricInputsFailure`.
 
 In `investment_analysis_engine/analysis/shared/enterprise_value.py`:
 

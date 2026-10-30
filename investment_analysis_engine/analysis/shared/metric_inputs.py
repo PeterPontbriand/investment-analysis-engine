@@ -17,6 +17,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
 
@@ -109,6 +110,33 @@ class MetricInputsFailure:
     def reason_code(self) -> ReasonCode:
         """Return the code a dependent metric reports: always ``provider_error``."""
         return ReasonCode.PROVIDER_ERROR
+
+
+class ShareCountPath(StrEnum):
+    """How a year-end common share count was obtained."""
+
+    DIRECT = "direct"
+    ISSUED_LESS_TREASURY = "issued_less_treasury"
+
+
+@dataclass(frozen=True)
+class YearEndShareCount:
+    """A common share count at a fiscal year-end with the filing and the path it came from.
+
+    Attributes:
+        count: The resolved count, with its provenance.
+        accession: The accession of the one filing the count was taken from.
+        path: Whether the count is reported directly or is issued shares less treasury shares.
+    """
+
+    count: ResolvedInput
+    accession: str
+    path: ShareCountPath
+
+    def __post_init__(self) -> None:
+        """Require an accession."""
+        if not self.accession.strip():
+            raise ValueError("A share count requires the accession of the filing it came from.")
 
 
 @dataclass(frozen=True)

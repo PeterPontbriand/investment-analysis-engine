@@ -15,6 +15,8 @@ from investment_analysis_engine.analysis.shared.metric_inputs import (
     SPLIT_HISTORY_MARGIN_DAYS,
     MarketCapInputs,
     MetricInputsFailure,
+    ShareCountPath,
+    YearEndShareCount,
     anchor_year_end_scope,
     resolve_annual_values,
     resolve_balance_sheet_values,
@@ -45,6 +47,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SecEdgarFinancialFactsAdapter,
 )
 from tests._sec_instants import ANNUAL_FIXTURES, REGRESSION_SET, FixtureFetcher, load
+from tests.analysis.shared._issuer_inputs import synthetic
 from tests.analysis.shared._metric_input_rig import (
     LIVE_NOW,
     FactsStub,
@@ -1124,3 +1127,8 @@ def test_a_boundary_before_the_newest_annual_filing_uses_the_anchor_found_on_the
     # The filing date of the count's source filing is looked up on the page, so the count is scaled from it.
     assert inputs.share_count_filing_date == date(2025, 2, 14)
     assert inputs.share_count_basis is ShareCountBasis.YEAR_END
+
+
+def test_a_year_end_share_count_requires_an_accession() -> None:
+    with pytest.raises(ValueError, match="accession"):
+        YearEndShareCount(synthetic("shares", 100.0), " ", ShareCountPath.DIRECT)

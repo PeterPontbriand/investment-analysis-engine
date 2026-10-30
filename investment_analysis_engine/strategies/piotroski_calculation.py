@@ -30,17 +30,16 @@ from fractions import Fraction
 from typing import Final
 
 from investment_analysis_engine.analysis.shared.metric_evidence import InputUnavailable, MetricEvidence, Operand
+from investment_analysis_engine.analysis.shared.metric_inputs import YearEndShareCount
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
+from investment_analysis_engine.data.sec_edgar.financial_facts import taxonomy_of_provider_field
 
 TEST_COUNT: Final = 9
 """The number of tests, and the number available for a complete score."""
 
 MINIMUM_AVAILABLE_TESTS: Final = 6
 """The fewest available tests that give a score. Below it the score is unavailable."""
-
-SUPPORTED_TAXONOMIES: Final = frozenset({"us-gaap", "ifrs-full"})
-"""The taxonomy prefixes a provider field name may carry; an operand with any other prefix has no known taxonomy."""
 
 _TEST_NAMES: Final = (
     ("Positive ROA", "Profitability"),
@@ -74,33 +73,6 @@ class Completeness(StrEnum):
     PARTIAL = "partial"
 
 
-class ShareCountPath(StrEnum):
-    """How a year-end share count was obtained."""
-
-    DIRECT = "direct"
-    ISSUED_LESS_TREASURY = "issued_less_treasury"
-
-
-@dataclass(frozen=True)
-class ShareCount:
-    """A year-end common share count with the filing and the path it came from.
-
-    Attributes:
-        input: The resolved count, with its provenance.
-        accession: The accession of the one filing the count was taken from.
-        path: Whether the count is reported directly or is issued shares less treasury shares.
-    """
-
-    input: ResolvedInput
-    accession: str
-    path: ShareCountPath
-
-    def __post_init__(self) -> None:
-        """Require an accession."""
-        if not self.accession.strip():
-            raise ValueError("A share count requires the accession of the filing it came from.")
-
-
 @dataclass(frozen=True)
 class PiotroskiInputs:
     """Every operand of the nine tests, each a value with provenance or the reason it is unavailable.
@@ -125,8 +97,8 @@ class PiotroskiInputs:
     current_assets_t1: Value
     current_liabilities_t: Value
     current_liabilities_t1: Value
-    shares_t: ShareCount | InputUnavailable
-    shares_t1: ShareCount | InputUnavailable
+    shares_t: YearEndShareCount | InputUnavailable
+    shares_t1: YearEndShareCount | InputUnavailable
 
 
 @dataclass(frozen=True)
@@ -244,10 +216,13 @@ class _Gap:
 
 
 def _taxonomy_of(item: ResolvedInput) -> str | None:
-    """Return the one taxonomy prefix of a resolved input, read from its provider field or its components."""
+    """Return the taxonomy of a resolved input: its provider field's, or its components' when it has none.
+
+    A provider field the adapter does not emit in a recognized form has no taxonomy, and the components are consulted
+    only for an input that carries no provider field.
+    """
     if item.provider_field is not None:
-        prefix = item.provider_field.partition(":")[0]
-        return prefix if prefix in SUPPORTED_TAXONOMIES else None
+        return taxonomy_of_provider_field(item.provider_field)
     if item.lineage is None:
         return None
     found = {_taxonomy_of(component) for component in item.lineage.components}
@@ -477,10 +452,10 @@ def _test_no_dilution(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     unavailable = next((item for item in counts if isinstance(item, InputUnavailable)), None)
     if unavailable is not None:
         return _unavailable(7, _Gap(unavailable.reason_code, f"A share count is unavailable: {unavailable.reason}"))
-    now, before = (item for item in counts if isinstance(item, ShareCount))
+    now, before = (item for item in counts if isinstance(item, YearEndShareCount))
     figures = [
-        _Figure("shares_t", Fraction(now.input.value), (Operand("shares_t", now.input),), False),
-        _Figure("shares_t1", Fraction(before.input.value), (Operand("shares_t1", before.input),), False),
+        _Figure("shares_t", Fraction(now.count.value), (Operand("shares_t", now.count),), False),
+        _Figure("shares_t1", Fraction(before.count.value), (Operand("shares_t1", before.count),), False),
     ]
     conflict = _consistency_gap(figures)
     if conflict is not None:
