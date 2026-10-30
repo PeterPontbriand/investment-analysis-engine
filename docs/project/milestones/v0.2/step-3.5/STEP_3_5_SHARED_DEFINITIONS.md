@@ -68,7 +68,8 @@ introduced.
   `debt_not_visible`. A balance-sheet value absent at a year-end maps to a code by one table: `not_tagged`,
   `other_concept` and `no_anchor_filing` give `missing_fact`; `conflict` gives `ambiguous_fact`; `unsupported` gives
   `unsupported_mapping`; `after_boundary` gives `not_available_as_of`; `basis_mismatch` gives `incompatible_scope`.
-  `nonpositive_denominator` is added by the first slice that produces it.
+  3.5.3a adds `nonpositive_denominator`, for a denominator that is not positive, and `insufficient_tests`, for a
+  Piotroski score with fewer than six tests available.
 - No value is ever `NaN` or `Inf`. A ratio with a zero or non-positive denominator is `unavailable`
   or `not_applicable` with a reason code, as each definition below states.
 - **What is not a `MetricResult`:** strategy-level scores, zones, bands, completeness and
@@ -129,6 +130,13 @@ boundary, or when the data-quality check fails; `provider_error` when the market
   are consecutive. Quarters, year-to-date periods, and transition or stub years are rejected.
 - **Balance-sheet values** are instants at a fiscal year-end, never durations. A metric that
   needs several year-ends requests each exact date and never reuses the newest one.
+- **Prior year-ends:** year-end *t−1* is the day before the reported start date of year *t*'s completed annual period,
+  and *t−2* is derived the same way from year *t−1*'s period. The start date is read from an explicit, strategy-neutral
+  priority list of completed-annual fields; every listed field present for that year must give the same start date,
+  otherwise that year-end is `unavailable` with `ambiguous_fact`, and when no listed field is present it is `unavailable`
+  with `missing_fact`. The derived date must be 335
+  to 395 days before the later year-end. A transition or stub year is not a completed annual period: it breaks the chain,
+  and the earlier year-ends are `unavailable`. The `reportDate` of earlier filings is never used.
 - **Comparatives:** prior-year values come from the anchor filing where it reports them. An earlier
   year-end it does not report (such as *t−2* total assets) may come from an earlier eligible
   filing, on the same taxonomy and currency. Every such value passes the same boundary check.
@@ -322,6 +330,12 @@ that report.
   unsupported. Nutrien's noncurrent debt is never read as zero.
 - Every consumer of a debt figure uses this rule, including Piotroski's long-term debt and
   Interest Coverage's zero-debt outcome.
+- **Long-term debt** (Piotroski) is the current portion of long-term debt plus noncurrent long-term debt, decided by the
+  rules above: the direct-total reconciliation comes first; an absent part is zero only when it is `not_tagged` with no
+  related concept and at least one of the four mapped debt concepts is present at the date; with none present, the
+  no-reported-debt row applies, using that year's interest expense; an unsupported mapping makes it `unavailable`, so
+  Piotroski's test 5 is unavailable for every IFRS filer. It is never total debt less short-term borrowings, because a gap
+  in short-term borrowings would remove long-term debt.
 
 ### Lease liabilities
 
@@ -453,4 +467,7 @@ member and records one `refresh_id` on each run.
 - **Fiscal year-ends** that differ across members are displayed, not normalized.
 - **Ranking:** once the [ranked refresh view](#ranked-refresh-view) exists (3.5.6), the table can sort by
   it for any strategy in the refresh.
+- **Text layout:** the text table packs the strategies' column groups into bands, each repeating the Ticker column, in
+  `STRATEGIES` order, up to a fixed width of 120 characters held as a named constant. A group is never split, and a group
+  wider than 120 gets a band of its own. This holds at every strategy count. `--json` is unchanged.
 - **No new persistence:** no batch ID, schema field or run type is added.

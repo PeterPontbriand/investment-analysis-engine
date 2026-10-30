@@ -1176,7 +1176,9 @@
         "industry_class_not_applicable",
         "industry_class_unknown",
         "unsupported_mapping",
-        "debt_not_visible"
+        "debt_not_visible",
+        "nonpositive_denominator",
+        "insufficient_tests"
       ],
       "title": "ReasonCode",
       "type": "string"

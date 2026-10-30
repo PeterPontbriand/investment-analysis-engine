@@ -105,6 +105,10 @@ _SEC_DERIVED_COMMON_SHARES_FIELD = "derived:us-gaap:CommonStockSharesIssued-us-g
 SEC_COVER_PAGE_SHARES_FIELD = "dei:EntityCommonStockSharesOutstanding"
 _IFRS_FULL = "ifrs-full"
 _US_GAAP = "us-gaap"
+_TAXONOMY_PART = r"(?:us-gaap|ifrs-full):[A-Za-z][A-Za-z0-9]*"
+_PLAIN_PROVIDER_FIELD = re.compile(rf"(?P<part>{_TAXONOMY_PART})")
+_DERIVED_PROVIDER_FIELD = re.compile(rf"derived:(?P<parts>{_TAXONOMY_PART}(?:-{_TAXONOMY_PART})+)")
+_PART_BOUNDARY = re.compile(rf"-(?={_TAXONOMY_PART})")
 _SEC_INFERRED_PREFERRED_ABSENCE_FIELD = "inferred:sec-company-facts:no-issued-preferred-equity"
 _PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "PreferredStockParOrStatedValuePerShare"})
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
@@ -1502,6 +1506,25 @@ def _submission_filing_dates(payload: object) -> dict[str, date]:
         except ValueError:
             continue
     return result
+
+
+def taxonomy_of_provider_field(provider_field: str) -> str | None:
+    """Return the taxonomy of a provider field the adapter emits for a financial fact, or ``None``.
+
+    Two forms are read: the plain ``<taxonomy>:<concept>`` (``us-gaap:Assets``), and the derived form the adapter gives
+    a value built from several concepts, ``derived:`` followed by the parts joined by ``-``
+    (``derived:us-gaap:CommonStockSharesIssued-us-gaap:TreasuryStockCommonShares``), which has the taxonomy its parts
+    share. A derived field whose parts are on different taxonomies, and any other form (the cover-page ``dei`` field,
+    an inferred field, a bare name), has no taxonomy.
+    """
+    plain = _PLAIN_PROVIDER_FIELD.fullmatch(provider_field)
+    if plain is not None:
+        return provider_field.partition(":")[0]
+    derived = _DERIVED_PROVIDER_FIELD.fullmatch(provider_field)
+    if derived is None:
+        return None
+    taxonomies = {part.partition(":")[0] for part in _PART_BOUNDARY.split(derived.group("parts"))}
+    return next(iter(taxonomies)) if len(taxonomies) == 1 else None
 
 
 def _submission_report_dates(payload: object) -> dict[str, date]:

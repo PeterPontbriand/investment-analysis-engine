@@ -245,19 +245,23 @@ change to the FCF or FCF-yield formulas.
 
 ## 5. 3.5.3 — Piotroski F-Score
 
-**New data:** none beyond 3.5.1. Needs total assets at three year-ends and the other inputs SS §1
-lists.
+**New data:** no new mapping beyond 3.5.1, except the share counts at named year-ends. Needs total assets at three
+year-ends and the other inputs SS §1 lists; finding the year-ends *t−1* and *t−2* and assembling the inputs at them
+are 3.5.3b ([slice plan](STEP_3_5_3_SLICE_PLAN.md#353b--inputs-at-three-year-ends)).
 
 **Result shape:** nine test results in fixed order, each with status (pass, fail, unavailable),
 operands, ratios and provenance; the score as a `MetricResult`; completeness (complete or
-partial); the count of available tests; the result-level `execution_status`; the industry class and its warning; the method version.
+partial); the count of available tests and the numbers of the unavailable ones; the result-level `execution_status`; the
+industry class and its warning; the taxonomy; the anchor year-end and accession; the method version.
 
 **Tests**
 
 - Every case in the [arithmetic oracle](STEP_3_5_PIOTROSKI_EVIDENCE.md#4-arithmetic-oracle), with
   expected values written as independent fractions, never produced by the calculator.
 - Each strict comparison at equality and on either side.
-- Shuffled input order gives the identical result.
+- Shuffled input order gives the identical result. The calculator takes named fields, so this belongs to the
+  assembly (3.5.3b) and the analyzer (3.5.3d); the calculator's result constructor refuses a duplicated or
+  reordered test (3.5.3a).
 - A missing newest-year input never triggers an older-year score.
 - Missing *t−2* assets affects exactly tests 3, 5 and 9.
 - A complete score of 0 is a completed run; a partial score is `ok` and partial; fewer than six

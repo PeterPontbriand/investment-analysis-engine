@@ -64,7 +64,11 @@ next begins.
 | 3.5.2d | [Shared input assembly](STEP_3_5_2_SLICE_PLAN.md#352d--shared-input-assembly) | Complete | 2026-10-28 |
 | 3.5.2e | [FCF-Growth adopts the shared market cap](STEP_3_5_2_SLICE_PLAN.md#352e--fcf-growth-adopts-the-shared-market-cap) | Complete | 2026-10-28 |
 | 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](STEP_3_5_2_SLICE_PLAN.md#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Complete | 2026-10-29 |
-| 3.5.3 | [Piotroski F-Score](#353--piotroski-f-score) | Next | |
+| 3.5.3a | [Slice plan and the nine-test calculator](STEP_3_5_3_SLICE_PLAN.md#353a--slice-plan-and-the-nine-test-calculator) | Complete | 2026-10-29 |
+| 3.5.3b | [Inputs at three year-ends](STEP_3_5_3_SLICE_PLAN.md#353b--inputs-at-three-year-ends) | Next | |
+| 3.5.3c | [Side-by-side text layout](STEP_3_5_3_SLICE_PLAN.md#353c--side-by-side-text-layout) | Planned | |
+| 3.5.3d | [The Piotroski strategy](STEP_3_5_3_SLICE_PLAN.md#353d--the-piotroski-strategy) | Planned | |
+| 3.5.3e | [Repetition checkpoint](STEP_3_5_3_SLICE_PLAN.md#353e--repetition-checkpoint) | Planned | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
 | 3.5.6 | [Magic Formula and ranked refresh view](#356--magic-formula-and-ranked-refresh-view) | Planned | |
@@ -208,13 +212,17 @@ its own quality gate and authorization.
 - **Scope:** analyzer, SWC descriptor registration (direct command, watchlist selection, refresh,
   `--json`, and the orchestrator tool: `ToolName` member, arguments model, dependency class and handler),
   presenter, tests, user guide, Finance Math and Glossary entries, covering every site in the edit-site table;
-  and the repetition checkpoint above.
+  and the repetition checkpoint above. The slice is five sub-slices, each with its own branch, managed gate and
+  authorization ([A.14](#a14-353-sub-slices-and-scope-2026-10-29)): the plan and the pure nine-test calculator (3.5.3a),
+  the inputs at three year-ends (3.5.3b), the side-by-side text layout (3.5.3c), the strategy (3.5.3d) and the
+  repetition checkpoint (3.5.3e).
   - The side-by-side table's one-line-per-ticker text layout is about 170 characters wide over four strategies (the
-    3.5.0 slice plan measured 174 to 186) and would be about 460 over eleven. This slice adds the fifth strategy, so its slice plan decides the text layout for
-    more strategies. `--json` is unaffected.
+    3.5.0 slice plan measured 174 to 186) and would be about 460 over eleven. This slice adds the fifth strategy, so
+    3.5.3c packs the column groups into bands of at most 120 characters (Q12). `--json` is unaffected.
 - **Detail:** [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score)
-  the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md) and
-  [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score). ⚠ no slice plan yet
+  the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md),
+  [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score) and the
+  [slice plan for 3.5.3a to 3.5.3e](STEP_3_5_3_SLICE_PLAN.md).
 
 ### 3.5.4 — Altman Z-Score and Beneish M-Score
 
@@ -542,3 +550,19 @@ Decided by the project owner while the [3.5.2 slice plan](STEP_3_5_2_SLICE_PLAN.
 | Sub-slices (K2) | One slice, 3.5.2 | Four, each with its own branch, managed gate and authorization: 3.5.2a the slice plan and the ranking helper (one pull request), 3.5.2b the pure shared metrics, 3.5.2c the shared input assembly, 3.5.2d FCF-Growth adopts the shared market cap | The ranking helper, the pure metrics, the I/O assembly and the change to a stored result shape have different inputs and risks |
 | Shared input assembly (K3) | Each consumer builds its own inputs | Built once in 3.5.2c: the anchor year-end, the share-count path, the price and the split history, and the balance-sheet and annual inputs at that year-end. It closes two gaps found on `main`: the production provider does not route the balance-sheet series, and the split-history provider protocol declares neither `as_of` nor `adjusted_on` | Seven strategies would otherwise each assemble the same inputs, and diverge |
 | Gross profit (K6) | Not a shared metric | The reported gross profit; otherwise sales minus cost of revenue when both are reported, keeping both inputs' provenance; never operating income | Piotroski and Beneish both use it, and the mapping evidence already assigns it to 3.5.2 |
+
+### A.14 3.5.3 sub-slices and scope (2026-10-29)
+
+Decided by the project owner while the [3.5.3 slice plan](STEP_3_5_3_SLICE_PLAN.md) was written; the plan's
+[Appendix A](STEP_3_5_3_SLICE_PLAN.md#a1-decisions-q1-to-q17-2026-10-29) holds all seventeen decisions (Q1 to Q17).
+
+| Topic | Before | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| Sub-slices (Q1) | One slice, 3.5.3 | Five, each with its own branch, managed gate and authorization: 3.5.3a the plan and the pure calculator, 3.5.3b the inputs at three year-ends, 3.5.3c the side-by-side text layout, 3.5.3d the strategy, 3.5.3e the repetition checkpoint | The plan and pure code, the I/O assembly, the shared layout and the strategy have different inputs and risks, as in 3.5.2 |
+| Year-ends *t−1* and *t−2* (Q2) | "Request each exact date" | Derived from the start date of the preceding completed annual period, read from an explicit list of fields that must agree, 335 to 395 days before the later year-end; a stub year breaks the chain | The `reportDate` of earlier filings is a filing label and fails first-year registrants |
+| Multi-year assembly (Q3, Q4, Q6, Q7) | Inputs at one year-end | Several named year-ends in the shared assembly; share counts through the instant series; a shared long-term debt metric; one industry-class resolver for all strategies | Seven strategies would otherwise assemble these separately |
+| Dilution test (Q5) | Year-end balance-sheet counts | Compared only when both counts come from one filing and one path, otherwise unavailable | One filing is on one split basis (SEC Staff Accounting Bulletin Topic 4.C); Piotroski has no price, so it needs no market data |
+| Currency, taxonomy and zero debt (Q8, Q9) | Unstated across fields | Checked per test; test 5 passes with zero debt in both years whatever the assets | One test combines figures; a debt-free firm cannot reduce leverage |
+| Result and statuses (Q10, Q11, Q13) | Result shape in Slice inputs §5 | Fixed shape, two new reason codes, `ok`, `input_unavailable` and `provider_error` statuses with no `not_applicable`, and a text headline reading "x of n" | A partial score must never read as a bare number |
+| Text layout (Q12) | Decided by the 3.5.3 plan | Bands of at most 120 characters, each repeating the Ticker column, at every strategy count | One band per strategy is long, a filter hides columns, terminal-width packing varies by machine |
+| Checkpoint and guide (Q16, Q17) | Site 19 weighed in 3.5.3 | No change to the watchlist command syntax in Step 3.5; the guide is fixed where in scope and one issue is filed for the rest | Piotroski has no watchlist options of its own |

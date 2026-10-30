@@ -220,7 +220,7 @@ def test_project_run_rejects_an_unsupported_projection_version() -> None:
 
 
 def test_project_run_rejects_an_unimplemented_method() -> None:
-    run = _build_run().model_copy(update={"analysis_id": "piotroski", "method_id": "f_score"})
+    run = _build_run().model_copy(update={"analysis_id": "example_undeclared", "method_id": "example_method"})
     with pytest.raises(UnsupportedProjectionError, match="No v1 replay"):
         project_run(run, codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
 
