@@ -62,25 +62,28 @@ def test_the_table_of_a_stored_refresh_equals_the_reviewed_layout(isolated_cli_s
     assert out.splitlines() == [
         f'Refresh {refresh_id} · watchlist "Core" · 3 tickers · 4 strategies',
         "",
-        "         Momentum                      Graham Number                       Graham Growth"
-        "                     FCF Growth",
-        "Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome"
-        "    FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome",
-        "SYNTH    Bullish   100.0  completed    36.69 USD      —       completed    66.28 USD      —       completed"
-        "  10.2%                      17.6%     PASS           completed",
-        "MISSING  —         100.0  unavailable  —              —       unavailable  no stored run  —       —"
-        "          —                          —         INDETERMINATE  unavailable",
-        "ERROR    —         —      failed       —              —       failed       —              —       failed"
-        "     10.2%†                     17.6%     PASS           completed",
+        "         Momentum                      Graham Number                       Graham Growth",
+        "Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome",
+        "SYNTH    Bullish   100.0  completed    36.69 USD      —       completed    66.28 USD      —       completed",
+        "MISSING  —         100.0  unavailable  —              —       unavailable  no stored run  —       —",
+        "ERROR    —         —      failed       —              —       failed       —              —       failed",
+        "",
+        "         FCF Growth",
+        "Ticker   FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome",
+        "SYNTH    10.2%                      17.6%     PASS           completed",
+        "MISSING  —                          —         INDETERMINATE  unavailable",
+        "ERROR    10.2%†                     17.6%     PASS           completed",
         "",
         "† marks a value labelled FCF/share CAGR, not the first label of its column header",
         "",
         "Period ends",
         "  SYNTH    Graham Number: earnings input period end 2024-06-30 · Graham Growth: earnings input period end"
-        " 2024-06-30 · FCF Growth: selected span end 2025-01-01",
+        " 2024-06-30",
+        "           FCF Growth: selected span end 2025-01-01",
         "  MISSING  Graham Number: earnings input period end not recorded · FCF Growth: selected span end not recorded",
-        "  ERROR    Graham Number: earnings input period end not recorded"
-        " · Graham Growth: earnings input period end not recorded · FCF Growth: selected span end 2025-01-01",
+        "  ERROR    Graham Number: earnings input period end not recorded · Graham Growth: earnings input period end"
+        " not recorded",
+        "           FCF Growth: selected span end 2025-01-01",
         "",
         "Runs (open one with: ian runs show <run-id>)",
         f"  SYNTH    momentum       {ids[('SYNTH', momentum)]}",

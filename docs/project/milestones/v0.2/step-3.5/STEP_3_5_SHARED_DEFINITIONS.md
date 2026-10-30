@@ -468,7 +468,12 @@ member and records one `refresh_id` on each run.
 - **Fiscal year-ends** that differ across members are displayed, not normalized.
 - **Ranking:** once the [ranked refresh view](#ranked-refresh-view) exists (3.5.6), the table can sort by
   it for any strategy in the refresh.
-- **Text layout:** the text table packs the strategies' column groups into bands, each repeating the Ticker column, in
-  `STRATEGIES` order, up to a fixed width of 120 characters held as a named constant. A group is never split, and a group
-  wider than 120 gets a band of its own. This holds at every strategy count. `--json` is unchanged.
+- **Text layout:** the text table packs the strategies' column groups into bands, in `STRATEGIES` order, up to
+  `TEXT_WIDTH` (120) characters, a named constant of `runs_compare.py` and not a command option. A band's width counts
+  the Ticker column and the two-space gaps, and a group's width is measured as it is rendered, including its strategy
+  name. A new band starts when the next group would make a line wider than 120. A group is never split or moved, and a
+  group wider than 120 gets a band of its own. Each band repeats the Ticker column, the strategy-name row, the heading
+  row and every ticker row in the same order, with one blank line between bands; the marker legend comes once, after the
+  last band. A ticker's period-end entries and the list of runs that could not be read wrap at 120 as well, at an
+  entry, and an entry wider than 120 is left whole. This holds at every strategy count. `--json` is unchanged.
 - **No new persistence:** no batch ID, schema field or run type is added.

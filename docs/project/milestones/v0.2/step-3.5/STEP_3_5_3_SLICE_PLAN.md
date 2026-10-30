@@ -40,8 +40,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.3a | [Slice plan and the nine-test calculator](#353a--slice-plan-and-the-nine-test-calculator) | Complete | 2026-10-29 |
 | 3.5.3b1 | [Shared year-end functions that need no new evidence](#353b1--shared-year-end-functions-that-need-no-new-evidence) | Complete | 2026-10-29 |
 | 3.5.3b2 | [Year-end discovery, share-count series and captured evidence](#353b2--year-end-discovery-share-count-series-and-captured-evidence) | Complete | 2026-10-30 |
-| 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Next | |
-| 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Planned | |
+| 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Complete | 2026-10-30 |
+| 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Next | |
 | 3.5.3e | [Repetition checkpoint](#353e--repetition-checkpoint) | Planned | |
 
 Each sub-slice has its own branch off `main`, named as its section says, after the previous pull request merges.
@@ -108,11 +108,14 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
 
 - **Problem:** the refresh table's one-line-per-ticker text is about 170 characters wide over four strategies and
   would be about 460 over eleven. The fifth strategy lands next.
-- **Decision (Q12):** pack the strategies' column groups into bands of at most 120 characters, each band repeating the
-  Ticker column, in `STRATEGIES` order. A group is never split; a group wider than 120 gets a band of its own. This
-  applies at every strategy count, so the four-strategy example and its stored output change. `--json` is unchanged.
-- **Scope:** the text layout of the side-by-side table, the named width constant, its stored expected output, and the
-  documentation that shows the table.
+- **Decision (Q12, [J1 to J6](#a7-decisions-j1-to-j6-2026-10-30)):** pack the strategies' column groups into bands of
+  at most `TEXT_WIDTH` (120) characters, each band repeating the Ticker column, its strategy-name row, its heading row
+  and every ticker row, in `STRATEGIES` order. A group is never split or moved; a group wider than 120 gets a band of
+  its own. The "Period ends" entries and the list of unreadable run IDs wrap at the same width. This applies at every
+  strategy count, so the four-strategy example and its pinned output change. `--json` is unchanged.
+- **Scope:** the text layout of the side-by-side table, the named width constant, the pinned expected output of the
+  four-strategy refresh, and the documentation that shows the table. The stored one-strategy output is already narrower
+  than 120 and does not change.
 - **Branch:** `feat/step-3-5-3c-side-by-side-layout`.
 - **Detail:** [files](#c4-353c-files) and [tests](#d3-353c-tests).
 
@@ -283,6 +286,24 @@ and confirmed D1 and D3 on 2026-10-30.
 | D3 | The Q5 measurement and its threshold (U3) | Through the real series, nine of the 12 issuers have a count at both *t* and *t−1* (JPM, PLD, DUK, DE, MRNA, MNST, GOOGL, HON, AAPL). Eight of the nine, 89%, have both from one filing; Deere's *t−1* count is from its previous annual report. All nine pairs are on the direct path. The threshold of three-quarters is not crossed and no issuer's two counts come by different paths ([§5](STEP_3_5_3_INPUT_EVIDENCE.md#5-share-counts-at-the-last-two-year-ends)). |
 | IFRS filer | Q14 | SAP, the default. Nutrien, the other IFRS filer, is also in the regression set, so both are captured already. Neither can give long-term debt (test 5), and neither has a count at *t* (test 7), so SAP is no worse a fit; Nutrien's fixture is used where a test needs the IFRS direct count. |
 
+### A.7 Decisions J1 to J6 (2026-10-30)
+
+Approved by the project owner before 3.5.3c began.
+
+| # | Topic | Decision and reason |
+| :--- | :--- | :--- |
+| J1 | Packing | Strategies fill a band in `STRATEGIES` order. A new band starts when adding the next strategy would make a line of the band wider than `TEXT_WIDTH` (120). Width counts the Ticker column and the two-space gaps. A strategy's width is measured as it is rendered, including its strategy-name row, so the packing and the rendering never disagree. Strategies are never reordered to fit better. A strategy wider than 120 on its own gets a band of its own, which may exceed 120. The reason is that a reader finds a strategy in the same place at every count, and a fixed width gives the same output on every machine. |
+| J2 | Bands | Each band repeats its strategy-name row, its column-heading row and every ticker row, in the same row order, with one blank line between bands. Columns are sized to their content as before. The marker legend is unchanged and comes once, after the last band. The reason is that each band can be read alone, while the legend explains markers of every band. |
+| J3 | Lists under the table | In "Period ends", a ticker's entries are joined by " · " until the next entry would make the line wider than 120; the rest continue on lines indented to the column where the first entry starts. The "Could not be read" list of run IDs wraps the same way, breaking after ", ". A single entry longer than 120 is never split. The reason is that the lists are as wide as the table was and would otherwise be the widest lines of the output. |
+| J4 | Constant | `TEXT_WIDTH = 120`, a documented module constant in `runs_compare.py`, used by J1 and J3. It is not a command option ([AGENTS.md §9](../../../../../AGENTS.md)): an option that varies the layout would vary the output between machines and runs. |
+| J5 | What changes and what must not | Changes: the text layout; the pinned output of the four-strategy refresh in `tests/test_cli_runs_compare.py`; the `WORKSPACE.md` example and its explanation; [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table), where its wording no longer matched. Must not change: the `--json` output, byte for byte; `schemas/runs-compare.schema.json`; `tests/expected_output/workspace_commands/runs-compare.txt`. Proved with the U6 commands and `git --no-pager status --short`. |
+| J6 | Tests | On synthetic documents: one band; an exact fit at 120 and one character over; five strategies forcing two bands; eleven strategies; a strategy wider than 120 on its own; rows in the same order in every band; markers and the legend across bands; period ends wrapping, and a single entry longer than 120 left whole; the unreadable-ID list wrapping. |
+
+Decided while implementing, because the decisions above did not settle them: the unreadable-ID list breaks after the
+comma, which stays at the end of the line, and its continuation lines are indented two spaces, because the text before
+the first ID is about 95 characters and indenting to the first ID would leave no room for another; and the first ID
+stays on the first line because an entry is never split.
+
 ---
 
 ## Appendix B: Implementation record
@@ -400,8 +421,16 @@ plan and the contract.
 
 ### C.4 3.5.3c files
 
-The side-by-side text renderer and its width constant, the stored expected output of the refresh table, and the
-documentation that shows it (`WORKSPACE.md`). The exact list is written when 3.5.3c begins.
+| File | Change |
+| :--- | :--- |
+| `investment_analysis_engine/workspace_documents/runs_compare.py` | `TEXT_WIDTH`; `_table` packs strategies into bands; `_wrapped` wraps the period-end lists and the unreadable-ID list. |
+| `tests/test_cli_runs_compare.py` | The pinned four-strategy output becomes two bands with wrapped period ends. No other test changes. |
+| `tests/workspace_documents/test_runs_compare_text_layout.py` | New. The tests of [D.3](#d3-353c-tests). |
+| `docs/user/WORKSPACE.md` | The example and one bullet each for the bands and the wrapping. |
+| This plan, the contract, [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table) | Decisions J1 to J6, status, and the layout wording. |
+
+Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `--json`, `schemas/runs-compare.schema.json` and
+`tests/expected_output/workspace_commands/runs-compare.txt`.
 
 ### C.5 3.5.3d files
 
@@ -468,8 +497,12 @@ outputs are compared byte for byte ([U6](#a5-decisions-u1-to-u6-2026-10-29)).
 
 ### D.3 3.5.3c tests
 
-The packing of groups into bands at several widths and counts, a group wider than 120, `STRATEGIES` order, and `--json`
-unchanged.
+`tests/workspace_documents/test_runs_compare_text_layout.py`, on documents built by hand: one band; an exact fit at 120
+and one character over; the reviewed four-strategy refresh as two bands; five strategies forcing two bands; eleven
+strategies; a strategy wider than 120 on its own, and one first in order; rows in the same order in every band; markers
+and the legend across bands; period ends wrapping, and a single entry longer than 120 left whole; the unreadable-ID list
+wrapping. `tests/test_cli_runs_compare.py` pins the four-strategy output from a stored refresh, and `--json` is
+unchanged ([J5](#a7-decisions-j1-to-j6-2026-10-30)).
 
 ### D.4 3.5.3d tests
 

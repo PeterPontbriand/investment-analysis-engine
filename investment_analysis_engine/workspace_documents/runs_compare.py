@@ -53,6 +53,13 @@ HeadlineUnavailable = Literal["unsupported_version", "strategy_not_declared", "n
 MISSING: str = "—"
 """What the text table shows for a value that is absent."""
 
+TEXT_WIDTH: int = 120
+"""The width, in characters, the text table's bands and the lists under it are wrapped to.
+
+A band holds as many strategies as fit; a strategy or an entry wider than this on its own is left whole."""
+
+_GAP = 2
+_GAP_TEXT = " " * _GAP
 _NO_RUN = "no stored run"
 _NOT_RECORDED = "not recorded"
 _MARKERS = ("†", "‡", "§", "¶")
@@ -447,30 +454,62 @@ def _entry_cells(
 def _table(
     document: RunsCompareDocument, labels: list[list[list[str]]], markers: dict[tuple[int, int, str], str]
 ) -> list[str]:
+    """Return the table as bands of strategies, each at most ``TEXT_WIDTH`` wide unless one strategy alone is wider.
+
+    Strategies fill a band in column order; a strategy is never split or moved. Every band repeats the Ticker column,
+    its strategy-name row, its column-heading row and every ticker row, and bands are separated by one blank line.
+    """
     headers = [[" / ".join(column) for column in columns] for columns in labels]
-    group_row = [
-        "",
-        *[
-            value
-            for index, strategy in enumerate(document.strategies)
-            for value in [strategy.label, *([""] * len(headers[index]))]
-        ],
-    ]
-    label_row = ["Ticker", *[value for item in headers for value in [*item, "Outcome"]]]
-    body = [
+    blocks = [
         [
-            row.ticker,
-            *[
-                value
-                for index, entry in enumerate(row.entries)
-                for value in _entry_cells(entry.run, headers[index], markers, index)
-            ],
+            [strategy.label, *([""] * len(headers[index]))],
+            [*headers[index], "Outcome"],
+            *[_entry_cells(row.entries[index].run, headers[index], markers, index) for row in document.rows],
         ]
-        for row in document.rows
+        for index, strategy in enumerate(document.strategies)
     ]
-    grid = [group_row, label_row, *body]
-    widths = [max(len(line[column]) for line in grid) for column in range(len(label_row))]
-    return ["  ".join(text.ljust(width) for text, width in zip(line, widths, strict=True)).rstrip() for line in grid]
+    ticker_column = ["", "Ticker", *[row.ticker for row in document.rows]]
+    ticker_width = max(len(text) for text in ticker_column)
+    widths = [[max(len(line[column]) for line in block) for column in range(len(block[0]))] for block in blocks]
+    sizes = [sum(item) + _GAP * (len(item) - 1) for item in widths]
+    bands: list[list[int]] = []
+    used = 0
+    for index, size in enumerate(sizes):
+        if bands and used + _GAP + size <= TEXT_WIDTH:
+            bands[-1].append(index)
+            used += _GAP + size
+        else:
+            bands.append([index])
+            used = ticker_width + _GAP + size
+    lines: list[str] = []
+    for band in bands:
+        if lines:
+            lines.append("")
+        column_widths = [ticker_width, *[width for index in band for width in widths[index]]]
+        for position, ticker_cell in enumerate(ticker_column):
+            cells = [ticker_cell, *[text for index in band for text in blocks[index][position]]]
+            lines.append(
+                _GAP_TEXT.join(text.ljust(width) for text, width in zip(cells, column_widths, strict=True)).rstrip()
+            )
+    return lines
+
+
+def _wrapped(first: str, entries: Sequence[str], separator: str, carry: str, indent: str) -> list[str]:
+    """Join ``entries`` after ``first`` with ``separator``, starting a new line when the next would pass ``TEXT_WIDTH``.
+
+    A line that breaks ends with ``carry`` in place of the separator, and the next line starts with ``indent``. An
+    entry wider than the limit on its own is left whole.
+    """
+    lines: list[str] = []
+    current = first + entries[0]
+    for entry in entries[1:]:
+        if len(current) + len(separator) + len(entry) > TEXT_WIDTH:
+            lines.append(current + carry)
+            current = indent + entry
+        else:
+            current += separator + entry
+    lines.append(current)
+    return lines
 
 
 def _period_lines(document: RunsCompareDocument) -> list[str]:
@@ -485,7 +524,8 @@ def _period_lines(document: RunsCompareDocument) -> list[str]:
             when = _NOT_RECORDED if headline.period_end is None else headline.period_end.date().isoformat()
             parts.append(f"{document.strategies[index].label}: {headline.period_end_label} {when}")
         if parts:
-            lines.append(f"  {row.ticker:<{width}}  " + " · ".join(parts))
+            prefix = f"  {row.ticker:<{width}}  "
+            lines += _wrapped(prefix, parts, " · ", "", " " * len(prefix))
     return lines
 
 
@@ -520,8 +560,13 @@ def render_runs_compare_text(document: RunsCompareDocument) -> str:
     if unreadable:
         lines += [
             "",
-            "Could not be read (stored under an older version, or for a strategy no longer declared): "
-            + ", ".join(str(item) for item in unreadable),
+            *_wrapped(
+                "Could not be read (stored under an older version, or for a strategy no longer declared): ",
+                [str(item) for item in unreadable],
+                ", ",
+                ",",
+                "  ",
+            ),
         ]
     requested = list(
         dict.fromkeys(
@@ -541,6 +586,7 @@ def render_runs_compare_text(document: RunsCompareDocument) -> str:
 
 __all__ = [
     "MISSING",
+    "TEXT_WIDTH",
     "CellStatusValue",
     "CompareCellDocument",
     "CompareColumn",
