@@ -1,11 +1,12 @@
-"""Total debt and enterprise value from the balance-sheet values at one fiscal year-end.
+"""Total debt, long-term debt and enterprise value from the balance-sheet values at one fiscal year-end.
 
-Both functions are pure. A balance-sheet value at year-end *t* is a ``ResolvedInput`` or an ``InstantAbsence``; an
+The functions are pure. A balance-sheet value at year-end *t* is a ``ResolvedInput`` or an ``InstantAbsence``; an
 annual value is a ``ResolvedInput`` or ``None``. An absence is read as a number only where the financial math reference
 allows it, and the result names the components it took as zero.
 
 - total debt = short-term borrowings + current portion of long-term debt + noncurrent long-term debt + lease
   liabilities counted as debt;
+- long-term debt = current portion of long-term debt + noncurrent long-term debt, by the same rules;
 - EV = market cap + total debt + preferred stock + noncontrolling interest - cash and equivalents - short-term
   investments. EV may be negative.
 
@@ -202,6 +203,54 @@ def compute_total_debt(  # noqa: PLR0913
     absent = tuple((name, item) for name, item in components if isinstance(item, InstantAbsence))
     if not present:
         return _no_component_present(absent, interest_expense)
+    gaps = [gap for name, item in absent if (gap := debt_component_gap(name, item)) is not None]
+    if gaps:
+        chosen = next((gap for gap in gaps if gap[0] is ReasonCode.UNSUPPORTED_MAPPING), gaps[0])
+        return unavailable(chosen[0], chosen[1], operands=present)
+    zero = tuple(name for name, _item in absent)
+    notes = tuple(f"{name} is not tagged at the year-end and is taken as zero." for name in zero)
+    return _finite(sum(operand.input.value for operand in present), present, zero, notes)
+
+
+def compute_long_term_debt(  # noqa: PLR0913
+    *,
+    short_term_borrowings: BalanceSheetValue,
+    current_portion_of_long_term_debt: BalanceSheetValue,
+    noncurrent_long_term_debt: BalanceSheetValue,
+    lease_liabilities_as_debt: BalanceSheetValue,
+    long_term_debt_total: BalanceSheetValue,
+    interest_expense: AnnualValue,
+) -> MetricEvidence:
+    """Return long-term debt at year-end *t*: the current portion plus the noncurrent long-term debt.
+
+    The rules are those of ``compute_total_debt``. The direct total reconciles with its two parts first, with the same
+    outcomes. With at least one of the four mapped debt concepts present, a long-term part absent as ``not_tagged`` with
+    no related concept is zero (with a diagnostic) and any other absence makes the result ``unavailable`` (the
+    unsupported mapping decides first, then the first gap in the order above). Short-term borrowings and leases are
+    never added; they count only as a debt concept present at the date, so a gap in them does not make long-term debt
+    unavailable. With none of the four present, the no-reported-debt row of ``compute_total_debt`` applies over all four
+    components and ``interest_expense``.
+    """
+    if isinstance(long_term_debt_total, ResolvedInput):
+        mismatch = _direct_total_check(
+            long_term_debt_total, current_portion_of_long_term_debt, noncurrent_long_term_debt
+        )
+        if mismatch is not None:
+            return mismatch
+    parts = (
+        ("current_portion_of_long_term_debt", current_portion_of_long_term_debt),
+        ("noncurrent_long_term_debt", noncurrent_long_term_debt),
+    )
+    components = (
+        ("short_term_borrowings", short_term_borrowings),
+        *parts,
+        ("lease_liabilities_as_debt", lease_liabilities_as_debt),
+    )
+    if not any(isinstance(item, ResolvedInput) for _name, item in components):
+        absent_all = tuple((name, item) for name, item in components if isinstance(item, InstantAbsence))
+        return _no_component_present(absent_all, interest_expense)
+    present = tuple(Operand(name, item) for name, item in parts if isinstance(item, ResolvedInput))
+    absent = tuple((name, item) for name, item in parts if isinstance(item, InstantAbsence))
     gaps = [gap for name, item in absent if (gap := debt_component_gap(name, item)) is not None]
     if gaps:
         chosen = next((gap for gap in gaps if gap[0] is ReasonCode.UNSUPPORTED_MAPPING), gaps[0])
