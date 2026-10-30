@@ -13,8 +13,14 @@ from urllib.error import HTTPError
 import pytest
 
 from investment_analysis_engine.analysis.shared.applicability import IndustryClass, industry_class_of_sic
+from investment_analysis_engine.analysis.shared.metric_inputs import (
+    IndustryClassResolution,
+    MetricInputsFailure,
+    resolve_industry_class,
+)
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
-from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.sec_edgar.filing_document import (
     FilingHeaderPolicy,
@@ -519,3 +525,93 @@ def test_the_fixtures_hold_no_identity_and_only_the_lines_the_reader_uses() -> N
     for path in Path(FIXTURES).glob("*.hdr.sgml"):
         for line in path.read_text(encoding="utf-8").splitlines():
             assert line in allowed or line.startswith(prefixes), (path.name, line)
+
+
+# --- the as-filed SIC code at the anchor of the active scope, and the industry class built on it ---------------------
+
+_PROVIDER = "sec_edgar"
+
+
+def test_the_adapter_resolves_the_sic_of_the_active_scopes_anchor_filing() -> None:
+    sec = _Sec()
+    adapter = sec.adapter()
+    with adapter.analysis_scope(subject_id="JPM", provider_id=_PROVIDER, as_of=_BOUNDARY):
+        bounded = adapter.resolve_as_filed_sic_at_anchor("jpm", _BOUNDARY)
+        current = adapter.resolve_as_filed_sic_at_anchor("JPM", None)
+    assert bounded.sic is not None
+    assert (bounded.sic.code, bounded.sic.accession) == (6021, _ACCESSION)
+    assert current == bounded
+    assert sec.header_urls == [_URL]
+
+
+def test_with_no_active_scope_the_sic_has_no_analysis_scope_and_nothing_is_requested() -> None:
+    sec = _Sec()
+    adapter = sec.adapter()
+    assert adapter.resolve_as_filed_sic_at_anchor("JPM", _BOUNDARY).reason is SicUnavailableReason.NO_ANALYSIS_SCOPE
+    assert sec.header_urls == []
+
+
+@pytest.mark.parametrize(
+    ("asked", "boundary"),
+    [("OTHER", _BOUNDARY), ("JPM", _BOUNDARY - timedelta(days=1))],
+)
+def test_a_scope_for_another_ticker_or_boundary_is_a_scope_mismatch_and_nothing_is_requested(
+    asked: str, boundary: datetime
+) -> None:
+    sec = _Sec()
+    adapter = sec.adapter()
+    with adapter.analysis_scope(subject_id="JPM", provider_id=_PROVIDER, as_of=_BOUNDARY):
+        mismatched = adapter.resolve_as_filed_sic_at_anchor(asked, boundary)
+    assert mismatched.reason is SicUnavailableReason.SCOPE_MISMATCH
+    assert sec.header_urls == []
+
+
+def test_the_sic_of_a_scope_closed_again_is_no_longer_available() -> None:
+    adapter = _Sec().adapter()
+    with adapter.analysis_scope(subject_id="JPM", provider_id=_PROVIDER, as_of=_BOUNDARY):
+        pass
+    assert adapter.resolve_as_filed_sic_at_anchor("JPM", None).reason is SicUnavailableReason.NO_ANALYSIS_SCOPE
+
+
+def test_a_header_fault_inside_the_scope_is_raised_as_the_classified_provider_error() -> None:
+    fault = FinancialProviderError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id=_PROVIDER)
+    adapter = _Sec(header=fault).adapter()
+    with (
+        adapter.analysis_scope(subject_id="JPM", provider_id=_PROVIDER, as_of=_BOUNDARY),
+        pytest.raises(FinancialProviderError) as caught,
+    ):
+        adapter.resolve_as_filed_sic_at_anchor("JPM", None)
+    assert caught.value.kind is ProviderFailureKind.UNREACHABLE
+
+
+def test_the_industry_class_resolves_through_the_adapter_from_the_as_filed_code() -> None:
+    adapter = _Sec().adapter()
+    with adapter.analysis_scope(subject_id="JPM", provider_id=_PROVIDER, as_of=_BOUNDARY):
+        resolution = resolve_industry_class(adapter, ticker="jpm", as_of=_BOUNDARY)
+    assert resolution == IndustryClassResolution(IndustryClass.FINANCIAL, None)
+
+
+def test_the_industry_class_is_unknown_through_the_adapter_when_the_header_is_missing_or_no_scope_is_open() -> None:
+    missing = FinancialProviderError("gone", kind=ProviderFailureKind.NO_DATA, provider_id=_PROVIDER)
+    adapter = _Sec(header=missing).adapter()
+    with adapter.analysis_scope(subject_id="JPM", provider_id=_PROVIDER, as_of=_BOUNDARY):
+        header_missing = resolve_industry_class(adapter, ticker="JPM", as_of=None)
+    no_scope = resolve_industry_class(adapter, ticker="JPM", as_of=None)
+    for outcome, reason in ((header_missing, "header_missing"), (no_scope, "no_analysis_scope")):
+        assert isinstance(outcome, IndustryClassResolution)
+        assert outcome.industry_class is None
+        assert outcome.unknown is not None
+        assert outcome.unknown.reason_code is ReasonCode.INDUSTRY_CLASS_UNKNOWN
+        assert reason in outcome.unknown.reason
+
+
+def test_a_header_fault_is_a_metric_inputs_failure_for_the_industry_class_input() -> None:
+    fault = FinancialProviderError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id=_PROVIDER)
+    adapter = _Sec(header=fault).adapter()
+    with adapter.analysis_scope(subject_id="JPM", provider_id=_PROVIDER, as_of=_BOUNDARY):
+        outcome = resolve_industry_class(adapter, ticker="JPM", as_of=None)
+    assert isinstance(outcome, MetricInputsFailure)
+    assert outcome.input_name == "industry_class"
+    assert outcome.provider_failure == ProviderFailureRecord(
+        ProviderFailureKind.UNREACHABLE, _PROVIDER, "industry_class"
+    )

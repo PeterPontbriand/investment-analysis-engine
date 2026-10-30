@@ -65,7 +65,8 @@ next begins.
 | 3.5.2e | [FCF-Growth adopts the shared market cap](STEP_3_5_2_SLICE_PLAN.md#352e--fcf-growth-adopts-the-shared-market-cap) | Complete | 2026-10-28 |
 | 3.5.2f | [FCF-Growth's annual reader on the shared resolver entry](STEP_3_5_2_SLICE_PLAN.md#352f--fcf-growths-annual-reader-on-the-shared-resolver-entry) | Complete | 2026-10-29 |
 | 3.5.3a | [Slice plan and the nine-test calculator](STEP_3_5_3_SLICE_PLAN.md#353a--slice-plan-and-the-nine-test-calculator) | Complete | 2026-10-29 |
-| 3.5.3b | [Inputs at three year-ends](STEP_3_5_3_SLICE_PLAN.md#353b--inputs-at-three-year-ends) | Next | |
+| 3.5.3b1 | [Shared year-end functions that need no new evidence](STEP_3_5_3_SLICE_PLAN.md#353b1--shared-year-end-functions-that-need-no-new-evidence) | Complete | 2026-10-29 |
+| 3.5.3b2 | [Year-end discovery, share-count series and captured evidence](STEP_3_5_3_SLICE_PLAN.md#353b2--year-end-discovery-share-count-series-and-captured-evidence) | Next | |
 | 3.5.3c | [Side-by-side text layout](STEP_3_5_3_SLICE_PLAN.md#353c--side-by-side-text-layout) | Planned | |
 | 3.5.3d | [The Piotroski strategy](STEP_3_5_3_SLICE_PLAN.md#353d--the-piotroski-strategy) | Planned | |
 | 3.5.3e | [Repetition checkpoint](STEP_3_5_3_SLICE_PLAN.md#353e--repetition-checkpoint) | Planned | |
@@ -566,3 +567,4 @@ Decided by the project owner while the [3.5.3 slice plan](STEP_3_5_3_SLICE_PLAN.
 | Result and statuses (Q10, Q11, Q13) | Result shape in Slice inputs §5 | Fixed shape, two new reason codes, `ok`, `input_unavailable` and `provider_error` statuses with no `not_applicable`, and a text headline reading "x of n" | A partial score must never read as a bare number |
 | Text layout (Q12) | Decided by the 3.5.3 plan | Bands of at most 120 characters, each repeating the Ticker column, at every strategy count | One band per strategy is long, a filter hides columns, terminal-width packing varies by machine |
 | Checkpoint and guide (Q16, Q17) | Site 19 weighed in 3.5.3 | No change to the watchlist command syntax in Step 3.5; the guide is fixed where in scope and one issue is filed for the rest | Piotroski has no watchlist options of its own |
+| Split of 3.5.3b and evidence handling (U1 to U6) | 3.5.3b as one sub-slice | Two: 3.5.3b1 the shared functions that need no new evidence (long-term debt, industry class, multi-year balance-sheet and annual values), 3.5.3b2 year-end discovery, the share-count series, the Q5 measurement and the captured fixtures; evidence in `STEP_3_5_3_INPUT_EVIDENCE.md`; a stop threshold for Q5; capture only in 3.5.3b2; no new live-network check; a byte-identical proof of stored outputs | Reviewed code should not wait on a stop for live evidence; the plan's [A.5](STEP_3_5_3_SLICE_PLAN.md#a5-decisions-u1-to-u6-2026-10-29) holds the six decisions |

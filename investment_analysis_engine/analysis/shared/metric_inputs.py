@@ -1,9 +1,10 @@
 """The inputs the shared metrics need, assembled once for an issuer and a boundary.
 
-Four functions, one per input family: the anchor fiscal year-end *t*; the market-cap inputs at *t*; balance-sheet
-values at *t*; annual values at *t*. Each takes the dependencies a consumer's analyzer received at construction (the
-``InputResolver``, the split-history client and the cover-listing capability) and holds no state. Every input is the
-evidence of the registrant the ticker names, as filed or priced at the boundary.
+Functions, one per input family: the anchor fiscal year-end *t*; the market-cap inputs at *t*; balance-sheet values
+and annual values at one or several named year-ends; the industry class. Each takes the dependencies a consumer's
+analyzer received at construction (the ``InputResolver``, the split-history client, the cover-listing capability and the
+as-filed SIC source) and holds no state. Every input is the evidence of the registrant the ticker names, as filed or
+priced at the boundary.
 
 A provider failure is never raised out of these functions. It is returned as a ``MetricInputsFailure`` carrying the
 provider-failure record, and a consumer calls no metric after one. An input that is merely unavailable is returned as
@@ -19,8 +20,9 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Final
+from typing import Final, Protocol
 
+from investment_analysis_engine.analysis.shared.applicability import IndustryClass, industry_class_of_sic
 from investment_analysis_engine.analysis.shared.financial_resolution import resolve_optional_quote
 from investment_analysis_engine.analysis.shared.market_cap import (
     ANCHOR_FILING_FORMS,
@@ -53,6 +55,7 @@ from investment_analysis_engine.data.financial.provenance import (
 from investment_analysis_engine.data.financial.resolver import (
     InputResolutionResult,
     InputResolver,
+    InstantSeriesResolution,
     LeftOutObservation,
     LeftOutReason,
 )
@@ -66,6 +69,7 @@ from investment_analysis_engine.data.market_data import (
 )
 from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.sec_edgar.cover_listing import CoverListingProvider, CoverListingRequest
+from investment_analysis_engine.data.sec_edgar.filing_header import AsFiledSicResolution
 from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
     AnchorYearEnd,
@@ -84,6 +88,7 @@ requested range.
 
 _YEAR_END_BASIS = "fiscal_year_end"
 _ANNUAL_BASIS = "fiscal_year"
+_ASSEMBLED_ANNUAL_FIELDS = ANNUAL_PERIOD_FIELDS | {FinancialField.OPERATING_CASH_FLOW}
 
 
 @dataclass(frozen=True)
@@ -506,6 +511,89 @@ def _listing_check(
         return _failure("listing_check", exc)
 
 
+def _requested_dates(year_ends: Sequence[date]) -> tuple[date, ...]:
+    """Return the requested year-ends once each, oldest first, so the request never depends on the caller's order."""
+    dates = tuple(sorted(set(year_ends)))
+    if not dates:
+        raise ValueError("At least one year-end is required.")
+    return dates
+
+
+def _requested_fields(fields: Sequence[FinancialField]) -> tuple[FinancialField, ...]:
+    """Return the requested fields once each, in the caller's order.
+
+    The order decides only which failure is reported first when several fields fail, and so which later fields are
+    not requested; the values of a successful answer are keyed by field and do not depend on it.
+    """
+    return tuple(dict.fromkeys(fields))
+
+
+def _instant_values(resolution: InstantSeriesResolution, dates: tuple[date, ...]) -> dict[date, BalanceSheetValue]:
+    """Return each requested date's resolved input or absence from one series resolution.
+
+    A date the answer neither resolves nor lists as absent (or every date, when the provider serves no series) is an
+    ``unsupported`` absence carrying the resolution's reason, so a date is never left without a value or a reason.
+    """
+    resolved = {
+        item.observation_period_end.date(): item
+        for item in resolution.inputs
+        if item.observation_period_end is not None
+    }
+    absent = {item.period_end: item for item in resolution.absences}
+    detail = resolution.reason or "The provider's answer did not cover the year-end."
+    return {
+        day: resolved.get(day) or absent.get(day) or InstantAbsence(day, InstantAbsenceReason.UNSUPPORTED, detail)
+        for day in dates
+    }
+
+
+def resolve_balance_sheet_values_at(
+    resolver: InputResolver,
+    *,
+    ticker: str,
+    fields: Sequence[FinancialField],
+    year_ends: Sequence[date],
+    as_of: datetime | None,
+) -> Mapping[FinancialField, Mapping[date, BalanceSheetValue]] | InputUnavailable | MetricInputsFailure:
+    """Return each named balance-sheet field at each named year-end: its resolved input or its absence.
+
+    One series request is made per field, for all the year-ends. A field the provider cannot serve is an
+    ``InstantAbsence`` of reason ``unsupported`` at every date, and a field the filings do not report at a date is the
+    absence the provider gives. An absence because the year-end is after the boundary stays that date's absence, so a
+    year filed late does not remove the others; when every requested year-end of a field is after the boundary it is
+    the registrant whose annual filings all came after it, and the function returns it once, as
+    ``not_available_as_of`` with the provider's message, and requests no further field. The year-ends must be
+    consecutive fiscal year-ends within the annual-duration tolerance (``InstantSeriesRequest`` refuses others). A
+    year-end is never filled from another, and the values never depend on the order of ``fields`` or ``year_ends``.
+
+    Raises:
+        ValueError: If no year-end is requested, or a field is not a balance-sheet field.
+    """
+    dates = _requested_dates(year_ends)
+    values: dict[FinancialField, Mapping[date, BalanceSheetValue]] = {}
+    for name in _requested_fields(fields):
+        resolution = resolver.resolve_instant_series(
+            InstantSeriesRequest(ticker, name, SEC_PROVIDER_ID, dates, as_of=as_of)
+        )
+        if resolution.status not in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE):
+            record = resolution.provider_failure
+            return MetricInputsFailure(
+                name.value,
+                resolution.reason or "The provider's answer was rejected.",
+                None if record is None else record.for_input(name.value),
+            )
+        by_date = _instant_values(resolution, dates)
+        late = [
+            item
+            for item in by_date.values()
+            if isinstance(item, InstantAbsence) and item.reason is InstantAbsenceReason.AFTER_BOUNDARY
+        ]
+        if len(late) == len(dates):
+            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, late[0].detail)
+        values[name] = MappingProxyType(by_date)
+    return MappingProxyType(values)
+
+
 def resolve_balance_sheet_values(
     resolver: InputResolver,
     *,
@@ -516,35 +604,68 @@ def resolve_balance_sheet_values(
 ) -> Mapping[FinancialField, BalanceSheetValue] | InputUnavailable | MetricInputsFailure:
     """Return each named balance-sheet field at the anchor year-end: its resolved input or its absence.
 
-    A field the provider cannot serve is an ``InstantAbsence`` of reason ``unsupported``, and a field the filings do
-    not report is the absence the provider gives. An absence because the year-end is after the boundary is the
-    registrant whose annual filings all came after it: the function returns it once, as ``not_available_as_of`` with
-    the provider's message, and requests no further field.
+    This is ``resolve_balance_sheet_values_at`` for the one year-end *t*; its rules and its raised errors are those
+    of that function.
     """
-    values: dict[FinancialField, BalanceSheetValue] = {}
-    for name in fields:
-        request = InstantSeriesRequest(ticker, name, SEC_PROVIDER_ID, (anchor.year_end,), as_of=as_of)
-        resolution = resolver.resolve_instant_series(request)
-        if resolution.status is CalculationStatus.OK:
-            values[name] = resolution.inputs[0]
-            continue
-        if resolution.status is not CalculationStatus.INPUT_UNAVAILABLE:
+    outcome = resolve_balance_sheet_values_at(
+        resolver, ticker=ticker, fields=fields, year_ends=(anchor.year_end,), as_of=as_of
+    )
+    if isinstance(outcome, (InputUnavailable, MetricInputsFailure)):
+        return outcome
+    return MappingProxyType({name: outcome[name][anchor.year_end] for name in dict.fromkeys(fields)})
+
+
+def resolve_annual_values_at(
+    resolver: InputResolver,
+    *,
+    ticker: str,
+    fields: Sequence[FinancialField],
+    year_ends: Sequence[date],
+    as_of: datetime | None,
+) -> Mapping[FinancialField, Mapping[date, AnnualValue | InputUnavailable]] | InputUnavailable | MetricInputsFailure:
+    """Return each named annual field for the year ending at each named year-end.
+
+    A value is its resolved input; ``None`` where the filings report none for the year, which includes an observation
+    whose period does not end at that year-end (it is never returned as that year's); or an ``InputUnavailable`` where
+    the latest versions of the year's value conflict (``ambiguous_fact``) or the year was filed only after the
+    boundary (``not_available_as_of``), each decided per year. The completed-annual fields and
+    ``OPERATING_CASH_FLOW`` are a series: the resolver gives every observation that passed its provider-response
+    checks (``InputResolver.resolve_annual_series``) in one resolution per field, and this function takes the ones that
+    end at each year-end and, as FCF-Growth does, keeps the latest-available version of the period. That selection
+    stays here because it is the shared metrics' rule for a year-end and for ``ambiguous_fact``, and the resolver stays
+    provider-neutral. A registrant whose annual filings all came after the boundary is returned once, as
+    ``not_available_as_of`` with the provider's message, and no further field is requested. The values never depend
+    on the order of ``fields`` or ``year_ends``, or on the order of the provider's answer.
+
+    Raises:
+        ValueError: If no year-end is requested, or a field is neither a completed-annual period field nor
+            ``OPERATING_CASH_FLOW``.
+    """
+    dates = _requested_dates(year_ends)
+    names = _requested_fields(fields)
+    for name in names:
+        if name not in _ASSEMBLED_ANNUAL_FIELDS:
+            raise ValueError(f"{name.value} is not a completed-annual period field.")
+    values: dict[FinancialField, Mapping[date, AnnualValue | InputUnavailable]] = {}
+    for name in names:
+        request = FinancialFactRequest(
+            FinancialSubjectKind.SECURITY, ticker, name, SEC_PROVIDER_ID, basis=_ANNUAL_BASIS, as_of=as_of
+        )
+        resolution = resolver.resolve_annual_series(request)
+        if resolution.not_available_as_of:
+            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, resolution.reason or "")
+        if resolution.status not in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE):
             record = resolution.provider_failure
             return MetricInputsFailure(
                 name.value,
                 resolution.reason or "The provider's answer was rejected.",
                 None if record is None else record.for_input(name.value),
             )
-        absence = (
-            resolution.absences[0]
-            if resolution.absences
-            else InstantAbsence(
-                anchor.year_end, InstantAbsenceReason.UNSUPPORTED, resolution.reason or "The provider serves no series."
-            )
-        )
-        if absence.reason is InstantAbsenceReason.AFTER_BOUNDARY:
-            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, absence.detail)
-        values[name] = absence
+        by_date: dict[date, AnnualValue | InputUnavailable] = {}
+        for day in dates:
+            value = _annual_value(resolution.inputs, name, day)
+            by_date[day] = value if value is not None else _left_out_at(resolution.left_out, day)
+        values[name] = MappingProxyType(by_date)
     return MappingProxyType(values)
 
 
@@ -558,39 +679,71 @@ def resolve_annual_values(
 ) -> Mapping[FinancialField, AnnualValue | InputUnavailable] | InputUnavailable | MetricInputsFailure:
     """Return each named annual field for the year ending at the anchor year-end.
 
-    A field is its resolved input; ``None`` where the filings report none for the year, which includes an observation
-    whose period does not end at *t* (it is never returned as *t*'s); or an ``InputUnavailable`` where the latest
-    versions of the year's value conflict. The completed-annual fields are a series: the resolver gives every
-    observation that passed its provider-response checks (``InputResolver.resolve_annual_series``), and this function
-    takes the ones that end at *t* and, as FCF-Growth does, keeps the latest-available version of the period. That
-    selection stays here because it is the shared metrics' rule for *t* and for ``ambiguous_fact``, and the resolver
-    stays provider-neutral. A registrant whose annual filings all came after the boundary is returned once, as
-    ``not_available_as_of`` with the provider's message, and no further field is requested.
-
-    Raises:
-        ValueError: If a field is not a completed-annual period field.
+    This is ``resolve_annual_values_at`` for the one year-end *t*; its rules and its raised errors are those of that
+    function.
     """
-    values: dict[FinancialField, AnnualValue | InputUnavailable] = {}
-    for name in fields:
-        if name not in ANNUAL_PERIOD_FIELDS:
-            raise ValueError(f"{name.value} is not a completed-annual period field.")
-        request = FinancialFactRequest(
-            FinancialSubjectKind.SECURITY, ticker, name, SEC_PROVIDER_ID, basis=_ANNUAL_BASIS, as_of=as_of
+    outcome = resolve_annual_values_at(
+        resolver, ticker=ticker, fields=fields, year_ends=(anchor.year_end,), as_of=as_of
+    )
+    if isinstance(outcome, (InputUnavailable, MetricInputsFailure)):
+        return outcome
+    return MappingProxyType({name: outcome[name][anchor.year_end] for name in dict.fromkeys(fields)})
+
+
+class AsFiledSicSource(Protocol):
+    """The capability that gives the as-filed SIC code of the anchor filing of the active analysis scope."""
+
+    def resolve_as_filed_sic_at_anchor(self, ticker: str, as_of: datetime | None) -> AsFiledSicResolution:
+        """Return the SIC code the anchor filing's header assigns, or the reason it is unavailable.
+
+        Raises:
+            FinancialProviderError: On an operational provider failure.
+        """
+        ...
+
+
+@dataclass(frozen=True)
+class IndustryClassResolution:
+    """The industry class of an issuer, or the reason it is unknown.
+
+    Attributes:
+        industry_class: The class of the as-filed SIC code, ``None`` when it is unknown.
+        unknown: Why the class is unknown (``industry_class_unknown`` with a message naming the reason); set exactly
+            when ``industry_class`` is ``None``.
+    """
+
+    industry_class: IndustryClass | None
+    unknown: InputUnavailable | None
+
+    def __post_init__(self) -> None:
+        """Require exactly one of the class and the reason it is unknown."""
+        if (self.industry_class is None) == (self.unknown is None):
+            raise ValueError("An industry-class resolution holds exactly one of the class and the unknown reason.")
+
+
+def resolve_industry_class(
+    source: AsFiledSicSource, *, ticker: str, as_of: datetime | None
+) -> IndustryClassResolution | MetricInputsFailure:
+    """Return the industry class of the SIC code the anchor annual filing assigns, or why it is unknown.
+
+    The class comes from the SIC code as filed, never from the issuer's current code. Every reason the code is
+    unavailable gives an unknown class with ``industry_class_unknown`` and a message naming the reason, so a strategy
+    runs and says so. A provider failure is returned as a ``MetricInputsFailure`` for the input ``industry_class``.
+    """
+    try:
+        resolution = source.resolve_as_filed_sic_at_anchor(ticker.strip().upper(), as_of)
+    except FinancialProviderError as exc:
+        return _failure("industry_class", exc)
+    if resolution.sic is None:
+        assert resolution.reason is not None  # the resolution type guarantees one of the two
+        return IndustryClassResolution(
+            None,
+            InputUnavailable(
+                ReasonCode.INDUSTRY_CLASS_UNKNOWN,
+                f"The industry class is unknown: the as-filed SIC code is unavailable ({resolution.reason.value}).",
+            ),
         )
-        resolution = resolver.resolve_annual_series(request)
-        if resolution.not_available_as_of:
-            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, resolution.reason or "")
-        if resolution.status in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE):
-            value = _annual_value(resolution.inputs, name, anchor.year_end)
-            values[name] = value if value is not None else _left_out_at(resolution.left_out, anchor.year_end)
-        else:
-            record = resolution.provider_failure
-            return MetricInputsFailure(
-                name.value,
-                resolution.reason or "The provider's answer was rejected.",
-                None if record is None else record.for_input(name.value),
-            )
-    return MappingProxyType(values)
+    return IndustryClassResolution(industry_class_of_sic(resolution.sic.code), None)
 
 
 def _left_out_at(left_out: Sequence[LeftOutObservation], year_end: date) -> InputUnavailable | None:

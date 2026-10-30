@@ -1,15 +1,15 @@
 # Step 3.5 slice 3.5.3 — Piotroski F-Score: Slice Plan
 
-The slice plan for [slice 3.5.3](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#353--piotroski-f-score) of Step 3.5. It covers five
-sub-slices. It was written against `main` at `72c3a1f`, after the 3.5.2 plan was complete.
+The slice plan for [slice 3.5.3](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#353--piotroski-f-score) of Step 3.5. It covers six
+sub-slices (3.5.3b is split in two by [U1](#a5-decisions-u1-to-u6-2026-10-29)). It was written against `main` at `72c3a1f`, after the 3.5.2 plan was complete.
 
 Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
 ## 1. At a glance
 
-- **What this plan does:** takes the Piotroski F-Score from specification to a shipped strategy in five gated steps:
-  the plan and the pure nine-test calculator (3.5.3a); the inputs at three year-ends (3.5.3b); the side-by-side text
-  layout for many strategies (3.5.3c); the strategy through every edit site (3.5.3d); and the repetition checkpoint
+- **What this plan does:** takes the Piotroski F-Score from specification to a shipped strategy in six gated steps:
+  the plan and the pure nine-test calculator (3.5.3a); the inputs at three year-ends, in two parts (3.5.3b1 and
+  3.5.3b2); the side-by-side text layout for many strategies (3.5.3c); the strategy through every edit site (3.5.3d); and the repetition checkpoint
   (3.5.3e).
 - **What it is not:** a change to the Piotroski formulas, to the analyzer envelope, or to any existing strategy's stored
   output. No ranking, no market data and no issuance-proceeds reading. Full list:
@@ -38,7 +38,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 3.5.3a | [Slice plan and the nine-test calculator](#353a--slice-plan-and-the-nine-test-calculator) | Complete | 2026-10-29 |
-| 3.5.3b | [Inputs at three year-ends](#353b--inputs-at-three-year-ends) | Next | |
+| 3.5.3b1 | [Shared year-end functions that need no new evidence](#353b1--shared-year-end-functions-that-need-no-new-evidence) | Complete | 2026-10-29 |
+| 3.5.3b2 | [Year-end discovery, share-count series and captured evidence](#353b2--year-end-discovery-share-count-series-and-captured-evidence) | Next | |
 | 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Planned | |
 | 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Planned | |
 | 3.5.3e | [Repetition checkpoint](#353e--repetition-checkpoint) | Planned | |
@@ -65,20 +66,43 @@ Each sub-slice has its own branch off `main`, named as its section says, after t
 
 ### 3.5.3b — Inputs at three year-ends
 
-- **Problem:** the shared assembly returns balance-sheet and annual values at the anchor year-end only. Piotroski needs
-  total assets at three year-ends, most operands at two, a share count at two, long-term debt and the industry class.
-- **Decision (Q2 to Q7):**
+Split in two by [U1](#a5-decisions-u1-to-u6-2026-10-29): 3.5.3b1 is reviewed code that needs no new evidence, and
+3.5.3b2 is mapping judgment from live evidence. Each has its own branch, managed gate and authorization. The names
+b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
+
+#### 3.5.3b1 — Shared year-end functions that need no new evidence
+
+- **Problem:** the shared assembly returns balance-sheet and annual values at the anchor year-end only, there is no
+  shared long-term debt, and no strategy-neutral industry class. Piotroski needs all three.
+- **Decision (Q3, Q6, Q7, Q8, U1, U6):**
+  - `compute_long_term_debt` sits beside `compute_total_debt` and follows its rules.
+  - `resolve_industry_class` returns the class, the reason it is unknown, or the provider failure; the SEC adapter
+    implements `AsFiledSicSource`.
+  - `resolve_balance_sheet_values_at` and `resolve_annual_values_at` take several named year-ends and key their results
+    by date; both accept `OPERATING_CASH_FLOW`. The one-year-end functions become calls of them.
+  - Each value keeps its own currency and provider field; the calculator checks agreement per test (Q8).
+- **Scope:** the functions of [E.2](#e2-shared-assembly-functions) other than year-end discovery and the share-count
+  series; synthetic tests through the existing rig ([D.2](#d2-353b1-tests)); the long-term debt entry of
+  `FINANCE_MATH.md`. Stored outputs and schemas stay byte-identical (U6).
+- **Branch:** `feat/step-3-5-3b1-shared-year-end-functions`.
+- **Detail:** [files](#c3-353b1-files), [tests](#d2-353b1-tests) and [interfaces](#e2-shared-assembly-functions).
+
+#### 3.5.3b2 — Year-end discovery, share-count series and captured evidence
+
+- **Problem:** the year-ends *t−1* and *t−2* are not yet found, the share count is served at the anchor only, and the
+  field list and the share-count paths have no captured evidence.
+- **Decision (Q2, Q4, Q5, U2 to U5):**
   - The year-ends *t−1* and *t−2* are derived from the start date of the preceding completed annual period, from an
     explicit priority list of fields that must agree, and each must lie 335 to 395 days before the later year-end.
-  - The balance-sheet and annual functions take several named year-ends and return each year's value or why it has none.
   - Share counts come through the instant series at named year-ends, and the dilution test compares them only when
     both come from one filing.
-  - Long-term debt is a shared metric beside total debt. The industry class is resolved once for all strategies.
-- **Scope:** the functions of [E.2](#e2-shared-assembly-functions); evidence for the field list, the share-count paths
-  and the regression set; tests through the assembly functions ([D.2](#d2-353b-tests)). FCF-Growth's and the market
-  cap's stored outputs stay byte-identical, and no strategy reads the SEC adapter for values.
-- **Branch:** `feat/step-3-5-3b-year-end-inputs`.
-- **Detail:** [files](#c3-353b-files), [tests](#d2-353b-tests) and [interfaces](#e2-shared-assembly-functions).
+  - The measurement for Q5 covers the regression set plus Apple and Monster at their latest year-end, and stops and
+    reports at the threshold of [U3](#a5-decisions-u1-to-u6-2026-10-29).
+  - The evidence is kept in `STEP_3_5_3_INPUT_EVIDENCE.md`, which this sub-slice creates ([U2](#a5-decisions-u1-to-u6-2026-10-29)).
+- **Scope:** `resolve_year_ends` and `resolve_share_count_series` of [E.2](#e2-shared-assembly-functions); the captured
+  fixtures of [U4](#a5-decisions-u1-to-u6-2026-10-29); tests through the assembly functions ([D.2b](#d2b-353b2-tests)).
+- **Branch:** `feat/step-3-5-3b2-year-end-evidence`.
+- **Detail:** [files](#c3b-353b2-files), [tests](#d2b-353b2-tests) and [interfaces](#e2-shared-assembly-functions).
 
 ### 3.5.3c — Side-by-side text layout
 
@@ -141,7 +165,10 @@ Each sub-slice has its own branch off `main`, named as its section says, after t
 
 - **3.5.3a:** the managed gate passes with at least 85% coverage; every case of the arithmetic oracle passes; the new
   reason codes appear in the regenerated schemas with no version bump; no other check is adjusted for the loose module.
-- **3.5.3b:** every rule of Q2 to Q7 is tested through the assembly functions, not only through the series; the stored
+- **3.5.3b1:** every rule of Q3, Q6, Q7 and Q8 that it implements is tested through the assembly functions; the
+  byte-identical proof of [U6](#a5-decisions-u1-to-u6-2026-10-29) is reported; no strategy reads the SEC adapter for
+  values.
+- **3.5.3b2:** every rule of Q2, Q4 and Q5 is tested through the assembly functions, not only through the series; the stored
   outputs of FCF-Growth and the market cap are byte-identical; no strategy reads the SEC adapter for values.
 - **3.5.3c:** no line of the text table is wider than 120 characters unless one group is; `--json` is byte-identical.
 - **3.5.3d:** a financial issuer warns, an unknown class runs and says so, a boundary before the filing is
@@ -230,6 +257,19 @@ the project owner can reverse any.
 | Shuffled order and duplicated tests | The calculator takes named fields, so it has no input order to shuffle. The result constructor refuses a duplicated, missing or reordered test, and 3.5.3a tests that. The cases "shuffled input order gives the identical result" of [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score) belong to the assembly (3.5.3b, operands arrive keyed by name) and to the analyzer (3.5.3d, which never emits a test twice). |
 | Sequence rows | The contract's table replaces the 3.5.3 row with the five sub-slices, as it did for 3.5.2. |
 
+### A.5 Decisions U1 to U6 (2026-10-29)
+
+Approved by the project owner before 3.5.3b began.
+
+| # | Topic | Decision and reason |
+| :--- | :--- | :--- |
+| U1 | Split of 3.5.3b | 3.5.3b is two sub-slices, each with its own branch, managed gate and authorization. 3.5.3b1: `compute_long_term_debt`; `resolve_industry_class` with `AsFiledSicSource` implemented on the SEC adapter; the multi-year balance-sheet and annual functions, including operating cash flow. 3.5.3b2: finding the earlier year-ends with the delegated field list (Q2); the share-count series at named year-ends (Q4); the measurement for Q5; the captured fixtures. The reason is that b1 is code reviewed against [E.2](#e2-shared-assembly-functions), while b2 is mostly mapping judgment from live evidence, and a stop on evidence should not hold up reviewed code. The names b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite. |
+| U2 | Evidence document | 3.5.3b2 creates `STEP_3_5_3_INPUT_EVIDENCE.md`, modelled on `STEP_3_5_2_LISTING_EVIDENCE.md`, holding the captured values, the field-list decision, the share-count paths and the Q5 counts. [B.3](#b3-decisions-of-353b-to-353e) summarizes it in a few lines and links it. The reason is that issuer-by-issuer evidence would swamp this plan, which must stay scannable. |
+| U3 | Q5's stop threshold | The measurement covers the regression set plus Apple and Monster at their latest year-end. 3.5.3b2 stops and reports if, among issuers with a balance-sheet count at both *t* and *t−1*, fewer than three-quarters have both counts from the same filing, or if any issuer's two counts come by different paths. The reason is that "rarely" left undefined would make the agent decide policy. |
+| U4 | Capture | Only 3.5.3b2 captures, using the existing fixture layout and checksum file: the regression set, Apple and Monster (to choose and test the field list and measure Q5), and JPMorgan and one IFRS filer (SAP or Nutrien), which Q14 needs, so 3.5.3d only reuses fixtures. 3.5.3b1 uses synthetic inputs only. |
+| U5 | Live-network checks | None new. Year-end discovery and the share-count series read documents the adapter already fetches, and the SIC header request already has its live check. A sub-slice that finds it needs a new request type stops and asks. |
+| U6 | Proof of byte-identical outputs | Run `uv run python -m tests._direct_command_output`, `uv run python -m tests._strategy_document_output`, `uv run python -m tests._workspace_command_output` and `uv run python -m scripts.generate_schemas --check`, and report `git --no-pager diff --stat` showing that no stored output or schema changed. The existing tests of `resolve_balance_sheet_values` and `resolve_annual_values` stay unchanged and pass. |
+
 ---
 
 ## Appendix B: Implementation record
@@ -260,11 +300,21 @@ Each sub-slice adds what it met. The earlier record of the same kind is
    `analysis/shared/metric_inputs.py`. 3.5.3e repoints it (Q17).
 3. **Where strategy tests go.** The guide's testing section does not say where a strategy's tests live. The suite keeps
    them under `tests/analysis/<strategy>/`, with shared-metric tests under `tests/analysis/shared/` (3.5.3a).
+4. **Shared metrics and their assembly.** The guide does not mention `analysis/shared/` at all: not the pure shared
+   metrics (a strategy that needs long-term debt or EBITDA should call them, not rebuild them), nor the assembly
+   functions that read a metric's inputs at one or several year-ends. The strategy-responsibilities table lists "required
+   input semantics and resolution" as the strategy's own work, which a reader follows by writing a private resolver
+   (3.5.3b1).
+5. **Capabilities that need the analysis scope.** The guide does not say how a strategy gets a scope-bound read such as
+   the industry class: the shared function takes a source protocol that the SEC adapter implements, and composition
+   must pass the adapter, not the resolver, which reaches the adapter only through the production provider. The guide
+   names neither the protocol nor the composition step (3.5.3b1).
 
 ### B.3 Decisions of 3.5.3b to 3.5.3e
 
-3.5.3b records here the field list of Q2 with its evidence, the share-count evidence of Q4 and Q5 (how often *t−1*
-comes from the anchor filing), and the regression-set results. 3.5.3e records the repetition review and the weighing
+3.5.3b2 summarizes here, in a few lines, the field list of Q2, the share-count evidence of Q4 and Q5 (how often *t−1*
+comes from the anchor filing) and the regression-set results, and links `STEP_3_5_3_INPUT_EVIDENCE.md`, which holds them
+([U2](#a5-decisions-u1-to-u6-2026-10-29)). 3.5.3e records the repetition review and the weighing
 of Site 19.
 
 ---
@@ -298,12 +348,20 @@ of Site 19.
 | `tests/test_strategy_wiring_conformance.py` | `strategy_names("piotroski")` becomes `strategy_names("example_undeclared")`, for the same reason. |
 | `tests/workspace_documents/test_analysis_run_replay.py` | The unimplemented method's `analysis_id` and `method_id` become `example_undeclared` and `example_method`, for the same reason. |
 
-### C.3 3.5.3b files
+### C.3 3.5.3b1 files
 
-`analysis/shared/metric_inputs.py` (the year-end, balance-sheet, annual, share-count and industry-class functions of
-[E.2](#e2-shared-assembly-functions)); `analysis/shared/enterprise_value.py` (`compute_long_term_debt`); the SEC adapter
-and instant-series modules for the share-count paths and the start dates; `tests/analysis/shared/` for each; captured
-fixtures for the regression set. The exact list is written when 3.5.3b begins, against the `main` of that day.
+`analysis/shared/metric_inputs.py` (the multi-year balance-sheet and annual functions, the industry-class function and
+the `AsFiledSicSource` protocol); `analysis/shared/enterprise_value.py` (`compute_long_term_debt`);
+`data/sec_edgar/financial_facts.py` (`resolve_as_filed_sic_at_anchor`); `tests/analysis/shared/` and `tests/data/` for
+each; `docs/user/FINANCE_MATH.md` (the long-term debt entry); `docs/project/ARCHITECTURE.md` (the `analysis` row); this
+plan and the contract.
+
+### C.3b 3.5.3b2 files
+
+`analysis/shared/metric_inputs.py` (year-end discovery and the share-count series); the SEC adapter and instant-series
+modules for the share-count paths and the start dates; `tests/analysis/shared/` for each; the captured fixtures of
+[U4](#a5-decisions-u1-to-u6-2026-10-29) and their checksum file; `STEP_3_5_3_INPUT_EVIDENCE.md`. The exact list is
+written when 3.5.3b2 begins, against the `main` of that day.
 
 ### C.4 3.5.3c files
 
@@ -342,12 +400,21 @@ implementation record. The exact list is written when 3.5.3e begins.
 - result invariants: exactly nine tests in fixed order, points consistent with outcomes, finite numbers only, and the
   constructors' refusals of a duplicated or reordered test.
 
-### D.2 3.5.3b tests
+### D.2 3.5.3b1 tests
 
-Through the assembly functions: *t−2* from an earlier filing, a conflict at *t−1*, *t−1* filed after the boundary, fields
-that disagree on currency or taxonomy, a transition year that breaks the chain, a start date that is 334 or 396 days from
-the later year-end, the shuffled order of requested fields, and a first-year registrant. FCF-Growth's and the market
-cap's stored outputs are compared byte for byte.
+Synthetic, through the existing rig and the assembly functions:
+
+- every rule of `compute_long_term_debt`, including an IFRS filer whose noncurrent mapping is unsupported;
+- every outcome of `resolve_industry_class`, including a provider failure and no active scope;
+- for the multi-year functions: *t−2* from an earlier filing, a conflict at *t−1*, *t−1* filed after the boundary,
+  fields that disagree on currency or taxonomy, and the shuffled order of requested fields and dates;
+- `OPERATING_CASH_FLOW` through both annual functions.
+
+### D.2b 3.5.3b2 tests
+
+Through the assembly functions: a transition year that breaks the chain, a start date that is 334 or 396 days from the
+later year-end, a first-year registrant, and the share-count series with its paths. The stored outputs are compared byte
+for byte ([U6](#a5-decisions-u1-to-u6-2026-10-29)).
 
 ### D.3 3.5.3c tests
 
@@ -421,7 +488,8 @@ warning, the taxonomy, the anchor year-end and accession, and the method version
 
 ### E.2 Shared assembly functions
 
-3.5.3b implements these as written in `investment_analysis_engine/analysis/shared/metric_inputs.py`, or stops and asks.
+3.5.3b1 implements these as written in `investment_analysis_engine/analysis/shared/metric_inputs.py`, or stops and asks;
+3.5.3b2 implements `resolve_year_ends` and `resolve_share_count_series` the same way.
 A year-end is a `date`; the functions never reuse the newest year-end for an older one.
 
 ```text
@@ -468,7 +536,7 @@ resolve_industry_class(source: AsFiledSicSource, *, ticker: str,
   the functions above, except that `resolve_annual_values` also accepts `OPERATING_CASH_FLOW`.
 - The latest-available-version rule and the `ambiguous_fact` result for conflicting versions apply per requested year.
 - The year-end rule is [Shared definitions §3](STEP_3_5_SHARED_DEFINITIONS.md#period-alignment); the field list that
-  gives the start date is a module constant chosen and recorded by 3.5.3b under Q2.
+  gives the start date is a module constant chosen and recorded by 3.5.3b2 under Q2.
 - `AsFiledSicSource` is implemented on the SEC adapter beside `resolve_as_filed_sic`, which it wraps; the shared layer
   imports no adapter. A resolution that holds a reason is returned as `unknown`, and a provider failure as
   `MetricInputsFailure`.

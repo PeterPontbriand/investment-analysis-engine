@@ -549,6 +549,20 @@ class SecEdgarFinancialFactsAdapter:
             retrieved_at=retrieved_at,
         )
 
+    def resolve_as_filed_sic_at_anchor(self, ticker: str, as_of: datetime | None) -> AsFiledSicResolution:
+        """Resolve the as-filed SIC code of the anchor filing of the active analysis scope.
+
+        Wraps ``resolve_as_filed_sic`` with the active analysis snapshot. No active scope gives ``NO_ANALYSIS_SCOPE``;
+        a scope for another ticker, or whose boundary is not ``as_of``, gives ``SCOPE_MISMATCH``; none raises.
+        ``as_of`` is ``None`` for a current run, which accepts the scope's own boundary.
+        """
+        snapshot = _ACTIVE_SNAPSHOT.get()
+        if snapshot is None:
+            return AsFiledSicResolution(reason=SicUnavailableReason.NO_ANALYSIS_SCOPE)
+        if snapshot.subject_id != ticker.strip().upper() or (as_of is not None and snapshot.as_of != as_of):
+            return AsFiledSicResolution(reason=SicUnavailableReason.SCOPE_MISMATCH)
+        return self.resolve_as_filed_sic(snapshot)
+
     def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:  # noqa: PLR0911
         """Return the fiscal year-end of the anchor annual filing of the active analysis scope.
 

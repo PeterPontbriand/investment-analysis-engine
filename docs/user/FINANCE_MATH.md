@@ -386,6 +386,14 @@ A missing debt figure is not assumed to be zero. An absent component counts as z
 
 The direct long-term-debt total only reconciles. When it is present, each of the current portion and the noncurrent long-term debt that is absent as `not_tagged` with no related concept counts as zero, and the two must equal the total exactly, with no tolerance. A mismatch makes total debt `unavailable`: with `ambiguous_fact` when at least one part is present, both parts being the affected components, and with `debt_not_visible` when neither is. A part absent for any other reason, or with a related concept, keeps its own outcome. This check comes before the other component rules, so a filer that tags only the direct total never has zero debt. The direct total is never added to its parts and never used as a value. An IFRS issuer's total debt is `unavailable` with `unsupported_mapping` while the IFRS noncurrent long-term debt mapping is unsupported.
 
+### Long-term debt
+
+```text
+long_term_debt = current_portion_of_long_term_debt + noncurrent_long_term_debt
+```
+
+Long-term debt follows the rules of total debt, applied to its two parts. The direct long-term-debt total is reconciled with the two parts first, with the same outcomes, and is never added. An absent part counts as zero, with a diagnostic, only when it is `not_tagged` with no related concept and at least one of the four mapped debt concepts (short-term borrowings, current portion, noncurrent long-term debt, lease liabilities counted as debt) is present at the year-end; any other absence makes long-term debt `unavailable` with the code total debt gives, and an unsupported mapping decides first. Short-term borrowings and leases are never added: they count only as a debt concept present, so a gap in either does not make long-term debt `unavailable`. With none of the four present, the "no reported debt" row of total debt applies to all four components and the year's interest expense. An IFRS issuer's long-term debt is `unavailable` with `unsupported_mapping` while the IFRS noncurrent long-term debt mapping is unsupported.
+
 ### Enterprise value
 
 ```text
