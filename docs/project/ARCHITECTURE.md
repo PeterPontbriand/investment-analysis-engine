@@ -573,6 +573,8 @@ Private model reasoning is never reconstructed.
 
 ## 12. Planned work
 
+- **Application layer and local HTTP API** (work package API): one application layer that the CLI and a versioned local HTTP API, `ian serve`, both call. It owns production composition and returns the existing typed documents; it holds no financial logic and no strategy-specific code. The API is bound to `127.0.0.1` behind a per-launch token, and a separate GUI application is its first consumer. See the [API contract](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md).
+
 - **ETF aggregate FCF** (P2-ETF, deferred beyond Step 3.6): remains planned. The strategy will own its holdings-effective-date, weighting, cash/derivative, currency, missing/stale constituent, coverage, rebalancing, and `as_of` semantics plus native typed configuration/result/tool identity. It may reuse company-level calculations for constituents but must not add ETF branches to or redefine the existing company-level FCF Growth strategy. Company-level FCF requested for a known ETF remains explicitly `not_applicable`; orchestration cannot silently substitute the aggregate strategy.
 
 ---

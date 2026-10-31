@@ -96,6 +96,8 @@ differentiators.
   work package rather than folding into an existing one, explicitly not scheduled until after
   [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) —
   see [the deferred-item record](milestones/v0.2/deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md).
+  The HTTP API was taken up on 2026-10-30 as [API](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md), for a
+  separate GUI application; the MCP server and Parquet/Arrow export stay deferred.
 - **Published conformance suite.** Release Golden Suite fixtures as test vectors so other
   implementations can prove they compute the same results.
 

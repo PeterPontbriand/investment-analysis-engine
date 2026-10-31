@@ -10,6 +10,10 @@ into an existing one (per the reasoning that motivated `IR`), and explicitly def
 it until Step 3.5 lands, rather than treating it as urgent now.
 **Not a blocker:** this does not block R3, IR, PKG, or Step 3.5. It is recorded here so it is not
 lost, not to claim priority over anything already sequenced.
+**Narrowed 2026-10-30:** the HTTP API moved out of this note into work package
+[API](../api/API_CONTRACT_AND_SLICE_PLAN.md), with a separate GUI application as its first consumer. This note
+now covers the MCP server and Parquet/Arrow export. When it is taken up, decide also whether either sits on the
+API's application layer or on the HTTP API itself.
 
 ## Trigger
 
@@ -18,25 +22,22 @@ integration mechanisms under one heading: an MCP server over the existing dispat
 with an OpenAPI spec, published JSON Schemas, and Parquet/Arrow export for cross-sectional
 batches. Published JSON Schemas are already in scope as [IR](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)
 item 7 (typed envelope models plus generated schemas for the existing `--json` payloads); the
-remaining three — an MCP server, an HTTP API, and Parquet/Arrow export — are not currently owned
-by any work package.
+HTTP API is owned by [API](../api/API_CONTRACT_AND_SLICE_PLAN.md) since 2026-10-30; the remaining
+two — an MCP server and Parquet/Arrow export — are not currently owned by any work package.
 
 ## Problem
 
-None of these three remaining surfaces exist today. The project's only current consumer-facing
-boundary is the CLI (`ian ...`) and its `--json` output. An external harness, agent framework, or
-batch-processing consumer that wants to call this project's analyses programmatically, rather than
-shelling out to the CLI, has no supported way to do so yet.
+Neither remaining surface exists today. An agent framework that speaks MCP, or a batch-processing
+consumer that wants columnar output, has no supported way to use this project's analyses other than
+the CLI and its `--json` output, or the local HTTP API once [API](../api/API_CONTRACT_AND_SLICE_PLAN.md) lands.
 
 ## Likely scope, once picked up
 
-- Decide which of the three surfaces to build first, and whether all three are actually warranted
+- Decide which of the two surfaces to build first, and whether both are actually warranted
   or whether real consumer demand should narrow this before implementation — this project's own
   guardrails already caution against building speculative generality ahead of an actual need.
 - An MCP server would most naturally sit over the existing `investment_analysis_engine/orchestrator` dispatcher, since
   that already exposes typed tool-call boundaries for the four analyses.
-- An HTTP API and its OpenAPI spec would need an explicit decision on hosting/process model,
-  authentication (if any), and how it relates to the CLI's own error/exit-code conventions.
 - Parquet/Arrow export is scoped to cross-sectional batches (multiple tickers at once), which does
   not exist as a capability today outside of watchlist refresh's own internal batching — this would
   need its own specification for what a "batch" means as an export unit.
@@ -45,7 +46,7 @@ shelling out to the CLI, has no supported way to do so yet.
 
 ## Out of scope for this note
 
-This is not a request to build any of these three surfaces now, or to commit to building all of
+This is not a request to build either of these two surfaces now, or to commit to building both of
 them — only to record that they were considered and deliberately deferred, not overlooked. A real
 contract/slice plan, including which surface (if any) comes first, is future work once this is
 actually picked up after Step 3.5.

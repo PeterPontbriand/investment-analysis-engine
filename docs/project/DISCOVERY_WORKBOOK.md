@@ -44,7 +44,7 @@ Git history is the authoritative revision history. When this workbook conflicts 
 `investment-analysis-engine` is a local-first investment-analysis project combining deterministic financial software with locally hosted LLM orchestration.
 
 ## Scope
-The project covers local Ollama orchestration, typed deterministic tools/analyzers, market-data access, SQLite/Alembic persistence, evaluation, Canadian localization, and report generation. Planned for v0.3: plain-English questions answered from stored evidence. Full GUI/frontend integration belongs to separate projects.
+The project covers local Ollama orchestration, typed deterministic tools/analyzers, market-data access, SQLite/Alembic persistence, evaluation, Canadian localization, and report generation. Planned for v0.3: plain-English questions answered from stored evidence. Full GUI/frontend integration belongs to separate projects: a separate GUI application uses the engine through its local HTTP API ([API](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md)).
 
 ---
 
@@ -404,7 +404,7 @@ v0.3 adds three measured sets, each with its own answer key:
 
 # 13. User Experience Philosophy
 
-The product through v0.2 is a **terminal-first local investor research workbench**, not merely a collection of calculator commands and not yet a GUI/dashboard.
+The product through v0.2 is a **terminal-first local investor research workbench**, not merely a collection of calculator commands and not itself a GUI/dashboard. A separate GUI application, using the local HTTP API, is the route for users who will not use a command line (decided 2026-10-30, [API plan A.1](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md#a1-a-separate-gui-application-over-a-local-api-2026-10-30)).
 
 ### Default interaction
 An ordinary investor should be able to analyze a ticker directly or maintain a small watchlist, ask the system to perform the repetitive quantitative work, then revisit completed results without needing to understand provider APIs, cache keys, or Python internals.
@@ -490,7 +490,7 @@ That outcome is planned for and is not a failure. The milestone then delivers it
 A newcomer still asks a question and gets a sourced answer. What is lost is free phrasing on the way in and fluent phrasing on the way out.
 
 ### Presentation priority
-Rich terminal presentation and the workspace/run-history workflow come first because plain-English answers are built on them and fall back to them. Graphical UI, full-screen TUI, high-fidelity charts, and executive report generation remain deferred.
+Rich terminal presentation and the workspace/run-history workflow come first because plain-English answers are built on them and fall back to them. A graphical interface inside this repository, full-screen TUI, high-fidelity charts, and executive report generation remain deferred; the separate GUI application consumes the local HTTP API.
 
 # 14. Performance & Scalability
 
@@ -589,7 +589,7 @@ The reader behind filing reading and the answer check (text in, one of a few fix
 
 # 21. Non-Goals
 
-- Full GUI/frontend or full-screen TUI.
+- A GUI/frontend inside this repository, or a full-screen TUI. The GUI is a separate application.
 - Investment advice, or any score, rank or probability about an instrument's prospects.
 - A model ranking or comparing instruments by its own judgment.
 - Filters that carry weights or scores, or conditions the investor did not state.
@@ -626,7 +626,7 @@ The reader behind filing reading and the answer check (text in, one of a few fix
 - Requiring workstation-class dual-tier hardware for basic use.
 - Using operational log lines as the investor-facing result UI.
 - Building a separate canonical “report” object when the durable Analysis Run already contains the result/evidence.
-- Building a full-screen TUI or GUI before the terminal workflow and plain-English answers are solid.
+- Building a full-screen TUI, or a GUI inside this repository.
 - A model typing a number into an answer.
 - A score or probability shown beside a ticker.
 - Designing around a model before measuring whether a local one can do the job.
@@ -748,6 +748,7 @@ complete. See the
 | Prefer native Ollama JSON-schema constraints | Reduces structured-output drift |
 | Canadian localization as a first-class roadmap concern | Matches target network; timing still feedback-sensitive |
 | Full GUI out of scope | Keeps repository focused |
+| A separate GUI application over a local HTTP API, before Step 3.5.4 (2026-10-30) | Potential users do not try a command line; the engine stays focused and the API gets a real consumer ([API plan A.1](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md#a1-a-separate-gui-application-over-a-local-api-2026-10-30)) |
 | Deep-tier model remains configurable | Avoid premature model lock-in |
 | Investment-analysis positioning primary | Aligns with user value |
 | Finance-first scope with modular core | Optional future reuse without premature framework extraction |

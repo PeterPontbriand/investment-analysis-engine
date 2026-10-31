@@ -288,9 +288,9 @@ results.
 - A cloud or hosted model in the core path.
 - A chat window, graphical interface or full-screen terminal interface.
 - Unattended or scheduled questions.
-- An MCP server or HTTP interface. Those stay with the
-  [deferred delivery-surfaces record](../v0.2/deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md), which
-  should reuse the Answer Record shape when it is taken up.
+- An MCP server, or questions and Answer Records in the local HTTP API. The MCP server stays with the
+  [deferred delivery-surfaces record](../v0.2/deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md); either should
+  reuse the Answer Record shape when it is taken up.
 
 ## 5. Acceptance criteria
 

@@ -475,8 +475,8 @@ only so this plan's history stays complete:
   `src/cli_workspace.py` now states the expected format, points to `runs
   list`/`refresh` for a valid ID, and carries a `param_hint`. Git-style
   prefix matching for Analysis Run/refresh IDs was considered and
-  deliberately deferred; see
-  [DEFERRED_RUN_ID_PREFIX_MATCHING.md](../deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md).
+  deliberately deferred, and later dropped; see
+  [API plan A.3](../api/API_CONTRACT_AND_SLICE_PLAN.md#a3-step-36-items-dropped-2026-10-30).
 - A broader structured-error-reporting gap for programmatic/agentic CLI
   consumers was identified while reviewing the message above (a stable
   `reason_code` exists, but `expected_revision`/`database_path` are not
