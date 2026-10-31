@@ -75,6 +75,11 @@ next begins.
 | 3.5.6 | [Magic Formula and ranked refresh view](#356--magic-formula-and-ranked-refresh-view) | Planned | |
 | 3.5.7 | [Golden suite and cross-cutting docs](#357--golden-suite-and-cross-cutting-docs) | Planned | |
 
+3.5.4 starts after work package API's API.6 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
+From 3.5.4 on, "the same completeness as 3.5.3" also covers the glossary-terms edit site that API.6 adds: an
+investor glossary entry for each term the strategy's headline cells, statuses and selection fields name
+([API plan A.4](../api/API_CONTRACT_AND_SLICE_PLAN.md#a4-help-content-in-the-gui-2026-10-30)).
+
 ## 3. The slices
 
 Every slice uses its own branch off `main`, named `feat/step-3-5-<n>-<topic>`, and merges to
@@ -288,8 +293,9 @@ its own quality gate and authorization.
   available through the shared market cap is evidence becoming available, not a formula change.
 - Changing the default selection of a new or existing watchlist. Each new strategy is selected
   explicitly.
-- Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export): deferred, to be
+- Standard delivery surfaces (MCP server, Parquet/Arrow export): deferred, to be
   reconsidered when Step 3.5 closes ([deferred note](../deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md)).
+  The HTTP API moved to work package [API](../api/API_CONTRACT_AND_SLICE_PLAN.md) on 2026-10-30.
 
 ## 5. Acceptance criteria
 

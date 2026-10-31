@@ -224,6 +224,8 @@ scope, sequencing and status; its companion contracts supply technical detail.
 
 The [research-workspace contract](milestones/v0.2/step-3.4/STEP_3_4_CONTRACT_AND_SLICE_PLAN.md) defines watchlist, Analysis Run, replay and refresh interfaces with bounded implementation slices.
 
+The [local HTTP API](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md) lets a separate GUI application use the engine. A new user installs the GUI application, which installs the engine behind the scenes; the CLI remains supported.
+
 ### **Milestone v0.3: Plain-English Questions, Evidence-Backed Answers**
 **Entry condition:** Milestone v0.2 is complete, including the Step 3.5 screens and Light Mode (Step 3.6).
 

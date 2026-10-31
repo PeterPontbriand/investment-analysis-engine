@@ -66,6 +66,9 @@ current codes:
   adds seven more strategies to it. Absorbs IR.5's scope (typed JSON envelope models and
   generated schemas). Origin: [proposal](swc/STRATEGY_WIRING_CONSOLIDATION_PROPOSAL.md), accepted
   2026-09-24.
+- `API` — short for "local HTTP API" ([plan](api/API_CONTRACT_AND_SLICE_PLAN.md)): an application layer that the CLI
+  and a versioned local HTTP API both call, so that a separate GUI application can use the engine. Its row is numbered
+  `15A`; it runs after Step 3.5's 3.5.3e and before 3.5.4, while Step 3.5 stays in progress.
 
 PC (PC.1 to PC.4) and GR (GR.1 to GR.3) are complete; Step 3.5 is in progress
 ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
@@ -99,10 +102,10 @@ sequencing meaning.
 | 14B | [Pattern cleanup before Step 3.5 (PC)](pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-21 |
 | 14A | [Gate reliability (GR)](gate-reliability/GR_GATE_RELIABILITY_PLAN.md#2-sequence-and-status) | Complete | 2026-10-21 |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
+| 15A | [Local HTTP API for the GUI application (API)](api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
-| Deferred | [Standard delivery surfaces (MCP server, HTTP API, Parquet/Arrow export)](deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
-| Deferred | [Prefix matching for Analysis Run/refresh IDs](deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md) | Deferred | |
+| Deferred | [Standard delivery surfaces (MCP server, Parquet/Arrow export)](deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |
 
 Every deferred note states a **Reconsider at** point that names a work package, and that work package's plan links back to it.
 
@@ -120,7 +123,7 @@ quantitative screens and Light Mode verification.
 - Milestone v0.3 plain-English questions and evidence-backed answers
 - Milestone v0.4 analytics expansion or localization
 - Unattended scheduling, proactive monitoring/notifications, autonomous multi-step research, and executive reporting (Milestone v1.0)
-- Graphical UI/dashboard and full-screen TUI work. Rich terminal presentation, CLI workspace commands, and persistent run browsing are in scope.
+- A graphical interface inside this repository, and full-screen TUI work. Rich terminal presentation, CLI workspace commands, persistent run browsing and the local HTTP API that a separate GUI application uses ([API](api/API_CONTRACT_AND_SLICE_PLAN.md)) are in scope.
 
 **Success definition for the milestone**<br/>
 A clean, Light-Mode-capable analysis workflow exists that:
@@ -129,8 +132,8 @@ A clean, Light-Mode-capable analysis workflow exists that:
 3. Passes a golden-test suite at the ≥ 90 % target.
 4. Has hard circuit-breaker and timeout limits.
 5. Persists data, execution logs, and later investor-facing Analysis Run history in SQLite (WAL) with typed repositories and basic data-quality checks.
-6. Presents Momentum, Graham, Free Cash Flow & Earnings Growth, **and the Step 3.5 quantitative screening suite** through a coherent terminal experience with concise defaults, detailed provenance, explicit overrides/warnings or assumptions, resolution diagnostics, and machine-readable output.
-7. Can be used end-to-end by a new user following only Light Mode instructions to analyze or add a ticker, refresh supported analyses (including the Step 3.5 screens), revisit completed runs, and inspect the evidence behind a result.
+6. Presents Momentum, Graham, Free Cash Flow & Earnings Growth, **and the Step 3.5 quantitative screening suite** through a coherent terminal experience, and through the local HTTP API, with concise defaults, detailed provenance, explicit overrides/warnings or assumptions, resolution diagnostics, and machine-readable output.
+7. Can be used end-to-end by a new user who installs the GUI application with its documented installer and follows only Light Mode instructions, to analyze or add a ticker, refresh supported analyses (including the Step 3.5 screens), revisit completed runs, and inspect the evidence behind a result.
 
 ---
 
@@ -357,6 +360,15 @@ Interest Coverage and ROIC analyses using public data, explicit applicability an
 The [screening contract](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md) owns
 component scope and local delivery detail.
 
+### 4.11A API – Local HTTP API for the GUI application
+
+An application layer that the CLI and a versioned local HTTP API (`ian serve`) both call, so that a separate GUI
+application can use watchlists, refreshes, stored runs and direct analysis. A strategy appears in the API through its
+descriptor, with no API code of its own. The API also serves the investor-facing help content and links every label,
+status and code it returns to the term that explains it. No GUI is built in this repository.
+
+The [API contract](api/API_CONTRACT_AND_SLICE_PLAN.md) owns slice order, scope and acceptance criteria.
+
 ### 4.12 Step 3.6 – Light Mode Support
 
 **Goal**
@@ -364,25 +376,27 @@ The complete investor workflow—data fetch/cache → deterministic analytics �
 
 **Implementation outline**
 1. Make Light Mode the configuration default (model tag, single-tier behaviour).
-2. Ensure README and `docs/user/HARDWARE.md` give a new user a complete workflow to first analysis/watchlist refresh and stored-run inspection.
+2. Ensure README, `docs/user/HARDWARE.md` and the GUI application's user guide give a new user a complete workflow to first analysis/watchlist refresh and stored-run inspection.
 3. Add a minimal smoke test covering direct analysis or watchlist refresh, result persistence, concise rendering, and provenance inspection under Light Mode resource assumptions.
 4. Confirm dual-tier functionality remains available as opt-in features.
 5. Complete the Step 2.2 empirical schema/model compatibility check for the supported Light Mode configuration.
-6. Add or validate a simple `ian analyze TICKER` entry point that can request the default deterministic analyses and optionally ask the local LLM to synthesize only their completed typed results.
+6. Add or validate a simple `ian analyze TICKER` entry point, and the same operation in the local HTTP API, that can request the default deterministic analyses and optionally ask the local LLM to synthesize only their completed typed results.
 7. Ensure synthesis failure, timeout, or schema failure never discards valid deterministic Analysis Runs.
-8. Decide [prefix matching for Analysis Run and refresh IDs](deferred/DEFERRED_RUN_ID_PREFIX_MATCHING.md): implement it, or drop it and delete the note.
-9. Decide whether the CLI gets a command to find and display entries from `docs/user/GLOSSARY.md`, so that a user new to investing can look up a term, such as a column header of `ian runs compare`, without leaving the CLI: implement it, or drop it.
+8. Expose synthesis through the local HTTP API, so that the GUI application can request it for a run or a refresh and show it.
+
+Prefix matching for Analysis Run and refresh IDs, and a CLI glossary command, were dropped on 2026-10-30
+([API plan A.3](api/API_CONTRACT_AND_SLICE_PLAN.md#a3-step-36-items-dropped-2026-10-30)).
 
 **Synthesis boundary**
 The model may summarize, compare, flag tensions, and suggest what the investor may wish to inspect next. It may not invent financial facts, perform the deterministic arithmetic, silently select a growth assumption, or turn a screening result into an investment recommendation.
 
 **Acceptance criteria (exit criterion for Step 3.6)**
-- A new user following only Light Mode instructions can analyze/add a real ticker, refresh supported analyses, and revisit stored results.
+- A new user who installs the GUI application with its documented installer and follows only Light Mode instructions can analyze/add a real ticker, refresh supported analyses, and revisit stored results. This step's record names the GUI release that met this criterion.
 - The user can see a concise result and inspect detailed provenance without developer assistance.
 - Bounded local-model synthesis works on the supported Light Mode configuration and is clearly downstream of deterministic results.
 - Synthesis failure leaves deterministic results usable.
 - Configuration defaults favor Light Mode and dual-tier remains optional.
-- Documentation is consistent across README, `docs/user/HARDWARE.md`, Master Plan, and Discovery Workbook.
+- Documentation is consistent across README, `docs/user/HARDWARE.md`, the GUI application's user guide, Master Plan, and Discovery Workbook.
 
 ## 6. Quality Gates
 
@@ -402,9 +416,9 @@ The following quality checks must pass on every pull request within this milesto
 
 All of the following must be true before declaring the milestone complete and starting Milestone v0.3:
 
-1. Steps 2.1–2.6 and 3.1–3.6, including the Step 3.4 research workspace and the Step 3.5 quantitative screening suite, are fully implemented and merged.
+1. Steps 2.1–2.6 and 3.1–3.6, including the Step 3.4 research workspace and the Step 3.5 quantitative screening suite, and work package API are fully implemented and merged.
 2. Step 2.5 Golden-test suite exists, runs headlessly, exercises Momentum, Graham Number, Graham Growth Value, and Free Cash Flow & Earnings Growth as independent strategies, and reports strategy-selection, numerical-correctness, and overall pass rates against the ≥ 90 % target.
-3. A fresh repository clone running Light Mode setup instructions completes the investor workflow: direct/watchlist analysis (including selected Step 3.5 screens), refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis.
+3. A new user who installs the GUI application with its documented installer completes the investor workflow: direct/watchlist analysis (including selected Step 3.5 screens), refresh, persisted Analysis Run, concise view, detailed provenance, and bounded synthesis. A fresh repository clone following the Light Mode setup instructions completes the same workflow through the CLI.
 4. CI pipeline is green on `main`.
 5. Master Plan and Discovery Workbook cross-references remain consistent.
 6. Temporary scaffolding and blocking TODOs are cleaned up or documented.
