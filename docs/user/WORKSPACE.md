@@ -332,7 +332,8 @@ Period ends
   CRUX     Graham Number: earnings input period end not recorded · Graham Growth: earnings input period end not recorded
            FCF Growth: selected span end 2025-01-01
 
-Could not be read (stored under an older version, or for a strategy no longer declared): 9d1e...
+Could not be read (stored under an older version, or for a strategy no longer declared):
+  9d1e...
 
 Runs (open one with: ian runs show <run-id>)
   ACME     momentum       cbbd...
@@ -349,7 +350,7 @@ Runs (open one with: ian runs show <run-id>)
 ```
 
 - The table is split into bands so that no line is wider than 120 characters. Strategies fill a band in the order of the strategy table, and a new band starts when the next strategy would not fit; each band repeats the `Ticker` column, the strategy names, the column headings and every ticker, in the same order. A strategy that is wider than 120 characters alone has a band to itself. The marker line comes once, after the last band.
-- A ticker's period ends, and the list of runs that could not be read, are wrapped at 120 characters as well: the period ends continue on the next line, under the first entry, and the run IDs break after a comma. `--json` is not wrapped or split.
+- A ticker's period ends, and the list of runs that could not be read, are wrapped at 120 characters as well: the period ends continue on the next line, under the first entry, and the run IDs of unreadable runs start on a line of their own under their heading, two spaces in, and break after a comma. `--json` is not wrapped or split.
 - The header of each column is its cell's name. A text value is the word the strategy's own output uses: Momentum's trend (`Bullish`, `Bearish`) and the FCF Growth screen (`PASS`, `FAIL`, `INDETERMINATE`). FCF Growth's first column is `FCF CAGR` for the total basis and `FCF/share CAGR` for the per-share basis, as each run was made. When the runs of one column give it different names, the header lists them all (`FCF CAGR / FCF/share CAGR`), every value whose name is not the first one carries a marker (`10.2%†`), and a line under the table says which name the marker stands for. The line appears only then.
 - A per-share amount is written as a number followed by its currency (`36.69 USD`). When no currency was recorded, for example because you gave the earnings per share with `--eps`, it reads `142.10 (currency unspecified)`, and nothing guesses one.
 - `—` means a value is absent: the run did not calculate it, or the strategy has none to show. A ticker with no run for a strategy that others have reads `no stored run`. Momentum's `Trend` is `—` when the history is too short to tell.

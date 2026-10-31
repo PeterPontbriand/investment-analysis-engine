@@ -408,7 +408,9 @@ def test_a_momentum_run_stored_before_the_result_status_shows_its_outcome_and_a_
     assert lines[3].split() == ["Ticker", "Trend", "RSI", "Outcome"]
     assert lines[4].split() == ["SYNTH", "Bullish", "100.0", "completed"]
     assert lines[5].split() == ["ERROR", "—", "—", "failed"], "The outcome is read from the stored envelope status."
-    assert f"Could not be read (stored under an older version, or for a strategy no longer declared): {old_id}" in out
+    assert (
+        f"Could not be read (stored under an older version, or for a strategy no longer declared):\n  {old_id}\n" in out
+    )
     document = _document(refresh_id)
     run = document.rows[1].entries[0].run
     assert run is not None
@@ -432,7 +434,7 @@ def test_a_run_for_a_strategy_no_longer_declared_follows_the_declared_columns(
     assert code == 0
     assert out.split("\n")[2].split() == ["Momentum", "retired_method"]
     assert out.split("\n")[4].split() == ["SYNTH", "Bullish", "100.0", "completed", "completed"]
-    assert f"or for a strategy no longer declared): {gone_id}" in out
+    assert f"or for a strategy no longer declared):\n  {gone_id}\n" in out
     document = _document(refresh_id)
     assert [(item.method_id, item.declared, item.alias) for item in document.strategies] == [
         ("sma_crossover", True, "momentum"),

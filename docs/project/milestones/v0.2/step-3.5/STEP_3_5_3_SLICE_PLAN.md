@@ -294,15 +294,16 @@ Approved by the project owner before 3.5.3c began.
 | :--- | :--- | :--- |
 | J1 | Packing | Strategies fill a band in `STRATEGIES` order. A new band starts when adding the next strategy would make a line of the band wider than `TEXT_WIDTH` (120). Width counts the Ticker column and the two-space gaps. A strategy's width is measured as it is rendered, including its strategy-name row, so the packing and the rendering never disagree. Strategies are never reordered to fit better. A strategy wider than 120 on its own gets a band of its own, which may exceed 120. The reason is that a reader finds a strategy in the same place at every count, and a fixed width gives the same output on every machine. |
 | J2 | Bands | Each band repeats its strategy-name row, its column-heading row and every ticker row, in the same row order, with one blank line between bands. Columns are sized to their content as before. The marker legend is unchanged and comes once, after the last band. The reason is that each band can be read alone, while the legend explains markers of every band. |
-| J3 | Lists under the table | In "Period ends", a ticker's entries are joined by " · " until the next entry would make the line wider than 120; the rest continue on lines indented to the column where the first entry starts. The "Could not be read" list of run IDs wraps the same way, breaking after ", ". A single entry longer than 120 is never split. The reason is that the lists are as wide as the table was and would otherwise be the widest lines of the output. |
+| J3 | Lists under the table | In "Period ends", a ticker's entries are joined by " · " until the next entry would make the line wider than 120; the rest continue on lines indented to the column where the first entry starts. The "Could not be read" list puts its lead-in on a line of its own, then its run IDs on lines indented two spaces, breaking after ", " and keeping the comma (amended at review, below). A single entry longer than 120 is never split. The reason is that the lists are as wide as the table was and would otherwise be the widest lines of the output. |
 | J4 | Constant | `TEXT_WIDTH = 120`, a documented module constant in `runs_compare.py`, used by J1 and J3. It is not a command option ([AGENTS.md §9](../../../../../AGENTS.md)): an option that varies the layout would vary the output between machines and runs. |
 | J5 | What changes and what must not | Changes: the text layout; the pinned output of the four-strategy refresh in `tests/test_cli_runs_compare.py`; the `WORKSPACE.md` example and its explanation; [Shared definitions §10](STEP_3_5_SHARED_DEFINITIONS.md#10-side-by-side-refresh-table), where its wording no longer matched. Must not change: the `--json` output, byte for byte; `schemas/runs-compare.schema.json`; `tests/expected_output/workspace_commands/runs-compare.txt`. Proved with the U6 commands and `git --no-pager status --short`. |
 | J6 | Tests | On synthetic documents: one band; an exact fit at 120 and one character over; five strategies forcing two bands; eleven strategies; a strategy wider than 120 on its own; rows in the same order in every band; markers and the legend across bands; period ends wrapping, and a single entry longer than 120 left whole; the unreadable-ID list wrapping. |
 
-Decided while implementing, because the decisions above did not settle them: the unreadable-ID list breaks after the
-comma, which stays at the end of the line, and its continuation lines are indented two spaces, because the text before
-the first ID is about 95 characters and indenting to the first ID would leave no room for another; and the first ID
-stays on the first line because an entry is never split.
+The unreadable-ID list of J3 was amended at review (2026-10-30): the lead-in is 89 characters and an ID is 36, so the first
+line could never be within 120. The lead-in "Could not be read (stored under an older version, or for a strategy no
+longer declared):" is a line of its own, and the IDs start on the next line, indented two spaces and joined by ", ". A
+new line, indented two spaces, starts when the next ID would pass `TEXT_WIDTH`, and a line that breaks keeps its
+trailing comma. This holds for a single ID too.
 
 ---
 

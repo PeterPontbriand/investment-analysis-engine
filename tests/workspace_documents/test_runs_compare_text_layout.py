@@ -23,7 +23,7 @@ from investment_analysis_engine.workspace_documents.runs_compare import (
 _IDS = count(1)
 _REFRESH = UUID("00000000-0000-4000-8000-0000000000aa")
 _RUNS_HEADING = "Runs (open one with: ian runs show <run-id>)"
-_UNREADABLE_PREFIX = "Could not be read (stored under an older version, or for a strategy no longer declared): "
+_UNREADABLE_LEAD_IN = "Could not be read (stored under an older version, or for a strategy no longer declared):"
 _LEGEND = "† marks a value labelled FCF/share CAGR, not the first label of its column header"
 
 Period = tuple[str, date | None]
@@ -331,18 +331,31 @@ def test_a_period_entry_wider_than_the_text_width_is_left_whole() -> None:
     assert len(block[0]) > TEXT_WIDTH
 
 
-def test_the_unreadable_run_ids_wrap_after_a_comma() -> None:
+def _unreadable_lines(count_of_ids: int) -> tuple[list[str], list[str]]:
+    """Return the rendered lines from the lead-in on, and the IDs of the unreadable runs."""
     document = _document(
         ["One"],
-        {ticker: [_run(None, "failed", unavailable="unsupported_version")] for ticker in ("A", "B", "C", "D", "E")},
+        {f"T{index}": [_run(None, "failed", unavailable="unsupported_version")] for index in range(count_of_ids)},
     )
     ids = [str(entry.run.analysis_run_id) for row in document.rows for entry in row.entries if entry.run is not None]
-
     lines = render_runs_compare_text(document).split("\n")
+    return lines[lines.index(_UNREADABLE_LEAD_IN) :], ids
 
-    start = next(index for index, line in enumerate(lines) if line.startswith(_UNREADABLE_PREFIX))
-    assert lines[start : start + 3] == [
-        f"{_UNREADABLE_PREFIX}{ids[0]},",
-        f"  {ids[1]}, {ids[2]}, {ids[3]},",
-        f"  {ids[4]}",
+
+def test_the_unreadable_run_ids_wrap_after_a_comma_under_a_lead_in_of_their_own() -> None:
+    lines, ids = _unreadable_lines(5)
+
+    assert lines[:4] == [
+        _UNREADABLE_LEAD_IN,
+        f"  {ids[0]}, {ids[1]}, {ids[2]},",
+        f"  {ids[3]}, {ids[4]}",
+        "",
     ]
+    assert all(len(line) <= TEXT_WIDTH for line in lines[:3])
+
+
+def test_a_single_unreadable_run_id_is_on_the_line_after_the_lead_in() -> None:
+    lines, ids = _unreadable_lines(1)
+
+    assert lines[:3] == [_UNREADABLE_LEAD_IN, f"  {ids[0]}", ""]
+    assert len(lines[1]) <= TEXT_WIDTH

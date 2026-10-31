@@ -560,13 +560,8 @@ def render_runs_compare_text(document: RunsCompareDocument) -> str:
     if unreadable:
         lines += [
             "",
-            *_wrapped(
-                "Could not be read (stored under an older version, or for a strategy no longer declared): ",
-                [str(item) for item in unreadable],
-                ", ",
-                ",",
-                "  ",
-            ),
+            "Could not be read (stored under an older version, or for a strategy no longer declared):",
+            *_wrapped("  ", [str(item) for item in unreadable], ", ", ",", "  "),
         ]
     requested = list(
         dict.fromkeys(
