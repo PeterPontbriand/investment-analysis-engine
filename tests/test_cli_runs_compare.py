@@ -62,25 +62,28 @@ def test_the_table_of_a_stored_refresh_equals_the_reviewed_layout(isolated_cli_s
     assert out.splitlines() == [
         f'Refresh {refresh_id} · watchlist "Core" · 3 tickers · 4 strategies',
         "",
-        "         Momentum                      Graham Number                       Graham Growth"
-        "                     FCF Growth",
-        "Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome"
-        "    FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome",
-        "SYNTH    Bullish   100.0  completed    36.69 USD      —       completed    66.28 USD      —       completed"
-        "  10.2%                      17.6%     PASS           completed",
-        "MISSING  —         100.0  unavailable  —              —       unavailable  no stored run  —       —"
-        "          —                          —         INDETERMINATE  unavailable",
-        "ERROR    —         —      failed       —              —       failed       —              —       failed"
-        "     10.2%†                     17.6%     PASS           completed",
+        "         Momentum                      Graham Number                       Graham Growth",
+        "Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome",
+        "SYNTH    Bullish   100.0  completed    36.69 USD      —       completed    66.28 USD      —       completed",
+        "MISSING  —         100.0  unavailable  —              —       unavailable  no stored run  —       —",
+        "ERROR    —         —      failed       —              —       failed       —              —       failed",
+        "",
+        "         FCF Growth",
+        "Ticker   FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome",
+        "SYNTH    10.2%                      17.6%     PASS           completed",
+        "MISSING  —                          —         INDETERMINATE  unavailable",
+        "ERROR    10.2%†                     17.6%     PASS           completed",
         "",
         "† marks a value labelled FCF/share CAGR, not the first label of its column header",
         "",
         "Period ends",
         "  SYNTH    Graham Number: earnings input period end 2024-06-30 · Graham Growth: earnings input period end"
-        " 2024-06-30 · FCF Growth: selected span end 2025-01-01",
+        " 2024-06-30",
+        "           FCF Growth: selected span end 2025-01-01",
         "  MISSING  Graham Number: earnings input period end not recorded · FCF Growth: selected span end not recorded",
-        "  ERROR    Graham Number: earnings input period end not recorded"
-        " · Graham Growth: earnings input period end not recorded · FCF Growth: selected span end 2025-01-01",
+        "  ERROR    Graham Number: earnings input period end not recorded · Graham Growth: earnings input period end"
+        " not recorded",
+        "           FCF Growth: selected span end 2025-01-01",
         "",
         "Runs (open one with: ian runs show <run-id>)",
         f"  SYNTH    momentum       {ids[('SYNTH', momentum)]}",
@@ -405,7 +408,9 @@ def test_a_momentum_run_stored_before_the_result_status_shows_its_outcome_and_a_
     assert lines[3].split() == ["Ticker", "Trend", "RSI", "Outcome"]
     assert lines[4].split() == ["SYNTH", "Bullish", "100.0", "completed"]
     assert lines[5].split() == ["ERROR", "—", "—", "failed"], "The outcome is read from the stored envelope status."
-    assert f"Could not be read (stored under an older version, or for a strategy no longer declared): {old_id}" in out
+    assert (
+        f"Could not be read (stored under an older version, or for a strategy no longer declared):\n  {old_id}\n" in out
+    )
     document = _document(refresh_id)
     run = document.rows[1].entries[0].run
     assert run is not None
@@ -429,7 +434,7 @@ def test_a_run_for_a_strategy_no_longer_declared_follows_the_declared_columns(
     assert code == 0
     assert out.split("\n")[2].split() == ["Momentum", "retired_method"]
     assert out.split("\n")[4].split() == ["SYNTH", "Bullish", "100.0", "completed", "completed"]
-    assert f"or for a strategy no longer declared): {gone_id}" in out
+    assert f"or for a strategy no longer declared):\n  {gone_id}\n" in out
     document = _document(refresh_id)
     assert [(item.method_id, item.declared, item.alias) for item in document.strategies] == [
         ("sma_crossover", True, "momentum"),
