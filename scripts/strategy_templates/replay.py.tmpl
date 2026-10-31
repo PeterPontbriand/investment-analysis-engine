@@ -1,4 +1,7 @@
-"""The $label strategy's replay projector: render a stored run using only the evidence it captured."""
+"""The $label strategy's replay projector.
+
+It renders a stored run using only the evidence the run captured.
+"""
 
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.reporting.headline import Headline
@@ -16,6 +19,9 @@ def project_$module(
 
 
 def headline_$module(result: ${Class}Result) -> Headline:
-    """Return the $label cells of the side-by-side refresh table: their keys, labels, units and statuses."""
+    """Return the $label cells of the side-by-side refresh table.
+
+    Each cell has its key, label, unit and status.
+    """
     del result
     unfilled_stub("replay")

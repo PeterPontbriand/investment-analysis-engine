@@ -1,4 +1,7 @@
-"""The $label strategy's ``--json`` document: its version and typed model."""
+"""The $label strategy's ``--json`` document.
+
+It holds the document version and the typed model.
+"""
 
 from typing import Final
 
@@ -17,4 +20,7 @@ class ${Class}Body(DocumentPart):
 
 
 class ${Class}Document(StrategyDocumentTail, ${Class}Body, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The $label document, as ``$alias --json`` and a replay write it."""
+    """The $label document.
+
+    ``$alias --json`` and a replay write it.
+    """

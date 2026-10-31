@@ -1,4 +1,7 @@
-"""The $label strategy's CLI functions: direct command, selection builder and refresh executor."""
+"""The $label strategy's CLI functions.
+
+They are the direct command, the selection builder and the refresh executor.
+"""
 
 import typer
 
@@ -10,7 +13,10 @@ from investment_analysis_engine.workspace.capture import ExecutionCapture
 
 
 def build_selection(flags: WatchlistFlags) -> ${Class}Selection:
-    """Build one validated $label selection from the watchlist flags it concerns."""
+    """Build one validated $label selection.
+
+    It is built from the watchlist flags it concerns.
+    """
     del flags
     unfilled_stub("cli")
 

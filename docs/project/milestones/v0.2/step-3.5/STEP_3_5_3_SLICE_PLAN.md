@@ -352,6 +352,14 @@ Each sub-slice adds what it met. The earlier record of the same kind is
 7. **Adding a series to the SEC adapter.** The guide does not say that the production provider forwards each optional
    provider capability by hand (`data/financial/production.py`), so a new request type needs an edit there; extending the
    instant series avoided it, but a reader who needs a new capability is not told (3.5.3b2).
+8. **Generator templates and long labels.** Generating "Piotroski F-Score" failed: the generator's own Ruff check rejected
+   a 121-character docstring line in the execution template, and other templates (replay, CLI, evaluation) were a few
+   characters from the limit. Several later Step 3.5 strategies, such as "Cash-Flow Valuation Multiples", would have
+   failed too. Fixed in 3.5.3d, rather than left to 3.5.3e, because it blocked the generator: the template docstrings
+   put the label on a short summary line, and the generator refuses a label or a module name over 40 characters (a
+   usage error, exit code 2, nothing written). The limits are stated in the generator's docstring and in the guide, and
+   `tests/scripts/test_new_strategy_label_limits.py` proves generation at both limits and for the longest real
+   candidates (3.5.3d).
 
 ### B.3 Decisions of 3.5.3b to 3.5.3e
 
