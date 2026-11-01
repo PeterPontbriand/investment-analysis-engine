@@ -11,13 +11,13 @@ import dataclasses
 import importlib
 import re
 from pathlib import Path
-from typing import Final, get_args, get_origin, get_type_hints
+from typing import Final, get_type_hints
 
 import pytest
 from pydantic import BaseModel
 from typer.testing import CliRunner
 
-from investment_analysis_engine.analysis.base_analyzer import BaseAnalyzer
+from investment_analysis_engine.analysis.base_analyzer import analyzer_config_type
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES
@@ -144,15 +144,9 @@ def test_data_provider_option_is_rejected_with_exit_2(prefix: list[str], label: 
     assert "--data-provider" in output, f"{label} does not name --data-provider as the unknown option: {output!r}."
 
 
-def _config_type_of(deps_type: type) -> type:
-    """Return the config type ``C`` of the ``BaseAnalyzer[C, R]`` that a strategy's tool dependencies hold."""
-    analyzer = get_type_hints(deps_type)["analyzer"]
-    for base in getattr(analyzer, "__orig_bases__", ()):
-        if get_origin(base) is BaseAnalyzer:
-            config_type = get_args(base)[0]
-            assert isinstance(config_type, type), f"{analyzer.__name__} declares no concrete config type."
-            return config_type
-    raise AssertionError(f"{analyzer.__name__} does not subclass BaseAnalyzer[ConfigT, ResultT].")
+def _config_type_of(deps_type: type) -> type | None:
+    """Return the config type of the analyzer a strategy's tool dependencies hold, or ``None`` when config-free."""
+    return analyzer_config_type(get_type_hints(deps_type)["analyzer"])
 
 
 def test_no_strategy_model_has_a_provider_id_field() -> None:
@@ -160,7 +154,8 @@ def test_no_strategy_model_has_a_provider_id_field() -> None:
     for descriptor in STRATEGIES:
         behavior = descriptor.behavior
         assert isinstance(behavior, StrategyBehavior), f"{descriptor.alias} declares no strategy behavior."
-        models += [_config_type_of(behavior.deps_type), behavior.selection_type, behavior.deps_type]
+        config_type = _config_type_of(behavior.deps_type)
+        models += [*([config_type] if config_type is not None else []), behavior.selection_type, behavior.deps_type]
     offenders = [
         f"{model.__name__}.{name}" for model in models for name in _field_names(model) if name.endswith("provider_id")
     ]

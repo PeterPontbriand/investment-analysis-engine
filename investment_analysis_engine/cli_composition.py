@@ -45,8 +45,12 @@ from investment_analysis_engine.strategies.momentum.settings import MomentumSett
 from investment_analysis_engine.strategy_wiring import GRAHAM_GROWTH, MOMENTUM, STRATEGIES
 
 
-def build_sec_production_provider() -> ProductionFinancialFactsProvider:
-    """Build the SEC-backed production provider from declared application identity."""
+def build_sec_edgar_adapter() -> SecEdgarFinancialFactsAdapter:
+    """Build the SEC EDGAR adapter from declared application identity.
+
+    Raises:
+        AnalysisConfigurationError: If no SEC user agent is configured.
+    """
     user_agent = settings.sec_user_agent
     if user_agent is None or not user_agent.strip():
         raise AnalysisConfigurationError(
@@ -55,8 +59,12 @@ def build_sec_production_provider() -> ProductionFinancialFactsProvider:
             '"Your Name your-email@example.com" and retry.'
         )
     overrides = {ticker: str(cik) for ticker, cik in sec_edgar_settings().ticker_overrides.items()}
-    sec_edgar = SecEdgarFinancialFactsAdapter(user_agent=user_agent, ticker_overrides=overrides)
-    return ProductionFinancialFactsProvider(sec_edgar=sec_edgar)
+    return SecEdgarFinancialFactsAdapter(user_agent=user_agent, ticker_overrides=overrides)
+
+
+def build_sec_production_provider() -> ProductionFinancialFactsProvider:
+    """Build the SEC-backed production provider from declared application identity."""
+    return ProductionFinancialFactsProvider(sec_edgar=build_sec_edgar_adapter())
 
 
 def build_graham_resolver[ResolverT: (GrahamNumberInputResolver, GrahamGrowthInputResolver)](
@@ -119,6 +127,7 @@ def load_all_component_settings() -> None:
 
 __all__ = [
     "build_graham_resolver",
+    "build_sec_edgar_adapter",
     "build_sec_production_provider",
     "graham_growth_settings",
     "load_all_component_settings",

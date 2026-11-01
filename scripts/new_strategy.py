@@ -21,6 +21,11 @@ files it writes or edits (and only those). If a target file exists, or the modul
 identifier already appears where it would be added, it exits with code 2, lists the conflicts and writes nothing.
 Otherwise it writes through temporary files and ``os.replace``, and restores the originals if any step fails.
 
+A label is at most ``MAX_LABEL_LENGTH`` (40) characters and a module name at most ``MAX_MODULE_NAME_LENGTH`` (40), the
+lengths the templates are proven to handle: no line of generated output passes 120 characters at both limits. The
+longest label and module name of the Step 3.5 specifications, "Cash-Flow Valuation Multiples" and
+``cash_flow_valuation_multiples``, are 29 characters. A longer one is a usage error.
+
 Exit code 0 on success, 1 when a change could not be built or written, 2 for a usage error or a conflict. This is a
 developer script, not an ``ian`` command.
 """
@@ -76,6 +81,10 @@ EVALUATION_TIER: Final = "evaluation/strategy_fixtures.py"
 EDITED_FILES: Final = (STRATEGY_WIRING, TOOL_NAMES, STRATEGY_TYPES, CLI_TIER, EVALUATION_TIER)
 """The five existing files the generator edits, relative to the package folder."""
 
+MAX_LABEL_LENGTH: Final = 40
+"""The longest display label the templates are proven to handle."""
+MAX_MODULE_NAME_LENGTH: Final = 40
+"""The longest module name the templates are proven to handle."""
 _LABEL: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9 .&-]*")
 _FIRST_PARTY: Final = ("--config", f'lint.isort.known-first-party = ["{PACKAGE}"]')
 """Ruff cannot tell that the package of a file in a folder that does not exist yet is first-party, so it is said."""
@@ -687,6 +696,12 @@ def main(
     arguments = parser.parse_args(argv)
     if not _LABEL.fullmatch(arguments.label):
         parser.error("the label must be letters, digits, spaces, periods, ampersands or hyphens, starting with one.")
+    if len(arguments.label) > MAX_LABEL_LENGTH:
+        parser.error(f"the label is {len(arguments.label)} characters; the limit is {MAX_LABEL_LENGTH}.")
+    if len(arguments.module_name) > MAX_MODULE_NAME_LENGTH:
+        parser.error(
+            f"the module name is {len(arguments.module_name)} characters; the limit is {MAX_MODULE_NAME_LENGTH}."
+        )
     try:
         names = strategy_names(arguments.module_name, arguments.alias)
     except SiteDataError as error:

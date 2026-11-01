@@ -258,6 +258,7 @@ CASES: tuple[Case, ...] = (
         1,
         fcf_error_field=FinancialField.OPERATING_CASH_FLOW,
     ),
+    Case("piotroski-success", "piotroski", _arguments("piotroski"), 0),
     Case(
         "graham-number-provider-error-unclassified",
         "graham-number",

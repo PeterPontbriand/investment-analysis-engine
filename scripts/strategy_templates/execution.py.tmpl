@@ -1,4 +1,7 @@
-"""The $label strategy's execution adapter: call the analyzer and capture the evidence."""
+"""The $label strategy's execution adapter.
+
+It calls the analyzer and captures the evidence.
+"""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -25,6 +28,9 @@ def execute_$module(
 
 
 def from_${module}_capture(capture: ${Class}Capture) -> ExecutionCapture:
-    """Normalize a $label capture: pass its evidence, profile, native status and recorded provider failure."""
+    """Normalize a $label capture.
+
+    It passes the evidence, profile, native status and recorded provider failure.
+    """
     del capture
     unfilled_stub("execution")

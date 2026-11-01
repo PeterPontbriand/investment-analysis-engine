@@ -1,0 +1,1252 @@
+{
+  "schema_version": 1,
+  "analysis": "piotroski",
+  "method": "piotroski",
+  "ticker": "AAPL",
+  "status": "ok",
+  "provider_failure": null,
+  "provider_check": null,
+  "requested_as_of": null,
+  "effective_as_of": "<wall-clock>",
+  "security_identity": {
+    "ticker": "AAPL",
+    "instrument_name": "Apple Inc.",
+    "listing_venue": null,
+    "issuer_identifier": "0000320193",
+    "instrument_identifier": null,
+    "provider_id": "sec_edgar",
+    "resolved_at": "<wall-clock>"
+  },
+  "instrument_kind": null,
+  "result_schema_version": 1,
+  "method_version": 1,
+  "reason_code": null,
+  "reason": null,
+  "industry_class": "manufacturer",
+  "industry_class_unknown": null,
+  "anchor": {
+    "year_end": "2024-09-28",
+    "accession": "0000320193-24-000123",
+    "form": "10-K",
+    "filing_date": "2024-11-01"
+  },
+  "source_filings": [
+    {
+      "accession": "0000320193-23-000106",
+      "filing_date": "2023-11-03"
+    },
+    {
+      "accession": "0000320193-24-000123",
+      "filing_date": "2024-11-01"
+    }
+  ],
+  "taxonomy": "us-gaap",
+  "score": {
+    "status": "ok",
+    "value": 7.0,
+    "reason_code": null,
+    "reason": null
+  },
+  "completeness": "complete",
+  "available_count": 9,
+  "unavailable_tests": [],
+  "tests": [
+    {
+      "number": 1,
+      "name": "Positive ROA",
+      "group": "Profitability",
+      "outcome": "pass",
+      "ratios": [
+        {
+          "name": "roa_t",
+          "result": {
+            "status": "ok",
+            "value": 0.2658551319831075,
+            "reason_code": null,
+            "reason": null
+          }
+        }
+      ],
+      "operands": [
+        {
+          "name": "net_income_t",
+          "input": {
+            "field_name": "net_income",
+            "value": 93736000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:NetIncomeLoss",
+            "observation_period_start": "2023-10-01T00:00:00+00:00",
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=NetIncomeLoss",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t1",
+          "input": {
+            "field_name": "total_assets",
+            "value": 352583000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    },
+    {
+      "number": 2,
+      "name": "Positive CFO",
+      "group": "Profitability",
+      "outcome": "pass",
+      "ratios": [
+        {
+          "name": "cfo_over_assets_t",
+          "result": {
+            "status": "ok",
+            "value": 0.33539336837000083,
+            "reason_code": null,
+            "reason": null
+          }
+        }
+      ],
+      "operands": [
+        {
+          "name": "operating_cash_flow_t",
+          "input": {
+            "field_name": "operating_cash_flow",
+            "value": 118254000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:NetCashProvidedByUsedInOperatingActivities",
+            "observation_period_start": "2023-10-01T00:00:00+00:00",
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "definition=net cash provided by or used in all operating activities; signed raw value preserved",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t1",
+          "input": {
+            "field_name": "total_assets",
+            "value": 352583000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    },
+    {
+      "number": 3,
+      "name": "Improving ROA",
+      "group": "Profitability",
+      "outcome": "fail",
+      "ratios": [
+        {
+          "name": "roa_t",
+          "result": {
+            "status": "ok",
+            "value": 0.2658551319831075,
+            "reason_code": null,
+            "reason": null
+          }
+        },
+        {
+          "name": "roa_t1",
+          "result": {
+            "status": "ok",
+            "value": 0.2749642102875934,
+            "reason_code": null,
+            "reason": null
+          }
+        }
+      ],
+      "operands": [
+        {
+          "name": "net_income_t",
+          "input": {
+            "field_name": "net_income",
+            "value": 93736000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:NetIncomeLoss",
+            "observation_period_start": "2023-10-01T00:00:00+00:00",
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=NetIncomeLoss",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t1",
+          "input": {
+            "field_name": "total_assets",
+            "value": 352583000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "net_income_t1",
+          "input": {
+            "field_name": "net_income",
+            "value": 96995000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:NetIncomeLoss",
+            "observation_period_start": "2022-09-25T00:00:00+00:00",
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=NetIncomeLoss",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t2",
+          "input": {
+            "field_name": "total_assets",
+            "value": 352755000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2022-09-24T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2023-11-02T22:08:27+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-23-000106",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    },
+    {
+      "number": 4,
+      "name": "Cash exceeds income",
+      "group": "Profitability",
+      "outcome": "pass",
+      "ratios": [],
+      "operands": [
+        {
+          "name": "operating_cash_flow_t",
+          "input": {
+            "field_name": "operating_cash_flow",
+            "value": 118254000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:NetCashProvidedByUsedInOperatingActivities",
+            "observation_period_start": "2023-10-01T00:00:00+00:00",
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "definition=net cash provided by or used in all operating activities; signed raw value preserved",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "net_income_t",
+          "input": {
+            "field_name": "net_income",
+            "value": 93736000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:NetIncomeLoss",
+            "observation_period_start": "2023-10-01T00:00:00+00:00",
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=NetIncomeLoss",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    },
+    {
+      "number": 5,
+      "name": "Falling leverage",
+      "group": "Leverage and liquidity",
+      "outcome": "pass",
+      "ratios": [
+        {
+          "name": "leverage_t",
+          "result": {
+            "status": "ok",
+            "value": 0.2694174588154629,
+            "reason_code": null,
+            "reason": null
+          }
+        },
+        {
+          "name": "leverage_t1",
+          "result": {
+            "status": "ok",
+            "value": 0.29802165770169764,
+            "reason_code": null,
+            "reason": null
+          }
+        }
+      ],
+      "operands": [
+        {
+          "name": "long_term_debt_t:current_portion_of_long_term_debt",
+          "input": {
+            "field_name": "current_portion_of_long_term_debt",
+            "value": 10912000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:LongTermDebtCurrent",
+            "observation_period_start": null,
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=LongTermDebtCurrent",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "long_term_debt_t:noncurrent_long_term_debt",
+          "input": {
+            "field_name": "noncurrent_long_term_debt",
+            "value": 85750000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:LongTermDebtNoncurrent",
+            "observation_period_start": null,
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=LongTermDebtNoncurrent",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "long_term_debt_t1:current_portion_of_long_term_debt",
+          "input": {
+            "field_name": "current_portion_of_long_term_debt",
+            "value": 9822000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:LongTermDebtCurrent",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=LongTermDebtCurrent",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "long_term_debt_t1:noncurrent_long_term_debt",
+          "input": {
+            "field_name": "noncurrent_long_term_debt",
+            "value": 95281000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:LongTermDebtNoncurrent",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=LongTermDebtNoncurrent",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t",
+          "input": {
+            "field_name": "total_assets",
+            "value": 364980000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t1",
+          "input": {
+            "field_name": "total_assets",
+            "value": 352583000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t2",
+          "input": {
+            "field_name": "total_assets",
+            "value": 352755000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2022-09-24T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2023-11-02T22:08:27+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-23-000106",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    },
+    {
+      "number": 6,
+      "name": "Improving liquidity",
+      "group": "Leverage and liquidity",
+      "outcome": "fail",
+      "ratios": [
+        {
+          "name": "current_ratio_t",
+          "result": {
+            "status": "ok",
+            "value": 0.8673125765340832,
+            "reason_code": null,
+            "reason": null
+          }
+        },
+        {
+          "name": "current_ratio_t1",
+          "result": {
+            "status": "ok",
+            "value": 0.9880116717592975,
+            "reason_code": null,
+            "reason": null
+          }
+        }
+      ],
+      "operands": [
+        {
+          "name": "current_assets_t",
+          "input": {
+            "field_name": "current_assets",
+            "value": 152987000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:AssetsCurrent",
+            "observation_period_start": null,
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=AssetsCurrent",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "current_liabilities_t",
+          "input": {
+            "field_name": "current_liabilities",
+            "value": 176392000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:LiabilitiesCurrent",
+            "observation_period_start": null,
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=LiabilitiesCurrent",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "current_assets_t1",
+          "input": {
+            "field_name": "current_assets",
+            "value": 143566000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:AssetsCurrent",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=AssetsCurrent",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "current_liabilities_t1",
+          "input": {
+            "field_name": "current_liabilities",
+            "value": 145308000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:LiabilitiesCurrent",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=LiabilitiesCurrent",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    },
+    {
+      "number": 7,
+      "name": "No dilution",
+      "group": "Leverage and liquidity",
+      "outcome": "pass",
+      "ratios": [],
+      "operands": [
+        {
+          "name": "shares_t",
+          "input": {
+            "field_name": "common_shares_outstanding",
+            "value": 15116786000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "shares",
+            "currency": null,
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:CommonStockSharesOutstanding",
+            "observation_period_start": null,
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "definition=period-end common stock shares outstanding; reported directly",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "shares_t1",
+          "input": {
+            "field_name": "common_shares_outstanding",
+            "value": 15550061000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "shares",
+            "currency": null,
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:CommonStockSharesOutstanding",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "definition=period-end common stock shares outstanding; reported directly",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    },
+    {
+      "number": 8,
+      "name": "Improving margin",
+      "group": "Efficiency",
+      "outcome": "pass",
+      "ratios": [
+        {
+          "name": "gross_margin_t",
+          "result": {
+            "status": "ok",
+            "value": 0.4620634981523393,
+            "reason_code": null,
+            "reason": null
+          }
+        },
+        {
+          "name": "gross_margin_t1",
+          "result": {
+            "status": "ok",
+            "value": 0.4413112957720756,
+            "reason_code": null,
+            "reason": null
+          }
+        }
+      ],
+      "operands": [
+        {
+          "name": "gross_profit_t:gross_profit",
+          "input": {
+            "field_name": "gross_profit",
+            "value": 180683000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:GrossProfit",
+            "observation_period_start": "2023-10-01T00:00:00+00:00",
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=GrossProfit",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "sales_t",
+          "input": {
+            "field_name": "sales",
+            "value": 391035000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+            "observation_period_start": "2023-10-01T00:00:00+00:00",
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=Revenues>RevenueFromContractWithCustomerExcludingAssessedTax>RevenueFromContractWithCustomerIncludingAssessedTax",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "gross_profit_t1:gross_profit",
+          "input": {
+            "field_name": "gross_profit",
+            "value": 169148000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:GrossProfit",
+            "observation_period_start": "2022-09-25T00:00:00+00:00",
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=GrossProfit",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "sales_t1",
+          "input": {
+            "field_name": "sales",
+            "value": 383285000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+            "observation_period_start": "2022-09-25T00:00:00+00:00",
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=Revenues>RevenueFromContractWithCustomerExcludingAssessedTax>RevenueFromContractWithCustomerIncludingAssessedTax",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    },
+    {
+      "number": 9,
+      "name": "Improving turnover",
+      "group": "Efficiency",
+      "outcome": "pass",
+      "ratios": [
+        {
+          "name": "turnover_t",
+          "result": {
+            "status": "ok",
+            "value": 1.1090580090361701,
+            "reason_code": null,
+            "reason": null
+          }
+        },
+        {
+          "name": "turnover_t1",
+          "result": {
+            "status": "ok",
+            "value": 1.0865473203781661,
+            "reason_code": null,
+            "reason": null
+          }
+        }
+      ],
+      "operands": [
+        {
+          "name": "sales_t",
+          "input": {
+            "field_name": "sales",
+            "value": 391035000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+            "observation_period_start": "2023-10-01T00:00:00+00:00",
+            "observation_period_end": "2024-09-28T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=Revenues>RevenueFromContractWithCustomerExcludingAssessedTax>RevenueFromContractWithCustomerIncludingAssessedTax",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t1",
+          "input": {
+            "field_name": "total_assets",
+            "value": 352583000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "sales_t1",
+          "input": {
+            "field_name": "sales",
+            "value": 383285000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+            "observation_period_start": "2022-09-25T00:00:00+00:00",
+            "observation_period_end": "2023-09-30T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2024-11-01T10:01:36+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "cik=0000320193",
+              "accession=0000320193-24-000123",
+              "form=10-K",
+              "provider_fiscal_year=2024",
+              "fiscal_year_source=calendar year containing exact SEC period end",
+              "concept_priority=Revenues>RevenueFromContractWithCustomerExcludingAssessedTax>RevenueFromContractWithCustomerIncludingAssessedTax",
+              "availability_source=SEC submissions acceptanceDateTime, normalized to UTC"
+            ],
+            "lineage": null
+          }
+        },
+        {
+          "name": "total_assets_t2",
+          "input": {
+            "field_name": "total_assets",
+            "value": 352755000000.0,
+            "source_kind": "provider",
+            "origin_source_kind": null,
+            "basis": "fiscal_year_end",
+            "units": "currency",
+            "currency": "USD",
+            "provider_id": "sec_edgar",
+            "provider_field": "us-gaap:Assets",
+            "observation_period_start": null,
+            "observation_period_end": "2022-09-24T23:59:59.999999+00:00",
+            "observed_at": null,
+            "available_at": "2023-11-02T22:08:27+00:00",
+            "as_of": null,
+            "retrieved_at": "<wall-clock>",
+            "resolved_at": "<wall-clock>",
+            "cache_schema_version": null,
+            "notes": [
+              "accession=0000320193-23-000106",
+              "form=10-K",
+              "concept_priority=Assets",
+              "available_at uses EDGAR acceptanceDateTime"
+            ],
+            "lineage": null
+          }
+        }
+      ],
+      "diagnostics": [],
+      "reason_code": null,
+      "reason": null
+    }
+  ],
+  "input_failure": null,
+  "warnings": [],
+  "limitations": [
+    "Follows the Piotroski nine-test structure, with the net change in shares outstanding in place of the paper's equity-issuance test; not an investment recommendation."
+  ],
+  "diagnostics": [
+    {
+      "field_name": "assembly",
+      "stage": "inputs",
+      "outcome": "note",
+      "message": "Fiscal year-end t: 2024-09-28."
+    },
+    {
+      "field_name": "assembly",
+      "stage": "inputs",
+      "outcome": "note",
+      "message": "Fiscal year-end t-1: 2023-09-30."
+    },
+    {
+      "field_name": "assembly",
+      "stage": "inputs",
+      "outcome": "note",
+      "message": "Fiscal year-end t-2: 2022-09-24."
+    },
+    {
+      "field_name": "security_identity",
+      "stage": "provider",
+      "outcome": "resolved",
+      "message": "Resolved current descriptive security identity via 'sec_edgar'.",
+      "provider_id": "sec_edgar"
+    },
+    {
+      "field_name": "instrument_kind",
+      "stage": "provider",
+      "outcome": "unavailable",
+      "message": "Provider 'yfinance' returned no instrument-kind metadata.",
+      "provider_id": "yfinance"
+    }
+  ]
+}

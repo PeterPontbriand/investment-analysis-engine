@@ -1,4 +1,4 @@
-"""Run the four direct analysis commands against fixtures and capture their output.
+"""Run the direct analysis commands against fixtures and capture their output.
 
 Shared by ``tests/test_direct_command_output.py`` and the regeneration entry point::
 
@@ -37,6 +37,10 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
 )
 from investment_analysis_engine.evaluation.fixtures.graham import SECURITY_ID
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_success_frame
+from investment_analysis_engine.evaluation.fixtures.sec_edgar_statements import (
+    STATEMENTS_APPLE_FIXTURE_ID,
+    fixture_statements_adapter,
+)
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "direct_commands"
@@ -50,6 +54,7 @@ _COMMANDS = {
         "--no-cache",
     ],
     "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
+    "piotroski": ["piotroski", "AAPL", "--no-cache"],
 }
 _MODES = {"text": [], "json": ["--json"]}
 
@@ -122,6 +127,21 @@ def enter_fixture_providers(stack: ExitStack, command: str) -> None:
         patch(
             "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
             side_effect=lambda *_a, **_k: _fcf_provider(),
+        )
+    )
+    stack.enter_context(
+        patch(
+            "investment_analysis_engine.strategies.piotroski.cli.build_sec_edgar_adapter",
+            side_effect=lambda *_a, **_k: fixture_statements_adapter(STATEMENTS_APPLE_FIXTURE_ID, clock_at=utc_now()),
+        )
+    )
+    stack.enter_context(
+        patch(
+            "investment_analysis_engine.strategies.piotroski.cli.ProductionFinancialFactsProvider",
+            side_effect=lambda *, sec_edgar: ProductionFinancialFactsProvider(
+                sec_edgar=sec_edgar,
+                yfinance=YFinanceFinancialFactsAdapter(client=cast(YFinanceClient, _FixtureYahoo())),
+            ),
         )
     )
     for cached in ("graham_number", "graham_growth", "fcf_growth"):

@@ -1,0 +1,1217 @@
+{
+  "$defs": {
+    "CalculationStatus": {
+      "description": "Machine-readable outcome of a calculation attempt.\n\nPure calculators (Slice B) may return:\n\n- ``OK`` — required inputs resolved and calculation completed.\n- ``NOT_APPLICABLE`` — inputs are valid but the selected method is\n  inapplicable (e.g. non-positive EPS or BVPS for the Graham Number).\n- ``INVALID_INPUT`` — supplied value, unit, basis, or method/flag\n  combination is invalid.\n\nResolver/provider layers (Slice C and later) will additionally return:\n\n- ``INPUT_UNAVAILABLE`` — a required input could not be resolved under\n  the requested time boundary.\n- ``PROVIDER_ERROR`` — the configured provider failed in a way that\n  should be distinguished from an absent fact.",
+      "enum": [
+        "ok",
+        "not_applicable",
+        "invalid_input",
+        "input_unavailable",
+        "provider_error"
+      ],
+      "title": "CalculationStatus",
+      "type": "string"
+    },
+    "CheckOutcome": {
+      "description": "Outcome of one test. An unavailable test is never a fail.",
+      "enum": [
+        "pass",
+        "fail",
+        "unavailable"
+      ],
+      "title": "CheckOutcome",
+      "type": "string"
+    },
+    "Completeness": {
+      "description": "Whether a score rests on all nine tests or on six to eight.",
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "title": "Completeness",
+      "type": "string"
+    },
+    "DiagnosticPart": {
+      "additionalProperties": false,
+      "description": "One diagnostics entry that names no provider: a resolver event or the legacy identity entry.",
+      "properties": {
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_name",
+        "stage",
+        "outcome",
+        "message"
+      ],
+      "title": "DiagnosticPart",
+      "type": "object"
+    },
+    "FailureReasonCode": {
+      "description": "Stable failure categories a caller may branch on.\n\nA value is never renamed, repurposed or removed within the public contract. New values may be\nadded, so a caller must treat an unrecognized value as a generic failure and use ``status`` for the\ncategory.",
+      "enum": [
+        "execution_error",
+        "historical_quality",
+        "provider_error",
+        "provider_unreachable",
+        "provider_rate_limited",
+        "provider_unexpected_response",
+        "provider_no_data",
+        "configuration_error",
+        "no_eligible_observations",
+        "invalid_input",
+        "invalid_parameter",
+        "database_upgrade_required",
+        "database_incompatible_schema",
+        "database_busy",
+        "database_permission_denied",
+        "database_invalid_file",
+        "database_io_error",
+        "database_resources_unavailable",
+        "database_initialization_failed",
+        "database_migration_failed",
+        "invalid_stored_run",
+        "unsupported_run_version",
+        "watchlist_not_found",
+        "watchlist_entry_not_found",
+        "watchlist_empty",
+        "watchlist_name_conflict",
+        "analysis_run_not_found",
+        "stored_selection_unreadable",
+        "unsupported_projection"
+      ],
+      "title": "FailureReasonCode",
+      "type": "string"
+    },
+    "IndustryClass": {
+      "description": "Industry class of an issuer. An unknown class is the absence of a value, never a member.",
+      "enum": [
+        "financial",
+        "utility",
+        "manufacturer",
+        "other"
+      ],
+      "title": "IndustryClass",
+      "type": "string"
+    },
+    "InstrumentKind": {
+      "description": "Reviewed provider-neutral instrument classifications.",
+      "enum": [
+        "equity",
+        "etf",
+        "cryptocurrency"
+      ],
+      "title": "InstrumentKind",
+      "type": "string"
+    },
+    "InstrumentKindPart": {
+      "additionalProperties": false,
+      "description": "The instrument-kind evidence a provider returned: the raw provider value and the reviewed kind it maps to.",
+      "properties": {
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InstrumentKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "provider_value": {
+          "title": "Provider Value",
+          "type": "string"
+        },
+        "resolved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "provider_value",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "InstrumentKindPart",
+      "type": "object"
+    },
+    "LineagePart": {
+      "additionalProperties": false,
+      "description": "How a derived input was composed from other inputs.",
+      "properties": {
+        "components": {
+          "items": {
+            "$ref": "#/$defs/ResolvedInputPart"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "transformation": {
+          "title": "Transformation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "transformation",
+        "components"
+      ],
+      "title": "LineagePart",
+      "type": "object"
+    },
+    "MetricResultPart": {
+      "additionalProperties": false,
+      "description": "One metric: its status, its value when the status is ok, and the reason it has none otherwise.",
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/MetricStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status",
+        "value",
+        "reason_code",
+        "reason"
+      ],
+      "title": "MetricResultPart",
+      "type": "object"
+    },
+    "MetricStatus": {
+      "description": "Outcome of one calculated metric.",
+      "enum": [
+        "ok",
+        "unavailable",
+        "not_applicable"
+      ],
+      "title": "MetricStatus",
+      "type": "string"
+    },
+    "PiotroskiAnchorPart": {
+      "additionalProperties": false,
+      "description": "The anchor annual filing and its fiscal year-end.",
+      "properties": {
+        "accession": {
+          "title": "Accession",
+          "type": "string"
+        },
+        "filing_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Filing Date"
+        },
+        "form": {
+          "title": "Form",
+          "type": "string"
+        },
+        "year_end": {
+          "format": "date",
+          "title": "Year End",
+          "type": "string"
+        }
+      },
+      "required": [
+        "year_end",
+        "accession",
+        "form",
+        "filing_date"
+      ],
+      "title": "PiotroskiAnchorPart",
+      "type": "object"
+    },
+    "PiotroskiInputFailurePart": {
+      "additionalProperties": false,
+      "description": "The input whose provider failure stopped the assembly, and the explanation.",
+      "properties": {
+        "input_name": {
+          "title": "Input Name",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input_name",
+        "reason"
+      ],
+      "title": "PiotroskiInputFailurePart",
+      "type": "object"
+    },
+    "PiotroskiOperandPart": {
+      "additionalProperties": false,
+      "description": "One input a test used, under the name the test gives it, with its provenance.",
+      "properties": {
+        "input": {
+          "$ref": "#/$defs/ResolvedInputPart"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "input"
+      ],
+      "title": "PiotroskiOperandPart",
+      "type": "object"
+    },
+    "PiotroskiRatioPart": {
+      "additionalProperties": false,
+      "description": "One ratio a test compared, under the name the test gives it.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/MetricResultPart"
+        }
+      },
+      "required": [
+        "name",
+        "result"
+      ],
+      "title": "PiotroskiRatioPart",
+      "type": "object"
+    },
+    "PiotroskiSourceFilingPart": {
+      "additionalProperties": false,
+      "description": "A filing an operand came from and its filing date.",
+      "properties": {
+        "accession": {
+          "title": "Accession",
+          "type": "string"
+        },
+        "filing_date": {
+          "format": "date",
+          "title": "Filing Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "accession",
+        "filing_date"
+      ],
+      "title": "PiotroskiSourceFilingPart",
+      "type": "object"
+    },
+    "PiotroskiTestPart": {
+      "additionalProperties": false,
+      "description": "One of the nine tests: its outcome, the ratios and operands behind it, and why it is unavailable.",
+      "properties": {
+        "diagnostics": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Diagnostics",
+          "type": "array"
+        },
+        "group": {
+          "title": "Group",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "number": {
+          "title": "Number",
+          "type": "integer"
+        },
+        "operands": {
+          "items": {
+            "$ref": "#/$defs/PiotroskiOperandPart"
+          },
+          "title": "Operands",
+          "type": "array"
+        },
+        "outcome": {
+          "$ref": "#/$defs/CheckOutcome"
+        },
+        "ratios": {
+          "items": {
+            "$ref": "#/$defs/PiotroskiRatioPart"
+          },
+          "title": "Ratios",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "number",
+        "name",
+        "group",
+        "outcome",
+        "ratios",
+        "operands",
+        "diagnostics",
+        "reason_code",
+        "reason"
+      ],
+      "title": "PiotroskiTestPart",
+      "type": "object"
+    },
+    "PiotroskiUnavailablePart": {
+      "additionalProperties": false,
+      "description": "Why a value is unavailable.",
+      "properties": {
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/ReasonCode"
+        }
+      },
+      "required": [
+        "reason_code",
+        "reason"
+      ],
+      "title": "PiotroskiUnavailablePart",
+      "type": "object"
+    },
+    "ProviderCheckItem": {
+      "additionalProperties": false,
+      "description": "The verdict for one provider.",
+      "properties": {
+        "provider_id": {
+          "description": "The provider the test request went to.",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/ProviderCheckVerdict"
+        }
+      },
+      "required": [
+        "provider_id",
+        "verdict"
+      ],
+      "title": "ProviderCheckItem",
+      "type": "object"
+    },
+    "ProviderCheckVerdict": {
+      "description": "What a test request to a provider found: five provider conditions, or that nothing was checked.",
+      "enum": [
+        "healthy",
+        "unreachable",
+        "rate_limited",
+        "unexpected_response",
+        "no_data",
+        "not_checked"
+      ],
+      "title": "ProviderCheckVerdict",
+      "type": "string"
+    },
+    "ProviderDiagnosticPart": {
+      "additionalProperties": false,
+      "description": "One diagnostics entry for an instrument-profile capability, which names the provider consulted.",
+      "properties": {
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field_name",
+        "stage",
+        "outcome",
+        "message",
+        "provider_id"
+      ],
+      "title": "ProviderDiagnosticPart",
+      "type": "object"
+    },
+    "ProviderFailure": {
+      "additionalProperties": false,
+      "description": "Why an analysis outcome is a provider failure: one of four codes and the inputs that caused it.\n\nThe same element is carried by the failure envelope and by every document that reports an analysis\noutcome. ``reason_code`` is the single code derived from the kinds in ``inputs``.",
+      "properties": {
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/ProviderFailureInput"
+          },
+          "minItems": 1,
+          "title": "Inputs",
+          "type": "array"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/FailureReasonCode"
+        }
+      },
+      "required": [
+        "reason_code",
+        "inputs"
+      ],
+      "title": "ProviderFailure",
+      "type": "object"
+    },
+    "ProviderFailureInput": {
+      "additionalProperties": false,
+      "description": "One failed input: which provider failed it and what the adapter observed.",
+      "properties": {
+        "input": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The strategy input the failure was recorded against; null when the failure was raised.",
+          "title": "Input"
+        },
+        "kind": {
+          "$ref": "#/$defs/ProviderFailureKind"
+        },
+        "provider_id": {
+          "description": "The provider that failed.",
+          "title": "Provider Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input",
+        "provider_id",
+        "kind"
+      ],
+      "title": "ProviderFailureInput",
+      "type": "object"
+    },
+    "ProviderFailureKind": {
+      "description": "What a provider failure was, as observed by the adapter.\n\n``UNREACHABLE``: the service did not serve the request (DNS, connection, timeout, blocking, server errors).\n``RATE_LIMITED``: the service refused the request because it is limiting requests (HTTP 429, or the library's\nrate-limit error). ``UNEXPECTED_RESPONSE``: the service answered, but not in the form the adapter reads.\n``NO_DATA``: the service answered correctly and has nothing for this request.",
+      "enum": [
+        "unreachable",
+        "rate_limited",
+        "unexpected_response",
+        "no_data"
+      ],
+      "title": "ProviderFailureKind",
+      "type": "string"
+    },
+    "ReasonCode": {
+      "description": "Machine-readable reasons shared by deterministic metric results.",
+      "enum": [
+        "insufficient_history",
+        "non_contiguous_history",
+        "missing_fact",
+        "incompatible_period",
+        "incompatible_units",
+        "incompatible_currency",
+        "incompatible_scope",
+        "ambiguous_fact",
+        "not_available_as_of",
+        "nonpositive_beginning",
+        "nonpositive_ending",
+        "sign_change",
+        "fcf_not_growing",
+        "eps_not_growing",
+        "fcf_and_eps_not_growing",
+        "forward_growth_not_confirmed",
+        "consensus_unavailable",
+        "market_cap_unavailable",
+        "provider_error",
+        "invalid_request",
+        "not_requested",
+        "instrument_kind_not_applicable",
+        "industry_class_not_applicable",
+        "industry_class_unknown",
+        "unsupported_mapping",
+        "debt_not_visible",
+        "nonpositive_denominator",
+        "insufficient_tests"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "ResolvedInputPart": {
+      "additionalProperties": false,
+      "description": "One method input and where it came from, as the Graham documents write it.",
+      "properties": {
+        "as_of": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "As Of"
+        },
+        "available_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Available At"
+        },
+        "basis": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Basis"
+        },
+        "cache_schema_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cache Schema Version"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Currency"
+        },
+        "field_name": {
+          "title": "Field Name",
+          "type": "string"
+        },
+        "lineage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LineagePart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "observation_period_end": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observation Period End"
+        },
+        "observation_period_start": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observation Period Start"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observed At"
+        },
+        "origin_source_kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceKind"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Field"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Id"
+        },
+        "resolved_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Retrieved At"
+        },
+        "source_kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "units": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Units"
+        },
+        "value": {
+          "description": "A finite number, written as the source value was.",
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "field_name",
+        "value",
+        "source_kind",
+        "origin_source_kind",
+        "basis",
+        "units",
+        "currency",
+        "provider_id",
+        "provider_field",
+        "observation_period_start",
+        "observation_period_end",
+        "observed_at",
+        "available_at",
+        "as_of",
+        "retrieved_at",
+        "resolved_at",
+        "cache_schema_version",
+        "notes",
+        "lineage"
+      ],
+      "title": "ResolvedInputPart",
+      "type": "object"
+    },
+    "SecurityIdentityPart": {
+      "additionalProperties": false,
+      "description": "The identity snapshot a run retains; every descriptive field is null when the provider returned none.",
+      "properties": {
+        "instrument_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Identifier"
+        },
+        "instrument_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Name"
+        },
+        "issuer_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issuer Identifier"
+        },
+        "listing_venue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Listing Venue"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Id"
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Resolved At"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticker",
+        "instrument_name",
+        "listing_venue",
+        "issuer_identifier",
+        "instrument_identifier",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "SecurityIdentityPart",
+      "type": "object"
+    },
+    "SourceKind": {
+      "description": "How a resolved input value was obtained.",
+      "enum": [
+        "override",
+        "cache",
+        "provider",
+        "derived"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The Piotroski F-Score document, version 1.\n\n``piotroski --json`` and a replay write it.",
+  "properties": {
+    "analysis": {
+      "const": "piotroski",
+      "title": "Analysis",
+      "type": "string"
+    },
+    "anchor": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PiotroskiAnchorPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "available_count": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Available Count"
+    },
+    "completeness": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Completeness"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "diagnostics": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/DiagnosticPart"
+          },
+          {
+            "$ref": "#/$defs/ProviderDiagnosticPart"
+          }
+        ]
+      },
+      "title": "Diagnostics",
+      "type": "array"
+    },
+    "effective_as_of": {
+      "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+      "format": "date-time",
+      "title": "Effective As Of",
+      "type": "string"
+    },
+    "industry_class": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IndustryClass"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "industry_class_unknown": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PiotroskiUnavailablePart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "input_failure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PiotroskiInputFailurePart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "instrument_kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InstrumentKindPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    },
+    "method": {
+      "const": "piotroski",
+      "title": "Method",
+      "type": "string"
+    },
+    "method_version": {
+      "title": "Method Version",
+      "type": "integer"
+    },
+    "provider_check": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/ProviderCheckItem"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Provider Check"
+    },
+    "provider_failure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProviderFailure"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Reason"
+    },
+    "reason_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReasonCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "requested_as_of": {
+      "anyOf": [
+        {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Requested As Of"
+    },
+    "result_schema_version": {
+      "title": "Result Schema Version",
+      "type": "integer"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "score": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MetricResultPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "security_identity": {
+      "$ref": "#/$defs/SecurityIdentityPart"
+    },
+    "source_filings": {
+      "items": {
+        "$ref": "#/$defs/PiotroskiSourceFilingPart"
+      },
+      "title": "Source Filings",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/CalculationStatus"
+    },
+    "taxonomy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Taxonomy"
+    },
+    "tests": {
+      "items": {
+        "$ref": "#/$defs/PiotroskiTestPart"
+      },
+      "title": "Tests",
+      "type": "array"
+    },
+    "ticker": {
+      "title": "Ticker",
+      "type": "string"
+    },
+    "unavailable_tests": {
+      "items": {
+        "type": "integer"
+      },
+      "title": "Unavailable Tests",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "analysis",
+    "method",
+    "ticker",
+    "status",
+    "provider_failure",
+    "provider_check",
+    "requested_as_of",
+    "effective_as_of",
+    "security_identity",
+    "instrument_kind",
+    "result_schema_version",
+    "method_version",
+    "reason_code",
+    "reason",
+    "industry_class",
+    "industry_class_unknown",
+    "anchor",
+    "source_filings",
+    "taxonomy",
+    "score",
+    "completeness",
+    "available_count",
+    "unavailable_tests",
+    "tests",
+    "input_failure",
+    "warnings",
+    "limitations",
+    "diagnostics"
+  ],
+  "title": "PiotroskiDocument",
+  "type": "object"
+}

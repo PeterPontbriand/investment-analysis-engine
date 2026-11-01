@@ -32,6 +32,7 @@ uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <
 - `<module_name>` is the snake-case package name. It gives the analysis identifier, the method identifier and the tool name. The alias defaults to the hyphenated module name.
 - It writes typed stubs for the role files into `investment_analysis_engine/strategies/<module_name>/`: `vocabulary`, `analyzer`, `tool`, `selection`, `codec`, `execution`, `cli`, `presenter`, `envelope`, `replay` and `evaluation`.
 - It makes one insertion in each of five existing files: `strategy_wiring.py`, `orchestrator/tool_names.py`, `workspace/strategy_types.py`, `cli_strategy_wiring.py` and `evaluation/strategy_fixtures.py`.
+- A label is at most 40 characters and a module name at most 40 (`MAX_LABEL_LENGTH` and `MAX_MODULE_NAME_LENGTH` in `scripts/new_strategy.py`), the lengths at which no generated line passes 120 characters, proven by `tests/scripts/test_new_strategy_label_limits.py`. A longer one is a usage error: the generator exits with code 2 and writes nothing. The longest name in the Step 3.5 specifications, "Cash-Flow Valuation Multiples", has 29.
 - It refuses to overwrite. If a target file exists, or the module name, alias, tool or method identifier is already used, it writes nothing and exits with code 2, listing the conflicts.
 - Every unfilled body calls `unfilled_stub(...)`. The generated files type-check as written, and the test suite fails while any such call remains under `investment_analysis_engine/`.
 - The generated descriptor has `settings_type=None`; see [Strategy settings](#strategy-settings).
@@ -73,6 +74,8 @@ The generator cannot write these. Each holds content a reviewer must judge, and 
 | `watchlist-options` | Options of its own on the watchlist commands, only if it has any beyond the shared ones | none; written by hand |
 
 What a Golden case, a fixture and a catalog entry must contain, and how their expected values are established, is in [Evaluations & Golden Suite](EVALUATIONS.md#5-golden-cases-and-fixtures) and its [maintenance rules](EVALUATIONS.md#10-maintenance-rules). For the shape of a `cases` module, a catalog entry, a guide or a settings file, open the file named in the edit-site table for an existing strategy (replace `{module}` with its package name); take the structure, not its rules.
+
+A data file that the evaluation tier reads must be listed, as an explicit path, in `[tool.setuptools.package-data]` of `pyproject.toml`, or the installed package lacks it; `tests/evaluation/test_package_data_coverage.py` fails naming any file that is not.
 
 Each command rewrites every stored file of its kind, not only the new strategy's. Run `git diff --stat` afterwards and confirm that no existing strategy's file changed. The status command shows when a site is `done`.
 

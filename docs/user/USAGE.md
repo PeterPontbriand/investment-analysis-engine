@@ -26,6 +26,7 @@ uv run ian momentum --help
 uv run ian graham-number --help
 uv run ian graham-growth --help
 uv run ian fcf-growth --help
+uv run ian piotroski --help
 ```
 <!-- END GENERATED strategy-help-commands -->
 

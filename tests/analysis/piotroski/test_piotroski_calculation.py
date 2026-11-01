@@ -15,15 +15,14 @@ from investment_analysis_engine.analysis.shared.metric_inputs import ShareCountP
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from investment_analysis_engine.data.sec_edgar.instant_series import SEC_DERIVED_COMMON_SHARES_FIELD
-from investment_analysis_engine.strategies.piotroski_calculation import (
-    CheckOutcome,
-    Completeness,
+from investment_analysis_engine.strategies.piotroski.calculation import (
     NamedMetric,
     PiotroskiInputs,
     PiotroskiScoreResult,
     PiotroskiTestResult,
     calculate_f_score,
 )
+from investment_analysis_engine.strategies.piotroski.vocabulary import CheckOutcome, Completeness
 from tests._sec_instants import NOW
 from tests.analysis.shared._issuer_inputs import synthetic
 
@@ -347,7 +346,7 @@ def test_a_denominator_that_is_not_positive_makes_exactly_its_tests_unavailable(
         item = result.tests[number - 1]
         assert item.reason_code is ReasonCode.NONPOSITIVE_DENOMINATOR
         assert item.reason is not None
-        assert field in item.reason
+        assert field.rsplit("_", 1)[0].replace("_", " ") in item.reason.lower()
 
 
 def test_a_non_finite_ratio_makes_its_test_unavailable_and_nothing_is_non_finite() -> None:
@@ -389,7 +388,7 @@ def test_an_unavailable_operand_hands_its_reason_code_to_the_test() -> None:
     result = calculate_f_score(make(net_income_t=missing(ReasonCode.NOT_AVAILABLE_AS_OF)))
     assert unavailable_numbers(result) == (1, 3, 4)
     assert result.tests[0].reason_code is ReasonCode.NOT_AVAILABLE_AS_OF
-    assert "net_income_t" in (result.tests[0].reason or "")
+    assert "Net income for" in (result.tests[0].reason or "")
 
 
 def test_gross_profit_evidence_that_is_not_ok_makes_the_margin_test_unavailable_with_its_code() -> None:

@@ -66,6 +66,12 @@ investment_analysis_engine = [
     "strategies/*/settings.toml",
     "data/sec_edgar/settings.toml",
     "evaluation/fixtures/sec_edgar/step_2_5a_d0/*",
+    "evaluation/fixtures/sec_edgar/instant_facts/aapl.json",
+    "evaluation/fixtures/sec_edgar/annual_facts/aapl.json",
+    "evaluation/fixtures/sec_edgar/instant_facts/mnst.json",
+    "evaluation/fixtures/sec_edgar/annual_facts/mnst.json",
+    "evaluation/fixtures/sec_edgar/filing_headers/aapl_fy2024.hdr.sgml",
+    "evaluation/fixtures/sec_edgar/filing_headers/mnst_fy2025.hdr.sgml",
     "data/repositories/migration_scripts/env.py",
     "data/repositories/migration_scripts/versions/*.py",
 ]

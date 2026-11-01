@@ -129,7 +129,7 @@ def _reviewed(strategies: int) -> RunsCompareDocument:
                 ("selected span end", None),
             ),
             _run(
-                [_text("Score", "5 of 7"), _text("Completeness", "partial")],
+                [_text("Score", "5 of 6"), _text("Completeness", "partial (1, 3, 4 unavailable)")],
                 period=("fiscal year-end", date(2025, 12, 31)),
             ),
         ],
@@ -175,29 +175,31 @@ def test_the_four_strategy_refresh_is_two_bands_and_its_period_ends_wrap() -> No
     ]
 
 
-def test_a_fifth_strategy_joins_the_second_band() -> None:
+def test_a_fifth_strategy_with_the_decided_headline_text_starts_a_third_band() -> None:
     text = render_runs_compare_text(_reviewed(5))
 
-    assert text.split("\n")[2:16] == [
+    lines = text.split("\n")
+    assert lines[2:20] == [
         "         Momentum                      Graham Number                       Graham Growth",
         "Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome",
         "SYNTH    Bullish   100.0  completed    36.69 USD      —       completed    66.28 USD      —       completed",
         "MISSING  —         100.0  unavailable  —              —       unavailable  no stored run  —       —",
         "ERROR    —         —      failed       —              —       failed       —              —       failed",
         "",
-        "         FCF Growth                                                       Piotroski F-Score",
-        "Ticker   FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome      Score              Completeness"
-        "  Outcome",
-        "SYNTH    10.2%                      17.6%     PASS           completed    7 of 9             complete"
-        "      completed",
-        "MISSING  —                          —         INDETERMINATE  unavailable  5 of 7             partial"
-        "       completed",
-        "ERROR    10.2%†                     17.6%     PASS           completed    —                  —"
-        "             failed",
+        "         FCF Growth",
+        "Ticker   FCF CAGR / FCF/share CAGR  EPS CAGR  Class          Outcome",
+        "SYNTH    10.2%                      17.6%     PASS           completed",
+        "MISSING  —                          —         INDETERMINATE  unavailable",
+        "ERROR    10.2%†                     17.6%     PASS           completed",
         "",
-        _LEGEND,
+        "         Piotroski F-Score",
+        "Ticker   Score              Completeness                   Outcome",
+        "SYNTH    7 of 9             complete                       completed",
+        "MISSING  5 of 6             partial (1, 3, 4 unavailable)  completed",
+        "ERROR    —                  —                              failed",
         "",
     ]
+    assert lines[20] == _LEGEND
     assert _section(text, "Period ends") == [
         "  SYNTH    Graham Number: earnings input period end 2024-06-30 · Graham Growth: earnings input period end"
         " 2024-06-30",
@@ -276,9 +278,9 @@ def test_a_wide_strategy_first_still_leaves_the_rest_to_share_a_band() -> None:
 def test_every_band_repeats_the_rows_in_the_same_order() -> None:
     bands = _bands(_table_lines(_reviewed(5)))
 
-    assert len(bands) == 2
-    first, second = ([line.split()[0] for line in band[1:]] for band in bands)
-    assert first == second == ["Ticker", "SYNTH", "MISSING", "ERROR"]
+    assert len(bands) == 3
+    first, second, third = ([line.split()[0] for line in band[1:]] for band in bands)
+    assert first == second == third == ["Ticker", "SYNTH", "MISSING", "ERROR"]
 
 
 def test_the_legend_comes_once_after_the_last_band_wherever_the_marker_is() -> None:

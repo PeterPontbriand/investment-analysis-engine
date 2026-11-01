@@ -108,6 +108,26 @@ from investment_analysis_engine.strategies.momentum.vocabulary import (
     CONFIG_SCHEMA_VERSION as MOMENTUM_CONFIG_SCHEMA_VERSION,
 )
 from investment_analysis_engine.strategies.momentum.vocabulary import METHOD_ID as MOMENTUM_METHOD_ID
+from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
+from investment_analysis_engine.strategies.piotroski.codec import (
+    decode_piotroski,
+    encode_piotroski,
+    piotroski_native_status,
+    piotroski_ticker,
+)
+from investment_analysis_engine.strategies.piotroski.envelope import PiotroskiDocument
+from investment_analysis_engine.strategies.piotroski.replay import headline_piotroski, project_piotroski
+from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
+from investment_analysis_engine.strategies.piotroski.tool import (
+    PiotroskiToolArguments,
+    PiotroskiToolDependencies,
+    PiotroskiToolHandler,
+)
+from investment_analysis_engine.strategies.piotroski.vocabulary import ANALYSIS_ID as PIOTROSKI_ANALYSIS_ID
+from investment_analysis_engine.strategies.piotroski.vocabulary import (
+    CONFIG_SCHEMA_VERSION as PIOTROSKI_CONFIG_SCHEMA_VERSION,
+)
+from investment_analysis_engine.strategies.piotroski.vocabulary import METHOD_ID as PIOTROSKI_METHOD_ID
 from investment_analysis_engine.workspace.codecs import EvidenceCodec, encode_with
 from investment_analysis_engine.workspace.execution import RunSpec
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
@@ -350,7 +370,36 @@ FCF_GROWTH: Final = StrategyDescriptor(
     settings_type=None,
 )
 
-STRATEGIES: Final = (MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH)
+PIOTROSKI_BEHAVIOR: Final = StrategyBehavior[PiotroskiSelection, PiotroskiResult, PiotroskiToolDependencies](
+    selection_type=PiotroskiSelection,
+    result_type=PiotroskiResult,
+    deps_type=PiotroskiToolDependencies,
+    encode=encode_piotroski,
+    decode=decode_piotroski,
+    ticker_of=piotroski_ticker,
+    handler=PiotroskiToolHandler,
+    native_status=piotroski_native_status,
+    headline=headline_piotroski,
+    project=project_piotroski,
+)
+PIOTROSKI: Final = StrategyDescriptor(
+    analysis_id=PIOTROSKI_ANALYSIS_ID,
+    method_id=PIOTROSKI_METHOD_ID,
+    alias="piotroski",
+    label="Piotroski F-Score",
+    tool=ToolName.ANALYZE_PIOTROSKI,
+    tool_arguments=PiotroskiToolArguments,
+    tool_description="Run the Piotroski F-Score analysis.",
+    behavior=PIOTROSKI_BEHAVIOR,
+    config_schema_version=PIOTROSKI_CONFIG_SCHEMA_VERSION,
+    method_version=1,
+    result_schema_version=1,
+    evidence_codec_version=1,
+    json_envelope=PiotroskiDocument,
+    settings_type=None,
+)
+
+STRATEGIES: Final = (MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH, PIOTROSKI)
 
 
 @dataclass(frozen=True)

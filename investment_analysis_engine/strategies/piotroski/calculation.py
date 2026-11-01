@@ -1,7 +1,7 @@
 """The Piotroski F-Score calculation: nine pass/fail tests over three fiscal year-ends.
 
-This module is the pure calculation of the Piotroski F-Score. It moves into the strategy's package when the strategy
-is generated.
+This module is the pure calculation of the Piotroski F-Score. The strategy's analyzer assembles the inputs and calls
+``calculate_f_score``.
 
 The function takes a frozen ``PiotroskiInputs`` and does no I/O and no clock, provider or cache access. Every operand
 is a resolved input with its provenance, or the reason it is unavailable. Comparisons are strict and exact: each
@@ -23,9 +23,10 @@ Rules per test:
 A score is available from six available tests: complete at nine, partial from six to eight.
 """
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import StrEnum
+from datetime import date
 from fractions import Fraction
 from typing import Final
 
@@ -34,6 +35,7 @@ from investment_analysis_engine.analysis.shared.metric_inputs import YearEndShar
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.sec_edgar.financial_facts import taxonomy_of_provider_field
+from investment_analysis_engine.strategies.piotroski.vocabulary import CheckOutcome, Completeness
 
 TEST_COUNT: Final = 9
 """The number of tests, and the number available for a complete score."""
@@ -58,27 +60,13 @@ Value = ResolvedInput | InputUnavailable
 """An input value with provenance, or the reason it is unavailable."""
 
 
-class CheckOutcome(StrEnum):
-    """Outcome of one test. An unavailable test is never a fail."""
-
-    PASS = "pass"
-    FAIL = "fail"
-    UNAVAILABLE = "unavailable"
-
-
-class Completeness(StrEnum):
-    """Whether a score rests on all nine tests or on six to eight."""
-
-    COMPLETE = "complete"
-    PARTIAL = "partial"
-
-
 @dataclass(frozen=True)
 class PiotroskiInputs:
     """Every operand of the nine tests, each a value with provenance or the reason it is unavailable.
 
     Year *t* is the selected fiscal year, *t1* the year before it and *t2* the year before that. Long-term debt and
-    gross profit are shared-metric evidence, so their own components and reasons are kept.
+    gross profit are shared-metric evidence, so their own components and reasons are kept. The three year-ends, when
+    known, only name the operands in the messages; a year-end that is unavailable is ``None``.
     """
 
     total_assets_t: Value
@@ -99,6 +87,9 @@ class PiotroskiInputs:
     current_liabilities_t1: Value
     shares_t: YearEndShareCount | InputUnavailable
     shares_t1: YearEndShareCount | InputUnavailable
+    year_end_t: date | None = None
+    year_end_t1: date | None = None
+    year_end_t2: date | None = None
 
 
 @dataclass(frozen=True)
@@ -196,11 +187,47 @@ class PiotroskiScoreResult:
 # ---------------------------------------------------------------------------
 
 
+_SUBJECTS: Final = {
+    "total_assets": "Total assets",
+    "net_income": "Net income",
+    "operating_cash_flow": "Operating cash flow",
+    "sales": "Sales",
+    "gross_profit": "Gross profit",
+    "long_term_debt": "Long-term debt",
+    "current_assets": "Current assets",
+    "current_liabilities": "Current liabilities",
+    "shares": "Shares outstanding",
+}
+"""The plain name of each operand's subject; an operand's key (``net_income_t``) is for the stored result only."""
+
+_YEARS: Final = {
+    "t": "the latest fiscal year",
+    "t1": "the fiscal year before it",
+    "t2": "the fiscal year before that",
+}
+"""How a year is named in a message when its year-end is unavailable."""
+
+_IDENTIFIER: Final = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
+
+
+def _plain(text: str) -> str:
+    """Return ``text`` with each underscore-joined identifier spelled as words, for a message a reader sees."""
+    return _IDENTIFIER.sub(lambda match: match.group().replace("_", " "), text)
+
+
+def _label(inputs: PiotroskiInputs, key: str) -> str:
+    """Return the plain name of the operand ``key``, such as ``Net income for 2025-12-31``."""
+    subject, _, year = key.rpartition("_")
+    year_end = {"t": inputs.year_end_t, "t1": inputs.year_end_t1, "t2": inputs.year_end_t2}[year]
+    return f"{_SUBJECTS[subject]} for {year_end.isoformat() if year_end is not None else _YEARS[year]}"
+
+
 @dataclass(frozen=True)
 class _Figure:
-    """A usable operand: its exact value, the inputs behind it and whether it is an amount of money."""
+    """A usable operand: its key, plain name, exact value, the inputs behind it and whether it is an amount of money."""
 
     name: str
+    label: str
     value: Fraction
     operands: tuple[Operand, ...]
     monetary: bool
@@ -215,7 +242,7 @@ class _Gap:
     reason: str
 
 
-def _taxonomy_of(item: ResolvedInput) -> str | None:
+def taxonomy_of_input(item: ResolvedInput) -> str | None:
     """Return the taxonomy of a resolved input: its provider field's, or its components' when it has none.
 
     A provider field the adapter does not emit in a recognized form has no taxonomy, and the components are consulted
@@ -225,26 +252,31 @@ def _taxonomy_of(item: ResolvedInput) -> str | None:
         return taxonomy_of_provider_field(item.provider_field)
     if item.lineage is None:
         return None
-    found = {_taxonomy_of(component) for component in item.lineage.components}
+    found = {taxonomy_of_input(component) for component in item.lineage.components}
     return next(iter(found)) if len(found) == 1 else None
 
 
-def _figure(name: str, value: Value, *, monetary: bool = True) -> _Figure | _Gap:
+def _figure(inputs: PiotroskiInputs, name: str, value: Value, *, monetary: bool = True) -> _Figure | _Gap:
     """Return the operand ``name`` as a figure, or the gap its unavailability makes."""
+    label = _label(inputs, name)
     if isinstance(value, InputUnavailable):
-        return _Gap(value.reason_code, f"{name} is unavailable: {value.reason}")
-    return _Figure(name, Fraction(value.value), (Operand(name, value),), monetary)
+        return _Gap(value.reason_code, f"{label} is unavailable: {_plain(value.reason)}")
+    return _Figure(name, label, Fraction(value.value), (Operand(name, value),), monetary)
 
 
-def _evidence_figure(name: str, evidence: MetricEvidence | InputUnavailable) -> _Figure | _Gap:
+def _evidence_figure(inputs: PiotroskiInputs, name: str, evidence: MetricEvidence | InputUnavailable) -> _Figure | _Gap:
     """Return shared-metric evidence as a figure, keeping its operands and diagnostics, or the gap its outcome makes."""
+    label = _label(inputs, name)
     if isinstance(evidence, InputUnavailable):
-        return _Gap(evidence.reason_code, f"{name} is unavailable: {evidence.reason}")
+        return _Gap(evidence.reason_code, f"{label} is unavailable: {_plain(evidence.reason)}")
     result = evidence.result
     if result.status is not MetricStatus.OK or result.value is None:
-        return _Gap(result.reason_code or ReasonCode.MISSING_FACT, f"{name} is {result.status.value}: {result.reason}")
+        status = result.status.value.replace("_", " ")
+        return _Gap(
+            result.reason_code or ReasonCode.MISSING_FACT, f"{label} is {status}: {_plain(result.reason or '')}"
+        )
     operands = tuple(Operand(f"{name}:{item.name}", item.input) for item in evidence.operands)
-    return _Figure(name, Fraction(result.value), operands, True, evidence.diagnostics)
+    return _Figure(name, label, Fraction(result.value), operands, True, evidence.diagnostics)
 
 
 def _first_gap(items: Sequence[_Figure | _Gap]) -> _Gap | None:
@@ -267,7 +299,7 @@ def _consistency_gap(figures: Sequence[_Figure]) -> _Gap | None:
             ReasonCode.INCOMPATIBLE_CURRENCY,
             f"The operands are in different currencies: {sorted(map(str, currencies))}.",
         )
-    taxonomies = {_taxonomy_of(inner.input) for figure in figures for inner in figure.operands}
+    taxonomies = {taxonomy_of_input(inner.input) for figure in figures for inner in figure.operands}
     if None in taxonomies:
         return _Gap(ReasonCode.INCOMPATIBLE_SCOPE, "An operand does not state a supported taxonomy.")
     if len(taxonomies) > 1:
@@ -281,7 +313,7 @@ def _positive_gap(figures: Sequence[_Figure]) -> _Gap | None:
         if figure.value <= 0:
             return _Gap(
                 ReasonCode.NONPOSITIVE_DENOMINATOR,
-                f"{figure.name} is {float(figure.value)} and must be positive as a denominator.",
+                f"{figure.label} is {float(figure.value)} and must be positive as a denominator.",
             )
     return None
 
@@ -310,7 +342,7 @@ def _decided(
         try:
             approximate = float(exact)
         except OverflowError:
-            return _unavailable(number, _Gap(ReasonCode.INVALID_REQUEST, f"{label} overflows the finite double range."))
+            return _unavailable(number, _Gap(ReasonCode.INVALID_REQUEST, "A ratio overflows the finite double range."))
         metrics.append(NamedMetric(label, MetricResult.ok(approximate)))
     name, group = _TEST_NAMES[number - 1]
     return PiotroskiTestResult(
@@ -355,7 +387,10 @@ def _ratio(numerator: _Figure, denominator: _Figure) -> Fraction:
 
 def _test_positive_roa(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 1: net income of year *t* over total assets at *t−1* is greater than zero."""
-    items = (_figure("net_income_t", inputs.net_income_t), _figure("total_assets_t1", inputs.total_assets_t1))
+    items = (
+        _figure(inputs, "net_income_t", inputs.net_income_t),
+        _figure(inputs, "total_assets_t1", inputs.total_assets_t1),
+    )
     used = _usable(1, items, ("total_assets_t1",))
     if isinstance(used, PiotroskiTestResult):
         return used
@@ -366,8 +401,8 @@ def _test_positive_roa(inputs: PiotroskiInputs) -> PiotroskiTestResult:
 def _test_positive_cfo(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 2: operating cash flow of year *t* over total assets at *t−1* is greater than zero."""
     items = (
-        _figure("operating_cash_flow_t", inputs.operating_cash_flow_t),
-        _figure("total_assets_t1", inputs.total_assets_t1),
+        _figure(inputs, "operating_cash_flow_t", inputs.operating_cash_flow_t),
+        _figure(inputs, "total_assets_t1", inputs.total_assets_t1),
     )
     used = _usable(2, items, ("total_assets_t1",))
     if isinstance(used, PiotroskiTestResult):
@@ -379,10 +414,10 @@ def _test_positive_cfo(inputs: PiotroskiInputs) -> PiotroskiTestResult:
 def _test_improving_roa(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 3: ROA of year *t* is greater than ROA of year *t−1*."""
     items = (
-        _figure("net_income_t", inputs.net_income_t),
-        _figure("total_assets_t1", inputs.total_assets_t1),
-        _figure("net_income_t1", inputs.net_income_t1),
-        _figure("total_assets_t2", inputs.total_assets_t2),
+        _figure(inputs, "net_income_t", inputs.net_income_t),
+        _figure(inputs, "total_assets_t1", inputs.total_assets_t1),
+        _figure(inputs, "net_income_t1", inputs.net_income_t1),
+        _figure(inputs, "total_assets_t2", inputs.total_assets_t2),
     )
     used = _usable(3, items, ("total_assets_t1", "total_assets_t2"))
     if isinstance(used, PiotroskiTestResult):
@@ -394,8 +429,8 @@ def _test_improving_roa(inputs: PiotroskiInputs) -> PiotroskiTestResult:
 def _test_cash_exceeds_income(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 4: operating cash flow of year *t* is greater than net income of year *t*."""
     items = (
-        _figure("operating_cash_flow_t", inputs.operating_cash_flow_t),
-        _figure("net_income_t", inputs.net_income_t),
+        _figure(inputs, "operating_cash_flow_t", inputs.operating_cash_flow_t),
+        _figure(inputs, "net_income_t", inputs.net_income_t),
     )
     used = _usable(4, items)
     if isinstance(used, PiotroskiTestResult):
@@ -406,8 +441,8 @@ def _test_cash_exceeds_income(inputs: PiotroskiInputs) -> PiotroskiTestResult:
 def _test_falling_leverage(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 5: long-term debt over average total assets fell, or long-term debt is zero in both years."""
     debt = (
-        _evidence_figure("long_term_debt_t", inputs.long_term_debt_t),
-        _evidence_figure("long_term_debt_t1", inputs.long_term_debt_t1),
+        _evidence_figure(inputs, "long_term_debt_t", inputs.long_term_debt_t),
+        _evidence_figure(inputs, "long_term_debt_t1", inputs.long_term_debt_t1),
     )
     gap = _first_gap(debt)
     if gap is not None:
@@ -419,9 +454,9 @@ def _test_falling_leverage(inputs: PiotroskiInputs) -> PiotroskiTestResult:
         )
     items = (
         *debt,
-        _figure("total_assets_t", inputs.total_assets_t),
-        _figure("total_assets_t1", inputs.total_assets_t1),
-        _figure("total_assets_t2", inputs.total_assets_t2),
+        _figure(inputs, "total_assets_t", inputs.total_assets_t),
+        _figure(inputs, "total_assets_t1", inputs.total_assets_t1),
+        _figure(inputs, "total_assets_t2", inputs.total_assets_t2),
     )
     used = _usable(5, items, ("total_assets_t", "total_assets_t1", "total_assets_t2"))
     if isinstance(used, PiotroskiTestResult):
@@ -434,10 +469,10 @@ def _test_falling_leverage(inputs: PiotroskiInputs) -> PiotroskiTestResult:
 def _test_improving_liquidity(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 6: the current ratio at *t* is greater than the current ratio at *t−1*."""
     items = (
-        _figure("current_assets_t", inputs.current_assets_t),
-        _figure("current_liabilities_t", inputs.current_liabilities_t),
-        _figure("current_assets_t1", inputs.current_assets_t1),
-        _figure("current_liabilities_t1", inputs.current_liabilities_t1),
+        _figure(inputs, "current_assets_t", inputs.current_assets_t),
+        _figure(inputs, "current_liabilities_t", inputs.current_liabilities_t),
+        _figure(inputs, "current_assets_t1", inputs.current_assets_t1),
+        _figure(inputs, "current_liabilities_t1", inputs.current_liabilities_t1),
     )
     used = _usable(6, items, ("current_liabilities_t", "current_liabilities_t1"))
     if isinstance(used, PiotroskiTestResult):
@@ -448,14 +483,23 @@ def _test_improving_liquidity(inputs: PiotroskiInputs) -> PiotroskiTestResult:
 
 def _test_no_dilution(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 7: shares at *t* are not more than shares at *t−1*, both counts from one filing and one path."""
-    counts = (inputs.shares_t, inputs.shares_t1)
-    unavailable = next((item for item in counts if isinstance(item, InputUnavailable)), None)
-    if unavailable is not None:
-        return _unavailable(7, _Gap(unavailable.reason_code, f"A share count is unavailable: {unavailable.reason}"))
-    now, before = (item for item in counts if isinstance(item, YearEndShareCount))
+    counts = (("shares_t", inputs.shares_t), ("shares_t1", inputs.shares_t1))
+    for key, item in counts:
+        if isinstance(item, InputUnavailable):
+            reason = f"{_label(inputs, key)} is unavailable: {_plain(item.reason)}"
+            return _unavailable(7, _Gap(item.reason_code, reason))
+    now, before = (item for _, item in counts if isinstance(item, YearEndShareCount))
     figures = [
-        _Figure("shares_t", Fraction(now.count.value), (Operand("shares_t", now.count),), False),
-        _Figure("shares_t1", Fraction(before.count.value), (Operand("shares_t1", before.count),), False),
+        _Figure(
+            "shares_t", _label(inputs, "shares_t"), Fraction(now.count.value), (Operand("shares_t", now.count),), False
+        ),
+        _Figure(
+            "shares_t1",
+            _label(inputs, "shares_t1"),
+            Fraction(before.count.value),
+            (Operand("shares_t1", before.count),),
+            False,
+        ),
     ]
     conflict = _consistency_gap(figures)
     if conflict is not None:
@@ -472,7 +516,10 @@ def _test_no_dilution(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     if now.path is not before.path:
         return _unavailable(
             7,
-            _Gap(ReasonCode.AMBIGUOUS_FACT, f"The counts come by different paths ({now.path}, {before.path})."),
+            _Gap(
+                ReasonCode.AMBIGUOUS_FACT,
+                f"The counts come by different paths ({_plain(now.path.value)}, {_plain(before.path.value)}).",
+            ),
         )
     return _decided(7, figures[0].value <= figures[1].value, figures)
 
@@ -480,10 +527,10 @@ def _test_no_dilution(inputs: PiotroskiInputs) -> PiotroskiTestResult:
 def _test_improving_margin(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 8: the gross margin of year *t* is greater than that of year *t−1*."""
     items = (
-        _evidence_figure("gross_profit_t", inputs.gross_profit_t),
-        _figure("sales_t", inputs.sales_t),
-        _evidence_figure("gross_profit_t1", inputs.gross_profit_t1),
-        _figure("sales_t1", inputs.sales_t1),
+        _evidence_figure(inputs, "gross_profit_t", inputs.gross_profit_t),
+        _figure(inputs, "sales_t", inputs.sales_t),
+        _evidence_figure(inputs, "gross_profit_t1", inputs.gross_profit_t1),
+        _figure(inputs, "sales_t1", inputs.sales_t1),
     )
     used = _usable(8, items, ("sales_t", "sales_t1"))
     if isinstance(used, PiotroskiTestResult):
@@ -495,10 +542,10 @@ def _test_improving_margin(inputs: PiotroskiInputs) -> PiotroskiTestResult:
 def _test_improving_turnover(inputs: PiotroskiInputs) -> PiotroskiTestResult:
     """Test 9: sales over beginning-of-year total assets of year *t* is greater than that of year *t−1*."""
     items = (
-        _figure("sales_t", inputs.sales_t),
-        _figure("total_assets_t1", inputs.total_assets_t1),
-        _figure("sales_t1", inputs.sales_t1),
-        _figure("total_assets_t2", inputs.total_assets_t2),
+        _figure(inputs, "sales_t", inputs.sales_t),
+        _figure(inputs, "total_assets_t1", inputs.total_assets_t1),
+        _figure(inputs, "sales_t1", inputs.sales_t1),
+        _figure(inputs, "total_assets_t2", inputs.total_assets_t2),
     )
     used = _usable(9, items, ("total_assets_t1", "total_assets_t2"))
     if isinstance(used, PiotroskiTestResult):

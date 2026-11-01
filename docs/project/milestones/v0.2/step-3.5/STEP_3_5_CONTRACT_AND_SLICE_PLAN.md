@@ -68,8 +68,8 @@ next begins.
 | 3.5.3b1 | [Shared year-end functions that need no new evidence](STEP_3_5_3_SLICE_PLAN.md#353b1--shared-year-end-functions-that-need-no-new-evidence) | Complete | 2026-10-29 |
 | 3.5.3b2 | [Year-end discovery, share-count series and captured evidence](STEP_3_5_3_SLICE_PLAN.md#353b2--year-end-discovery-share-count-series-and-captured-evidence) | Complete | 2026-10-30 |
 | 3.5.3c | [Side-by-side text layout](STEP_3_5_3_SLICE_PLAN.md#353c--side-by-side-text-layout) | Complete | 2026-10-30 |
-| 3.5.3d | [The Piotroski strategy](STEP_3_5_3_SLICE_PLAN.md#353d--the-piotroski-strategy) | Next | |
-| 3.5.3e | [Repetition checkpoint](STEP_3_5_3_SLICE_PLAN.md#353e--repetition-checkpoint) | Planned | |
+| 3.5.3d | [The Piotroski strategy](STEP_3_5_3_SLICE_PLAN.md#353d--the-piotroski-strategy) | Complete | 2026-10-31 |
+| 3.5.3e | [Repetition checkpoint](STEP_3_5_3_SLICE_PLAN.md#353e--repetition-checkpoint) | Next | |
 | 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
 | 3.5.6 | [Magic Formula and ranked refresh view](#356--magic-formula-and-ranked-refresh-view) | Planned | |
