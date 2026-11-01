@@ -9,7 +9,6 @@ import importlib
 import json
 from contextlib import ExitStack
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -143,7 +142,8 @@ def test_each_reachable_combination_renders_by_the_shared_rule(
     seen: list[tuple[str, str, str]] = []
     module = case.command.replace("-", "_")
     name = f"from_{module}_capture"
-    real = getattr(importlib.import_module(f"investment_analysis_engine.strategies.{module}.cli"), name)
+    command_module = importlib.import_module(f"investment_analysis_engine.strategies.{module}.cli")
+    real = getattr(command_module, name)
 
     def recording(capture: Any) -> ExecutionCapture:
         normalized: ExecutionCapture = real(capture)
@@ -152,7 +152,8 @@ def test_each_reachable_combination_renders_by_the_shared_rule(
 
     with ExitStack() as stack:
         _enter_providers(stack, case)
-        stack.enter_context(patch(f"investment_analysis_engine.strategies.{module}.cli.{name}", recording))
+        patcher = stack.enter_context(pytest.MonkeyPatch.context())
+        patcher.setattr(command_module, name, recording)
         result = runner.invoke(app, [*case.arguments, "--json"], obj=probe)
 
     assert result.exit_code == expected_exit, result.output
