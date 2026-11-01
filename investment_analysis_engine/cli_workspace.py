@@ -34,6 +34,7 @@ from investment_analysis_engine.cli_provider_check import (
 )
 from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
 from investment_analysis_engine.cli_support import (
+    AS_OF_HELP,
     describe_failure,
     exit_code_of,
     parameter_failures,
@@ -359,7 +360,7 @@ def watchlist_create(  # noqa: PLR0913
     ] = _MOMENTUM_CLI_DEFAULTS.rsi_period,
     as_of: Annotated[
         str | None,
-        typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
+        typer.Option("--as-of", help=AS_OF_HELP),
     ] = None,
     no_cache: Annotated[
         bool,
@@ -495,7 +496,7 @@ def watchlist_add_selection(  # noqa: PLR0913
     ] = _MOMENTUM_CLI_DEFAULTS.rsi_period,
     as_of: Annotated[
         str | None,
-        typer.Option("--as-of", help="Point-in-time boundary (momentum/graham-number/graham-growth/fcf-growth)."),
+        typer.Option("--as-of", help=AS_OF_HELP),
     ] = None,
     no_cache: Annotated[
         bool,

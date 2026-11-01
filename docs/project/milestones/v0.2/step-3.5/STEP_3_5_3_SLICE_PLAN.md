@@ -763,9 +763,12 @@ The two rules agree on every reachable combination, so no output, exit code or p
 outputs prove it ([D.8](#d8-issue-207-tests)). The failure, not-applicable and success output is produced inside the render
 function each command passes to `render_execution`; each strategy keeps its own output content.
 
-**Met on the way, for issue 210 or later.** The `--as-of` help text of the two watchlist commands in
-`investment_analysis_engine/cli_workspace.py` lists four commands by name. It is help text, a stored snapshot pins it, and
-fixing it changes the snapshot, so it is left and recorded here for [issue 210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210).
+**Watchlist `--as-of` help (user-visible help change).** The `--as-of` help text of `watchlist create` and
+`watchlist add-selection` in `investment_analysis_engine/cli_workspace.py` listed four commands by name and was wrong for
+users: Piotroski takes `--as-of` and was not listed, and `as_of` is a field of every selection. Both options now use the
+help text of the direct commands' `--as-of`, held once as `AS_OF_HELP` in `cli_support.py` and used by `AS_OF_OPTION`.
+No stored help snapshot covers the two watchlist commands, so no stored output changed. The `--no-cache` help of the same
+commands also names strategies, but there it states what the option does for each, so it stays.
 
 ---
 
@@ -1031,6 +1034,7 @@ Commits: the code and tests, then the records and the rule.
 - `investment_analysis_engine/strategies/graham_number/tool.py`, `investment_analysis_engine/strategies/graham_growth/tool.py`:
   `tool_context`.
 - `investment_analysis_engine/strategies/_shared/tool.py`: the escape-hatch sentence and the module docstring.
+- `investment_analysis_engine/cli_support.py`, `investment_analysis_engine/cli_workspace.py`: `AS_OF_HELP`, used by both watchlist `--as-of` options.
 - `investment_analysis_engine/strategies/graham_number/cli.py`, `investment_analysis_engine/strategies/graham_growth/cli.py`:
   the render function passed to `render_execution`.
 
@@ -1044,6 +1048,7 @@ Changed:
 | `investment_analysis_engine/cli_run_support.py` | the four named normalizers | "the strategy's normalizer" |
 | `investment_analysis_engine/workspace/execution.py` | the list of four adapters, "of the four methods" | "a strategy's execution adapter", "which method" |
 | `investment_analysis_engine/workspace_documents/json_documents.py` | "The four strategy commands" | "Every strategy command" |
+| `investment_analysis_engine/cli_workspace.py`, `investment_analysis_engine/cli_support.py` | the `--as-of` help of `watchlist create` and `watchlist add-selection`, "(momentum/graham-number/graham-growth/fcf-growth)" (user-visible help change) | the shared `AS_OF_HELP` text |
 | `investment_analysis_engine/cli_provider_check.py` | the list of five commands | "every direct strategy command and `refresh`" |
 | `scripts/strategy_conformance.py` | "the four production strategies" | "the production strategies" |
 | `tests/_cli_isolation.py` | "the four direct commands'" | "every direct command's" |
@@ -1069,8 +1074,7 @@ Kept, with the reason each matters:
   `tests/test_cli_provider_check.py` (which commands have an unclassified failure) and the Graham methods in
   `ARCHITECTURE.md`.
 - Counts that are not of strategies: the files the generator edits, the four provider failure kinds, the five tables.
-- The `--as-of` help text in `investment_analysis_engine/cli_workspace.py`: a stored help snapshot pins it
-  ([B.7](#b7-issue-207)).
+- The `--no-cache` help text of the two watchlist commands: it states what the option does for each named strategy.
 - Generated lists, and the dated records of milestone plans, including [B.6](#b6-what-353e1c-met) and the 3.5.3e1
   section's pointer to issue 207.
 

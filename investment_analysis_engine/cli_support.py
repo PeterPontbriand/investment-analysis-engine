@@ -504,9 +504,10 @@ def emit_output(output: str, exit_code: int, mode: PresentationMode) -> None:
         raise typer.Exit(code=exit_code)
 
 
-AS_OF_OPTION = typer.Option(
-    None, "--as-of", help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
-)
+AS_OF_HELP = "Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
+"""The help text of every ``--as-of`` option, which every selection carries."""
+
+AS_OF_OPTION = typer.Option(None, "--as-of", help=AS_OF_HELP)
 """The ``--as-of`` option every direct command declares with this text."""
 
 SAVE_RUN_OPTION = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run")
