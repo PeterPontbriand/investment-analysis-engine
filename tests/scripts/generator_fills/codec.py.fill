@@ -14,7 +14,18 @@ if not isinstance(stamp, str):
 effective_as_of = datetime.fromisoformat(stamp)
 if effective_as_of.utcoffset() is None:
     raise ValueError("CI Probe effective_as_of must be timezone-aware.")
-return CiProbeResult(ticker=ticker, effective_as_of=effective_as_of)
+return CiProbeResult(
+    ticker=ticker,
+    requested_as_of=None,
+    effective_as_of=effective_as_of,
+    instrument_profile=None,
+    execution_status=CalculationStatus.OK,
+    reason_code=None,
+    reason=None,
+    input_failure=None,
+    warnings=(),
+    diagnostics=(),
+)
 
 #: body ci_probe_native_status
 del result

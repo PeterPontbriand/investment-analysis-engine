@@ -47,11 +47,12 @@ uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <
   - `execute_<module_name>` composes the instrument profile with `compose_production_profile`, so an ETF is recognized, builds the context from the selection and calls the analyzer;
   - the direct command, with `--details`, `--diagnostics`, `--json`, `--save-run` and `--no-provider-check`, and `refresh`, which both call `compose_<module_name>`;
   - `build_selection`, which carries the shared `as_of` and `use_cache` fields only;
-  - the tool handler's `__call__`, which validates the arguments, builds the context with `tool_context` and calls the analyzer.
+  - the tool handler's `__call__`, which validates the arguments, builds the context with `tool_context` and calls the analyzer;
+  - the result's common fields: the analyzer module declares `<Name>Result` with the names, types and checks of Piotroski's result for the ticker, the requested and effective boundaries, the instrument profile, the execution status, the reason code and reason, the input failure and the warnings and diagnostics, which the shared document header and tail and the normalizer read. Add the strategy's own fields after them;
+  - `from_<module_name>_capture`, which passes the evidence, the profile, the status and the recorded provider failure, as `from_piotroski_capture` does.
 - It leaves these as stubs, because each is the strategy's own:
   - `compose_<module_name>(executed_at)` in `cli.py`, which builds the analyzer and the provider the profile is composed from; `executed_at` is the run's single reading of the current time, never the `--as-of` boundary;
-  - the analyzer;
-  - `from_<module_name>_capture` in `execution.py`;
+  - the analyzer's body;
   - the presenter;
   - the evaluation `compose`.
 
@@ -65,12 +66,12 @@ uv run python -m scripts.strategy_status <module_name> [--alias <alias>]
 - It runs the same check functions as the conformance tests, so the two cannot disagree.
 - It does not run the type checker; the gate does.
 - `done` means the site exists, has the required names and calls no `unfilled_stub`. A new-file site whose file still calls `unfilled_stub` is `missing`, and its diagnostic names the file and the line of each call.
-- Right after the generator, expect `missing` on every site whose file has an unfilled body (`analyzer`, `codec`, `execution`, `cli`, `presenter`, `replay` and `evaluation`; `tool` is `done`), on the reviewed sites you have not yet written, and on `schema` and `strategy-docs` until step 5. `codec`, `presenter` and `replay` run the strategy's stored run, which needs the `evaluation` file's sample selection; until that is written their diagnostic ends `not checked: depends on unfilled evaluation (<file>:<line>)`. Fill the site it names first.
+- Right after the generator, expect `missing` on every site whose file has an unfilled body (`analyzer`, `codec`, `cli`, `presenter`, `replay` and `evaluation`; `execution` and `tool` are `done`), on the reviewed sites you have not yet written, and on `schema` and `strategy-docs` until step 5. `codec`, `presenter` and `replay` run the strategy's stored run, which needs the `evaluation` file's sample selection; until that is written their diagnostic ends `not checked: depends on unfilled evaluation (<file>:<line>)`. Fill the site it names first.
 - If a strategy file was deleted or emptied, or a wiring entry removed, the package cannot be imported and no other site can be checked. The command matches the failing module or file against the site files and prints one `missing <site-id>` line with the file to change, and the original Python error on the next line; restore or write that site, and run the command again. An error that matches no site is printed as `missing  import` with the Python error.
 
 ### 3. Fill the stubs
 
-- Start from the financial question and the evidence it needs. Fill `vocabulary`, the models, `analyzer` and the resolver first, then the files that package the result: `codec`, `from_<module_name>_capture` in `execution`, `compose_<module_name>` in `cli`, `presenter`, `replay` and the `compose` function of `evaluation`. Add fields to `envelope` for what the result reports. `selection`, `tool` and the rest of `execution` and `cli` are complete as generated; edit them only when the strategy gains a parameter, as [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter) describes.
+- Start from the financial question and the evidence it needs. Fill `vocabulary`, the models, `analyzer` and the resolver first, then the files that package the result: `codec`, `compose_<module_name>` in `cli`, `presenter`, `replay` and the `compose` function of `evaluation`. Add fields to `envelope` for what the result reports. `selection`, `tool`, `execution` and the rest of `cli` are complete as generated; edit them only when the strategy gains a parameter, as [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter) describes.
 - The status command lists every `unfilled_stub` call that remains in a site's file, with file and line, and `uv run python -m pytest tests/test_no_unfilled_stubs.py` lists them all. The strict type check is `uv run python -m mypy --strict investment_analysis_engine tests scripts`.
 - Financial math is deterministic Python. The authority for formula semantics is [Financial Math & Data Conventions](user/FINANCE_MATH.md); add the strategy's definitions there and in the [Glossary](user/GLOSSARY.md).
 - Keep missing, unavailable and not-applicable evidence explicit (`MetricResult`, reason codes, retained provenance). Never substitute zero.

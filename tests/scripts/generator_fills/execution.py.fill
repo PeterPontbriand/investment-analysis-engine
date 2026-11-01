@@ -1,8 +1,0 @@
-from investment_analysis_engine.strategies.ci_probe.codec import ci_probe_native_status
-
-#: body from_ci_probe_capture
-return ExecutionCapture(
-    native_evidence=capture.result,
-    profile=capture.profile,
-    native_status=ci_probe_native_status(capture.result),
-)

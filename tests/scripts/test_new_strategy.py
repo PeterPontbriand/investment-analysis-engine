@@ -478,7 +478,7 @@ def test_the_templates_leave_unfilled_only_the_strategy_specific_bodies() -> Non
         "tool": set(),
         "selection": set(),
         "codec": {"encode_fresh_probe", "decode_fresh_probe", "fresh_probe_native_status"},
-        "execution": {"from_fresh_probe_capture"},
+        "execution": set(),
         "cli": {"compose_fresh_probe"},
         "presenter": {"render_fresh_probe"},
         "replay": {"project_fresh_probe", "headline_fresh_probe"},
@@ -498,6 +498,47 @@ def test_the_generated_execution_function_composes_the_profile_and_runs_the_anal
     assert "selection.to_analysis_context(executed_at=executed_at, instrument_profile=profile)" in execution
     assert "analyzer.run_analysis(ticker, context)" in execution
     assert "import compose_production_profile" in execution
+
+
+RESULT_COMMON_FIELDS: Final = (
+    "ticker",
+    "requested_as_of",
+    "effective_as_of",
+    "instrument_profile",
+    "execution_status",
+    "reason_code",
+    "reason",
+    "input_failure",
+    "warnings",
+    "diagnostics",
+)
+"""The fields of Piotroski's result that the shared document header and tail and the normalizer read."""
+
+
+def test_the_generated_result_declares_the_common_fields_and_the_provider_failure() -> None:
+    """The result class has the fields every strategy's result carries, in keyword-only form, and no stub."""
+    analyzer = ast.parse(_rendered("analyzer"))
+    result = next(node for node in analyzer.body if isinstance(node, ast.ClassDef) and node.name == "FreshProbeResult")
+    fields = [
+        node.target.id for node in result.body if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+    ]
+    assert tuple(fields) == RESULT_COMMON_FIELDS
+    assert "kw_only=True" in ast.unparse(result.decorator_list[0])
+    assert {"__post_init__", "provider_failure"} <= {
+        node.name for node in result.body if isinstance(node, ast.FunctionDef)
+    }
+    assert "unfilled_stub" not in _called_names(result)
+
+
+def test_the_generated_normalizer_reads_the_common_fields() -> None:
+    """It passes the evidence, profile, status and provider failure, as Piotroski's does, and is not a stub."""
+    execution = _rendered("execution")
+    body = ast.unparse(_function(execution, "from_fresh_probe_capture"))
+    assert "native_status=capture.result.execution_status" in body
+    assert "provider_failure_of((capture.result.provider_failure,))" in body
+    assert "native_evidence=capture.result" in body
+    assert "profile=capture.profile" in body
+    assert "unfilled_stub" not in execution
 
 
 def test_the_generated_command_and_refresh_compose_the_analyzer_through_the_one_function() -> None:

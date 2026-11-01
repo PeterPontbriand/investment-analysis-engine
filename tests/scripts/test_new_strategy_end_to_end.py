@@ -46,7 +46,7 @@ COPIED_FILES: Final = ("pyproject.toml", ALEMBIC_INI.name)
 EXCLUDED: Final = ("__pycache__", "*.pyc", ".mypy_cache", ".ruff_cache", ".pytest_cache", "htmlcov", "*.egg-info")
 PROXY_VARIABLES: Final = frozenset({"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "FTP_PROXY"})
 
-STUB_FILL_ROLES: Final = ("analyzer", "codec", "execution", "cli", "presenter", "replay", "evaluation")
+STUB_FILL_ROLES: Final = ("analyzer", "codec", "cli", "presenter", "replay", "evaluation")
 """The generated files with a body the fills write; the others are complete as generated.
 
 The tool handler is complete as generated: its body validates the arguments, builds the context and calls the analyzer.
@@ -167,8 +167,8 @@ def _assert_ruff_clean(copy: Path) -> None:
         assert process.returncode == 0, f"ruff {' '.join(arguments)}\n{_output(process)}"
 
 
-FILL_MARKER: Final = re.compile(r"#: (body|add|replace) (\S+)")
-"""The line that opens a section of a fill: a body to put into a stub, or a whole definition to add or replace."""
+FILL_MARKER: Final = re.compile(r"#: (body|add) (\S+)")
+"""The line that opens a section of a fill: a body to put into a stub, or a whole definition to add."""
 
 
 def _definitions(tree: ast.Module) -> dict[str, ast.stmt]:
@@ -236,10 +236,9 @@ def fill_source(generated: str, fill: str, *, name: str) -> str:
       definition keeps the signature, decorators and docstring the template generated; the replaced lines are the
       ones after the docstring, ending with the ``unfilled_stub`` call.
     - ``add``: a whole definition that no template generates; the generated file must not define its name.
-    - ``replace``: a whole class that the template generates without a stub and the strategy extends.
 
     A section that names a definition the generated file lacks, a ``body`` for a definition with no stub, an ``add``
-    of a name the file defines, or a ``replace`` of anything but a class fails, naming the fill and the definition.
+    or an ``add`` of a name the file defines fails, naming the fill and the definition.
     The imports follow the generated file's last import, and the caller's Ruff pass sorts them and drops the unused.
     """
     imports, sections = _split_fill(fill, name)
@@ -251,16 +250,10 @@ def fill_source(generated: str, fill: str, *, name: str) -> str:
     for kind, definition, text in sections:
         node = defined.get(definition)
         if kind == "add":
-            assert node is None, f"{name}: {definition} is generated already, so it takes a body or a replacement"
+            assert node is None, f"{name}: {definition} is generated already, so it takes a body"
             added.append(text)
             continue
         assert node is not None, f"{name}: the generated file has no definition {definition}"
-        if kind == "replace":
-            assert isinstance(node, ast.ClassDef), f"{name}: only a class is replaced whole, and {definition} is not"
-            assert node.end_lineno is not None
-            first = min([node.lineno, *(decorator.lineno for decorator in node.decorator_list)])
-            replacements[first] = (node.end_lineno, text + "\n")
-            continue
         assert isinstance(node, ast.FunctionDef), f"{name}: {definition} is not a function or a method"
         stub = _stub_statements(node)
         assert stub, f"{name}: {definition} has no stub to put a body into"
@@ -455,7 +448,6 @@ def test_a_body_goes_into_the_generated_signature_and_nothing_else_of_the_defini
         ("#: body function\nreturn 1\n", "x.py.fill: function has no stub to put a body into"),
         ("#: body Thing\nreturn 1\n", "x.py.fill: Thing is not a function or a method"),
         ("#: add function\ndef function() -> None: ...\n", "x.py.fill: function is generated already"),
-        ("#: replace function\ndef function() -> None: ...\n", "x.py.fill: only a class is replaced whole"),
         ("#: body stubbed\nreturn 1\n#: body stubbed\nreturn 2\n", "x.py.fill: a definition is named twice"),
         ("return 1\n#: body stubbed\nreturn 1\n", "x.py.fill: only imports come before the first section"),
     ],
