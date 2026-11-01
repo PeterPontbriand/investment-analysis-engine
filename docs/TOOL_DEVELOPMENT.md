@@ -100,7 +100,7 @@ A data file that the evaluation tier reads must be listed, as an explicit path, 
 **Notes on the reviewed sites**
 
 - `direct-output`: a strategy that builds its own provider reaches Yahoo (identity and instrument kind) unless the harness replaces the provider's Yahoo adapter. Patch the strategy's names in `enter_fixture_providers` of `tests/_direct_command_output.py`, as it does for Piotroski (its `ProductionFinancialFactsProvider`, given `_FixtureYahoo`) and for the others (their `YFinanceClient`). Otherwise regeneration calls the live service and stores its answer.
-- `catalog`: `tests/scripts/generator_fills/patches.toml` quotes lines of `evaluation/catalog.py`, `tests/evaluation/test_catalog.py`, `tests/_direct_command_output.py`, `tests/_strategy_document_output.py` and the help snapshot, so adding a strategy or a Golden case can move an anchor and fail the generator's end-to-end test until the patch is edited. A Golden case also moves the suite and fixture-set versions in `evaluation/catalog.py`, [`EVALUATIONS.md`](EVALUATIONS.md) and the case counts in `tests/evaluation/test_catalog.py` together. The shortfall is tracked in [issue 210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210).
+- `catalog`: the patches in `tests/scripts/generator_fills/patches.toml` anchor on structural text (the end of a tuple and the definition after it), never on a strategy, a case id, a version or a count, and the generator's end-to-end test bumps the suite version and the case counts itself from the files as they stand. Adding a strategy or a Golden case therefore needs no `patches.toml` edit. A Golden case still moves the suite and fixture-set versions in `evaluation/catalog.py`, [`EVALUATIONS.md`](EVALUATIONS.md) and the case counts in `tests/evaluation/test_catalog.py` together; edit them by hand.
 - A new failure: a class that declares a `reason_code` must be pinned in `tests/_failure_code_table.py`, which is written by hand and is not derived from the code.
 
 **Regeneration commands**
@@ -362,7 +362,7 @@ Before writing a private resolver, check whether a shared function already suppl
 
 - **Composition:** build the adapter once. `compose_piotroski` in `strategies/piotroski/cli.py` wraps it in a `ProductionFinancialFactsProvider` for the resolver and passes the same adapter as the analyzer's `AsFiledSicSource`, so the industry class and the inputs are read from the same analysis scope.
 - **Failures:** the assembly functions never raise a provider failure. They return a `MetricInputsFailure` that carries the provider-failure record, and a strategy calls no metric after one. An input that is merely unavailable is returned as its reason, so the metric can report it.
-- **A new optional provider capability is forwarded by hand.** `ProductionFinancialFactsProvider` in `data/financial/production.py` has one method per optional capability and checks the capability's protocol, so a new request type needs an edit there. Extending the instant series avoided it for the share counts, and the adapter as `AsFiledSicSource` avoids it for the SIC code. The shortfall and its candidate fixes are in [issue 210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210).
+- **A new optional provider capability is still forwarded by hand.** `ProductionFinancialFactsProvider` in `data/financial/production.py` has one method per optional capability, answers with its own typed result when the adapter lacks the capability, and checks the capability's protocol, so a new request type needs an edit there. A conformance test (`tests/data/test_production_capability_forwarding.py`) finds every runtime-checkable capability protocol that a production adapter implements and fails, naming the protocol and the adapter, when the production provider does not implement it too. Extending the instant series avoided a new capability for the share counts, and the adapter as `AsFiledSicSource` avoids it for the SIC code; that protocol is not runtime-checkable, so the test does not cover it.
 
 ### How calculations produce a typed result
 
@@ -436,6 +436,29 @@ The policy remains strategy-owned. `FCFGrowthSelection` is the validated, persis
 ### Ready to add a strategy?
 
 Start from the strategy's financial question and required evidence. Read the relevant financial conventions, identify the narrow provider and provenance needs, define strategy-owned policy and result semantics, then integrate through the existing composition and execution boundaries. Use the FCF example to trace those responsibilities in code for the configured form and the Piotroski example for the form with no configuration.
+
+## Changing what every strategy provides
+
+This section is for a change to the strategy contract itself: a new member of the behavior bundle, a new edit site or a new required name in a strategy's file. A single strategy never makes such a change. Take the rows that apply, then run the [status command](#2-check-the-status-command) and the generator's end-to-end test.
+
+| File | What changes |
+| :--- | :--- |
+| `investment_analysis_engine/strategy_wiring.py` | The `StrategyBehavior` member and its exact-type accessor, the accessor of `BehaviorView`, a `..._by_key` function with its `..._BY_KEY` constant when generic code reads the member by key (as `headlines_by_key` does), and the member in each production behavior declaration |
+| The generic code that reads the member (for example `cli_workspace.py` for `headline_for`) | It calls the view's accessor, never a strategy's module |
+| `scripts/strategy_conformance.py` | The closed sets `BEHAVIOR_MEMBERS` and `VIEW_ACCESSORS` (and `EVAL_COMPOSITION_MEMBERS` or `CLI_COMPOSITION_MEMBERS` for a tier's member), the exact-type probes of the behavior check, and the file site's check for a new required name |
+| `scripts/strategy_sites.toml` | The owning site's `title`, `why`, `defines` and `fails` for a new required name, or a new `[[site]]` for a new edit site |
+| This guide's edit-site table | Regenerate it with `uv run python -m scripts.generate_strategy_docs` after the sites file changes; it is not edited by hand |
+| `tests/scripts/test_strategy_sites.py` | The pinned list of site ids, for a new edit site |
+| `scripts/strategy_status.py` and `tests/scripts/test_strategy_status.py` | The status command reads the sites file, so a new site needs no edit there; change it only when a site must report its state another way, and update the test that pins its output |
+| `scripts/new_strategy.py` | The generated behavior declaration and its import in the composition-root edit; `STUB_ROLES` or `EDITS` for a new file or a new edit of an existing file |
+| `scripts/strategy_templates/*.py.tmpl` | The generated file or function for the new name, calling `unfilled_stub` where the body is strategy-specific |
+| `tests/scripts/test_new_strategy.py` | The map of stubbed functions per template and the tests parametrized over the template files |
+| `tests/scripts/generator_fills/*.py.fill` and `tests/scripts/test_new_strategy_end_to_end.py` | A `#: body` section in the fill for each new stub; a new fill and `STUB_FILL_ROLES` for a new file; `patches.toml` only for an edit of an existing file |
+| `tests/specimen/` | `behavior.py` (the specimen implements the erased view by hand), the specimen file that defines the member's function (for example `replay.py` or `codec.py`), and `wiring.py` for the descriptor |
+
+- A fill holds only bodies, so a template's signature has one copy; a new parameter that a body does not use still needs a `del` in the body.
+- The conformance checks T15 and T16 and the generator's end-to-end test fail one file at a time. The list above is the whole set; work through it before running them.
+- A file this list lacks belongs in the list. Add the row in the same change.
 
 ## Deeper references
 

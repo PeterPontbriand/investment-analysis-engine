@@ -462,6 +462,18 @@ Approved by the project owner for [issue 207](https://github.com/PeterPontbriand
 | I5 | Records | This appendix, [B.7](#b7-issue-207), [C.10](#c10-issue-207-files), [D.8](#d8-issue-207-tests), the three rows removed from [B.4](#b4-repetition-review-353e1)'s "Regions left in place", and the contract's sequence table. |
 | I6 | Proof and tests | The six U6 commands show no change to `tests/expected_output`, `schemas` or `docs/user`. Tests cover the Momentum timing span, the Momentum readiness order, the refused clock of both Graham tool handlers and each reachable combination of the Graham render. |
 
+### A.13 Decisions S1 to S5 (2026-11-01)
+
+Approved by the project owner for [issue 210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210).
+
+| # | Topic | Decision and reason |
+| :--- | :--- | :--- |
+| S1 | Catch a missing capability forward | `ProductionFinancialFactsProvider` keeps its hand-written forwarding methods, each returning its own typed answer when the adapter lacks the capability. A conformance test requires that every runtime-checkable capability protocol that a production adapter implements is also implemented by the production provider; a gap names the protocol and the adapter. The test finds the adapters and the protocols from the code. A protocol that is deliberately not forwarded is reported, not exempted. |
+| S2 | Anchors that do not move | No patch in `patches.toml` quotes text that adding a real strategy or a Golden case changes: not a tuple's last entry, a case id, a strategy-specific import line, the suite or fixture-set version, or a case count. Anchors use structural text. The suite version and the case counts are bumped by the end-to-end test from the files as they stand, through a `bump` patch. The rule covers every file the patches touch. |
+| S3 | Changing what every strategy provides | The guide gains a section of that title with a table of every file a change to the strategy contract touches, verified against `main`. API.6 follows it for the "glossary terms" edit site and records any file it missed. |
+| S4 | Fills hold bodies only | A fill gives, per function or method name, only the body; the end-to-end test puts it into the generated definition in place of the stub's lines, and the signature, decorators and docstring stay as generated. A section for a name the generated file lacks, or a body for a definition without a stub, fails the test, naming the fill and the name. A fill may add a whole definition that no template generates; each is listed in [D.9](#d9-issue-210-tests). |
+| S5 | Records | The guide's `catalog` note and its hand-forwarded-capability bullet state the new facts and no longer link the issue. This appendix, [B.8](#b8-issue-210), [C.11](#c11-issue-210-files), [D.9](#d9-issue-210-tests), the pointers in [B.5](#b5-guide-changes-353e2) and the contract's sequence table record the work. |
+
 ---
 
 ## Appendix B: Implementation record
@@ -663,18 +675,18 @@ Where each shortfall of [B.2](#b2-where-docstool_developmentmd-fell-short) and o
 | B.2 4, shared metrics and assembly | Guide, Background, "Shared metrics and SEC inputs"; the responsibilities table |
 | B.2 5, capabilities that need the analysis scope | Guide, "Shared metrics and SEC inputs": the scope-bound source protocol and the adapter builder |
 | B.2 6, capturing and using SEC fixtures | Guide, "Where tests and fixtures live": the folders, `SHA256SUMS`, merging and point-in-time trimming |
-| B.2 7, adding a series to the SEC adapter | Guide, "Shared metrics and SEC inputs", the bullet on hand-forwarded capabilities; issue 210, item 1 |
+| B.2 7, adding a series to the SEC adapter | Guide, "Shared metrics and SEC inputs", the bullet on hand-forwarded capabilities; [B.8](#b8-issue-210) |
 | B.2 8, generator templates and long labels | Already in the guide, step 1 (the 40-character limits); verified, unchanged |
 | B.2 9, a strategy with no configuration | Guide, "The current analyzer contract" and "When a strategy gains a selection parameter" |
 | B.2 10, what the generated command and execution function leave out | Guide, step 1, the last two bullets |
 | B.2 11, stored-output harnesses and live services | Guide, step 4, "Notes on the reviewed sites", `direct-output` |
-| B.2 12, files that name the strategies one by one | Guide, step 4, `catalog` note; issue 210, item 2 |
+| B.2 12, files that name the strategies one by one | Guide, step 4, `catalog` note; [B.8](#b8-issue-210) |
 | B.2 13, two kinds of SEC fixtures | Guide, "Where tests and fixtures live" |
 | B.2 14, plain reason messages | Guide, step 3 |
 | B.2 15, package data for evaluation fixtures | Already in the guide, step 4; verified, unchanged |
 | A.3 1, the guide ran ahead of the code | Fixed in 3.5.0b; the `replay` row of the generated table is correct. Nothing further |
-| A.3 2, files a new behavior-bundle member touches | Issue 210, item 3 |
-| A.3 3, a fill repeats the template's signatures | Issue 210, item 4 |
+| A.3 2, files a new behavior-bundle member touches | Guide, "Changing what every strategy provides"; [B.8](#b8-issue-210) |
+| A.3 3, a fill repeats the template's signatures | Fills hold bodies only; [B.8](#b8-issue-210) |
 | A.3 4, the pinned table of failure codes | Guide, step 4, "Notes on the reviewed sites", "A new failure" |
 | A.3 5, regenerating a command's stored output | Guide, step 4, "Regeneration commands" and the note on `_STEPS` |
 | A.3 6, the provider-check switch | Guide, step 4, "Regeneration commands", the last column |
@@ -769,6 +781,56 @@ users: Piotroski takes `--as-of` and was not listed, and `as_of` is a field of e
 help text of the direct commands' `--as-of`, held once as `AS_OF_HELP` in `cli_support.py` and used by `AS_OF_OPTION`.
 No stored help snapshot covers the two watchlist commands, so no stored output changed. The `--no-cache` help of the same
 commands also names strategies, but there it states what the option does for each, so it stays.
+
+### B.8 Issue 210
+
+Decisions: [A.13](#a13-decisions-s1-to-s5-2026-11-01). Each item below says what its proof showed.
+
+- **S1, the forwarding test.** `tests/data/test_production_capability_forwarding.py` imports every module under
+  `investment_analysis_engine.data.sec_edgar` and `.yfinance` and takes as adapters the classes defined there that satisfy
+  `FinancialFactsProvider` (`SecEdgarFinancialFactsAdapter` and `YFinanceFinancialFactsAdapter`). It imports every module
+  under `investment_analysis_engine.data` and takes as capability protocols the classes that list `Protocol` among their
+  bases and that `issubclass` accepts, which is what `runtime_checkable` allows. It then requires that the production
+  provider satisfies each protocol that an adapter satisfies. The search is in the test, not in production code, so no
+  registry, plugin loader or discovery exists in the engine, and a new protocol or adapter method needs no edit of the
+  test. Proof: with `resolve_cover_listing` removed from `production.py` in a scratch copy, the test failed with
+  "CoverListingProvider is implemented by SecEdgarFinancialFactsAdapter but not by ProductionFinancialFactsProvider".
+  The test also builds, for each of the seven forwarded protocols, a double of the production class that lacks that one
+  method and requires the gap to name the protocol and an adapter. Every protocol that an adapter implements is
+  forwarded. One capability is not covered by construction: `AsFiledSicSource` in `analysis/shared/metric_inputs.py` is
+  implemented by the SEC adapter, is not runtime-checkable and is deliberately not forwarded, because composition passes
+  the adapter itself (3.5.3d). The test does not exempt it; it lies outside the test's definition, and the guide states
+  so.
+- **S2, the patches.** Before, 12 of the 13 patches quoted text that a strategy or a case moves: the `fcf_growth` import line,
+  the tuple ends `PIO_02,` and `PIOTROSKI_ARGUMENTS,`, the pinned id `"PIO-02",`, the literal `"h1-v7"`, the literal
+  `== 20` (five times), the `FCF_GROWTH_CASES` import and parametrize entry, the five-name loop, the `fcf-growth` entry
+  of `_COMMANDS` and the `piotroski` help row. After, the same 13 patches anchor on a closing parenthesis with the definition that
+  follows it, on an import line that no strategy owns, or on a neighbouring definition's name. The suite version and the
+  five case counts are written by the new `bump` patch: a regular expression with one integer group, each match replaced
+  by its successor, read from the file as it stands. The fixture-set version was never patched, and stays so. A patched
+  Python file is fixed and formatted by Ruff once after all patches. Proof: in a scratch copy, a throwaway case `PIO-03`
+  (a copy of `PIO-02` with its own id) was added to the Piotroski case module with its arguments, the catalog entry, the
+  suite version `h1-v8`, the pinned id and the counts `21`. The generator's end-to-end test then passed with `patches.toml`
+  as committed (12 passed). The scratch case is not committed.
+- **S3, the guide section.** "Changing what every strategy provides" lists 12 rows. Against A.3 entry 2 of the 3.5.0
+  plan, each file was checked on `main`; the rows add `scripts/strategy_sites.toml` and the regenerated edit-site table,
+  `tests/scripts/test_strategy_sites.py` (the pinned site ids), `scripts/strategy_status.py` and its test,
+  `tests/scripts/test_new_strategy.py` (the map of stubbed functions), the generic consumer of the member, and the
+  specimen's `wiring.py`. Nothing else was found to be missing.
+- **S4, the fills.** Seven fills changed format (see [D.9](#d9-issue-210-tests)). A fill holds its imports, then sections
+  opened by `#: body <name>`, `#: add <name>` or `#: replace <name>`. A body replaces the lines after the docstring
+  through the `unfilled_stub` call, at the indentation of the generated definition. Proof: in a scratch copy, a keyword
+  parameter with a default, `_indent: int = 0`, was added to the signature of `encode_<name>` in the codec template, and
+  the end-to-end test passed with the fills unchanged (12 passed). A first attempt with a parameter named `indent` failed
+  Ruff's unused-argument rule in the generated file, because the fill's body did not delete it. That is the one case in
+  which a template change still reaches a fill: a parameter that a body does not use must be deleted in the body. The guide
+  says so in "Changing what every strategy provides". No template or production file changed.
+- **S5, the guide.** The `catalog` note and the hand-forwarded-capability bullet are rewritten, both links to the issue are
+  removed, and the guide gains the section of S3.
+- **Strategy-owned result class.** The analyzer template generates the result class with only `ticker`, without a stub, and
+  every strategy extends it. The probe's fill therefore replaces that class whole (`#: replace`), the one place where a
+  fill replaces a definition that has no stub. The alternative, a probe whose result carries no point in time, would
+  change what the probe's stored documents prove.
 
 ---
 
@@ -1085,6 +1147,31 @@ Kept, with the reason each matters:
 
 Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/`, `schemas/` and `docs/user/`.
 
+### C.11 Issue 210 files
+
+Commits: the forwarding test, the patches and fills, then the guide and the records.
+
+**Tests**
+
+- `tests/data/test_production_capability_forwarding.py`: new ([S1](#a13-decisions-s1-to-s5-2026-11-01)).
+- `tests/scripts/generator_fills/patches.toml`: anchors rewritten, the `bump` patch added, the header comment rewritten
+  ([S2](#a13-decisions-s1-to-s5-2026-11-01)).
+- `tests/scripts/test_new_strategy_end_to_end.py`: `fill_source` for body-only fills, `_apply_patch` with `bump`, one Ruff
+  pass over the patched Python files ([S2, S4](#a13-decisions-s1-to-s5-2026-11-01)).
+- `tests/scripts/generator_fills/{analyzer,cli,codec,evaluation,execution,presenter,replay}.py.fill`: bodies only
+  ([S4](#a13-decisions-s1-to-s5-2026-11-01)).
+
+**Documents**
+
+- `docs/TOOL_DEVELOPMENT.md`: the section "Changing what every strategy provides", the `catalog` note, the
+  hand-forwarded-capability bullet.
+- `docs/project/milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md`: API.6's Detail.
+- This plan ([A.13](#a13-decisions-s1-to-s5-2026-11-01), [B.5](#b5-guide-changes-353e2), B.8, C.11, D.9) and
+  `STEP_3_5_CONTRACT_AND_SLICE_PLAN.md` §2.
+
+Unchanged, and proved so: `tests/expected_output/`, `schemas/` and `docs/user/`; every production file; every template
+under `scripts/strategy_templates/`; `tests/specimen/`.
+
 ---
 
 ## Appendix D: Tests
@@ -1242,6 +1329,34 @@ As written (the file names are in [C.5](#c5-353d-files)):
   save-run, provider-check, failure-message and refresh tests, and the tool-context tests.
 - **Unchanged outputs:** the six U6 commands and `git --no-pager diff --stat main` over `tests/expected_output`,
   `schemas` and `docs/user` show no change.
+
+### D.9 Issue 210 tests
+
+- **New:** in `tests/data/test_production_capability_forwarding.py`, the search finds both adapters and the seven
+  protocols the production provider routes; the production provider implements every runtime-checkable capability
+  protocol that an adapter implements; for each of the seven forwarding methods, a production class without it fails
+  naming the protocol and the adapter; a protocol that is not runtime-checkable is not a capability protocol. In
+  `tests/scripts/test_new_strategy_end_to_end.py`, a body goes into a generated signature and nothing else of the
+  definition changes; a section for an absent definition, a body for a definition without a stub, a body for a class, an
+  `add` of a generated name, a `replace` of a function, a name given twice and a statement before the first section each
+  fail naming the fill and the definition; a `bump` patch writes the successor of each integer it finds and fails when its
+  match count moved.
+- **Whole definitions that fills still supply, each with its reason.**
+
+  | Fill | Section | Why a template cannot supply it |
+  | :--- | :--- | :--- |
+  | `analyzer.py.fill` | `replace CiProbeResult` | The template generates the result class with `ticker` alone and no stub; the probe's evidence also carries the effective point in time, which its stored documents and replay prove. |
+  | `cli.py.fill` | `add _NO_PROVIDER` | The probe reads no provider; the constant is the one value `compose_ci_probe` returns for it, and no strategy-independent template can name it. |
+  | `codec.py.fill` | `add _FIELDS` | The probe's evidence keys, which its decoder checks; they follow from the probe's result class. |
+
+- **Changed on purpose:** the seven fills, to the body-only format, and `patches.toml`, to structural anchors and `bump`.
+  `tests/scripts/test_new_strategy.py` is unchanged: its check of the fills' imports reads the new fills as they are.
+- **Unchanged and still passing:** the generator's end-to-end test (12 tests in its file with the new ones), the stub
+  tests, the conformance tests, and the direct-command, strategy-document and help outputs.
+- **Proofs in scratch copies, not committed:** the removed forwarding method (S1), the throwaway Golden case (S2) and the
+  template parameter with a default (S4), as [B.8](#b8-issue-210) describes.
+- **Unchanged outputs:** `git --no-pager diff --stat main` over `tests/expected_output`, `schemas` and `docs/user` shows no
+  change.
 
 ---
 
