@@ -1,7 +1,7 @@
 """The Piotroski F-Score calculation: nine pass/fail tests over three fiscal year-ends.
 
-This module is the pure calculation of the Piotroski F-Score. It moves into the strategy's package when the strategy
-is generated.
+This module is the pure calculation of the Piotroski F-Score. The strategy's analyzer assembles the inputs and calls
+``calculate_f_score``.
 
 The function takes a frozen ``PiotroskiInputs`` and does no I/O and no clock, provider or cache access. Every operand
 is a resolved input with its provenance, or the reason it is unavailable. Comparisons are strict and exact: each
@@ -25,7 +25,6 @@ A score is available from six available tests: complete at nine, partial from si
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import StrEnum
 from fractions import Fraction
 from typing import Final
 
@@ -34,6 +33,7 @@ from investment_analysis_engine.analysis.shared.metric_inputs import YearEndShar
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.sec_edgar.financial_facts import taxonomy_of_provider_field
+from investment_analysis_engine.strategies.piotroski.vocabulary import CheckOutcome, Completeness
 
 TEST_COUNT: Final = 9
 """The number of tests, and the number available for a complete score."""
@@ -56,21 +56,6 @@ _TEST_NAMES: Final = (
 
 Value = ResolvedInput | InputUnavailable
 """An input value with provenance, or the reason it is unavailable."""
-
-
-class CheckOutcome(StrEnum):
-    """Outcome of one test. An unavailable test is never a fail."""
-
-    PASS = "pass"
-    FAIL = "fail"
-    UNAVAILABLE = "unavailable"
-
-
-class Completeness(StrEnum):
-    """Whether a score rests on all nine tests or on six to eight."""
-
-    COMPLETE = "complete"
-    PARTIAL = "partial"
 
 
 @dataclass(frozen=True)
@@ -215,7 +200,7 @@ class _Gap:
     reason: str
 
 
-def _taxonomy_of(item: ResolvedInput) -> str | None:
+def taxonomy_of_input(item: ResolvedInput) -> str | None:
     """Return the taxonomy of a resolved input: its provider field's, or its components' when it has none.
 
     A provider field the adapter does not emit in a recognized form has no taxonomy, and the components are consulted
@@ -225,7 +210,7 @@ def _taxonomy_of(item: ResolvedInput) -> str | None:
         return taxonomy_of_provider_field(item.provider_field)
     if item.lineage is None:
         return None
-    found = {_taxonomy_of(component) for component in item.lineage.components}
+    found = {taxonomy_of_input(component) for component in item.lineage.components}
     return next(iter(found)) if len(found) == 1 else None
 
 
@@ -267,7 +252,7 @@ def _consistency_gap(figures: Sequence[_Figure]) -> _Gap | None:
             ReasonCode.INCOMPATIBLE_CURRENCY,
             f"The operands are in different currencies: {sorted(map(str, currencies))}.",
         )
-    taxonomies = {_taxonomy_of(inner.input) for figure in figures for inner in figure.operands}
+    taxonomies = {taxonomy_of_input(inner.input) for figure in figures for inner in figure.operands}
     if None in taxonomies:
         return _Gap(ReasonCode.INCOMPATIBLE_SCOPE, "An operand does not state a supported taxonomy.")
     if len(taxonomies) > 1:

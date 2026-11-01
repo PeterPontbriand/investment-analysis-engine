@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TypeVar
+from typing import TypeVar, get_args, get_origin
 
 from investment_analysis_engine.core.clock import effective_as_of as _effective_as_of
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
@@ -56,3 +56,65 @@ class BaseAnalyzer[ConfigT, ResultT](ABC):
     @abstractmethod
     def run_analysis(self, ticker: str, config: ConfigT, context: AnalysisContext) -> ResultT:
         """Execute the structural strategy with its own strategy-specific configuration."""
+
+
+class ConfigFreeAnalyzer[ResultT](ABC):
+    """Abstract base class for an analysis strategy that takes no configuration.
+
+    The strategy's calculation has no tunable choice: every fact it needs comes from its
+    dependencies and the ``AnalysisContext``, so ``run_analysis`` takes only the ticker and the
+    context. A strategy with a tunable choice subclasses ``BaseAnalyzer`` instead.
+    """
+
+    @abstractmethod
+    def run_analysis(self, ticker: str, context: AnalysisContext) -> ResultT:
+        """Execute the structural strategy for the ticker under the shared execution context."""
+
+
+def analyzer_result_type(analyzer_class: type) -> type | None:
+    """Return the ``ResultT`` an analyzer class declares, for either analyzer form.
+
+    Args:
+        analyzer_class: A class that subclasses ``BaseAnalyzer[ConfigT, ResultT]`` or
+            ``ConfigFreeAnalyzer[ResultT]`` directly.
+
+    Returns:
+        The declared result type, or ``None`` when the class specializes neither form or its result
+        argument is not a concrete type.
+    """
+    for base in getattr(analyzer_class, "__orig_bases__", ()):
+        origin = get_origin(base)
+        if origin is BaseAnalyzer:
+            result = get_args(base)[1]
+        elif origin is ConfigFreeAnalyzer:
+            result = get_args(base)[0]
+        else:
+            continue
+        return result if isinstance(result, type) else None
+    return None
+
+
+def analyzer_config_type(analyzer_class: type) -> type | None:
+    """Return the config type an analyzer class declares, or ``None`` for a config-free analyzer.
+
+    Args:
+        analyzer_class: A class that subclasses ``BaseAnalyzer[ConfigT, ResultT]`` or
+            ``ConfigFreeAnalyzer[ResultT]`` directly.
+
+    Returns:
+        The declared config type, or ``None`` when the analyzer is config-free.
+
+    Raises:
+        TypeError: If the class specializes neither form, or declares a config argument that is not
+            a concrete type.
+    """
+    for base in getattr(analyzer_class, "__orig_bases__", ()):
+        origin = get_origin(base)
+        if origin is ConfigFreeAnalyzer:
+            return None
+        if origin is BaseAnalyzer:
+            config = get_args(base)[0]
+            if not isinstance(config, type):
+                raise TypeError(f"{analyzer_class.__name__} declares no concrete config type.")
+            return config
+    raise TypeError(f"{analyzer_class.__name__} specializes neither BaseAnalyzer nor ConfigFreeAnalyzer.")

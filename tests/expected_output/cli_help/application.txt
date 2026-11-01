@@ -14,6 +14,7 @@ graham-growth Execute Graham Growth Value with explicit growth and
 AAA-yield assumptions.
 fcf-growth Execute the historical free-cash-flow and diluted-EPS growth
 screen.
+piotroski Run the Piotroski F-Score analysis.
 evaluate Run the versioned Golden Suite and write one machine-readable
 report.
 watchlist Manage named watchlists of tickers and their analysis

@@ -41,8 +41,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.3b1 | [Shared year-end functions that need no new evidence](#353b1--shared-year-end-functions-that-need-no-new-evidence) | Complete | 2026-10-29 |
 | 3.5.3b2 | [Year-end discovery, share-count series and captured evidence](#353b2--year-end-discovery-share-count-series-and-captured-evidence) | Complete | 2026-10-30 |
 | 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Complete | 2026-10-30 |
-| 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Next | |
-| 3.5.3e | [Repetition checkpoint](#353e--repetition-checkpoint) | Planned | |
+| 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Complete | 2026-10-31 |
+| 3.5.3e | [Repetition checkpoint](#353e--repetition-checkpoint) | Next | |
 
 Each sub-slice has its own branch off `main`, named as its section says, after the previous pull request merges.
 3.5.3a is one pull request carrying this plan and the calculator, as 3.5.2a did.
@@ -127,7 +127,10 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
     `git mv investment_analysis_engine/strategies/piotroski_calculation.py investment_analysis_engine/strategies/piotroski/calculation.py`,
     with the test import updated.
   - The analyzer assembles the inputs of 3.5.3b, calls the calculation, and reports `execution_status` `ok`,
-    `input_unavailable` or `provider_error` (a stored run with its failure record). There is no `not_applicable`.
+    `input_unavailable`, `provider_error` (a stored run with its failure record) or, for a provider-confirmed ETF only,
+    `not_applicable` ([P1](#a8-decisions-p1-to-p12-2026-10-31)).
+  - The analyzer is the config-free form: it has no configuration and runs on the ticker and the `AnalysisContext`
+    ([P4](#a8-decisions-p1-to-p12-2026-10-31)).
   - The headline is a text cell `score` reading "x of n", a text cell `completeness`, and the anchor year-end as the
     period end, labelled "fiscal year-end", with the taxonomy.
   - The sector gate is `PIOTROSKI_SECTOR_GATE = SectorGate(gated=False, warn=frozenset({IndustryClass.FINANCIAL}))`,
@@ -135,8 +138,11 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
   - Method version and every schema version start at 1.
 - **Scope:** analyzer, wiring, presenter, headline, tool, user guide, `FINANCE_MATH.md` and `GLOSSARY.md` entries,
   fixtures and the Golden cases for Apple (complete) and Monster (partial); the rest of the Golden cases wait for 3.5.7.
+  Also, because they blocked the work: the generator's long-label fix and the config-free analyzer form with its shared
+  readers ([B.2](#b2-where-docstool_developmentmd-fell-short), [A.8](#a8-decisions-p1-to-p12-2026-10-31)).
 - **Branch:** `feat/step-3-5-3d-piotroski-strategy`.
-- **Detail:** [files](#c5-353d-files), [tests](#d4-353d-tests) and [the result](#e1-the-calculators-input-and-result).
+- **Detail:** [decisions](#a8-decisions-p1-to-p12-2026-10-31), [files](#c5-353d-files), [tests](#d4-353d-tests),
+  [the result](#e1-the-calculators-input-and-result) and [the summary](#b3-decisions-of-353b-to-353e).
 
 ### 3.5.3e — Repetition checkpoint
 
@@ -147,7 +153,9 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
   syntax in Step 3.5, because Piotroski has no watchlist options of its own; the weighing is recorded in the
   implementation record and an issue is filed. `docs/TOOL_DEVELOPMENT.md` is fixed where a fix is within its scope and
   one issue is filed for the rest; the guide's worked example is repointed at `analysis/shared/metric_inputs.py` as the
-  entry for a new strategy's SEC inputs, keeping FCF-Growth as the example of wiring.
+  entry for a new strategy's SEC inputs, keeping FCF-Growth as the example of wiring. 3.5.3e also decides how the
+  generator template offers the two analyzer forms (`BaseAnalyzer` with a config, `ConfigFreeAnalyzer` without), which
+  3.5.3d settled for Piotroski by hand ([P4](#a8-decisions-p1-to-p12-2026-10-31)).
 - **Scope:** the review, the extracted helpers and the generator templates, the guide changes, the implementation
   record, the issues.
 - **Branch:** `feat/step-3-5-3e-repetition-checkpoint`.
@@ -208,7 +216,7 @@ Approved by the project owner. Each is summarized in the sections above.
 | Q8 | Currency and taxonomy across fields | Checked per test. Operands in different currencies make that test unavailable (`incompatible_currency`). A us-gaap and ifrs-full mix makes the affected tests unavailable (`incompatible_scope`). The reason is that one test combines figures, and a figure on another currency or taxonomy cannot be combined with them; the other tests are unaffected. |
 | Q9 | Zero debt | Test 5 passes when long-term debt is zero in both years, whatever the assets. A missing *t−2* total assets does not make it unavailable in that case. The reason is [Strategy specifications §1](STEP_3_5_STRATEGY_SPECIFICATIONS.md#conventions-and-deviations): a debt-free firm cannot reduce leverage further, and assets play no part in that comparison. |
 | Q10 | Result shape | Nine tests in fixed order. Each has a typed outcome (pass, fail or unavailable), its ratios as `MetricResult`s, its operands with provenance, and a reason code and reason when unavailable. The score is a `MetricResult`. The result also carries completeness (complete or partial), the count of available tests, the numbers of the unavailable tests, `execution_status`, the industry class and its warning, the taxonomy, the anchor year-end and accession, and the method version. Method version and every schema version start at 1. New `ReasonCode` members: `nonpositive_denominator`, which [Shared definitions §2](STEP_3_5_SHARED_DEFINITIONS.md#2-outcomes-and-reason-codes) foresees, and `insufficient_tests`, for fewer than six tests available. |
-| Q11 | Statuses | `ok`: complete or partial. `input_unavailable`: fewer than six tests. `provider_error`: any `MetricInputsFailure`, stored as a run with its failure record. No `not_applicable`, because a financial issuer is applicable with a warning. |
+| Q11 | Statuses | `ok`: complete or partial. `input_unavailable`: fewer than six tests. `provider_error`: any `MetricInputsFailure`, stored as a run with its failure record. `not_applicable`: a provider-confirmed ETF only; a financial issuer is applicable with a warning. (Amended in 3.5.3d by [P1](#a8-decisions-p1-to-p12-2026-10-31); the first text had no `not_applicable`.) |
 | Q12 | Side-by-side text layout | The column groups are packed into bands, each repeating the Ticker column, in `STRATEGIES` order, up to a fixed width of 120 characters held as a named constant. A group is never split; a group wider than 120 gets a band of its own. This applies at every strategy count, so the four-strategy example and its stored output change. `--json` is unchanged. Rejected: one band per strategy (long); a `--strategy` filter (hides columns); terminal-width packing (output varies by machine). |
 | Q13 | Headline | A text cell `score` reading "x of n" (for example "7 of 9", or "5 of 7" for a partial score); it is never a bare number, and never "x of 9" for a partial score. A text cell `completeness`. The period end is the anchor year-end, labelled "fiscal year-end", with the taxonomy. |
 | Q14 | Fixtures and Golden cases | Captured fixtures for Apple fiscal 2024 (with an `as_of` after its filing, checked independently against the worked example in the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md#5-apple-recorded-values-and-worked-example)), Monster, one bank (JPMorgan) and one IFRS filer (SAP or Nutrien). Golden cases for Apple (complete) and Monster (partial) in 3.5.3d; the rest wait for 3.5.7. Expected values are computed independently from the captured facts, never by the calculator. |
@@ -269,7 +277,7 @@ Approved by the project owner before 3.5.3b began.
 | U1 | Split of 3.5.3b | 3.5.3b is two sub-slices, each with its own branch, managed gate and authorization. 3.5.3b1: `compute_long_term_debt`; `resolve_industry_class` with `AsFiledSicSource` implemented on the SEC adapter; the multi-year balance-sheet and annual functions, including operating cash flow. 3.5.3b2: finding the earlier year-ends with the delegated field list (Q2); the share-count series at named year-ends (Q4); the measurement for Q5; the captured fixtures. The reason is that b1 is code reviewed against [E.2](#e2-shared-assembly-functions), while b2 is mostly mapping judgment from live evidence, and a stop on evidence should not hold up reviewed code. The names b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite. |
 | U2 | Evidence document | 3.5.3b2 creates `STEP_3_5_3_INPUT_EVIDENCE.md`, modelled on `STEP_3_5_2_LISTING_EVIDENCE.md`, holding the captured values, the field-list decision, the share-count paths and the Q5 counts. [B.3](#b3-decisions-of-353b-to-353e) summarizes it in a few lines and links it. The reason is that issuer-by-issuer evidence would swamp this plan, which must stay scannable. |
 | U3 | Q5's stop threshold | The measurement covers the regression set plus Apple and Monster at their latest year-end. 3.5.3b2 stops and reports if, among issuers with a balance-sheet count at both *t* and *t−1*, fewer than three-quarters have both counts from the same filing, or if any issuer's two counts come by different paths. The reason is that "rarely" left undefined would make the agent decide policy. |
-| U4 | Capture | Only 3.5.3b2 captures, using the existing fixture layout and checksum file: the regression set, Apple and Monster (to choose and test the field list and measure Q5), and JPMorgan and one IFRS filer (SAP or Nutrien), which Q14 needs, so 3.5.3d only reuses fixtures. 3.5.3b1 uses synthetic inputs only. |
+| U4 | Capture | Only 3.5.3b2 captures, using the existing fixture layout and checksum file: the regression set, Apple and Monster (to choose and test the field list and measure Q5), and JPMorgan and one IFRS filer (SAP or Nutrien), which Q14 needs, so 3.5.3d only reuses fixtures, except for the two filing headers of Apple and Monster. 3.5.3b1 uses synthetic inputs only. (Amended in 3.5.3d by [P9](#a8-decisions-p1-to-p12-2026-10-31).) |
 | U5 | Live-network checks | None new. Year-end discovery and the share-count series read documents the adapter already fetches, and the SIC header request already has its live check. A sub-slice that finds it needs a new request type stops and asks. |
 | U6 | Proof of byte-identical outputs | Run `uv run python -m tests._direct_command_output`, `uv run python -m tests._strategy_document_output`, `uv run python -m tests._workspace_command_output` and `uv run python -m scripts.generate_schemas --check`, and report `git --no-pager diff --stat` showing that no stored output or schema changed. The existing tests of `resolve_balance_sheet_values` and `resolve_annual_values` stay unchanged and pass. |
 
@@ -304,6 +312,25 @@ line could never be within 120. The lead-in "Could not be read (stored under an 
 longer declared):" is a line of its own, and the IDs start on the next line, indented two spaces and joined by ", ". A
 new line, indented two spaces, starts when the next ID would pass `TEXT_WIDTH`, and a line that breaks keeps its
 trailing comma. This holds for a single ID too.
+
+### A.8 Decisions P1 to P12 (2026-10-31)
+
+Approved by the project owner before 3.5.3d began, with one wider authorization for the generator ([B.2](#b2-where-docstool_developmentmd-fell-short) item 8) and two on 2026-10-31 for the config-free form and the adapter composition (P4 and B.2 item 5). Q11 and U4 are amended above, in place.
+
+| # | Topic | Decision and reason |
+| :--- | :--- | :--- |
+| P1 | ETFs and statuses | A provider-confirmed ETF is `not_applicable` (`is_known_etf`), with no tests and no request for statements: the strategy is a company-level analysis of reported statements. A financial issuer stays applicable with a warning. The statuses are `ok`, `input_unavailable`, `provider_error` and `not_applicable` (ETF only). |
+| P2 | An unavailable year | An unavailable anchor, *t−1* or *t−2* still runs the calculator, and each operand of the affected year carries that year's reason, so the result always holds nine tests. A `MetricInputsFailure` stops the assembly: the result stores the failure record and the notes on how far it got (the FCF-Growth precedent), with no tests and no score, and its headline cells read "—". The reason is that a missing year is a fact about the filings, while a provider failure says nothing about them. |
+| P3 | Taxonomy | The result records the one taxonomy that every resolved operand shares, `us-gaap` or `ifrs-full`; if they differ, or one states none, it records none. |
+| P4 | No configuration | The method has no tunable choice, so there is no `PiotroskiConfig` and no `to_piotroski_config()`. `ConfigFreeAnalyzer[ResultT]` in `analysis/base_analyzer.py` has `run_analysis(ticker, context)`, and `analyzer_result_type` and `analyzer_config_type` in the same module read either form. `scripts/strategy_conformance.py` and `tests/test_documented_conventions.py` call them instead of reading `__orig_bases__` themselves; a config-free analyzer has no config type to check. The four existing analyzers are unchanged ([tests](#d4-353d-tests)). 3.5.3e decides how the generator template offers the two forms. |
+| P5 | Concise layout | Percentages for ROA, CFO ÷ assets, long-term debt ÷ average assets and gross margin; multiples ("0.87x") for the current ratio and asset turnover; full amounts and share counts with thousands separators and currency. Two decimals, with digits added to both compared values when they round equal but differ exactly. An unavailable test shows its reason message. A partial score adds "Note: The usual reading of high and low scores applies to complete scores only."; a complete score never does. The layout is shown in the [user guide](../../../../user/strategies/PIOTROSKI.md#reading-the-result). |
+| P6 | Details, diagnostics, JSON | Details add each test's operands with year-end date and value. Diagnostics add each operand's provenance (provider field, accession, filing date) and the assembly notes. `--json` is the result model, written as it is. |
+| P7 | Warnings | A financial issuer gets a "Warning:" line (the F-Score was designed for non-financial firms; the gross-margin and current-ratio tests are typically unavailable). An unknown class gets a "Warning:" line naming why. Every other issuer gets only the "Industry class:" line. |
+| P8 | Side-by-side cells | Two text cells, "Score" ("7 of 9", "5 of 6") and "Completeness" ("complete", "partial (1, 3, 4 unavailable)"); the period end is the anchor year-end, labelled "fiscal year-end", with the taxonomy. Both cells are "—" for a run with no score. The shared layout sizes the first column of a group by the strategy-name row above it, which the example approved with P8 did not show. |
+| P9 | Filing headers | The headers of Apple's fiscal 2024 and Monster's fiscal 2025 annual filings are captured into `filing_headers/` with `SHA256SUMS` entries (SIC codes 3571 and 2086, both manufacturers). U4 is amended; U5 holds: the capture used the existing header request. |
+| P10 | Golden cases | PIO-01 (Apple fiscal 2024, complete, 7 of 9) and PIO-02 (Monster fiscal 2025, partial, 5 of 6), composed from the packaged captured documents through the real SEC adapter, as `sec_edgar_fpi.py` does. The suite version moves to `h1-v7`; the fixture-set version moves to `step-2.5-h1-v5` because two fixtures were added (the precedent of Step 2.5A). JPMorgan, SAP, Nutrien and Duke are used in tests only. Expected values were computed independently from the raw captured integers, never with the calculator. |
+| P11 | Reviewed outputs | The reviewed direct-command output and the stored strategy documents are built from Apple's captured case, with a fixture in place of the live Yahoo client. |
+| P12 | A stale anchor | A registrant whose latest annual filing is old is scored on that filing, with nothing said. Out of scope here; no behavior changes. Tracked in [issue 204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204). |
 
 ---
 
@@ -343,7 +370,10 @@ Each sub-slice adds what it met. The earlier record of the same kind is
 5. **Capabilities that need the analysis scope.** The guide does not say how a strategy gets a scope-bound read such as
    the industry class: the shared function takes a source protocol that the SEC adapter implements, and composition
    must pass the adapter, not the resolver, which reaches the adapter only through the production provider. The guide
-   names neither the protocol nor the composition step (3.5.3b1).
+   names neither the protocol nor the composition step (3.5.3b1). The composition step now exists:
+   `build_sec_edgar_adapter` in `cli_composition.py` builds the adapter (the identity check, its message and the ticker
+   overrides unchanged), `build_sec_production_provider` calls it, and Piotroski's `compose_piotroski` builds both from
+   one adapter, so the SIC source and the resolver read the same analysis scope (3.5.3d).
 
 6. **Capturing and using SEC fixtures.** The guide sends a reader to the evaluation documents for Golden fixtures and does
    not describe the SEC adapter's own fixtures: the `instant_facts` and `annual_facts` folders (one trimmed Company Facts and
@@ -360,6 +390,28 @@ Each sub-slice adds what it met. The earlier record of the same kind is
    usage error, exit code 2, nothing written). The limits are stated in the generator's docstring and in the guide, and
    `tests/scripts/test_new_strategy_label_limits.py` proves generation at both limits and for the longest real
    candidates (3.5.3d).
+9. **A strategy with no configuration.** The guide and the checks assume every analyzer is a
+   `BaseAnalyzer[ConfigT, ResultT]` with a config type, and the generator writes an empty `<Name>Config`, a
+   `to_<name>_config()` on the selection and a `config` parameter on the analyzer, the tool handler and the execution
+   function, all of which Piotroski removed by hand. `ConfigFreeAnalyzer` and the two shared readers in
+   `analysis/base_analyzer.py` are the answer; 3.5.3e decides how the template offers them (P4).
+10. **What the generated command and execution function leave out.** The generated `execute_<name>` composes no
+    instrument profile and the generated command has no `--details`, `--diagnostics` or `--no-provider-check`, so an ETF
+    would never be recognized and the presentation modes would be unreachable. Both were written by hand after FCF-Growth;
+    the guide does not say so (3.5.3d).
+11. **Stored-output harnesses and live services.** A strategy that builds its own provider reaches Yahoo (identity and
+    instrument kind) unless the harness of `tests/_direct_command_output.py` replaces the provider's Yahoo adapter, which
+    nothing in the guide says; the first regeneration of Piotroski's stored output called the live service and stored
+    its answer, and was redone with a fixture (3.5.3d).
+12. **Files that name the strategies one by one.** `tests/scripts/generator_fills/patches.toml` quotes lines of
+    `evaluation/catalog.py`, `tests/evaluation/test_catalog.py` and the help snapshot, so adding any real strategy or
+    Golden case means editing it, and the guide's edit-site table does not list it. The Golden suite and fixture-set
+    versions, `docs/EVALUATIONS.md` and the case counts in `tests/evaluation/test_catalog.py` move together as well
+    (3.5.3d).
+13. **Two kinds of SEC fixtures.** `sec_edgar_fpi.py` serves frozen foreign-private-issuer documents; the captured
+    `instant_facts`, `annual_facts` and `filing_headers` serve the regression set. The guide names neither, nor which to
+    use. `evaluation/fixtures/sec_edgar_statements.py` now merges the captured documents of an issuer and serves its
+    header to the real adapter, for Golden cases and for tests (3.5.3d).
 
 ### B.3 Decisions of 3.5.3b to 3.5.3e
 
@@ -372,6 +424,21 @@ Each sub-slice adds what it met. The earlier record of the same kind is
   both from one filing, and all nine are on the direct path (D2, D3).
 - Apple's inputs, captured as of a boundary after its fiscal 2024 report, equal the September record's (the
   [evidence §6](STEP_3_5_3_INPUT_EVIDENCE.md#6-apples-inputs-as-captured)).
+
+3.5.3d (2026-10-31), decisions in [A.8](#a8-decisions-p1-to-p12-2026-10-31):
+
+- The strategy is at every edit site: `strategies/piotroski/` (moved calculation, config-free analyzer, tool, selection,
+  codec, execution, CLI, presenter, envelope, replay and headline, evaluation), the five wiring files, the schemas, the
+  strategy lists, the reviewed outputs, the help snapshot and the guide, with `FINANCE_MATH.md` and `GLOSSARY.md`.
+- Apple scores 7 of 9 (complete) and Monster 5 of 6 (partial, tests 1, 3 and 4 unavailable because it tags no net
+  income); both equal the independent computation from the raw captured integers (D.4). Monster's long-term debt at
+  its 2025 year-end is zero by the shared no-reported-debt rule: no debt concept is tagged and no interest expense is
+  reported.
+- The four existing strategies' stored outputs and schemas are byte-identical; the schemas that list every strategy
+  (`watchlist` and `watchlist-delete`) gain Piotroski's selection and nothing else.
+- Fixed because they blocked the work, and recorded in B.2: the generator's long-label templates and limits, the
+  config-free form with its shared readers, and the extraction of the adapter builder.
+- Not decided here: the template offer of the two analyzer forms (3.5.3e) and a stale anchor ([issue 204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204)).
 
 3.5.3e records the repetition review and the weighing of Site 19.
 
@@ -443,10 +510,40 @@ Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `--json`, `s
 
 ### C.5 3.5.3d files
 
-The generator's output for module `piotroski`, alias `piotroski`, label "Piotroski F-Score"; the `git mv` of the
-calculation described in 3.5.3d; the five edited wiring files; `docs/user/strategies/PIOTROSKI.md`;
-`FINANCE_MATH.md` and `GLOSSARY.md` entries; fixtures for Apple, Monster, JPMorgan and one IFRS filer; the Golden cases
-for Apple and Monster. The exact list is written when 3.5.3d begins.
+Written when 3.5.3d completed. Two commits: the generator fix, then the strategy.
+
+**Generator fix (its own commit)**
+
+- `scripts/new_strategy.py` and `scripts/strategy_templates/{cli,envelope,execution,presenter,replay,vocabulary}.py.tmpl`:
+  the 40-character limits and the short summary lines.
+- `docs/TOOL_DEVELOPMENT.md` (the limits), `tests/scripts/test_new_strategy_label_limits.py`.
+
+**The strategy**
+
+- New, `investment_analysis_engine/strategies/piotroski/`: `__init__.py`, `vocabulary.py`, `analyzer.py`, `tool.py`,
+  `selection.py`, `codec.py`, `execution.py`, `cli.py`, `presenter.py`, `envelope.py`, `replay.py`, `evaluation.py`; the
+  calculation moved there from `strategies/piotroski_calculation.py` (`calculation.py`; the one in-package change is
+  that `taxonomy_of_input` is public, which the analyzer uses, and that `CheckOutcome` and `Completeness` are defined in `vocabulary.py`, because the document envelope may import only the vocabulary).
+- New, evaluation: `evaluation/cases/piotroski.py` (PIO-01, PIO-02), `evaluation/fixtures/sec_edgar_statements.py`, and
+  the headers `aapl_fy2024.hdr.sgml` and `mnst_fy2025.hdr.sgml` with their `SHA256SUMS` entries.
+- Edited, the five wiring files: `strategy_wiring.py`, `orchestrator/tool_names.py`, `workspace/strategy_types.py`,
+  `cli_strategy_wiring.py`, `evaluation/strategy_fixtures.py`; also `evaluation/catalog.py` (the two cases, `h1-v7`,
+  `step-2.5-h1-v5`).
+- Edited for the config-free form and the adapter: `analysis/base_analyzer.py` (the form and the two readers),
+  `scripts/strategy_conformance.py` (discovery, the result-type reader, the descriptor check and the envelope check of
+  both forms) and `tests/test_documented_conventions.py` (the config reader), authorized for P4;
+  `cli_composition.py` (`build_sec_edgar_adapter`).
+- Generated or regenerated: `schemas/piotroski.schema.json`, `schemas/watchlist.schema.json`,
+  `schemas/watchlist-delete.schema.json`, the generated blocks of `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`,
+  `tests/expected_output/cli_help/application.txt`, `tests/expected_output/direct_commands/piotroski.{txt,json}`,
+  `tests/expected_output/strategy_documents/piotroski-success.{direct,replay}.json`.
+- Documents: `docs/user/strategies/PIOTROSKI.md` and the strategies `README.md`, the Piotroski sections of
+  `docs/user/FINANCE_MATH.md` and `docs/user/GLOSSARY.md`, `docs/EVALUATIONS.md`, this plan and the contract's table.
+- Tests, new: `tests/analysis/piotroski/{_statements_rig,test_piotroski_analyzer,test_piotroski_presentation,test_piotroski_wiring}.py`,
+  `tests/analysis/test_analyzer_forms.py`, `tests/test_cli_piotroski.py`, `tests/test_cli_composition_adapter.py`.
+- Tests, edited: `tests/analysis/piotroski/test_piotroski_calculation.py` (the imports), `tests/_direct_command_output.py`,
+  `tests/_strategy_document_output.py`, `tests/evaluation/test_catalog.py` and
+  `tests/scripts/generator_fills/patches.toml` (its anchors, because a fifth strategy and two cases exist).
 
 ### C.6 3.5.3e files
 
@@ -520,6 +617,30 @@ issuer, an unknown industry class, a missing critical input, a boundary before t
 provider, cache, clock and calculator disabled, the pinning of the sector gate, a partial score never shown as a bare
 number or as "x of 9", the Apple worked example checked independently, Monster as a partial score, and unchanged output
 of the four existing strategies.
+
+As written (the file names are in [C.5](#c5-353d-files)):
+
+- **Worked examples, independent:** Apple's nine outcomes and every ratio, and Monster's partial score, from the raw
+  captured integers as exact fractions; the analyzer and the calculation never produce an expected value.
+- **P1 to P3:** an ETF reads no statement; a boundary before the first filing runs the calculation on the anchor's
+  reason (nine tests, all unavailable); an unavailable *t−1* or *t−2* keeps nine tests with that year's reason on each of
+  its operands; a provider failure stops the assembly with no tests; the taxonomy is recorded only when every operand
+  states the same one.
+- **P4:** the shared readers give the four existing analyzers the same config and result types as the old reading; the
+  conformance check finds Piotroski's analyzer and reads its result type, still reports an analyzer of neither form, and
+  reports a changed config-free invocation; the documented-conventions check reads no config type for it.
+- **P5 to P8:** the Apple layout exactly; Monster's lines; display precision at a pair that rounds equal but differs;
+  details and diagnostics; the JSON document; the side-by-side table with a complete, a partial and an unavailable row.
+- **P7 and the gate:** a financial issuer (JPMorgan) warns, other classes (Apple, Duke, SAP) do not, an unreadable header
+  gives an unknown class that runs and says so; the gate is pinned to its row of Shared definitions §1.
+- **Shuffled order (A.4):** reversing the order the fields are requested in gives the identical stored result.
+- **Replay:** the stored evidence decodes to the same result and renders the live text in every mode with the provider,
+  resolver, clock and calculator replaced by functions that fail.
+- **Composition and the command:** the shared adapter builder keeps the identity check and message; the provider builder
+  calls it; Piotroski builds one adapter for the resolver and the SIC source; the command, its refresh executor and its
+  selection builder.
+- **Unchanged outputs:** the stored outputs and schemas of the four existing strategies are byte-identical
+  (`git --no-pager diff --stat` of the U6 commands, [B.3](#b3-decisions-of-353b-to-353e)).
 
 ---
 

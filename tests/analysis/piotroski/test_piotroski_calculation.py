@@ -15,15 +15,14 @@ from investment_analysis_engine.analysis.shared.metric_inputs import ShareCountP
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from investment_analysis_engine.data.sec_edgar.instant_series import SEC_DERIVED_COMMON_SHARES_FIELD
-from investment_analysis_engine.strategies.piotroski_calculation import (
-    CheckOutcome,
-    Completeness,
+from investment_analysis_engine.strategies.piotroski.calculation import (
     NamedMetric,
     PiotroskiInputs,
     PiotroskiScoreResult,
     PiotroskiTestResult,
     calculate_f_score,
 )
+from investment_analysis_engine.strategies.piotroski.vocabulary import CheckOutcome, Completeness
 from tests._sec_instants import NOW
 from tests.analysis.shared._issuer_inputs import synthetic
 

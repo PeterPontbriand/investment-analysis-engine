@@ -37,6 +37,7 @@ from investment_analysis_engine.evaluation.cases.momentum import (
     MOMENTUM_ETF_CASE,
     MOMENTUM_SUCCESS_CASE,
 )
+from investment_analysis_engine.evaluation.cases.piotroski import PIO_01, PIO_02, PIOTROSKI_ARGUMENTS
 from investment_analysis_engine.evaluation.models import Case
 from investment_analysis_engine.evaluation.reporting import EvaluationReport
 from investment_analysis_engine.evaluation.runner import DeterministicCaseRequest, run_deterministic_suite
@@ -44,8 +45,8 @@ from investment_analysis_engine.orchestrator.analysis_tool_arguments import Anal
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 
 DETERMINISTIC_SUITE_ID: Final = "step-2.5-golden-minimum"
-DETERMINISTIC_SUITE_VERSION: Final = "h1-v6"
-DETERMINISTIC_FIXTURE_SET_VERSION: Final = "step-2.5-h1-v4"
+DETERMINISTIC_SUITE_VERSION: Final = "h1-v7"
+DETERMINISTIC_FIXTURE_SET_VERSION: Final = "step-2.5-h1-v5"
 
 DETERMINISTIC_CASES: Final[tuple[Case, ...]] = (
     MOMENTUM_SUCCESS_CASE,
@@ -66,6 +67,8 @@ DETERMINISTIC_CASES: Final[tuple[Case, ...]] = (
     FPI_02,
     FPI_03,
     FPI_04,
+    PIO_01,
+    PIO_02,
 )
 
 
@@ -85,6 +88,7 @@ _REVIEWED_ARGUMENTS: Final = _merge_arguments(
     GRAHAM_NUMBER_ARGUMENTS,
     GRAHAM_GROWTH_ARGUMENTS,
     FCF_GROWTH_ARGUMENTS,
+    PIOTROSKI_ARGUMENTS,
 )
 
 
@@ -97,7 +101,7 @@ def _reviewed_arguments(case: Case) -> AnalysisToolArguments:
 
 
 def build_deterministic_requests() -> tuple[DeterministicCaseRequest, ...]:
-    """Build the exact production arguments for all eighteen reviewed cases."""
+    """Build the exact production arguments for all twenty reviewed cases."""
     return tuple(
         DeterministicCaseRequest(case=case, arguments=_reviewed_arguments(case)) for case in DETERMINISTIC_CASES
     )
@@ -108,7 +112,7 @@ async def run_minimum_deterministic_suite(
     executed_at: datetime,
     recorder: TrajectoryRecorder,
 ) -> EvaluationReport:
-    """Execute the canonical eighteen-case deterministic suite and return one report."""
+    """Execute the canonical twenty-case deterministic suite and return one report."""
     return await run_deterministic_suite(
         build_deterministic_requests(),
         suite_id=DETERMINISTIC_SUITE_ID,

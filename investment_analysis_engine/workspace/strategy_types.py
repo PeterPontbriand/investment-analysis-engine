@@ -12,7 +12,11 @@ from investment_analysis_engine.strategies.graham_number.selection import Graham
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
+from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
 
-NativeEvidence = MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult
-SelectionMember = MomentumSelection | GrahamNumberSelection | GrahamGrowthSelection | FCFGrowthSelection
+NativeEvidence = MomentumRun | GrahamNumberAnalysis | GrahamGrowthAnalysis | FCFEarningsGrowthResult | PiotroskiResult
+SelectionMember = (
+    MomentumSelection | GrahamNumberSelection | GrahamGrowthSelection | FCFGrowthSelection | PiotroskiSelection
+)
 AnalysisSelection = Annotated[SelectionMember, Field(discriminator="method_id")]

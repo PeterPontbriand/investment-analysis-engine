@@ -33,11 +33,15 @@ from investment_analysis_engine.strategies.graham_number.cli import refresh as r
 from investment_analysis_engine.strategies.momentum.cli import build_selection as build_momentum_selection
 from investment_analysis_engine.strategies.momentum.cli import command as momentum_command
 from investment_analysis_engine.strategies.momentum.cli import refresh as refresh_momentum
+from investment_analysis_engine.strategies.piotroski.cli import build_selection as build_piotroski_selection
+from investment_analysis_engine.strategies.piotroski.cli import command as piotroski_command
+from investment_analysis_engine.strategies.piotroski.cli import refresh as refresh_piotroski
 from investment_analysis_engine.strategy_wiring import (
     FCF_GROWTH_BEHAVIOR,
     GRAHAM_GROWTH_BEHAVIOR,
     GRAHAM_NUMBER_BEHAVIOR,
     MOMENTUM_BEHAVIOR,
+    PIOTROSKI_BEHAVIOR,
     STRATEGIES,
     StrategyBehavior,
     StrategyDescriptor,
@@ -132,6 +136,10 @@ CLI_STRATEGIES: Final = (
     pair_cli(
         FCF_GROWTH_BEHAVIOR,
         CliComposition(build=build_fcf_growth_selection, refresh=refresh_fcf_growth, command=fcf_growth_command),
+    ),
+    pair_cli(
+        PIOTROSKI_BEHAVIOR,
+        CliComposition(build=build_piotroski_selection, refresh=refresh_piotroski, command=piotroski_command),
     ),
 )
 

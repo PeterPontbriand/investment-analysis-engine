@@ -13,6 +13,7 @@ from investment_analysis_engine.evaluation.cases.fcf_growth import FCF_GROWTH_AR
 from investment_analysis_engine.evaluation.cases.graham_growth import GRAHAM_GROWTH_ARGUMENTS, GRAHAM_GROWTH_CASES
 from investment_analysis_engine.evaluation.cases.graham_number import GRAHAM_NUMBER_ARGUMENTS, GRAHAM_NUMBER_CASES
 from investment_analysis_engine.evaluation.cases.momentum import MOMENTUM_ARGUMENTS, MOMENTUM_CASES
+from investment_analysis_engine.evaluation.cases.piotroski import PIOTROSKI_ARGUMENTS, PIOTROSKI_CASES
 from investment_analysis_engine.evaluation.catalog import (
     DETERMINISTIC_CASES,
     DETERMINISTIC_FIXTURE_SET_VERSION,
@@ -35,6 +36,7 @@ from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGro
 from investment_analysis_engine.strategies.graham_growth.tool import GrahamGrowthValueToolArguments
 from investment_analysis_engine.strategies.graham_number.tool import GrahamNumberToolArguments
 from investment_analysis_engine.strategies.momentum.tool import MomentumToolArguments
+from investment_analysis_engine.strategies.piotroski.tool import PiotroskiToolArguments
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
 from tests._recording_sink import RecordingSink
@@ -54,7 +56,7 @@ def _component(result: CaseEvaluationResult, kind: ComponentKind) -> ComponentRe
     return next(component for component in result.components if component.kind is kind)
 
 
-def test_canonical_catalog_has_exactly_eighteen_unique_reviewed_cases() -> None:
+def test_canonical_catalog_has_exactly_twenty_unique_reviewed_cases() -> None:
     """The Gate M denominator and request builder are explicit and stable."""
     expected_ids = (
         "MOM-01",
@@ -75,24 +77,26 @@ def test_canonical_catalog_has_exactly_eighteen_unique_reviewed_cases() -> None:
         "FPI-02",
         "FPI-03",
         "FPI-04",
+        "PIO-01",
+        "PIO-02",
     )
     assert tuple(case.case_id for case in DETERMINISTIC_CASES) == expected_ids
     requests = build_deterministic_requests()
     assert tuple(request.case.case_id for request in requests) == expected_ids
-    assert len({request.case.case_id for request in requests}) == 18
+    assert len({request.case.case_id for request in requests}) == 20
 
 
 @pytest.mark.asyncio
-async def test_canonical_eighteen_case_suite_produces_one_passing_versioned_report() -> None:
+async def test_canonical_twenty_case_suite_produces_one_passing_versioned_report() -> None:
     """One operation executes the complete corrected deterministic Gate M denominator."""
     report = await run_minimum_deterministic_suite(executed_at=EXECUTED_AT, recorder=_recorder())
 
     assert report.suite_id == DETERMINISTIC_SUITE_ID
     assert report.suite_version == DETERMINISTIC_SUITE_VERSION
     assert report.fixture_set_version == DETERMINISTIC_FIXTURE_SET_VERSION
-    assert report.total_cases == 18
-    assert report.executed_cases == 18
-    assert report.passed_cases == 18
+    assert report.total_cases == 20
+    assert report.executed_cases == 20
+    assert report.passed_cases == 20
     assert report.failed_cases == 0
     assert report.overall_pass_rate == 1.0
     assert all(result.outcome is CaseOutcome.PASS for result in report.case_results)
@@ -154,6 +158,7 @@ async def test_canonical_runner_detects_mutated_domain_outcomes(
         (GRAHAM_NUMBER_CASES, GRAHAM_NUMBER_ARGUMENTS, GrahamNumberToolArguments),
         (GRAHAM_GROWTH_CASES, GRAHAM_GROWTH_ARGUMENTS, GrahamGrowthValueToolArguments),
         (FCF_GROWTH_CASES, FCF_GROWTH_ARGUMENTS, FCFEarningsGrowthToolArguments),
+        (PIOTROSKI_CASES, PIOTROSKI_ARGUMENTS, PiotroskiToolArguments),
     ],
 )
 def test_each_case_module_declares_arguments_for_exactly_its_cases_with_its_own_model(
@@ -171,11 +176,11 @@ def test_the_case_modules_together_hold_the_catalog_cases_exactly_once() -> None
     """Every deterministic case is in exactly one case module, and no module holds another case."""
     module_ids = [
         case.case_id
-        for cases in (MOMENTUM_CASES, GRAHAM_NUMBER_CASES, GRAHAM_GROWTH_CASES, FCF_GROWTH_CASES)
+        for cases in (MOMENTUM_CASES, GRAHAM_NUMBER_CASES, GRAHAM_GROWTH_CASES, FCF_GROWTH_CASES, PIOTROSKI_CASES)
         for case in cases
     ]
     assert sorted(module_ids) == sorted(case.case_id for case in DETERMINISTIC_CASES)
-    assert len(module_ids) == len(set(module_ids)) == 18
+    assert len(module_ids) == len(set(module_ids)) == 20
 
 
 def test_a_case_with_no_reviewed_arguments_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:

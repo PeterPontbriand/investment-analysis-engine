@@ -163,6 +163,7 @@ Each strategy's flags and notes are in the Watchlist options section of its guid
 | `graham-number` | Graham Number | `graham_number` | [Watchlist options](strategies/GRAHAM_NUMBER.md#watchlist-options) |
 | `graham-growth` | Graham Growth | `graham_growth_value` | [Watchlist options](strategies/GRAHAM_GROWTH.md#watchlist-options) |
 | `fcf-growth` | FCF Growth | `reported_fcf_eps_cagr` | [Watchlist options](strategies/FCF_GROWTH.md#watchlist-options) |
+| `piotroski` | Piotroski F-Score | `piotroski` | [Watchlist options](strategies/PIOTROSKI.md#watchlist-options) |
 <!-- END GENERATED strategy-table -->
 
 ## Refreshing a watchlist

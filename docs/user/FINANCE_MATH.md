@@ -334,6 +334,60 @@ The `display_only` and `confirmation` policies do not change the historical clas
 
 See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_GROWTH.md).
 
+## Piotroski F-Score Strategy
+
+This implementation follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal, because issuance cannot be established reliably from structured filings.
+
+The strategy runs nine pass/fail tests on one company's reported statements at three consecutive fiscal year-ends and counts the tests passed. Year *t* is the fiscal year of the anchor annual filing, the latest at the boundary; *t−1* is the day before the start of the completed annual period that ends at *t*, and *t−2* is derived the same way from the period that ends at *t−1*. A year-end is never taken from a filing date, and an older year is never scored in place of *t*.
+
+### The nine tests
+
+```text
+1  net_income(t) / total_assets(t-1) > 0
+2  operating_cash_flow(t) / total_assets(t-1) > 0
+3  net_income(t) / total_assets(t-1) > net_income(t-1) / total_assets(t-2)
+4  operating_cash_flow(t) > net_income(t)
+5  long_term_debt(t) / average(total_assets(t), total_assets(t-1))
+       < long_term_debt(t-1) / average(total_assets(t-1), total_assets(t-2)),
+   or long_term_debt is zero in both years
+6  current_assets(t) / current_liabilities(t) > current_assets(t-1) / current_liabilities(t-1)
+7  shares_outstanding(t) <= shares_outstanding(t-1)
+8  gross_profit(t) / sales(t) > gross_profit(t-1) / sales(t-1)
+9  sales(t) / total_assets(t-1) > sales(t-1) / total_assets(t-2)
+```
+
+Comparisons are strict and made on unrounded values with no tolerance: each operand is converted to an exact fraction, so an unchanged ratio earns no point. The two exceptions are test 5's zero-debt case and test 7, where an unchanged share count passes. A reported ratio is the float nearest the exact value.
+
+### Conventions fixed by the method
+
+None of these is a user option.
+
+- **Income** is net income as reported. The paper uses income before extraordinary items; US GAAP removed extraordinary items in 2015, so net income is the modern equivalent. Income from continuing operations is not used, because many filers never report it.
+- **Turnover** uses beginning-of-year total assets, following the paper's method text.
+- **Long-term debt** is the current portion of long-term debt plus the noncurrent long-term debt, decided by the rules of [Total debt](#total-debt). Short-term borrowings and lease liabilities are excluded except that they count as a debt concept present at the date. Long-term debt is unavailable where the mapping is unsupported, as for every IFRS filer.
+- **Zero debt:** a company with no long-term debt in either year passes test 5 whatever its assets, so a missing *t−2* total assets does not make the test unavailable in that case.
+- **Dilution** compares the split-adjusted common share counts at *t* and *t−1* instead of the paper's equity-issuance test. Issuance proceeds include option exercises, which would fail nearly every issuer, and issuance evidence is unreliable in structured filings. The counts are compared only when both come from the same filing, which puts them on one split basis because a filing restates its counts for splits effective before it is issued, and when both come by the same path (reported directly, or issued less treasury shares). A *t−1* count from another filing, or a direct count with a derived one, makes the test unavailable (`ambiguous_fact`). The test has no price and needs no market data. It measures net dilution: a company can issue shares and still pass when buybacks exceed issuance.
+
+### Outcomes and the score
+
+Each test is `pass`, `fail` or `unavailable`, with its ratios, operands and provenance. A test is unavailable when an operand is missing, when the currencies of its monetary operands differ (`incompatible_currency`), when its operands mix us-gaap and ifrs-full (`incompatible_scope`), or when a denominator is not positive (`nonpositive_denominator`); an unavailable test is never a fail. Total assets, sales and current liabilities must be positive wherever they are a denominator.
+
+| Tests available | Score | Completeness |
+|---|---|---|
+| 9 | `ok`, the number passed | complete |
+| 6 to 8 | `ok`, the number passed, shown as "*x* of *n*" | partial |
+| Fewer than 6 | `unavailable` with `insufficient_tests` | none |
+
+A partial score is always shown as "*x* of *n*" with the unavailable tests named. The usual reading of high and low scores applies to complete scores only, and a partial score never enters a ranking. If year *t−1* or *t−2* is unavailable, every operand of that year carries the reason, so the result always holds nine tests.
+
+### Execution status and applicability
+
+The status is `ok` for a complete or partial score, `input_unavailable` below six available tests, `provider_error` after a provider failure while the inputs were assembled (the result then holds the failure and no tests), and `not_applicable` for a provider-confirmed ETF. A financial issuer is applicable with a warning, because the gross-margin and current-ratio tests are typically unavailable for it. The industry class is that of the SIC code on the anchor filing, as filed; an unknown class runs and says so.
+
+The result records one taxonomy, us-gaap or ifrs-full, only when every resolved operand states the same one; otherwise it records none.
+
+See the [Piotroski F-Score Strategy Guide](strategies/PIOTROSKI.md).
+
 ## Shared metrics
 
 These metrics are defined once and used by every strategy that needs them. Each is a pure calculation over resolved inputs; every result is a typed outcome that is either `ok` with a finite number or `unavailable` with a reason code and a reason. Nothing missing becomes zero, neutral or `NaN`, except the absent components named below. Balance-sheet values are instants at the anchor fiscal year-end *t*; annual values are those of the fiscal year ending at *t*. Free cash flow and the FCF yield keep their entries under [Free Cash Flow & Earnings Growth Strategy](#free-cash-flow--earnings-growth-strategy).

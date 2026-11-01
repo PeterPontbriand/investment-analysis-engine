@@ -28,7 +28,12 @@ import typer
 from pydantic import BaseModel, ValidationError
 from typer.core import TyperGroup
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.analysis.base_analyzer import (
+    AnalysisContext,
+    BaseAnalyzer,
+    ConfigFreeAnalyzer,
+    analyzer_result_type,
+)
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import (
     CLI_STRATEGIES,
@@ -158,6 +163,7 @@ VIEW_ACCESSORS: frozenset[str] = frozenset(
 """The behavior members that generic consumers can reach, through the erased view."""
 
 ANALYZER_ENVELOPE_PARAMETERS: tuple[str, ...] = ("self", "ticker", "config", "context")
+CONFIG_FREE_ENVELOPE_PARAMETERS: tuple[str, ...] = ("self", "ticker", "context")
 ANALYZER_CONTEXT_FIELDS: tuple[str, ...] = ("as_of", "executed_at", "use_cache", "instrument_profile")
 
 _FORBIDDEN_IMPORTS = frozenset({"importlib", "pkgutil", "inspect", "entry_points"})
@@ -259,7 +265,7 @@ def _import_strategy_modules() -> None:
 def _concrete_analyzers(scope: str = "investment_analysis_engine.") -> list[type]:
     """Return every non-abstract analyzer class defined under ``scope``, found through ``BaseAnalyzer``."""
     found: list[type] = []
-    pending: list[type] = list(BaseAnalyzer.__subclasses__())
+    pending: list[type] = [*BaseAnalyzer.__subclasses__(), *ConfigFreeAnalyzer.__subclasses__()]
     while pending:
         analyzer = pending.pop()
         pending.extend(analyzer.__subclasses__())
@@ -269,12 +275,8 @@ def _concrete_analyzers(scope: str = "investment_analysis_engine.") -> list[type
 
 
 def _analyzer_result_type(analyzer: type) -> type | None:
-    """Read ``ResultT`` from the analyzer's own ``BaseAnalyzer[ConfigT, ResultT]`` specialization."""
-    for base in getattr(analyzer, "__orig_bases__", ()):
-        if get_origin(base) is BaseAnalyzer:
-            result = get_args(base)[1]
-            return result if isinstance(result, type) else None
-    return None
+    """Read ``ResultT`` from the analyzer's own specialization of either analyzer form."""
+    return analyzer_result_type(analyzer)
 
 
 def _analyzer_gaps_for(item: StrategyDescriptor, claimed: Mapping[type, list[str]]) -> list[str]:
@@ -297,7 +299,9 @@ def analyzer_generics_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> list[
             continue
         result_type = _analyzer_result_type(analyzer)
         if result_type is None:
-            gaps.append(f"analyzer {name} does not specialize BaseAnalyzer[ConfigT, ResultT]")
+            gaps.append(
+                f"analyzer {name} does not specialize BaseAnalyzer[ConfigT, ResultT] or ConfigFreeAnalyzer[ResultT]"
+            )
             continue
         claimed.setdefault(result_type, []).append(name)
     declared = {item.behavior.result_type: item for item in descriptors}
@@ -1277,7 +1281,7 @@ def descriptor_is_closed_gaps() -> list[str]:
         gaps.append(f"behavior members differ from the documented set: {sorted(members)} != {sorted(BEHAVIOR_MEMBERS)}")
     for name, field_type in fields.items():
         for part in _type_parts(field_type):
-            if isinstance(part, type) and issubclass(part, BaseAnalyzer):
+            if isinstance(part, type) and issubclass(part, (BaseAnalyzer, ConfigFreeAnalyzer)):
                 gaps.append(f"descriptor field {name} mentions an analyzer class")
             if get_origin(part) is Callable or part is Callable:
                 gaps.append(f"descriptor field {name} is a callable")
@@ -1449,6 +1453,9 @@ def analyzer_envelope_gaps() -> list[str]:
     parameters = tuple(inspect.signature(BaseAnalyzer.run_analysis).parameters)
     if parameters != ANALYZER_ENVELOPE_PARAMETERS:
         gaps.append(f"run_analysis parameters changed: {parameters} != {ANALYZER_ENVELOPE_PARAMETERS}")
+    config_free = tuple(inspect.signature(ConfigFreeAnalyzer.run_analysis).parameters)
+    if config_free != CONFIG_FREE_ENVELOPE_PARAMETERS:
+        gaps.append(f"config-free run_analysis parameters changed: {config_free} != {CONFIG_FREE_ENVELOPE_PARAMETERS}")
     context_fields = tuple(field.name for field in dataclasses.fields(AnalysisContext))
     if context_fields != ANALYZER_CONTEXT_FIELDS:
         gaps.append(f"AnalysisContext fields changed: {context_fields} != {ANALYZER_CONTEXT_FIELDS}")

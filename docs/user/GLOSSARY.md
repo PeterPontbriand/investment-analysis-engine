@@ -7,7 +7,7 @@ This glossary defines terms used in Investment Analysis Engine. Formula details 
 ## Analysis architecture
 
 ### Analysis Strategy
-A deterministic analytical capability in Investment Analysis Engine. An analysis strategy owns the rules needed to calculate and interpret a particular kind of analysis. Examples currently include the Graham Number, Graham Growth Value, Momentum, and Free Cash Flow & Earnings Growth Analysis Strategies.
+A deterministic analytical capability in Investment Analysis Engine. An analysis strategy owns the rules needed to calculate and interpret a particular kind of analysis. Examples currently include the Graham Number, Graham Growth Value, Momentum, Free Cash Flow & Earnings Growth, and Piotroski F-Score Analysis Strategies.
 
 In the Python implementation, an analysis strategy may be represented by an *analyzer* class. User documentation standardizes on **analysis strategy** rather than using internal class terminology as the product concept.
 
@@ -398,6 +398,38 @@ Latest completed annual FCF divided by market capitalization at the boundary, ex
 The rule controlling how optional FY1/FY2 analyst-consensus EPS evidence is treated: `display_only`, `confirmation`, or `hard_gate`. Only `hard_gate` can alter an otherwise passing historical classification.
 
 ---
+
+## Piotroski F-Score terms
+
+### Piotroski F-Score Strategy
+A deterministic financial-strength screen that runs nine pass/fail tests on a company's reported statements for three consecutive fiscal years and counts the tests passed. It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not a valuation or investment recommendation.
+
+### F-Score
+The number of the nine Piotroski tests passed, from 0 to 9. It is shown as "*x* of *n*" with *n* the tests that could be decided, and is unavailable with fewer than six decided tests.
+
+### Complete Score / Partial Score
+A complete score rests on all nine tests. A partial score rests on six to eight, because the other tests are unavailable; it is shown with the unavailable tests named, the usual reading of high and low scores does not apply to it, and it never enters a ranking.
+
+### Unavailable Test
+A Piotroski test that cannot be decided because an operand is missing or incompatible. It is never counted as a fail.
+
+### ROA (Return on Assets)
+In the F-Score, a year's net income divided by total assets at the start of that year.
+
+### Current Ratio
+Current assets divided by current liabilities at a fiscal year-end.
+
+### Gross Margin
+Gross profit divided by sales for a fiscal year.
+
+### Asset Turnover
+In the F-Score, a year's sales divided by total assets at the start of that year.
+
+### Net Dilution
+The change in the number of common shares outstanding between two fiscal year-ends, after buybacks. The F-Score's dilution test passes when the count did not rise.
+
+### Industry Class
+The group an issuer belongs to for applicability rules, taken from the SIC code on the annual report the analysis rests on, as filed: financial, utility, manufacturer or other. It is unknown when that code cannot be established.
 
 ## Evaluation
 

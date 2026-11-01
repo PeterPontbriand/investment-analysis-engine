@@ -1,0 +1,17 @@
+Apple Inc. (AAPL) — Piotroski F-Score: 7 of 9 (complete)
+Fiscal year-end: 2024-09-28 · 10-K 0000320193-24-000123 · us-gaap
+Industry class: manufacturer (SIC code as filed)
+Profitability
+  1 Positive ROA          pass         ROA 26.59% > 0
+  2 Positive CFO          pass         CFO / assets 33.54% > 0
+  3 Improving ROA         fail         ROA 26.59%, prior 27.50%
+  4 Cash exceeds income   pass         CFO 118,254,000,000 USD > net income 93,736,000,000 USD
+Leverage and liquidity
+  5 Falling leverage      pass         long-term debt / assets 26.94%, prior 29.80%
+  6 Improving liquidity   fail         current ratio 0.87x, prior 0.99x
+  7 No dilution           pass         shares 15,116,786,000, prior 15,550,061,000
+Efficiency
+  8 Improving margin      pass         gross margin 46.21%, prior 44.13%
+  9 Improving turnover    pass         asset turnover 1.11x, prior 1.09x
+Source: SEC EDGAR; latest evidence available 2024-11-01
+Limitation: Follows the Piotroski nine-test structure, with the net change in shares outstanding in place of the paper's equity-issuance test; not an investment recommendation.

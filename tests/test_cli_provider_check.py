@@ -456,18 +456,19 @@ def _commands_with_option(option: str) -> set[str]:
     return found
 
 
-def test_the_option_is_on_exactly_the_five_commands() -> None:
+def test_the_option_is_on_exactly_the_six_commands() -> None:
     assert _commands_with_option("--no-provider-check") == {
         "momentum",
         "graham-number",
         "graham-growth",
         "fcf-growth",
+        "piotroski",
         "refresh",
     }
 
 
 def test_the_option_help_names_no_planning_label_and_not_the_word_canary() -> None:
-    for command in ("momentum", "graham-number", "graham-growth", "fcf-growth", "refresh"):
+    for command in ("momentum", "graham-number", "graham-growth", "fcf-growth", "piotroski", "refresh"):
         text = normalize_cli_output(runner.invoke(app, [command, "--help"]).output).lower()
         assert "--no-provider-check" in text
         assert "canary" not in text

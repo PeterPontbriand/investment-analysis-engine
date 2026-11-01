@@ -347,6 +347,50 @@
       "title": "MomentumSelection",
       "type": "object"
     },
+    "PiotroskiSelection": {
+      "additionalProperties": false,
+      "description": "The Piotroski F-Score selection: the shared point-in-time and cache fields.",
+      "properties": {
+        "analysis_id": {
+          "const": "piotroski",
+          "default": "piotroski",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "As Of"
+        },
+        "config_schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "method_id": {
+          "const": "piotroski",
+          "default": "piotroski",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "use_cache": {
+          "default": true,
+          "title": "Use Cache",
+          "type": "boolean"
+        }
+      },
+      "title": "PiotroskiSelection",
+      "type": "object"
+    },
     "WatchlistDocument": {
       "additionalProperties": false,
       "description": "The complete watchlist, as ``watchlist show`` and ``watchlist rename`` write it with ``--json``.\n\nThis document is unversioned: it has no ``schema_version``.",
@@ -413,6 +457,7 @@
             "mapping": {
               "graham_growth_value": "#/$defs/GrahamGrowthSelection",
               "graham_number": "#/$defs/GrahamNumberSelection",
+              "piotroski": "#/$defs/PiotroskiSelection",
               "reported_fcf_eps_cagr": "#/$defs/FCFGrowthSelection",
               "sma_crossover": "#/$defs/MomentumSelection"
             },
@@ -430,6 +475,9 @@
             },
             {
               "$ref": "#/$defs/FCFGrowthSelection"
+            },
+            {
+              "$ref": "#/$defs/PiotroskiSelection"
             }
           ],
           "title": "Selection"

@@ -9,5 +9,6 @@ An [analysis strategy](../GLOSSARY.md#analysis-strategy) is a deterministic anal
   - [Graham Growth Value](GRAHAM_GROWTH.md) — forecast-dependent growth valuation
 - [Momentum Analysis Strategy](MOMENTUM.md) — simple-moving-average/crossover analysis over historical prices.
 - [Free Cash Flow & Earnings Growth Strategy](FCF_GROWTH.md) — historical total-company FCF, FCF-per-diluted-share, and diluted-EPS growth screening with explicit `PASS`, `FAIL`, or `INDETERMINATE` classification.
+- [Piotroski F-Score Strategy](PIOTROSKI.md) — nine pass/fail tests on three years of reported statements, scored from 0 to 9 and shown as complete or partial.
 
 Each strategy guide follows the same general order where applicable: what the strategy does, quick start, available methods, presentation modes, inputs/assumptions/overrides, data sources, historical behavior, comparison with other calculators, limitations, and related user documentation.

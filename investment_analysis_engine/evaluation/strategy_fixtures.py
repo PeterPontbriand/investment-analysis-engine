@@ -46,11 +46,16 @@ from investment_analysis_engine.strategies.momentum.evaluation import FIXTURE_ID
 from investment_analysis_engine.strategies.momentum.evaluation import REQUIREMENT as MOMENTUM_REQUIREMENT
 from investment_analysis_engine.strategies.momentum.evaluation import SAMPLE_SELECTION as MOMENTUM_SAMPLE_SELECTION
 from investment_analysis_engine.strategies.momentum.evaluation import compose as compose_momentum
+from investment_analysis_engine.strategies.piotroski.evaluation import FIXTURE_IDS as PIOTROSKI_FIXTURE_IDS
+from investment_analysis_engine.strategies.piotroski.evaluation import REQUIREMENT as PIOTROSKI_REQUIREMENT
+from investment_analysis_engine.strategies.piotroski.evaluation import SAMPLE_SELECTION as PIOTROSKI_SAMPLE_SELECTION
+from investment_analysis_engine.strategies.piotroski.evaluation import compose as compose_piotroski
 from investment_analysis_engine.strategy_wiring import (
     FCF_GROWTH_BEHAVIOR,
     GRAHAM_GROWTH_BEHAVIOR,
     GRAHAM_NUMBER_BEHAVIOR,
     MOMENTUM_BEHAVIOR,
+    PIOTROSKI_BEHAVIOR,
     StrategyBehavior,
     StrategyDescriptor,
 )
@@ -139,6 +144,15 @@ EVALUATION_STRATEGIES: Final = (
             fixture_ids=FCF_GROWTH_FIXTURE_IDS,
             compose=compose_fcf_growth,
             sample_selection=FCF_GROWTH_SAMPLE_SELECTION,
+        ),
+    ),
+    pair_evaluation(
+        PIOTROSKI_BEHAVIOR,
+        EvalComposition(
+            requirement=PIOTROSKI_REQUIREMENT,
+            fixture_ids=PIOTROSKI_FIXTURE_IDS,
+            compose=compose_piotroski,
+            sample_selection=PIOTROSKI_SAMPLE_SELECTION,
         ),
     ),
 )
