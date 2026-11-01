@@ -1879,7 +1879,7 @@ PRODUCTION = SiteContext(
     served=_production_served,
     strategy_docs=_production_strategy_docs,
 )
-"""The context of the four production strategies."""
+"""The context of the production strategies."""
 
 
 def site_checks() -> dict[str, Callable[..., list[Gap]]]:

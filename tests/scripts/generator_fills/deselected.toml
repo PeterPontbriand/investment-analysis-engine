@@ -1,5 +1,5 @@
 # The conformance tests that the end-to-end test deselects from its run of the copy. It lists none, and the
 # end-to-end test fails if an entry is added: a test that fails once a strategy exists reads the descriptors instead
-# of naming the four production strategies, or its expected-output file or table is a site in
+# of naming the production strategies, or its expected-output file or table is a site in
 # scripts/strategy_sites.toml that the fills write. An entry would be a [[test]] table with `node` (the pytest node id),
 # `kind` and `pins`.

@@ -295,6 +295,39 @@ async def test_fcf_handler_rejects_a_naive_injected_clock() -> None:
     assert result.error_message == "Analysis tool clock must return a timezone-aware datetime."
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tool_name", "arguments"),
+    [
+        (ANALYZE_GRAHAM_NUMBER_TOOL, {"ticker": GRAHAM_SECURITY_ID}),
+        (
+            ANALYZE_GRAHAM_GROWTH_VALUE_TOOL,
+            {"ticker": GRAHAM_SECURITY_ID, "expected_growth": 5.0, "current_aaa_yield": 4.15},
+        ),
+    ],
+)
+async def test_a_graham_tool_call_with_a_refused_clock_makes_no_profile_request(
+    tool_name: str, arguments: dict[str, object]
+) -> None:
+    """The clock is validated before the profile is resolved, so a refused clock sends no provider request."""
+    requested: list[str] = []
+
+    def resolve(ticker: str) -> InstrumentProfile:
+        requested.append(ticker)
+        return fixture_instrument_profile(ticker, kind=InstrumentKind.EQUITY, provider_value="EQUITY")
+
+    composition = _dependencies()
+    runtime = ToolRuntime(clock=lambda: datetime(2026, 3, 1, 12, 0), profile_resolver=resolve)
+    dispatcher = AsyncToolDispatcher()
+    _register(dispatcher, _Composition(dependencies=composition.dependencies, runtime=runtime))
+
+    result = await dispatcher.dispatch(_call(tool_name, arguments))
+
+    assert result.success is False
+    assert result.error_message == "Analysis tool clock must return a timezone-aware datetime."
+    assert requested == []
+
+
 def test_registration_requires_a_handler_for_every_tool_and_no_other() -> None:
     """Registration checks the injected mapping against ``ToolName`` in both directions."""
     composition = _dependencies()

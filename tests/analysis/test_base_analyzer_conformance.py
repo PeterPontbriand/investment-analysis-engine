@@ -2,7 +2,7 @@
 
 Every strategy subclasses ``BaseAnalyzer[ResultT, ConfigT]`` and is invoked identically as
 ``run_analysis(ticker, context, config)`` (see ``AGENTS.md`` §9). These tests hold that shape
-in place across all four analyzers, using only fixture-backed test doubles — no network access.
+in place across every analyzer, using only fixture-backed test doubles — no network access.
 """
 
 from __future__ import annotations

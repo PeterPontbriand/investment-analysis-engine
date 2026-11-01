@@ -49,7 +49,7 @@ COVERED_SITES: Final = ("tool-name", "unions", "direct-output", "strategy-docume
 """The sites the specimen's context lists as covered by the generator's end-to-end test.
 
 ``tool-name`` and ``unions`` are closed to the specimen. The other three hold reviewed expected output of the production
-command application and of the production test tables, which enumerate the four production commands and not the
+command application and of the production test tables, which enumerate the production commands and not the
 specimen's own application; the end-to-end test adds a strategy to those files in a copy and requires them done.
 """
 

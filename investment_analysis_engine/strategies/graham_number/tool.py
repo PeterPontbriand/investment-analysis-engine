@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments, FiniteFloat
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.strategies._shared.tool import tool_context
 from investment_analysis_engine.strategies.graham_number.analyzer import GrahamNumberAnalyzer
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
@@ -38,17 +38,10 @@ class GrahamNumberToolHandler:
     def __call__(self, **raw_arguments: object) -> GrahamNumberAnalysis:
         """Validate, resolve, and calculate one Graham Number run."""
         arguments = GrahamNumberToolArguments.model_validate(raw_arguments)
-        profile = self._runtime.resolve_profile(arguments.ticker)
         config = GrahamNumberConfig(
             eps_override=arguments.eps_override,
             bvps_override=arguments.bvps_override,
             quote_override=arguments.current_price_override,
         )
-        executed_at = self._runtime.validated_clock_value()
-        context = AnalysisContext(
-            as_of=arguments.as_of,
-            executed_at=executed_at,
-            use_cache=arguments.use_cache,
-            instrument_profile=profile,
-        )
+        context = tool_context(self._runtime, arguments)
         return self._dependencies.analyzer.run_analysis(ticker=arguments.ticker, config=config, context=context)

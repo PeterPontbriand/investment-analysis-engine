@@ -1,6 +1,8 @@
 """Focused tests for the Momentum execution adapter, using fake dependencies only."""
 
 import socket
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from unittest.mock import patch
 
@@ -30,6 +32,7 @@ from investment_analysis_engine.strategies.momentum.analyzer import (
 from investment_analysis_engine.strategies.momentum.execution import (
     capture_momentum,
     compose_momentum_profile,
+    execute_momentum,
     from_momentum_capture,
     run_momentum,
 )
@@ -288,3 +291,35 @@ def test_compose_momentum_profile_resolves_through_the_cache_with_identical_cand
     compose.assert_not_called()
     candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, client)
     assert cache.calls == [("AAPL", (candidate,), candidate)]
+
+
+def test_execute_momentum_composes_the_cached_profile_and_runs_inside_the_historical_scope() -> None:
+    """The adapter resolves the profile through the supplied cache, opens the scope, and embeds the profile."""
+    data_client = object()
+    cache = _RecordingCache(_profile("AAPL"))
+    events: list[str] = []
+
+    @contextmanager
+    def scope() -> Iterator[_FixtureClient]:
+        events.append("open")
+        try:
+            yield _FixtureClient()
+        finally:
+            events.append("close")
+
+    capture = execute_momentum(
+        _selection(),
+        "AAPL",
+        data_client,
+        scope,
+        start_date="2026-01-01",
+        executed_at=STAMP,
+        profile_cache=cache,
+    )
+
+    candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, data_client)
+    assert cache.calls == [("AAPL", (candidate,), candidate)]
+    assert events == ["open", "close"]
+    assert capture.run.instrument_profile is cache.profile
+    assert capture.run.metrics is not None
+    assert set(capture.presentation_inputs) == {"sma_spread", "sma_spread_percent"}

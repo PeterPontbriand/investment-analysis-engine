@@ -1,13 +1,11 @@
 """Momentum execution adapter: borrow dependencies, call the existing analyzer.
 
-This adapter extracts the analyzer invocation and captured-evidence assembly
-formerly inlined in the ``momentum`` command so both the direct
-command and a future save/refresh service call identical code. It owns no
-provider, cache, or database lifecycle: the historical provider is borrowed,
-never constructed or closed here, and instrument-profile composition stays
-the caller's responsibility. The caller composes the profile before
-calculation and passes it in, and the analyzer embeds it in the returned run;
-the calling context owns and closes providers and caches.
+``execute_momentum`` is the one path the direct command, ``--save-run`` and ``refresh`` share, modelled on the other
+strategies' ``execute_<name>``: it composes Momentum's own profile, opens the historical client, runs the analyzer and
+captures the evidence. It owns no provider, cache, or database lifecycle: the Yahoo client is borrowed, and the
+historical client is opened through a scope the caller supplies, because that client wraps the durable cache and is
+built in the CLI tier. The analyzer embeds the profile in the returned run; the calling context owns and closes
+providers and caches.
 
 The module reports facts only: the run's own result-level status and the provider failure it recorded. A provider
 failure is a stored run with the ``provider_error`` status, not an exception, so the automatic provider check reads
@@ -21,6 +19,8 @@ anything or construct an ``AnalysisRun``; it only captures one execution's
 evidence for a later execution service to assemble.
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -99,6 +99,43 @@ def run_momentum(  # noqa: PLR0913
     return analyzer.run_analysis(ticker=ticker, config=selection.to_momentum_config(), context=context)
 
 
+def execute_momentum(  # noqa: PLR0913
+    selection: MomentumSelection,
+    ticker: str,
+    data_client: object,
+    historical_scope: Callable[[], AbstractContextManager[MarketDataProvider]],
+    *,
+    start_date: str,
+    executed_at: datetime,
+    profile_cache: InstrumentProfileResolver | None = None,
+) -> MomentumCapture:
+    """Compose the profile, open the historical client and run Momentum for ``selection``.
+
+    Args:
+        selection: The validated selection: the windows, the boundary and the cache choice.
+        ticker: The normalized target ticker.
+        data_client: The borrowed Yahoo client, which is both the identity and the kind candidate of the profile.
+        historical_scope: Opens the historical client for this run and closes it on exit.
+        start_date: The first date of the requested historical series.
+        executed_at: The run's own execution clock, a single aware read of "now" taken once by the caller.
+        profile_cache: When supplied, resolves the profile through the durable profile cache instead of composing live.
+
+    Returns:
+        The captured native run and its display values.
+    """
+    profile = compose_momentum_profile(ticker, data_client=data_client, profile_cache=profile_cache)
+    with historical_scope() as historical_client:
+        run = run_momentum(
+            selection,
+            ticker,
+            historical_client,
+            start_date=start_date,
+            executed_at=executed_at,
+            instrument_profile=profile,
+        )
+    return capture_momentum(run)
+
+
 def capture_momentum(run: MomentumRun) -> MomentumCapture:
     """Bundle a run with its captured display values, which are null when no calculation ran.
 
@@ -151,6 +188,7 @@ __all__ = [
     "MomentumCapture",
     "capture_momentum",
     "compose_momentum_profile",
+    "execute_momentum",
     "from_momentum_capture",
     "run_momentum",
 ]

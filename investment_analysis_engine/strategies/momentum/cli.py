@@ -4,6 +4,10 @@ The CLI tier pairs these with the Momentum core bundle and adds the command to t
 registers itself.
 """
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
+from datetime import datetime
+
 import typer
 
 from investment_analysis_engine.analysis.base_analyzer import require_ticker
@@ -11,41 +15,34 @@ from investment_analysis_engine.cli_composition import momentum_settings
 from investment_analysis_engine.cli_provider_check import (
     provider_check_choice,
 )
-from investment_analysis_engine.cli_run_support import save_run_execution
+from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
     SAVE_RUN_OPTION,
-    SaveStage,
     emit_output,
     execution_errors,
     parse_as_of,
-    production_database,
     production_historical_client,
-    production_instrument_profile_cache,
     render_execution,
     require_job_ticker,
     resolve_command_target,
-    saving_failures,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.repositories.readiness import ensure_database_ready
+from investment_analysis_engine.data.market_data import MarketDataProvider
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig
 from investment_analysis_engine.strategies.momentum.execution import (
-    capture_momentum,
-    compose_momentum_profile,
+    execute_momentum,
     from_momentum_capture,
-    run_momentum,
 )
 from investment_analysis_engine.strategies.momentum.presenter import MomentumPresentation, render_momentum
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 
 
@@ -95,26 +92,29 @@ def build_selection(flags: WatchlistFlags) -> MomentumSelection:
     )
 
 
+def _historical_scope(
+    data_client: YFinanceClient, selection: MomentumSelection, executed_at: datetime
+) -> Callable[[], AbstractContextManager[MarketDataProvider]]:
+    """Return the scope that opens Momentum's historical client over the borrowed Yahoo client for one run."""
+    return lambda: production_historical_client(data_client, use_cache=selection.use_cache, clock=lambda: executed_at)
+
+
 def refresh(
     ticker: str, selection: MomentumSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
     """Execute one Momentum refresh job with freshly composed, job-scoped dependencies."""
     data_client = YFinanceClient()
     executed_at = utc_now()
-    normalized_ticker = require_ticker(require_job_ticker(ticker))
-    profile = compose_momentum_profile(normalized_ticker, data_client=data_client, profile_cache=profile_cache)
-    with production_historical_client(
-        data_client, use_cache=selection.use_cache, clock=lambda: executed_at
-    ) as historical_client:
-        run = run_momentum(
-            selection,
-            normalized_ticker,
-            historical_client,
-            start_date=momentum_settings().history_start_date.isoformat(),
-            executed_at=executed_at,
-            instrument_profile=profile,
-        )
-    return from_momentum_capture(capture_momentum(run))
+    capture = execute_momentum(
+        selection,
+        require_ticker(require_job_ticker(ticker)),
+        data_client,
+        _historical_scope(data_client, selection, executed_at),
+        start_date=momentum_settings().history_start_date.isoformat(),
+        executed_at=executed_at,
+        profile_cache=profile_cache,
+    )
+    return from_momentum_capture(capture)
 
 
 _MOMENTUM_CLI_DEFAULTS = momentum_settings()
@@ -187,51 +187,23 @@ def command(  # noqa: PLR0913
         # executed_at is the run's own execution clock, distinct from the requested as_of boundary.
         executed_at = utc_now()
 
-        if save_run:
-            # Momentum's profile is composed CLI-side (outside the D1 adapter). Readiness is
-            # checked before the historical-data provider call, matching every other
-            # command's "preflight before provider work" ordering.
-            database = production_database()
-            try:
-                ensure_database_ready(database)
-                profile_cache = production_instrument_profile_cache(database, clock=lambda: executed_at)
-                profile = compose_momentum_profile(target_ticker, data_client=data_client, profile_cache=profile_cache)
-                with production_historical_client(
-                    data_client, use_cache=selection.use_cache, clock=lambda: executed_at
-                ) as historical_client:
-                    run = run_momentum(
-                        selection,
-                        target_ticker,
-                        historical_client,
-                        start_date=start_date,
-                        executed_at=executed_at,
-                        instrument_profile=profile,
-                    )
-                momentum_capture = capture_momentum(run)
-                with saving_failures(SaveStage(analyzed=True)):
-                    saved = save_run_execution(
-                        AnalysisRequest(ticker=target_ticker, selection=selection),
-                        capture=lambda: from_momentum_capture(momentum_capture),
-                        repository=SQLiteAnalysisRunRepository(database),
-                    )
-                typer.echo(f"Saved Analysis Run: {saved.analysis_run_id}", err=True)
-            finally:
-                database.close()
-        else:
-            profile = compose_momentum_profile(target_ticker, data_client=data_client)
-            with production_historical_client(
-                data_client, use_cache=selection.use_cache, clock=lambda: executed_at
-            ) as historical_client:
-                run = run_momentum(
-                    selection,
-                    target_ticker,
-                    historical_client,
-                    start_date=start_date,
-                    executed_at=executed_at,
-                    instrument_profile=profile,
-                )
-            momentum_capture = capture_momentum(run)
-        execution = from_momentum_capture(momentum_capture)
+        capture = analyze_and_maybe_save(
+            save_run=save_run,
+            executed_at=executed_at,
+            request_factory=lambda: AnalysisRequest(ticker=target_ticker, selection=selection),
+            run_adapter=lambda profile_cache: execute_momentum(
+                selection,
+                target_ticker,
+                data_client,
+                _historical_scope(data_client, selection, executed_at),
+                start_date=start_date,
+                executed_at=executed_at,
+                profile_cache=profile_cache,
+            ),
+            normalize=from_momentum_capture,
+        )
+        run = capture.run
+        execution = from_momentum_capture(capture)
         embedded_profile = run.instrument_profile
         if embedded_profile is None:
             raise ValueError("Momentum result did not retain the instrument profile it ran with.")

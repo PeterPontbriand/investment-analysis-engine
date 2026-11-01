@@ -3,11 +3,10 @@
 The service owns identity and timing capture and performs the terminal
 insertion; it does not call production providers or analyzers itself, and
 it does not construct or close their dependencies. A caller-composed
-"capture" callable — one of the D1-D4 method adapters (``run_momentum`` +
-``capture_momentum``, ``execute_graham_number``, ``execute_graham_growth``,
-or ``execute_fcf_growth``), already bound to its borrowed provider/client
+"capture" callable — a strategy's execution adapter (``execute_<name>``)
+already bound to its borrowed provider/client
 dependencies — does that. This keeps :func:`execute` identical regardless
-of which of the four methods is being run: it only needs a normalized
+of which method is being run: it only needs a normalized
 :class:`~investment_analysis_engine.workspace.capture.ExecutionCapture` back from that callable, and
 takes its versions and evidence encoder from the injected :class:`RunSpec`, so
 this module names no strategy.

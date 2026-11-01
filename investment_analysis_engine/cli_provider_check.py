@@ -1,7 +1,7 @@
 """The first line after a provider failure: what one test request to the implicated provider found.
 
-Every command that reports a provider failure (``momentum``, ``graham-number``, ``graham-growth``, ``fcf-growth`` and
-``refresh``) calls :func:`provider_check_findings` once per invocation. The text lines and the ``provider_check``
+Every command that reports a provider failure (every direct strategy command and ``refresh``) calls
+:func:`provider_check_findings` once per invocation. The text lines and the ``provider_check``
 element of the JSON documents are both built from those findings, so the wording, the order and the rules live here once
 and no other path calls the probe. The probe itself is built at the composition root
 (``investment_analysis_engine.cli``) and reaches a command through the Typer context. The check can add lines or an
