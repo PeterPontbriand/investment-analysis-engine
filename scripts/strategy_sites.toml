@@ -35,7 +35,7 @@ fails = "the file imports from its own package"
 
 [[site]]
 id = "analyzer"
-title = "Analyzer modules: config, result, analyzer"
+title = "Analyzer module: result and analyzer, and the configuration when the strategy has one"
 why = "The analyzer defines the strategy's result type, which the descriptor must agree with."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/analyzer.py"

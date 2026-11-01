@@ -1,33 +1,66 @@
 """The $label strategy's CLI functions.
 
-They are the direct command, the selection builder and the refresh executor.
+They are the direct command, the selection builder and the refresh executor, with the composition of the analyzer.
 """
+
+from datetime import datetime
 
 import typer
 
-from investment_analysis_engine.cli_support import AS_OF_OPTION, NO_PROVIDER_CHECK_OPTION, SAVE_RUN_OPTION
+from investment_analysis_engine.cli_provider_check import provider_check_choice
+from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
+from investment_analysis_engine.cli_support import (
+    AS_OF_OPTION,
+    NO_PROVIDER_CHECK_OPTION,
+    SAVE_RUN_OPTION,
+    emit_output,
+    execution_errors,
+    parse_as_of,
+    render_execution,
+    require_job_ticker,
+    resolve_command_target,
+)
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.strategies.$module.analyzer import ${Class}Analyzer
+from investment_analysis_engine.strategies.$module.execution import execute_$module, from_${module}_capture
+from investment_analysis_engine.strategies.$module.presenter import render_$module
 from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.requests import AnalysisRequest
+
+
+def compose_$module(executed_at: datetime) -> tuple[${Class}Analyzer, object]:
+    """Compose the $label analyzer and the provider its profile is composed from.
+
+    ``executed_at`` is the run's single reading of the current time, never the ``--as-of`` boundary.
+    """
+    del executed_at
+    unfilled_stub("cli")
 
 
 def build_selection(flags: WatchlistFlags) -> ${Class}Selection:
     """Build one validated $label selection.
 
-    It is built from the watchlist flags it concerns.
+    It is built from the watchlist flags it concerns: the boundary and the cache choice.
     """
-    del flags
-    unfilled_stub("cli")
+    return ${Class}Selection(as_of=parse_as_of(flags.as_of), use_cache=not flags.no_cache)
 
 
 def refresh(
     ticker: str, selection: ${Class}Selection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
-    """Execute one $label refresh job."""
-    del ticker, selection, profile_cache
-    unfilled_stub("cli")
+    """Execute one $label refresh job with a freshly composed, job-scoped analyzer."""
+    require_job_ticker(ticker)
+    executed_at = utc_now()
+    analyzer, provider = compose_$module(executed_at)
+    capture = execute_$module(
+        analyzer, ticker, selection, executed_at=executed_at, provider=provider, profile_cache=profile_cache
+    )
+    return from_${module}_capture(capture)
 
 
 def command(  # noqa: PLR0913
@@ -43,5 +76,39 @@ def command(  # noqa: PLR0913
     no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Run the $label analysis."""
-    del context, ticker, as_of, no_cache, details, diagnostics, json_output, save_run, no_provider_check
-    unfilled_stub("cli")
+    executed_at = utc_now()
+    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
+
+    with execution_errors(
+        json_output=json_output, selection_type=${Class}Selection, provider_check=provider_check
+    ) as scope:
+        target_ticker, mode = resolve_command_target(
+            scope, ticker, None, command="$alias", details=details, diagnostics=diagnostics, json_output=json_output
+        )
+        selection = ${Class}Selection(as_of=parse_as_of(as_of), use_cache=not no_cache)
+        analyzer, provider = compose_$module(executed_at)
+        capture = analyze_and_maybe_save(
+            save_run=save_run,
+            executed_at=executed_at,
+            request_factory=lambda: AnalysisRequest(ticker=target_ticker, selection=selection),
+            run_adapter=lambda profile_cache: execute_$module(
+                analyzer,
+                target_ticker,
+                selection,
+                executed_at=executed_at,
+                provider=provider,
+                profile_cache=profile_cache,
+            ),
+            normalize=from_${module}_capture,
+        )
+        result = capture.result
+        profile = capture.profile
+        identity_resolution = profile_identity_resolution(profile)
+
+    output, exit_code = render_execution(
+        from_${module}_capture(capture),
+        provider_check,
+        mode,
+        lambda element: render_$module(result, mode, identity_resolution, profile, element),
+    )
+    emit_output(output, exit_code, mode)

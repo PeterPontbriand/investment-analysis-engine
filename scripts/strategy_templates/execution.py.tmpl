@@ -9,6 +9,7 @@ from datetime import datetime
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.strategies._shared.profile import compose_production_profile
 from investment_analysis_engine.strategies.$module.analyzer import ${Class}Analyzer, ${Class}Result
 from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
@@ -31,9 +32,24 @@ def execute_$module(  # noqa: PLR0913
     provider: object,
     profile_cache: InstrumentProfileResolver | None = None,
 ) -> ${Class}Capture:
-    """Compose the profile and run the analyzer for ``selection``."""
-    del analyzer, ticker, selection, executed_at, provider, profile_cache
-    unfilled_stub("execution")
+    """Compose the profile and run the analyzer for ``selection``.
+
+    Args:
+        analyzer: A borrowed, already-composed analyzer.
+        ticker: The normalized target ticker.
+        selection: The validated selection: the boundary and the cache choice.
+        executed_at: The run's single reading of the current time, taken once by the caller.
+        provider: The provider used as both the primary and the Yahoo identity candidate of the profile.
+        profile_cache: When supplied, resolves the profile through the durable profile cache instead of composing live.
+
+    Returns:
+        The captured native result and its profile.
+    """
+    profile = compose_production_profile(
+        ticker, primary_provider=provider, yahoo_provider=provider, profile_cache=profile_cache
+    )
+    context = selection.to_analysis_context(executed_at=executed_at, instrument_profile=profile)
+    return ${Class}Capture(result=analyzer.run_analysis(ticker, context), profile=profile)
 
 
 def from_${module}_capture(capture: ${Class}Capture) -> ExecutionCapture:

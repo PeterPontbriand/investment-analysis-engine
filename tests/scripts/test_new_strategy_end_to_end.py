@@ -14,6 +14,7 @@ the fills write. Three more files hold tests that a strategy does not change; th
 only the tests whose node id names the strategy's alias or module run.
 """
 
+import ast
 import os
 import re
 import shutil
@@ -24,7 +25,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Final
 
-from scripts.new_strategy import PACKAGE, STUB_ROLES
+from scripts.new_strategy import PACKAGE, STUB_ROLES, ruff_clean
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import load_sites
 from tests._migrated_database import ALEMBIC_INI
@@ -42,8 +43,11 @@ COPIED_FILES: Final = ("pyproject.toml", ALEMBIC_INI.name)
 EXCLUDED: Final = ("__pycache__", "*.pyc", ".mypy_cache", ".ruff_cache", ".pytest_cache", "htmlcov", "*.egg-info")
 PROXY_VARIABLES: Final = frozenset({"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "FTP_PROXY"})
 
-STUB_FILL_ROLES: Final = ("analyzer", "tool", "codec", "execution", "cli", "presenter", "replay", "evaluation")
-"""The generated files whose bodies the fills write; the others are complete as generated."""
+STUB_FILL_ROLES: Final = ("analyzer", "codec", "execution", "cli", "presenter", "replay", "evaluation")
+"""The generated files with a body the fills write; the others are complete as generated.
+
+The tool handler is complete as generated: its body validates the arguments, builds the context and calls the analyzer.
+"""
 
 NOT_DONE_UNTIL_FILLED: Final = frozenset({"codec", "presenter", "replay"})
 """Generated sites whose check runs a stored run, which needs the evaluation file's sample selection to be written."""
@@ -91,6 +95,7 @@ EXPECTED_FILLS: Final = {
     "direct.json": "tests/expected_output/direct_commands/ci-probe.json",
     "document.direct.json": "tests/expected_output/strategy_documents/ci-probe-success.direct.json",
     "document.replay.json": "tests/expected_output/strategy_documents/ci-probe-success.replay.json",
+    "help.txt": "tests/expected_output/cli_help/ci-probe.txt",
 }
 """The reviewed expected-output files of the strategy, by fill name in ``generator_fills/expected/``."""
 
@@ -159,11 +164,92 @@ def _assert_ruff_clean(copy: Path) -> None:
         assert process.returncode == 0, f"ruff {' '.join(arguments)}\n{_output(process)}"
 
 
+def _statement_name(node: ast.stmt) -> str | None:
+    """Return the name a top-level function, class or single-name assignment defines, or ``None``."""
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+        return node.name
+    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+        return node.target.id
+    if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+        return node.targets[0].id
+    return None
+
+
+def _first_line(node: ast.stmt) -> int:
+    """Return the first line of a statement, counting its decorators."""
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+        return min([node.lineno, *(decorator.lineno for decorator in node.decorator_list)])
+    return node.lineno
+
+
+def _is_docstring_statement(node: ast.stmt) -> bool:
+    return isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+
+
+def fill_source(generated: str, fill: str) -> str:
+    """Return ``generated`` with each definition in ``fill`` replacing the one of the same name.
+
+    A fill holds only the imports and the definitions (functions, classes and single-name assignments, each with the
+    string that documents it) that complete a generated file; its own module docstring is ignored. A name the generated
+    file does not define is inserted before the next fill definition that it does define, or at the end of the file.
+    The imports follow the generated file's last import, and the caller's Ruff pass sorts them and drops the unused.
+    """
+    lines = generated.splitlines(keepends=True)
+    fill_lines = fill.splitlines(keepends=True)
+    by_name = {name: node for node in ast.parse(generated).body if (name := _statement_name(node)) is not None}
+    imports: list[str] = []
+    groups: list[tuple[str, str]] = []
+    for index, node in enumerate(ast.parse(fill).body):
+        end = node.end_lineno
+        assert end is not None
+        text = "".join(fill_lines[_first_line(node) - 1 : end])
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            imports.append(text)
+        elif (name := _statement_name(node)) is not None:
+            groups.append((name, text))
+        elif _is_docstring_statement(node) and index > 0 and groups:
+            groups[-1] = (groups[-1][0], groups[-1][1] + text)
+        else:
+            assert _is_docstring_statement(node), f"a fill holds only imports and definitions: {text!r}"
+            assert index == 0, f"a fill's only free-standing string is its docstring: {text!r}"
+    insertions: dict[int, list[str]] = {}
+    replacements: dict[int, tuple[int, str]] = {}
+    for position, (name, text) in enumerate(groups):
+        if name in by_name:
+            node = by_name[name]
+            assert node.end_lineno is not None
+            replacements[_first_line(node)] = (node.end_lineno, text)
+            continue
+        later = next((by_name[other] for other, _ in groups[position + 1 :] if other in by_name), None)
+        insertions.setdefault(_first_line(later) if later is not None else len(lines) + 1, []).append(text)
+    last_import = max(
+        (node.end_lineno or 0 for node in ast.parse(generated).body if isinstance(node, ast.Import | ast.ImportFrom)),
+        default=0,
+    )
+    insertions.setdefault(last_import + 1, []).extend(imports)
+    out: list[str] = []
+    line = 1
+    while line <= len(lines) + 1:
+        for text in insertions.get(line, []):
+            out.append(text if text.startswith(("from ", "import ")) else text.rstrip() + "\n\n\n")
+        if line in replacements:
+            end, text = replacements[line]
+            out.append(text)
+            line = end + 1
+            continue
+        if line <= len(lines):
+            out.append(lines[line - 1])
+        line += 1
+    return "".join(out)
+
+
 def _apply_fills(copy: Path) -> None:
-    """Write the hand-written fills over the stubs and make the reviewed edits to existing files."""
+    """Complete the stubs from the fills and make the reviewed edits to existing files."""
     package = copy / PACKAGE
     for role in STUB_FILL_ROLES:
-        shutil.copyfile(FILLS / f"{role}.py.fill", package / "strategies" / MODULE / f"{role}.py")
+        path = package / "strategies" / MODULE / f"{role}.py"
+        filled = fill_source(path.read_text(encoding="utf-8"), (FILLS / f"{role}.py.fill").read_text(encoding="utf-8"))
+        path.write_text(ruff_clean(copy, path, filled), encoding="utf-8", newline="\n")
     shutil.copyfile(FILLS / "cases.py.fill", package / "evaluation" / "cases" / f"{MODULE}.py")
     shutil.copyfile(FILLS / "guide.md.fill", copy / "docs" / "user" / "strategies" / "CI_PROBE.md")
     for name, destination in EXPECTED_FILLS.items():

@@ -1,6 +1,7 @@
-"""The CI Probe strategy's presenter: every presentation mode, from the evidence alone."""
-
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
+from investment_analysis_engine.data.instrument_profile import InstrumentProfile
+from investment_analysis_engine.data.security_identity import SecurityIdentityResolution
 from investment_analysis_engine.reporting.documents.shared_parts import SecurityIdentityPart
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.presentation import PresentationMode
@@ -9,8 +10,15 @@ from investment_analysis_engine.strategies.ci_probe.envelope import DOCUMENT_SCH
 from investment_analysis_engine.strategies.ci_probe.vocabulary import ANALYSIS_ID, METHOD_ID
 
 
-def render_ci_probe(result: CiProbeResult, mode: PresentationMode = PresentationMode.CONCISE) -> str:
-    """Render one CI Probe result in ``mode``."""
+def render_ci_probe(
+    result: CiProbeResult,
+    mode: PresentationMode = PresentationMode.CONCISE,
+    identity_resolution: SecurityIdentityResolution | None = None,
+    instrument_profile: InstrumentProfile | None = None,
+    provider_check: tuple[ProviderCheckItem, ...] | None = None,
+) -> str:
+    """Render one CI Probe result in ``mode``; the probe reads no identity, so only the mode and the result matter."""
+    del identity_resolution, instrument_profile, provider_check
     if mode is PresentationMode.JSON:
         return strategy_document_json(
             CiProbeDocument(

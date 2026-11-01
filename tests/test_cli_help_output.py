@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pytest
 
+from investment_analysis_engine.strategy_wiring import STRATEGIES
 from tests._cli_help_output import HELP_TARGETS, expected_path, render_help
 
 
@@ -20,6 +21,13 @@ from tests._cli_help_output import HELP_TARGETS, expected_path, render_help
 def test_help_matches_the_stored_output(target: str) -> None:
     """Each help text is exactly the stored bytes."""
     assert render_help(target) == expected_path(target).read_bytes()
+
+
+def test_every_declared_strategy_has_a_stored_command_help_snapshot() -> None:
+    """A strategy's command help is checked: its alias is a target and its stored file exists."""
+    aliases = [descriptor.alias for descriptor in STRATEGIES]
+    assert [alias for alias in aliases if alias not in HELP_TARGETS] == []
+    assert [alias for alias in aliases if not expected_path(alias).is_file()] == []
 
 
 def test_application_help_lists_the_commands_in_the_documented_order() -> None:

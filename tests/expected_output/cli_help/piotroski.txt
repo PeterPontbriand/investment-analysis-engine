@@ -1,0 +1,19 @@
+Usage: root piotroski [OPTIONS] {ticker}
+Run the Piotroski F-Score analysis.
+Arguments
+* ticker <str> Target stock ticker symbol (e.g., AAPL, KO)
+[required]
+Options
+--as-of <str> Point-in-time boundary as YYYY-MM-DD or
+timezone-aware ISO-8601 timestamp
+--no-cache Bypass the cache
+--details Show each test's operands with their
+year-end and value
+--diagnostics Show where each operand came from and how
+the inputs were assembled
+--json Emit the complete versioned typed result
+--save-run Persist this attempt as a durable Analysis
+Run
+--no-provider-check Do not send a test request to a provider
+after it fails
+--help Show this message and exit.
