@@ -989,3 +989,22 @@ def test_an_unfilled_stub_that_no_file_still_calls_is_not_hidden(tmp_path: Path)
     context = replace(conformance.PRODUCTION, root=tmp_path, stored_run=unfilled)
     with pytest.raises(UnfilledStubError):
         conformance.site_codec(_names_of(FCF_GROWTH), context)
+
+
+def test_the_help_snapshot_site_requires_the_command_snapshot_and_names_the_file(tmp_path: Path) -> None:
+    """An application row without the command's own ``<alias>.txt`` is missing, naming the file and the command."""
+    names = strategy_names("fresh_probe")
+    folder = tmp_path / "tests" / "expected_output" / "cli_help"
+    folder.mkdir(parents=True)
+    (folder / "application.txt").write_text("fresh-probe Run the Fresh Probe analysis.\n", encoding="utf-8")
+    context = replace(conformance.PRODUCTION, root=tmp_path)
+
+    gaps = conformance.site_help_snapshot(names, context)
+
+    assert [gap.site_id for gap in gaps] == ["help-snapshot"]
+    assert gaps[0].message == (
+        "tests/expected_output/cli_help/fresh-probe.txt does not exist; "
+        "write it with uv run python -m tests._cli_help_output"
+    )
+    (folder / "fresh-probe.txt").write_text("Usage: root fresh-probe\n", encoding="utf-8")
+    assert conformance.site_help_snapshot(names, context) == []

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.strategies._shared.tool import tool_context
 from investment_analysis_engine.strategies.$module.analyzer import ${Class}Analyzer, ${Class}Result
 
 
@@ -31,5 +31,6 @@ class ${Class}ToolHandler:
 
     def __call__(self, **raw_arguments: object) -> ${Class}Result:
         """Validate the arguments and run one $label analysis."""
-        del raw_arguments
-        unfilled_stub("tool")
+        arguments = ${Class}ToolArguments.model_validate(raw_arguments)
+        context = tool_context(self._runtime, arguments)
+        return self._dependencies.analyzer.run_analysis(ticker=arguments.ticker, context=context)

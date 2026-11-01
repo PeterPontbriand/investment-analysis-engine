@@ -1,40 +1,4 @@
-"""The CI Probe strategy's execution adapter: compose the profile, call the analyzer and capture the evidence."""
-
-from dataclasses import dataclass
-from datetime import datetime
-
-from investment_analysis_engine.data.instrument_profile import InstrumentProfile
-from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.strategies._shared.profile import compose_production_profile
-from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnalyzer, CiProbeResult
 from investment_analysis_engine.strategies.ci_probe.codec import ci_probe_native_status
-from investment_analysis_engine.strategies.ci_probe.selection import CiProbeSelection
-from investment_analysis_engine.workspace.capture import ExecutionCapture
-
-
-@dataclass(frozen=True)
-class CiProbeCapture:
-    """The captured evidence of one CI Probe execution."""
-
-    result: CiProbeResult
-    profile: InstrumentProfile
-
-
-def execute_ci_probe(  # noqa: PLR0913
-    analyzer: CiProbeAnalyzer,
-    ticker: str,
-    selection: CiProbeSelection,
-    *,
-    executed_at: datetime,
-    provider: object,
-    profile_cache: InstrumentProfileResolver | None = None,
-) -> CiProbeCapture:
-    """Compose the profile and run the analyzer for ``selection``; the calculation has no failure outcome."""
-    profile = compose_production_profile(
-        ticker, primary_provider=provider, yahoo_provider=provider, profile_cache=profile_cache
-    )
-    context = selection.to_analysis_context(executed_at=executed_at, instrument_profile=profile)
-    return CiProbeCapture(result=analyzer.run_analysis(ticker, context), profile=profile)
 
 
 def from_ci_probe_capture(capture: CiProbeCapture) -> ExecutionCapture:

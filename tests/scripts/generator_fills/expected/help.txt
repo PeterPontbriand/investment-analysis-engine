@@ -1,0 +1,16 @@
+Usage: root ci-probe [OPTIONS] {ticker}
+Run the CI Probe analysis.
+Arguments
+* ticker <str> Target ticker symbol [required]
+Options
+--as-of <str> Point-in-time boundary as YYYY-MM-DD or
+timezone-aware ISO-8601 timestamp
+--no-cache Bypass the cache
+--details Show the inputs
+--diagnostics Show how the result was assembled
+--json Emit stable machine-readable JSON
+--save-run Persist this attempt as a durable Analysis
+Run
+--no-provider-check Do not send a test request to a provider
+after it fails
+--help Show this message and exit.

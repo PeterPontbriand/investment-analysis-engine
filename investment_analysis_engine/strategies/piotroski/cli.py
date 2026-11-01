@@ -7,7 +7,6 @@ cached, so a run composes the SEC adapter once and builds the analyzer on it. Th
 source of the industry class, so it is built here and the production provider is composed from it.
 """
 
-from collections.abc import Callable
 from datetime import datetime
 
 import typer
@@ -42,21 +41,21 @@ from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 
 
-def compose_piotroski(clock: Callable[[], datetime]) -> tuple[PiotroskiAnalyzer, ProductionFinancialFactsProvider]:
+def compose_piotroski(executed_at: datetime) -> tuple[PiotroskiAnalyzer, ProductionFinancialFactsProvider]:
     """Compose the production analyzer and the provider its profile is composed from.
 
     The SEC adapter is built once. It serves the analyzer's resolver through the production provider and is the
     analyzer's as-filed SIC source, so the industry class is read from the same analysis scope as the inputs.
 
     Args:
-        clock: The run's execution clock, never a point-in-time boundary.
+        executed_at: The run's single reading of the current time, never the ``--as-of`` boundary.
 
     Returns:
         The analyzer and the production provider.
     """
     adapter = build_sec_edgar_adapter()
     provider = ProductionFinancialFactsProvider(sec_edgar=adapter)
-    return PiotroskiAnalyzer(InputResolver(provider, clock=clock), adapter), provider
+    return PiotroskiAnalyzer(InputResolver(provider, clock=lambda: executed_at), adapter), provider
 
 
 def build_selection(flags: WatchlistFlags) -> PiotroskiSelection:
@@ -73,7 +72,7 @@ def refresh(
     """Execute one Piotroski F-Score refresh job with a freshly composed, job-scoped analyzer."""
     require_job_ticker(ticker)
     executed_at = utc_now()
-    analyzer, provider = compose_piotroski(lambda: executed_at)
+    analyzer, provider = compose_piotroski(executed_at)
     capture = execute_piotroski(
         analyzer, ticker, selection, executed_at=executed_at, provider=provider, profile_cache=profile_cache
     )
@@ -105,7 +104,7 @@ def command(  # noqa: PLR0913
             scope, ticker, None, command="piotroski", details=details, diagnostics=diagnostics, json_output=json_output
         )
         selection = PiotroskiSelection(as_of=parse_as_of(as_of), use_cache=not no_cache)
-        analyzer, provider = compose_piotroski(lambda: executed_at)
+        analyzer, provider = compose_piotroski(executed_at)
         capture = analyze_and_maybe_save(
             save_run=save_run,
             executed_at=executed_at,

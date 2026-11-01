@@ -447,3 +447,109 @@ def test_the_execution_and_command_templates_compose_the_profile_and_offer_every
     assert "as_of: str | None = AS_OF_OPTION" in command
     assert "save_run: bool = SAVE_RUN_OPTION" in command
     assert "def to_analysis_context(" in _rendered("selection")
+
+
+def _function(source: str, name: str) -> ast.FunctionDef:
+    """Return the top-level function or the method called ``name`` in ``source``."""
+    found = [node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.FunctionDef) and node.name == name]
+    assert len(found) == 1, name
+    return found[0]
+
+
+def _called_names(node: ast.AST) -> set[str]:
+    """Return the name of each plain function a node calls, including the ones in nested lambdas."""
+    return {call.func.id for call in ast.walk(node) if isinstance(call, ast.Call) and isinstance(call.func, ast.Name)}
+
+
+def _stub_functions(role: str) -> set[str]:
+    """Return the functions of a rendered template whose body still calls ``unfilled_stub``."""
+    tree = ast.parse(_rendered(role))
+    return {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and "unfilled_stub" in _called_names(node)
+    }
+
+
+def test_the_templates_leave_unfilled_only_the_strategy_specific_bodies() -> None:
+    """The execution function, the command, refresh, the selection builder and the tool handler are written in full."""
+    expected = {
+        "analyzer": {"run_analysis"},
+        "tool": set(),
+        "selection": set(),
+        "codec": {"encode_fresh_probe", "decode_fresh_probe", "fresh_probe_native_status"},
+        "execution": {"from_fresh_probe_capture"},
+        "cli": {"compose_fresh_probe"},
+        "presenter": {"render_fresh_probe"},
+        "replay": {"project_fresh_probe", "headline_fresh_probe"},
+        "evaluation": {"compose"},
+        "vocabulary": set(),
+        "envelope": set(),
+    }
+    assert {role: _stub_functions(role) for role in STUB_ROLES} == expected
+
+
+def test_the_generated_execution_function_composes_the_profile_and_runs_the_analyzer() -> None:
+    """It composes the profile with the provider as both candidates, then runs the analyzer with the context."""
+    execution = _rendered("execution")
+    body = _function(execution, "execute_fresh_probe")
+    assert {"compose_production_profile"} <= _called_names(body)
+    assert "primary_provider=provider, yahoo_provider=provider, profile_cache=profile_cache" in execution
+    assert "selection.to_analysis_context(executed_at=executed_at, instrument_profile=profile)" in execution
+    assert "analyzer.run_analysis(ticker, context)" in execution
+    assert "import compose_production_profile" in execution
+
+
+def test_the_generated_command_and_refresh_compose_the_analyzer_through_the_one_function() -> None:
+    """Both call ``compose_<name>`` with the run's one reading of the time, and the command renders like Piotroski's."""
+    cli = _rendered("cli")
+    for name in ("command", "refresh"):
+        assert "compose_fresh_probe" in _called_names(_function(cli, name)), name
+    assert "compose_fresh_probe(executed_at)" in cli
+    signature = _function(cli, "compose_fresh_probe")
+    assert [argument.arg for argument in signature.args.args] == ["executed_at"]
+    assert "never the ``--as-of`` boundary" in (ast.get_docstring(signature) or "")
+    assert "lambda element: render_fresh_probe(result, mode, identity_resolution, profile, element)" in cli
+
+
+def test_the_generated_command_and_refresh_use_the_shared_command_helpers() -> None:
+    """The bodies are built from the helpers of ``cli_support`` and its neighbors, not from inlined code."""
+    cli = _rendered("cli")
+    command = _called_names(_function(cli, "command"))
+    assert {
+        "provider_check_choice",
+        "execution_errors",
+        "resolve_command_target",
+        "parse_as_of",
+        "analyze_and_maybe_save",
+        "profile_identity_resolution",
+        "render_execution",
+        "emit_output",
+        "utc_now",
+    } <= command
+    assert {"require_job_ticker", "utc_now", "compose_fresh_probe", "execute_fresh_probe"} <= _called_names(
+        _function(cli, "refresh")
+    )
+    assert "parse_as_of" in _called_names(_function(cli, "build_selection"))
+    assert 'command="fresh-probe"' in cli
+
+
+def test_the_generated_tool_handler_validates_builds_the_context_and_runs_the_analyzer() -> None:
+    """``__call__`` validates the arguments, builds the context with ``tool_context``, then calls the analyzer."""
+    tool = _rendered("tool")
+    assert "tool_context" in _called_names(_function(tool, "__call__"))
+    assert "FreshProbeToolArguments.model_validate(raw_arguments)" in tool
+    assert "tool_context(self._runtime, arguments)" in tool
+    assert "run_analysis(ticker=arguments.ticker, context=context)" in tool
+
+
+def test_the_generated_presenter_takes_the_parameters_of_the_strategies_presenters() -> None:
+    """``render_<name>`` takes the result, mode, identity, profile and provider check, as Piotroski's does."""
+    render = _function(_rendered("presenter"), "render_fresh_probe")
+    assert [argument.arg for argument in render.args.args] == [
+        "result",
+        "mode",
+        "identity_resolution",
+        "instrument_profile",
+        "provider_check",
+    ]

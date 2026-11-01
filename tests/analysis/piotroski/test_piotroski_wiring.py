@@ -131,7 +131,7 @@ def test_the_selection_holds_only_the_boundary_and_the_cache_choice_and_makes_a_
 def test_production_composes_one_adapter_that_serves_the_resolver_and_the_industry_class() -> None:
     adapter = SecEdgarFinancialFactsAdapter(user_agent="Synthetic test")
     with patch.object(piotroski_cli, "build_sec_edgar_adapter", return_value=adapter) as build:
-        analyzer, provider = piotroski_cli.compose_piotroski(lambda: CLOCK)
+        analyzer, provider = piotroski_cli.compose_piotroski(CLOCK)
     build.assert_called_once_with()
     assert isinstance(analyzer, PiotroskiAnalyzer)
     assert isinstance(provider, ProductionFinancialFactsProvider)

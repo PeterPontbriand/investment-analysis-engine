@@ -3,12 +3,24 @@
 It renders every presentation mode from the evidence alone.
 """
 
+from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.data.instrument_profile import InstrumentProfile
+from investment_analysis_engine.data.security_identity import SecurityIdentityResolution
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.$module.analyzer import ${Class}Result
 
 
-def render_$module(result: ${Class}Result, mode: PresentationMode = PresentationMode.CONCISE) -> str:
-    """Render one $label result in ``mode``."""
-    del result, mode
+def render_$module(
+    result: ${Class}Result,
+    mode: PresentationMode = PresentationMode.CONCISE,
+    identity_resolution: SecurityIdentityResolution | None = None,
+    instrument_profile: InstrumentProfile | None = None,
+    provider_check: tuple[ProviderCheckItem, ...] | None = None,
+) -> str:
+    """Render one $label result in ``mode`` without recalculation.
+
+    ``provider_check`` is what the provider check found; only the JSON document carries it, and a replay passes none.
+    """
+    del result, mode, identity_resolution, instrument_profile, provider_check
     unfilled_stub("presenter")
