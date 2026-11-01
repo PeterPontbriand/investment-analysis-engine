@@ -190,7 +190,7 @@ The [user-facing strategy guides](user/strategies/README.md) explain the behavio
 
 ### The current analyzer contract
 
-[`BaseAnalyzer`](../investment_analysis_engine/analysis/base_analyzer.py) is an abstract generic contract, `BaseAnalyzer[ConfigT, ResultT]`. Its `run_analysis(ticker, config, context)` method accepts a strategy-owned configuration and the shared `AnalysisContext`, and returns that strategy's typed result. The type variables are intentionally unconstrained: configuration may be a Pydantic model, frozen dataclass, or another typed shape. The base contract does not implement input resolution, provider access, presentation, or persistence.
+[`BaseAnalyzer`](../investment_analysis_engine/analysis/base_analyzer.py) is an abstract generic contract, `BaseAnalyzer[ResultT]` for a strategy with no configuration and `BaseAnalyzer[ResultT, ConfigT]` for one with a typed configuration. Its `run_analysis(ticker, context)` or `run_analysis(ticker, context, config)` method accepts the shared `AnalysisContext` and, when there is one, a strategy-owned configuration, and returns that strategy's typed result. The type variables are intentionally unconstrained: configuration may be a Pydantic model, frozen dataclass, or another typed shape. The base contract does not implement input resolution, provider access, presentation, or persistence.
 
 All current strategy analyzers inherit from `BaseAnalyzer` with their own configuration and result types. The common interface does not make their calculation semantics or result models interchangeable.
 
@@ -234,7 +234,7 @@ The steps below follow one `fcf-growth` command. The shared table gives the orde
 | 4 | `maybe_save_run` | Reaches the adapter, `execute_fcf_growth(...)`: steps 4a, or 4b to 4d. |
 | 5 | Adapter | Composes the instrument profile, through the profile cache when one was supplied. |
 | 6 | Adapter | Constructs the `AnalysisContext` from `as_of`, `executed_at`, `use_cache`, and the profile. |
-| 7 | Adapter | Calls `FCFEarningsGrowthAnalyzer.run_analysis(ticker, config, context)`. |
+| 7 | Adapter | Calls `FCFEarningsGrowthAnalyzer.run_analysis(ticker, context, config)`. |
 | 8 | Analyzer | Reads `effective_as_of`, `use_cache`, and the profile from the context and calls the resolver with `as_of` and `effective_as_of` separately. |
 | 9 | Resolver | Looks up the resolved-input cache when it is enabled and, on a miss, fetches the annual facts from the `FinancialFactsProvider`. |
 | 10 | Resolver | Returns the resolved observations and their provenance trace to the analyzer. |
@@ -261,7 +261,7 @@ The steps below follow one `fcf-growth` command. The shared table gives the orde
 | 13c | `maybe_save_run` | Writes the saved run id to stderr. |
 | 13d | `maybe_save_run` | Returns the adapter's own `FCFGrowthCapture`, unchanged. |
 
-`FCFEarningsGrowthAnalyzer` implements `BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult]`; the steps above show the per-run interactions after composition. Presentation always renders the adapter's own capture — `--save-run` changes only whether that capture is also persisted, never what the user sees.
+`FCFEarningsGrowthAnalyzer` implements `BaseAnalyzer[FCFEarningsGrowthResult, FCFEarningsGrowthConfig]`; the steps above show the per-run interactions after composition. Presentation always renders the adapter's own capture — `--save-run` changes only whether that capture is also persisted, never what the user sees.
 
 The direct command and watchlist-refresh paths reuse the same method adapter, but the common persistence wrapper (`workspace.execute()`) is only involved when an Analysis Run is being recorded. A financially negative screen can still have a completed execution outcome; the strategy's classification and software run status answer different questions.
 
@@ -299,7 +299,7 @@ The adapter is strategy-specific integration work. The workspace execution servi
 
 | Strategy-specific work | Shared infrastructure to reuse |
 | --- | --- |
-| Configuration or policy and its semantic rules | `BaseAnalyzer[ConfigT, ResultT]`, `AnalysisContext`, workspace request selections |
+| Configuration or policy and its semantic rules | `BaseAnalyzer[ResultT, ConfigT]`, `AnalysisContext`, workspace request selections |
 | Strategy analyzer and typed result | `ResolvedInput`, `ResolutionTrace`, provider contracts |
 | Input requirements and strategy-owned resolver/calculations | Financial-fact providers, historical-price providers, and caches where applicable |
 | Focused tests for rules, unavailable evidence, and edge cases | Common `workspace.execute()`, `AnalysisRun`, repositories, and evidence codecs |
@@ -316,7 +316,7 @@ FCF growth is a useful end-to-end example because its resolver, calculation, pre
 | --- | --- |
 | Strategy configuration | `FCFEarningsGrowthConfig` in [`models.py`](../investment_analysis_engine/strategies/fcf_growth/models.py), built from `FCFGrowthSelection.to_fcf_config()` in [`selection.py`](../investment_analysis_engine/strategies/fcf_growth/selection.py) |
 | Strategy policy | `FCFEarningsGrowthPolicy` in [`models.py`](../investment_analysis_engine/strategies/fcf_growth/models.py), held by the config |
-| Strategy analyzer | `FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult])` in [`analyzer.py`](../investment_analysis_engine/strategies/fcf_growth/analyzer.py) |
+| Strategy analyzer | `FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarningsGrowthConfig])` in [`analyzer.py`](../investment_analysis_engine/strategies/fcf_growth/analyzer.py) |
 | Strategy result | `FCFEarningsGrowthResult` in [`models.py`](../investment_analysis_engine/strategies/fcf_growth/models.py) |
 | Input resolution | `ProductionAnnualGrowthSeriesResolver` in [`input_resolver.py`](../investment_analysis_engine/strategies/fcf_growth/input_resolver.py) |
 | Execution adapter | `execute_fcf_growth` and `FCFGrowthCapture` in [`execution.py`](../investment_analysis_engine/strategies/fcf_growth/execution.py) |

@@ -166,7 +166,7 @@ tolerance cannot hide that kind of defect.
 
 ## 6. Analysis strategies: the boundary
 
-Every current analyzer implements `BaseAnalyzer[ConfigT, ResultT]` and shares the same `run_analysis(ticker, config, context)` signature — that shared signature is the full extent of what strategies share by contract. Each strategy's own execution adapter composes and invokes it differently, as the [Analysis Strategy Development Guide](../TOOL_DEVELOPMENT.md) documents. What a strategy owns:
+Every analyzer implements `BaseAnalyzer[ResultT]` (no configuration) or `BaseAnalyzer[ResultT, ConfigT]` (one typed configuration) and shares the same `run_analysis(ticker, context)` or `run_analysis(ticker, context, config)` signature — that shared signature is the full extent of what strategies share by contract. Each strategy's own execution adapter composes and invokes it differently, as the [Analysis Strategy Development Guide](../TOOL_DEVELOPMENT.md) documents. What a strategy owns:
 
 - its own configuration/policy model;
 - its own input resolution (which provider capabilities it needs, and how it resolves them);
