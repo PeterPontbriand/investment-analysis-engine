@@ -1,4 +1,4 @@
-"""The profile composition and analyzer invocation the two Graham execution adapters share."""
+"""The profile composition and analyzer invocation the Graham execution adapters share."""
 
 from datetime import datetime
 from typing import Protocol
@@ -10,7 +10,7 @@ from investment_analysis_engine.strategies._shared.profile import compose_produc
 
 
 class ProfiledAnalysis(Protocol):
-    """A Graham analysis, which may carry the profile its analyzer completed."""
+    """An analysis that may carry the profile its analyzer completed."""
 
     @property
     def instrument_profile(self) -> InstrumentProfile | None:
@@ -18,7 +18,7 @@ class ProfiledAnalysis(Protocol):
         ...
 
 
-def run_graham_analyzer[ConfigT, AnalysisT: ProfiledAnalysis](  # noqa: PLR0913
+def run_analyzer_with_profile[ConfigT, AnalysisT: ProfiledAnalysis](  # noqa: PLR0913
     analyzer: BaseAnalyzer[ConfigT, AnalysisT],
     ticker: str,
     config: ConfigT,

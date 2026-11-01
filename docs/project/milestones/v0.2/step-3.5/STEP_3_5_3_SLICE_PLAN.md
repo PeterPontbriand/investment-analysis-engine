@@ -366,7 +366,7 @@ Approved by the project owner before 3.5.3e1 began.
 | E5 | Profile and command | The templates generate an `execute_<name>` that composes the instrument profile, so an ETF is recognized, and a command with `--details`, `--diagnostics` and `--no-provider-check`, both through the helpers of E2. `patches.toml` and every generator test match. |
 | E6 | Public names | Names shared across modules are public: `parse_as_of`, `resolve_ticker`, `presentation_mode` and `production_financial_cache` in `cli_support`, `validate_json_value` in `analysis/run_models`, and the other underscore names a strategy file imported from another module (`production_historical_client`, `production_instrument_profile_cache`, `production_database`). `compose_graham_profile` is renamed to `compose_production_profile`, because `compose_instrument_profile` is already the data layer's function that it calls. Every caller changed in the same commit and no alias is kept. |
 | E7 | Where B.2 goes | B.2 entries 1 to 6, 11 and 13 to 15 go into the guide in 3.5.3e2. Entries 8 to 10 are fixed in code (8 in 3.5.3d, 9 and 10 in 3.5.3e1) and then described in the guide. Entries 7 and 12 go into one issue filed in 3.5.3e2, with the guide stating both facts meanwhile. |
-| E8 | Functions only | Helpers are functions, not a base class, mixin, registry or factory. They live in the shared module of the layer that owns them: CLI-command helpers in `cli_support.py`, codec helpers in `analysis/run_models.py`, execution helpers in `strategies/_shared/` (and `strategies/_graham/` for the two Graham strategies). Two placements follow from the layers: `analyze_and_maybe_save` is in `cli_run_support.py` beside `maybe_save_run`, which imports `cli_support`, and no helper that builds an `ExecutionCapture` can sit in `strategies/`, which `workspace` imports. |
+| E8 | Functions only | Helpers are functions, not a base class, mixin, registry or factory. They live in the shared module of the layer that owns them: CLI-command helpers in `cli_support.py`, codec helpers in `analysis/run_models.py`, execution helpers in `strategies/_shared/`. Two placements follow from the layers: `analyze_and_maybe_save` is in `cli_run_support.py` beside `maybe_save_run`, which imports `cli_support`, and no helper that builds an `ExecutionCapture` can sit in `strategies/`, which `workspace` imports. |
 
 ---
 
@@ -509,10 +509,10 @@ outputs are unchanged is in [D.5](#d5-353e1-tests).
 | `analyze_and_maybe_save` | `cli_run_support.py` | FCF-Growth, Piotroski, Graham Number, Graham Growth | The save stage, `saving_failures` and `maybe_save_run` with the normalizer marked. |
 | `AS_OF_OPTION`, `SAVE_RUN_OPTION`, `NO_PROVIDER_CHECK_OPTION` | `cli_support.py` | all five commands | The three option declarations whose text is identical in all five. |
 | `tool_context` | `strategies/_shared/tool.py` | FCF-Growth, Momentum, Piotroski | Validate the clock, resolve the profile once, build the `AnalysisContext`. |
-| `run_graham_analyzer` | `strategies/_graham/invocation.py` | Graham Number, Graham Growth | Compose the profile, build the context, run the analyzer, keep the analyzer's profile or else the composed one. |
+| `run_analyzer_with_profile` | `strategies/_shared/invocation.py` | Graham Number, Graham Growth | Compose the profile, build the context, run the analyzer, keep the analyzer's profile or else the composed one. |
 
 `compose_production_profile` (formerly `compose_graham_profile`) was already the shared profile composition, and
-FCF-Growth, Piotroski and, through `run_graham_analyzer`, both Graham strategies call it.
+FCF-Growth, Piotroski and, through `run_analyzer_with_profile`, both Graham strategies call it.
 
 **Regions left in place**
 
@@ -653,7 +653,7 @@ invocation helper, and the plan records.
 **Helpers**
 
 - Edited: `investment_analysis_engine/analysis/run_models.py`, `cli_support.py`, `cli_run_support.py`.
-- New: `strategies/_shared/tool.py`, `strategies/_graham/invocation.py`.
+- New: `strategies/_shared/tool.py`, `strategies/_shared/invocation.py`.
 - Adopting: the five `codec.py` files; the `cli.py` of all five strategies; `tool.py` of FCF-Growth, Momentum and
   Piotroski; `execution.py` of Graham Number and Graham Growth.
 
@@ -666,7 +666,7 @@ invocation helper, and the plan records.
 **Tests**
 
 - New: `tests/analysis/test_codec_helpers.py`, `tests/analysis/test_tool_context.py`,
-  `tests/test_cli_command_helpers.py`, `tests/workspace/test_graham_invocation.py`.
+  `tests/test_cli_command_helpers.py`, `tests/workspace/test_profile_invocation.py`.
 - Edited: `tests/scripts/test_new_strategy.py` (the config-free, profile, flag and underscore-import tests), and the
   tests whose patch targets or imports used a renamed name or `graham_*.execution.compose_production_profile`.
 
@@ -771,7 +771,7 @@ As written (the file names are in [C.5](#c5-353d-files)):
 
 - **Helpers:** each codec helper (messages, removal on a copy, refusals), `tool_context` (clock first, no profile
   resolved after a refused clock), the command helpers (target recorded before a rejected flag, the provider check run
-  once and only after a failure, standard error by mode, the save passthrough), and `run_graham_analyzer`.
+  once and only after a failure, standard error by mode, the save passthrough), and `run_analyzer_with_profile`.
 - **Templates:** the stubs write only the config-free form; the execution stub composes the profile; the command stub
   has every output flag; no template and no fill imports an underscore name from another module; the end-to-end
   generator test fills the stubs and passes `scripts.strategy_status` and the conformance checks.

@@ -1,4 +1,4 @@
-"""The profile composition and analyzer invocation the two Graham execution adapters share."""
+"""The profile composition and analyzer invocation the Graham execution adapters share."""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -7,7 +7,7 @@ from unittest.mock import patch
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from investment_analysis_engine.strategies._graham.invocation import run_graham_analyzer
+from investment_analysis_engine.strategies._shared.invocation import run_analyzer_with_profile
 
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=UTC)
 BOUNDARY = datetime(2026, 1, 2, tzinfo=UTC)
@@ -36,9 +36,9 @@ class _Analyzer(BaseAnalyzer[str, _Analysis]):
 def _run(analyzer: _Analyzer, composed: InstrumentProfile) -> tuple[_Analysis, InstrumentProfile, list[object]]:
     primary, yahoo = object(), object()
     with patch(
-        "investment_analysis_engine.strategies._graham.invocation.compose_production_profile", return_value=composed
+        "investment_analysis_engine.strategies._shared.invocation.compose_production_profile", return_value=composed
     ) as compose:
-        analysis, profile = run_graham_analyzer(
+        analysis, profile = run_analyzer_with_profile(
             analyzer,
             "KO",
             "config",
