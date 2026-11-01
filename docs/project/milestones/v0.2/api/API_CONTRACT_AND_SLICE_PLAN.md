@@ -31,7 +31,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
 
 ## 2. Sequence and status
 
-Implementation starts after Step 3.5's 3.5.3e merges, and 3.5.4 starts after API.6 merges
+Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and its issues 207 and 210 are complete ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.4 starts after API.6 merges
 ([milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status)).
 
 | Slice | Scope | Status | Completed |
@@ -100,7 +100,9 @@ Implementation starts after Step 3.5's 3.5.3e merges, and 3.5.4 starts after API
   chosen strategies, saved or not; refresh with progress; the CLI switched to each; a conformance
   check that every selection field has a description and a type the API's form schema supports.
 - **Branch:** `feat/api-application-actions`.
-- **Detail:** ⚠ no slice plan yet
+- **Detail:** ⚠ no slice plan yet. When it is written it also decides Site 19, the watchlist flag bundle
+  ([SWC.1 design H.10](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)),
+  using the weighing in [B.3 of the 3.5.3 slice plan](../step-3.5/STEP_3_5_3_SLICE_PLAN.md#b3-decisions-of-353b-to-353e).
 
 ### API.4 — Action endpoints and refresh jobs
 

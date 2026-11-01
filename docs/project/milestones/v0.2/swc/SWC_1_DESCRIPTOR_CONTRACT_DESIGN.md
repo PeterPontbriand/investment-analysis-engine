@@ -1968,6 +1968,8 @@ typed and each is read by one builder. The option rows move into the strategy gu
 
 Confirmed by the project owner at the SWC.3b review as an exception to the plan's §3.2 rule.
 
+It was weighed at Step 3.5's repetition checkpoint ([B.3 of the Step 3.5 slice 3.5.3 plan](../step-3.5/STEP_3_5_3_SLICE_PLAN.md#b3-decisions-of-353b-to-353e)) and is decided with API.3.
+
 ### H.11 The CLI-tier importer lists
 
 T13's root-importer list gains `investment_analysis_engine.cli_strategy_wiring`, which imports the root to pair its entries. The new
