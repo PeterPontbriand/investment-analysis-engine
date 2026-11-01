@@ -31,7 +31,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
 
 ## 2. Sequence and status
 
-Implementation starts after Step 3.5's 3.5.3e merges and its issues 207 and 210 are closed ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.4 starts after API.6 merges
+Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and its issues 207 and 210 are complete ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.4 starts after API.6 merges
 ([milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status)).
 
 | Slice | Scope | Status | Completed |

@@ -45,6 +45,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.3e1 | [Repetition review and extraction](#353e1--repetition-review-and-extraction) | Complete | 2026-11-01 |
 | 3.5.3e1b | [One analyzer base](#353e1b--one-analyzer-base) | Complete | 2026-11-01 |
 | 3.5.3e2 | [Guide, issues and records](#353e2--guide-issues-and-records) | Complete | 2026-11-01 |
+| 3.5.3e1c | [Generated execution, command, refresh and tool bodies](#353e1c--generated-execution-command-refresh-and-tool-bodies) | Next | |
 
 Each sub-slice has its own branch off `main`, named as its section says, after the previous pull request merges.
 3.5.3a is one pull request carrying this plan and the calculator, as 3.5.2a did.
@@ -199,6 +200,17 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
   follow-up work in the Step 3.5 contract, and this plan's records. Documentation only, plus one issue.
 - **Branch:** `feat/step-3-5-3e2-guide-and-issues`.
 - **Detail:** [A.10](#a10-decisions-f1-to-f11-2026-11-01), [B.5](#b5-guide-changes-353e2) and [C.8](#c8-353e2-files).
+
+### 3.5.3e1c — Generated execution, command, refresh and tool bodies
+
+- **Problem:** [E5](#a9-decisions-e1-to-e8-2026-11-01) was only partly delivered in 3.5.3e1. The templates write the
+  signatures and flags of the execution function and the command, but their bodies are stubs.
+- **Decision:** the templates generate those bodies, and the bodies of refresh and of the tool handler, through the shared
+  helpers, leaving the strategy-specific composition as a stub. The edit-site table's `analyzer` row and `HELP_TARGETS` in
+  `tests/_cli_help_output.py` are fixed in the same slice.
+- **Scope:** the templates, fills and generator tests; the site data for the `analyzer` row; `HELP_TARGETS`.
+- **Branch:** `feat/step-3-5-3e1c-generated-bodies`.
+- **Detail:** ⚠ no slice plan yet.
 
 ## 4. Scope limits and acceptance criteria
 
@@ -821,10 +833,10 @@ No code, test, generated block or check changed.
   gains a selection parameter", "Where tests and fixtures live", "Shared metrics and SEC inputs", the helper table in
   "Execution capture and durable persistence", the analyzer contract, the run walkthrough, and the reference table
   with its Piotroski column.
-- `docs/project/ARCHITECTURE.md`: the stale facts below.
+- `docs/project/ARCHITECTURE.md` and `docs/EVALUATIONS.md`: the stale facts below.
 - `docs/project/milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md`: the sequence table, the paragraph "Every
   strategy is added the same way" (F8), the Site 19 bullet, the 3.5.3 summary and A.14.
-- `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`: the API code paragraph (F7).
+- `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`: the API code paragraph (F7 and G5).
 - `docs/project/milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md`: API.3's Detail line (F6) and the sentence in section 2
   that names what API implementation starts after (F7).
 - `docs/project/milestones/v0.2/swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md`: the forward note at the end of H.10 (F6).
@@ -848,6 +860,11 @@ No code, test, generated block or check changed.
 | ARCHITECTURE section 6 | What strategies share does not list `analysis/shared/` | Adds the shared metrics and input assembly |
 | ARCHITECTURE section 6 | Each strategy owns its config, resolver, calculation and result | Its configuration (where it has one), input semantics, calculation and result |
 | ARCHITECTURE section 7 (input resolution) | Only the two Graham resolvers use the shared `InputResolver` pattern | Adds that Piotroski and FCF-Growth's market cap use the shared assembly functions |
+| EVALUATIONS section 5 | Case modules are momentum, graham_number, graham_growth, fcf_growth | Adds `piotroski` |
+| EVALUATIONS section 5 | The catalog fixes the order of the nineteen cases | Twenty cases |
+| EVALUATIONS section 5 | Fixture ids are defined in five fixture modules | Adds `sec_edgar_statements.py` |
+| EVALUATIONS section 2 | Tool names are the four, ending `analyze_fcf_earnings_growth` | Adds `analyze_piotroski` |
+| EVALUATIONS section 2 | Fixture providers are market-data, Graham and annual FCF | Adds the captured SEC statement documents served to the real SEC adapter |
 
 ---
 
@@ -949,7 +966,8 @@ As written (the file names are in [C.5](#c5-353d-files)):
   once and only after a failure, standard error by mode, the save passthrough), and `run_analyzer_with_profile`.
 - **Templates:** the stubs write only the config-free form; the execution stub composes the profile; the command stub
   has every output flag; no template and no fill imports an underscore name from another module; the end-to-end
-  generator test fills the stubs and passes `scripts.strategy_status` and the conformance checks.
+  generator test fills the stubs and passes `scripts.strategy_status` and the conformance checks. The execution stub had only
+  the composing signature and docstring, not the composition; [3.5.3e1c](#353e1c--generated-execution-command-refresh-and-tool-bodies) generates it.
 - **Unchanged outputs:** the four U6 commands, `scripts.generate_strategy_docs`, and `git --no-pager diff --stat main`
   over `tests/expected_output`, `schemas` and `docs/user` show no change.
 
