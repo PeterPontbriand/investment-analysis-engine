@@ -66,19 +66,35 @@ def _merged_submissions(balance: Mapping[str, Any], annual: Mapping[str, Any]) -
 class StatementsFetcher:
     """Serve one issuer's merged documents to the SEC adapter.
 
-    A test may replace either document to model a different filing history; the others stay as captured.
+    A test may replace either document to model a different filing history; the others stay as captured. The captured
+    files are read on first use of ``documents``, so a case that never reaches the SEC adapter reads none of them.
     """
 
     def __init__(self, stem: str, *, companyfacts: object | None = None, submissions: object | None = None) -> None:
-        """Merge the captured documents of the issuer ``stem``, replacing a document when one is given."""
-        balance, annual = _load("instant_facts", stem), _load("annual_facts", stem)
-        self.documents: dict[str, object] = {
-            "company_tickers.json": {
-                "0": {"cik_str": balance["cik"], "ticker": stem.upper(), "title": balance["companyfacts"]["entityName"]}
-            },
-            "/companyfacts/": companyfacts or _merged_facts(balance["companyfacts"], annual["companyfacts"]),
-            "/submissions/": submissions or _merged_submissions(balance["submissions"], annual["submissions"]),
-        }
+        """Remember the issuer ``stem`` and any replacement document; nothing is read yet."""
+        self._stem = stem
+        self._companyfacts = companyfacts
+        self._submissions = submissions
+        self._documents: dict[str, object] | None = None
+
+    @property
+    def documents(self) -> dict[str, object]:
+        """The merged documents by URL marker, built from the captured files on first access."""
+        if self._documents is None:
+            balance, annual = _load("instant_facts", self._stem), _load("annual_facts", self._stem)
+            self._documents = {
+                "company_tickers.json": {
+                    "0": {
+                        "cik_str": balance["cik"],
+                        "ticker": self._stem.upper(),
+                        "title": balance["companyfacts"]["entityName"],
+                    }
+                },
+                "/companyfacts/": self._companyfacts or _merged_facts(balance["companyfacts"], annual["companyfacts"]),
+                "/submissions/": self._submissions
+                or _merged_submissions(balance["submissions"], annual["submissions"]),
+            }
+        return self._documents
 
     def __call__(
         self, url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str

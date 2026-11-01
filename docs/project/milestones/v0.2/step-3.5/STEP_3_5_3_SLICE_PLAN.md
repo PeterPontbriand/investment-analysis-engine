@@ -416,6 +416,12 @@ Each sub-slice adds what it met. The earlier record of the same kind is
     which a reader cannot place. The calculation now names the operand in words with its year-end (for example "Net income
     for 2025-12-31 is unavailable: ..."), spells any underscore-joined name in a provider's reason as words, and receives
     the three year-ends in `PiotroskiInputs` for the purpose. The operand keys in the stored result are unchanged (3.5.3d).
+15. **Package data for evaluation fixtures.** The guide does not say that a file the evaluation tier reads must be listed
+    in `package-data`; the Piotroski fixtures were not, and the installed-package check failed on every CI platform. The
+    managed gate does not run that check, so only CI caught it. `tests/evaluation/test_package_data_coverage.py` now runs
+    the Golden catalog, records every file read inside the package and fails naming any that no `package-data` pattern
+    covers, and the fixture fetcher reads its captured documents on first use, so a case that never calls the Piotroski
+    tool reads none of them (3.5.3d).
 
 ### B.3 Decisions of 3.5.3b to 3.5.3e
 

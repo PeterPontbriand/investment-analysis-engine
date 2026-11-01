@@ -75,6 +75,8 @@ The generator cannot write these. Each holds content a reviewer must judge, and 
 
 What a Golden case, a fixture and a catalog entry must contain, and how their expected values are established, is in [Evaluations & Golden Suite](EVALUATIONS.md#5-golden-cases-and-fixtures) and its [maintenance rules](EVALUATIONS.md#10-maintenance-rules). For the shape of a `cases` module, a catalog entry, a guide or a settings file, open the file named in the edit-site table for an existing strategy (replace `{module}` with its package name); take the structure, not its rules.
 
+A data file that the evaluation tier reads must be listed, as an explicit path, in `[tool.setuptools.package-data]` of `pyproject.toml`, or the installed package lacks it; `tests/evaluation/test_package_data_coverage.py` fails naming any file that is not.
+
 Each command rewrites every stored file of its kind, not only the new strategy's. Run `git diff --stat` afterwards and confirm that no existing strategy's file changed. The status command shows when a site is `done`.
 
 ### 5. Regenerate the schemas and the generated lists
