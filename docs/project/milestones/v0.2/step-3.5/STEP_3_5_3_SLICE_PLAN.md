@@ -211,8 +211,8 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
   `compose_<name>(executed_at)` in `cli.py`, `from_<name>_capture`, the presenter and the evaluation `compose`.
   `compose_piotroski` takes the same signature. The presenter's `render_<name>` takes Piotroski's parameters. The edit-site
   table's `analyzer` title and `HELP_TARGETS` are fixed in the same slice.
-- **Scope:** the templates, fills and generator tests; `compose_piotroski` and its callers; the `analyzer` site title;
-  `HELP_TARGETS`; the guide's Steps 1 to 3; these records.
+- **Scope:** the templates, fills and generator tests; `compose_piotroski` and its callers; the `analyzer` site title and
+  the `help-snapshot` site's check; `HELP_TARGETS`; the guide's Steps 1 to 3; these records.
 - **Branch:** `feat/step-3-5-3e1c-generated-bodies`.
 - **Detail:** [A.11](#a11-decisions-h1-to-h6-2026-11-01), [B.6](#b6-what-353e1c-met), [files](#c9-353e1c-files) and
   [tests](#d7-353e1c-tests).
@@ -446,8 +446,8 @@ Approved by the project owner before 3.5.3e1c began.
 | H2, clock | The name `clock` | Below `compose_<name>` the name `clock` stays: `InputResolver`, the caches, the profile cache and `ToolRuntime` keep it, because there it is a function called whenever "now" is needed, and not every caller freezes it (`cli_workspace.py` passes the live `utc_now`). Nothing is renamed. |
 | H3 | Profile composition | The generated `execute_<name>` composes the profile as `execute_piotroski` does: `compose_production_profile` with the strategy's provider as both the primary and the Yahoo identity candidate, and the profile cache when supplied. It builds the context with `selection.to_analysis_context` and calls `analyzer.run_analysis(ticker, context)`. |
 | H4 | Presenter signature | The template's `render_<name>` takes Piotroski's parameters, `(result, mode, identity_resolution, instrument_profile, provider_check)`, with the same types and defaults as `render_piotroski`. The generated command calls it through `render_execution`, as Piotroski's does; the replay template's call with the result and the mode stays compatible. |
-| H5 | Guide and records | The guide's Step 1 lists what the generator writes in full and the stubs left to fill; the warning that an ETF is never recognized is removed. Steps 2 and 3 name what the templates leave unfilled. This plan and the contract record the slice (A.11, B.6, C.9, D.7, the status rows and A.14), and the contract records that once Step 3.5 closes, the owner has a reviewer evaluate the guide, and language and readability criticisms of it wait for that review. |
-| H6 | Two fixes found in review of 3.5.3e2 | The `analyzer` site's title, "Analyzer modules: config, result, analyzer", is true for both forms: "Analyzer module: result and analyzer, and the configuration when the strategy has one", and the guide's edit-site table is regenerated, not edited by hand. `HELP_TARGETS` takes its strategy entries from the declared strategies' aliases, in declaration order, keeping `""`, `health` and `refresh` explicit; `piotroski.txt` is stored; a test requires a stored command help snapshot for every declared strategy; no existing snapshot changes. |
+| H5 | Guide and records | The guide's Step 1 lists what the generator writes in full and the stubs left to fill; the warning that an ETF is never recognized is removed. Steps 2 and 3 name what the templates leave unfilled. This plan and the contract record the slice (A.11, B.6, C.9, D.7, the status rows and A.14), and the contract records that once Step 3.5 closes, a person, not an AI agent, reviews the guide, and language and readability criticisms of it wait for that review. |
+| H6 | Two fixes found in review of 3.5.3e2 | The `analyzer` site's title, "Analyzer modules: config, result, analyzer", is true for both forms: "Analyzer module: result and analyzer, and the configuration when the strategy has one", and the guide's edit-site table is regenerated, not edited by hand. The `help-snapshot` site's check also requires the command's own `<alias>.txt` (approved for this one check, overriding the stop condition on site checks). `HELP_TARGETS` takes its strategy entries from the declared strategies' aliases, in declaration order, keeping `""`, `health` and `refresh` explicit; `piotroski.txt` is stored; a test requires a stored command help snapshot for every declared strategy; no existing snapshot changes. |
 
 ---
 
@@ -670,12 +670,14 @@ persistence", in a table of name, home and effect.
 
 ### B.6 What 3.5.3e1c met
 
-- **The per-command help snapshot is a hidden site.** `HELP_TARGETS` now follows the declared strategies, so a new
-  strategy needs `tests/expected_output/cli_help/<alias>.txt` as well as its row in `application.txt`. The `help-snapshot`
-  site's check reads only the application row, so the status command reports it `done` while
-  `tests/test_cli_help_output.py` fails for the missing file. The site check was not changed (the slice may not change one);
-  the guide's `help-snapshot` row now names both files, the generator's end-to-end test stores the throwaway strategy's
-  file as a fill, and the check is a candidate for the shortfall issue
+- **The per-command help snapshot was a hidden site, and is closed here.** `HELP_TARGETS` now follows the declared
+  strategies, so a new strategy needs `tests/expected_output/cli_help/<alias>.txt` as well as its row in
+  `application.txt`. The `help-snapshot` site's check read only the application row, so the status command would have
+  reported it `done` while `tests/test_cli_help_output.py` failed for the missing file. The project owner approved
+  changing this one check in the slice: `site_help_snapshot` also requires the file, and a missing file is a gap that
+  names it and the command that writes it, `uv run python -m tests._cli_help_output`. The site's description and fails
+  text match, the guide's edit-site table is regenerated, and the generator's end-to-end test stores the throwaway
+  strategy's file as a fill. Nothing is left for
   [#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210).
 - **Fills hold only the definitions they supply.** The generator test applied a fill by copying it over the generated file,
   so a fill repeated the whole template and, now that the templates write bodies, would have hidden them from the
@@ -687,7 +689,7 @@ persistence", in a table of name, home and effect.
 - **Nothing for [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207).** The generated command
   takes Piotroski's order of checks and provider requests unchanged; the three differences left in place by 3.5.3e1 are
   not affected.
-- **The guide review.** The project owner has the guide evaluated by a reviewer once Step 3.5 closes
+- **The guide review.** Once Step 3.5 closes, a person, not an AI agent, reviews the guide
   ([A.11](#a11-decisions-h1-to-h6-2026-11-01), H5); the contract records it.
 
 ---
@@ -921,7 +923,8 @@ Commits: the generator and its tests, then the plan and guide records.
   same file.
 - `scripts/strategy_templates/{cli,execution,presenter,tool}.py.tmpl`: the complete bodies, `compose_<name>` and the
   presenter's parameters.
-- `scripts/strategy_sites.toml`: the `analyzer` site's title.
+- `scripts/strategy_sites.toml`: the `analyzer` site's title, and the `help-snapshot` site's description and fails text.
+- `scripts/strategy_conformance.py`: `site_help_snapshot` also requires `tests/expected_output/cli_help/<alias>.txt`.
 
 **Generator tests**
 
@@ -929,6 +932,7 @@ Commits: the generator and its tests, then the plan and guide records.
   stubs; `tool.py.fill` is deleted; `expected/help.txt` is new (the throwaway strategy's command help).
 - `tests/scripts/test_new_strategy_end_to_end.py`, `tests/scripts/test_new_strategy.py`.
 - `tests/analysis/piotroski/test_piotroski_wiring.py`: the call of `compose_piotroski`.
+- `tests/test_strategy_wiring_conformance.py`: the failing case of the `help-snapshot` check.
 
 **Help snapshots**
 
@@ -1066,7 +1070,9 @@ As written (the file names are in [C.5](#c5-353d-files)):
   generated `execute_<name>` composes the profile with `compose_production_profile` and calls the analyzer with the
   context; the command and `refresh` both call `compose_<name>(executed_at)`; the command and `refresh` use the shared
   command helpers; the tool handler validates, builds the context with `tool_context` and calls the analyzer; the
-  presenter takes Piotroski's parameters. In `tests/test_cli_help_output.py`, every declared strategy has a stored command
+  presenter takes Piotroski's parameters. In `tests/test_strategy_wiring_conformance.py`, a strategy with an application row
+  but no `<alias>.txt` is missing at the `help-snapshot` site, and the diagnostic names the file and the command that
+  writes it. In `tests/test_cli_help_output.py`, every declared strategy has a stored command
   help snapshot.
 - **Changed:** the end-to-end generator test applies a fill by replacing definitions by name, no longer lists `tool` among
   the stubbed roles, and stores the throwaway strategy's command help as a fill; `HELP_TARGETS` follows the declared

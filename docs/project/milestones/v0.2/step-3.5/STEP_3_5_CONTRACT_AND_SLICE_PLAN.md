@@ -82,7 +82,7 @@ next begins.
 
 Issue 207 and issue 210 finish before API.1 ([A.14](#a14-353-sub-slices-and-scope-2026-10-29)), in that order, after 3.5.3e1c; API.1 starts after them.
 
-Once Step 3.5 closes, the owner has a reviewer evaluate [`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md); language and readability criticisms of the guide wait for that review.
+Once Step 3.5 closes, a person, not an AI agent, reviews [`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md); language and readability criticisms of the guide wait for that review.
 
 3.5.4 starts after work package API's API.6 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
 From 3.5.4 on, "the same completeness as 3.5.3" also covers the glossary-terms edit site that API.6 adds: an
