@@ -2402,21 +2402,19 @@ _HELP_COMMAND = "uv run python -m tests._cli_help_output"
 
 
 def site_help_snapshot(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
-    """The stored application help has a command row that starts with the strategy's alias."""
+    """The stored application help has a command row for the alias, and the command's own help is stored."""
     site_id = "help-snapshot"
     where = site_path(site_id, names, context)
     path = _root(context) / where
     if not path.is_file():
         return [Gap(site_id, where, f"{where} does not exist")]
+    gaps: list[Gap] = []
     if not any(line.split(maxsplit=1)[:1] == [names.alias] for line in path.read_text(encoding="utf-8").splitlines()):
-        return [
-            Gap(
-                site_id,
-                where,
-                f"{where} has no command row for {names.alias!r}; write it with {_HELP_COMMAND}",
-            )
-        ]
-    return []
+        gaps.append(
+            Gap(site_id, where, f"{where} has no command row for {names.alias!r}; write it with {_HELP_COMMAND}")
+        )
+    gaps.extend(_missing_files(site_id, where, context, [f"{names.alias}.txt"], _HELP_COMMAND))
+    return gaps
 
 
 def site_guide(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:

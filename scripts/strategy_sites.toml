@@ -246,13 +246,13 @@ fails = "tests/_strategy_document_output.py has no case named <alias>-success, o
 
 [[site]]
 id = "help-snapshot"
-title = "Application help snapshot: the strategy's command row"
-why = "The application's help is compared byte for byte with a reviewed snapshot that lists every command in the order it is added."
+title = "Help snapshots: the strategy's row in the application help and the help of its own command"
+why = "The application's help is compared byte for byte with a reviewed snapshot that lists every command in the order it is added, and each strategy command's help with a snapshot of its own."
 kind = "reviewed"
 path = "tests/expected_output/cli_help/application.txt"
 generated = false
 check = "site_help_snapshot"
-fails = "the snapshot has no command row for the alias"
+fails = "the application snapshot has no command row for the alias, or tests/expected_output/cli_help/<alias>.txt does not exist"
 
 [[site]]
 id = "guide"
