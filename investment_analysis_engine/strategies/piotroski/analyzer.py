@@ -253,19 +253,22 @@ def _shares(read: _Read, year: date | InputUnavailable) -> YearEndShareCount | I
     return read.shares[year]
 
 
-def _balance_operand(item: BalanceSheetValue | InputUnavailable, label: str) -> Value:
-    """Return a balance-sheet operand as a resolved input, or the unavailable input that states why."""
+def _balance_operand(item: BalanceSheetValue | InputUnavailable) -> Value:
+    """Return a balance-sheet operand as a resolved input, or the unavailable input that states why.
+
+    The message names no operand: the calculation prefixes the operand's plain name and year-end.
+    """
     if isinstance(item, InstantAbsence):
         return InputUnavailable(
-            absence_reason_code(item.reason), f"{label} is absent at {item.period_end}: {item.detail}"
+            absence_reason_code(item.reason), f"The balance sheet reports none at {item.period_end}: {item.detail}"
         )
     return item
 
 
-def _annual_operand(item: AnnualValue | InputUnavailable, label: str, year: date | InputUnavailable) -> Value:
+def _annual_operand(item: AnnualValue | InputUnavailable) -> Value:
     """Return an annual operand as a resolved input, or the unavailable input that states why."""
     if item is None:
-        return InputUnavailable(ReasonCode.MISSING_FACT, f"{label} is not reported for the fiscal year ending {year}.")
+        return InputUnavailable(ReasonCode.MISSING_FACT, "The filings report none for that fiscal year.")
     return item
 
 
@@ -310,34 +313,42 @@ def _long_term_debt(read: _Read, year: date | InputUnavailable) -> MetricEvidenc
     )
 
 
+def _date_of(year: date | InputUnavailable) -> date | None:
+    """Return the year-end, or ``None`` when the year is unavailable."""
+    return year if isinstance(year, date) else None
+
+
 def _inputs_of(years: _Years, read: _Read) -> PiotroskiInputs:
     """Return the operands of the nine tests, each from its year; an unavailable year gives every operand its reason."""
 
-    def balance(name: FinancialField, year: date | InputUnavailable, label: str) -> Value:
-        return _balance_operand(_balance(read, name, year), label)
+    def balance(name: FinancialField, year: date | InputUnavailable) -> Value:
+        return _balance_operand(_balance(read, name, year))
 
-    def annual(name: FinancialField, year: date | InputUnavailable, label: str) -> Value:
-        return _annual_operand(_annual(read, name, year), label, year)
+    def annual(name: FinancialField, year: date | InputUnavailable) -> Value:
+        return _annual_operand(_annual(read, name, year))
 
     return PiotroskiInputs(
-        total_assets_t=balance(FinancialField.TOTAL_ASSETS, years.t, "total assets"),
-        total_assets_t1=balance(FinancialField.TOTAL_ASSETS, years.t1, "total assets"),
-        total_assets_t2=balance(FinancialField.TOTAL_ASSETS, years.t2, "total assets"),
-        net_income_t=annual(FinancialField.NET_INCOME, years.t, "net income"),
-        net_income_t1=annual(FinancialField.NET_INCOME, years.t1, "net income"),
-        operating_cash_flow_t=annual(FinancialField.OPERATING_CASH_FLOW, years.t, "operating cash flow"),
-        sales_t=annual(FinancialField.SALES, years.t, "sales"),
-        sales_t1=annual(FinancialField.SALES, years.t1, "sales"),
+        total_assets_t=balance(FinancialField.TOTAL_ASSETS, years.t),
+        total_assets_t1=balance(FinancialField.TOTAL_ASSETS, years.t1),
+        total_assets_t2=balance(FinancialField.TOTAL_ASSETS, years.t2),
+        net_income_t=annual(FinancialField.NET_INCOME, years.t),
+        net_income_t1=annual(FinancialField.NET_INCOME, years.t1),
+        operating_cash_flow_t=annual(FinancialField.OPERATING_CASH_FLOW, years.t),
+        sales_t=annual(FinancialField.SALES, years.t),
+        sales_t1=annual(FinancialField.SALES, years.t1),
         gross_profit_t=_gross_profit(read, years.t),
         gross_profit_t1=_gross_profit(read, years.t1),
         long_term_debt_t=_long_term_debt(read, years.t),
         long_term_debt_t1=_long_term_debt(read, years.t1),
-        current_assets_t=balance(FinancialField.CURRENT_ASSETS, years.t, "current assets"),
-        current_assets_t1=balance(FinancialField.CURRENT_ASSETS, years.t1, "current assets"),
-        current_liabilities_t=balance(FinancialField.CURRENT_LIABILITIES, years.t, "current liabilities"),
-        current_liabilities_t1=balance(FinancialField.CURRENT_LIABILITIES, years.t1, "current liabilities"),
+        current_assets_t=balance(FinancialField.CURRENT_ASSETS, years.t),
+        current_assets_t1=balance(FinancialField.CURRENT_ASSETS, years.t1),
+        current_liabilities_t=balance(FinancialField.CURRENT_LIABILITIES, years.t),
+        current_liabilities_t1=balance(FinancialField.CURRENT_LIABILITIES, years.t1),
         shares_t=_shares(read, years.t),
         shares_t1=_shares(read, years.t1),
+        year_end_t=_date_of(years.t),
+        year_end_t1=_date_of(years.t1),
+        year_end_t2=_date_of(years.t2),
     )
 
 
@@ -438,7 +449,7 @@ class PiotroskiAnalyzer(ConfigFreeAnalyzer[PiotroskiResult]):
             f_score=None,
             input_failure=failure,
             warnings=(),
-            diagnostics=(f"The assembly stopped at the input {failure.input_name}.",),
+            diagnostics=(f"The assembly stopped at the input {failure.input_name.replace('_', ' ')}.",),
         )
 
     def _at_anchor(

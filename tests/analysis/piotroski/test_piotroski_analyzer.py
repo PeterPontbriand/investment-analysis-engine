@@ -4,6 +4,7 @@ Expected values are written here from the raw integers of the captured Company F
 calculation and the analyzer never produce them.
 """
 
+import re
 from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, date, datetime
@@ -160,7 +161,7 @@ def test_monster_is_a_partial_score_of_five_of_six_with_net_income_tests_unavail
     for number in (1, 3, 4):
         test = result.f_score.tests[number - 1]
         assert test.reason_code is ReasonCode.MISSING_FACT
-        assert "net income" in (test.reason or "")
+        assert "net income" in (test.reason or "").lower()
     assert near(ratios(result, 2)["cfo_over_assets_t"], Fraction(m["cfo_t"], m["assets_t1"]))
     assert ratios(result, 5).get("leverage_t", 0.0) == 0.0
     assert near(
@@ -438,3 +439,23 @@ def test_the_taxonomy_is_recorded_only_when_every_operand_states_the_same_one() 
         *result.f_score.tests[1:],
     )
     assert _shared_taxonomy(replace(result.f_score, tests=tests)) is None
+
+
+@pytest.mark.parametrize("stem", ["aapl", "mnst", "jpm", "sap"])
+def test_no_reason_message_names_an_internal_operand_or_an_underscore_joined_identifier(stem: str) -> None:
+    result = run(stem, as_of=AAPL_AS_OF if stem == "aapl" else None)
+    assert result.f_score is not None
+    reasons = [test.reason for test in result.f_score.tests if test.reason is not None]
+    reasons += [result.reason or "", *result.warnings, *result.diagnostics[:0]]
+    keys = {operand.name for test in result.f_score.tests for operand in test.operands}
+    for reason in reasons:
+        assert not re.search(r"[A-Za-z0-9]+_[A-Za-z0-9_]+", reason), reason
+        assert not any(key in reason for key in keys), reason
+
+
+def test_a_reason_names_the_operand_in_plain_words_with_its_year_end() -> None:
+    result = run("mnst", as_of=datetime(2026, 3, 31, tzinfo=UTC))
+    assert result.f_score is not None
+    assert result.f_score.tests[0].reason == (
+        "Net income for 2025-12-31 is unavailable: The filings report none for that fiscal year."
+    )

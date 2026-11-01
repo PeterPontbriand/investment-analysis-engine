@@ -76,7 +76,26 @@ Percentages and multiples are shown with two decimals; when two compared values 
 A score is **complete** when all nine tests could be decided. A test that cannot be decided is **unavailable**, never a fail: its line shows `unavailable` and the reason. A score is **partial** when six to eight tests are available, and it is always shown as "*x* of *n*" with the unavailable tests named, never as a bare number and never as "*x* of 9":
 
 ```text
-Monster Beverage Corp (MNST) — Piotroski F-Score: 5 of 6 (partial: tests 1, 3, 4 unavailable)
+MNST — Piotroski F-Score: 5 of 6 (partial: tests 1, 3, 4 unavailable)
+Fiscal year-end: 2025-12-31 · 10-K 0001104659-26-020831 · us-gaap
+Industry class: manufacturer (SIC code as filed)
+
+Profitability
+  1 Positive ROA          unavailable  Net income for 2025-12-31 is unavailable: The filings report none for that fiscal year.
+  2 Positive CFO          pass         CFO / assets 27.18% > 0
+  3 Improving ROA         unavailable  Net income for 2025-12-31 is unavailable: The filings report none for that fiscal year.
+  4 Cash exceeds income   unavailable  Net income for 2025-12-31 is unavailable: The filings report none for that fiscal year.
+Leverage and liquidity
+  5 Falling leverage      pass         long-term debt / assets 0.00%, prior 4.30%
+  6 Improving liquidity   pass         current ratio 3.70x, prior 3.32x
+  7 No dilution           fail         shares 978,113,000, prior 973,079,000
+Efficiency
+  8 Improving margin      pass         gross margin 55.85%, prior 54.04%
+  9 Improving turnover    pass         asset turnover 1.07x, prior 0.77x
+
+Note: The usual reading of high and low scores applies to complete scores only.
+Source: SEC EDGAR; latest evidence available 2026-02-27
+Limitation: Follows the Piotroski nine-test structure, with the net change in shares outstanding in place of the paper's equity-issuance test; not an investment recommendation.
 ```
 
 With fewer than six available tests there is no score. The usual reading of the scale applies to complete scores only: a high score (8 or 9) is conventionally read as financial strength and a low score (0 or 1) as weakness. A partial score gets a note saying so and is not ranked against complete scores.

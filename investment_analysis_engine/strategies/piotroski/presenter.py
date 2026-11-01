@@ -215,7 +215,7 @@ def _concise(result: PiotroskiResult, label: str) -> list[str]:
         return [*lines, f"Reason: {result.reason}", f"Limitation: {_LIMITATION}"]
     lines += [_filing_line(result), _class_line(result)]
     lines += [f"Warning: {warning}" for warning in result.warnings]
-    lines += list(_test_lines(result))
+    lines += ["", *_test_lines(result), ""]
     if score.completeness is Completeness.PARTIAL:
         lines.append(f"Note: {_PARTIAL_NOTE}")
     if score.completeness is None:

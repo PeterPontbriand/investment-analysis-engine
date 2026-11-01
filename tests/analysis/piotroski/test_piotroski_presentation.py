@@ -52,6 +52,7 @@ LIMITATION = (
 APPLE_LAYOUT = f"""AAPL — Piotroski F-Score: 7 of 9 (complete)
 Fiscal year-end: 2024-09-28 · 10-K 0000320193-24-000123 · us-gaap
 Industry class: manufacturer (SIC code as filed)
+
 Profitability
   1 Positive ROA          pass         ROA 26.59% > 0
   2 Positive CFO          pass         CFO / assets 33.54% > 0
@@ -64,6 +65,7 @@ Leverage and liquidity
 Efficiency
   8 Improving margin      pass         gross margin 46.21%, prior 44.13%
   9 Improving turnover    pass         asset turnover 1.11x, prior 1.09x
+
 Source: SEC EDGAR; latest evidence available 2024-11-01
 {LIMITATION}"""
 
@@ -90,7 +92,7 @@ def test_monsters_concise_output_is_a_partial_score_with_its_note() -> None:
     by_number = {line.split()[0]: line for line in lines if line.startswith("  ")}
     for number in ("1", "3", "4"):
         assert " unavailable " in by_number[number]
-        assert "net income is not reported" in by_number[number]
+        assert "Net income for 2025-12-31 is unavailable" in by_number[number]
     assert by_number["2"].endswith("pass         CFO / assets 27.18% > 0")
     assert by_number["5"].endswith("pass         long-term debt / assets 0.00%, prior 4.30%")
     assert by_number["6"].endswith("pass         current ratio 3.70x, prior 3.32x")

@@ -412,6 +412,10 @@ Each sub-slice adds what it met. The earlier record of the same kind is
     `instant_facts`, `annual_facts` and `filing_headers` serve the regression set. The guide names neither, nor which to
     use. `evaluation/fixtures/sec_edgar_statements.py` now merges the captured documents of an issuer and serves its
     header to the real adapter, for Golden cases and for tests (3.5.3d).
+14. **Plain reason messages.** The first reasons a test showed spelled an operand by its stored key (`net_income_t`),
+    which a reader cannot place. The calculation now names the operand in words with its year-end (for example "Net income
+    for 2025-12-31 is unavailable: ..."), spells any underscore-joined name in a provider's reason as words, and receives
+    the three year-ends in `PiotroskiInputs` for the purpose. The operand keys in the stored result are unchanged (3.5.3d).
 
 ### B.3 Decisions of 3.5.3b to 3.5.3e
 
