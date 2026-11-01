@@ -284,7 +284,7 @@ The adapter connects a method to execution capture; it does not duplicate its fi
 
 #### Strategy integration architecture
 
-The strategy supplies its own configuration (when it has one), inputs, calculations, and result; composition supplies the context and shared infrastructure. Persistence is conditional, not automatic: `maybe_save_run` (`investment_analysis_engine/cli_run_support.py`) is the one place that decides, from `--save-run`, whether a run reaches `workspace.execute()` at all. FCF-Growth, Graham Number, Graham Growth and Piotroski call it through `analyze_and_maybe_save`; Momentum saves through `save_run_execution` in its own command ([issue 207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207)). A watchlist refresh reaches the same `execute()` through its own composition in `investment_analysis_engine/workspace/refresh.py` instead.
+The strategy supplies its own configuration (when it has one), inputs, calculations, and result; composition supplies the context and shared infrastructure. Persistence is conditional, not automatic: `maybe_save_run` (`investment_analysis_engine/cli_run_support.py`) is the one place that decides, from `--save-run`, whether a run reaches `workspace.execute()` at all. Every direct command calls it through `analyze_and_maybe_save`. A watchlist refresh reaches the same `execute()` through its own composition in `investment_analysis_engine/workspace/refresh.py` instead.
 
 **What the contributor owns:** strategy policy/configuration where there is any, required input semantics, deterministic calculations, typed result, tests, user-facing presentation where needed, and its execution-adapter integration. **What is shared:** provider/cache contracts, provenance values, the shared metrics and input assembly of [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs), the `maybe_save_run`/refresh persistence decision, workspace execution, run persistence, and shared financial conventions. Reuse the shared boundaries instead of rebuilding them inside a strategy.
 
@@ -399,7 +399,7 @@ The helpers that the 3.5.3 repetition review extracted are functions, not a base
 | `run_analyzer_with_profile` | `strategies/_shared/invocation.py` | Execution: composes the profile, builds the context and runs the analyzer (the Graham strategies) |
 | `compose_production_profile` | `strategies/_shared/profile.py` | Execution: the instrument profile composition |
 
-The `use_cache` field is declared once, in `AnalysisToolArguments` (`orchestrator/analysis_tool_arguments.py`), which every tool arguments model subclasses. `from_<name>_capture`, the evidence validators, `build_selection` and `refresh` stay in each strategy: they differ in behavior, and [issue 207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) records the three differences left in place.
+The `use_cache` field is declared once, in `AnalysisToolArguments` (`orchestrator/analysis_tool_arguments.py`), which every tool arguments model subclasses. `from_<name>_capture`, the evidence validators, `build_selection` and `refresh` stay in each strategy: each reads, builds or composes something different.
 
 ### Strategy-specific responsibilities and shared infrastructure
 
