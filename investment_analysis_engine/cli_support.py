@@ -16,11 +16,13 @@ from investment_analysis_engine.cli_provider_check import (
     ProviderCheckChoice,
     echo_provider_check,
     provider_check_findings,
+    with_provider_check,
 )
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import PROVIDER_FAILURE_CODES, FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
@@ -430,6 +432,90 @@ def execution_errors(
                 for diagnostic in envelope.diagnostics:
                     typer.echo(f"{diagnostic.rule}: {diagnostic.reason}", err=True)
         raise typer.Exit(code=1) from cause
+
+
+def resolve_command_target(  # noqa: PLR0913
+    scope: FailureScope,
+    positional: str | None,
+    option: str | None,
+    *,
+    command: str,
+    details: bool,
+    diagnostics: bool,
+    json_output: bool,
+) -> tuple[str, PresentationMode]:
+    """Resolve a direct command's ticker and presentation mode, recording each on ``scope`` as soon as it is known.
+
+    The ticker is resolved and recorded first, so a rejected output flag is still reported with the ticker.
+
+    Args:
+        scope: The failure scope the command entered before checking its arguments.
+        positional: The positional ticker, or ``None``.
+        option: The legacy ``--ticker`` value, or ``None`` for a command that has no such option.
+        command: The command's name, as its "ticker is required" message spells it.
+        details: Whether ``--details`` was given.
+        diagnostics: Whether ``--diagnostics`` was given.
+        json_output: Whether ``--json`` was given.
+
+    Returns:
+        The normalized ticker and the presentation mode.
+    """
+    target_ticker = resolve_ticker(positional, option, command=command)
+    scope.ticker = target_ticker
+    mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+    scope.mode = mode
+    return target_ticker, mode
+
+
+def render_execution(
+    execution: ExecutionCapture,
+    provider_check: ProviderCheckChoice | None,
+    mode: PresentationMode,
+    render: Callable[[tuple[ProviderCheckItem, ...] | None], str],
+) -> tuple[str, int]:
+    """Render a finished run and decide its exit code, running the provider check once and only after a failure.
+
+    Args:
+        execution: The run's normalized capture, which names the outcome and any recorded provider failure.
+        provider_check: The command's provider-check choice.
+        mode: The presentation mode.
+        render: The strategy's renderer, given the ``provider_check`` document element (``None`` when no provider
+            is implicated).
+
+    Returns:
+        The text to write and the exit code. After a failure the text is preceded by the provider-check lines.
+    """
+    exit_code = exit_code_of(execution.outcome)
+    findings = provider_check_findings((execution.provider_failure,) if exit_code else (), provider_check)
+    output = render(findings.element())
+    if exit_code:
+        output = with_provider_check(output, findings, mode)
+    return output, exit_code
+
+
+def emit_output(output: str, exit_code: int, mode: PresentationMode) -> None:
+    """Write a direct command's output and exit with ``exit_code`` when it is not zero.
+
+    A failure is written to standard error in the concise and details modes only, so ``--json`` and ``--diagnostics``
+    keep their document on standard output.
+    """
+    typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
+    if exit_code:
+        raise typer.Exit(code=exit_code)
+
+
+AS_OF_OPTION = typer.Option(
+    None, "--as-of", help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
+)
+"""The ``--as-of`` option every direct command declares with this text."""
+
+SAVE_RUN_OPTION = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run")
+"""The ``--save-run`` option every direct command declares with this text."""
+
+NO_PROVIDER_CHECK_OPTION = typer.Option(
+    False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
+)
+"""The ``--no-provider-check`` option every direct command declares with this text."""
 
 
 @contextmanager

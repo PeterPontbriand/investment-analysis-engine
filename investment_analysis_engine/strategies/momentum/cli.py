@@ -10,21 +10,22 @@ from investment_analysis_engine.analysis.base_analyzer import require_ticker
 from investment_analysis_engine.cli_composition import momentum_settings
 from investment_analysis_engine.cli_provider_check import (
     provider_check_choice,
-    provider_check_findings,
-    with_provider_check,
 )
 from investment_analysis_engine.cli_run_support import save_run_execution
 from investment_analysis_engine.cli_support import (
+    AS_OF_OPTION,
+    NO_PROVIDER_CHECK_OPTION,
+    SAVE_RUN_OPTION,
     SaveStage,
+    emit_output,
     execution_errors,
-    exit_code_of,
     parse_as_of,
-    presentation_mode,
     production_database,
     production_historical_client,
     production_instrument_profile_cache,
+    render_execution,
     require_job_ticker,
-    resolve_ticker,
+    resolve_command_target,
     saving_failures,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
@@ -34,7 +35,6 @@ from investment_analysis_engine.data.instrument_profile import profile_identity_
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.data.repositories.readiness import ensure_database_ready
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
-from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig
 from investment_analysis_engine.strategies.momentum.execution import (
     capture_momentum,
@@ -147,19 +147,13 @@ def command(  # noqa: PLR0913
         "--rsi-period",
         help="RSI lookback period in daily market observations",
     ),
-    as_of: str | None = typer.Option(
-        None,
-        "--as-of",
-        help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp",
-    ),
+    as_of: str | None = AS_OF_OPTION,
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass historical price cache reads and writes"),
     details: bool = typer.Option(False, "--details", help="Show calculation and data-context details"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show retained execution diagnostics"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
-    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
-    no_provider_check: bool = typer.Option(
-        False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
-    ),
+    save_run: bool = SAVE_RUN_OPTION,
+    no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
     provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
@@ -168,10 +162,15 @@ def command(  # noqa: PLR0913
         selection_type=MomentumSelection,
         provider_check=provider_check,
     ) as scope:
-        requested_ticker = resolve_ticker(ticker, ticker_option, command="momentum")
-        scope.ticker = requested_ticker
-        mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-        scope.mode = mode
+        requested_ticker, mode = resolve_command_target(
+            scope,
+            ticker,
+            ticker_option,
+            command="momentum",
+            details=details,
+            diagnostics=diagnostics,
+            json_output=json_output,
+        )
         _validate_momentum_windows(short_window, long_window, rsi_period)
         boundary = parse_as_of(as_of)
         target_ticker = require_ticker(requested_ticker)
@@ -233,31 +232,32 @@ def command(  # noqa: PLR0913
                 )
             momentum_capture = capture_momentum(run)
         execution = from_momentum_capture(momentum_capture)
-        exit_code = exit_code_of(execution.outcome)
         embedded_profile = run.instrument_profile
         if embedded_profile is None:
             raise ValueError("Momentum result did not retain the instrument profile it ran with.")
-        findings = provider_check_findings((execution.provider_failure,) if exit_code else (), provider_check)
-        presentation = MomentumPresentation(
-            ticker=run.ticker,
-            effective_as_of=run.effective_as_of,
-            execution_status=run.execution_status,
-            metrics=run.metrics,
-            config=config,
-            reason_code=run.reason_code,
-            reason=run.reason,
-            provider_failure=run.provider_failure,
-            provider_check=findings.element(),
-            requested_as_of=boundary,
-            market_data=run.market_data,
-            resolution_trace=run.resolution_trace,
-            data_resolution=run.data_resolution,
-            identity_resolution=profile_identity_resolution(embedded_profile),
-            instrument_profile=embedded_profile,
+        output, exit_code = render_execution(
+            execution,
+            provider_check,
+            mode,
+            lambda element: render_momentum(
+                MomentumPresentation(
+                    ticker=run.ticker,
+                    effective_as_of=run.effective_as_of,
+                    execution_status=run.execution_status,
+                    metrics=run.metrics,
+                    config=config,
+                    reason_code=run.reason_code,
+                    reason=run.reason,
+                    provider_failure=run.provider_failure,
+                    provider_check=element,
+                    requested_as_of=boundary,
+                    market_data=run.market_data,
+                    resolution_trace=run.resolution_trace,
+                    data_resolution=run.data_resolution,
+                    identity_resolution=profile_identity_resolution(embedded_profile),
+                    instrument_profile=embedded_profile,
+                ),
+                mode,
+            ),
         )
-        output = render_momentum(presentation, mode)
-        if exit_code:
-            output = with_provider_check(output, findings, mode)
-        typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
-        if exit_code:
-            raise typer.Exit(code=exit_code)
+        emit_output(output, exit_code, mode)
