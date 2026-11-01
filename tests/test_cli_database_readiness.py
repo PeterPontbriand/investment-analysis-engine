@@ -14,7 +14,7 @@ import pytest
 from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_support import _production_financial_cache
+from investment_analysis_engine.cli_support import production_financial_cache
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.trajectory_events import TrajectoryEventType
@@ -171,12 +171,12 @@ def test_optional_telemetry_failure_does_not_control_cache_readiness(tmp_path: P
             if incompatible:
                 with (
                     pytest.raises(DatabaseReadinessError) as caught,
-                    _production_financial_cache(use_cache=True, clock=utc_now),
+                    production_financial_cache(use_cache=True, clock=utc_now),
                 ):
                     pytest.fail("Invalid storage was accepted.")
                 assert caught.value.reason is ReadinessReason.INVALID_FILE
             else:
-                with _production_financial_cache(use_cache=True, clock=utc_now):
+                with production_financial_cache(use_cache=True, clock=utc_now):
                     assert cache_path.exists()
         with telemetry_database.read() as connection:
             assert connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").all() == []

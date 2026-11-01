@@ -11,7 +11,7 @@ from datetime import datetime
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
+from investment_analysis_engine.strategies._shared.profile import compose_production_profile
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiAnalyzer, PiotroskiResult
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
@@ -52,7 +52,7 @@ def execute_piotroski(  # noqa: PLR0913
     Returns:
         The captured native result and its profile.
     """
-    profile = compose_graham_profile(
+    profile = compose_production_profile(
         ticker, primary_provider=provider, yahoo_provider=provider, profile_cache=profile_cache
     )
     context = selection.to_analysis_context(executed_at=executed_at, instrument_profile=profile)

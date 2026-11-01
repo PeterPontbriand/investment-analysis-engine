@@ -158,7 +158,8 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
 
     with (
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=composed
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            return_value=composed,
         ),
         patch.object(FCFEarningsGrowthAnalyzer, "run_analysis", fake_run_analysis),
     ):
@@ -189,7 +190,8 @@ def test_known_etf_profile_is_not_applicable_through_the_real_analyzer() -> None
     etf_profile = fixture_known_etf_profile()
 
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=etf_profile
+        "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+        return_value=etf_profile,
     ):
         capture = execute_fcf_growth(
             resolver,
@@ -211,7 +213,7 @@ def test_partial_forward_evidence_is_preserved_unmodified() -> None:
     resolver = _resolver()
 
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile",
+        "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
         return_value=fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),
     ):
         capture = execute_fcf_growth(
@@ -237,7 +239,7 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile",
+        "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
         return_value=fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY"),
     ):
         capture = execute_fcf_growth(

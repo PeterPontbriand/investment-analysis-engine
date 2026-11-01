@@ -24,7 +24,6 @@ class GrahamGrowthValueToolArguments(AnalysisToolArguments):
     current_aaa_yield: PositiveFiniteFloat
     eps_override: FiniteFloat | None = None
     current_price_override: FiniteFloat | None = None
-    use_cache: bool = True
 
 
 @dataclass(frozen=True)

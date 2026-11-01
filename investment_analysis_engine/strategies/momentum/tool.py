@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 from pydantic import Field, model_validator
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.strategies._shared.tool import tool_context
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumConfig, MomentumRun
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 
@@ -21,7 +21,6 @@ class MomentumToolArguments(AnalysisToolArguments):
     short_window: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
     long_window: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
     rsi_period: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
-    use_cache: bool = True
 
     @model_validator(mode="after")
     def require_ordered_windows(self) -> MomentumToolArguments:
@@ -56,12 +55,5 @@ class MomentumToolHandler:
             long_window=configured.long_window if arguments.long_window is None else arguments.long_window,
             rsi_period=configured.rsi_period if arguments.rsi_period is None else arguments.rsi_period,
         )
-        executed_at = self._runtime.validated_clock_value()
-        profile = self._runtime.resolve_profile(arguments.ticker)
-        context = AnalysisContext(
-            as_of=arguments.as_of,
-            executed_at=executed_at,
-            use_cache=arguments.use_cache,
-            instrument_profile=profile,
-        )
+        context = tool_context(self._runtime, arguments)
         return self._dependencies.analyzer.run_analysis(ticker=arguments.ticker, config=config, context=context)

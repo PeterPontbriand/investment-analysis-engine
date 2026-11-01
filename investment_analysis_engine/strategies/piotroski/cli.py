@@ -15,19 +15,18 @@ import typer
 from investment_analysis_engine.cli_composition import build_sec_edgar_adapter
 from investment_analysis_engine.cli_provider_check import (
     provider_check_choice,
-    provider_check_findings,
-    with_provider_check,
 )
-from investment_analysis_engine.cli_run_support import maybe_save_run
+from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
 from investment_analysis_engine.cli_support import (
-    SaveStage,
-    _parse_as_of,
-    _presentation_mode,
-    _resolve_ticker,
+    AS_OF_OPTION,
+    NO_PROVIDER_CHECK_OPTION,
+    SAVE_RUN_OPTION,
+    emit_output,
     execution_errors,
-    exit_code_of,
+    parse_as_of,
+    render_execution,
     require_job_ticker,
-    saving_failures,
+    resolve_command_target,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.core.clock import utc_now
@@ -35,7 +34,6 @@ from investment_analysis_engine.data.financial.production import ProductionFinan
 from investment_analysis_engine.data.financial.resolver import InputResolver
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiAnalyzer
 from investment_analysis_engine.strategies.piotroski.execution import execute_piotroski, from_piotroski_capture
 from investment_analysis_engine.strategies.piotroski.presenter import render_piotroski
@@ -66,7 +64,7 @@ def build_selection(flags: WatchlistFlags) -> PiotroskiSelection:
 
     It is built from the watchlist flags it concerns: the boundary and the cache choice.
     """
-    return PiotroskiSelection(as_of=_parse_as_of(flags.as_of), use_cache=not flags.no_cache)
+    return PiotroskiSelection(as_of=parse_as_of(flags.as_of), use_cache=not flags.no_cache)
 
 
 def refresh(
@@ -86,19 +84,15 @@ def command(  # noqa: PLR0913
     context: typer.Context,
     ticker: str = typer.Argument(..., help="Target stock ticker symbol (e.g., AAPL, KO)"),
     *,
-    as_of: str | None = typer.Option(
-        None, "--as-of", help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
-    ),
+    as_of: str | None = AS_OF_OPTION,
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the cache"),
     details: bool = typer.Option(False, "--details", help="Show each test's operands with their year-end and value"),
     diagnostics: bool = typer.Option(
         False, "--diagnostics", help="Show where each operand came from and how the inputs were assembled"
     ),
     json_output: bool = typer.Option(False, "--json", help="Emit the complete versioned typed result"),
-    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
-    no_provider_check: bool = typer.Option(
-        False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
-    ),
+    save_run: bool = SAVE_RUN_OPTION,
+    no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Run the Piotroski F-Score analysis."""
     executed_at = utc_now()
@@ -107,39 +101,33 @@ def command(  # noqa: PLR0913
     with execution_errors(
         json_output=json_output, selection_type=PiotroskiSelection, provider_check=provider_check
     ) as scope:
-        target_ticker = _resolve_ticker(ticker, None, command="piotroski")
-        assert target_ticker is not None
-        scope.ticker = target_ticker
-        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-        scope.mode = mode
-        selection = PiotroskiSelection(as_of=_parse_as_of(as_of), use_cache=not no_cache)
+        target_ticker, mode = resolve_command_target(
+            scope, ticker, None, command="piotroski", details=details, diagnostics=diagnostics, json_output=json_output
+        )
+        selection = PiotroskiSelection(as_of=parse_as_of(as_of), use_cache=not no_cache)
         analyzer, provider = compose_piotroski(lambda: executed_at)
-        stage = SaveStage()
-        with saving_failures(stage):
-            capture = maybe_save_run(
-                save_run=save_run,
+        capture = analyze_and_maybe_save(
+            save_run=save_run,
+            executed_at=executed_at,
+            request_factory=lambda: AnalysisRequest(ticker=target_ticker, selection=selection),
+            run_adapter=lambda profile_cache: execute_piotroski(
+                analyzer,
+                target_ticker,
+                selection,
                 executed_at=executed_at,
-                request_factory=lambda: AnalysisRequest(ticker=target_ticker, selection=selection),
-                run_adapter=lambda profile_cache: execute_piotroski(
-                    analyzer,
-                    target_ticker,
-                    selection,
-                    executed_at=executed_at,
-                    provider=provider,
-                    profile_cache=profile_cache,
-                ),
-                normalize=stage.after_analysis(from_piotroski_capture),
-            )
+                provider=provider,
+                profile_cache=profile_cache,
+            ),
+            normalize=from_piotroski_capture,
+        )
         result = capture.result
         profile = capture.profile
         identity_resolution = profile_identity_resolution(profile)
 
-    execution = from_piotroski_capture(capture)
-    exit_code = exit_code_of(execution.outcome)
-    findings = provider_check_findings((execution.provider_failure,) if exit_code else (), provider_check)
-    output = render_piotroski(result, mode, identity_resolution, profile, findings.element())
-    if exit_code:
-        output = with_provider_check(output, findings, mode)
-    typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
-    if exit_code:
-        raise typer.Exit(code=exit_code)
+    output, exit_code = render_execution(
+        from_piotroski_capture(capture),
+        provider_check,
+        mode,
+        lambda element: render_piotroski(result, mode, identity_resolution, profile, element),
+    )
+    emit_output(output, exit_code, mode)

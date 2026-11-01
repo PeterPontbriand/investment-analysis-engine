@@ -5,11 +5,14 @@ enums. No class names, providers, calculators or presentation properties are
 dispatched from stored data. Optional values and ordered evidence are retained.
 """
 
-import json
-
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from investment_analysis_engine.analysis.run_models import StrictJsonMapping, _validate_json_value
+from investment_analysis_engine.analysis.run_models import (
+    StrictJsonMapping,
+    snapshot_by_revalidation,
+    validate_json_value,
+    validate_wire,
+)
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
@@ -93,9 +96,7 @@ def encode_momentum(evidence: MomentumRun) -> StrictJsonMapping:
     Validation runs through JSON even for already-constructed dataclasses so
     invalid native instances cannot bypass field and nested invariant checks.
     """
-    payload = _MomentumEvidence(run=evidence).model_dump(mode="json")
-    decode_momentum(payload)
-    return payload
+    return snapshot_by_revalidation(_MomentumEvidence(run=evidence), decode_momentum)
 
 
 def decode_momentum(payload: StrictJsonMapping) -> MomentumRun:
@@ -105,8 +106,8 @@ def decode_momentum(payload: StrictJsonMapping) -> MomentumRun:
     for their declared types while rejecting coercion of numeric strings/bools,
     unknown fields, invalid enums and non-finite numbers at every depth.
     """
-    _validate_json_value(payload)
-    return _MomentumEvidence.model_validate_json(json.dumps(payload, allow_nan=False, ensure_ascii=False)).run
+    validate_json_value(payload)
+    return validate_wire(_MomentumEvidence, payload).run
 
 
 def momentum_native_status(result: MomentumRun, /) -> CalculationStatus:

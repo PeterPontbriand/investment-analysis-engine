@@ -1,12 +1,14 @@
 """The $label strategy's execution adapter.
 
-It calls the analyzer and captures the evidence.
+It composes the instrument profile, calls the analyzer and captures the evidence.
 """
 
 from dataclasses import dataclass
 from datetime import datetime
 
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.data.instrument_profile import InstrumentProfile
+from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.strategies.$module.analyzer import ${Class}Analyzer, ${Class}Result
 from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
@@ -17,13 +19,20 @@ class ${Class}Capture:
     """The captured evidence of one $label execution."""
 
     result: ${Class}Result
+    profile: InstrumentProfile
 
 
-def execute_$module(
-    analyzer: ${Class}Analyzer, ticker: str, selection: ${Class}Selection, *, executed_at: datetime
+def execute_$module(  # noqa: PLR0913
+    analyzer: ${Class}Analyzer,
+    ticker: str,
+    selection: ${Class}Selection,
+    *,
+    executed_at: datetime,
+    provider: object,
+    profile_cache: InstrumentProfileResolver | None = None,
 ) -> ${Class}Capture:
-    """Run the analyzer for ``selection`` and capture its evidence."""
-    del analyzer, ticker, selection, executed_at
+    """Compose the profile and run the analyzer for ``selection``."""
+    del analyzer, ticker, selection, executed_at, provider, profile_cache
     unfilled_stub("execution")
 
 

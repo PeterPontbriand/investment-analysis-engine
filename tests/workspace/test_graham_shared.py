@@ -5,7 +5,7 @@ from unittest.mock import patch
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, InstrumentProfileCandidate
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
-from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
+from investment_analysis_engine.strategies._shared.profile import compose_production_profile
 
 
 def test_yahoo_is_the_second_identity_candidate_after_sec_edgar() -> None:
@@ -20,7 +20,7 @@ def test_yahoo_is_the_second_identity_candidate_after_sec_edgar() -> None:
         return "sentinel"
 
     with patch("investment_analysis_engine.strategies._shared.profile.compose_instrument_profile", fake_compose):
-        compose_graham_profile("KO", primary_provider=primary, yahoo_provider=yahoo)
+        compose_production_profile("KO", primary_provider=primary, yahoo_provider=yahoo)
 
     assert captured["ticker"] == "KO"
     assert captured["identity_candidates"] == (
@@ -52,7 +52,7 @@ def test_profile_cache_is_used_instead_of_live_composition_when_supplied() -> No
             return sentinel
 
     with patch("investment_analysis_engine.strategies._shared.profile.compose_instrument_profile") as fake_compose:
-        result = compose_graham_profile(
+        result = compose_production_profile(
             "KO",
             primary_provider=primary,
             yahoo_provider=yahoo,

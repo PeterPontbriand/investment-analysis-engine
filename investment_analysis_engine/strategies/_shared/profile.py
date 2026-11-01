@@ -1,7 +1,7 @@
-"""Instrument-profile composition shared by the Graham and FCF direct commands.
+"""Instrument-profile composition shared by the strategies that read SEC statements.
 
-This helper is genuinely method-agnostic: Graham Number, Graham Growth, and
-FCF/Earnings Growth all compose one profile the same way, with the same
+This helper is genuinely method-agnostic: Graham Number, Graham Growth,
+FCF/Earnings Growth and Piotroski all compose one profile the same way, with the same
 primary-provider/Yahoo precedence. It lives here (not in a single method's
 adapter module) so future adapters can share it without importing from
 ``investment_analysis_engine.cli``, which would create a circular import (``investment_analysis_engine.cli`` needs to
@@ -18,7 +18,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVID
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 
-def compose_graham_profile(
+def compose_production_profile(
     ticker: str,
     *,
     primary_provider: object,
@@ -46,4 +46,4 @@ def compose_graham_profile(
     )
 
 
-__all__ = ["compose_graham_profile"]
+__all__ = ["compose_production_profile"]

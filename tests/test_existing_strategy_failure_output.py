@@ -36,10 +36,10 @@ _STRATEGY_CLI = {
 }
 # The resource each command opens first: Momentum its historical client, every other command its financial cache.
 _RESOURCE_BOUNDARY = {
-    "momentum": "_production_historical_client",
-    "graham-number": "_production_financial_cache",
-    "graham-growth": "_production_financial_cache",
-    "fcf-growth": "_production_financial_cache",
+    "momentum": "production_historical_client",
+    "graham-number": "production_financial_cache",
+    "graham-growth": "production_financial_cache",
+    "fcf-growth": "production_financial_cache",
 }
 
 
@@ -69,7 +69,7 @@ def test_missing_ohlc_error_retains_field_and_date() -> None:
         context=QualityContext("ACME", datetime(2026, 9, 11, tzinfo=UTC)),
     )
     error = HistoricalDataQualityError(decisions, frame)
-    with patch("investment_analysis_engine.strategies.momentum.cli._production_historical_client", side_effect=error):
+    with patch("investment_analysis_engine.strategies.momentum.cli.production_historical_client", side_effect=error):
         result = CliRunner().invoke(app, ["momentum", "ACME", "--json"])
     assert result.exit_code == 1
     payload = json.loads(result.stdout)
@@ -95,7 +95,7 @@ def test_momentum_non_date_index_is_an_unavailable_run_naming_the_index_rule(ind
     frame = pd.DataFrame({"Close": [100.0, 101.0, 102.0, 103.0, 104.0]}, index=index)
     data = HistoricalMarketData(frame, MarketDataContext(provider_id="fixture", observation_interval="1d"))
     with patch(
-        "investment_analysis_engine.strategies.momentum.cli._production_historical_client",
+        "investment_analysis_engine.strategies.momentum.cli.production_historical_client",
         side_effect=lambda *_args, **_kwargs: _provider_returning(data),
     ):
         result = CliRunner().invoke(app, ["momentum", "ACME", "--json"])
@@ -114,7 +114,7 @@ _NO_HISTORY_REASON = "No price history is available at or before the requested -
 def test_momentum_boundary_before_the_first_observation_is_input_unavailable_in_json() -> None:
     """ESC-24: an unavailable boundary is reported like Graham and FCF report unavailable inputs."""
     with patch(
-        "investment_analysis_engine.strategies.momentum.cli._production_historical_client",
+        "investment_analysis_engine.strategies.momentum.cli.production_historical_client",
         side_effect=NoEligibleObservationsError(_NO_HISTORY_REASON),
     ):
         result = CliRunner().invoke(app, ["momentum", "ACME", "--as-of", "1990-01-01", "--json"])
@@ -134,7 +134,7 @@ def test_momentum_boundary_before_the_first_observation_is_input_unavailable_in_
 
 def test_momentum_boundary_before_the_first_observation_is_explained_in_text() -> None:
     with patch(
-        "investment_analysis_engine.strategies.momentum.cli._production_historical_client",
+        "investment_analysis_engine.strategies.momentum.cli.production_historical_client",
         side_effect=NoEligibleObservationsError(_NO_HISTORY_REASON),
     ):
         result = CliRunner().invoke(app, ["momentum", "ACME", "--as-of", "1990-01-01"])

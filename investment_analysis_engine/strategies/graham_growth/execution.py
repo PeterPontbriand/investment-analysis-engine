@@ -16,11 +16,10 @@ valid, completed calculation, not an execution failure.
 from dataclasses import dataclass
 from datetime import datetime
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
+from investment_analysis_engine.strategies._shared.invocation import run_analyzer_with_profile
 from investment_analysis_engine.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
@@ -79,17 +78,17 @@ def execute_graham_growth(  # noqa: PLR0913
     Returns:
         The captured native analysis and its associated profile.
     """
-    composed_profile = compose_graham_profile(
+    analysis, profile = run_analyzer_with_profile(
+        GrahamGrowthAnalyzer(resolver, policy=policy),
         ticker,
+        config,
         primary_provider=resolver.provider,
-        yahoo_provider=profile_provider,
+        profile_provider=profile_provider,
+        as_of=as_of,
+        executed_at=executed_at,
+        use_cache=use_cache,
         profile_cache=profile_cache,
     )
-    context = AnalysisContext(
-        as_of=as_of, executed_at=executed_at, use_cache=use_cache, instrument_profile=composed_profile
-    )
-    analysis = GrahamGrowthAnalyzer(resolver, policy=policy).run_analysis(ticker, config, context)
-    profile = analysis.instrument_profile or composed_profile
     return GrahamGrowthCapture(analysis=analysis, profile=profile)
 
 

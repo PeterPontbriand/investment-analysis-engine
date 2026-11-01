@@ -1,10 +1,12 @@
 """Strict version-one codec for complete Graham Growth execution evidence."""
 
-import json
-
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from investment_analysis_engine.analysis.run_models import StrictJsonMapping, _validate_json_value
+from investment_analysis_engine.analysis.run_models import (
+    StrictJsonMapping,
+    decode_with_method_sections,
+    snapshot_by_revalidation,
+)
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 from investment_analysis_engine.strategies.graham_growth.vocabulary import METHOD_ID
@@ -74,27 +76,17 @@ class _GrowthEvidence(BaseModel):
 
 def encode_graham_growth(evidence: GrahamGrowthAnalysis) -> StrictJsonMapping:
     """Capture a detached finite JSON snapshot, revalidating native instances."""
-    payload = _GrowthEvidence(analysis=evidence).model_dump(mode="json")
-    decode_graham_growth(payload)
-    return payload
+    return snapshot_by_revalidation(_GrowthEvidence(analysis=evidence), decode_graham_growth)
 
 
 def decode_graham_growth(payload: StrictJsonMapping) -> GrahamGrowthAnalysis:
     """Reconstruct Growth evidence without invoking financial or provider work."""
-    _validate_json_value(payload)
-    analysis = payload.get("analysis")
-    if not isinstance(analysis, dict):
-        raise ValueError("Graham Growth analysis must be an object.")
-    analysis = dict(analysis)
-    for name in ("assembly", "result"):
-        section = analysis.get(name)
-        if not isinstance(section, dict) or section.get("method") != METHOD_ID:
-            raise ValueError("Graham Growth assembly/result method mismatch.")
-        # Native init=False identifiers are checked, then restored by the native
-        # constructor. Copy before removal to leave caller-owned data intact.
-        analysis[name] = {key: item for key, item in section.items() if key != "method"}
-    wire = {**payload, "analysis": analysis}
-    return _GrowthEvidence.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False)).analysis
+    return decode_with_method_sections(
+        _GrowthEvidence,
+        payload,
+        label="Graham Growth",
+        method_id=METHOD_ID,
+    ).analysis
 
 
 def graham_growth_native_status(result: GrahamGrowthAnalysis, /) -> CalculationStatus:

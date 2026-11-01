@@ -368,7 +368,8 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0(
             return_value=sec_labeled_number_resolver(),
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies._shared.invocation.compose_production_profile",
+            return_value=profile,
         ),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])

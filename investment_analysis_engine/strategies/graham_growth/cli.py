@@ -17,18 +17,19 @@ from investment_analysis_engine.cli_provider_check import (
     provider_check_findings,
     with_provider_check,
 )
-from investment_analysis_engine.cli_run_support import maybe_save_run
+from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
 from investment_analysis_engine.cli_support import (
-    SaveStage,
-    _parse_as_of,
-    _presentation_mode,
-    _production_financial_cache,
-    _resolve_ticker,
+    AS_OF_OPTION,
+    NO_PROVIDER_CHECK_OPTION,
+    SAVE_RUN_OPTION,
     config_usage_errors,
+    emit_output,
     execution_errors,
     exit_code_of,
+    parse_as_of,
+    production_financial_cache,
     require_job_ticker,
-    saving_failures,
+    resolve_command_target,
     stored_configuration,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
@@ -66,7 +67,7 @@ def build_selection(flags: WatchlistFlags) -> GrahamGrowthSelection:
     Mirrors the direct ``graham-growth`` command's own flags and validation exactly, so a watchlist entry
     behaves identically to running the method directly.
     """
-    boundary = _parse_as_of(flags.as_of)
+    boundary = parse_as_of(flags.as_of)
     with config_usage_errors():
         if flags.expected_growth is None:
             raise InvalidParameterError(
@@ -97,7 +98,7 @@ def refresh(
     config = stored_configuration(selection.to_graham_growth_config)
     policy = graham_growth_settings().to_policy()
     executed_at = utc_now()
-    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
+    with production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamGrowthInputResolver,
             cache=cache,
@@ -127,11 +128,7 @@ def command(  # noqa: PLR0913
         "-t",
         help="Legacy ticker option; prefer the positional TICKER argument",
     ),
-    as_of: str | None = typer.Option(
-        None,
-        "--as-of",
-        help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp",
-    ),
+    as_of: str | None = AS_OF_OPTION,
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass resolved-input cache reads and writes"),
     eps: float | None = typer.Option(None, "--eps", "-e", help="Explicit EPS override"),
     eps_basis: str | None = typer.Option(
@@ -165,10 +162,8 @@ def command(  # noqa: PLR0913
     details: bool = typer.Option(False, "--details", help="Show resolved inputs and financial provenance"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
-    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
-    no_provider_check: bool = typer.Option(
-        False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
-    ),
+    save_run: bool = SAVE_RUN_OPTION,
+    no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Execute Graham Growth Value with explicit growth and AAA-yield assumptions."""
     use_cache = not no_cache
@@ -179,12 +174,16 @@ def command(  # noqa: PLR0913
         selection_type=GrahamGrowthSelection,
         provider_check=provider_check,
     ) as scope:
-        target_ticker = _resolve_ticker(ticker, ticker_option, command="graham-growth")
-        assert target_ticker is not None
-        scope.ticker = target_ticker
-        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-        scope.mode = mode
-        boundary = _parse_as_of(as_of)
+        target_ticker, mode = resolve_command_target(
+            scope,
+            ticker,
+            ticker_option,
+            command="graham-growth",
+            details=details,
+            diagnostics=diagnostics,
+            json_output=json_output,
+        )
+        boundary = parse_as_of(as_of)
         with config_usage_errors():
             selection = GrahamGrowthSelection.model_validate(
                 {
@@ -197,7 +196,7 @@ def command(  # noqa: PLR0913
                     "use_cache": use_cache,
                 }
             )
-        with _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
+        with production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
             with execution_errors(
                 mode=mode,
                 selection_type=GrahamGrowthSelection,
@@ -218,9 +217,7 @@ def command(  # noqa: PLR0913
                 save_run=save_run,
                 provider_check=provider_check,
             )
-    typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
-    if exit_code:
-        raise typer.Exit(code=exit_code)
+    emit_output(output, exit_code, mode)
 
 
 def _run_graham_growth(  # noqa: PLR0913
@@ -239,25 +236,23 @@ def _run_graham_growth(  # noqa: PLR0913
     config = selection.to_graham_growth_config()
     as_of = selection.as_of
     use_cache = selection.use_cache
-    stage = SaveStage()
-    with saving_failures(stage):
-        capture = maybe_save_run(
-            save_run=save_run,
+    capture = analyze_and_maybe_save(
+        save_run=save_run,
+        executed_at=executed_at,
+        request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
+        run_adapter=lambda profile_cache: execute_graham_growth(
+            resolver,
+            ticker,
+            config,
+            policy,
+            profile_provider,
+            as_of=as_of,
             executed_at=executed_at,
-            request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
-            run_adapter=lambda profile_cache: execute_graham_growth(
-                resolver,
-                ticker,
-                config,
-                policy,
-                profile_provider,
-                as_of=as_of,
-                executed_at=executed_at,
-                use_cache=use_cache,
-                profile_cache=profile_cache,
-            ),
-            normalize=stage.after_analysis(from_graham_growth_capture),
-        )
+            use_cache=use_cache,
+            profile_cache=profile_cache,
+        ),
+        normalize=from_graham_growth_capture,
+    )
     execution = from_graham_growth_capture(capture)
     exit_code = exit_code_of(execution.outcome)
     analysis = capture.analysis

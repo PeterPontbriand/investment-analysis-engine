@@ -1,16 +1,16 @@
 # Step 3.5 slice 3.5.3 — Piotroski F-Score: Slice Plan
 
-The slice plan for [slice 3.5.3](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#353--piotroski-f-score) of Step 3.5. It covers six
-sub-slices (3.5.3b is split in two by [U1](#a5-decisions-u1-to-u6-2026-10-29)). It was written against `main` at `72c3a1f`, after the 3.5.2 plan was complete.
+The slice plan for [slice 3.5.3](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#353--piotroski-f-score) of Step 3.5. It covers seven
+sub-slices (3.5.3b is split in two by [U1](#a5-decisions-u1-to-u6-2026-10-29) and 3.5.3e by [E1](#a9-decisions-e1-to-e8-2026-11-01)). It was written against `main` at `72c3a1f`, after the 3.5.2 plan was complete.
 
 Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
 ## 1. At a glance
 
-- **What this plan does:** takes the Piotroski F-Score from specification to a shipped strategy in six gated steps:
+- **What this plan does:** takes the Piotroski F-Score from specification to a shipped strategy in seven gated steps:
   the plan and the pure nine-test calculator (3.5.3a); the inputs at three year-ends, in two parts (3.5.3b1 and
   3.5.3b2); the side-by-side text layout for many strategies (3.5.3c); the strategy through every edit site (3.5.3d); and the repetition checkpoint
-  (3.5.3e).
+  (3.5.3e1 and 3.5.3e2).
 - **What it is not:** a change to the Piotroski formulas, to the analyzer envelope, or to any existing strategy's stored
   output. No ranking, no market data and no issuance-proceeds reading. Full list:
   [Scope limits](#4-scope-limits-and-acceptance-criteria).
@@ -42,7 +42,8 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.3b2 | [Year-end discovery, share-count series and captured evidence](#353b2--year-end-discovery-share-count-series-and-captured-evidence) | Complete | 2026-10-30 |
 | 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Complete | 2026-10-30 |
 | 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Complete | 2026-10-31 |
-| 3.5.3e | [Repetition checkpoint](#353e--repetition-checkpoint) | Next | |
+| 3.5.3e1 | [Repetition review and extraction](#353e1--repetition-review-and-extraction) | Complete | 2026-11-01 |
+| 3.5.3e2 | [Guide, issues and records](#353e2--guide-issues-and-records) | Next | |
 
 Each sub-slice has its own branch off `main`, named as its section says, after the previous pull request merges.
 3.5.3a is one pull request carrying this plan and the calculator, as 3.5.2a did.
@@ -144,22 +145,37 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
 - **Detail:** [decisions](#a8-decisions-p1-to-p12-2026-10-31), [files](#c5-353d-files), [tests](#d4-353d-tests),
   [the result](#e1-the-calculators-input-and-result) and [the summary](#b3-decisions-of-353b-to-353e).
 
-### 3.5.3e — Repetition checkpoint
+### 3.5.3e1 — Repetition review and extraction
 
-- **Problem:** all seven strategies are expected to have near-identical wiring, and the 3.5.4a plan is not accepted
-  until the repeated code is reviewed.
-- **Decision (Q16, Q17):** the review and the extraction are done as the contract's repetition checkpoint states
-  ([contract §3](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#3-the-slices)). Site 19 gets no change to the watchlist command
-  syntax in Step 3.5, because Piotroski has no watchlist options of its own; the weighing is recorded in the
-  implementation record and an issue is filed. `docs/TOOL_DEVELOPMENT.md` is fixed where a fix is within its scope and
-  one issue is filed for the rest; the guide's worked example is repointed at `analysis/shared/metric_inputs.py` as the
-  entry for a new strategy's SEC inputs, keeping FCF-Growth as the example of wiring. 3.5.3e also decides how the
-  generator template offers the two analyzer forms (`BaseAnalyzer` with a config, `ConfigFreeAnalyzer` without), which
-  3.5.3d settled for Piotroski by hand ([P4](#a8-decisions-p1-to-p12-2026-10-31)).
-- **Scope:** the review, the extracted helpers and the generator templates, the guide changes, the implementation
-  record, the issues.
-- **Branch:** `feat/step-3-5-3e-repetition-checkpoint`.
-- **Detail:** [files](#c6-353e-files) and [Appendix B](#appendix-b-implementation-record).
+- **Problem:** the five strategies repeat wiring that differs only by names, and the 3.5.4a plan is not accepted until
+  the repeated code is reviewed ([contract §3](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#3-the-slices)).
+- **Decision (Q16, [E1 to E8](#a9-decisions-e1-to-e8-2026-11-01)):** compare the codec, execution, CLI, tool, replay,
+  envelope, evaluation and selection files of all five strategies; extract each region that is identical in effect into a
+  function in the shared module of the layer that owns it, and switch every strategy that matches; leave in place, with
+  the difference recorded, each region that differs in behavior. The generator templates write only the config-free
+  analyzer form and an execution function and command that compose the profile and offer every output flag, through the
+  same helpers. Names used across modules become public.
+- **Scope:** the review ([B.4](#b4-repetition-review-353e1)); the renames; the helpers and the strategies that call them;
+  the template, fill and generator-test changes; the byte-identical proof of
+  [U6](#a5-decisions-u1-to-u6-2026-10-29); these plan records.
+- **Branch:** `feat/step-3-5-3e1-repetition-extraction`.
+- **Detail:** [files](#c6-353e1-files) and [the review](#b4-repetition-review-353e1). The three behavior
+  differences left in place are recorded in [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207).
+
+### 3.5.3e2 — Guide, issues and records
+
+- **Problem:** `docs/TOOL_DEVELOPMENT.md` fell short in the places [B.2](#b2-where-docstool_developmentmd-fell-short)
+  lists, Site 19 has no recorded weighing, and the SEC-input entry of the guide's worked example is unfixed.
+- **Decision (Q16, Q17, [E7](#a9-decisions-e1-to-e8-2026-11-01)):** B.2 entries 1 to 6, 11 and 13 to 15 go into the
+  guide; entries 8 to 10 are described in it (8 was fixed in 3.5.3d, 9 and 10 in 3.5.3e1); entries 7 and 12 go into one
+  issue, with the guide stating both facts meanwhile. The guide's worked example is repointed at
+  `analysis/shared/metric_inputs.py` as the entry for a new strategy's SEC inputs, keeping FCF-Growth as the example of
+  wiring, and it explains moving from the config-free analyzer form to the configured form when a strategy gains a
+  selection parameter. Site 19 gets no change to the watchlist command syntax in Step 3.5, because Piotroski has no
+  watchlist options of its own; the weighing is recorded and an issue is filed.
+- **Scope:** the guide, the Site 19 record and its issue, the Q17 issue, and this plan's records.
+- **Branch:** `feat/step-3-5-3e2-guide-and-issues`.
+- **Detail:** [B.2](#b2-where-docstool_developmentmd-fell-short); ⚠ no slice plan yet.
 
 ## 4. Scope limits and acceptance criteria
 
@@ -185,7 +201,13 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
 - **3.5.3d:** a financial issuer warns, an unknown class runs and says so, a boundary before the filing is
   `input_unavailable`, replay with provider, cache, clock and calculator disabled reproduces the stored result, and the
   four existing strategies' outputs are unchanged.
-- **3.5.3e:** the implementation record states the regions found and the helpers extracted; the extraction is merged.
+- **3.5.3e1:** the implementation record ([B.4](#b4-repetition-review-353e1)) states the regions found, the helpers extracted
+  and the regions left in place; the generator writes only the config-free form and an execution function and
+  command that compose the profile; the U6 proof shows no stored output, schema, help snapshot or generated
+  document changed.
+- **3.5.3e2:** the guide states each [B.2](#b2-where-docstool_developmentmd-fell-short) fact that [E7](#a9-decisions-e1-to-e8-2026-11-01) assigns to it,
+  the two issues and the Site 19 record exist, and the extraction of 3.5.3e1 is described where the guide
+  names the shared helpers.
 
 ## 5. Background
 
@@ -332,6 +354,25 @@ Approved by the project owner before 3.5.3d began, with one wider authorization 
 | P11 | Reviewed outputs | The reviewed direct-command output and the stored strategy documents are built from Apple's captured case, with a fixture in place of the live Yahoo client. |
 | P12 | A stale anchor | A registrant whose latest annual filing is old is scored on that filing, with nothing said. Out of scope here; no behavior changes. Tracked in [issue 204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204). |
 
+### A.9 Decisions E1 to E8 (2026-11-01)
+
+Approved by the project owner before 3.5.3e1 began.
+
+| # | Topic | Decision and reason |
+| :--- | :--- | :--- |
+| E1 | Split | 3.5.3e is two sub-slices, each with its own branch, managed gate and authorization. 3.5.3e1 is the review, the extraction, every strategy adopting the helpers, and the template changes. 3.5.3e2 is the `docs/TOOL_DEVELOPMENT.md` fixes, the Site 19 record and its issue, and the Q17 issue. |
+| E2 | The review | It compares the codec, execution, CLI, tool, replay, envelope, evaluation and selection files across the five strategies and lists every region identical apart from strategy names, identifiers or types. Two candidates were known, the codec's encode-by-revalidation with its identifier and version check, and the direct-command body, but the review is not limited to them. |
+| E3 | Adoption | Every strategy whose code matches a region in effect switches to the extracted helper, with no change of behavior or output. A region that differs in behavior for any strategy stays in that strategy, and the difference is recorded. |
+| E4 | Config-free templates | The generator templates write only the config-free form: no `<Name>Config`, no `to_<name>_config()` on the selection, and no config parameter on the analyzer, the tool handler or the execution function. Moving to the configured form when a strategy gains a selection parameter is documented in 3.5.3e2. |
+| E5 | Profile and command | The templates generate an `execute_<name>` that composes the instrument profile, so an ETF is recognized, and a command with `--details`, `--diagnostics` and `--no-provider-check`, both through the helpers of E2. `patches.toml` and every generator test match. |
+| E6 | Public names | Names shared across modules are public: `parse_as_of`, `resolve_ticker`, `presentation_mode` and `production_financial_cache` in `cli_support`, `validate_json_value` in `analysis/run_models`, and the other underscore names a strategy file imported from another module (`production_historical_client`, `production_instrument_profile_cache`, `production_database`). `compose_graham_profile` is renamed to `compose_production_profile`, because `compose_instrument_profile` is already the data layer's function that it calls. Every caller changed in the same commit and no alias is kept. |
+| E7 | Where B.2 goes | B.2 entries 1 to 6, 11 and 13 to 15 go into the guide in 3.5.3e2. Entries 8 to 10 are fixed in code (8 in 3.5.3d, 9 and 10 in 3.5.3e1) and then described in the guide. Entries 7 and 12 go into one issue filed in 3.5.3e2, with the guide stating both facts meanwhile. |
+| E8 | Functions only | Helpers are functions, not a base class, mixin, registry or factory. They live in the shared module of the layer that owns them: CLI-command helpers in `cli_support.py`, codec helpers in `analysis/run_models.py`, execution helpers in `strategies/_shared/`. Two placements follow from the layers: `analyze_and_maybe_save` is in `cli_run_support.py` beside `maybe_save_run`, which imports `cli_support`, and a helper that builds an `ExecutionCapture` cannot sit in `strategies/`: `scripts/package_graph.py` assigns each strategy's `execution.py` to the `workspace` layer, its `cli.py` to `cli` and its `evaluation.py` to `evaluation`, and every other file under `strategies/`, `_shared/` included, is the `strategies` layer, which cannot import `workspace`. |
+
+The key-order change of the tool argument schemas was approved on 2026-11-01. Declaring `use_cache` once in
+`AnalysisToolArguments` puts it after `as_of` in the JSON schema of Momentum, Graham Number, Graham Growth and FCF-Growth,
+where each model declared it last; the schemas are equal as data, and Piotroski's is unchanged.
+
 ---
 
 ## Appendix B: Implementation record
@@ -450,7 +491,60 @@ Each sub-slice adds what it met. The earlier record of the same kind is
   config-free form with its shared readers, and the extraction of the adapter builder.
 - Not decided here: the template offer of the two analyzer forms (3.5.3e) and a stale anchor ([issue 204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204)).
 
-3.5.3e records the repetition review and the weighing of Site 19.
+3.5.3e1 (2026-11-01) records the repetition review in [B.4](#b4-repetition-review-353e1); 3.5.3e2 records the weighing of Site 19.
+
+### B.4 Repetition review (3.5.3e1)
+
+Method: the eight file kinds of [E2](#a9-decisions-e1-to-e8-2026-11-01) were read side by side for Momentum, Graham
+Number, Graham Growth, FCF-Growth and Piotroski, with `scripts/new_strategy.py` and the templates. A region counts as
+repeated when it differs only by strategy names, identifiers, types or the attribute path of a field. The proof that
+outputs are unchanged is in [D.5](#d5-353e1-tests).
+
+**Helpers extracted**
+
+| Helper | Home | Adopted by | Region it replaces |
+| :--- | :--- | :--- | :--- |
+| `snapshot_by_revalidation` | `analysis/run_models.py` | all five codecs | Dump the evidence model to JSON, decode the dump, return it. |
+| `validate_wire` | `analysis/run_models.py` | all five codecs (Momentum directly, the others through the two helpers below) | Strict JSON validation of the wire object, refusing a non-finite number. |
+| `decode_with_native_identifiers` | `analysis/run_models.py` | FCF-Growth, Piotroski | Check the result, under the documented constant `NATIVE_RESULT_KEY`, is an object, its identifiers and integer versions equal the declared ones, drop them, validate. The messages keep each strategy's name through `label`. |
+| `decode_with_method_sections` | `analysis/run_models.py` | Graham Number, Graham Growth | Check each of `METHOD_SECTIONS` (`assembly`, `result`) of the analysis under `METHOD_ANALYSIS_KEY` carries the declared `method`, drop it from a copy, validate. |
+| `resolve_command_target` | `cli_support.py` | all five commands | Resolve the ticker and record it on the failure scope, then resolve the presentation mode and record it. |
+| `render_execution` | `cli_support.py` | FCF-Growth, Piotroski, Momentum | Exit code of the outcome, the provider check run once and only after a failure, the strategy's render, the check lines before a failure. |
+| `emit_output` | `cli_support.py` | all five commands | Write the output (standard error for a failure in the concise and details modes) and exit with the code. |
+| `analyze_and_maybe_save` | `cli_run_support.py` | FCF-Growth, Piotroski, Graham Number, Graham Growth | The save stage, `saving_failures` and `maybe_save_run` with the normalizer marked. |
+| `AS_OF_OPTION`, `SAVE_RUN_OPTION`, `NO_PROVIDER_CHECK_OPTION` | `cli_support.py` | all five commands | The three option declarations whose text is identical in all five. |
+| `use_cache` field of the tool arguments | `orchestrator/analysis_tool_arguments.py` | all five tool arguments models, the specimen and the generator template | The identical `use_cache: bool = True` declaration. It is now declared once in `AnalysisToolArguments`, so `tool_context` reads `arguments.use_cache` and has no parameter for it, and the Graham handlers read the shared field in their own context code. The approved key-order change in the schemas is recorded in [A.9](#a9-decisions-e1-to-e8-2026-11-01). |
+| `tool_context` | `strategies/_shared/tool.py` | FCF-Growth, Momentum, Piotroski | Validate the clock, resolve the profile once, build the `AnalysisContext`. |
+| `run_analyzer_with_profile` | `strategies/_shared/invocation.py` | Graham Number, Graham Growth | Compose the profile, build the context, run the analyzer, keep the analyzer's profile or else the composed one. |
+
+`compose_production_profile` (formerly `compose_graham_profile`) was already the shared profile composition, and
+FCF-Growth, Piotroski and, through `run_analyzer_with_profile`, both Graham strategies call it.
+
+**Regions left in place**
+
+Three of these differ in behavior between strategies and are recorded, with no behavior changed, in issue [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207): the
+save path of Momentum, the provider-check branch of the Graham render, and the order of the clock and the profile in the
+Graham tool handlers.
+
+| Region | Strategies | Why it stays |
+| :--- | :--- | :--- |
+| Direct-command save path | Momentum | It checks readiness and composes the profile in the command, before any provider call, and marks the save stage analyzed itself. Unifying it would change the order of the readiness check and the provider requests. |
+| Failure branches of the render | Graham Number, Graham Growth | The provider check runs only in the failure branch of the assembly status, never in the not-applicable branch, and always on the recorded failure; `render_execution` runs it on the exit code. Unifying would change when a probe request is sent. |
+| Clock and profile order in the tool handler | Graham Number, Graham Growth | They resolve the profile before validating the clock, so a provider request precedes a refused clock. `tool_context` validates the clock first. |
+| `from_<name>_capture` | all five | Each builds an `ExecutionCapture` from a different attribute path (`result`, `analysis`, `run`, `analysis.assembly.provider_failure`) and Momentum adds its display values. A helper would take the arguments the constructor takes, and the functions are named by the descriptors. |
+| Profile composition of Momentum | Momentum | One Yahoo client is both candidates and SEC is not asked, so it is not `compose_production_profile`. |
+| `AnalysisContext` construction | all five | It is one constructor call (`selection.to_analysis_context` for Momentum and Piotroski, inline elsewhere); a function would only rename it. |
+| Evidence validators | all five | The invariants and their messages differ by strategy. |
+| `--no-cache`, `--details`, `--diagnostics` and `--json` options | all five | Their help text differs by strategy, and the help snapshot would change. |
+| `build_selection` and `refresh` bodies | all five | They build different selection fields and compose different caches and clients. |
+| Tool handler class, selection class fields, replay projectors, envelope documents, evaluation compositions | all five | They are declarations or one-call bodies; sharing them would need a base class or mixin. Graham Number and Graham Growth already share `_graham/replay.py` and `_graham/evaluation.py`. |
+
+**Outside the eight kinds** (listed, not extracted): `vocabulary.py` holds the same five declarations per strategy with
+different values; `_normalized_required` in `data/security_identity.py` is imported by four `data` modules, and
+`_FrozenModel` in `analysis/run_models.py` by `workspace/runs.py`, neither by a strategy file.
+
+**Placement decisions** are in [E8](#a9-decisions-e1-to-e8-2026-11-01). The generator templates and fills changed as
+[C.6](#c6-353e1-files) lists.
 
 ---
 
@@ -555,10 +649,41 @@ Written when 3.5.3d completed. Two commits: the generator fix, then the strategy
   `tests/_strategy_document_output.py`, `tests/evaluation/test_catalog.py` and
   `tests/scripts/generator_fills/patches.toml` (its anchors, because a fifth strategy and two cases exist).
 
-### C.6 3.5.3e files
+### C.6 3.5.3e1 files
 
-The extracted helpers and the generator templates that call them, `docs/TOOL_DEVELOPMENT.md`, and this plan's
-implementation record. The exact list is written when 3.5.3e begins.
+Commits: the renames, the codec helpers, the tool helper, the direct-command helpers, the generator templates, the Graham
+invocation helper, and the plan records.
+
+**Renames ([E6](#a9-decisions-e1-to-e8-2026-11-01))**
+
+- `investment_analysis_engine/cli_support.py`, `analysis/run_models.py`, `strategies/_shared/profile.py`, and every
+  module and test that used an old name: the five strategy `cli.py`, `codec.py` and (for the profile) `execution.py`
+  files, `cli_workspace.py`, `cli_run_support.py`, `workspace/execution.py` and 20 test modules.
+
+**Helpers**
+
+- Edited: `investment_analysis_engine/analysis/run_models.py`, `cli_support.py`, `cli_run_support.py`.
+- New: `strategies/_shared/tool.py`, `strategies/_shared/invocation.py`.
+- Adopting: the five `codec.py` files; the `cli.py` of all five strategies; `tool.py` of FCF-Growth, Momentum and
+  Piotroski; `execution.py` of Graham Number and Graham Growth.
+
+**Generator**
+
+- `scripts/strategy_templates/{analyzer,selection,execution,cli}.py.tmpl`.
+- `tests/scripts/generator_fills/{analyzer,execution,cli,tool}.py.fill`. `patches.toml` needed no change: none of its
+  anchors names a stub this slice changed.
+
+**Tests**
+
+- New: `tests/analysis/test_codec_helpers.py`, `tests/analysis/test_tool_context.py`,
+  `tests/orchestrator/test_analysis_tool_arguments.py`, `tests/test_cli_command_helpers.py`, `tests/workspace/test_profile_invocation.py`.
+- Edited: `tests/scripts/test_new_strategy.py` (the config-free, profile, flag and underscore-import tests), and the
+  tests whose patch targets or imports used a renamed name or `graham_*.execution.compose_production_profile`.
+
+**Documents**: this plan and the contract's sequence table.
+
+Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/`, `schemas/`, the help
+snapshot and the generated blocks of `docs/user/`.
 
 ---
 
@@ -651,6 +776,18 @@ As written (the file names are in [C.5](#c5-353d-files)):
   selection builder.
 - **Unchanged outputs:** the stored outputs and schemas of the four existing strategies are byte-identical
   (`git --no-pager diff --stat` of the U6 commands, [B.3](#b3-decisions-of-353b-to-353e)).
+
+### D.5 3.5.3e1 tests
+
+- **Helpers:** each codec helper (messages, removal on a copy, refusals), `tool_context` (clock first, no profile
+  resolved after a refused clock), and that every declared strategy's tool arguments inherit `use_cache` without
+  redeclaring it, the command helpers (target recorded before a rejected flag, the provider check run
+  once and only after a failure, standard error by mode, the save passthrough), and `run_analyzer_with_profile`.
+- **Templates:** the stubs write only the config-free form; the execution stub composes the profile; the command stub
+  has every output flag; no template and no fill imports an underscore name from another module; the end-to-end
+  generator test fills the stubs and passes `scripts.strategy_status` and the conformance checks.
+- **Unchanged outputs:** the four U6 commands, `scripts.generate_strategy_docs`, and `git --no-pager diff --stat main`
+  over `tests/expected_output`, `schemas` and `docs/user` show no change.
 
 ---
 

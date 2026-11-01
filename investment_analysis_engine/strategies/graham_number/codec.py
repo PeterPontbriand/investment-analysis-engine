@@ -1,10 +1,12 @@
 """Strict version-one codec for complete Graham Number execution evidence."""
 
-import json
-
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from investment_analysis_engine.analysis.run_models import StrictJsonMapping, _validate_json_value
+from investment_analysis_engine.analysis.run_models import (
+    StrictJsonMapping,
+    decode_with_method_sections,
+    snapshot_by_revalidation,
+)
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.graham_number.vocabulary import METHOD_ID
@@ -69,27 +71,17 @@ class _NumberEvidence(BaseModel):
 
 def encode_graham_number(evidence: GrahamNumberAnalysis) -> StrictJsonMapping:
     """Capture a detached finite JSON snapshot, revalidating native instances."""
-    payload = _NumberEvidence(analysis=evidence).model_dump(mode="json")
-    decode_graham_number(payload)
-    return payload
+    return snapshot_by_revalidation(_NumberEvidence(analysis=evidence), decode_graham_number)
 
 
 def decode_graham_number(payload: StrictJsonMapping) -> GrahamNumberAnalysis:
     """Reconstruct Number evidence without invoking financial or provider work."""
-    _validate_json_value(payload)
-    analysis = payload.get("analysis")
-    if not isinstance(analysis, dict):
-        raise ValueError("Graham Number analysis must be an object.")
-    analysis = dict(analysis)
-    for name in ("assembly", "result"):
-        section = analysis.get(name)
-        if not isinstance(section, dict) or section.get("method") != METHOD_ID:
-            raise ValueError("Graham Number assembly/result method mismatch.")
-        # Native init=False identifiers are checked, then restored by the native
-        # constructor. Copy before removal to leave caller-owned data intact.
-        analysis[name] = {key: item for key, item in section.items() if key != "method"}
-    wire = {**payload, "analysis": analysis}
-    return _NumberEvidence.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False)).analysis
+    return decode_with_method_sections(
+        _NumberEvidence,
+        payload,
+        label="Graham Number",
+        method_id=METHOD_ID,
+    ).analysis
 
 
 def graham_number_native_status(result: GrahamNumberAnalysis, /) -> CalculationStatus:

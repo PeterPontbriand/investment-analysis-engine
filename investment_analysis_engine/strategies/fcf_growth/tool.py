@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 from pydantic import field_validator
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
+from investment_analysis_engine.strategies._shared.tool import tool_context
 from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from investment_analysis_engine.strategies.fcf_growth.models import (
     FCFEarningsGrowthConfig,
@@ -30,7 +30,6 @@ class FCFEarningsGrowthToolArguments(AnalysisToolArguments):
     forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
     include_fcf_yield: bool = True
     currency: str = "USD"
-    use_cache: bool = True
 
     @field_validator("currency")
     @classmethod
@@ -70,12 +69,5 @@ class FCFEarningsGrowthToolHandler:
             policy=policy,
             currency=arguments.currency,
         )
-        executed_at = self._runtime.validated_clock_value()
-        profile = self._runtime.resolve_profile(arguments.ticker)
-        context = AnalysisContext(
-            as_of=arguments.as_of,
-            executed_at=executed_at,
-            use_cache=arguments.use_cache,
-            instrument_profile=profile,
-        )
+        context = tool_context(self._runtime, arguments)
         return self._dependencies.analyzer.run_analysis(ticker=arguments.ticker, config=config, context=context)

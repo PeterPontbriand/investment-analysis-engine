@@ -12,21 +12,20 @@ import typer
 from investment_analysis_engine.cli_composition import build_sec_production_provider
 from investment_analysis_engine.cli_provider_check import (
     provider_check_choice,
-    provider_check_findings,
-    with_provider_check,
 )
-from investment_analysis_engine.cli_run_support import maybe_save_run
+from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
 from investment_analysis_engine.cli_support import (
-    SaveStage,
-    _parse_as_of,
-    _presentation_mode,
-    _production_financial_cache,
-    _production_historical_client,
-    _resolve_ticker,
+    AS_OF_OPTION,
+    NO_PROVIDER_CHECK_OPTION,
+    SAVE_RUN_OPTION,
+    emit_output,
     execution_errors,
-    exit_code_of,
+    parse_as_of,
+    production_financial_cache,
+    production_historical_client,
+    render_execution,
     require_job_ticker,
-    saving_failures,
+    resolve_command_target,
     stored_configuration,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
@@ -41,7 +40,6 @@ from investment_analysis_engine.data.instrument_profile import profile_identity_
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.data.market_data import DatedSplitAdjustedHistoryProvider
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
-from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.fcf_growth.analyzer import MarketCapDependencies
 from investment_analysis_engine.strategies.fcf_growth.execution import (
     execute_fcf_growth,
@@ -106,7 +104,7 @@ def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
 
     Mirrors the direct ``fcf-growth`` command's own flags and validation exactly.
     """
-    boundary = _parse_as_of(flags.as_of)
+    boundary = parse_as_of(flags.as_of)
     normalized_currency = _fcf_currency(flags.currency)
     policy = FCFEarningsGrowthPolicy(
         historical_horizon=_fcf_historical_horizon(flags.growth_years),
@@ -154,8 +152,8 @@ def refresh(
     config = stored_configuration(selection.to_fcf_config)
     executed_at = utc_now()
     with (
-        _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache,
-        _production_historical_client(
+        production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache,
+        production_historical_client(
             YFinanceClient(), use_cache=selection.use_cache, clock=lambda: executed_at
         ) as historical_client,
     ):
@@ -194,18 +192,14 @@ def command(  # noqa: PLR0913
         "--classification-basis",
         help="Classification basis: total-fcf or fcf-per-share",
     ),
-    as_of: str | None = typer.Option(
-        None, "--as-of", help="Point-in-time boundary as YYYY-MM-DD or timezone-aware ISO-8601 timestamp"
-    ),
+    as_of: str | None = AS_OF_OPTION,
     currency: str = typer.Option("USD", "--currency", help="ISO 4217 reporting currency for compatible annual facts"),
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass resolved-input cache reads and writes"),
     details: bool = typer.Option(False, "--details", help="Show annual facts, provenance, and derivation lineage"),
     diagnostics: bool = typer.Option(False, "--diagnostics", help="Show resolver execution trace"),
     json_output: bool = typer.Option(False, "--json", help="Emit the complete versioned typed result"),
-    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
-    no_provider_check: bool = typer.Option(
-        False, "--no-provider-check", help="Do not send a test request to a provider after it fails"
-    ),
+    save_run: bool = SAVE_RUN_OPTION,
+    no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Execute the historical free-cash-flow and diluted-EPS growth screen."""
     executed_at = utc_now()
@@ -216,13 +210,11 @@ def command(  # noqa: PLR0913
         selection_type=FCFGrowthSelection,
         provider_check=provider_check,
     ) as scope:
-        target_ticker = _resolve_ticker(ticker, None, command="fcf-growth")
-        assert target_ticker is not None
-        scope.ticker = target_ticker
-        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-        scope.mode = mode
+        target_ticker, mode = resolve_command_target(
+            scope, ticker, None, command="fcf-growth", details=details, diagnostics=diagnostics, json_output=json_output
+        )
         horizon = _fcf_historical_horizon(growth_years)
-        analysis_as_of = _parse_as_of(as_of)
+        analysis_as_of = parse_as_of(as_of)
         normalized_currency = _fcf_currency(currency)
         policy = FCFEarningsGrowthPolicy(
             historical_horizon=horizon,
@@ -231,8 +223,8 @@ def command(  # noqa: PLR0913
         )
         config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency)
         with (
-            _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache,
-            _production_historical_client(
+            production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache,
+            production_historical_client(
                 YFinanceClient(), use_cache=not no_cache, clock=lambda: executed_at
             ) as historical_client,
         ):
@@ -243,43 +235,39 @@ def command(  # noqa: PLR0913
                 cache=cache,
                 clock=lambda: executed_at,
             )
-            stage = SaveStage()
-            with saving_failures(stage):
-                capture = maybe_save_run(
-                    save_run=save_run,
-                    executed_at=executed_at,
-                    request_factory=lambda: AnalysisRequest(
-                        ticker=target_ticker,
-                        selection=FCFGrowthSelection(
-                            policy=FCFPolicySnapshot.model_validate(policy),
-                            currency=normalized_currency,
-                            as_of=analysis_as_of,
-                            use_cache=not no_cache,
-                        ),
-                    ),
-                    run_adapter=lambda profile_cache: execute_fcf_growth(
-                        resolver,
-                        target_ticker,
-                        config=config,
+            capture = analyze_and_maybe_save(
+                save_run=save_run,
+                executed_at=executed_at,
+                request_factory=lambda: AnalysisRequest(
+                    ticker=target_ticker,
+                    selection=FCFGrowthSelection(
+                        policy=FCFPolicySnapshot.model_validate(policy),
+                        currency=normalized_currency,
                         as_of=analysis_as_of,
-                        executed_at=executed_at,
                         use_cache=not no_cache,
-                        provider=provider,
-                        market_data=market_data,
-                        profile_cache=profile_cache,
                     ),
-                    normalize=stage.after_analysis(from_fcf_growth_capture),
-                )
+                ),
+                run_adapter=lambda profile_cache: execute_fcf_growth(
+                    resolver,
+                    target_ticker,
+                    config=config,
+                    as_of=analysis_as_of,
+                    executed_at=executed_at,
+                    use_cache=not no_cache,
+                    provider=provider,
+                    market_data=market_data,
+                    profile_cache=profile_cache,
+                ),
+                normalize=from_fcf_growth_capture,
+            )
             result = capture.result
             profile = capture.profile
             identity_resolution = profile_identity_resolution(profile)
 
-    execution = from_fcf_growth_capture(capture)
-    exit_code = exit_code_of(execution.outcome)
-    findings = provider_check_findings((execution.provider_failure,) if exit_code else (), provider_check)
-    output = render_fcf_earnings_growth(result, mode, identity_resolution, profile, findings.element())
-    if exit_code:
-        output = with_provider_check(output, findings, mode)
-    typer.echo(output, err=exit_code != 0 and mode in (PresentationMode.CONCISE, PresentationMode.DETAILS))
-    if exit_code:
-        raise typer.Exit(code=exit_code)
+    output, exit_code = render_execution(
+        from_fcf_growth_capture(capture),
+        provider_check,
+        mode,
+        lambda element: render_fcf_earnings_growth(result, mode, identity_resolution, profile, element),
+    )
+    emit_output(output, exit_code, mode)

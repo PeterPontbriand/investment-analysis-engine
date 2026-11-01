@@ -30,7 +30,7 @@ from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
+from investment_analysis_engine.strategies._shared.profile import compose_production_profile
 from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer, MarketCapDependencies
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthResult
@@ -81,7 +81,7 @@ def execute_fcf_growth(  # noqa: PLR0913
     Returns:
         The captured native result and its associated profile.
     """
-    profile = compose_graham_profile(
+    profile = compose_production_profile(
         ticker,
         primary_provider=provider,
         yahoo_provider=provider,

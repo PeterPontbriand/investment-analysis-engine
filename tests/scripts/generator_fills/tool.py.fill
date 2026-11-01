@@ -4,16 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
-from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnalyzer, CiProbeConfig, CiProbeResult
+from investment_analysis_engine.strategies._shared.tool import tool_context
+from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnalyzer, CiProbeResult
 
 
 class CiProbeToolArguments(AnalysisToolArguments):
     """Validated arguments for the CI Probe analysis."""
-
-    use_cache: bool = True
 
 
 @dataclass(frozen=True)
@@ -34,7 +32,5 @@ class CiProbeToolHandler:
     def __call__(self, **raw_arguments: object) -> CiProbeResult:
         """Validate the arguments and run one CI Probe analysis."""
         arguments = CiProbeToolArguments.model_validate(raw_arguments)
-        context = AnalysisContext(
-            as_of=arguments.as_of, executed_at=self._runtime.validated_clock_value(), use_cache=arguments.use_cache
-        )
-        return self._dependencies.analyzer.run_analysis(arguments.ticker, CiProbeConfig(), context)
+        context = tool_context(self._runtime, arguments)
+        return self._dependencies.analyzer.run_analysis(arguments.ticker, context)

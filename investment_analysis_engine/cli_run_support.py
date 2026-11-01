@@ -5,7 +5,7 @@ from datetime import datetime
 
 import typer
 
-from investment_analysis_engine.cli_support import _production_instrument_profile_cache
+from investment_analysis_engine.cli_support import SaveStage, production_instrument_profile_cache, saving_failures
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.data.repositories.readiness import ensure_database_ready
@@ -90,7 +90,7 @@ def maybe_save_run[RawCaptureT](
     try:
         ensure_database_ready(database)
         repository = SQLiteAnalysisRunRepository(database)
-        profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)
+        profile_cache = production_instrument_profile_cache(database, clock=lambda: executed_at)
         holder: list[RawCaptureT] = []
 
         def capture() -> ExecutionCapture:
@@ -103,3 +103,26 @@ def maybe_save_run[RawCaptureT](
         return holder[0]
     finally:
         database.close()
+
+
+def analyze_and_maybe_save[RawCaptureT](  # noqa: PLR0913
+    *,
+    save_run: bool,
+    executed_at: datetime,
+    request_factory: Callable[[], AnalysisRequest],
+    run_adapter: Callable[[InstrumentProfileResolver | None], RawCaptureT],
+    normalize: Callable[[RawCaptureT], ExecutionCapture],
+) -> RawCaptureT:
+    """Run :func:`maybe_save_run` so that a failure after the analysis finished is reported as a failure while saving.
+
+    The arguments and the result are those of :func:`maybe_save_run`.
+    """
+    stage = SaveStage()
+    with saving_failures(stage):
+        return maybe_save_run(
+            save_run=save_run,
+            executed_at=executed_at,
+            request_factory=request_factory,
+            run_adapter=run_adapter,
+            normalize=stage.after_analysis(normalize),
+        )

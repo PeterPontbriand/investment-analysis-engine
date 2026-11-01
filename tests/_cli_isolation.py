@@ -8,7 +8,7 @@ argument. Both fixtures are registered in ``tests/conftest.py``, so no module im
 ``investment_analysis_engine.cli_workspace``'s and ``investment_analysis_engine.cli_run_support``'s database access at a
 disposable, already-migrated SQLite file instead of the real local database at the default
 ``database_url``. Momentum/Graham CLI commands (via
-``_production_historical_client``/``_production_financial_cache``) and the
+``production_historical_client``/``production_financial_cache``) and the
 watchlist/runs commands (via their own ``_workspace_database``) all call
 ``ensure_database_ready`` before doing any work; without this isolation,
 tests that invoke those commands implicitly depend on the developer

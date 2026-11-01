@@ -5,6 +5,7 @@ They are the direct command, the selection builder and the refresh executor.
 
 import typer
 
+from investment_analysis_engine.cli_support import AS_OF_OPTION, NO_PROVIDER_CHECK_OPTION, SAVE_RUN_OPTION
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
@@ -29,14 +30,18 @@ def refresh(
     unfilled_stub("cli")
 
 
-def command(
+def command(  # noqa: PLR0913
+    context: typer.Context,
     ticker: str = typer.Argument(..., help="Target ticker symbol"),
     *,
-    as_of: str | None = typer.Option(None, "--as-of", help="Point-in-time boundary"),
+    as_of: str | None = AS_OF_OPTION,
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the cache"),
+    details: bool = typer.Option(False, "--details", help="Show the inputs"),
+    diagnostics: bool = typer.Option(False, "--diagnostics", help="Show how the result was assembled"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
-    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
+    save_run: bool = SAVE_RUN_OPTION,
+    no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Run the $label analysis."""
-    del ticker, as_of, no_cache, json_output, save_run
+    del context, ticker, as_of, no_cache, details, diagnostics, json_output, save_run, no_provider_check
     unfilled_stub("cli")

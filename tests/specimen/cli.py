@@ -8,7 +8,7 @@ from typing import Final
 
 import typer
 
-from investment_analysis_engine.cli_support import _parse_as_of, _presentation_mode
+from investment_analysis_engine.cli_support import parse_as_of, presentation_mode
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.config.component_settings import load_component_settings
@@ -41,7 +41,7 @@ def _analyzer() -> SpecimenAnalyzer:
 
 def build_selection(flags: WatchlistFlags) -> SpecimenSelection:
     """Build one validated specimen selection from the watchlist flags it concerns: the boundary and the cache."""
-    return SpecimenSelection(value=WATCHLIST_VALUE, as_of=_parse_as_of(flags.as_of), use_cache=not flags.no_cache)
+    return SpecimenSelection(value=WATCHLIST_VALUE, as_of=parse_as_of(flags.as_of), use_cache=not flags.no_cache)
 
 
 def refresh(
@@ -69,8 +69,8 @@ def command(  # noqa: PLR0913
     save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a specimen run"),
 ) -> None:
     """Scale a value by the specimen's configured multiplier."""
-    mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
-    selection = SpecimenSelection(value=value, as_of=_parse_as_of(as_of), use_cache=not no_cache)
+    mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+    selection = SpecimenSelection(value=value, as_of=parse_as_of(as_of), use_cache=not no_cache)
     capture = execute_specimen(_analyzer(), ticker, selection, executed_at=utc_now())
     if save_run:
         SPECIMEN_RUN_STORE.insert(build_specimen_run(ticker, selection, from_specimen_capture(capture)))
