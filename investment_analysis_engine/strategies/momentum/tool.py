@@ -21,7 +21,6 @@ class MomentumToolArguments(AnalysisToolArguments):
     short_window: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
     long_window: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
     rsi_period: int | None = Field(default=None, gt=0, description=_OMIT_TO_USE_CONFIGURED)
-    use_cache: bool = True
 
     @model_validator(mode="after")
     def require_ordered_windows(self) -> MomentumToolArguments:
@@ -56,5 +55,5 @@ class MomentumToolHandler:
             long_window=configured.long_window if arguments.long_window is None else arguments.long_window,
             rsi_period=configured.rsi_period if arguments.rsi_period is None else arguments.rsi_period,
         )
-        context = tool_context(self._runtime, arguments, use_cache=arguments.use_cache)
+        context = tool_context(self._runtime, arguments)
         return self._dependencies.analyzer.run_analysis(ticker=arguments.ticker, config=config, context=context)

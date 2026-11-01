@@ -25,7 +25,6 @@ class SpecimenToolArguments(AnalysisToolArguments):
     """Validated arguments for the specimen analysis."""
 
     value: FiniteFloat
-    use_cache: bool = True
 
 
 @dataclass(frozen=True)

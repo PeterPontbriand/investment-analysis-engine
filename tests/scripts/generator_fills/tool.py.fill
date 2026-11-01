@@ -13,8 +13,6 @@ from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnaly
 class CiProbeToolArguments(AnalysisToolArguments):
     """Validated arguments for the CI Probe analysis."""
 
-    use_cache: bool = True
-
 
 @dataclass(frozen=True)
 class CiProbeToolDependencies:
@@ -34,5 +32,5 @@ class CiProbeToolHandler:
     def __call__(self, **raw_arguments: object) -> CiProbeResult:
         """Validate the arguments and run one CI Probe analysis."""
         arguments = CiProbeToolArguments.model_validate(raw_arguments)
-        context = tool_context(self._runtime, arguments, use_cache=arguments.use_cache)
+        context = tool_context(self._runtime, arguments)
         return self._dependencies.analyzer.run_analysis(arguments.ticker, context)

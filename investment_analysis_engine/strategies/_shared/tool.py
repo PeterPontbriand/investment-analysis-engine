@@ -5,7 +5,7 @@ from investment_analysis_engine.orchestrator.analysis_tool_arguments import Anal
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
 
 
-def tool_context(runtime: ToolRuntime, arguments: AnalysisToolArguments, *, use_cache: bool) -> AnalysisContext:
+def tool_context(runtime: ToolRuntime, arguments: AnalysisToolArguments) -> AnalysisContext:
     """Build the run context of one tool call: the clock is validated first, then the profile is resolved once.
 
     The order is fixed. A strategy that must resolve the profile before the clock is validated builds its context
@@ -13,8 +13,7 @@ def tool_context(runtime: ToolRuntime, arguments: AnalysisToolArguments, *, use_
 
     Args:
         runtime: The shared tool runtime, which supplies the clock and the optional profile resolver.
-        arguments: The validated arguments, whose ticker and ``as_of`` the context carries.
-        use_cache: The strategy's own cache choice from its arguments.
+        arguments: The validated arguments, whose ticker, ``as_of`` and ``use_cache`` the context carries.
 
     Returns:
         The context to pass to the analyzer.
@@ -22,5 +21,5 @@ def tool_context(runtime: ToolRuntime, arguments: AnalysisToolArguments, *, use_
     executed_at = runtime.validated_clock_value()
     profile = runtime.resolve_profile(arguments.ticker)
     return AnalysisContext(
-        as_of=arguments.as_of, executed_at=executed_at, use_cache=use_cache, instrument_profile=profile
+        as_of=arguments.as_of, executed_at=executed_at, use_cache=arguments.use_cache, instrument_profile=profile
     )

@@ -369,6 +369,10 @@ Approved by the project owner before 3.5.3e1 began.
 | E7 | Where B.2 goes | B.2 entries 1 to 6, 11 and 13 to 15 go into the guide in 3.5.3e2. Entries 8 to 10 are fixed in code (8 in 3.5.3d, 9 and 10 in 3.5.3e1) and then described in the guide. Entries 7 and 12 go into one issue filed in 3.5.3e2, with the guide stating both facts meanwhile. |
 | E8 | Functions only | Helpers are functions, not a base class, mixin, registry or factory. They live in the shared module of the layer that owns them: CLI-command helpers in `cli_support.py`, codec helpers in `analysis/run_models.py`, execution helpers in `strategies/_shared/`. Two placements follow from the layers: `analyze_and_maybe_save` is in `cli_run_support.py` beside `maybe_save_run`, which imports `cli_support`, and a helper that builds an `ExecutionCapture` cannot sit in `strategies/`: `scripts/package_graph.py` assigns each strategy's `execution.py` to the `workspace` layer, its `cli.py` to `cli` and its `evaluation.py` to `evaluation`, and every other file under `strategies/`, `_shared/` included, is the `strategies` layer, which cannot import `workspace`. |
 
+The key-order change of the tool argument schemas was approved on 2026-11-01. Declaring `use_cache` once in
+`AnalysisToolArguments` puts it after `as_of` in the JSON schema of Momentum, Graham Number, Graham Growth and FCF-Growth,
+where each model declared it last; the schemas are equal as data, and Piotroski's is unchanged.
+
 ---
 
 ## Appendix B: Implementation record
@@ -509,6 +513,7 @@ outputs are unchanged is in [D.5](#d5-353e1-tests).
 | `emit_output` | `cli_support.py` | all five commands | Write the output (standard error for a failure in the concise and details modes) and exit with the code. |
 | `analyze_and_maybe_save` | `cli_run_support.py` | FCF-Growth, Piotroski, Graham Number, Graham Growth | The save stage, `saving_failures` and `maybe_save_run` with the normalizer marked. |
 | `AS_OF_OPTION`, `SAVE_RUN_OPTION`, `NO_PROVIDER_CHECK_OPTION` | `cli_support.py` | all five commands | The three option declarations whose text is identical in all five. |
+| `use_cache` field of the tool arguments | `orchestrator/analysis_tool_arguments.py` | all five tool arguments models, the specimen and the generator template | The identical `use_cache: bool = True` declaration. It is now declared once in `AnalysisToolArguments`, so `tool_context` reads `arguments.use_cache` and has no parameter for it, and the Graham handlers read the shared field in their own context code. The approved key-order change in the schemas is recorded in [A.9](#a9-decisions-e1-to-e8-2026-11-01). |
 | `tool_context` | `strategies/_shared/tool.py` | FCF-Growth, Momentum, Piotroski | Validate the clock, resolve the profile once, build the `AnalysisContext`. |
 | `run_analyzer_with_profile` | `strategies/_shared/invocation.py` | Graham Number, Graham Growth | Compose the profile, build the context, run the analyzer, keep the analyzer's profile or else the composed one. |
 
@@ -526,7 +531,6 @@ Graham tool handlers.
 | Direct-command save path | Momentum | It checks readiness and composes the profile in the command, before any provider call, and marks the save stage analyzed itself. Unifying it would change the order of the readiness check and the provider requests. |
 | Failure branches of the render | Graham Number, Graham Growth | The provider check runs only in the failure branch of the assembly status, never in the not-applicable branch, and always on the recorded failure; `render_execution` runs it on the exit code. Unifying would change when a probe request is sent. |
 | Clock and profile order in the tool handler | Graham Number, Graham Growth | They resolve the profile before validating the clock, so a provider request precedes a refused clock. `tool_context` validates the clock first. |
-| `use_cache` field of the tool arguments, and the `use_cache` parameter of `tool_context` | all five | The field is declared identically in each arguments model, but moving it into `AnalysisToolArguments` puts it ahead of each strategy's own fields in the JSON schema that `ollama_runner` sends to the model (Momentum, Graham Number, Graham Growth and FCF-Growth; Piotroski is unchanged), so the schema text the model sees would change. The schemas are equal as data and no stored or pinned output changes, but the order cannot be kept with a shared field, so it stays until that change is approved. |
 | `from_<name>_capture` | all five | Each builds an `ExecutionCapture` from a different attribute path (`result`, `analysis`, `run`, `analysis.assembly.provider_failure`) and Momentum adds its display values. A helper would take the arguments the constructor takes, and the functions are named by the descriptors. |
 | Profile composition of Momentum | Momentum | One Yahoo client is both candidates and SEC is not asked, so it is not `compose_production_profile`. |
 | `AnalysisContext` construction | all five | It is one constructor call (`selection.to_analysis_context` for Momentum and Piotroski, inline elsewhere); a function would only rename it. |
@@ -672,7 +676,7 @@ invocation helper, and the plan records.
 **Tests**
 
 - New: `tests/analysis/test_codec_helpers.py`, `tests/analysis/test_tool_context.py`,
-  `tests/test_cli_command_helpers.py`, `tests/workspace/test_profile_invocation.py`.
+  `tests/orchestrator/test_analysis_tool_arguments.py`, `tests/test_cli_command_helpers.py`, `tests/workspace/test_profile_invocation.py`.
 - Edited: `tests/scripts/test_new_strategy.py` (the config-free, profile, flag and underscore-import tests), and the
   tests whose patch targets or imports used a renamed name or `graham_*.execution.compose_production_profile`.
 
@@ -776,7 +780,8 @@ As written (the file names are in [C.5](#c5-353d-files)):
 ### D.5 3.5.3e1 tests
 
 - **Helpers:** each codec helper (messages, removal on a copy, refusals), `tool_context` (clock first, no profile
-  resolved after a refused clock), the command helpers (target recorded before a rejected flag, the provider check run
+  resolved after a refused clock), and that every declared strategy's tool arguments inherit `use_cache` without
+  redeclaring it, the command helpers (target recorded before a rejected flag, the provider check run
   once and only after a failure, standard error by mode, the save passthrough), and `run_analyzer_with_profile`.
 - **Templates:** the stubs write only the config-free form; the execution stub composes the profile; the command stub
   has every output flag; no template and no fill imports an underscore name from another module; the end-to-end

@@ -30,7 +30,6 @@ class FCFEarningsGrowthToolArguments(AnalysisToolArguments):
     forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
     include_fcf_yield: bool = True
     currency: str = "USD"
-    use_cache: bool = True
 
     @field_validator("currency")
     @classmethod
@@ -70,5 +69,5 @@ class FCFEarningsGrowthToolHandler:
             policy=policy,
             currency=arguments.currency,
         )
-        context = tool_context(self._runtime, arguments, use_cache=arguments.use_cache)
+        context = tool_context(self._runtime, arguments)
         return self._dependencies.analyzer.run_analysis(ticker=arguments.ticker, config=config, context=context)

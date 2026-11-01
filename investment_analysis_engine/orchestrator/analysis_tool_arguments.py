@@ -12,12 +12,20 @@ PositiveFiniteFloat = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
 
 class AnalysisToolArguments(BaseModel):
-    """Shared validation for production analysis-tool arguments."""
+    """Shared validation for production analysis-tool arguments.
+
+    Attributes:
+        ticker: The instrument symbol, normalized to upper case.
+        as_of: The timezone-aware point-in-time boundary, or ``None`` for the latest data.
+        use_cache: Whether the analysis may read and write the strategy's data caches. Every strategy offers it, so
+            it is declared here once and no arguments model redeclares it.
+    """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     ticker: str
     as_of: datetime | None = None
+    use_cache: bool = True
 
     @field_validator("ticker")
     @classmethod

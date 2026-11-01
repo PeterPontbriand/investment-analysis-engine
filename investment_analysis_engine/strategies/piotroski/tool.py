@@ -13,8 +13,6 @@ from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiAn
 class PiotroskiToolArguments(AnalysisToolArguments):
     """Validated arguments for the Piotroski F-Score analysis."""
 
-    use_cache: bool = True
-
 
 @dataclass(frozen=True)
 class PiotroskiToolDependencies:
@@ -34,5 +32,5 @@ class PiotroskiToolHandler:
     def __call__(self, **raw_arguments: object) -> PiotroskiResult:
         """Validate the arguments and run one Piotroski F-Score analysis."""
         arguments = PiotroskiToolArguments.model_validate(raw_arguments)
-        context = tool_context(self._runtime, arguments, use_cache=arguments.use_cache)
+        context = tool_context(self._runtime, arguments)
         return self._dependencies.analyzer.run_analysis(ticker=arguments.ticker, context=context)

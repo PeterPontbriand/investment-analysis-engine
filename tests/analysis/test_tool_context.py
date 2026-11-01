@@ -26,9 +26,9 @@ def test_the_context_carries_the_boundary_the_clock_the_cache_choice_and_the_pro
         resolved.append(ticker)
         return profile
 
-    arguments = AnalysisToolArguments(ticker=" aapl ", as_of=boundary)
+    arguments = AnalysisToolArguments(ticker=" aapl ", as_of=boundary, use_cache=False)
 
-    context = tool_context(ToolRuntime(clock=lambda: NOW, profile_resolver=resolve), arguments, use_cache=False)
+    context = tool_context(ToolRuntime(clock=lambda: NOW, profile_resolver=resolve), arguments)
 
     assert (context.as_of, context.executed_at, context.use_cache) == (boundary, NOW, False)
     assert context.instrument_profile is profile
@@ -36,7 +36,7 @@ def test_the_context_carries_the_boundary_the_clock_the_cache_choice_and_the_pro
 
 
 def test_no_resolver_gives_no_profile() -> None:
-    context = tool_context(ToolRuntime(clock=lambda: NOW), AnalysisToolArguments(ticker="KO"), use_cache=True)
+    context = tool_context(ToolRuntime(clock=lambda: NOW), AnalysisToolArguments(ticker="KO"))
 
     assert context.instrument_profile is None
     assert context.as_of is None
@@ -52,6 +52,6 @@ def test_a_naive_clock_is_refused_before_any_profile_is_resolved() -> None:
     runtime = ToolRuntime(clock=lambda: datetime(2026, 11, 1), profile_resolver=resolve)  # noqa: DTZ001
 
     with pytest.raises(ValueError, match="timezone-aware"):
-        tool_context(runtime, AnalysisToolArguments(ticker="KO"), use_cache=True)
+        tool_context(runtime, AnalysisToolArguments(ticker="KO"))
 
     assert resolved == []
