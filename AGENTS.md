@@ -31,6 +31,13 @@ or the specific stakeholder role. Use terms such as "user approval" and
 or scientific distinction genuinely requires it, or in an exact quotation
 that must be preserved.
 
+### Strategy counts and lists
+
+A statement names how many strategies there are, or lists them, only where it depends on which ones exist. Everywhere
+else it is phrased generically, for example "every direct command", "the strategy's normalizer" or "each strategy's tool
+arguments". The exceptions are an example named as an example, a statement about specific strategies' behavior,
+generated lists, test data that pins identifiers or snapshots, and dated records in milestone plans, which stay as written.
+
 ## 3. Absolute forbidden actions
 
 - NEVER commit secrets, API keys, `.env` files, SQLite/database files, or raw operational/trajectory logs.

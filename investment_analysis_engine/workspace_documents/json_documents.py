@@ -2,7 +2,7 @@
 
 Every command that offers ``--json`` writes one typed document on success and a ``FailureEnvelope`` on failure.
 This table lists the failure, workspace and database documents with their published schema file and the commands
-that write them. The four strategy commands and ``runs show`` write strategy documents; each strategy's model is
+that write them. Every strategy command and ``runs show`` write strategy documents; each strategy's model is
 its descriptor's ``json_envelope``, which this generic module cannot import, so the schema generator and the
 conformance tests add them from the composition root.
 """

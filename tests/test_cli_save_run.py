@@ -11,8 +11,9 @@ run-storage database target changes.
 import json
 from collections.abc import Iterator
 from dataclasses import replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -26,6 +27,11 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.market_data import MarketDataContext
+from investment_analysis_engine.data.repositories.readiness import (
+    DatabaseReadinessError,
+    ReadinessReason,
+    ensure_database_ready,
+)
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
@@ -186,6 +192,97 @@ def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(
     assert isinstance(selection, MomentumSelection)
     assert selection.as_of == context.as_of
     assert selection.use_cache is False
+
+
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+def test_momentum_saved_run_timing_span_contains_the_analysis(
+    mock_run: MagicMock, isolated_save_run_database: ProjectSettings
+) -> None:
+    """The saved run's started_at to completed_at span covers the analysis, as every strategy's saved runs do."""
+    ticks = iter(range(1, 100))
+    base = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
+
+    def clock() -> datetime:
+        return base + timedelta(seconds=next(ticks))
+
+    analysis_instants: list[datetime] = []
+    canned = _mock_momentum_run()
+
+    def analyze(**kwargs: Any) -> MomentumRun:
+        analysis_instants.append(clock())
+        return replace(canned, instrument_profile=kwargs["context"].instrument_profile)
+
+    mock_run.side_effect = analyze
+
+    with patch("investment_analysis_engine.workspace.execution.utc_now", side_effect=clock):
+        result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
+
+    assert result.exit_code == 0, result.output
+    (summary,) = _repository(isolated_save_run_database).list(RunQuery())
+    run = _repository(isolated_save_run_database).get(summary.analysis_run_id)
+    assert run is not None
+    (analysis_instant,) = analysis_instants
+    assert run.started_at < analysis_instant < run.completed_at
+
+
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+def test_momentum_save_run_checks_readiness_before_the_first_provider_request(
+    mock_run: MagicMock, isolated_save_run_database: ProjectSettings
+) -> None:
+    """Run-storage readiness precedes the profile composition and the analysis on the --save-run path."""
+    del isolated_save_run_database
+    events: list[str] = []
+    canned = _mock_momentum_run()
+
+    def analyze(**kwargs: Any) -> MomentumRun:
+        events.append("analysis")
+        return replace(canned, instrument_profile=kwargs["context"].instrument_profile)
+
+    mock_run.side_effect = analyze
+
+    def ready(database: SQLiteDatabase) -> None:
+        events.append("readiness")
+        ensure_database_ready(database)
+
+    def provider_request(*_args: object, **_kwargs: object) -> None:
+        events.append("provider request")
+
+    with (
+        patch("investment_analysis_engine.cli_run_support.ensure_database_ready", side_effect=ready),
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity",
+            side_effect=provider_request,
+        ),
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind",
+            side_effect=provider_request,
+        ),
+    ):
+        result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
+
+    assert result.exit_code == 0, result.output
+    assert events[0] == "readiness"
+    assert "provider request" in events
+    assert events.index("provider request") < events.index("analysis")
+
+
+@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+def test_momentum_save_run_with_rejected_storage_makes_no_provider_request(
+    mock_run: MagicMock, isolated_save_run_database: ProjectSettings
+) -> None:
+    """A storage failure on the --save-run path stops the command before the profile or the analysis."""
+    del isolated_save_run_database
+    error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, Path("selected.sqlite3"), "0001_persistence")
+
+    with (
+        patch("investment_analysis_engine.cli_run_support.ensure_database_ready", side_effect=error),
+        patch("investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity") as identity,
+    ):
+        result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
+
+    assert result.exit_code == 1
+    identity.assert_not_called()
+    mock_run.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

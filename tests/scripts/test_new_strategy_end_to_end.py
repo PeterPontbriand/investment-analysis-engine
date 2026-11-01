@@ -8,7 +8,7 @@ regenerates the schema and the strategy lists, and requires every site done, the
 tests to pass. Every subprocess has a fixed ``PYTHONHASHSEED``, no proxy variables, bytecode writing off and a
 timeout, and none makes a network call.
 
-The conformance tests run the files below, with no test deselected: a test that names the four production strategies
+The conformance tests run the files below, with no test deselected: a test that names the production strategies
 reads the descriptors instead, and the expected-output files and tables a new strategy writes by hand are sites that
 the fills write. Three more files hold tests that a strategy does not change; the main gate runs them whole, and here
 only the tests whose node id names the strategy's alias or module run.

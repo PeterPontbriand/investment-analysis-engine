@@ -103,8 +103,13 @@ def test_momentum_composes_its_instrument_profile_in_one_function() -> None:
     assert set(composing) == {"execution.py"}, f"Only execution.py may build the profile; found {sorted(composing)}."
     functions = {name for name, _ in composing["execution.py"]}
     assert functions == {"compose_momentum_profile"}, f"Only compose_momentum_profile may build it; found {functions}."
+    execution = (MOMENTUM_PACKAGE / "execution.py").read_text(encoding="utf-8")
+    assert execution.count("compose_momentum_profile(") == 2, "Only its definition and execute_momentum may name it."
     cli = (MOMENTUM_PACKAGE / "cli.py").read_text(encoding="utf-8")
-    assert cli.count("compose_momentum_profile(") == 3, "The direct, save-run and refresh paths must each call it."
+    assert "compose_momentum_profile" not in cli, (
+        "The direct command, --save-run and refresh go through execute_momentum."
+    )
+    assert cli.count("execute_momentum(") == 2, "The direct command and refresh must each call execute_momentum."
 
 
 _REMOVED_OPTION_COMMANDS: Final = (

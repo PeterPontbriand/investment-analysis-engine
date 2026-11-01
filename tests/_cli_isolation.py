@@ -22,7 +22,7 @@ SEC identity), and several already-accepted tests rely on
 ``patch.object(settings, "some_field", value)`` mutating the real shared
 settings singleton `cli.py` reads. Rebinding `investment_analysis_engine.cli.settings` to a
 different object here would silently defeat those patches. Tests exercising
-the four direct commands' opt-in ``--save-run`` path isolate `investment_analysis_engine.cli`'s
+every direct command's opt-in ``--save-run`` path isolate `investment_analysis_engine.cli`'s
 run-storage database locally instead — see ``tests/test_cli_save_run.py``.
 """
 

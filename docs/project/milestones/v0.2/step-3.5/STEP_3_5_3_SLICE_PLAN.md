@@ -449,6 +449,19 @@ Approved by the project owner before 3.5.3e1c began.
 | H5 | Guide and records | The guide's Step 1 lists what the generator writes in full and the stubs left to fill; the warning that an ETF is never recognized is removed. Steps 2 and 3 name what the templates leave unfilled. This plan and the contract record the slice (A.11, B.6, C.9, D.7, the status rows and A.14), and the contract records that once Step 3.5 closes, a person, not an AI agent, reviews the guide, and language and readability criticisms of it wait for that review. |
 | H6 | Two fixes found in review of 3.5.3e2 | The `analyzer` site's title, "Analyzer modules: config, result, analyzer", is true for both forms: "Analyzer module: result and analyzer, and the configuration when the strategy has one", and the guide's edit-site table is regenerated, not edited by hand. The `help-snapshot` site's check also requires the command's own `<alias>.txt` (approved for this one check, overriding the stop condition on site checks). `HELP_TARGETS` takes its strategy entries from the declared strategies' aliases, in declaration order, keeping `""`, `health` and `refresh` explicit; `piotroski.txt` is stored; a test requires a stored command help snapshot for every declared strategy; no existing snapshot changes. |
 
+### A.12 Decisions I1 to I6 (2026-11-01)
+
+Approved by the project owner for [issue 207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207).
+
+| # | Topic | Decision and reason |
+| :--- | :--- | :--- |
+| I1 | Momentum joins the shared save path | `execute_momentum`, modelled on `execute_piotroski`, composes Momentum's own profile (Yahoo only, through the profile cache when supplied), opens the historical client, runs the analysis and returns the capture. The direct command calls it through `analyze_and_maybe_save` and renders through `render_execution` and `emit_output`; `refresh` calls the same adapter. `run_momentum` stays as the adapter's inner call because tests and the stored-run helpers call it; the two do not repeat each other. A saved Momentum run's `started_at` to `completed_at` span now covers the analysis; stored runs are not rewritten. Readiness is still checked before the first provider request. |
+| I2 | Graham tool handlers use `tool_context` | `GrahamNumberToolHandler` and `GrahamGrowthToolHandler` build their context with `tool_context`, so the clock is validated before the profile is resolved and a refused clock sends no request. The method-specific config is built as before. The escape-hatch sentence is removed from `tool_context`'s docstring, since no strategy uses it. |
+| I3 | The Graham render uses `render_execution` | Both commands render through it, with the failure, not-applicable and success output produced inside the render function it calls. The reachable combinations are enumerated in [B.7](#b7-issue-207); the two rules agree on every one. |
+| I4 | Strategy counts and lists | A statement names how many strategies there are, or lists them, only where it depends on which ones exist. [AGENTS.md §2](../../../../../AGENTS.md) holds the rule; [C.10](#c10-issue-207-files) lists each change and each kept count or list. |
+| I5 | Records | This appendix, [B.7](#b7-issue-207), [C.10](#c10-issue-207-files), [D.8](#d8-issue-207-tests), the three rows removed from [B.4](#b4-repetition-review-353e1)'s "Regions left in place", and the contract's sequence table. |
+| I6 | Proof and tests | The six U6 commands show no change to `tests/expected_output`, `schemas` or `docs/user`. Tests cover the Momentum timing span, the Momentum readiness order, the refused clock of both Graham tool handlers and each reachable combination of the Graham render. |
+
 ---
 
 ## Appendix B: Implementation record
@@ -598,28 +611,29 @@ outputs are unchanged is in [D.5](#d5-353e1-tests).
 | `decode_with_native_identifiers` | `analysis/run_models.py` | FCF-Growth, Piotroski | Check the result, under the documented constant `NATIVE_RESULT_KEY`, is an object, its identifiers and integer versions equal the declared ones, drop them, validate. The messages keep each strategy's name through `label`. |
 | `decode_with_method_sections` | `analysis/run_models.py` | Graham Number, Graham Growth | Check each of `METHOD_SECTIONS` (`assembly`, `result`) of the analysis under `METHOD_ANALYSIS_KEY` carries the declared `method`, drop it from a copy, validate. |
 | `resolve_command_target` | `cli_support.py` | all five commands | Resolve the ticker and record it on the failure scope, then resolve the presentation mode and record it. |
-| `render_execution` | `cli_support.py` | FCF-Growth, Piotroski, Momentum | Exit code of the outcome, the provider check run once and only after a failure, the strategy's render, the check lines before a failure. |
+| `render_execution` | `cli_support.py` | all five commands ([A.12](#a12-decisions-i1-to-i6-2026-11-01), I3) | Exit code of the outcome, the provider check run once and only after a failure, the strategy's render, the check lines before a failure. |
 | `emit_output` | `cli_support.py` | all five commands | Write the output (standard error for a failure in the concise and details modes) and exit with the code. |
-| `analyze_and_maybe_save` | `cli_run_support.py` | FCF-Growth, Piotroski, Graham Number, Graham Growth | The save stage, `saving_failures` and `maybe_save_run` with the normalizer marked. |
+| `analyze_and_maybe_save` | `cli_run_support.py` | all five commands ([A.12](#a12-decisions-i1-to-i6-2026-11-01), I1) | The save stage, `saving_failures` and `maybe_save_run` with the normalizer marked. |
 | `AS_OF_OPTION`, `SAVE_RUN_OPTION`, `NO_PROVIDER_CHECK_OPTION` | `cli_support.py` | all five commands | The three option declarations whose text is identical in all five. |
 | `use_cache` field of the tool arguments | `orchestrator/analysis_tool_arguments.py` | all five tool arguments models, the specimen and the generator template | The identical `use_cache: bool = True` declaration. It is now declared once in `AnalysisToolArguments`, so `tool_context` reads `arguments.use_cache` and has no parameter for it, and the Graham handlers read the shared field in their own context code. The approved key-order change in the schemas is recorded in [A.9](#a9-decisions-e1-to-e8-2026-11-01). |
-| `tool_context` | `strategies/_shared/tool.py` | FCF-Growth, Momentum, Piotroski | Validate the clock, resolve the profile once, build the `AnalysisContext`. |
+| `tool_context` | `strategies/_shared/tool.py` | all five tool handlers ([A.12](#a12-decisions-i1-to-i6-2026-11-01), I2) | Validate the clock, resolve the profile once, build the `AnalysisContext`. |
 | `run_analyzer_with_profile` | `strategies/_shared/invocation.py` | Graham Number, Graham Growth | Compose the profile, build the context, run the analyzer, keep the analyzer's profile or else the composed one. |
+| `execute_momentum` | `strategies/momentum/execution.py` | Momentum's direct command and `refresh` | Compose Momentum's own profile, open the historical client, run the analysis and capture it, which the command did inline on its save path ([A.12](#a12-decisions-i1-to-i6-2026-11-01), I1). |
 
 `compose_production_profile` (formerly `compose_graham_profile`) was already the shared profile composition, and
 FCF-Growth, Piotroski and, through `run_analyzer_with_profile`, both Graham strategies call it.
 
 **Regions left in place**
 
-Three of these differ in behavior between strategies and are recorded, with no behavior changed, in issue [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207): the
-save path of Momentum, the provider-check branch of the Graham render, and the order of the clock and the profile in the
-Graham tool handlers.
+Issue [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) recorded three more rows here, which
+differed in behavior between strategies and were left in place with no behavior changed. They are resolved
+([A.12](#a12-decisions-i1-to-i6-2026-11-01), [B.7](#b7-issue-207)): Momentum's direct-command save path is `execute_momentum` behind
+`analyze_and_maybe_save`, the Graham render is `render_execution`, and the Graham tool handlers call `tool_context`. The
+reason this table gave for the first, that unifying would change the order of the readiness check and the provider
+requests, was wrong; [B.7](#b7-issue-207) records what is true.
 
 | Region | Strategies | Why it stays |
 | :--- | :--- | :--- |
-| Direct-command save path | Momentum | It checks readiness and composes the profile in the command, before any provider call, and marks the save stage analyzed itself. Unifying it would change the order of the readiness check and the provider requests. |
-| Failure branches of the render | Graham Number, Graham Growth | The provider check runs only in the failure branch of the assembly status, never in the not-applicable branch, and always on the recorded failure; `render_execution` runs it on the exit code. Unifying would change when a probe request is sent. |
-| Clock and profile order in the tool handler | Graham Number, Graham Growth | They resolve the profile before validating the clock, so a provider request precedes a refused clock. `tool_context` validates the clock first. |
 | `from_<name>_capture` | all five | Each builds an `ExecutionCapture` from a different attribute path (`result`, `analysis`, `run`, `analysis.assembly.provider_failure`) and Momentum adds its display values. A helper would take the arguments the constructor takes, and the functions are named by the descriptors. |
 | Profile composition of Momentum | Momentum | One Yahoo client is both candidates and SEC is not asked, so it is not `compose_production_profile`. |
 | `AnalysisContext` construction | all five | It is one constructor call (`selection.to_analysis_context` for Momentum and Piotroski, inline elsewhere); a function would only rename it. |
@@ -691,6 +705,70 @@ persistence", in a table of name, home and effect.
   not affected.
 - **The guide review.** Once Step 3.5 closes, a person, not an AI agent, reviews the guide
   ([A.11](#a11-decisions-h1-to-h6-2026-11-01), H5); the contract records it.
+
+### B.7 Issue 207
+
+- **Problem:** three behavior differences between strategies were left in place by 3.5.3e1 ([B.4](#b4-repetition-review-353e1)).
+- **Decision:** [A.12](#a12-decisions-i1-to-i6-2026-11-01), I1 to I3.
+- **Detail:** [C.10](#c10-issue-207-files) and [D.8](#d8-issue-207-tests).
+
+**I1: the timing span and the readiness order.** Before the change, Momentum's direct command with `--save-run` ran the
+analysis first and only then called `save_run_execution`, whose `capture` callable merely normalized the finished run. A
+saved Momentum run therefore recorded a `started_at` to `completed_at` span that left out the analysis; Momentum's
+`refresh` and every other strategy's saved run include it. After the change the span covers the analysis. This is a
+user-visible change for newly saved Momentum runs; stored runs are not rewritten.
+
+B.4's reason for leaving the path in place, that unifying would change the order of the readiness check and the provider
+requests, did not hold. The order in the command and the order through `maybe_save_run` are the same:
+
+| Step | Momentum's command before | Through `analyze_and_maybe_save` |
+| :--- | :--- | :--- |
+| 1 | Read `executed_at` and build the selection. | Read `executed_at`, build the selection; `request_factory` builds the request. |
+| 2 | Open the database and check run-storage readiness. | Open the database and check run-storage readiness. |
+| 3 | Build the durable profile cache. | Build the durable profile cache. |
+| 4 | Compose the profile (the first provider request). | Compose the profile inside `execute_momentum` (the first provider request). |
+| 5 | Open the historical client and run the analysis. | Open the historical client and run the analysis. |
+| 6 | Normalize and save, with the save stage marked analyzed. | Normalize and save, the stage marked by `analyze_and_maybe_save`. |
+
+The real reason was the timing span. A test records the order on the `--save-run` path: readiness is checked before the
+first provider request, profile composition included, and a rejected database makes no request at all.
+
+**I2: the Graham tool handlers.** Both handlers built the profile request before validating the clock, so a refused clock
+had already sent a profile request. Both now build their method-specific config as before and then call `tool_context`,
+which validates the clock first. A refused clock sends no request; a configuration error also now precedes the profile
+request, as it does for Momentum.
+
+**I3: the Graham render.** The failure branch of each command ran the provider check on the recorded failure of the
+assembly; the not-applicable and success branches never ran it. `render_execution` runs it once, when the exit code is not
+zero, on the same recorded failure (`provider_failure_of` over the assembly's record, kept only for a `failed` outcome).
+The assembly records a provider failure only with the `provider_error` status, and the exit code of a failure-branch
+status (`invalid_input`, `input_unavailable`, `provider_error`) is always 1, so the two rules cannot disagree.
+
+| Assembly status | Analysis execution status | Run outcome | Exit | Provider check today | Provider check by `render_execution` | Reached by |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `ok` | `ok` | `completed` | 0 | No | No | Both: the `*-success` cases. |
+| `ok` | `not_applicable` | `not_applicable` | 0 | No | No | Number only (EPS or BVPS not positive): `graham-number-nonpositive-eps`. Growth's calculation returns no such status. |
+| `ok` | `invalid_input` | `failed` | 1 | No (success branch) | Yes, names no provider: no line, no element | Number: EPS and BVPS overrides whose product overflows. Growth: expected growth that makes the valuation P/E not positive. |
+| `ok` | `input_unavailable` or `provider_error` | | | | | Unreachable: neither calculation returns them. |
+| `not_applicable` | `not_applicable` | `not_applicable` | 0 | No | No | Both: an ETF. |
+| `invalid_input` | `invalid_input` | `failed` | 1 | Yes, no recorded failure: no line, no element | Same | Both: `--current-price -1`. |
+| `input_unavailable` | `input_unavailable` | `unavailable` | 1 | Yes, no recorded failure | Same | Both: the `*-missing-input` cases. |
+| `provider_error`, failure classified | `provider_error` | `failed` | 1 | Yes, one provider | Same | Both: the `*-provider-error` cases. |
+| `provider_error`, failure unclassified | `provider_error` | `failed` | 1 | Yes, no provider named | Same | Both: the unclassified provider-error cases. |
+| `ok` with a failed optional quote | `ok` | `completed` | 0 | No | No | Both: the `*-quote-provider-failure` cases; a quote failure is not the recorded failure. |
+| Any non-`provider_error` status with a recorded failure | | | | | | Unreachable: the assembly refuses it (`provider_failure requires a provider_error assembly`). |
+| `not_applicable` with exit 1, or a failure status with exit 0 | | | | | | Unreachable: `RunOutcome.from_status` maps them the other way. |
+
+The two rules agree on every reachable combination, so no output, exit code or provider request changed. The stored
+outputs prove it ([D.8](#d8-issue-207-tests)). The failure, not-applicable and success output is produced inside the render
+function each command passes to `render_execution`; each strategy keeps its own output content.
+
+**Watchlist `--as-of` help (user-visible help change).** The `--as-of` help text of `watchlist create` and
+`watchlist add-selection` in `investment_analysis_engine/cli_workspace.py` listed four commands by name and was wrong for
+users: Piotroski takes `--as-of` and was not listed, and `as_of` is a field of every selection. Both options now use the
+help text of the direct commands' `--as-of`, held once as `AS_OF_HELP` in `cli_support.py` and used by `AS_OF_OPTION`.
+No stored help snapshot covers the two watchlist commands, so no stored output changed. The `--no-cache` help of the same
+commands also names strategies, but there it states what the option does for each, so it stays.
 
 ---
 
@@ -944,6 +1022,69 @@ plan, and the contract's sequence table, summary, review note and A.14.
 Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/` apart from the one new file,
 `schemas/` and the generated blocks of `docs/user/`.
 
+### C.10 Issue 207 files
+
+Commits: the code and tests, then the records and the rule.
+
+**Code**
+
+- `investment_analysis_engine/strategies/momentum/execution.py`: `execute_momentum`; the module docstring.
+- `investment_analysis_engine/strategies/momentum/cli.py`: the command and `refresh` call `execute_momentum`; the command
+  goes through `analyze_and_maybe_save`; `_historical_scope`.
+- `investment_analysis_engine/strategies/graham_number/tool.py`, `investment_analysis_engine/strategies/graham_growth/tool.py`:
+  `tool_context`.
+- `investment_analysis_engine/strategies/_shared/tool.py`: the escape-hatch sentence and the module docstring.
+- `investment_analysis_engine/cli_support.py`, `investment_analysis_engine/cli_workspace.py`: `AS_OF_HELP`, used by both watchlist `--as-of` options.
+- `investment_analysis_engine/strategies/graham_number/cli.py`, `investment_analysis_engine/strategies/graham_growth/cli.py`:
+  the render function passed to `render_execution`.
+
+**Strategy counts and lists ([I4](#a12-decisions-i1-to-i6-2026-11-01))**
+
+Changed:
+
+| File | Old phrase | New phrase |
+| :--- | :--- | :--- |
+| `investment_analysis_engine/cli_run_support.py` | "the four direct commands' default behavior" | "every direct command's" |
+| `investment_analysis_engine/cli_run_support.py` | the four named normalizers | "the strategy's normalizer" |
+| `investment_analysis_engine/workspace/execution.py` | the list of four adapters, "of the four methods" | "a strategy's execution adapter", "which method" |
+| `investment_analysis_engine/workspace_documents/json_documents.py` | "The four strategy commands" | "Every strategy command" |
+| `investment_analysis_engine/cli_workspace.py`, `investment_analysis_engine/cli_support.py` | the `--as-of` help of `watchlist create` and `watchlist add-selection`, "(momentum/graham-number/graham-growth/fcf-growth)" (user-visible help change) | the shared `AS_OF_HELP` text |
+| `investment_analysis_engine/cli_provider_check.py` | the list of five commands | "every direct strategy command and `refresh`" |
+| `scripts/strategy_conformance.py` | "the four production strategies" | "the production strategies" |
+| `tests/_cli_isolation.py` | "the four direct commands'" | "every direct command's" |
+| `tests/analysis/test_base_analyzer_conformance.py` | "all four analyzers" | "every analyzer" |
+| `tests/scripts/generator_fills/deselected.toml`, `tests/scripts/test_new_strategy_end_to_end.py` | "the four production strategies" | "the production strategies" |
+| `tests/specimen/site_context.py` | "the four production commands" | "the production commands" |
+| `docs/TOOL_DEVELOPMENT.md` | the four strategies, and Momentum through `save_run_execution` | "Every direct command calls it" |
+| `docs/TOOL_DEVELOPMENT.md` | "differ in behavior, and issue 207 records the three differences" | "each reads, builds or composes something different" |
+| `docs/project/ARCHITECTURE.md` | the same two sentences about the save path | "Every direct command reaches it" |
+| `docs/project/ARCHITECTURE.md` | Momentum's paths and the Graham and FCF-Growth helper | "each strategy's execution adapter" |
+
+Kept, with the reason each matters:
+
+- Test data and docstrings that pin identifiers or snapshots: `tests/test_direct_command_output.py` (the commands the
+  stored files cover), `tests/test_specimen_strategy.py`, `tests/test_strategy_wiring.py`,
+  `tests/test_strategy_wiring_conformance.py` (the four strategies that come first, in order),
+  `tests/evaluation/test_ollama_runner.py` (the hash of four schemas), `tests/analysis/test_analyzer_forms.py` (the
+  written-out table), `tests/_runs_compare_refresh.py`, `tests/workspace_documents/test_runs_compare_text_layout.py`,
+  `tests/test_provider_check_element.py` and the parametrized command lists in the CLI tests. They state which
+  strategies the data holds.
+- Statements about specific strategies' behavior: `strategies/_shared/profile.py` (which strategies compose a profile the
+  same way), `strategies/_graham/*` (what the two Graham strategies share), `reporting/valuation_presentation.py`,
+  `tests/test_cli_provider_check.py` (which commands have an unclassified failure) and the Graham methods in
+  `ARCHITECTURE.md`.
+- Counts that are not of strategies: the files the generator edits, the four provider failure kinds, the five tables.
+- The `--no-cache` help text of the two watchlist commands: it states what the option does for each named strategy.
+- Generated lists, and the dated records of milestone plans, including [B.6](#b6-what-353e1c-met) and the 3.5.3e1
+  section's pointer to issue 207.
+
+**Tests**: see [D.8](#d8-issue-207-tests).
+
+**Documents**: `AGENTS.md` (the subsection "Strategy counts and lists" of §2), `docs/TOOL_DEVELOPMENT.md`,
+`docs/project/ARCHITECTURE.md`, this plan, and the contract's sequence table.
+
+Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/`, `schemas/` and `docs/user/`.
+
 ---
 
 ## Appendix D: Tests
@@ -1081,6 +1222,26 @@ As written (the file names are in [C.5](#c5-353d-files)):
   cover the templates and the fills), and the conformance tests the end-to-end test runs in the copy.
 - **Unchanged outputs:** the six U6 commands and `git --no-pager diff --stat main` over `tests/expected_output`, `schemas`
   and `docs/user` show only the new `tests/expected_output/cli_help/piotroski.txt`.
+
+### D.8 Issue 207 tests
+
+- **New:** in `tests/test_cli_save_run.py`, a Momentum run saved from the direct command has a timing span that contains the
+  analysis (a clock that advances at each read, which the analysis reads too); readiness is checked before the first
+  provider request on the `--save-run` path, profile composition included; a rejected database makes no provider request.
+  In `tests/workspace/test_momentum_execution.py`, `execute_momentum` resolves the profile through the supplied cache,
+  opens and closes the historical scope, and embeds the profile. In `tests/orchestrator/test_analysis_tools.py`, a Graham
+  Number and a Graham Growth tool call with a refused clock makes no profile request. In
+  `tests/test_graham_render_execution.py`, each reachable combination of [B.7](#b7-issue-207) renders with the status,
+  outcome, exit code and provider check stated there, a failure in the text mode is preceded by the check line, a failed
+  optional quote runs no check, and an assembly takes a provider failure only with the `provider_error` status.
+- **Changed on purpose:** in `tests/test_documented_conventions.py`,
+  `test_momentum_composes_its_instrument_profile_in_one_function` required three calls of `compose_momentum_profile` in
+  Momentum's `cli.py`; it now requires none there, two in `execution.py` (its definition and `execute_momentum`), and two
+  calls of `execute_momentum` in `cli.py`.
+- **Unchanged and still passing:** the direct-command, strategy-document, workspace-command and help outputs, the
+  save-run, provider-check, failure-message and refresh tests, and the tool-context tests.
+- **Unchanged outputs:** the six U6 commands and `git --no-pager diff --stat main` over `tests/expected_output`,
+  `schemas` and `docs/user` show no change.
 
 ---
 

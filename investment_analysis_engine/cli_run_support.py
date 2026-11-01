@@ -45,7 +45,7 @@ def maybe_save_run[RawCaptureT](
     """Run one method adapter once; when `--save-run` is set, also persist the terminal run.
 
     When ``save_run`` is False this is a pure passthrough to
-    ``run_adapter(None)``: the four direct commands' default behavior,
+    ``run_adapter(None)``: every direct command's default behavior,
     including ``--no-cache``, is completely unaffected, and no database is
     opened solely to obtain a durable instrument-profile cache (P2-Profiles
     contract §13.3-1) — this is never called differently, and nothing about
@@ -76,8 +76,7 @@ def maybe_save_run[RawCaptureT](
         run_adapter: Calls the existing D1-D4 adapter with its already-bound
             dependencies, unchanged from the direct command's non-saving path,
             plus the durable profile cache (or None when not saving).
-        normalize: One of `from_momentum_capture`/`from_graham_number_capture`/
-            `from_graham_growth_capture`/`from_fcf_growth_capture`.
+        normalize: The strategy's normalizer, which builds the ``ExecutionCapture`` from the adapter's capture.
 
     Returns:
         The adapter's own native capture, exactly as `run_adapter` produced

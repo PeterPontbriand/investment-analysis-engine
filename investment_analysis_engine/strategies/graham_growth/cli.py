@@ -14,8 +14,6 @@ from investment_analysis_engine.cli_composition import build_graham_resolver, gr
 from investment_analysis_engine.cli_provider_check import (
     ProviderCheckChoice,
     provider_check_choice,
-    provider_check_findings,
-    with_provider_check,
 )
 from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
 from investment_analysis_engine.cli_support import (
@@ -25,9 +23,9 @@ from investment_analysis_engine.cli_support import (
     config_usage_errors,
     emit_output,
     execution_errors,
-    exit_code_of,
     parse_as_of,
     production_financial_cache,
+    render_execution,
     require_job_ticker,
     resolve_command_target,
     stored_configuration,
@@ -254,13 +252,30 @@ def _run_graham_growth(  # noqa: PLR0913
         normalize=from_graham_growth_capture,
     )
     execution = from_graham_growth_capture(capture)
-    exit_code = exit_code_of(execution.outcome)
     analysis = capture.analysis
     profile = capture.profile
-    assembly = analysis.assembly
     identity_resolution = profile_identity_resolution(profile)
 
-    if assembly.status is not CalculationStatus.OK:
+    def render(provider_check_element: tuple[ProviderCheckItem, ...] | None) -> str:
+        """Render the failure, not-applicable or success output of this analysis."""
+        assembly = analysis.assembly
+        if assembly.status is CalculationStatus.OK:
+            presentation = GrahamGrowthPresentation(
+                ticker=ticker,
+                assembly=growth_with_public_quote_reason(assembly),
+                result=analysis.result,
+                base_pe=policy.base_pe,
+                growth_multiplier=policy.growth_multiplier,
+                baseline_aaa_yield=policy.baseline_aaa_yield,
+                as_of=as_of,
+                effective_as_of=analysis.effective_as_of,
+                margin_of_safety_percent=analysis.margin_of_safety_percent,
+                price_comparison=analysis.price_comparison,
+                identity_resolution=identity_resolution,
+                instrument_profile=profile,
+                provider_check=provider_check_element,
+            )
+            return render_graham_growth(presentation, mode)
         if assembly.status is CalculationStatus.NOT_APPLICABLE:
             presentation = GrahamGrowthPresentation(
                 ticker=ticker,
@@ -274,10 +289,10 @@ def _run_graham_growth(  # noqa: PLR0913
                 effective_as_of=analysis.effective_as_of,
                 identity_resolution=identity_resolution,
                 instrument_profile=profile,
+                provider_check=provider_check_element,
             )
-            return render_graham_growth(presentation, mode), exit_code
-        findings = provider_check_findings((execution.provider_failure,), provider_check)
-        failure_output = _growth_failure_output(
+            return render_graham_growth(presentation, mode)
+        return _growth_failure_output(
             ticker=ticker,
             assembly=assembly,
             as_of=as_of,
@@ -286,26 +301,10 @@ def _run_graham_growth(  # noqa: PLR0913
             identity_resolution=identity_resolution,
             instrument_profile=profile,
             price_comparison=analysis.price_comparison,
-            provider_check=findings.element(),
+            provider_check=provider_check_element,
         )
-        return with_provider_check(failure_output, findings, mode), exit_code
 
-    presentation_assembly = growth_with_public_quote_reason(assembly)
-    presentation = GrahamGrowthPresentation(
-        ticker=ticker,
-        assembly=presentation_assembly,
-        result=analysis.result,
-        base_pe=policy.base_pe,
-        growth_multiplier=policy.growth_multiplier,
-        baseline_aaa_yield=policy.baseline_aaa_yield,
-        as_of=as_of,
-        effective_as_of=analysis.effective_as_of,
-        margin_of_safety_percent=analysis.margin_of_safety_percent,
-        price_comparison=analysis.price_comparison,
-        identity_resolution=identity_resolution,
-        instrument_profile=profile,
-    )
-    return render_graham_growth(presentation, mode), exit_code
+    return render_execution(execution, provider_check, mode, render)
 
 
 def _growth_failure_output(  # noqa: PLR0913
