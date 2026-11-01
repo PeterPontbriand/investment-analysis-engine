@@ -446,7 +446,7 @@ def test_no_reason_message_names_an_internal_operand_or_an_underscore_joined_ide
     result = run(stem, as_of=AAPL_AS_OF if stem == "aapl" else None)
     assert result.f_score is not None
     reasons = [test.reason for test in result.f_score.tests if test.reason is not None]
-    reasons += [result.reason or "", *result.warnings, *result.diagnostics[:0]]
+    reasons += [result.reason or "", *result.warnings]
     keys = {operand.name for test in result.f_score.tests for operand in test.operands}
     for reason in reasons:
         assert not re.search(r"[A-Za-z0-9]+_[A-Za-z0-9_]+", reason), reason

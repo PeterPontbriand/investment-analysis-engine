@@ -98,6 +98,8 @@ Source: SEC EDGAR; latest evidence available 2026-02-27
 Limitation: Follows the Piotroski nine-test structure, with the net change in shares outstanding in place of the paper's equity-issuance test; not an investment recommendation.
 ```
 
+The title shows the instrument name before the ticker, as in "Apple Inc. (AAPL)", when the instrument profile gives one; the example above shows the ticker alone because no profile is attached to it.
+
 With fewer than six available tests there is no score. The usual reading of the scale applies to complete scores only: a high score (8 or 9) is conventionally read as financial strength and a low score (0 or 1) as weakness. A partial score gets a note saying so and is not ranked against complete scores.
 
 The strategy scores only the latest annual report at the boundary. If that year's inputs are missing, the affected tests are unavailable; an older year is never scored in its place.
