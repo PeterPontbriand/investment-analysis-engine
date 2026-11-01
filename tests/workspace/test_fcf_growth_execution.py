@@ -54,8 +54,8 @@ def _ok_result() -> FCFEarningsGrowthResult:
     """A real, fully computed result from the fixture provider chain."""
     return FCFEarningsGrowthAnalyzer(_resolver(), fcf_market_data()).run_analysis(
         "ACME",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=NOW, use_cache=True),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
     )
 
 
@@ -150,7 +150,7 @@ def test_execute_fcf_growth_delegates_with_the_composed_profile() -> None:
     captured: dict[str, object] = {}
 
     def fake_run_analysis(
-        self: FCFEarningsGrowthAnalyzer, ticker: str, config: FCFEarningsGrowthConfig, context: AnalysisContext
+        self: FCFEarningsGrowthAnalyzer, ticker: str, context: AnalysisContext, config: FCFEarningsGrowthConfig
     ) -> FCFEarningsGrowthResult:
         del self
         captured.update(ticker=ticker, config=config, context=context)

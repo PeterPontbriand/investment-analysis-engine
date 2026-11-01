@@ -63,7 +63,7 @@ def test_run_momentum_delegates_to_the_existing_analyzer_unchanged(monkeypatch: 
     captured: dict[str, object] = {}
 
     def fake_run_analysis(
-        self: MomentumAnalyzer, ticker: str, config: MomentumConfig, context: AnalysisContext
+        self: MomentumAnalyzer, ticker: str, context: AnalysisContext, config: MomentumConfig
     ) -> MomentumRun:
         del context
         captured["provider_is_ours"] = self._market_data_provider is client

@@ -23,12 +23,12 @@ class _Analysis:
     instrument_profile: InstrumentProfile | None
 
 
-class _Analyzer(BaseAnalyzer[str, _Analysis]):
+class _Analyzer(BaseAnalyzer[_Analysis, str]):
     def __init__(self, returned: InstrumentProfile | None) -> None:
         self.returned = returned
         self.calls: list[tuple[str, str, AnalysisContext]] = []
 
-    def run_analysis(self, ticker: str, config: str, context: AnalysisContext) -> _Analysis:
+    def run_analysis(self, ticker: str, context: AnalysisContext, config: str) -> _Analysis:
         self.calls.append((ticker, config, context))
         return _Analysis(ticker=ticker, instrument_profile=self.returned)
 

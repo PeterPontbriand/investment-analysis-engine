@@ -521,7 +521,7 @@ def test_t12_part_4_an_incomplete_bundle_is_a_type_error_and_a_foreign_object_is
     with pytest.raises(UndeclaredStrategyError):
         MOMENTUM.behavior.encode_object(
             SpecimenAnalyzer(multiplier=2.0).run_analysis(
-                "X", SpecimenConfig(1.0), SpecimenSelection(value=1.0).to_analysis_context(_CLOCK)
+                "X", SpecimenSelection(value=1.0).to_analysis_context(_CLOCK), SpecimenConfig(1.0)
             )
         )
 

@@ -43,7 +43,7 @@ def _analyzer() -> FCFEarningsGrowthAnalyzer:
 def test_analyzer_composes_approved_history_into_canonical_result() -> None:
     config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
     context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
-    result = _analyzer().run_analysis("acme", config, context)
+    result = _analyzer().run_analysis("acme", context, config)
 
     assert result.ticker == "ACME"
     assert result.classification is Classification.PASS
@@ -63,7 +63,7 @@ def test_hard_gate_is_indeterminate_when_unapproved_consensus_is_unavailable() -
         currency="USD",
     )
     context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
-    result = _analyzer().run_analysis("ACME", config, context)
+    result = _analyzer().run_analysis("ACME", context, config)
 
     assert result.classification is Classification.INDETERMINATE
     assert result.classification_reason_code is ReasonCode.CONSENSUS_UNAVAILABLE
@@ -72,7 +72,7 @@ def test_hard_gate_is_indeterminate_when_unapproved_consensus_is_unavailable() -
 def test_presenter_modes_share_result_and_json_has_null_not_nan() -> None:
     config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
     context = AnalysisContext(as_of=None, executed_at=NOW, use_cache=True)
-    result = _analyzer().run_analysis("ACME", config, context)
+    result = _analyzer().run_analysis("ACME", context, config)
 
     concise = render_fcf_earnings_growth(result, PresentationMode.CONCISE)
     details = render_fcf_earnings_growth(result, PresentationMode.DETAILS)
@@ -123,9 +123,9 @@ def test_matching_or_unknown_profile_preserves_complete_fcf_result(kind_value: s
     profile = InstrumentProfile("ACME", None, evidence, ())
     analyzer = _analyzer()
     config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
-    baseline = analyzer.run_analysis(" acme ", config, AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True))
+    baseline = analyzer.run_analysis(" acme ", AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True), config)
     result = analyzer.run_analysis(
-        " acme ", config, AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile)
+        " acme ", AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile), config
     )
     assert result == replace(baseline, instrument_profile=profile)
     assert result.diagnostics == baseline.diagnostics

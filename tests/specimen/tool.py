@@ -49,5 +49,5 @@ class SpecimenToolHandler:
             as_of=arguments.as_of, executed_at=self._runtime.validated_clock_value(), use_cache=arguments.use_cache
         )
         return self._dependencies.analyzer.run_analysis(
-            arguments.ticker, SpecimenConfig(value=arguments.value), context
+            arguments.ticker, context, SpecimenConfig(value=arguments.value)
         )

@@ -1,7 +1,7 @@
 """Structural conformance tests for the shared analyzer invocation envelope.
 
-Every strategy subclasses ``BaseAnalyzer[ConfigT, ResultT]`` and is invoked identically as
-``run_analysis(ticker, config, context)`` (see ``AGENTS.md`` §9). These tests hold that shape
+Every strategy subclasses ``BaseAnalyzer[ResultT, ConfigT]`` and is invoked identically as
+``run_analysis(ticker, context, config)`` (see ``AGENTS.md`` §9). These tests hold that shape
 in place across all four analyzers, using only fixture-backed test doubles — no network access.
 """
 
@@ -129,12 +129,12 @@ _CASES: tuple[_Case, ...] = (
 
 
 def _generic_args(analyzer_class: type[BaseAnalyzer[Any, Any]]) -> tuple[type, type]:
-    """Return ``(ConfigT, ResultT)`` as declared directly on ``BaseAnalyzer[ConfigT, ResultT]``."""
+    """Return ``(ConfigT, ResultT)`` as declared directly on ``BaseAnalyzer[ResultT, ConfigT]``."""
     for base in getattr(analyzer_class, "__orig_bases__", ()):
         if get_origin(base) is BaseAnalyzer:
-            config_type, result_type = get_args(base)
+            result_type, config_type = get_args(base)
             return config_type, result_type
-    raise AssertionError(f"{analyzer_class!r} does not directly subclass BaseAnalyzer[ConfigT, ResultT].")
+    raise AssertionError(f"{analyzer_class!r} does not directly subclass BaseAnalyzer[ResultT, ConfigT].")
 
 
 @pytest.mark.parametrize("case", _CASES, ids=lambda case: case.name)
@@ -145,12 +145,12 @@ def test_analyzer_subclasses_base_analyzer(case: _Case) -> None:
 
 @pytest.mark.parametrize("case", _CASES, ids=lambda case: case.name)
 def test_run_analysis_signature_matches_the_shared_envelope(case: _Case) -> None:
-    """Item 2: every ``run_analysis`` matches ``(self, ticker, config, context) -> ResultT`` exactly."""
+    """Item 2: every ``run_analysis`` matches ``(self, ticker, context, config) -> ResultT`` exactly."""
     config_type, result_type = _generic_args(case.analyzer_class)
     signature = inspect.signature(case.analyzer_class.run_analysis, eval_str=True)
     parameters = list(signature.parameters.values())
 
-    assert [parameter.name for parameter in parameters] == ["self", "ticker", "config", "context"]
+    assert [parameter.name for parameter in parameters] == ["self", "ticker", "context", "config"]
     assert all(parameter.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD for parameter in parameters)
 
     annotations = {parameter.name: parameter.annotation for parameter in parameters}
@@ -164,7 +164,7 @@ def test_run_analysis_signature_matches_the_shared_envelope(case: _Case) -> None
 def test_run_analysis_returns_its_declared_result_type(case: _Case) -> None:
     """Item 3: calling ``run_analysis`` with fakes returns an instance of the declared ``ResultT``."""
     _, result_type = _generic_args(case.analyzer_class)
-    result = case.build_analyzer().run_analysis(case.ticker, case.build_config(), _context())
+    result = case.build_analyzer().run_analysis(case.ticker, _context(), case.build_config())
     assert isinstance(result, result_type)
 
 

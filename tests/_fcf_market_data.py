@@ -53,6 +53,6 @@ def fcf_result(market_data: MarketCapDependencies | None = None) -> FCFEarningsG
         fcf_annual_resolver(), market_data or fcf_market_data(with_data=True)
     ).run_analysis(
         "ACME",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=CLOCK, use_cache=True),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
     )

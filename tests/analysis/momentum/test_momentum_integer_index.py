@@ -53,7 +53,7 @@ def _run(data: HistoricalMarketData) -> MomentumRun:
     provider.fetch_historical_data.return_value = data
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
     context = AnalysisContext(as_of=None, executed_at=EXECUTED_AT, use_cache=True)
-    return analyzer.run_analysis("ACME", CONFIG, context)
+    return analyzer.run_analysis("ACME", context, CONFIG)
 
 
 def test_integer_indexed_frame_is_rejected_with_the_index_rule() -> None:
@@ -131,7 +131,7 @@ def test_python_date_index_with_an_as_of_boundary_keeps_its_own_dates() -> None:
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
     context = AnalysisContext(as_of=datetime(2026, 8, 13, 23, 59, tzinfo=UTC), executed_at=EXECUTED_AT, use_cache=True)
 
-    run = analyzer.run_analysis("ACME", MomentumConfig(short_window=2, long_window=3, rsi_period=2), context)
+    run = analyzer.run_analysis("ACME", context, MomentumConfig(short_window=2, long_window=3, rsi_period=2))
 
     assert [item.observed_at.date() for item in run.price_inputs if item.observed_at is not None] == DAYS[:4]
     assert run.market_data.data_as_of == DAYS[3]

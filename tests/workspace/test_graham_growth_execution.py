@@ -115,7 +115,7 @@ def test_execute_graham_growth_delegates_and_falls_back_to_the_composed_profile(
     captured: dict[str, object] = {}
 
     def fake_run_analysis(
-        self: GrahamGrowthAnalyzer, ticker: str, config: GrahamGrowthConfig, context: AnalysisContext
+        self: GrahamGrowthAnalyzer, ticker: str, context: AnalysisContext, config: GrahamGrowthConfig
     ) -> GrahamGrowthAnalysis:
         captured["config"] = config
         captured["ticker"] = ticker

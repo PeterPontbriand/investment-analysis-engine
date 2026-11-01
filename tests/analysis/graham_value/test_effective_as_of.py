@@ -43,10 +43,10 @@ def _analyze(growth: bool) -> Any:
     if growth:
         config = GrahamGrowthConfig.model_validate({"expected_growth": 5.0, "aaa_yield_override": 4.5})
         resolver = GrahamGrowthInputResolver(FixtureFinancialFactsProvider(), clock=lambda: LATER)
-        return GrahamGrowthAnalyzer(resolver, policy=POLICY).run_analysis(SECURITY_ID, config, context)
+        return GrahamGrowthAnalyzer(resolver, policy=POLICY).run_analysis(SECURITY_ID, context, config)
     number_config = GrahamNumberConfig()
     number_resolver = GrahamNumberInputResolver(FixtureFinancialFactsProvider(), clock=lambda: LATER)
-    return GrahamNumberAnalyzer(number_resolver).run_analysis(SECURITY_ID, number_config, context)
+    return GrahamNumberAnalyzer(number_resolver).run_analysis(SECURITY_ID, context, number_config)
 
 
 @pytest.mark.parametrize("growth", [False, True])

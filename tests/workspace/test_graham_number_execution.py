@@ -97,7 +97,7 @@ def test_execute_graham_number_delegates_and_falls_back_to_the_composed_profile(
     captured: dict[str, object] = {}
 
     def fake_run_analysis(
-        self: GrahamNumberAnalyzer, ticker: str, config: GrahamNumberConfig, context: AnalysisContext
+        self: GrahamNumberAnalyzer, ticker: str, context: AnalysisContext, config: GrahamNumberConfig
     ) -> GrahamNumberAnalysis:
         del self
         captured["config"] = config

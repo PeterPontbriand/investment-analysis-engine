@@ -490,7 +490,7 @@ def test_t16_reports_a_field_nothing_reads(tmp_path: Path) -> None:
 
 
 def test_t17_the_analyzer_invocation_envelope_is_unchanged() -> None:
-    """``run_analysis(ticker, config, context)`` and the four ``AnalysisContext`` fields are as documented."""
+    """``run_analysis(ticker, context, config)`` and the four ``AnalysisContext`` fields are as documented."""
     assert conformance.analyzer_envelope_gaps() == []
 
 

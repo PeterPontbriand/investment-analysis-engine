@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, ConfigFreeAnalyzer, require_ticker
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
 
 
 @dataclass(frozen=True)
@@ -14,7 +14,7 @@ class CiProbeResult:
     effective_as_of: datetime
 
 
-class CiProbeAnalyzer(ConfigFreeAnalyzer[CiProbeResult]):
+class CiProbeAnalyzer(BaseAnalyzer[CiProbeResult]):
     """Return the ticker and the run's effective point in time."""
 
     def run_analysis(self, ticker: str, context: AnalysisContext) -> CiProbeResult:

@@ -43,6 +43,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.3c | [Side-by-side text layout](#353c--side-by-side-text-layout) | Complete | 2026-10-30 |
 | 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Complete | 2026-10-31 |
 | 3.5.3e1 | [Repetition review and extraction](#353e1--repetition-review-and-extraction) | Complete | 2026-11-01 |
+| 3.5.3e1b | [One analyzer base](#353e1b--one-analyzer-base) | Complete | 2026-11-01 |
 | 3.5.3e2 | [Guide, issues and records](#353e2--guide-issues-and-records) | Next | |
 
 Each sub-slice has its own branch off `main`, named as its section says, after the previous pull request merges.
@@ -161,6 +162,25 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
 - **Branch:** `feat/step-3-5-3e1-repetition-extraction`.
 - **Detail:** [files](#c6-353e1-files) and [the review](#b4-repetition-review-353e1). The three behavior
   differences left in place are recorded in [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207).
+
+### 3.5.3e1b — One analyzer base
+
+- **Problem:** two analyzer base classes, `BaseAnalyzer[ConfigT, ResultT]` and `ConfigFreeAnalyzer[ResultT]`, make every
+  check, reader and document say "either form", and the two put the context in different places in the call.
+- **Decision ([F3 and F11](#a10-decisions-f1-to-f11-2026-11-01)):** one base, `BaseAnalyzer[ResultT, *ConfigT]`, where
+  `ConfigT` holds zero or one type. A strategy with no configuration subclasses `BaseAnalyzer[XResult]` and declares
+  `run_analysis(self, ticker, context)`; one with a configuration subclasses `BaseAnalyzer[XResult, XConfig]` and declares
+  `run_analysis(self, ticker, context, config)`. The argument order is `(ticker, context, config)` everywhere.
+  `ConfigFreeAnalyzer` is deleted with no alias. `analyzer_result_type` and `analyzer_config_type` keep their names: the
+  result type is the first argument, the config type is `None` without a second argument, and more than one config
+  argument raises a `TypeError` naming the class. Conformance check T3 reports such a class and T17 checks the one
+  signature.
+- **Scope:** `analysis/base_analyzer.py`, the five analyzers and the specimen, `run_analyzer_with_profile`, every
+  positional call of `run_analysis`, the conformance script, the generator template and fill, the tests of the two
+  forms, and the corrections to the analyzer contract in the documents; the byte-identical proof of
+  [U6](#a5-decisions-u1-to-u6-2026-10-29).
+- **Branch:** `feat/step-3-5-3e1b-one-analyzer-base`.
+- **Detail:** [files](#c7-353e1b-files) and [tests](#d6-353e1b-tests).
 
 ### 3.5.3e2 — Guide, issues and records
 
@@ -344,7 +364,7 @@ Approved by the project owner before 3.5.3d began, with one wider authorization 
 | P1 | ETFs and statuses | A provider-confirmed ETF is `not_applicable` (`is_known_etf`), with no tests and no request for statements: the strategy is a company-level analysis of reported statements. A financial issuer stays applicable with a warning. The statuses are `ok`, `input_unavailable`, `provider_error` and `not_applicable` (ETF only). |
 | P2 | An unavailable year | An unavailable anchor, *t−1* or *t−2* still runs the calculator, and each operand of the affected year carries that year's reason, so the result always holds nine tests. A `MetricInputsFailure` stops the assembly: the result stores the failure record and the notes on how far it got (the FCF-Growth precedent), with no tests and no score, and its headline cells read "—". The reason is that a missing year is a fact about the filings, while a provider failure says nothing about them. |
 | P3 | Taxonomy | The result records the one taxonomy that every resolved operand shares, `us-gaap` or `ifrs-full`; if they differ, or one states none, it records none. |
-| P4 | No configuration | The method has no tunable choice, so there is no `PiotroskiConfig` and no `to_piotroski_config()`. `ConfigFreeAnalyzer[ResultT]` in `analysis/base_analyzer.py` has `run_analysis(ticker, context)`, and `analyzer_result_type` and `analyzer_config_type` in the same module read either form. `scripts/strategy_conformance.py` and `tests/test_documented_conventions.py` call them instead of reading `__orig_bases__` themselves; a config-free analyzer has no config type to check. The four existing analyzers are unchanged ([tests](#d4-353d-tests)). 3.5.3e decides how the generator template offers the two forms. |
+| P4 | No configuration | The method has no tunable choice, so there is no `PiotroskiConfig` and no `to_piotroski_config()`. `ConfigFreeAnalyzer[ResultT]` in `analysis/base_analyzer.py` has `run_analysis(ticker, context)`, and `analyzer_result_type` and `analyzer_config_type` in the same module read either form. `scripts/strategy_conformance.py` and `tests/test_documented_conventions.py` call them instead of reading `__orig_bases__` themselves; a config-free analyzer has no config type to check. The four existing analyzers are unchanged ([tests](#d4-353d-tests)). 3.5.3e decides how the generator template offers the two forms. The config-free form became `BaseAnalyzer[ResultT]` in 3.5.3e1b ([A.10](#a10-decisions-f1-to-f11-2026-11-01), F3). |
 | P5 | Concise layout | Percentages for ROA, CFO ÷ assets, long-term debt ÷ average assets and gross margin; multiples ("0.87x") for the current ratio and asset turnover; full amounts and share counts with thousands separators and currency. Two decimals, with digits added to both compared values when they round equal but differ exactly. An unavailable test shows its reason message. A partial score adds "Note: The usual reading of high and low scores applies to complete scores only."; a complete score never does. The layout is shown in the [user guide](../../../../user/strategies/PIOTROSKI.md#reading-the-result). |
 | P6 | Details, diagnostics, JSON | Details add each test's operands with year-end date and value. Diagnostics add each operand's provenance (provider field, accession, filing date) and the assembly notes. `--json` is the result model, written as it is. |
 | P7 | Warnings | A financial issuer gets a "Warning:" line (the F-Score was designed for non-financial firms; the gross-margin and current-ratio tests are typically unavailable). An unknown class gets a "Warning:" line naming why. Every other issuer gets only the "Industry class:" line. |
@@ -372,6 +392,24 @@ Approved by the project owner before 3.5.3e1 began.
 The key-order change of the tool argument schemas was approved on 2026-11-01. Declaring `use_cache` once in
 `AnalysisToolArguments` puts it after `as_of` in the JSON schema of Momentum, Graham Number, Graham Growth and FCF-Growth,
 where each model declared it last; the schemas are equal as data, and Piotroski's is unchanged.
+
+### A.10 Decisions F1 to F11 (2026-11-01)
+
+Approved by the project owner before 3.5.3e1b began.
+
+| # | Topic | Decision and reason |
+| :--- | :--- | :--- |
+| F1 | Placement of the B.2 facts | Each [B.2](#b2-where-docstool_developmentmd-fell-short) fact is placed in `docs/TOOL_DEVELOPMENT.md`: Steps 1, 3 and 4; a new Background section, "Shared metrics and SEC inputs", for entries 2, 4, 5 and 7; the Testing section's "Where tests and fixtures live" table for 3, 6 and 13. Entries 8 and 15 are verified only. The helpers of 3.5.3e1 are described in "Execution capture", linking [B.4](#b4-repetition-review-353e1). |
+| F2 | The worked example and the reference table | The FCF-Growth run walkthrough stays, repointed at `analysis/shared/metric_inputs.py` and updated to the current helpers. The "Existing strategy reference" table gains a Piotroski column as the config-free form with shared SEC inputs. |
+| F3 | One analyzer base | `ConfigFreeAnalyzer` is removed and `BaseAnalyzer[ResultT, *ConfigT]` is the one base, with the argument order `(ticker, context, config)` ([3.5.3e1b](#353e1b--one-analyzer-base)). The guide describes the one class with its two specializations and adds the "When a strategy gains a selection parameter" checklist (in 3.5.3e2). |
+| F4 | The shortfalls of 3.5.0b | The guide states #4, #5 and #6 of A.3 of the 3.5.0 slice plan; #2 and #3 join the one shortfall issue. |
+| F5 | Stale facts | 3.5.3e2 corrects every fact in the guide and in `ARCHITECTURE.md` that Step 3.5 so far has made stale, and lists each. |
+| F6 | Site 19 | The weighing is recorded in [B.3](#b3-decisions-of-353b-to-353e); API.3's Detail in the API plan gains a "decide with Site 19" item and SWC.1 design H.10 gets a forward note. No Site 19 issue is filed. |
+| F7 | The shortfall issue | One issue (B.2 #7 and #12, and #2 and #3 of A.3 of the 3.5.0 slice plan) names each problem and its candidate fixes without choosing. The order 3.5.3e2, [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207), that issue, all before API.1, is recorded in the milestone sequence table. |
+| F8 | Guide shortfalls in later slices | Every Step 3.5 strategy slice keeps the guide-shortfall record and fixes the guide in the same slice where that is in scope: an amendment to the contract's §3 paragraph "Every strategy is added the same way", made in 3.5.3e2. |
+| F9 | No 3.5.3e2 plan file | Its records are this appendix, the status table, the contract's §2 rows and A.14, and a file inventory. |
+| F10 | 3.5.3e2 verification | It runs the managed gate and `generate_strategy_docs --check`, and confirms that every new link and cited name exists on `main`. There is no fresh-reader review. |
+| F11 | Split | The one analyzer base is its own sub-slice, 3.5.3e1b, merged before 3.5.3e2. 3.5.3e2 keeps its name and meaning. |
 
 ---
 
@@ -435,7 +473,8 @@ Each sub-slice adds what it met. The earlier record of the same kind is
    `BaseAnalyzer[ConfigT, ResultT]` with a config type, and the generator writes an empty `<Name>Config`, a
    `to_<name>_config()` on the selection and a `config` parameter on the analyzer, the tool handler and the execution
    function, all of which Piotroski removed by hand. `ConfigFreeAnalyzer` and the two shared readers in
-   `analysis/base_analyzer.py` are the answer; 3.5.3e decides how the template offers them (P4).
+   `analysis/base_analyzer.py` are the answer; 3.5.3e decides how the template offers them (P4). The config-free form
+   became `BaseAnalyzer[ResultT]` in 3.5.3e1b ([A.10](#a10-decisions-f1-to-f11-2026-11-01), F3).
 10. **What the generated command and execution function leave out.** The generated `execute_<name>` composes no
     instrument profile and the generated command has no `--details`, `--diagnostics` or `--no-provider-check`, so an ETF
     would never be recognized and the presentation modes would be unreachable. Both were written by hand after FCF-Growth;
@@ -685,6 +724,44 @@ invocation helper, and the plan records.
 Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/`, `schemas/`, the help
 snapshot and the generated blocks of `docs/user/`.
 
+### C.7 3.5.3e1b files
+
+Commits: the base and every analyzer and call of it, then the plan and document records.
+
+**The base and its readers**
+
+- `investment_analysis_engine/analysis/base_analyzer.py`: `BaseAnalyzer[ResultT, *ConfigT]`; `ConfigFreeAnalyzer` deleted;
+  `analyzer_result_type` and `analyzer_config_type` read the one form, the second refusing more than one config argument.
+- `investment_analysis_engine/strategies/_shared/invocation.py`: `run_analyzer_with_profile` is generic over
+  `BaseAnalyzer[AnalysisT, ConfigT]` and calls `run_analysis(ticker, context, config)`.
+
+**Analyzers and their callers**
+
+- The `analyzer.py` of Momentum, Graham Number, Graham Growth and FCF-Growth: `BaseAnalyzer[Result, Config]` and
+  `run_analysis(self, ticker, context, config)`. The `analyzer.py` of Piotroski: `BaseAnalyzer[PiotroskiResult]`.
+- `strategies/fcf_growth/execution.py`: the one positional call outside tests; every other production call passes keywords.
+- Test doubles and fakes that implement or replace `run_analysis`: `tests/specimen/analyzer.py`,
+  `tests/workspace/test_profile_invocation.py`,
+  `tests/workspace/test_{fcf_growth,graham_growth,graham_number,momentum}_execution.py`, `tests/_runs_compare_refresh.py`;
+  and the positional calls in the other test modules.
+
+**Checks and generator**
+
+- `scripts/strategy_conformance.py`: the analyzer search starts from `BaseAnalyzer` alone, T3 reports a class with more than
+  one config type, T17 checks the one signature, `CONFIG_FREE_ENVELOPE_PARAMETERS` is removed.
+- `scripts/strategy_templates/analyzer.py.tmpl` and `tests/scripts/generator_fills/analyzer.py.fill` write
+  `BaseAnalyzer[<Name>Result]`.
+
+**Documents**: `AGENTS.md` (the invocation-envelope bullet), `docs/project/ARCHITECTURE.md` (the analyzer section), the five
+places in `docs/TOOL_DEVELOPMENT.md` that named the old signature (the guide's section rewrite is 3.5.3e2's), and this plan.
+The four the project owner listed are the contract paragraph naming `BaseAnalyzer[ConfigT, ResultT]` and
+`run_analysis(ticker, config, context)`, the FCF-Growth analyzer sentence, and the two table rows (the shared-contract row
+and the strategy-analyzer row); the fifth, found during the work and approved afterwards, is the step-7 row of the run
+walkthrough, "Calls `FCFEarningsGrowthAnalyzer.run_analysis(ticker, config, context)`", now `(ticker, context, config)`.
+
+Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/`, `schemas/`, the help
+snapshot and the generated blocks of `docs/user/`. The tool argument schemas sent to the model do not change.
+
 ---
 
 ## Appendix D: Tests
@@ -788,6 +865,21 @@ As written (the file names are in [C.5](#c5-353d-files)):
   generator test fills the stubs and passes `scripts.strategy_status` and the conformance checks.
 - **Unchanged outputs:** the four U6 commands, `scripts.generate_strategy_docs`, and `git --no-pager diff --stat main`
   over `tests/expected_output`, `schemas` and `docs/user` show no change.
+
+### D.6 3.5.3e1b tests
+
+- **New:** `tests/analysis/test_analyzer_forms.py` is rewritten for the one form: both specializations are read
+  correctly; the five strategies and the specimen are written out with their result and config types (`None` for
+  Piotroski); a class with two config arguments raises, naming the class; an unspecialized subclass gives `None` for the
+  result; T3 has a failing case for a class that declares two config types.
+- **Dropped:** the comparison with "the old reading" of `__orig_bases__` (it only told the two classes apart) and the test
+  that `PiotroskiAnalyzer` is not a `BaseAnalyzer`, which the new form makes false by design.
+- **Merged:** the config-free and base-form signature tests into one test of the `(ticker, context, config)` order, and
+  the config-free envelope test into the one test of T17's signature.
+- **Changed only as far as the form requires:** the order of the config and the context in every positional call, in the
+  signatures of test analyzers and fakes, and in the generator test's assertion on the stub (`BaseAnalyzer[FreshProbeResult]`).
+- **Unchanged outputs:** the six U6 commands and `git --no-pager diff --stat main` over `tests/expected_output`, `schemas`
+  and `docs/user` show no change.
 
 ---
 

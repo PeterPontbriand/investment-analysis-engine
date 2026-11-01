@@ -11,7 +11,7 @@ from investment_analysis_engine.strategies.graham_growth.config import GrahamGro
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis, run_graham_growth_analysis
 
 
-class GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthConfig, GrahamGrowthAnalysis]):
+class GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthAnalysis, GrahamGrowthConfig]):
     """Run the growth service with an explicitly injected calculation policy."""
 
     def __init__(self, resolver: GrahamGrowthInputResolver, *, policy: GrahamGrowthCalculationPolicy) -> None:
@@ -19,7 +19,7 @@ class GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthConfig, GrahamGrowthAnalysis
         self._resolver = resolver
         self._policy = policy
 
-    def run_analysis(self, ticker: str, config: GrahamGrowthConfig, context: AnalysisContext) -> GrahamGrowthAnalysis:
+    def run_analysis(self, ticker: str, context: AnalysisContext, config: GrahamGrowthConfig) -> GrahamGrowthAnalysis:
         """Return complete service evidence, retaining the supplied policy."""
         assert config.eps_basis is not None
         return run_graham_growth_analysis(

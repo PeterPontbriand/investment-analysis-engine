@@ -47,7 +47,7 @@ def _run(index: pd.DatetimeIndex, as_of: datetime | None) -> MomentumRun:
     provider = MagicMock()
     provider.fetch_historical_data.return_value = _data(index)
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
-    return analyzer.run_analysis("ACME", CONFIG, AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=True))
+    return analyzer.run_analysis("ACME", AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=True), CONFIG)
 
 
 def _observed(run: MomentumRun) -> list[datetime | None]:

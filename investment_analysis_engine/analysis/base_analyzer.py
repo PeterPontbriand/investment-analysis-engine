@@ -1,17 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TypeVar, get_args, get_origin
+from typing import get_args, get_origin
 
 from investment_analysis_engine.core.clock import effective_as_of as _effective_as_of
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
-
-# Type variables for a strategy's own config shape and its typed result.
-# Unbound: a strategy's config may be a Pydantic BaseModel, a frozen dataclass, or any other
-# typed shape (see AGENTS.md's heterogeneous strategy independence guidance) — the base does
-# not assume BaseModel.
-ConfigT = TypeVar("ConfigT")
-ResultT = TypeVar("ResultT")
 
 
 @dataclass(frozen=True)
@@ -50,71 +43,76 @@ def require_ticker(ticker: str) -> str:
     return normalized
 
 
-class BaseAnalyzer[ConfigT, ResultT](ABC):
-    """Abstract base class for all self-describing quantitative analysis strategies."""
+class BaseAnalyzer[ResultT, *ConfigT](ABC):
+    """Abstract base class for all self-describing quantitative analysis strategies.
 
-    @abstractmethod
-    def run_analysis(self, ticker: str, config: ConfigT, context: AnalysisContext) -> ResultT:
-        """Execute the structural strategy with its own strategy-specific configuration."""
-
-
-class ConfigFreeAnalyzer[ResultT](ABC):
-    """Abstract base class for an analysis strategy that takes no configuration.
-
-    The strategy's calculation has no tunable choice: every fact it needs comes from its
-    dependencies and the ``AnalysisContext``, so ``run_analysis`` takes only the ticker and the
-    context. A strategy with a tunable choice subclasses ``BaseAnalyzer`` instead.
+    ``ResultT`` is the complete evidence type the strategy returns. ``ConfigT`` holds zero or one
+    type: a strategy with no tunable choice subclasses ``BaseAnalyzer[Result]`` and declares
+    ``run_analysis(ticker, context)``; a strategy with a typed configuration subclasses
+    ``BaseAnalyzer[Result, Config]`` and declares ``run_analysis(ticker, context, config)``. A
+    configuration is not added to hold a single value, and no analyzer declares more than one.
     """
 
     @abstractmethod
-    def run_analysis(self, ticker: str, context: AnalysisContext) -> ResultT:
-        """Execute the structural strategy for the ticker under the shared execution context."""
+    def run_analysis(self, ticker: str, context: AnalysisContext, *config: *ConfigT) -> ResultT:
+        """Execute the structural strategy for the ticker under the shared execution context.
+
+        Args:
+            ticker: The requested ticker.
+            context: Cross-cutting execution concerns for the run.
+            *config: The strategy's own typed configuration, absent for a strategy with none.
+        """
+
+
+def _specialization(analyzer_class: type) -> tuple[object, ...] | None:
+    """Return the arguments the class gives ``BaseAnalyzer`` directly, or ``None`` when it gives none."""
+    for base in getattr(analyzer_class, "__orig_bases__", ()):
+        if get_origin(base) is BaseAnalyzer:
+            return get_args(base)
+    return None
 
 
 def analyzer_result_type(analyzer_class: type) -> type | None:
-    """Return the ``ResultT`` an analyzer class declares, for either analyzer form.
+    """Return the ``ResultT`` an analyzer class declares.
 
     Args:
-        analyzer_class: A class that subclasses ``BaseAnalyzer[ConfigT, ResultT]`` or
-            ``ConfigFreeAnalyzer[ResultT]`` directly.
+        analyzer_class: A class that subclasses ``BaseAnalyzer[ResultT]`` or
+            ``BaseAnalyzer[ResultT, ConfigT]`` directly.
 
     Returns:
-        The declared result type, or ``None`` when the class specializes neither form or its result
-        argument is not a concrete type.
+        The declared result type, or ``None`` when the class does not specialize ``BaseAnalyzer`` or
+        its result argument is not a concrete type.
     """
-    for base in getattr(analyzer_class, "__orig_bases__", ()):
-        origin = get_origin(base)
-        if origin is BaseAnalyzer:
-            result = get_args(base)[1]
-        elif origin is ConfigFreeAnalyzer:
-            result = get_args(base)[0]
-        else:
-            continue
-        return result if isinstance(result, type) else None
-    return None
+    arguments = _specialization(analyzer_class)
+    if not arguments:
+        return None
+    result = arguments[0]
+    return result if isinstance(result, type) else None
 
 
 def analyzer_config_type(analyzer_class: type) -> type | None:
     """Return the config type an analyzer class declares, or ``None`` for a config-free analyzer.
 
     Args:
-        analyzer_class: A class that subclasses ``BaseAnalyzer[ConfigT, ResultT]`` or
-            ``ConfigFreeAnalyzer[ResultT]`` directly.
+        analyzer_class: A class that subclasses ``BaseAnalyzer[ResultT]`` or
+            ``BaseAnalyzer[ResultT, ConfigT]`` directly.
 
     Returns:
-        The declared config type, or ``None`` when the analyzer is config-free.
+        The declared config type, or ``None`` when the analyzer gives no second argument.
 
     Raises:
-        TypeError: If the class specializes neither form, or declares a config argument that is not
-            a concrete type.
+        TypeError: If the class does not specialize ``BaseAnalyzer``, declares more than one config
+            argument, or declares a config argument that is not a concrete type.
     """
-    for base in getattr(analyzer_class, "__orig_bases__", ()):
-        origin = get_origin(base)
-        if origin is ConfigFreeAnalyzer:
-            return None
-        if origin is BaseAnalyzer:
-            config = get_args(base)[0]
-            if not isinstance(config, type):
-                raise TypeError(f"{analyzer_class.__name__} declares no concrete config type.")
-            return config
-    raise TypeError(f"{analyzer_class.__name__} specializes neither BaseAnalyzer nor ConfigFreeAnalyzer.")
+    arguments = _specialization(analyzer_class)
+    if arguments is None:
+        raise TypeError(f"{analyzer_class.__name__} does not specialize BaseAnalyzer.")
+    configs = arguments[1:]
+    if len(configs) > 1:
+        raise TypeError(f"{analyzer_class.__name__} declares {len(configs)} config types; at most one is allowed.")
+    if not configs:
+        return None
+    config = configs[0]
+    if not isinstance(config, type):
+        raise TypeError(f"{analyzer_class.__name__} declares no concrete config type.")
+    return config

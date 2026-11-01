@@ -135,8 +135,8 @@ def test_known_etf_short_circuits_company_fcf_before_annual_fact_resolution() ->
 
     result = FCFEarningsGrowthAnalyzer(resolver, fcf_market_data()).run_analysis(
         "FLSW",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=NOW, use_cache=True, instrument_profile=profile),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
     )
 
     assert result.execution_status is CalculationStatus.NOT_APPLICABLE
@@ -227,8 +227,8 @@ def test_fcf_profile_mismatch_precedes_applicability_and_resolution(known_etf: b
     with pytest.raises(ValueError, match="Instrument profile ticker does not match") as error:
         FCFEarningsGrowthAnalyzer(resolver, fcf_market_data()).run_analysis(
             "OTHER",
-            FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
             AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),
+            FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         )
     assert str(error.value) == "Instrument profile ticker does not match the FCF & Earnings Growth analysis ticker."
     resolver.resolve.assert_not_called()
@@ -240,8 +240,8 @@ def test_fcf_etf_result_retains_caller_owned_messages_and_boundaries(include_yie
     profile = _profile(InstrumentKind.ETF, "ETF")
     result = FCFEarningsGrowthAnalyzer(resolver, fcf_market_data()).run_analysis(
         " flsw ",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(include_fcf_yield=include_yield), currency="USD"),
         AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(include_fcf_yield=include_yield), currency="USD"),
     )
     reason = (
         "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. "

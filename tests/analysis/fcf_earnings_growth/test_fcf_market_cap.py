@@ -167,7 +167,7 @@ def _run(
 ) -> FCFEarningsGrowthResult:
     config = FCFEarningsGrowthConfig(policy=policy or FCFEarningsGrowthPolicy(), currency="USD")
     return FCFEarningsGrowthAnalyzer(_annual(years), market_data).run_analysis(
-        "acme", config, AnalysisContext(as_of=as_of, executed_at=CLOCK, use_cache=use_cache)
+        "acme", AnalysisContext(as_of=as_of, executed_at=CLOCK, use_cache=use_cache), config
     )
 
 
@@ -225,8 +225,8 @@ def test_no_market_data_is_requested_when_the_yield_is_not_wanted(etf: bool) -> 
         profile = fixture_known_etf_profile()
         result = FCFEarningsGrowthAnalyzer(_annual(), dependencies).run_analysis(
             GOLDEN_ETF_TICKER,
-            CONFIG,
             AnalysisContext(as_of=None, executed_at=CLOCK, use_cache=True, instrument_profile=profile),
+            CONFIG,
         )
     else:
         result = _run(dependencies, policy=replace(policy, include_fcf_yield=False))

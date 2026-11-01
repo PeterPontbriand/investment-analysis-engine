@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Final
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, ConfigFreeAnalyzer, require_ticker
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
 from investment_analysis_engine.analysis.shared.applicability import (
     Applicability,
     IndustryClass,
@@ -378,7 +378,7 @@ def _year_diagnostics(years: _Years) -> tuple[str, ...]:
     return tuple(notes)
 
 
-class PiotroskiAnalyzer(ConfigFreeAnalyzer[PiotroskiResult]):
+class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
     """Assemble the operands of the nine tests and calculate the Piotroski F-Score.
 
     Args:

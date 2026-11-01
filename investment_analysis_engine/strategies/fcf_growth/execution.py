@@ -88,7 +88,7 @@ def execute_fcf_growth(  # noqa: PLR0913
         profile_cache=profile_cache,
     )
     context = AnalysisContext(as_of=as_of, executed_at=executed_at, use_cache=use_cache, instrument_profile=profile)
-    result = FCFEarningsGrowthAnalyzer(resolver, market_data).run_analysis(ticker, config, context)
+    result = FCFEarningsGrowthAnalyzer(resolver, market_data).run_analysis(ticker, context, config)
     return FCFGrowthCapture(result=result, profile=profile)
 
 

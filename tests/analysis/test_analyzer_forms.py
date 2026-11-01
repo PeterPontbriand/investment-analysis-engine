@@ -1,19 +1,19 @@
-"""The two analyzer forms and the shared readers of their generic arguments.
+"""The one analyzer base and the shared readers of its generic arguments.
 
-``BaseAnalyzer[ConfigT, ResultT]`` is the form of a strategy with a tunable choice and ``ConfigFreeAnalyzer[ResultT]``
-the form of one with none. ``analyzer_result_type`` and ``analyzer_config_type`` are the only readers of either form,
-and the conformance script and the documented-conventions test call them instead of reading ``__orig_bases__``.
+``BaseAnalyzer[ResultT]`` is the form of a strategy with no tunable choice and ``BaseAnalyzer[ResultT, ConfigT]`` the
+form of one with a typed configuration. ``analyzer_result_type`` and ``analyzer_config_type`` are the only readers of
+either specialization, and the conformance script and the documented-conventions test call them instead of reading
+``__orig_bases__``.
 """
 
 import inspect
-from typing import get_args, get_origin, get_type_hints
+from typing import get_type_hints
 
 import pytest
 
 from investment_analysis_engine.analysis.base_analyzer import (
     AnalysisContext,
     BaseAnalyzer,
-    ConfigFreeAnalyzer,
     analyzer_config_type,
     analyzer_result_type,
 )
@@ -30,62 +30,77 @@ from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiAn
 from investment_analysis_engine.strategies.piotroski.tool import PiotroskiToolDependencies
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyBehavior
 from scripts import strategy_conformance as conformance
+from tests.specimen.analyzer import SpecimenAnalyzer, SpecimenConfig, SpecimenResult
 from tests.test_documented_conventions import _config_type_of
 
-EXISTING: tuple[tuple[type, type, type], ...] = (
-    (MomentumAnalyzer, MomentumConfig, MomentumRun),
-    (GrahamNumberAnalyzer, GrahamNumberConfig, GrahamNumberAnalysis),
-    (GrahamGrowthAnalyzer, GrahamGrowthConfig, GrahamGrowthAnalysis),
-    (FCFEarningsGrowthAnalyzer, FCFEarningsGrowthConfig, FCFEarningsGrowthResult),
+WRITTEN_OUT: tuple[tuple[type, type, type | None], ...] = (
+    (MomentumAnalyzer, MomentumRun, MomentumConfig),
+    (GrahamNumberAnalyzer, GrahamNumberAnalysis, GrahamNumberConfig),
+    (GrahamGrowthAnalyzer, GrahamGrowthAnalysis, GrahamGrowthConfig),
+    (FCFEarningsGrowthAnalyzer, FCFEarningsGrowthResult, FCFEarningsGrowthConfig),
+    (PiotroskiAnalyzer, PiotroskiResult, None),
+    (SpecimenAnalyzer, SpecimenResult, SpecimenConfig),
 )
-"""The four analyzers of the base form, their config types and their result types, written out."""
+"""The five strategies' analyzers and the specimen, with their result types and config types, written out."""
+
+
+class _Result:
+    """A result type for the classes below."""
+
+
+class _NoConfig(BaseAnalyzer[_Result]):
+    def run_analysis(self, ticker: str, context: AnalysisContext) -> _Result:
+        raise NotImplementedError
+
+
+class _OneConfig(BaseAnalyzer[_Result, int]):
+    def run_analysis(self, ticker: str, context: AnalysisContext, config: int) -> _Result:
+        raise NotImplementedError
+
+
+class _TwoConfigs(BaseAnalyzer[_Result, int, str]):
+    def run_analysis(self, ticker: str, context: AnalysisContext, *config: int | str) -> _Result:
+        raise NotImplementedError
 
 
 def _unspecialized() -> type:
-    """Return a concrete subclass of the config-free base that does not say what it returns."""
+    """Return a concrete subclass of the base that does not say what it returns."""
 
-    def run_analysis(self: object, ticker: str, context: AnalysisContext) -> object:
+    def run_analysis(self: object, ticker: str, context: AnalysisContext, *config: object) -> object:
         raise NotImplementedError
 
-    return type("Unspecialized", (ConfigFreeAnalyzer,), {"run_analysis": run_analysis})
+    return type("Unspecialized", (BaseAnalyzer,), {"run_analysis": run_analysis})
 
 
-def _declared_by_the_old_reading(analyzer: type) -> tuple[object, object]:
-    """Return ``(ConfigT, ResultT)`` as the checks read them before the shared readers: from ``__orig_bases__``."""
-    for base in getattr(analyzer, "__orig_bases__", ()):
-        if get_origin(base) is BaseAnalyzer:
-            config, result = get_args(base)
-            return config, result
-    raise AssertionError(f"{analyzer.__name__} does not subclass BaseAnalyzer[ConfigT, ResultT].")
-
-
-@pytest.mark.parametrize(("analyzer", "config", "result"), EXISTING, ids=lambda item: getattr(item, "__name__", ""))
-def test_the_four_existing_analyzers_give_the_same_arguments_as_the_old_reading(
-    analyzer: type, config: type, result: type
+@pytest.mark.parametrize(("analyzer", "result", "config"), WRITTEN_OUT, ids=lambda item: getattr(item, "__name__", ""))
+def test_the_five_strategies_and_the_specimen_give_their_result_and_config_types(
+    analyzer: type, result: type, config: type | None
 ) -> None:
-    assert (analyzer_config_type(analyzer), analyzer_result_type(analyzer)) == (config, result)
-    assert _declared_by_the_old_reading(analyzer) == (config, result)
+    assert analyzer_result_type(analyzer) is result
+    assert analyzer_config_type(analyzer) is config
 
 
-def test_the_config_free_form_has_a_result_type_and_no_config_type() -> None:
-    assert analyzer_result_type(PiotroskiAnalyzer) is PiotroskiResult
-    assert analyzer_config_type(PiotroskiAnalyzer) is None
+def test_both_specializations_are_read_correctly() -> None:
+    assert (analyzer_result_type(_NoConfig), analyzer_config_type(_NoConfig)) == (_Result, None)
+    assert (analyzer_result_type(_OneConfig), analyzer_config_type(_OneConfig)) == (_Result, int)
 
 
-def test_the_config_free_form_is_invoked_with_the_ticker_and_the_context_only() -> None:
-    parameters = inspect.signature(PiotroskiAnalyzer.run_analysis, eval_str=True)
-    assert list(parameters.parameters) == ["self", "ticker", "context"]
-    hints = get_type_hints(ConfigFreeAnalyzer.run_analysis)
+def test_the_run_analysis_signature_puts_the_context_before_the_config() -> None:
+    assert list(inspect.signature(BaseAnalyzer.run_analysis).parameters) == ["self", "ticker", "context", "config"]
+    assert list(inspect.signature(PiotroskiAnalyzer.run_analysis).parameters) == ["self", "ticker", "context"]
+    assert list(inspect.signature(MomentumAnalyzer.run_analysis).parameters) == ["self", "ticker", "context", "config"]
+    hints = get_type_hints(BaseAnalyzer.run_analysis)
     assert hints["ticker"] is str
     assert hints["context"] is AnalysisContext
-    assert (
-        tuple(inspect.signature(ConfigFreeAnalyzer.run_analysis).parameters)
-        == conformance.CONFIG_FREE_ENVELOPE_PARAMETERS
-    )
-    assert not issubclass(PiotroskiAnalyzer, BaseAnalyzer)
 
 
-def test_a_class_of_neither_form_has_no_result_type_and_no_readable_config_type() -> None:
+def test_a_class_with_two_config_arguments_is_refused_naming_the_class() -> None:
+    with pytest.raises(TypeError, match="_TwoConfigs declares 2 config types"):
+        analyzer_config_type(_TwoConfigs)
+    assert analyzer_result_type(_TwoConfigs) is _Result
+
+
+def test_an_unspecialized_subclass_has_no_result_type_and_no_readable_config_type() -> None:
     class Bare:
         pass
 
@@ -93,13 +108,15 @@ def test_a_class_of_neither_form_has_no_result_type_and_no_readable_config_type(
 
     assert analyzer_result_type(Bare) is None
     assert analyzer_result_type(unspecialized) is None
-    with pytest.raises(TypeError, match="specializes neither"):
+    with pytest.raises(TypeError, match="does not specialize BaseAnalyzer"):
         analyzer_config_type(Bare)
+    with pytest.raises(TypeError, match="does not specialize BaseAnalyzer"):
+        analyzer_config_type(unspecialized)
 
 
 def test_a_config_argument_that_is_not_a_concrete_type_is_refused() -> None:
-    class Generic[ConfigArgument](BaseAnalyzer[ConfigArgument, int]):
-        def run_analysis(self, ticker: str, config: ConfigArgument, context: AnalysisContext) -> int:
+    class Generic[ConfigArgument](BaseAnalyzer[int, ConfigArgument]):
+        def run_analysis(self, ticker: str, context: AnalysisContext, config: ConfigArgument) -> int:
             raise NotImplementedError
 
     with pytest.raises(TypeError, match="no concrete config type"):
@@ -107,31 +124,45 @@ def test_a_config_argument_that_is_not_a_concrete_type_is_refused() -> None:
     assert analyzer_result_type(Generic) is int
 
 
-def test_the_conformance_check_finds_the_piotroski_analyzer_and_reads_its_result_type() -> None:
+def test_the_conformance_check_finds_every_analyzer_and_reads_the_result_types() -> None:
     conformance._import_strategy_modules()
     found = conformance._concrete_analyzers()
-    assert PiotroskiAnalyzer in found
-    assert all(analyzer in found for analyzer, _, _ in EXISTING)
-    assert conformance._analyzer_result_type(PiotroskiAnalyzer) is PiotroskiResult
+    for analyzer, result, _ in WRITTEN_OUT:
+        if analyzer is not SpecimenAnalyzer:
+            assert analyzer in found
+            assert conformance._analyzer_result_type(analyzer) is result
     assert conformance.analyzer_generics_gaps(STRATEGIES) == []
 
 
-def test_the_conformance_check_still_reports_an_analyzer_of_neither_form(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_conformance_check_reports_an_analyzer_that_does_not_specialize_the_base(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     imaginary = type("Imaginary", (), {"__module__": "investment_analysis_engine.strategies.imaginary.analyzer"})
     real = conformance._concrete_analyzers
     monkeypatch.setattr(conformance, "_concrete_analyzers", lambda: [*real(), imaginary])
     assert conformance.analyzer_generics_gaps(STRATEGIES) == [
         "analyzer investment_analysis_engine.strategies.imaginary.analyzer.Imaginary "
-        "does not specialize BaseAnalyzer[ConfigT, ResultT] or ConfigFreeAnalyzer[ResultT]"
+        "does not specialize BaseAnalyzer[ResultT] or BaseAnalyzer[ResultT, ConfigT]"
     ]
 
 
-def test_the_conformance_check_reports_a_changed_config_free_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_conformance_check_reports_an_analyzer_that_declares_two_config_types(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(_TwoConfigs, "__module__", "investment_analysis_engine.strategies.imaginary.analyzer")
+    gaps = conformance.analyzer_generics_gaps(STRATEGIES)
+    assert [gap for gap in gaps if "declares 2 config types" in gap] == [
+        "analyzer investment_analysis_engine.strategies.imaginary.analyzer._TwoConfigs: "
+        "_TwoConfigs declares 2 config types; at most one is allowed."
+    ]
+
+
+def test_the_conformance_check_reports_a_changed_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
     assert conformance.analyzer_envelope_gaps() == []
-    monkeypatch.setattr(conformance, "CONFIG_FREE_ENVELOPE_PARAMETERS", ("self", "ticker", "config", "context"))
+    monkeypatch.setattr(conformance, "ANALYZER_ENVELOPE_PARAMETERS", ("self", "ticker", "config", "context"))
     gaps = conformance.analyzer_envelope_gaps()
     assert len(gaps) == 1
-    assert gaps[0].startswith("config-free run_analysis parameters changed")
+    assert gaps[0].startswith("run_analysis parameters changed")
 
 
 def test_the_documented_conventions_check_reads_a_config_free_analyzer_as_having_no_config_type() -> None:

@@ -19,7 +19,7 @@ class ProfiledAnalysis(Protocol):
 
 
 def run_analyzer_with_profile[ConfigT, AnalysisT: ProfiledAnalysis](  # noqa: PLR0913
-    analyzer: BaseAnalyzer[ConfigT, AnalysisT],
+    analyzer: BaseAnalyzer[AnalysisT, ConfigT],
     ticker: str,
     config: ConfigT,
     *,
@@ -55,5 +55,5 @@ def run_analyzer_with_profile[ConfigT, AnalysisT: ProfiledAnalysis](  # noqa: PL
     context = AnalysisContext(
         as_of=as_of, executed_at=executed_at, use_cache=use_cache, instrument_profile=composed_profile
     )
-    analysis = analyzer.run_analysis(ticker, config, context)
+    analysis = analyzer.run_analysis(ticker, context, config)
     return analysis, analysis.instrument_profile or composed_profile
