@@ -45,7 +45,6 @@ def decode_piotroski(payload: StrictJsonMapping) -> PiotroskiResult:
     return decode_with_native_identifiers(
         _PiotroskiEvidence,
         payload,
-        key="result",
         label="Piotroski",
         identifiers={"strategy_id": ANALYSIS_ID, "method_id": METHOD_ID},
         versions={"method_version": METHOD_VERSION, "schema_version": RESULT_SCHEMA_VERSION},

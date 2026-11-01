@@ -79,8 +79,6 @@ def decode_graham_number(payload: StrictJsonMapping) -> GrahamNumberAnalysis:
     return decode_with_method_sections(
         _NumberEvidence,
         payload,
-        key="analysis",
-        sections=("assembly", "result"),
         label="Graham Number",
         method_id=METHOD_ID,
     ).analysis

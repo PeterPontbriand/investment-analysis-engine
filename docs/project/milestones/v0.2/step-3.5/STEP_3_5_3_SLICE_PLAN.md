@@ -159,7 +159,8 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
   the template, fill and generator-test changes; the byte-identical proof of
   [U6](#a5-decisions-u1-to-u6-2026-10-29); these plan records.
 - **Branch:** `feat/step-3-5-3e1-repetition-extraction`.
-- **Detail:** [files](#c6-353e1-files) and [the review](#b4-repetition-review-353e1).
+- **Detail:** [files](#c6-353e1-files) and [the review](#b4-repetition-review-353e1). The three behavior
+  differences left in place are recorded in [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207).
 
 ### 3.5.3e2 — Guide, issues and records
 
@@ -366,7 +367,7 @@ Approved by the project owner before 3.5.3e1 began.
 | E5 | Profile and command | The templates generate an `execute_<name>` that composes the instrument profile, so an ETF is recognized, and a command with `--details`, `--diagnostics` and `--no-provider-check`, both through the helpers of E2. `patches.toml` and every generator test match. |
 | E6 | Public names | Names shared across modules are public: `parse_as_of`, `resolve_ticker`, `presentation_mode` and `production_financial_cache` in `cli_support`, `validate_json_value` in `analysis/run_models`, and the other underscore names a strategy file imported from another module (`production_historical_client`, `production_instrument_profile_cache`, `production_database`). `compose_graham_profile` is renamed to `compose_production_profile`, because `compose_instrument_profile` is already the data layer's function that it calls. Every caller changed in the same commit and no alias is kept. |
 | E7 | Where B.2 goes | B.2 entries 1 to 6, 11 and 13 to 15 go into the guide in 3.5.3e2. Entries 8 to 10 are fixed in code (8 in 3.5.3d, 9 and 10 in 3.5.3e1) and then described in the guide. Entries 7 and 12 go into one issue filed in 3.5.3e2, with the guide stating both facts meanwhile. |
-| E8 | Functions only | Helpers are functions, not a base class, mixin, registry or factory. They live in the shared module of the layer that owns them: CLI-command helpers in `cli_support.py`, codec helpers in `analysis/run_models.py`, execution helpers in `strategies/_shared/`. Two placements follow from the layers: `analyze_and_maybe_save` is in `cli_run_support.py` beside `maybe_save_run`, which imports `cli_support`, and no helper that builds an `ExecutionCapture` can sit in `strategies/`, which `workspace` imports. |
+| E8 | Functions only | Helpers are functions, not a base class, mixin, registry or factory. They live in the shared module of the layer that owns them: CLI-command helpers in `cli_support.py`, codec helpers in `analysis/run_models.py`, execution helpers in `strategies/_shared/`. Two placements follow from the layers: `analyze_and_maybe_save` is in `cli_run_support.py` beside `maybe_save_run`, which imports `cli_support`, and a helper that builds an `ExecutionCapture` cannot sit in `strategies/`: `scripts/package_graph.py` assigns each strategy's `execution.py` to the `workspace` layer, its `cli.py` to `cli` and its `evaluation.py` to `evaluation`, and every other file under `strategies/`, `_shared/` included, is the `strategies` layer, which cannot import `workspace`. |
 
 ---
 
@@ -501,8 +502,8 @@ outputs are unchanged is in [D.5](#d5-353e1-tests).
 | :--- | :--- | :--- | :--- |
 | `snapshot_by_revalidation` | `analysis/run_models.py` | all five codecs | Dump the evidence model to JSON, decode the dump, return it. |
 | `validate_wire` | `analysis/run_models.py` | all five codecs (Momentum directly, the others through the two helpers below) | Strict JSON validation of the wire object, refusing a non-finite number. |
-| `decode_with_native_identifiers` | `analysis/run_models.py` | FCF-Growth, Piotroski | Check the result is an object, its identifiers and integer versions equal the declared ones, drop them, validate. The messages keep each strategy's name through `label`. |
-| `decode_with_method_sections` | `analysis/run_models.py` | Graham Number, Graham Growth | Check each of `assembly` and `result` carries the declared `method`, drop it from a copy, validate. |
+| `decode_with_native_identifiers` | `analysis/run_models.py` | FCF-Growth, Piotroski | Check the result, under the documented constant `NATIVE_RESULT_KEY`, is an object, its identifiers and integer versions equal the declared ones, drop them, validate. The messages keep each strategy's name through `label`. |
+| `decode_with_method_sections` | `analysis/run_models.py` | Graham Number, Graham Growth | Check each of `METHOD_SECTIONS` (`assembly`, `result`) of the analysis under `METHOD_ANALYSIS_KEY` carries the declared `method`, drop it from a copy, validate. |
 | `resolve_command_target` | `cli_support.py` | all five commands | Resolve the ticker and record it on the failure scope, then resolve the presentation mode and record it. |
 | `render_execution` | `cli_support.py` | FCF-Growth, Piotroski, Momentum | Exit code of the outcome, the provider check run once and only after a failure, the strategy's render, the check lines before a failure. |
 | `emit_output` | `cli_support.py` | all five commands | Write the output (standard error for a failure in the concise and details modes) and exit with the code. |
@@ -516,11 +517,16 @@ FCF-Growth, Piotroski and, through `run_analyzer_with_profile`, both Graham stra
 
 **Regions left in place**
 
+Three of these differ in behavior between strategies and are recorded, with no behavior changed, in issue [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207): the
+save path of Momentum, the provider-check branch of the Graham render, and the order of the clock and the profile in the
+Graham tool handlers.
+
 | Region | Strategies | Why it stays |
 | :--- | :--- | :--- |
 | Direct-command save path | Momentum | It checks readiness and composes the profile in the command, before any provider call, and marks the save stage analyzed itself. Unifying it would change the order of the readiness check and the provider requests. |
 | Failure branches of the render | Graham Number, Graham Growth | The provider check runs only in the failure branch of the assembly status, never in the not-applicable branch, and always on the recorded failure; `render_execution` runs it on the exit code. Unifying would change when a probe request is sent. |
 | Clock and profile order in the tool handler | Graham Number, Graham Growth | They resolve the profile before validating the clock, so a provider request precedes a refused clock. `tool_context` validates the clock first. |
+| `use_cache` field of the tool arguments, and the `use_cache` parameter of `tool_context` | all five | The field is declared identically in each arguments model, but moving it into `AnalysisToolArguments` puts it ahead of each strategy's own fields in the JSON schema that `ollama_runner` sends to the model (Momentum, Graham Number, Graham Growth and FCF-Growth; Piotroski is unchanged), so the schema text the model sees would change. The schemas are equal as data and no stored or pinned output changes, but the order cannot be kept with a shared field, so it stays until that change is approved. |
 | `from_<name>_capture` | all five | Each builds an `ExecutionCapture` from a different attribute path (`result`, `analysis`, `run`, `analysis.assembly.provider_failure`) and Momentum adds its display values. A helper would take the arguments the constructor takes, and the functions are named by the descriptors. |
 | Profile composition of Momentum | Momentum | One Yahoo client is both candidates and SEC is not asked, so it is not `compose_production_profile`. |
 | `AnalysisContext` construction | all five | It is one constructor call (`selection.to_analysis_context` for Momentum and Piotroski, inline elsewhere); a function would only rename it. |

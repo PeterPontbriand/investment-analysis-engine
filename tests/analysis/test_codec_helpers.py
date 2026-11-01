@@ -57,7 +57,7 @@ def _result_payload() -> StrictJsonMapping:
 
 def _decode_result(payload: StrictJsonMapping) -> _ResultEvidence:
     return decode_with_native_identifiers(
-        _ResultEvidence, payload, key="result", label="Demo", identifiers=_IDENTIFIERS, versions=_VERSIONS
+        _ResultEvidence, payload, label="Demo", identifiers=_IDENTIFIERS, versions=_VERSIONS
     )
 
 
@@ -66,14 +66,7 @@ def _analysis_payload() -> StrictJsonMapping:
 
 
 def _decode_analysis(payload: StrictJsonMapping) -> _AnalysisEvidence:
-    return decode_with_method_sections(
-        _AnalysisEvidence,
-        payload,
-        key="analysis",
-        sections=("assembly", "result"),
-        label="Demo",
-        method_id="demo",
-    )
+    return decode_with_method_sections(_AnalysisEvidence, payload, label="Demo", method_id="demo")
 
 
 def test_snapshot_by_revalidation_returns_the_dump_after_decoding_it() -> None:

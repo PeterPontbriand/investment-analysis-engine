@@ -84,8 +84,6 @@ def decode_graham_growth(payload: StrictJsonMapping) -> GrahamGrowthAnalysis:
     return decode_with_method_sections(
         _GrowthEvidence,
         payload,
-        key="analysis",
-        sections=("assembly", "result"),
         label="Graham Growth",
         method_id=METHOD_ID,
     ).analysis

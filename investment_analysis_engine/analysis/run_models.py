@@ -97,6 +97,13 @@ JsonValue = Annotated[Any, BeforeValidator(validate_json_value)]
 
 StrictJsonMapping = dict[str, JsonValue]
 
+# The payload key that holds the result object of evidence decoded by ``decode_with_native_identifiers``.
+NATIVE_RESULT_KEY = "result"
+# The payload key that holds the analysis object of evidence decoded by ``decode_with_method_sections``.
+METHOD_ANALYSIS_KEY = "analysis"
+# The sections of that analysis object that each carry a constructor-excluded ``method`` identifier.
+METHOD_SECTIONS = ("assembly", "result")
+
 
 def snapshot_by_revalidation(wire: BaseModel, decode: Callable[[StrictJsonMapping], object]) -> StrictJsonMapping:
     """Capture a detached finite JSON snapshot of ``wire``, revalidating it by decoding the snapshot.
@@ -121,24 +128,22 @@ def validate_wire[ModelT: BaseModel](model_type: type[ModelT], wire: Mapping[str
     return model_type.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False))
 
 
-def decode_with_native_identifiers[ModelT: BaseModel](  # noqa: PLR0913
+def decode_with_native_identifiers[ModelT: BaseModel](
     model_type: type[ModelT],
     payload: StrictJsonMapping,
     *,
-    key: str,
     label: str,
     identifiers: Mapping[str, str],
     versions: Mapping[str, int],
 ) -> ModelT:
     """Decode evidence whose result object carries constructor-excluded identifiers and versions.
 
-    The identifiers and versions are checked against the declared values, then removed so the native constructor
-    restores them. The caller's payload is left intact.
+    The result object sits under ``NATIVE_RESULT_KEY``. The identifiers and versions are checked against the declared
+    values, then removed so the native constructor restores them. The caller's payload is left intact.
 
     Args:
         model_type: The strategy's evidence model.
         payload: The stored evidence.
-        key: The payload key holding the result object.
         label: The strategy's name as its error messages spell it.
         identifiers: Each constructor-excluded identifier key and its declared value.
         versions: Each constructor-excluded version key and its declared integer value.
@@ -151,36 +156,33 @@ def decode_with_native_identifiers[ModelT: BaseModel](  # noqa: PLR0913
             not match its declared value.
     """
     validate_json_value(payload)
-    result = payload.get(key)
+    result = payload.get(NATIVE_RESULT_KEY)
     if not isinstance(result, dict):
-        raise ValueError(f"{label} {key} must be an object.")
+        raise ValueError(f"{label} {NATIVE_RESULT_KEY} must be an object.")
     if any(result.get(name) != value for name, value in identifiers.items()) or any(
         type(result.get(name)) is not int or result.get(name) != value for name, value in versions.items()
     ):
         raise ValueError(f"{label} native identifiers or versions do not match the declared evidence.")
     native = {name: item for name, item in result.items() if name not in identifiers and name not in versions}
-    return validate_wire(model_type, {**payload, key: native})
+    return validate_wire(model_type, {**payload, NATIVE_RESULT_KEY: native})
 
 
-def decode_with_method_sections[ModelT: BaseModel](  # noqa: PLR0913
+def decode_with_method_sections[ModelT: BaseModel](
     model_type: type[ModelT],
     payload: StrictJsonMapping,
     *,
-    key: str,
-    sections: tuple[str, ...],
     label: str,
     method_id: str,
 ) -> ModelT:
     """Decode evidence whose named sections each carry a constructor-excluded ``method`` identifier.
 
-    Each section's ``method`` is checked against ``method_id`` and removed so the native constructor restores it. The
-    caller's payload is left intact.
+    The analysis object sits under ``METHOD_ANALYSIS_KEY`` and each of its ``METHOD_SECTIONS`` has its ``method``
+    checked against ``method_id`` and removed so the native constructor restores it. The caller's payload is left
+    intact.
 
     Args:
         model_type: The strategy's evidence model.
         payload: The stored evidence.
-        key: The payload key holding the analysis object.
-        sections: The names of the analysis object's sections that carry a ``method``.
         label: The strategy's name as its error messages spell it.
         method_id: The declared method identifier.
 
@@ -192,16 +194,16 @@ def decode_with_method_sections[ModelT: BaseModel](  # noqa: PLR0913
             carries another method.
     """
     validate_json_value(payload)
-    analysis = payload.get(key)
+    analysis = payload.get(METHOD_ANALYSIS_KEY)
     if not isinstance(analysis, dict):
-        raise ValueError(f"{label} {key} must be an object.")
+        raise ValueError(f"{label} {METHOD_ANALYSIS_KEY} must be an object.")
     analysis = dict(analysis)
-    for name in sections:
+    for name in METHOD_SECTIONS:
         section = analysis.get(name)
         if not isinstance(section, dict) or section.get("method") != method_id:
-            raise ValueError(f"{label} {'/'.join(sections)} method mismatch.")
+            raise ValueError(f"{label} {'/'.join(METHOD_SECTIONS)} method mismatch.")
         analysis[name] = {item_key: item for item_key, item in section.items() if item_key != "method"}
-    return validate_wire(model_type, {**payload, key: analysis})
+    return validate_wire(model_type, {**payload, METHOD_ANALYSIS_KEY: analysis})
 
 
 class _FrozenModel(BaseModel):
@@ -231,6 +233,9 @@ class EffectiveBoundary(_FrozenModel):
 
 __all__ = [
     "EffectiveBoundary",
+    "METHOD_ANALYSIS_KEY",
+    "METHOD_SECTIONS",
+    "NATIVE_RESULT_KEY",
     "JsonValue",
     "RunOutcome",
     "StrictJsonMapping",

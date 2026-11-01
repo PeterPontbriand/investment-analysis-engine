@@ -54,7 +54,6 @@ def decode_fcf_growth(payload: StrictJsonMapping) -> FCFEarningsGrowthResult:
     return decode_with_native_identifiers(
         _FCFEvidence,
         payload,
-        key="result",
         label="FCF",
         identifiers={"strategy_id": ANALYSIS_ID, "method_id": METHOD_ID},
         versions={"method_version": METHOD_VERSION, "schema_version": SCHEMA_VERSION},
