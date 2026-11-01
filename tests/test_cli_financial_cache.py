@@ -96,11 +96,11 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         ),
         patch("investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=provider),
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
+            "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
             return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
             return_value=profile,
         ),
         patch(
@@ -187,11 +187,11 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
         ),
         patch("investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=provider),
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
+            "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
             return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
             return_value=profile,
         ),
         patch(

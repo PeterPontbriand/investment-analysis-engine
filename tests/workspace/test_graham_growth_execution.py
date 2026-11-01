@@ -125,7 +125,7 @@ def test_execute_graham_growth_delegates_and_falls_back_to_the_composed_profile(
 
     with (
         patch(
-            "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
             return_value=composed,
         ),
         patch.object(GrahamGrowthAnalyzer, "run_analysis", fake_run_analysis),
@@ -154,7 +154,7 @@ def test_execute_graham_growth_prefers_the_analysis_own_profile() -> None:
 
     with (
         patch(
-            "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
             return_value=composed,
         ),
         patch.object(GrahamGrowthAnalyzer, "run_analysis", return_value=canned),
@@ -172,7 +172,7 @@ def test_captured_analysis_retains_the_effective_policy() -> None:
     config = GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.4)
 
     with patch(
-        "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+        "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
         return_value=_profile(),
     ):
         capture = execute_graham_growth(
@@ -191,7 +191,7 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
 
     config = GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.4)
     with patch(
-        "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+        "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
         return_value=_profile(),
     ):
         capture = execute_graham_growth(

@@ -581,11 +581,11 @@ def test_cli_graham_known_etf_is_successful_not_applicable_before_input_resoluti
             return_value=growth_fixture_resolver if method_arguments else fixture_resolver,
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
+            "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
             return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies._graham.invocation.compose_production_profile",
             return_value=profile,
         ),
         patch.object(
