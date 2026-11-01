@@ -17,12 +17,12 @@ from investment_analysis_engine.evaluation.catalog import run_minimum_determinis
 from investment_analysis_engine.evaluation.composition import compose_fixture_dependencies
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
+from scripts.repository_root import REPOSITORY_ROOT
 from tests._recording_sink import RecordingSink
 
 EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 PIOTROSKI_FIXTURE_FOLDERS = frozenset({"instant_facts", "annual_facts", "filing_headers"})
 SOURCE_SUFFIXES = frozenset({".py", ".pyc"})
-REPOSITORY = PACKAGE_ROOT.parent
 
 
 @contextmanager
@@ -57,7 +57,7 @@ def _recorded_reads() -> Iterator[set[Path]]:
 
 def _packaged_files() -> set[Path]:
     """Return every file the ``package-data`` patterns of ``pyproject.toml`` name."""
-    with (REPOSITORY / "pyproject.toml").open("rb") as handle:
+    with (REPOSITORY_ROOT / "pyproject.toml").open("rb") as handle:
         patterns: list[str] = tomllib.load(handle)["tool"]["setuptools"]["package-data"][PACKAGE_ROOT.name]
     return {path.resolve() for pattern in patterns for path in PACKAGE_ROOT.glob(pattern) if path.is_file()}
 
