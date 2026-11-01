@@ -68,7 +68,7 @@ current codes:
   2026-09-24.
 - `API` — short for "local HTTP API" ([plan](api/API_CONTRACT_AND_SLICE_PLAN.md)): an application layer that the CLI
   and a versioned local HTTP API both call, so that a separate GUI application can use the engine. Its row is numbered
-  `15A`; it runs after Step 3.5's 3.5.3e and before 3.5.4, while Step 3.5 stays in progress.
+  `15A`; it runs after Step 3.5's 3.5.3e, [issue 207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) and [issue 210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210) ([order](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and before 3.5.4, while Step 3.5 stays in progress.
 
 PC (PC.1 to PC.4) and GR (GR.1 to GR.3) are complete; Step 3.5 is in progress
 ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).

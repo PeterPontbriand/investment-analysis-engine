@@ -44,7 +44,7 @@ Each sub-slice ends with the managed quality gate and is gated by explicit autho
 | 3.5.3d | [The Piotroski strategy](#353d--the-piotroski-strategy) | Complete | 2026-10-31 |
 | 3.5.3e1 | [Repetition review and extraction](#353e1--repetition-review-and-extraction) | Complete | 2026-11-01 |
 | 3.5.3e1b | [One analyzer base](#353e1b--one-analyzer-base) | Complete | 2026-11-01 |
-| 3.5.3e2 | [Guide, issues and records](#353e2--guide-issues-and-records) | Next | |
+| 3.5.3e2 | [Guide, issues and records](#353e2--guide-issues-and-records) | Complete | 2026-11-01 |
 
 Each sub-slice has its own branch off `main`, named as its section says, after the previous pull request merges.
 3.5.3a is one pull request carrying this plan and the calculator, as 3.5.2a did.
@@ -192,10 +192,13 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
   `analysis/shared/metric_inputs.py` as the entry for a new strategy's SEC inputs, keeping FCF-Growth as the example of
   wiring, and it explains moving from the config-free analyzer form to the configured form when a strategy gains a
   selection parameter. Site 19 gets no change to the watchlist command syntax in Step 3.5, because Piotroski has no
-  watchlist options of its own; the weighing is recorded and an issue is filed.
-- **Scope:** the guide, the Site 19 record and its issue, the Q17 issue, and this plan's records.
+  watchlist options of its own; the weighing is recorded in B.3 and decided with API.3, and no Site 19 issue is filed
+  ([F6](#a10-decisions-f1-to-f11-2026-11-01)). The two sets of shortfalls that the guide cannot fix go into one issue,
+  [#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210) ([F7](#a10-decisions-f1-to-f11-2026-11-01)).
+- **Scope:** the guide, `ARCHITECTURE.md`'s stale facts, the Site 19 record, the one shortfall issue, the order of the
+  follow-up work in the Step 3.5 contract, and this plan's records. Documentation only, plus one issue.
 - **Branch:** `feat/step-3-5-3e2-guide-and-issues`.
-- **Detail:** [B.2](#b2-where-docstool_developmentmd-fell-short); ⚠ no slice plan yet.
+- **Detail:** [A.10](#a10-decisions-f1-to-f11-2026-11-01), [B.5](#b5-guide-changes-353e2) and [C.8](#c8-353e2-files).
 
 ## 4. Scope limits and acceptance criteria
 
@@ -225,9 +228,9 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
   and the regions left in place; the generator writes only the config-free form and an execution function and
   command that compose the profile; the U6 proof shows no stored output, schema, help snapshot or generated
   document changed.
-- **3.5.3e2:** the guide states each [B.2](#b2-where-docstool_developmentmd-fell-short) fact that [E7](#a9-decisions-e1-to-e8-2026-11-01) assigns to it,
-  the two issues and the Site 19 record exist, and the extraction of 3.5.3e1 is described where the guide
-  names the shared helpers.
+- **3.5.3e2:** the guide states each [B.2](#b2-where-docstool_developmentmd-fell-short) fact that [F1](#a10-decisions-f1-to-f11-2026-11-01) assigns to it,
+  the shortfall issue and the Site 19 record exist, and the extraction of 3.5.3e1 is described where the guide
+  names the shared helpers ([B.5](#b5-guide-changes-353e2)).
 
 ## 5. Background
 
@@ -530,7 +533,19 @@ Each sub-slice adds what it met. The earlier record of the same kind is
   config-free form with its shared readers, and the extraction of the adapter builder.
 - Not decided here: the template offer of the two analyzer forms (3.5.3e) and a stale anchor ([issue 204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204)).
 
-3.5.3e1 (2026-11-01) records the repetition review in [B.4](#b4-repetition-review-353e1); 3.5.3e2 records the weighing of Site 19.
+3.5.3e1 (2026-11-01) records the repetition review in [B.4](#b4-repetition-review-353e1). 3.5.3e2 (2026-11-01) records the weighing of Site 19 here and the guide changes in [B.5](#b5-guide-changes-353e2).
+
+**Site 19: the watchlist flag bundle** ([SWC.1 design H.10](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)),
+weighed at the repetition checkpoint (Q16, [F6](#a10-decisions-f1-to-f11-2026-11-01)):
+
+| Alternative | Result of the weighing |
+| :--- | :--- |
+| Per-strategy watchlist subcommands, added by iterating `CLI_STRATEGIES`, each strategy's options declared in its `cli.py` | Not adopted in Step 3.5: it changes the command syntax users type (`watchlist create --analysis X` becomes a subcommand per strategy) |
+| A mapping of option name to value in place of `WatchlistFlags` | Not adopted: it moves the growth without removing it, and a runtime lookup is no longer covered by the type check |
+| Per-strategy bundles built in `cli_workspace.py` | Not adopted: that module would import each strategy's `cli` file, which the layering rule forbids |
+
+- **No change to the watchlist command syntax in Step 3.5.** Piotroski has no watchlist options of its own: its `build_selection` reads `as_of` and `no_cache`, which every strategy shares, so the bundle did not grow and the three places H.10 names did not change.
+- **Relation to API.3.** [API.3](../api/API_CONTRACT_AND_SLICE_PLAN.md#api3--application-layer-actions) builds a selection from its model's fields, not from the CLI's flag set, so the flag bundle is no longer the only way to reach a selection. Site 19 is decided when the API.3 slice plan is written, not before; the API plan's Detail line carries the item.
 
 ### B.4 Repetition review (3.5.3e1)
 
@@ -584,6 +599,39 @@ different values; `_normalized_required` in `data/security_identity.py` is impor
 
 **Placement decisions** are in [E8](#a9-decisions-e1-to-e8-2026-11-01). The generator templates and fills changed as
 [C.6](#c6-353e1-files) lists.
+
+### B.5 Guide changes (3.5.3e2)
+
+Where each shortfall of [B.2](#b2-where-docstool_developmentmd-fell-short) and of
+[A.3 of the 3.5.0 plan](STEP_3_5_0_SLICE_PLAN.md#a3-350b-implementation-record-2026-10-25) now lives. The guide is
+[`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md); the one issue is [#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210).
+
+| Entry | Where it lives |
+| :--- | :--- |
+| B.2 1, code before the generator | Guide, step 1, "Code written before the generator runs" |
+| B.2 2, the worked example's resolver | Guide, "What happens during an FCF & Earnings Growth run": the paragraph that sends a new strategy to `analysis/shared/metric_inputs.py`, and the rows for steps 2, 3, 9, 11 and 14 |
+| B.2 3, where tests go | Guide, Testing, "Where tests and fixtures live" |
+| B.2 4, shared metrics and assembly | Guide, Background, "Shared metrics and SEC inputs"; the responsibilities table |
+| B.2 5, capabilities that need the analysis scope | Guide, "Shared metrics and SEC inputs": the scope-bound source protocol and the adapter builder |
+| B.2 6, capturing and using SEC fixtures | Guide, "Where tests and fixtures live": the folders, `SHA256SUMS`, merging and point-in-time trimming |
+| B.2 7, adding a series to the SEC adapter | Guide, "Shared metrics and SEC inputs", the bullet on hand-forwarded capabilities; issue 210, item 1 |
+| B.2 8, generator templates and long labels | Already in the guide, step 1 (the 40-character limits); verified, unchanged |
+| B.2 9, a strategy with no configuration | Guide, "The current analyzer contract" and "When a strategy gains a selection parameter" |
+| B.2 10, what the generated command and execution function leave out | Guide, step 1, the last two bullets |
+| B.2 11, stored-output harnesses and live services | Guide, step 4, "Notes on the reviewed sites", `direct-output` |
+| B.2 12, files that name the strategies one by one | Guide, step 4, `catalog` note; issue 210, item 2 |
+| B.2 13, two kinds of SEC fixtures | Guide, "Where tests and fixtures live" |
+| B.2 14, plain reason messages | Guide, step 3 |
+| B.2 15, package data for evaluation fixtures | Already in the guide, step 4; verified, unchanged |
+| A.3 1, the guide ran ahead of the code | Fixed in 3.5.0b; the `replay` row of the generated table is correct. Nothing further |
+| A.3 2, files a new behavior-bundle member touches | Issue 210, item 3 |
+| A.3 3, a fill repeats the template's signatures | Issue 210, item 4 |
+| A.3 4, the pinned table of failure codes | Guide, step 4, "Notes on the reviewed sites", "A new failure" |
+| A.3 5, regenerating a command's stored output | Guide, step 4, "Regeneration commands" and the note on `_STEPS` |
+| A.3 6, the provider-check switch | Guide, step 4, "Regeneration commands", the last column |
+
+The helpers of [B.4](#b4-repetition-review-353e1) are described in the guide's "Execution capture and durable
+persistence", in a table of name, home and effect.
 
 ---
 
@@ -761,6 +809,45 @@ walkthrough, "Calls `FCFEarningsGrowthAnalyzer.run_analysis(ticker, config, cont
 
 Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/`, `schemas/`, the help
 snapshot and the generated blocks of `docs/user/`. The tool argument schemas sent to the model do not change.
+
+### C.8 3.5.3e2 files
+
+Commits: the guide and `ARCHITECTURE.md`, the Site 19 and sequence records, and the plan records. The shortfall issue
+([#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210)) was filed before the commit that links it.
+No code, test, generated block or check changed.
+
+- `docs/TOOL_DEVELOPMENT.md`: step 1 (code before the generator, the generated execution function and command), step 3
+  (plain reason messages), step 4 (notes on the reviewed sites, regeneration commands), the checklist "When a strategy
+  gains a selection parameter", "Where tests and fixtures live", "Shared metrics and SEC inputs", the helper table in
+  "Execution capture and durable persistence", the analyzer contract, the run walkthrough, and the reference table
+  with its Piotroski column.
+- `docs/project/ARCHITECTURE.md`: the stale facts below.
+- `docs/project/milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md`: the sequence table, the paragraph "Every
+  strategy is added the same way" (F8), the Site 19 bullet, the 3.5.3 summary and A.14.
+- `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md`: the API code paragraph (F7).
+- `docs/project/milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md`: API.3's Detail line (F6) and the sentence in section 2
+  that names what API implementation starts after (F7).
+- `docs/project/milestones/v0.2/swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md`: the forward note at the end of H.10 (F6).
+- This plan: the status row, the 3.5.3e2 section, the acceptance line, B.3, B.5 and this inventory.
+
+**Stale facts corrected ([F5](#a10-decisions-f1-to-f11-2026-11-01))**
+
+| Document | Old statement | New statement |
+| :--- | :--- | :--- |
+| Guide, "Strategy integration architecture" | `maybe_save_run` is shared by all four direct commands | Four commands reach it through `analyze_and_maybe_save`; Momentum saves through `save_run_execution` |
+| Guide, same paragraph | The strategy supplies its own config, resolver, calculations | Its own configuration (when it has one), inputs, calculations |
+| Guide, "The current analyzer contract" | `BaseAnalyzer[ResultT]` or `[ResultT, ConfigT]` in prose; all analyzers have a configuration type | One class with two specializations in a table; Piotroski has no configuration |
+| Guide, responsibilities table | `BaseAnalyzer[ResultT, ConfigT]` | `BaseAnalyzer[ResultT, *ConfigT]` |
+| Guide, responsibilities table | Configuration or policy, without condition | "when the strategy has any" |
+| Guide, responsibilities table | "Input requirements and strategy-owned resolver/calculations" | A resolver of its own only for evidence no shared entry supplies; shared metrics and assembly listed as shared |
+| Guide, run walkthrough steps 2, 3, 9, 11, 14 | Validates the selection; calls `maybe_save_run`; fetches annual facts from the provider; computes the yield; renders and exits | `resolve_command_target`; `analyze_and_maybe_save`; `InputResolver.resolve_annual_series`; the shared market-cap inputs; `render_execution` and `emit_output` |
+| Guide, "Where financial data comes from" | FCF growth is the example of provider use | Adds the pointer to the shared assembly functions |
+| Guide, reference table | FCF-Growth only, "useful end-to-end example" | FCF-Growth (configured) and Piotroski (config-free, shared inputs) columns |
+| ARCHITECTURE section 4 (composition roots) | `maybe_save_run` is shared by all four direct commands | Four through `analyze_and_maybe_save`; Momentum through `save_run_execution` |
+| ARCHITECTURE section 6 | A strategy owns its configuration/policy model | "when it has one (Piotroski has none)" |
+| ARCHITECTURE section 6 | What strategies share does not list `analysis/shared/` | Adds the shared metrics and input assembly |
+| ARCHITECTURE section 6 | Each strategy owns its config, resolver, calculation and result | Its configuration (where it has one), input semantics, calculation and result |
+| ARCHITECTURE section 7 (input resolution) | Only the two Graham resolvers use the shared `InputResolver` pattern | Adds that Piotroski and FCF-Growth's market cap use the shared assembly functions |
 
 ---
 
