@@ -20,10 +20,13 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import tomllib
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
+
+import pytest
 
 from scripts.new_strategy import PACKAGE, STUB_ROLES, ruff_clean
 from scripts.repository_root import REPOSITORY_ROOT
@@ -164,83 +167,137 @@ def _assert_ruff_clean(copy: Path) -> None:
         assert process.returncode == 0, f"ruff {' '.join(arguments)}\n{_output(process)}"
 
 
-def _statement_name(node: ast.stmt) -> str | None:
-    """Return the name a top-level function, class or single-name assignment defines, or ``None``."""
-    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
-        return node.name
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        return node.target.id
-    if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-        return node.targets[0].id
-    return None
+FILL_MARKER: Final = re.compile(r"#: (body|add|replace) (\S+)")
+"""The line that opens a section of a fill: a body to put into a stub, or a whole definition to add or replace."""
 
 
-def _first_line(node: ast.stmt) -> int:
-    """Return the first line of a statement, counting its decorators."""
-    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
-        return min([node.lineno, *(decorator.lineno for decorator in node.decorator_list)])
-    return node.lineno
+def _definitions(tree: ast.Module) -> dict[str, ast.stmt]:
+    """Return the top-level definitions by name, and each method of a top-level class as ``Class.method``."""
+    found: dict[str, ast.stmt] = {}
+    for node in tree.body:
+        name = None
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            name = node.name
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            name = node.target.id
+        elif isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            name = node.targets[0].id
+        if name is None:
+            continue
+        found[name] = node
+        if isinstance(node, ast.ClassDef):
+            found.update(
+                {f"{name}.{member.name}": member for member in node.body if isinstance(member, ast.FunctionDef)}
+            )
+    return found
 
 
-def _is_docstring_statement(node: ast.stmt) -> bool:
-    return isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)
+def _stub_statements(function: ast.FunctionDef) -> list[ast.stmt]:
+    """Return the statements after the docstring of ``function``; none unless the last calls ``unfilled_stub``."""
+    body = function.body
+    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+        body = body[1:]
+    last = body[-1] if body else None
+    calls_stub = (
+        isinstance(last, ast.Expr)
+        and isinstance(last.value, ast.Call)
+        and isinstance(last.value.func, ast.Name)
+        and last.value.func.id == "unfilled_stub"
+    )
+    return body if calls_stub else []
 
 
-def fill_source(generated: str, fill: str) -> str:
-    """Return ``generated`` with each definition in ``fill`` replacing the one of the same name.
+def _split_fill(fill: str, name: str) -> tuple[str, list[tuple[str, str, str]]]:
+    """Split a fill into its imports and its sections ``(kind, definition name, text)``."""
+    imports: list[str] = []
+    sections: list[tuple[str, str, list[str]]] = []
+    for line in fill.splitlines(keepends=True):
+        marker = FILL_MARKER.fullmatch(line.rstrip("\n"))
+        if marker is not None:
+            sections.append((marker.group(1), marker.group(2), []))
+        elif sections:
+            sections[-1][2].append(line)
+        else:
+            imports.append(line)
+    assert all(isinstance(node, ast.Import | ast.ImportFrom) for node in ast.parse("".join(imports)).body), (
+        f"{name}: only imports come before the first section"
+    )
+    seen = [definition for _, definition, _ in sections]
+    assert len(seen) == len(set(seen)), f"{name}: a definition is named twice"
+    return "".join(imports), [(kind, definition, "".join(lines).strip("\n")) for kind, definition, lines in sections]
 
-    A fill holds only the imports and the definitions (functions, classes and single-name assignments, each with the
-    string that documents it) that complete a generated file; its own module docstring is ignored. A name the generated
-    file does not define is inserted before the next fill definition that it does define, or at the end of the file.
+
+def fill_source(generated: str, fill: str, *, name: str) -> str:
+    """Return ``generated`` completed from ``fill``, the file named ``name``.
+
+    A fill holds its imports and then sections, each opened by a line ``#: <kind> <definition>``:
+
+    - ``body``: the statements that replace the stub of a function (``Name``) or a method (``Class.name``). The
+      definition keeps the signature, decorators and docstring the template generated; the replaced lines are the
+      ones after the docstring, ending with the ``unfilled_stub`` call.
+    - ``add``: a whole definition that no template generates; the generated file must not define its name.
+    - ``replace``: a whole class that the template generates without a stub and the strategy extends.
+
+    A section that names a definition the generated file lacks, a ``body`` for a definition with no stub, an ``add``
+    of a name the file defines, or a ``replace`` of anything but a class fails, naming the fill and the definition.
     The imports follow the generated file's last import, and the caller's Ruff pass sorts them and drops the unused.
     """
+    imports, sections = _split_fill(fill, name)
+    tree = ast.parse(generated)
+    defined = _definitions(tree)
     lines = generated.splitlines(keepends=True)
-    fill_lines = fill.splitlines(keepends=True)
-    by_name = {name: node for node in ast.parse(generated).body if (name := _statement_name(node)) is not None}
-    imports: list[str] = []
-    groups: list[tuple[str, str]] = []
-    for index, node in enumerate(ast.parse(fill).body):
-        end = node.end_lineno
-        assert end is not None
-        text = "".join(fill_lines[_first_line(node) - 1 : end])
-        if isinstance(node, ast.Import | ast.ImportFrom):
-            imports.append(text)
-        elif (name := _statement_name(node)) is not None:
-            groups.append((name, text))
-        elif _is_docstring_statement(node) and index > 0 and groups:
-            groups[-1] = (groups[-1][0], groups[-1][1] + text)
-        else:
-            assert _is_docstring_statement(node), f"a fill holds only imports and definitions: {text!r}"
-            assert index == 0, f"a fill's only free-standing string is its docstring: {text!r}"
-    insertions: dict[int, list[str]] = {}
     replacements: dict[int, tuple[int, str]] = {}
-    for position, (name, text) in enumerate(groups):
-        if name in by_name:
-            node = by_name[name]
-            assert node.end_lineno is not None
-            replacements[_first_line(node)] = (node.end_lineno, text)
+    added: list[str] = []
+    for kind, definition, text in sections:
+        node = defined.get(definition)
+        if kind == "add":
+            assert node is None, f"{name}: {definition} is generated already, so it takes a body or a replacement"
+            added.append(text)
             continue
-        later = next((by_name[other] for other, _ in groups[position + 1 :] if other in by_name), None)
-        insertions.setdefault(_first_line(later) if later is not None else len(lines) + 1, []).append(text)
+        assert node is not None, f"{name}: the generated file has no definition {definition}"
+        if kind == "replace":
+            assert isinstance(node, ast.ClassDef), f"{name}: only a class is replaced whole, and {definition} is not"
+            assert node.end_lineno is not None
+            first = min([node.lineno, *(decorator.lineno for decorator in node.decorator_list)])
+            replacements[first] = (node.end_lineno, text + "\n")
+            continue
+        assert isinstance(node, ast.FunctionDef), f"{name}: {definition} is not a function or a method"
+        stub = _stub_statements(node)
+        assert stub, f"{name}: {definition} has no stub to put a body into"
+        assert stub[-1].end_lineno is not None
+        indented = textwrap.indent(text, " " * (node.col_offset + 4))
+        replacements[stub[0].lineno] = (stub[-1].end_lineno, indented + "\n")
     last_import = max(
-        (node.end_lineno or 0 for node in ast.parse(generated).body if isinstance(node, ast.Import | ast.ImportFrom)),
-        default=0,
+        (node.end_lineno or 0 for node in tree.body if isinstance(node, ast.Import | ast.ImportFrom)), default=0
     )
-    insertions.setdefault(last_import + 1, []).extend(imports)
     out: list[str] = []
     line = 1
-    while line <= len(lines) + 1:
-        for text in insertions.get(line, []):
-            out.append(text if text.startswith(("from ", "import ")) else text.rstrip() + "\n\n\n")
+    while line <= len(lines):
         if line in replacements:
             end, text = replacements[line]
             out.append(text)
             line = end + 1
             continue
-        if line <= len(lines):
-            out.append(lines[line - 1])
+        out.append(lines[line - 1])
+        if line == last_import:
+            out.append(imports)
         line += 1
-    return "".join(out)
+    return "".join(out).rstrip("\n") + "".join(f"\n\n\n{text}" for text in added) + "\n"
+
+
+def _apply_patch(text: str, patch: dict[str, Any], where: str) -> str:
+    """Apply one reviewed edit: replace ``old`` with ``new``, or bump the integer in each match of ``bump``."""
+    if "bump" in patch:
+        pattern = re.compile(patch["bump"])
+        assert len(pattern.findall(text)) == patch["count"], f"{where}: anchor {patch['bump']!r} moved"
+
+        def successor(match: re.Match[str]) -> str:
+            before, after = match.start(1) - match.start(), match.end(1) - match.start()
+            return f"{match.group()[:before]}{int(match.group(1)) + 1}{match.group()[after:]}"
+
+        return pattern.sub(successor, text)
+    assert text.count(patch["old"]) == patch["count"], f"{where}: anchor {patch['old']!r} moved"
+    return text.replace(patch["old"], patch["new"])
 
 
 def _apply_fills(copy: Path) -> None:
@@ -248,7 +305,8 @@ def _apply_fills(copy: Path) -> None:
     package = copy / PACKAGE
     for role in STUB_FILL_ROLES:
         path = package / "strategies" / MODULE / f"{role}.py"
-        filled = fill_source(path.read_text(encoding="utf-8"), (FILLS / f"{role}.py.fill").read_text(encoding="utf-8"))
+        fill = f"{role}.py.fill"
+        filled = fill_source(path.read_text(encoding="utf-8"), (FILLS / fill).read_text(encoding="utf-8"), name=fill)
         path.write_text(ruff_clean(copy, path, filled), encoding="utf-8", newline="\n")
     shutil.copyfile(FILLS / "cases.py.fill", package / "evaluation" / "cases" / f"{MODULE}.py")
     shutil.copyfile(FILLS / "guide.md.fill", copy / "docs" / "user" / "strategies" / "CI_PROBE.md")
@@ -257,9 +315,11 @@ def _apply_fills(copy: Path) -> None:
     patches = tomllib.loads((FILLS / "patches.toml").read_text(encoding="utf-8"))["patch"]
     for patch in patches:
         target = copy / patch["path"]
-        text = target.read_text(encoding="utf-8")
-        assert text.count(patch["old"]) == patch["count"], f"{patch['path']}: anchor {patch['old']!r} moved"
-        target.write_text(text.replace(patch["old"], patch["new"]), encoding="utf-8", newline="\n")
+        patched = _apply_patch(target.read_text(encoding="utf-8"), patch, patch["path"])
+        target.write_text(patched, encoding="utf-8", newline="\n")
+    for target in sorted({copy / patch["path"] for patch in patches if patch["path"].endswith(".py")}):
+        cleaned = ruff_clean(copy, target, target.read_text(encoding="utf-8"))
+        target.write_text(cleaned, encoding="utf-8", newline="\n")
 
 
 def _conformance_arguments(*extra: str) -> list[str]:
@@ -346,3 +406,74 @@ def test_the_conformance_test_files_exist() -> None:
         assert (FILLS / "expected" / name).is_file()
     for name in PER_STRATEGY_TESTS:
         assert (REPOSITORY_ROOT / name).is_file()
+
+
+_GENERATED: Final = '''"""A generated file."""
+
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
+
+
+class Thing:
+    """A class."""
+
+    def method(self, value: int, *, extra: int = 0) -> int:
+        """Return a number."""
+        del value, extra
+        unfilled_stub("thing")
+
+
+def function(value: int) -> int:
+    """Return another number."""
+    return value
+
+
+def stubbed(value: int) -> int:
+    """Return a third number."""
+    del value
+    unfilled_stub("thing")
+'''
+
+
+def test_a_body_goes_into_the_generated_signature_and_nothing_else_of_the_definition_changes() -> None:
+    """The signature, the docstring and the lines around the stub stay as generated, however the signature changes."""
+    fill = (
+        "from math import pi\n\n#: body Thing.method\ndel extra\nreturn value\n\n#: body stubbed\ndel value\nreturn 3\n"
+    )
+    filled = fill_source(_GENERATED, fill, name="x.py.fill")
+    assert "def method(self, value: int, *, extra: int = 0) -> int:" in filled
+    assert '        """Return a number."""\n        del extra\n        return value\n' in filled
+    assert '    """Return a third number."""\n    del value\n    return 3\n' in filled
+    assert "unfilled_stub(" not in filled.replace("import unfilled_stub", "")
+    assert "from math import pi" in filled
+    ast.parse(filled)
+
+
+@pytest.mark.parametrize(
+    ("fill", "message"),
+    [
+        ("#: body missing\nreturn 1\n", "x.py.fill: the generated file has no definition missing"),
+        ("#: body function\nreturn 1\n", "x.py.fill: function has no stub to put a body into"),
+        ("#: body Thing\nreturn 1\n", "x.py.fill: Thing is not a function or a method"),
+        ("#: add function\ndef function() -> None: ...\n", "x.py.fill: function is generated already"),
+        ("#: replace function\ndef function() -> None: ...\n", "x.py.fill: only a class is replaced whole"),
+        ("#: body stubbed\nreturn 1\n#: body stubbed\nreturn 2\n", "x.py.fill: a definition is named twice"),
+        ("return 1\n#: body stubbed\nreturn 1\n", "x.py.fill: only imports come before the first section"),
+    ],
+)
+def test_a_fill_that_does_not_match_the_generated_file_fails_naming_the_fill_and_the_definition(
+    fill: str, message: str
+) -> None:
+    """A section for an absent definition, a definition without a stub, or a whole function is refused."""
+    with pytest.raises(AssertionError, match=re.escape(message)):
+        fill_source(_GENERATED, fill, name="x.py.fill")
+
+
+def test_a_bump_patch_writes_the_successor_of_each_integer_it_finds() -> None:
+    """The reviewed edit moves a version or a count by one from the file as it stands, never from a quoted value."""
+    text = 'VERSION: Final = "h1-v9"\nassert total == 21\nassert failed == 0\n'
+    bumped = _apply_patch(text, {"bump": r'VERSION: Final = "[^"]*?(\d+)"', "count": 1}, "x")
+    assert bumped == 'VERSION: Final = "h1-v10"\nassert total == 21\nassert failed == 0\n'
+    counted = _apply_patch(text, {"bump": r"== (\d\d+)\n", "count": 1}, "x")
+    assert counted == 'VERSION: Final = "h1-v9"\nassert total == 22\nassert failed == 0\n'
+    with pytest.raises(AssertionError, match="moved"):
+        _apply_patch(text, {"bump": r"== (\d\d+)\n", "count": 2}, "x")

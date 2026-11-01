@@ -1,116 +1,118 @@
 # The reviewed edits a contributor makes by hand to existing files after the generator has run, for the throwaway
-# strategy `ci_probe` (label "CI Probe"). Each patch replaces `old` with `new` in `path`, which is relative to the
-# copy of the repository, and `old` must occur exactly `count` times: an anchor that moved fails the end-to-end test
-# instead of silently skipping the edit.
+# strategy `ci_probe` (label "CI Probe"). Each patch is applied to `path`, which is relative to the copy of the
+# repository, and must match exactly `count` times: an anchor that moved fails the end-to-end test instead of
+# silently skipping the edit. A patched Python file is then fixed and formatted by Ruff, so a patch need not
+# order its imports or wrap its lines.
+#
+# An anchor quotes structural text only: the line that opens or closes a tuple together with the definition that
+# follows it, or a definition's name that no strategy owns. It never quotes an entry that a real strategy or a
+# Golden case adds (a tuple's last entry, a case id, a strategy's import line, a version or a case count), so adding
+# either needs no edit in this file.
+#
+# A patch is one of two kinds:
+#
+# - `old` and `new`: replace the literal text `old` with `new`.
+# - `bump`: a regular expression with one capture group that holds an integer. Each match has that integer replaced by
+#   its successor, read from the file as it stands, so the patch names the constant or the assertion it moves and
+#   never its current value. The suite version and the case counts that a Golden case moves are bumped this way.
 
 [[patch]]
 path = "investment_analysis_engine/evaluation/catalog.py"
-old = "from investment_analysis_engine.evaluation.cases.fcf_growth import ("
+old = "from investment_analysis_engine.evaluation.models import Case\n"
 new = '''from investment_analysis_engine.evaluation.cases.ci_probe import CI_PROBE_ARGUMENTS, CIP_01
-from investment_analysis_engine.evaluation.cases.fcf_growth import ('''
+from investment_analysis_engine.evaluation.models import Case
+'''
 count = 1
 
 [[patch]]
 path = "investment_analysis_engine/evaluation/catalog.py"
-old = '''    FPI_04,
-    PIO_01,
-    PIO_02,
+old = ''')
+
+
+def _merge_arguments('''
+new = '''    CIP_01,
 )
 
 
-def _merge'''
-new = '''    FPI_04,
-    PIO_01,
-    PIO_02,
-    CIP_01,
-)
-
-
-def _merge'''
+def _merge_arguments('''
 count = 1
 
 [[patch]]
 path = "investment_analysis_engine/evaluation/catalog.py"
-old = '''    FCF_GROWTH_ARGUMENTS,
-    PIOTROSKI_ARGUMENTS,
+old = ''')
+
+
+def _reviewed_arguments('''
+new = '''    CI_PROBE_ARGUMENTS,
 )
 
 
-def _reviewed'''
-new = '''    FCF_GROWTH_ARGUMENTS,
-    PIOTROSKI_ARGUMENTS,
-    CI_PROBE_ARGUMENTS,
-)
-
-
-def _reviewed'''
+def _reviewed_arguments('''
 count = 1
 
 [[patch]]
 path = "investment_analysis_engine/evaluation/catalog.py"
-old = '"h1-v7"'
-new = '"h1-v8"'
+bump = 'DETERMINISTIC_SUITE_VERSION: Final = "[^"]*?(\d+)"'
 count = 1
 
 [[patch]]
 path = "tests/evaluation/test_catalog.py"
-old = "from investment_analysis_engine.evaluation.cases.fcf_growth import FCF_GROWTH_ARGUMENTS, FCF_GROWTH_CASES\n"
+old = "from investment_analysis_engine.evaluation.catalog import (\n"
 new = '''from investment_analysis_engine.evaluation.cases.ci_probe import CI_PROBE_ARGUMENTS, CI_PROBE_CASES
-from investment_analysis_engine.evaluation.cases.fcf_growth import FCF_GROWTH_ARGUMENTS, FCF_GROWTH_CASES
+from investment_analysis_engine.evaluation.catalog import (
 '''
 count = 1
 
 [[patch]]
 path = "tests/evaluation/test_catalog.py"
-old = "from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments\n"
+old = "from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder\n"
 new = '''from investment_analysis_engine.strategies.ci_probe.tool import CiProbeToolArguments
-from investment_analysis_engine.strategies.fcf_growth.tool import FCFEarningsGrowthToolArguments
+from investment_analysis_engine.telemetry.recorder import TrajectoryRecorder
 '''
 count = 1
 
 [[patch]]
 path = "tests/evaluation/test_catalog.py"
-old = '''        "PIO-02",
-    )'''
-new = '''        "PIO-02",
-        "CIP-01",
-    )'''
+old = '''    )
+    assert tuple(case.case_id for case in DETERMINISTIC_CASES) == expected_ids'''
+new = '''        "CIP-01",
+    )
+    assert tuple(case.case_id for case in DETERMINISTIC_CASES) == expected_ids'''
 count = 1
 
 [[patch]]
 path = "tests/evaluation/test_catalog.py"
-old = "== 20"
-new = "== 21"
+bump = '== (\d\d+)\n'
 count = 5
 
 [[patch]]
 path = "tests/evaluation/test_catalog.py"
-old = "        (FCF_GROWTH_CASES, FCF_GROWTH_ARGUMENTS, FCFEarningsGrowthToolArguments),\n"
-new = '''        (FCF_GROWTH_CASES, FCF_GROWTH_ARGUMENTS, FCFEarningsGrowthToolArguments),
-        (CI_PROBE_CASES, CI_PROBE_ARGUMENTS, CiProbeToolArguments),
-'''
+old = '''    ],
+)
+def test_each_case_module_declares_arguments_for_exactly_its_cases_with_its_own_model('''
+new = '''        (CI_PROBE_CASES, CI_PROBE_ARGUMENTS, CiProbeToolArguments),
+    ],
+)
+def test_each_case_module_declares_arguments_for_exactly_its_cases_with_its_own_model('''
 count = 1
 
 [[patch]]
 path = "tests/evaluation/test_catalog.py"
-old = "for cases in (MOMENTUM_CASES, GRAHAM_NUMBER_CASES, GRAHAM_GROWTH_CASES, FCF_GROWTH_CASES, PIOTROSKI_CASES)"
-new = '''for cases in (
-            MOMENTUM_CASES,
-            GRAHAM_NUMBER_CASES,
-            GRAHAM_GROWTH_CASES,
-            FCF_GROWTH_CASES,
-            PIOTROSKI_CASES,
-            CI_PROBE_CASES,
-        )'''
+old = '''        for case in cases
+    ]
+    assert sorted(module_ids)'''
+new = '''        for case in cases
+    ] + [case.case_id for case in CI_PROBE_CASES]
+    assert sorted(module_ids)'''
 count = 1
 
 [[patch]]
 path = "tests/_direct_command_output.py"
-old = '''    "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
-'''
-new = '''    "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
-    "ci-probe": ["ci-probe", "CIPR"],
-'''
+old = '''}
+_MODES = '''
+new = '''    "ci-probe": ["ci-probe", "CIPR"],
+}
+_MODES = '''
 count = 1
 
 [[patch]]
@@ -130,9 +132,7 @@ count = 1
 
 [[patch]]
 path = "tests/expected_output/cli_help/application.txt"
-old = '''piotroski Run the Piotroski F-Score analysis.
-'''
-new = '''piotroski Run the Piotroski F-Score analysis.
-ci-probe Run the CI Probe analysis.
-'''
+old = "evaluate Run the versioned Golden Suite"
+new = '''ci-probe Run the CI Probe analysis.
+evaluate Run the versioned Golden Suite'''
 count = 1

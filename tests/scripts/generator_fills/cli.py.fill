@@ -1,16 +1,9 @@
-from datetime import datetime
 from typing import Final
 
-from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnalyzer
+#: body compose_ci_probe
+del executed_at
+return CiProbeAnalyzer(), _NO_PROVIDER
 
+#: add _NO_PROVIDER
 _NO_PROVIDER: Final = object()
 """The calculation reads no provider, so each profile capability is unsupported, and the profile says so."""
-
-
-def compose_ci_probe(executed_at: datetime) -> tuple[CiProbeAnalyzer, object]:
-    """Compose the CI Probe analyzer and the provider its profile is composed from.
-
-    ``executed_at`` is the run's single reading of the current time, never the ``--as-of`` boundary.
-    """
-    del executed_at
-    return CiProbeAnalyzer(), _NO_PROVIDER

@@ -1,7 +1,5 @@
 from investment_analysis_engine.strategies.ci_probe.analyzer import CiProbeAnalyzer
 
-
-def compose(context: FixtureContext) -> CiProbeToolDependencies:
-    """Build the strategy's dependencies; the calculation needs no provider, so the context is not read."""
-    del context
-    return CiProbeToolDependencies(analyzer=CiProbeAnalyzer())
+#: body compose
+del context
+return CiProbeToolDependencies(analyzer=CiProbeAnalyzer())
