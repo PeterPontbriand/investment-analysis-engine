@@ -4,10 +4,14 @@ This module owns only the shared value types referenced by the run/watchlist
 envelope models in :mod:`investment_analysis_engine.workspace.runs`: the terminal outcome enum, a strict
 recursive JSON value type that rejects non-finite numbers and non-primitives, an
 inclusive date boundary, and the frozen/extra-forbid base convention shared with
-the selection snapshots. It performs no persistence, codec, or analysis work.
+the selection snapshots. It also holds the steps every strategy codec repeats when it
+encodes and decodes its native evidence as strict JSON. It performs no persistence or
+analysis work.
 """
 
+import json
 import math
+from collections.abc import Callable, Mapping
 from datetime import date
 from enum import StrEnum
 from typing import Annotated, Any
@@ -94,6 +98,112 @@ JsonValue = Annotated[Any, BeforeValidator(validate_json_value)]
 StrictJsonMapping = dict[str, JsonValue]
 
 
+def snapshot_by_revalidation(wire: BaseModel, decode: Callable[[StrictJsonMapping], object]) -> StrictJsonMapping:
+    """Capture a detached finite JSON snapshot of ``wire``, revalidating it by decoding the snapshot.
+
+    Validation runs through JSON even for already-constructed native instances, so an invalid instance cannot bypass
+    field and nested invariant checks.
+
+    Args:
+        wire: The strategy's evidence model, already built around the native result.
+        decode: The strategy's own decoder, which raises on a snapshot it does not accept.
+
+    Returns:
+        The JSON-mode dump of ``wire``.
+    """
+    payload = wire.model_dump(mode="json")
+    decode(payload)
+    return payload
+
+
+def validate_wire[ModelT: BaseModel](model_type: type[ModelT], wire: Mapping[str, object]) -> ModelT:
+    """Validate ``wire`` as ``model_type`` in strict JSON mode, rejecting a non-finite number."""
+    return model_type.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False))
+
+
+def decode_with_native_identifiers[ModelT: BaseModel](  # noqa: PLR0913
+    model_type: type[ModelT],
+    payload: StrictJsonMapping,
+    *,
+    key: str,
+    label: str,
+    identifiers: Mapping[str, str],
+    versions: Mapping[str, int],
+) -> ModelT:
+    """Decode evidence whose result object carries constructor-excluded identifiers and versions.
+
+    The identifiers and versions are checked against the declared values, then removed so the native constructor
+    restores them. The caller's payload is left intact.
+
+    Args:
+        model_type: The strategy's evidence model.
+        payload: The stored evidence.
+        key: The payload key holding the result object.
+        label: The strategy's name as its error messages spell it.
+        identifiers: Each constructor-excluded identifier key and its declared value.
+        versions: Each constructor-excluded version key and its declared integer value.
+
+    Returns:
+        The validated evidence model.
+
+    Raises:
+        ValueError: If the payload is not strict JSON, the result is not an object, or an identifier or version does
+            not match its declared value.
+    """
+    validate_json_value(payload)
+    result = payload.get(key)
+    if not isinstance(result, dict):
+        raise ValueError(f"{label} {key} must be an object.")
+    if any(result.get(name) != value for name, value in identifiers.items()) or any(
+        type(result.get(name)) is not int or result.get(name) != value for name, value in versions.items()
+    ):
+        raise ValueError(f"{label} native identifiers or versions do not match the declared evidence.")
+    native = {name: item for name, item in result.items() if name not in identifiers and name not in versions}
+    return validate_wire(model_type, {**payload, key: native})
+
+
+def decode_with_method_sections[ModelT: BaseModel](  # noqa: PLR0913
+    model_type: type[ModelT],
+    payload: StrictJsonMapping,
+    *,
+    key: str,
+    sections: tuple[str, ...],
+    label: str,
+    method_id: str,
+) -> ModelT:
+    """Decode evidence whose named sections each carry a constructor-excluded ``method`` identifier.
+
+    Each section's ``method`` is checked against ``method_id`` and removed so the native constructor restores it. The
+    caller's payload is left intact.
+
+    Args:
+        model_type: The strategy's evidence model.
+        payload: The stored evidence.
+        key: The payload key holding the analysis object.
+        sections: The names of the analysis object's sections that carry a ``method``.
+        label: The strategy's name as its error messages spell it.
+        method_id: The declared method identifier.
+
+    Returns:
+        The validated evidence model.
+
+    Raises:
+        ValueError: If the payload is not strict JSON, the analysis is not an object, or a section is missing or
+            carries another method.
+    """
+    validate_json_value(payload)
+    analysis = payload.get(key)
+    if not isinstance(analysis, dict):
+        raise ValueError(f"{label} {key} must be an object.")
+    analysis = dict(analysis)
+    for name in sections:
+        section = analysis.get(name)
+        if not isinstance(section, dict) or section.get("method") != method_id:
+            raise ValueError(f"{label} {'/'.join(sections)} method mismatch.")
+        analysis[name] = {item_key: item for item_key, item in section.items() if item_key != "method"}
+    return validate_wire(model_type, {**payload, key: analysis})
+
+
 class _FrozenModel(BaseModel):
     """Shared strictness for workspace run-envelope models."""
 
@@ -124,4 +234,8 @@ __all__ = [
     "JsonValue",
     "RunOutcome",
     "StrictJsonMapping",
+    "decode_with_method_sections",
+    "decode_with_native_identifiers",
+    "snapshot_by_revalidation",
+    "validate_wire",
 ]

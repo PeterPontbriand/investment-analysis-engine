@@ -1,10 +1,12 @@
 """Strict version-one codec for native FCF and earnings-growth evidence."""
 
-import json
-
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from investment_analysis_engine.analysis.run_models import StrictJsonMapping, validate_json_value
+from investment_analysis_engine.analysis.run_models import (
+    StrictJsonMapping,
+    decode_with_native_identifiers,
+    snapshot_by_revalidation,
+)
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategies.fcf_growth.models import (
     METHOD_VERSION,
@@ -44,27 +46,19 @@ class _FCFEvidence(BaseModel):
 
 def encode_fcf_growth(evidence: FCFEarningsGrowthResult) -> StrictJsonMapping:
     """Capture a detached finite snapshot, revalidating native instances via JSON."""
-    payload = _FCFEvidence(result=evidence).model_dump(mode="json")
-    decode_fcf_growth(payload)
-    return payload
+    return snapshot_by_revalidation(_FCFEvidence(result=evidence), decode_fcf_growth)
 
 
 def decode_fcf_growth(payload: StrictJsonMapping) -> FCFEarningsGrowthResult:
     """Restore declared native evidence without resolving inputs or computing metrics."""
-    validate_json_value(payload)
-    result = payload.get("result")
-    if not isinstance(result, dict):
-        raise ValueError("FCF result must be an object.")
-    # Native init=False metadata is verified before constructor reconstruction.
-    identifiers = {"strategy_id": ANALYSIS_ID, "method_id": METHOD_ID}
-    versions = {"method_version": METHOD_VERSION, "schema_version": SCHEMA_VERSION}
-    if any(result.get(key) != value for key, value in identifiers.items()) or any(
-        type(result.get(key)) is not int or result.get(key) != value for key, value in versions.items()
-    ):
-        raise ValueError("FCF native identifiers or versions do not match the declared evidence.")
-    native = {key: value for key, value in result.items() if key not in identifiers and key not in versions}
-    wire = {**payload, "result": native}
-    return _FCFEvidence.model_validate_json(json.dumps(wire, allow_nan=False, ensure_ascii=False)).result
+    return decode_with_native_identifiers(
+        _FCFEvidence,
+        payload,
+        key="result",
+        label="FCF",
+        identifiers={"strategy_id": ANALYSIS_ID, "method_id": METHOD_ID},
+        versions={"method_version": METHOD_VERSION, "schema_version": SCHEMA_VERSION},
+    ).result
 
 
 def fcf_growth_native_status(result: FCFEarningsGrowthResult, /) -> CalculationStatus:
