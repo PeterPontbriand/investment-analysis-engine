@@ -4,7 +4,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from investment_analysis_engine.analysis.run_models import StrictJsonMapping, _validate_json_value
+from investment_analysis_engine.analysis.run_models import StrictJsonMapping, validate_json_value
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.graham_number.vocabulary import METHOD_ID
@@ -76,7 +76,7 @@ def encode_graham_number(evidence: GrahamNumberAnalysis) -> StrictJsonMapping:
 
 def decode_graham_number(payload: StrictJsonMapping) -> GrahamNumberAnalysis:
     """Reconstruct Number evidence without invoking financial or provider work."""
-    _validate_json_value(payload)
+    validate_json_value(payload)
     analysis = payload.get("analysis")
     if not isinstance(analysis, dict):
         raise ValueError("Graham Number analysis must be an object.")

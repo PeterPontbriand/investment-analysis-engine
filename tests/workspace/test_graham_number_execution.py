@@ -107,7 +107,7 @@ def test_execute_graham_number_delegates_and_falls_back_to_the_composed_profile(
 
     with (
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile",
+            "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
             return_value=composed,
         ),
         patch.object(GrahamNumberAnalyzer, "run_analysis", fake_run_analysis),
@@ -131,7 +131,7 @@ def test_execute_graham_number_prefers_the_analysis_own_profile() -> None:
 
     with (
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile",
+            "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
             return_value=composed,
         ),
         patch.object(GrahamNumberAnalyzer, "run_analysis", return_value=canned),
@@ -152,7 +152,8 @@ def test_no_network_access(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(socket.socket, "connect", reject_network)
 
     with patch(
-        "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=_profile()
+        "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
+        return_value=_profile(),
     ):
         capture = execute_graham_number(
             _resolver(),

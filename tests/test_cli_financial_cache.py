@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_composition import build_graham_resolver
-from investment_analysis_engine.cli_support import _production_financial_cache
+from investment_analysis_engine.cli_support import production_financial_cache
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -96,13 +96,16 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
         ),
         patch("investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=provider),
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
+            return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_growth.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+            return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            return_value=profile,
         ),
         patch("investment_analysis_engine.cli_support.SQLiteDatabase", side_effect=database),
         patch("investment_analysis_engine.strategies.graham_number.cli.utc_now", return_value=NOW),
@@ -184,13 +187,16 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
         ),
         patch("investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=provider),
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
+            return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_growth.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.graham_growth.execution.compose_production_profile",
+            return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            return_value=profile,
         ),
         patch(
             "investment_analysis_engine.cli_support.ensure_database_ready",
@@ -211,7 +217,7 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
     with (
         patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
         pytest.raises(ValueError, match="analysis failed"),
-        _production_financial_cache(use_cache=True, clock=lambda: NOW),
+        production_financial_cache(use_cache=True, clock=lambda: NOW),
     ):
         raise ValueError("analysis failed")
     with pytest.raises(RuntimeError, match="closed"), database.read():

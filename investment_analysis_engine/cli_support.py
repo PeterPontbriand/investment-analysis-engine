@@ -196,7 +196,7 @@ def saving_failures(stage: SaveStage) -> Iterator[None]:
 
 
 @contextmanager
-def _production_historical_client(
+def production_historical_client(
     provider: YFinanceClient, *, use_cache: bool, clock: Callable[[], datetime]
 ) -> Iterator[CachedHistoricalDataClient]:
     """Borrow the Yahoo client and own historical storage for one analysis.
@@ -225,7 +225,7 @@ def _production_historical_client(
 
 
 @contextmanager
-def _production_financial_cache(
+def production_financial_cache(
     *, use_cache: bool, clock: Callable[[], datetime]
 ) -> Iterator[ResolvedInputSeriesCacheProtocol]:
     """Own one invocation's durable cache; schema upgrades remain explicit unless caching is disabled.
@@ -247,7 +247,7 @@ def _production_financial_cache(
         database.close()
 
 
-def _production_instrument_profile_cache(
+def production_instrument_profile_cache(
     database: SQLiteDatabase, *, clock: Callable[[], datetime]
 ) -> CachedInstrumentProfileResolver:
     """Build the durable instrument-profile cache over an already-open database.
@@ -272,7 +272,7 @@ def exit_code_of(outcome: RunOutcome) -> int:
     return 1 if outcome in (RunOutcome.UNAVAILABLE, RunOutcome.FAILED) else 0
 
 
-def _presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -> PresentationMode:
+def presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -> PresentationMode:
     """Resolve the mutually exclusive progressive-disclosure flags."""
     selected = tuple(
         name
@@ -290,7 +290,7 @@ def _presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -
     return PresentationMode.CONCISE
 
 
-def _resolve_ticker(positional: str | None, option: str | None, *, command: str) -> str:
+def resolve_ticker(positional: str | None, option: str | None, *, command: str) -> str:
     """Resolve positional ticker with a transitional --ticker compatibility alias."""
     if positional is not None and option is not None and positional.strip().upper() != option.strip().upper():
         raise InvalidParameterError(
@@ -306,12 +306,12 @@ def _resolve_ticker(positional: str | None, option: str | None, *, command: str)
     return normalized
 
 
-def _production_database() -> SQLiteDatabase:
+def production_database() -> SQLiteDatabase:
     """Return the application database, which the caller opens, checks for readiness and closes."""
     return SQLiteDatabase(settings)
 
 
-def _parse_as_of(value: str | None) -> datetime | None:
+def parse_as_of(value: str | None) -> datetime | None:
     """Parse a CLI as-of boundary without silently assuming a timestamp timezone."""
     if value is None:
         return None

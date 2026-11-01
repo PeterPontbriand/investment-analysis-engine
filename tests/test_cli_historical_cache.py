@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_support import _production_historical_client
+from investment_analysis_engine.cli_support import production_historical_client
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
@@ -134,10 +134,10 @@ def test_settings_control_reuse_age(
         patch.object(provider, "fetch_historical_data", return_value=history) as fetch,
     ):
         clock.now.return_value = NOW
-        with _production_historical_client(provider, use_cache=True, clock=clock.now) as client:
+        with production_historical_client(provider, use_cache=True, clock=clock.now) as client:
             client.fetch_historical_data("ACME", "2025-01-01", use_cache=True)
         clock.now.return_value = NOW + timedelta(seconds=age)
-        with _production_historical_client(provider, use_cache=True, clock=clock.now) as client:
+        with production_historical_client(provider, use_cache=True, clock=clock.now) as client:
             client.fetch_historical_data("ACME", "2025-01-01", use_cache=True)
     assert fetch.call_count == calls
 
@@ -145,7 +145,7 @@ def test_settings_control_reuse_age(
 def test_quote_delegation_survives_closed_storage(configured_settings: ProjectSettings) -> None:
     assert configured_settings.database_url.startswith("sqlite:")
     provider = YFinanceClient()
-    with _production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client:
+    with production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client:
         pass
     with patch.object(provider, "fetch_current_price", return_value=87.5) as quote:
         assert client.fetch_current_price("ACME") == 87.5
@@ -159,7 +159,7 @@ def test_storage_closes_after_provider_error(configured_settings: ProjectSetting
         patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
         patch.object(provider, "fetch_historical_data", side_effect=DataFetchError("offline")),
         pytest.raises(DataFetchError, match="offline"),
-        _production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client,
+        production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client,
     ):
         client.fetch_data("ACME", "2025-01-01")
     with pytest.raises(RuntimeError, match="closed"), database.read():
@@ -176,7 +176,7 @@ def test_disabled_cache_never_checks_readiness(tmp_path: Path) -> None:
             "investment_analysis_engine.cli_support.ensure_database_ready",
             side_effect=AssertionError("must not check readiness"),
         ),
-        _production_historical_client(provider, use_cache=False, clock=lambda: NOW),
+        production_historical_client(provider, use_cache=False, clock=lambda: NOW),
     ):
         pass
     assert not Path(settings.database_url.removeprefix("sqlite:///")).exists()

@@ -76,7 +76,7 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
             "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None
         ),
         patch(
-            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli._production_financial_cache",
+            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli.production_financial_cache",
             return_value=_cache_context(),
         ),
         patch("socket.socket.connect", side_effect=AssertionError("Network forbidden")),

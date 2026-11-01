@@ -18,14 +18,14 @@ from investment_analysis_engine.cli_provider_check import (
 from investment_analysis_engine.cli_run_support import maybe_save_run
 from investment_analysis_engine.cli_support import (
     SaveStage,
-    _parse_as_of,
-    _presentation_mode,
-    _production_financial_cache,
-    _production_historical_client,
-    _resolve_ticker,
     execution_errors,
     exit_code_of,
+    parse_as_of,
+    presentation_mode,
+    production_financial_cache,
+    production_historical_client,
     require_job_ticker,
+    resolve_ticker,
     saving_failures,
     stored_configuration,
 )
@@ -106,7 +106,7 @@ def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
 
     Mirrors the direct ``fcf-growth`` command's own flags and validation exactly.
     """
-    boundary = _parse_as_of(flags.as_of)
+    boundary = parse_as_of(flags.as_of)
     normalized_currency = _fcf_currency(flags.currency)
     policy = FCFEarningsGrowthPolicy(
         historical_horizon=_fcf_historical_horizon(flags.growth_years),
@@ -154,8 +154,8 @@ def refresh(
     config = stored_configuration(selection.to_fcf_config)
     executed_at = utc_now()
     with (
-        _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache,
-        _production_historical_client(
+        production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache,
+        production_historical_client(
             YFinanceClient(), use_cache=selection.use_cache, clock=lambda: executed_at
         ) as historical_client,
     ):
@@ -216,13 +216,13 @@ def command(  # noqa: PLR0913
         selection_type=FCFGrowthSelection,
         provider_check=provider_check,
     ) as scope:
-        target_ticker = _resolve_ticker(ticker, None, command="fcf-growth")
+        target_ticker = resolve_ticker(ticker, None, command="fcf-growth")
         assert target_ticker is not None
         scope.ticker = target_ticker
-        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         scope.mode = mode
         horizon = _fcf_historical_horizon(growth_years)
-        analysis_as_of = _parse_as_of(as_of)
+        analysis_as_of = parse_as_of(as_of)
         normalized_currency = _fcf_currency(currency)
         policy = FCFEarningsGrowthPolicy(
             historical_horizon=horizon,
@@ -231,8 +231,8 @@ def command(  # noqa: PLR0913
         )
         config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency)
         with (
-            _production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache,
-            _production_historical_client(
+            production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache,
+            production_historical_client(
                 YFinanceClient(), use_cache=not no_cache, clock=lambda: executed_at
             ) as historical_client,
         ):

@@ -328,7 +328,8 @@ def test_a_failure_gives_the_same_outcome_and_exit_code_and_fires_no_provider_ch
 
     def execute(dependencies: MarketCapDependencies) -> tuple[RunOutcome, int, object]:
         with patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            return_value=profile,
         ):
             capture = execute_fcf_growth(
                 _annual(),

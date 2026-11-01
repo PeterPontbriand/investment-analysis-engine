@@ -4,7 +4,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from investment_analysis_engine.analysis.run_models import StrictJsonMapping, _validate_json_value
+from investment_analysis_engine.analysis.run_models import StrictJsonMapping, validate_json_value
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
 from investment_analysis_engine.strategies.piotroski.vocabulary import (
@@ -42,7 +42,7 @@ def encode_piotroski(evidence: PiotroskiResult) -> StrictJsonMapping:
 
 def decode_piotroski(payload: StrictJsonMapping) -> PiotroskiResult:
     """Reconstruct the evidence without any calculation, rejecting an unknown, missing or ill-typed key."""
-    _validate_json_value(payload)
+    validate_json_value(payload)
     result = payload.get("result")
     if not isinstance(result, dict):
         raise ValueError("Piotroski result must be an object.")

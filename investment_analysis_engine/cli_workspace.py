@@ -4,7 +4,7 @@ This module owns explicit Typer sub-apps and the bare ``refresh`` command; it
 performs no storage or provider work at import time. Every command opens its
 own short-lived, readiness-checked :class:`SQLiteDatabase`, borrows it for
 one repository call, and closes it before returning — mirroring the existing
-``_production_historical_client``/``_production_financial_cache`` pattern in
+``production_historical_client``/``production_financial_cache`` pattern in
 ``investment_analysis_engine.cli_support``. Direct-command saving (``--save-run``) lives in
 ``investment_analysis_engine.cli_run_support``; this module's own provider/analyzer composition exists solely
 to dispatch one refresh job per stored selection.
@@ -34,11 +34,11 @@ from investment_analysis_engine.cli_provider_check import (
 )
 from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
 from investment_analysis_engine.cli_support import (
-    _presentation_mode,
-    _production_instrument_profile_cache,
     describe_failure,
     exit_code_of,
     parameter_failures,
+    presentation_mode,
+    production_instrument_profile_cache,
     report_failure,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
@@ -890,7 +890,7 @@ def runs_show(
 ) -> None:
     """Replay one stored run using only its own captured evidence."""
     with parameter_failures(json_output=json_output):
-        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         parsed_id = _parse_run_id(run_id, field="RUN_ID")
     with _workspace_database("runs show", json_output=json_output) as database:
         try:
@@ -1105,7 +1105,7 @@ def refresh(  # noqa: PLR0913
     try:
         with _workspace_database("refresh", json_output=json_output) as database:
             try:
-                profile_cache = _production_instrument_profile_cache(database, clock=utc_now)
+                profile_cache = production_instrument_profile_cache(database, clock=utc_now)
                 summary = refresh_watchlist(
                     name,
                     watchlists=_watchlist_repository(database),

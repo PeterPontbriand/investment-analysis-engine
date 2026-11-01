@@ -4,7 +4,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from investment_analysis_engine.analysis.run_models import StrictJsonMapping, _validate_json_value
+from investment_analysis_engine.analysis.run_models import StrictJsonMapping, validate_json_value
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.strategies.fcf_growth.models import (
     METHOD_VERSION,
@@ -51,7 +51,7 @@ def encode_fcf_growth(evidence: FCFEarningsGrowthResult) -> StrictJsonMapping:
 
 def decode_fcf_growth(payload: StrictJsonMapping) -> FCFEarningsGrowthResult:
     """Restore declared native evidence without resolving inputs or computing metrics."""
-    _validate_json_value(payload)
+    validate_json_value(payload)
     result = payload.get("result")
     if not isinstance(result, dict):
         raise ValueError("FCF result must be an object.")

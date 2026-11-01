@@ -21,12 +21,12 @@ from investment_analysis_engine.cli_provider_check import (
 from investment_analysis_engine.cli_run_support import maybe_save_run
 from investment_analysis_engine.cli_support import (
     SaveStage,
-    _parse_as_of,
-    _presentation_mode,
-    _resolve_ticker,
     execution_errors,
     exit_code_of,
+    parse_as_of,
+    presentation_mode,
     require_job_ticker,
+    resolve_ticker,
     saving_failures,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
@@ -66,7 +66,7 @@ def build_selection(flags: WatchlistFlags) -> PiotroskiSelection:
 
     It is built from the watchlist flags it concerns: the boundary and the cache choice.
     """
-    return PiotroskiSelection(as_of=_parse_as_of(flags.as_of), use_cache=not flags.no_cache)
+    return PiotroskiSelection(as_of=parse_as_of(flags.as_of), use_cache=not flags.no_cache)
 
 
 def refresh(
@@ -107,12 +107,12 @@ def command(  # noqa: PLR0913
     with execution_errors(
         json_output=json_output, selection_type=PiotroskiSelection, provider_check=provider_check
     ) as scope:
-        target_ticker = _resolve_ticker(ticker, None, command="piotroski")
+        target_ticker = resolve_ticker(ticker, None, command="piotroski")
         assert target_ticker is not None
         scope.ticker = target_ticker
-        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         scope.mode = mode
-        selection = PiotroskiSelection(as_of=_parse_as_of(as_of), use_cache=not no_cache)
+        selection = PiotroskiSelection(as_of=parse_as_of(as_of), use_cache=not no_cache)
         analyzer, provider = compose_piotroski(lambda: executed_at)
         stage = SaveStage()
         with saving_failures(stage):

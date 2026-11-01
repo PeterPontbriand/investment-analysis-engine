@@ -10,14 +10,14 @@ from pydantic import BaseModel, field_validator
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli_support import (
-    _parse_as_of,
-    _presentation_mode,
-    _resolve_ticker,
     config_usage_errors,
     execution_errors,
     exit_code_of,
     parameter_failures,
+    parse_as_of,
+    presentation_mode,
     provider_failure_message,
+    resolve_ticker,
 )
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
@@ -69,38 +69,38 @@ def test_execution_errors_classify_without_exposing_exception(error: Exception, 
 
 
 def test_date_and_timestamp_boundaries_retain_timezone_semantics() -> None:
-    assert _parse_as_of(None) is None
-    assert _parse_as_of(" 2025-12-31 ") == datetime(2025, 12, 31, tzinfo=UTC).replace(
+    assert parse_as_of(None) is None
+    assert parse_as_of(" 2025-12-31 ") == datetime(2025, 12, 31, tzinfo=UTC).replace(
         hour=time.max.hour, minute=time.max.minute, second=time.max.second, microsecond=time.max.microsecond
     )
-    assert _parse_as_of("2025-12-31T12:00:00Z") == datetime(2025, 12, 31, 12, tzinfo=UTC)
-    assert _parse_as_of("2025-12-31T07:00:00-05:00") == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert parse_as_of("2025-12-31T12:00:00Z") == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert parse_as_of("2025-12-31T07:00:00-05:00") == datetime(2025, 12, 31, 12, tzinfo=UTC)
 
 
 @pytest.mark.parametrize("value", ["", "bad", "2025-02-30", "2025-12-31T12:00:00"])
 def test_invalid_boundaries_are_invalid_parameters(value: str) -> None:
     with pytest.raises(InvalidParameterError) as caught:
-        _parse_as_of(value)
+        parse_as_of(value)
     assert caught.value.parameters == ("--as-of",)
 
 
 def test_ticker_provider_and_presentation_normalization() -> None:
-    assert _resolve_ticker(" ko ", "KO", command="graham-number") == "KO"
+    assert resolve_ticker(" ko ", "KO", command="graham-number") == "KO"
     with pytest.raises(InvalidParameterError, match="graham-growth TICKER") as missing:
-        _resolve_ticker(None, None, command="graham-growth")
+        resolve_ticker(None, None, command="graham-growth")
     assert missing.value.parameters == ("TICKER",)
     with pytest.raises(InvalidParameterError, match="momentum TICKER") as missing_momentum:
-        _resolve_ticker(None, None, command="momentum")
+        resolve_ticker(None, None, command="momentum")
     assert missing_momentum.value.parameters == ("TICKER",)
     with pytest.raises(InvalidParameterError) as blank:
-        _resolve_ticker(" ", None, command="momentum")
+        resolve_ticker(" ", None, command="momentum")
     assert (str(blank.value), blank.value.parameters) == ("TICKER must be a non-empty symbol.", ("TICKER",))
     with pytest.raises(InvalidParameterError) as blank_option:
-        _resolve_ticker(None, " ", command="momentum")
+        resolve_ticker(None, " ", command="momentum")
     assert blank_option.value.parameters == ("--ticker",)
-    assert _presentation_mode(details=False, diagnostics=False, json_output=True) is PresentationMode.JSON
+    assert presentation_mode(details=False, diagnostics=False, json_output=True) is PresentationMode.JSON
     with pytest.raises(InvalidParameterError) as exclusive:
-        _presentation_mode(details=True, diagnostics=True, json_output=False)
+        presentation_mode(details=True, diagnostics=True, json_output=False)
     assert exclusive.value.parameters == ("--details", "--diagnostics")
 
 

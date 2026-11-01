@@ -49,7 +49,7 @@ _OUTCOME_BY_STATUS: dict[CalculationStatus, RunOutcome] = {
 }
 
 
-def _validate_json_value(value: object) -> object:
+def validate_json_value(value: object) -> object:
     """Recursively validate that ``value`` is a JSON-compatible primitive tree.
 
     Pydantic 2.x cannot build a schema for a bare self-referential type alias, so the
@@ -76,20 +76,20 @@ def _validate_json_value(value: object) -> object:
         return value
     if isinstance(value, list):
         for item in value:
-            _validate_json_value(item)
+            validate_json_value(item)
         return value
     if isinstance(value, dict):
         for key, item in value.items():
             if not isinstance(key, str):
                 raise ValueError("JSON object keys must be strings.")
-            _validate_json_value(item)
+            validate_json_value(item)
         return value
     raise ValueError(f"Unsupported JSON primitive: {type(value).__name__}.")
 
 
 # JSON-compatible value types used by the run envelope. The recursive shape is enforced at
-# runtime by ``_validate_json_value`` (see above); statically this is an opaque JSON blob.
-JsonValue = Annotated[Any, BeforeValidator(_validate_json_value)]
+# runtime by ``validate_json_value`` (see above); statically this is an opaque JSON blob.
+JsonValue = Annotated[Any, BeforeValidator(validate_json_value)]
 
 StrictJsonMapping = dict[str, JsonValue]
 

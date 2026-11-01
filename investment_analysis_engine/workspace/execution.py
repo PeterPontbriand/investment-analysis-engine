@@ -26,7 +26,7 @@ Ordering and error-visibility guarantees:
   persistence exception to fabricate a stored failure record instead.
 - ``repository`` is only ever received already composed and ready,
   matching the project's existing pattern of checking database readiness
-  once at composition (for example ``_production_historical_client``).
+  once at composition (for example ``production_historical_client``).
   :func:`execute` performs no separate readiness check of its own;
   insertion happening only after a successful capture, with any failure
   surfaced rather than hidden, is what "ready before work, never a false

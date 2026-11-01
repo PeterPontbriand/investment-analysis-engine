@@ -219,7 +219,8 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome(
             return_value=sec_labeled_number_resolver(),
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_number.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.graham_number.execution.compose_production_profile",
+            return_value=profile,
         ),
     ):
         result = runner.invoke(

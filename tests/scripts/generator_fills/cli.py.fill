@@ -5,9 +5,9 @@ import typer
 from investment_analysis_engine.cli_run_support import maybe_save_run
 from investment_analysis_engine.cli_support import (
     SaveStage,
-    _parse_as_of,
-    _presentation_mode,
     execution_errors,
+    parse_as_of,
+    presentation_mode,
     saving_failures,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
@@ -23,7 +23,7 @@ from investment_analysis_engine.workspace.requests import AnalysisRequest
 
 def build_selection(flags: WatchlistFlags) -> CiProbeSelection:
     """Build one validated CI Probe selection from the watchlist flags it concerns: the boundary and the cache."""
-    return CiProbeSelection(as_of=_parse_as_of(flags.as_of), use_cache=not flags.no_cache)
+    return CiProbeSelection(as_of=parse_as_of(flags.as_of), use_cache=not flags.no_cache)
 
 
 def refresh(
@@ -46,9 +46,9 @@ def command(
     executed_at = utc_now()
     with execution_errors(json_output=json_output, selection_type=CiProbeSelection) as scope:
         scope.ticker = ticker
-        mode = _presentation_mode(details=False, diagnostics=False, json_output=json_output)
+        mode = presentation_mode(details=False, diagnostics=False, json_output=json_output)
         scope.mode = mode
-        selection = CiProbeSelection(as_of=_parse_as_of(as_of), use_cache=not no_cache)
+        selection = CiProbeSelection(as_of=parse_as_of(as_of), use_cache=not no_cache)
         stage = SaveStage()
         with saving_failures(stage):
             capture = maybe_save_run(

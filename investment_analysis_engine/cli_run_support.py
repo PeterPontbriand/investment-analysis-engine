@@ -5,7 +5,7 @@ from datetime import datetime
 
 import typer
 
-from investment_analysis_engine.cli_support import _production_instrument_profile_cache
+from investment_analysis_engine.cli_support import production_instrument_profile_cache
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.data.repositories.readiness import ensure_database_ready
@@ -90,7 +90,7 @@ def maybe_save_run[RawCaptureT](
     try:
         ensure_database_ready(database)
         repository = SQLiteAnalysisRunRepository(database)
-        profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)
+        profile_cache = production_instrument_profile_cache(database, clock=lambda: executed_at)
         holder: list[RawCaptureT] = []
 
         def capture() -> ExecutionCapture:

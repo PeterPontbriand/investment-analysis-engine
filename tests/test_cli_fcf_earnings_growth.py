@@ -37,15 +37,15 @@ def disable_live_instrument_profile_resolution() -> Iterator[None]:
 
     with (
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile",
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
             side_effect=unknown_profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli._production_financial_cache",
+            "investment_analysis_engine.strategies.fcf_growth.cli.production_financial_cache",
             side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli._production_historical_client",
+            "investment_analysis_engine.strategies.fcf_growth.cli.production_historical_client",
             side_effect=lambda *_a, **_k: nullcontext(FixtureSplitHistoryProvider(utc_now(), with_data=False)),
         ),
     ):
@@ -93,7 +93,8 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
             "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_graham_profile", return_value=profile
+            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            return_value=profile,
         ),
         patch.object(provider, "fetch_facts", wraps=provider.fetch_facts) as fetch_facts,
     ):

@@ -63,8 +63,8 @@ class Composition:
             profile = fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
             return FCFGrowthCapture(result=fcf_result(), profile=profile)
 
-        monkeypatch.setattr(fcf_cli, "_production_financial_cache", financial_cache)
-        monkeypatch.setattr(fcf_cli, "_production_historical_client", historical_client)
+        monkeypatch.setattr(fcf_cli, "production_financial_cache", financial_cache)
+        monkeypatch.setattr(fcf_cli, "production_historical_client", historical_client)
         monkeypatch.setattr(fcf_cli, "build_sec_production_provider", lambda: composition.provider)
         monkeypatch.setattr(fcf_cli, "YFinanceClient", object)
         monkeypatch.setattr(fcf_cli, "execute_fcf_growth", execute)

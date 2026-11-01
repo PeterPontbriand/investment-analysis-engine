@@ -16,15 +16,15 @@ from investment_analysis_engine.cli_provider_check import (
 from investment_analysis_engine.cli_run_support import save_run_execution
 from investment_analysis_engine.cli_support import (
     SaveStage,
-    _parse_as_of,
-    _presentation_mode,
-    _production_database,
-    _production_historical_client,
-    _production_instrument_profile_cache,
-    _resolve_ticker,
     execution_errors,
     exit_code_of,
+    parse_as_of,
+    presentation_mode,
+    production_database,
+    production_historical_client,
+    production_instrument_profile_cache,
     require_job_ticker,
+    resolve_ticker,
     saving_failures,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
@@ -90,7 +90,7 @@ def build_selection(flags: WatchlistFlags) -> MomentumSelection:
         short_window=flags.short_window,
         long_window=flags.long_window,
         rsi_period=flags.rsi_period,
-        as_of=_parse_as_of(flags.as_of),
+        as_of=parse_as_of(flags.as_of),
         use_cache=not flags.no_cache,
     )
 
@@ -103,7 +103,7 @@ def refresh(
     executed_at = utc_now()
     normalized_ticker = require_ticker(require_job_ticker(ticker))
     profile = compose_momentum_profile(normalized_ticker, data_client=data_client, profile_cache=profile_cache)
-    with _production_historical_client(
+    with production_historical_client(
         data_client, use_cache=selection.use_cache, clock=lambda: executed_at
     ) as historical_client:
         run = run_momentum(
@@ -168,12 +168,12 @@ def command(  # noqa: PLR0913
         selection_type=MomentumSelection,
         provider_check=provider_check,
     ) as scope:
-        requested_ticker = _resolve_ticker(ticker, ticker_option, command="momentum")
+        requested_ticker = resolve_ticker(ticker, ticker_option, command="momentum")
         scope.ticker = requested_ticker
-        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         scope.mode = mode
         _validate_momentum_windows(short_window, long_window, rsi_period)
-        boundary = _parse_as_of(as_of)
+        boundary = parse_as_of(as_of)
         target_ticker = require_ticker(requested_ticker)
         start_date = momentum_settings().history_start_date.isoformat()
         data_client = YFinanceClient()
@@ -192,12 +192,12 @@ def command(  # noqa: PLR0913
             # Momentum's profile is composed CLI-side (outside the D1 adapter). Readiness is
             # checked before the historical-data provider call, matching every other
             # command's "preflight before provider work" ordering.
-            database = _production_database()
+            database = production_database()
             try:
                 ensure_database_ready(database)
-                profile_cache = _production_instrument_profile_cache(database, clock=lambda: executed_at)
+                profile_cache = production_instrument_profile_cache(database, clock=lambda: executed_at)
                 profile = compose_momentum_profile(target_ticker, data_client=data_client, profile_cache=profile_cache)
-                with _production_historical_client(
+                with production_historical_client(
                     data_client, use_cache=selection.use_cache, clock=lambda: executed_at
                 ) as historical_client:
                     run = run_momentum(
@@ -220,7 +220,7 @@ def command(  # noqa: PLR0913
                 database.close()
         else:
             profile = compose_momentum_profile(target_ticker, data_client=data_client)
-            with _production_historical_client(
+            with production_historical_client(
                 data_client, use_cache=selection.use_cache, clock=lambda: executed_at
             ) as historical_client:
                 run = run_momentum(

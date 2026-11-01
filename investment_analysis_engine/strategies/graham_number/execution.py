@@ -17,7 +17,7 @@ from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.strategies._shared.profile import compose_graham_profile
+from investment_analysis_engine.strategies._shared.profile import compose_production_profile
 from investment_analysis_engine.strategies.graham_number.analyzer import GrahamNumberAnalyzer
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
@@ -68,7 +68,7 @@ def execute_graham_number(  # noqa: PLR0913
     Returns:
         The captured native analysis and its associated profile.
     """
-    composed_profile = compose_graham_profile(
+    composed_profile = compose_production_profile(
         ticker,
         primary_provider=resolver.provider,
         yahoo_provider=profile_provider,

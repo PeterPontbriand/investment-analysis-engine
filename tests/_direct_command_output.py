@@ -147,7 +147,7 @@ def enter_fixture_providers(stack: ExitStack, command: str) -> None:
     for cached in ("graham_number", "graham_growth", "fcf_growth"):
         stack.enter_context(
             patch(
-                f"investment_analysis_engine.strategies.{cached}.cli._production_financial_cache",
+                f"investment_analysis_engine.strategies.{cached}.cli.production_financial_cache",
                 side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
             )
         )
@@ -155,7 +155,7 @@ def enter_fixture_providers(stack: ExitStack, command: str) -> None:
         stack.enter_context(patch(f"investment_analysis_engine.strategies.{yahoo}.cli.YFinanceClient", _FixtureYahoo))
     stack.enter_context(
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli._production_historical_client",
+            "investment_analysis_engine.strategies.fcf_growth.cli.production_historical_client",
             side_effect=lambda *_a, **_k: nullcontext(FixtureSplitHistoryProvider(utc_now(), with_data=False)),
         )
     )

@@ -20,14 +20,14 @@ from investment_analysis_engine.cli_provider_check import (
 from investment_analysis_engine.cli_run_support import maybe_save_run
 from investment_analysis_engine.cli_support import (
     SaveStage,
-    _parse_as_of,
-    _presentation_mode,
-    _production_financial_cache,
-    _resolve_ticker,
     config_usage_errors,
     execution_errors,
     exit_code_of,
+    parse_as_of,
+    presentation_mode,
+    production_financial_cache,
     require_job_ticker,
+    resolve_ticker,
     saving_failures,
     stored_configuration,
 )
@@ -66,7 +66,7 @@ def build_selection(flags: WatchlistFlags) -> GrahamGrowthSelection:
     Mirrors the direct ``graham-growth`` command's own flags and validation exactly, so a watchlist entry
     behaves identically to running the method directly.
     """
-    boundary = _parse_as_of(flags.as_of)
+    boundary = parse_as_of(flags.as_of)
     with config_usage_errors():
         if flags.expected_growth is None:
             raise InvalidParameterError(
@@ -97,7 +97,7 @@ def refresh(
     config = stored_configuration(selection.to_graham_growth_config)
     policy = graham_growth_settings().to_policy()
     executed_at = utc_now()
-    with _production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
+    with production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
         resolver = build_graham_resolver(
             resolver_type=GrahamGrowthInputResolver,
             cache=cache,
@@ -179,12 +179,12 @@ def command(  # noqa: PLR0913
         selection_type=GrahamGrowthSelection,
         provider_check=provider_check,
     ) as scope:
-        target_ticker = _resolve_ticker(ticker, ticker_option, command="graham-growth")
+        target_ticker = resolve_ticker(ticker, ticker_option, command="graham-growth")
         assert target_ticker is not None
         scope.ticker = target_ticker
-        mode = _presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
+        mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         scope.mode = mode
-        boundary = _parse_as_of(as_of)
+        boundary = parse_as_of(as_of)
         with config_usage_errors():
             selection = GrahamGrowthSelection.model_validate(
                 {
@@ -197,7 +197,7 @@ def command(  # noqa: PLR0913
                     "use_cache": use_cache,
                 }
             )
-        with _production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
+        with production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
             with execution_errors(
                 mode=mode,
                 selection_type=GrahamGrowthSelection,
