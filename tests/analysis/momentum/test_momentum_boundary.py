@@ -42,7 +42,7 @@ def _run(closes: list[float], *, as_of: datetime | None) -> MomentumRun:
     )
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
     context = AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=True)
-    return analyzer.run_analysis("ACME", CONFIG, context)
+    return analyzer.run_analysis("ACME", context, CONFIG)
 
 
 def _bar_time(position: int) -> datetime:
@@ -70,7 +70,7 @@ def test_as_of_1990_never_calls_the_provider() -> None:
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
     context = AnalysisContext(as_of=datetime(1990, 1, 1, tzinfo=UTC), executed_at=EXECUTED_AT, use_cache=True)
 
-    run = analyzer.run_analysis("ACME", CONFIG, context)
+    run = analyzer.run_analysis("ACME", context, CONFIG)
 
     assert_not_calculated(
         run,
@@ -110,7 +110,7 @@ def _run_with_final_bar(offset: timedelta, *, as_of: datetime | None) -> Momentu
         ),
     )
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
-    return analyzer.run_analysis("ACME", CONFIG, AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=True))
+    return analyzer.run_analysis("ACME", AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=True), CONFIG)
 
 
 @pytest.mark.parametrize("offset", [timedelta(0), timedelta(minutes=5), FROZEN_CLOCK_SKEW_TOLERANCE])

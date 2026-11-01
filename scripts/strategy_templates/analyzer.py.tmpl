@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, ConfigFreeAnalyzer
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
 
 
@@ -13,7 +13,7 @@ class ${Class}Result:
     ticker: str
 
 
-class ${Class}Analyzer(ConfigFreeAnalyzer[${Class}Result]):
+class ${Class}Analyzer(BaseAnalyzer[${Class}Result]):
     """Run the $label calculation."""
 
     def run_analysis(self, ticker: str, context: AnalysisContext) -> ${Class}Result:

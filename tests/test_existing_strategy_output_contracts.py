@@ -46,8 +46,8 @@ def test_dilution_changes_the_selected_explanation(basis: FCFClassificationBasis
         fcf_market_data(),
     ).run_analysis(
         "ACME",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(classification_basis=basis), currency="USD"),
         AnalysisContext(as_of=None, executed_at=now, use_cache=False),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(classification_basis=basis), currency="USD"),
     )
     assert result.fcf_cagr.value == pytest.approx(((130 / 80) ** 0.2 - 1) * 100)
     assert result.fcf_per_share_cagr.value == pytest.approx((((130 / 600) / (80 / 100)) ** 0.2 - 1) * 100)
@@ -72,7 +72,7 @@ def test_fcf_effective_boundary_controls_resolution_not_only_result_label() -> N
         fcf_market_data(),
     ).run_analysis(
         "ACME",
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
         AnalysisContext(as_of=None, executed_at=boundary, use_cache=False),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
     )
     assert result.annual_observations[-1].fiscal_year == 2023

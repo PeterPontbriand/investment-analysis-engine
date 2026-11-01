@@ -8,14 +8,14 @@ from investment_analysis_engine.strategies.graham_number.config import GrahamNum
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
 
 
-class GrahamNumberAnalyzer(BaseAnalyzer[GrahamNumberConfig, GrahamNumberAnalysis]):
+class GrahamNumberAnalyzer(BaseAnalyzer[GrahamNumberAnalysis, GrahamNumberConfig]):
     """Run the Number service with a borrowed resolver."""
 
     def __init__(self, resolver: GrahamNumberInputResolver) -> None:
         """Borrow the resolver; composition owns its construction and closure."""
         self._resolver = resolver
 
-    def run_analysis(self, ticker: str, config: GrahamNumberConfig, context: AnalysisContext) -> GrahamNumberAnalysis:
+    def run_analysis(self, ticker: str, context: AnalysisContext, config: GrahamNumberConfig) -> GrahamNumberAnalysis:
         """Return complete service evidence for the given ticker."""
         return run_graham_number_analysis(
             resolver=self._resolver,

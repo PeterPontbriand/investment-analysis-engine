@@ -112,7 +112,7 @@ def test_complete_service_equivalence(growth: bool, ticker: str, use_cache: bool
         if growth
         else run_graham_number_analysis(resolver=_resolver(False), ticker=ticker, **kwargs)
     )
-    actual = analyzer.run_analysis(f" {ticker.lower()} ", config, _context(use_cache=use_cache))
+    actual = analyzer.run_analysis(f" {ticker.lower()} ", _context(use_cache=use_cache), config)
     assert asdict(actual) == asdict(expected)
     assert isinstance(analyzer, BaseAnalyzer)
     if growth and values:
@@ -126,7 +126,7 @@ def test_complete_service_equivalence(growth: bool, ticker: str, use_cache: bool
 
 @pytest.mark.parametrize("growth", [False, True])
 def test_ticker_is_normalized(growth: bool) -> None:
-    result = _analyzer(growth, _resolver(growth)).run_analysis(f" {SECURITY_ID.lower()} ", _config(growth), _context())
+    result = _analyzer(growth, _resolver(growth)).run_analysis(f" {SECURITY_ID.lower()} ", _context(), _config(growth))
     assert result.ticker == SECURITY_ID
 
 
@@ -134,7 +134,7 @@ def test_ticker_is_normalized(growth: bool) -> None:
 @pytest.mark.parametrize("ticker", ["", " "])
 def test_missing_ticker_rejected(growth: bool, ticker: str) -> None:
     with pytest.raises(ValueError, match="ticker"):
-        _analyzer(growth, _resolver(growth)).run_analysis(ticker, _config(growth), _context())
+        _analyzer(growth, _resolver(growth)).run_analysis(ticker, _context(), _config(growth))
 
 
 @pytest.mark.parametrize("growth", [False, True])
@@ -146,7 +146,7 @@ def test_profile_retention_and_mismatch(growth: bool, etf: bool) -> None:
     resolver_type = GrahamGrowthInputResolver if growth else GrahamNumberInputResolver
     analyzer = _analyzer(growth, resolver_type(provider, clock=lambda: NOW))
     context = _context(instrument_profile=profile)
-    result = analyzer.run_analysis(SECURITY_ID, _config(growth), context)
+    result = analyzer.run_analysis(SECURITY_ID, context, _config(growth))
     assert result.instrument_profile is not None
     assert result.instrument_profile.identity is profile.identity
     assert result.instrument_profile.kind_evidence is profile.kind_evidence
@@ -159,7 +159,7 @@ def test_profile_retention_and_mismatch(growth: bool, etf: bool) -> None:
     if growth:
         assert result.policy is POLICY
     with pytest.raises(ValueError, match="ticker"):
-        analyzer.run_analysis("OTHER", _config(growth), context)
+        analyzer.run_analysis("OTHER", context, _config(growth))
     assert not provider.closed
 
 
@@ -170,12 +170,12 @@ def test_borrowed_resources_cache_reuse_and_bypass(growth: bool) -> None:
     resolver = resolver_type(provider, cache=cache, clock=lambda: NOW)
     analyzer = _analyzer(growth, resolver)
     assert provider.calls == 0
-    analyzer.run_analysis(SECURITY_ID, _config(growth), _context())
+    analyzer.run_analysis(SECURITY_ID, _context(), _config(growth))
     first_calls = provider.calls
     assert first_calls > 0
-    analyzer.run_analysis(SECURITY_ID, _config(growth), _context())
+    analyzer.run_analysis(SECURITY_ID, _context(), _config(growth))
     assert provider.calls == first_calls
-    analyzer.run_analysis(SECURITY_ID, _config(growth), _context(use_cache=False))
+    analyzer.run_analysis(SECURITY_ID, _context(use_cache=False), _config(growth))
     assert provider.calls > first_calls
     with (
         patch.object(
@@ -185,7 +185,7 @@ def test_borrowed_resources_cache_reuse_and_bypass(growth: bool) -> None:
         ),
         pytest.raises(RuntimeError, match="failure"),
     ):
-        analyzer.run_analysis(SECURITY_ID, _config(growth), _context())
+        analyzer.run_analysis(SECURITY_ID, _context(), _config(growth))
     assert not provider.closed
     assert not cache.closed
 
@@ -214,7 +214,7 @@ def test_numeric_edge_cases_match_service(growth: bool, field: str, value: float
         if growth
         else run_graham_number_analysis(resolver=_resolver(False), ticker=SECURITY_ID, **kwargs)
     )
-    actual = _analyzer(growth, _resolver(growth)).run_analysis(SECURITY_ID, config, _context())
+    actual = _analyzer(growth, _resolver(growth)).run_analysis(SECURITY_ID, _context(), config)
     assert asdict(actual) == asdict(expected)
     # Optional quote failures may leave a valid calculation, but never a margin.
     if field == "quote_override":

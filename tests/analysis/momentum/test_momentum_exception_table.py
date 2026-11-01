@@ -68,7 +68,7 @@ def _provider(data: HistoricalMarketData | None = None, *, error: BaseException 
 
 def _run(provider: MagicMock, *, as_of: datetime | None = None, ticker: str = "ACME") -> MomentumRun:
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
-    return analyzer.run_analysis(ticker, CONFIG, AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=True))
+    return analyzer.run_analysis(ticker, AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=True), CONFIG)
 
 
 # Row 1 -------------------------------------------------------------------------------------------------------

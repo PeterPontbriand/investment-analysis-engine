@@ -24,14 +24,14 @@ class SpecimenResult:
     effective_as_of: datetime
 
 
-class SpecimenAnalyzer(BaseAnalyzer[SpecimenConfig, SpecimenResult]):
+class SpecimenAnalyzer(BaseAnalyzer[SpecimenResult, SpecimenConfig]):
     """Scale the input value by the injected multiplier, which composition reads from the specimen's settings."""
 
     def __init__(self, *, multiplier: float) -> None:
         """Retain the multiplier the composition root supplies."""
         self._multiplier = multiplier
 
-    def run_analysis(self, ticker: str, config: SpecimenConfig, context: AnalysisContext) -> SpecimenResult:
+    def run_analysis(self, ticker: str, context: AnalysisContext, config: SpecimenConfig) -> SpecimenResult:
         """Return ``config.value`` times the multiplier, with the run's effective point in time."""
         return SpecimenResult(
             ticker=require_ticker(ticker),

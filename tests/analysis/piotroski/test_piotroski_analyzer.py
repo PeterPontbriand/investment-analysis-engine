@@ -12,7 +12,7 @@ from fractions import Fraction
 
 import pytest
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, ConfigFreeAnalyzer
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from investment_analysis_engine.analysis.shared.applicability import (
     Applicability,
     IndustryClass,
@@ -386,7 +386,7 @@ def test_the_result_refuses_fields_that_disagree_with_its_status() -> None:
 
 
 def test_the_analyzer_is_the_config_free_form_and_is_called_with_the_ticker_and_context_only() -> None:
-    assert issubclass(PiotroskiAnalyzer, ConfigFreeAnalyzer)
+    assert issubclass(PiotroskiAnalyzer, BaseAnalyzer)
     result = analyzer_of(adapter_of("aapl")).run_analysis(
         "  aapl ", AnalysisContext(as_of=AAPL_AS_OF, executed_at=CLOCK, use_cache=False)
     )

@@ -89,7 +89,7 @@ def _client(provider: _EndDateProvider, database: SQLiteDatabase) -> CachedHisto
 def _run(client: CachedHistoricalDataClient, *, as_of: datetime | None, use_cache: bool = True) -> MomentumRun:
     analyzer = MomentumAnalyzer(market_data_provider=client, start_date=START)
     context = AnalysisContext(as_of=as_of, executed_at=EXECUTED_AT, use_cache=use_cache)
-    return analyzer.run_analysis("ACME", CONFIG, context)
+    return analyzer.run_analysis("ACME", context, CONFIG)
 
 
 def _stored(database: SQLiteDatabase, end: date | None) -> pd.DataFrame | None:
@@ -210,8 +210,8 @@ def test_a_boundary_on_the_last_day_of_a_month_rolls_the_end_date_over() -> None
 
     analyzer.run_analysis(
         "ACME",
-        CONFIG,
         AnalysisContext(as_of=datetime(2026, 1, 31, tzinfo=UTC), executed_at=EXECUTED_AT, use_cache=True),
+        CONFIG,
     )
 
     assert provider.calls[0][2] == "2026-02-01"

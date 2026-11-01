@@ -30,7 +30,7 @@ def execute_specimen(
 ) -> SpecimenCapture:
     """Run the analyzer for ``selection``; the calculation has no failure status."""
     context = AnalysisContext(as_of=selection.as_of, executed_at=executed_at, use_cache=selection.use_cache)
-    result = analyzer.run_analysis(ticker, selection.to_specimen_config(), context)
+    result = analyzer.run_analysis(ticker, context, selection.to_specimen_config())
     return SpecimenCapture(result=result)
 
 

@@ -132,7 +132,7 @@ def _yield_of(latest: AnnualGrowthObservation, market_cap: MarketCapEvidence) ->
     return _yield_outcome(market_cap, compute_fcf_yield(latest.free_cash_flow.value, result.value))
 
 
-class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarningsGrowthResult]):
+class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarningsGrowthConfig]):
     """Resolve approved inputs and produce the strategy's canonical typed result."""
 
     def __init__(self, resolver: ProductionAnnualGrowthSeriesResolver, market_data: MarketCapDependencies) -> None:
@@ -195,7 +195,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthConfig, FCFEarning
         return _yield_of(latest, inputs.market_cap())
 
     def run_analysis(
-        self, ticker: str, config: FCFEarningsGrowthConfig, context: AnalysisContext
+        self, ticker: str, context: AnalysisContext, config: FCFEarningsGrowthConfig
     ) -> FCFEarningsGrowthResult:
         """Run one deterministic analysis without optional unapproved data substitutions."""
         boundary = context.effective_as_of

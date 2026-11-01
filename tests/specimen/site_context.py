@@ -98,7 +98,7 @@ def specimen_app() -> typer.Typer:
 def specimen_stored_run() -> StoredRun:
     """Return the specimen's result stored under the sample selection its evaluation-tier entry declares."""
     result = SpecimenAnalyzer(multiplier=GOLDEN_MULTIPLIER).run_analysis(
-        "SPEC", SAMPLE_SELECTION.to_specimen_config(), SAMPLE_SELECTION.to_analysis_context(_CLOCK)
+        "SPEC", SAMPLE_SELECTION.to_analysis_context(_CLOCK), SAMPLE_SELECTION.to_specimen_config()
     )
     run = build_specimen_run("SPEC", SAMPLE_SELECTION, SpecimenExecution(result, RunOutcome.COMPLETED))
 

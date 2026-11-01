@@ -116,7 +116,7 @@ class MomentumConfig(BaseModel):
         return self
 
 
-class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
+class MomentumAnalyzer(BaseAnalyzer[MomentumRun, MomentumConfig]):
     """Execute vectorized financial momentum analysis over historical market metrics."""
 
     def __init__(self, *, market_data_provider: MarketDataProvider, start_date: str) -> None:
@@ -124,7 +124,7 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumConfig, MomentumRun]):
         self._market_data_provider: Final[MarketDataProvider] = market_data_provider
         self._start_date: Final[str] = start_date
 
-    def run_analysis(self, ticker: str, config: MomentumConfig, context: AnalysisContext) -> MomentumRun:
+    def run_analysis(self, ticker: str, context: AnalysisContext, config: MomentumConfig) -> MomentumRun:
         """Fetch market data once, calculate metrics, and retain retrieval context.
 
         The resolver checks and publishes data quality once, against the raw

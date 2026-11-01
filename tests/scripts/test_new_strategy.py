@@ -425,8 +425,8 @@ def test_a_filled_stub_imports_no_underscore_name_from_another_module(fill: Path
 def test_the_templates_write_only_the_config_free_analyzer_form() -> None:
     """No configuration type, no selection converter and no config parameter exists in any generated stub."""
     analyzer = _rendered("analyzer")
-    assert "ConfigFreeAnalyzer[FreshProbeResult]" in analyzer
-    assert "BaseAnalyzer" not in analyzer.replace("ConfigFreeAnalyzer", "")
+    assert "BaseAnalyzer[FreshProbeResult]" in analyzer
+    assert "BaseAnalyzer[FreshProbeResult, " not in analyzer
     assert "def run_analysis(self, ticker: str, context: AnalysisContext) -> FreshProbeResult:" in analyzer
     configuration = re.compile(r"FreshProbeConfig\b|to_fresh_probe_config|\bconfig\b\s*[:,)]")
     for role in STUB_ROLES:

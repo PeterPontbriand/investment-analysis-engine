@@ -97,7 +97,7 @@ def momentum_run_for(**kwargs: Any) -> MomentumRun:
     analyzer = MomentumAnalyzer(market_data_provider=provider, start_date="2026-01-01")
     config = kwargs["config"]
     assert isinstance(config, MomentumConfig)
-    return _REAL_RUN_ANALYSIS(analyzer, ticker, config, kwargs["context"])
+    return _REAL_RUN_ANALYSIS(analyzer, ticker, kwargs["context"], config)
 
 
 def _fcf_provider() -> ProductionFinancialFactsProvider:
