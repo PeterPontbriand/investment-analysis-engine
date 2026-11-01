@@ -1,14 +1,21 @@
 """The CI Probe strategy's CLI functions: direct command, selection builder and refresh executor."""
 
+from typing import Final
+
 import typer
 
-from investment_analysis_engine.cli_run_support import maybe_save_run
+from investment_analysis_engine.cli_provider_check import provider_check_choice
+from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
 from investment_analysis_engine.cli_support import (
-    SaveStage,
+    AS_OF_OPTION,
+    NO_PROVIDER_CHECK_OPTION,
+    SAVE_RUN_OPTION,
+    emit_output,
     execution_errors,
     parse_as_of,
-    presentation_mode,
-    saving_failures,
+    render_execution,
+    require_job_ticker,
+    resolve_command_target,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.core.clock import utc_now
@@ -20,6 +27,9 @@ from investment_analysis_engine.strategies.ci_probe.selection import CiProbeSele
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 
+_NO_PROVIDER: Final = object()
+"""The calculation reads no provider, so each profile capability is unsupported, and the profile says so."""
+
 
 def build_selection(flags: WatchlistFlags) -> CiProbeSelection:
     """Build one validated CI Probe selection from the watchlist flags it concerns: the boundary and the cache."""
@@ -29,35 +39,59 @@ def build_selection(flags: WatchlistFlags) -> CiProbeSelection:
 def refresh(
     ticker: str, selection: CiProbeSelection, *, profile_cache: InstrumentProfileResolver | None
 ) -> ExecutionCapture:
-    """Execute one CI Probe refresh job; the calculation reads no profile, so the cache is unused."""
-    del profile_cache
-    return from_ci_probe_capture(execute_ci_probe(CiProbeAnalyzer(), ticker, selection, executed_at=utc_now()))
+    """Execute one CI Probe refresh job."""
+    require_job_ticker(ticker)
+    capture = execute_ci_probe(
+        CiProbeAnalyzer(),
+        ticker,
+        selection,
+        executed_at=utc_now(),
+        provider=_NO_PROVIDER,
+        profile_cache=profile_cache,
+    )
+    return from_ci_probe_capture(capture)
 
 
-def command(
+def command(  # noqa: PLR0913
+    context: typer.Context,
     ticker: str = typer.Argument(..., help="Target ticker symbol"),
     *,
-    as_of: str | None = typer.Option(None, "--as-of", help="Point-in-time boundary"),
+    as_of: str | None = AS_OF_OPTION,
     no_cache: bool = typer.Option(False, "--no-cache", help="Bypass the cache"),
+    details: bool = typer.Option(False, "--details", help="Show the inputs"),
+    diagnostics: bool = typer.Option(False, "--diagnostics", help="Show how the result was assembled"),
     json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
-    save_run: bool = typer.Option(False, "--save-run", help="Persist this attempt as a durable Analysis Run"),
+    save_run: bool = SAVE_RUN_OPTION,
+    no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Run the CI Probe analysis."""
     executed_at = utc_now()
-    with execution_errors(json_output=json_output, selection_type=CiProbeSelection) as scope:
-        scope.ticker = ticker
-        mode = presentation_mode(details=False, diagnostics=False, json_output=json_output)
-        scope.mode = mode
+    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
+    with execution_errors(
+        json_output=json_output, selection_type=CiProbeSelection, provider_check=provider_check
+    ) as scope:
+        target_ticker, mode = resolve_command_target(
+            scope, ticker, None, command="ci-probe", details=details, diagnostics=diagnostics, json_output=json_output
+        )
         selection = CiProbeSelection(as_of=parse_as_of(as_of), use_cache=not no_cache)
-        stage = SaveStage()
-        with saving_failures(stage):
-            capture = maybe_save_run(
-                save_run=save_run,
+        capture = analyze_and_maybe_save(
+            save_run=save_run,
+            executed_at=executed_at,
+            request_factory=lambda: AnalysisRequest(ticker=target_ticker, selection=selection),
+            run_adapter=lambda profile_cache: execute_ci_probe(
+                CiProbeAnalyzer(),
+                target_ticker,
+                selection,
                 executed_at=executed_at,
-                request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
-                run_adapter=lambda _profile_cache: execute_ci_probe(
-                    CiProbeAnalyzer(), ticker, selection, executed_at=executed_at
-                ),
-                normalize=stage.after_analysis(from_ci_probe_capture),
-            )
-    typer.echo(render_ci_probe(capture.result, mode))
+                provider=_NO_PROVIDER,
+                profile_cache=profile_cache,
+            ),
+            normalize=from_ci_probe_capture,
+        )
+    output, exit_code = render_execution(
+        from_ci_probe_capture(capture),
+        provider_check,
+        mode,
+        lambda _element: render_ci_probe(capture.result, mode),
+    )
+    emit_output(output, exit_code, mode)

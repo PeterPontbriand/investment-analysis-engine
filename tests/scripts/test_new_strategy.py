@@ -38,6 +38,7 @@ from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import strategy_names
 
 WHERE: Final = "example.py"
+FILLS_DIRECTORY: Final = REPOSITORY_ROOT / "tests" / "scripts" / "generator_fills"
 
 
 def _unchanged(path: Path, source: str) -> str:
@@ -389,3 +390,60 @@ def test_a_template_substitutes_every_placeholder_into_valid_python(role: str) -
     assert "$" not in text
     ast.parse(text)
     assert "fresh_probe" in text or role == "analyzer"
+
+
+def _rendered(role: str) -> str:
+    spec = Spec(strategy_names("fresh_probe"), "Fresh Probe")
+    return Template((TEMPLATE_DIRECTORY / f"{role}.py.tmpl").read_text(encoding="utf-8")).substitute(
+        spec.substitutions()
+    )
+
+
+def _underscore_imports(source: str) -> list[str]:
+    """Return each name that ``source`` imports from another module whose own name starts with an underscore."""
+    return [
+        f"{node.module}.{alias.name}"
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom) and node.module is not None
+        for alias in node.names
+        if alias.name.startswith("_")
+    ]
+
+
+@pytest.mark.parametrize("role", STUB_ROLES)
+def test_a_template_imports_no_underscore_name_from_another_module(role: str) -> None:
+    """A generated file reads only public names; the names it needs from shared modules are public."""
+    assert _underscore_imports(_rendered(role)) == []
+
+
+@pytest.mark.parametrize("fill", sorted(FILLS_DIRECTORY.glob("*.py.fill")), ids=lambda path: path.name)
+def test_a_filled_stub_imports_no_underscore_name_from_another_module(fill: Path) -> None:
+    """The end-to-end fills are the completed form of the templates and follow the same rule."""
+    assert _underscore_imports(fill.read_text(encoding="utf-8")) == []
+
+
+def test_the_templates_write_only_the_config_free_analyzer_form() -> None:
+    """No configuration type, no selection converter and no config parameter exists in any generated stub."""
+    analyzer = _rendered("analyzer")
+    assert "ConfigFreeAnalyzer[FreshProbeResult]" in analyzer
+    assert "BaseAnalyzer" not in analyzer.replace("ConfigFreeAnalyzer", "")
+    assert "def run_analysis(self, ticker: str, context: AnalysisContext) -> FreshProbeResult:" in analyzer
+    configuration = re.compile(r"FreshProbeConfig\b|to_fresh_probe_config|\bconfig\b\s*[:,)]")
+    for role in STUB_ROLES:
+        assert not configuration.search(_rendered(role).replace("config_schema_version", "")), role
+
+
+def test_the_execution_and_command_templates_compose_the_profile_and_offer_every_output_flag() -> None:
+    """An ETF can be recognized, and the details, diagnostics and provider-check flags are reachable."""
+    execution = _rendered("execution")
+    assert "profile: InstrumentProfile" in execution
+    assert "provider: object" in execution
+    assert "profile_cache: InstrumentProfileResolver | None = None" in execution
+    command = _rendered("cli")
+    for flag in ('"--details"', '"--diagnostics"', '"--json"', '"--no-cache"'):
+        assert flag in command
+    assert "no_provider_check: bool = NO_PROVIDER_CHECK_OPTION" in command
+    assert "context: typer.Context" in command
+    assert "as_of: str | None = AS_OF_OPTION" in command
+    assert "save_run: bool = SAVE_RUN_OPTION" in command
+    assert "def to_analysis_context(" in _rendered("selection")
