@@ -472,6 +472,7 @@ Approved by the project owner for [issue 210](https://github.com/PeterPontbriand
 | S2 | Anchors that do not move | No patch in `patches.toml` quotes text that adding a real strategy or a Golden case changes: not a tuple's last entry, a case id, a strategy-specific import line, the suite or fixture-set version, or a case count. Anchors use structural text. The suite version and the case counts are bumped by the end-to-end test from the files as they stand, through a `bump` patch. The rule covers every file the patches touch. |
 | S3 | Changing what every strategy provides | The guide gains a section of that title with a table of every file a change to the strategy contract touches, verified against `main`. API.6 follows it for the "glossary terms" edit site and records any file it missed. |
 | S4 | Fills hold bodies only | A fill gives, per function or method name, only the body; the end-to-end test puts it into the generated definition in place of the stub's lines, and the signature, decorators and docstring stay as generated. A section for a name the generated file lacks, or a body for a definition without a stub, fails the test, naming the fill and the name. A fill may add a whole definition that no template generates; each is listed in [D.9](#d9-issue-210-tests). |
+| T1 | The generated result carries the common fields (approved 2026-11-01) | The analyzer template's result class had `ticker` only, a class no real strategy could keep: the shared document header and tail and the normalizer need more, and the fill had to replace the class whole. The template now declares the fields of Piotroski's result that they read (`ticker`, `requested_as_of`, `effective_as_of`, `instrument_profile`, `execution_status`, `reason_code`, `reason`, `input_failure`, `warnings`, `diagnostics`), with its names, types and keyword-only form, its consistency checks for the reason and the provider failure, and the `provider_failure` property. The analyzer body stays a stub. The execution template generates `from_<name>_capture` in full, as `from_piotroski_capture` does, so `execution` is no longer a stub site. The fill format loses `replace`. No Piotroski, production, shared-document, stored-output, schema or help-snapshot change. |
 | S5 | Records | The guide's `catalog` note and its hand-forwarded-capability bullet state the new facts and no longer link the issue. This appendix, [B.8](#b8-issue-210), [C.11](#c11-issue-210-files), [D.9](#d9-issue-210-tests), the pointers in [B.5](#b5-guide-changes-353e2) and the contract's sequence table record the work. |
 
 ---
@@ -800,7 +801,10 @@ Decisions: [A.13](#a13-decisions-s1-to-s5-2026-11-01). Each item below says what
   forwarded. One capability is not covered by construction: `AsFiledSicSource` in `analysis/shared/metric_inputs.py` is
   implemented by the SEC adapter, is not runtime-checkable and is deliberately not forwarded, because composition passes
   the adapter itself (3.5.3d). The test does not exempt it; it lies outside the test's definition, and the guide states
-  so.
+  so. The project owner accepted this (2026-11-01): callers never detect the protocol at run time with `isinstance`, since
+  composition passes the adapter directly and the type checker catches a wrong object, and a protocol that is detected
+  with `isinstance` but not marked runtime-checkable raises `TypeError` on first use, so S1's criterion leaves no silent
+  case.
 - **S2, the patches.** Before, 12 of the 13 patches quoted text that a strategy or a case moves: the `fcf_growth` import line,
   the tuple ends `PIO_02,` and `PIOTROSKI_ARGUMENTS,`, the pinned id `"PIO-02",`, the literal `"h1-v7"`, the literal
   `== 20` (five times), the `FCF_GROWTH_CASES` import and parametrize entry, the five-name loop, the `fcf-growth` entry
@@ -817,7 +821,7 @@ Decisions: [A.13](#a13-decisions-s1-to-s5-2026-11-01). Each item below says what
   `tests/scripts/test_strategy_sites.py` (the pinned site ids), `scripts/strategy_status.py` and its test,
   `tests/scripts/test_new_strategy.py` (the map of stubbed functions), the generic consumer of the member, and the
   specimen's `wiring.py`. Nothing else was found to be missing.
-- **S4, the fills.** Seven fills changed format (see [D.9](#d9-issue-210-tests)). A fill holds its imports, then sections
+- **S4, the fills.** Six fills changed format (see [D.9](#d9-issue-210-tests)). A fill holds its imports, then sections
   opened by `#: body <name>`, `#: add <name>` or `#: replace <name>`. A body replaces the lines after the docstring
   through the `unfilled_stub` call, at the indentation of the generated definition. Proof: in a scratch copy, a keyword
   parameter with a default, `_indent: int = 0`, was added to the signature of `encode_<name>` in the codec template, and
@@ -827,10 +831,12 @@ Decisions: [A.13](#a13-decisions-s1-to-s5-2026-11-01). Each item below says what
   says so in "Changing what every strategy provides". No template or production file changed.
 - **S5, the guide.** The `catalog` note and the hand-forwarded-capability bullet are rewritten, both links to the issue are
   removed, and the guide gains the section of S3.
-- **Strategy-owned result class.** The analyzer template generates the result class with only `ticker`, without a stub, and
-  every strategy extends it. The probe's fill therefore replaces that class whole (`#: replace`), the one place where a
-  fill replaces a definition that has no stub. The alternative, a probe whose result carries no point in time, would
-  change what the probe's stored documents prove.
+- **T1, the generated result.** The first version of the fills replaced the probe's result class whole, because the
+  analyzer template wrote a class with `ticker` only, while the shared document header and tail and
+  `from_<name>_capture` need the fields Piotroski's result declares. T1 ([A.13](#a13-decisions-s1-to-s5-2026-11-01))
+  moves them into the template and generates the normalizer. The probe's fills now give bodies and two `add` sections,
+  and the fill format has no `replace`. The generator's end-to-end test passes, and
+  `tests/scripts/test_new_strategy_label_limits.py` passes at both limits.
 
 ---
 
@@ -1158,19 +1164,28 @@ Commits: the forwarding test, the patches and fills, then the guide and the reco
   ([S2](#a13-decisions-s1-to-s5-2026-11-01)).
 - `tests/scripts/test_new_strategy_end_to_end.py`: `fill_source` for body-only fills, `_apply_patch` with `bump`, one Ruff
   pass over the patched Python files ([S2, S4](#a13-decisions-s1-to-s5-2026-11-01)).
-- `tests/scripts/generator_fills/{analyzer,cli,codec,evaluation,execution,presenter,replay}.py.fill`: bodies only
-  ([S4](#a13-decisions-s1-to-s5-2026-11-01)).
+- `tests/scripts/generator_fills/{analyzer,cli,codec,evaluation,presenter,replay}.py.fill`: bodies only
+  ([S4](#a13-decisions-s1-to-s5-2026-11-01)); `execution.py.fill` is removed, because the normalizer is generated (T1).
+- `tests/scripts/test_new_strategy.py`: the map of stubbed functions drops `from_<name>_capture`; two tests for the
+  generated result and the generated normalizer (T1).
+
+**Templates (T1)**
+
+- `scripts/strategy_templates/analyzer.py.tmpl`: the result class with the common fields, its checks and the
+  `provider_failure` property.
+- `scripts/strategy_templates/execution.py.tmpl`: `from_<name>_capture` in full.
 
 **Documents**
 
 - `docs/TOOL_DEVELOPMENT.md`: the section "Changing what every strategy provides", the `catalog` note, the
-  hand-forwarded-capability bullet.
+  hand-forwarded-capability bullet, and Steps 1 to 3 (the result's common fields and the normalizer are written in full;
+  `execution` is no longer a stub site).
 - `docs/project/milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md`: API.6's Detail.
 - This plan ([A.13](#a13-decisions-s1-to-s5-2026-11-01), [B.5](#b5-guide-changes-353e2), B.8, C.11, D.9) and
   `STEP_3_5_CONTRACT_AND_SLICE_PLAN.md` §2.
 
 Unchanged, and proved so: `tests/expected_output/`, `schemas/` and `docs/user/`; every production file; every template
-under `scripts/strategy_templates/`; `tests/specimen/`.
+under `scripts/strategy_templates/` except the two above; `tests/specimen/`.
 
 ---
 
@@ -1339,19 +1354,24 @@ As written (the file names are in [C.5](#c5-353d-files)):
   `tests/scripts/test_new_strategy_end_to_end.py`, a body goes into a generated signature and nothing else of the
   definition changes; a section for an absent definition, a body for a definition without a stub, a body for a class, an
   `add` of a generated name, a `replace` of a function, a name given twice and a statement before the first section each
-  fail naming the fill and the definition; a `bump` patch writes the successor of each integer it finds and fails when its
+  fail naming the fill and the definition (T1 removes the `replace` case with the `replace` section); a `bump` patch writes the successor of each integer it finds and fails when its
   match count moved.
 - **Whole definitions that fills still supply, each with its reason.**
 
   | Fill | Section | Why a template cannot supply it |
   | :--- | :--- | :--- |
-  | `analyzer.py.fill` | `replace CiProbeResult` | The template generates the result class with `ticker` alone and no stub; the probe's evidence also carries the effective point in time, which its stored documents and replay prove. |
   | `cli.py.fill` | `add _NO_PROVIDER` | The probe reads no provider; the constant is the one value `compose_ci_probe` returns for it, and no strategy-independent template can name it. |
-  | `codec.py.fill` | `add _FIELDS` | The probe's evidence keys, which its decoder checks; they follow from the probe's result class. |
+  | `codec.py.fill` | `add _FIELDS` | The probe's evidence keys, which its decoder checks; they follow from the probe's own result. |
 
-- **Changed on purpose:** the seven fills, to the body-only format, and `patches.toml`, to structural anchors and `bump`.
+  The probe's former `replace CiProbeResult` is gone: the template's result class now declares the common fields, so the
+  fill extends nothing (T1).
+
+- **New for T1:** in `tests/scripts/test_new_strategy.py`, the generated result declares the common fields, in keyword-only
+  form, with `__post_init__` and `provider_failure`, and no stub; the generated normalizer reads the evidence, profile,
+  `execution_status` and `provider_failure`, and is no stub. The map of stubbed functions has none for `execution`.
+- **Changed on purpose:** the six fills, to the body-only format, and `patches.toml`, to structural anchors and `bump`.
   `tests/scripts/test_new_strategy.py` is unchanged: its check of the fills' imports reads the new fills as they are.
-- **Unchanged and still passing:** the generator's end-to-end test (12 tests in its file with the new ones), the stub
+- **Unchanged and still passing:** the generator's end-to-end test (11 tests in its file with the new ones), the stub
   tests, the conformance tests, and the direct-command, strategy-document and help outputs.
 - **Proofs in scratch copies, not committed:** the removed forwarding method (S1), the throwaway Golden case (S2) and the
   template parameter with a default (S4), as [B.8](#b8-issue-210) describes.
