@@ -754,6 +754,10 @@ Commits: the base and every analyzer and call of it, then the plan and document 
 
 **Documents**: `AGENTS.md` (the invocation-envelope bullet), `docs/project/ARCHITECTURE.md` (the analyzer section), the five
 places in `docs/TOOL_DEVELOPMENT.md` that named the old signature (the guide's section rewrite is 3.5.3e2's), and this plan.
+The four the project owner listed are the contract paragraph naming `BaseAnalyzer[ConfigT, ResultT]` and
+`run_analysis(ticker, config, context)`, the FCF-Growth analyzer sentence, and the two table rows (the shared-contract row
+and the strategy-analyzer row); the fifth, found during the work and approved afterwards, is the step-7 row of the run
+walkthrough, "Calls `FCFEarningsGrowthAnalyzer.run_analysis(ticker, config, context)`", now `(ticker, context, config)`.
 
 Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/`, `schemas/`, the help
 snapshot and the generated blocks of `docs/user/`. The tool argument schemas sent to the model do not change.
