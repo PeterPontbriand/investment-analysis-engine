@@ -32,7 +32,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
 
 ## 2. Sequence and status
 
-Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and its issues 207 and 210 are complete ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.4 starts after API.6 merges
+Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and its issues 207 and 210 are complete ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.5 starts after API.6 merges
 ([milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status)).
 
 | Slice | Scope | Status | Completed |
@@ -52,7 +52,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 
 - **Problem:** the milestone plan excluded a GUI and deferred the HTTP API until Step 3.5 closed,
   while potential users do not try the engine because the command line is too hard.
-- **Decision:** a separate GUI application uses a local HTTP API built here, before 3.5.4
+- **Decision:** a separate GUI application uses a local HTTP API built here, before the remaining Step 3.5 strategies
   ([A.1](#a1-a-separate-gui-application-over-a-local-api-2026-10-30)).
 - **Scope:** this plan; the milestone plan's sequence table, §1, §4.12 and exit criteria; the
   deferred delivery-surfaces note; the Discovery Workbook, Master Plan, Evidence Provider Roadmap,

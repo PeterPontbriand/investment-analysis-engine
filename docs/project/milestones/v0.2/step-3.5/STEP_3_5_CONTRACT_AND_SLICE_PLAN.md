@@ -75,8 +75,8 @@ next begins.
 | 3.5.3e1c | [Generated execution, command, refresh and tool bodies](STEP_3_5_3_SLICE_PLAN.md#353e1c--generated-execution-command-refresh-and-tool-bodies) | Complete | 2026-11-01 |
 | Issue 207 | [Align how the existing strategies order their checks and provider requests](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) | Complete | 2026-11-01 |
 | Issue 210 | [Strategy development: four generator and provider shortfalls (3.5.3)](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210) | Complete | 2026-11-01 |
-| 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
+| 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
 | 3.5.6 | [Magic Formula and ranked refresh view](#356--magic-formula-and-ranked-refresh-view) | Planned | |
 | 3.5.7 | [Golden suite and cross-cutting docs](#357--golden-suite-and-cross-cutting-docs) | Planned | |
 
@@ -84,8 +84,9 @@ Issue 207 and issue 210 finish before API.1 ([A.14](#a14-353-sub-slices-and-scop
 
 Once Step 3.5 closes, a person, not an AI agent, reviews [`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md); language and readability criticisms of the guide wait for that review.
 
-3.5.4 starts after work package API's API.6 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
-From 3.5.4 on, "the same completeness as 3.5.3" also covers the glossary-terms edit site that API.6 adds: an
+3.5.5 starts after work package API's API.6 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)),
+and 3.5.4 follows 3.5.5 ([A.15](#a15-355-before-354-2026-11-02)).
+From 3.5.5 on, "the same completeness as 3.5.3" also covers the glossary-terms edit site that API.6 adds: an
 investor glossary entry for each term the strategy's headline cells, statuses and selection fields name
 ([API plan A.4](../api/API_CONTRACT_AND_SLICE_PLAN.md#a4-help-content-in-the-gui-2026-10-30)).
 
@@ -130,7 +131,7 @@ Every Step 3.5 strategy slice records in its plan's implementation record every 
 
 **Repetition checkpoint.** All seven strategies read SEC annual filings only and share the same selection
 fields, so their wiring is expected to be near-identical. The first strategy slice (3.5.3) owns a review
-before the second strategy starts (3.5.4a):
+before the second strategy starts (3.5.5a):
 
 - **Review:** compare Piotroski's final wiring files with the generator's stubs and list every region that
   differs only by strategy name, identifier or type.
@@ -144,7 +145,7 @@ before the second strategy starts (3.5.4a):
   base class or a registry; existing strategies' behavior and output do not change. Where nothing repeated,
   record that none was found.
 - **Exit condition:** 3.5.3's implementation record states the regions found and the helpers extracted, or
-  that none was found, and the extraction is merged. The 3.5.4a slice plan is not accepted until it does.
+  that none was found, and the extraction is merged. The 3.5.5a slice plan is not accepted until it does.
 
 **Mappings are hypotheses until proven.** The taxonomy concepts named in these documents are
 candidates. A mapping becomes a production mapping only after captured filings show its meaning,
@@ -243,6 +244,17 @@ its own quality gate and authorization.
   [Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score) and the
   [slice plan for 3.5.3a to 3.5.3e](STEP_3_5_3_SLICE_PLAN.md).
 
+### 3.5.5 — Valuation multiples, Interest Coverage and ROIC
+
+- **Problem:** three single-ticker analyzers that consume the 3.5.2 metrics directly.
+- **Decision:** the valuation strategy reports EV/EBITDA and FCF yield only. Interest Coverage
+  uses gross interest expense only. ROIC uses one NOPAT definition and a guarded three-year
+  incremental view.
+- **Scope:** three analyzers with the same completeness as 3.5.3.
+- **Detail:** [Strategy specifications §4, §6, §7](STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples)
+  and [Slice inputs §7](STEP_3_5_SLICE_INPUTS.md#7-355--valuation-multiples-interest-coverage-and-roic).
+  ⚠ no slice plan yet
+
 ### 3.5.4 — Altman Z-Score and Beneish M-Score
 
 - **Problem:** both are distress and accounting-risk screens that must refuse financial issuers
@@ -254,17 +266,6 @@ its own quality gate and authorization.
 - **Scope:** both analyzers with the same completeness as 3.5.3.
 - **Detail:** [Strategy specifications §2–§3](STEP_3_5_STRATEGY_SPECIFICATIONS.md#2-altman-z-score)
   and [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-beneish). ⚠ no slice plan yet
-
-### 3.5.5 — Valuation multiples, Interest Coverage and ROIC
-
-- **Problem:** three single-ticker analyzers that consume the 3.5.2 metrics directly.
-- **Decision:** the valuation strategy reports EV/EBITDA and FCF yield only. Interest Coverage
-  uses gross interest expense only. ROIC uses one NOPAT definition and a guarded three-year
-  incremental view.
-- **Scope:** three analyzers with the same completeness as 3.5.3.
-- **Detail:** [Strategy specifications §4, §6, §7](STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples)
-  and [Slice inputs §7](STEP_3_5_SLICE_INPUTS.md#7-355--valuation-multiples-interest-coverage-and-roic).
-  ⚠ no slice plan yet
 
 ### 3.5.6 — Magic Formula and ranked refresh view
 
@@ -590,3 +591,12 @@ Decided by the project owner while the [3.5.3 slice plan](STEP_3_5_3_SLICE_PLAN.
 | Repetition checkpoint split (E1, F11) | 3.5.3e as one sub-slice | Three: 3.5.3e1 the review, the extraction and the template changes (complete 2026-11-01); 3.5.3e1b one analyzer base, `BaseAnalyzer[ResultT, *ConfigT]`, replacing `BaseAnalyzer[ConfigT, ResultT]` and `ConfigFreeAnalyzer` (complete 2026-11-01); 3.5.3e2 the guide fixes, the Site 19 record and the issues (complete 2026-11-01) | The extraction and the analyzer base change code and stored nothing new; the guide and the records are documentation only, so each has its own gate |
 | Guide, Site 19 and issues (F1 to F10) | Guide fixes "where in scope", Site 19 weighed in 3.5.3 | Every B.2 fact placed in `docs/TOOL_DEVELOPMENT.md` or the one shortfall issue ([#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210)); stale facts corrected; Site 19 weighed with no change to the watchlist syntax and decided with API.3; issue [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) and #210 all finish before API.1, after 3.5.3e1c (generated bodies for the execution function, command, refresh and tool handler); every strategy slice records the guide's shortfalls and fixes the guide in the same slice where in scope | A reader of the guide is told each fact the work met; the order of the follow-up work is recorded where slice order lives |
 | Generated bodies (H1 to H6) | The templates wrote the signatures and flags of the execution function and the command, with stub bodies | Complete bodies for `execute_<name>`, the command, `refresh`, `build_selection` and the tool handler, through the shared helpers; five stubs remain (the analyzer, `compose_<name>(executed_at)`, `from_<name>_capture`, the presenter and the evaluation compose); `compose_piotroski` takes the same signature; `HELP_TARGETS` follows the declared strategies (complete 2026-11-01) | A new strategy starts with its invocation envelope written and only its own composition to fill, and the end-to-end generator test runs the generated bodies |
+
+### A.15 3.5.5 before 3.5.4 (2026-11-02)
+
+Decided by the project owner after potential users asked for EV/EBITDA and FCF yield next.
+
+| Topic | Before | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| Order of 3.5.4 and 3.5.5 | 3.5.4 (Altman Z-Score and Beneish M-Score) first, 3.5.5 (valuation multiples, Interest Coverage and ROIC) second | 3.5.5 runs first and 3.5.4 follows it; 3.5.5a, valuation multiples, is the first strategy slice after API.6 | Potential users want to cross-check valuation from two independent angles rather than rely on the Graham Number alone (answer A5 in IAD's charter) |
+| Numbers | 3.5.4, 3.5.5 and their sub-slices | Kept; only the order changes | Many records, including verbatim decision appendices, cite those numbers |
