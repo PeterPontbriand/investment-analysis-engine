@@ -18,7 +18,7 @@ from __future__ import annotations
 import base64
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 
 import pytest
 
@@ -118,7 +118,9 @@ def _wrapped_exception(call: pytest.CallInfo[object]) -> BaseException | None:
 
 
 @pytest.hookimpl(wrapper=True)
-def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[object]) -> object:
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo[object]
+) -> Generator[None, pytest.TestReport, pytest.TestReport]:
     """Attach one ``socket snapshot`` section to the first report whose failure carries ``WinError 10055``."""
     report = yield
     try:
@@ -129,7 +131,6 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[object]) 
         if (
             collector is not None
             and not stash.get(_SNAPSHOT_TAKEN, False)
-            and isinstance(report, pytest.TestReport)
             and report.failed
             and _is_buffer_exhaustion(_wrapped_exception(call))
         ):

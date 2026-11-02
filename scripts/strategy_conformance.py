@@ -1334,7 +1334,7 @@ def _type_parts(field_type: object) -> Iterator[object]:
         yield from _type_parts(argument)
 
 
-def descriptor_is_closed_gaps() -> list[str]:
+def descriptor_is_closed_gaps(strategies: Sequence[StrategyDescriptor] = STRATEGIES) -> list[str]:
     """T15: the descriptor, its behavior bundle and the closed tuple have exactly the documented shape."""
     gaps: list[str] = []
     fields = {field.name: field.type for field in dataclasses.fields(StrategyDescriptor)}
@@ -1353,12 +1353,12 @@ def descriptor_is_closed_gaps() -> list[str]:
                 gaps.append(f"descriptor field {name} mentions an analyzer class")
             if get_origin(part) is Callable or part is Callable:
                 gaps.append(f"descriptor field {name} is a callable")
-    if not isinstance(STRATEGIES, tuple):
+    if not isinstance(strategies, tuple):
         gaps.append("STRATEGIES is not a tuple")
-    elif STRATEGIES:
-        if not _is_frozen(STRATEGIES[0], "analysis_id"):
+    elif strategies:
+        if not _is_frozen(strategies[0], "analysis_id"):
             gaps.append("StrategyDescriptor is not frozen")
-        behavior = STRATEGIES[0].behavior
+        behavior = strategies[0].behavior
         if not isinstance(behavior, StrategyBehavior) or not _is_frozen(behavior, "result_type"):
             gaps.append("StrategyBehavior is not frozen")
     return gaps

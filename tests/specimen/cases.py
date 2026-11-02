@@ -21,4 +21,4 @@ class SpecimenCase:
 SPECIMEN_ARGUMENTS: Final = SpecimenToolArguments(ticker="SPEC", value=3.0)
 """The reviewed arguments: 3.0 scaled by the fixture composition's multiplier of 2.0 is 6.0."""
 
-SPECIMEN_CASES: Final = (SpecimenCase(case_id="SPC-01", arguments=SPECIMEN_ARGUMENTS),)
+SPECIMEN_CASES: Final[tuple[SpecimenCase, ...]] = (SpecimenCase(case_id="SPC-01", arguments=SPECIMEN_ARGUMENTS),)

@@ -3,10 +3,9 @@
 Every market-data provider here is a fixture, so no test reaches a live service.
 """
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, date, datetime
+from types import TracebackType
 from unittest.mock import patch
 
 import pytest
@@ -113,19 +112,32 @@ class SplitFailsProvider(FixtureSplitHistoryProvider):
         raise DataFetchError(SECRET, kind=ProviderFailureKind.RATE_LIMITED, provider_id="yfinance")
 
 
+class _ScopeThatCannotOpen:
+    """An analysis scope that fails when it is entered, not when it is requested."""
+
+    def __enter__(self) -> None:
+        raise FinancialProviderError(SECRET, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID)
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        return None
+
+
 class ScopeFailsProvider(SpyProvider):
     """A provider whose analysis scope cannot open: the registrant has no annual report at all (case a)."""
 
-    @contextmanager
     def analysis_scope(
         self,
         *,
         subject_id: str,  # noqa: ARG002
         provider_id: str,  # noqa: ARG002
         as_of: datetime | None,  # noqa: ARG002
-    ) -> Iterator[None]:
-        raise FinancialProviderError(SECRET, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID)
-        yield
+    ) -> _ScopeThatCannotOpen:
+        return _ScopeThatCannotOpen()
 
 
 class AfterBoundaryProvider(SpyProvider):
