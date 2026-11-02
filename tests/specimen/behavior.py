@@ -6,6 +6,8 @@ the specimen must never be added to. The specimen therefore implements the erase
 its types cross the bound only through :mod:`tests.specimen.closed_types`.
 """
 
+from pydantic import BaseModel
+
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import undeclared
@@ -16,7 +18,7 @@ from investment_analysis_engine.workspace.strategy_types import NativeEvidence
 from tests.specimen.analyzer import SpecimenResult
 from tests.specimen.closed_types import as_native_evidence, as_native_handler, native_evidence_type
 from tests.specimen.codec import decode_specimen, encode_specimen, specimen_native_status, specimen_ticker
-from tests.specimen.replay import headline_specimen, project_specimen
+from tests.specimen.replay import headline_specimen, project_specimen, project_specimen_document
 from tests.specimen.selection import SpecimenSelection
 from tests.specimen.tool import SpecimenToolDependencies, SpecimenToolHandler
 
@@ -67,3 +69,11 @@ class SpecimenBehavior:
         if type(selection) is not SpecimenSelection:
             raise undeclared("selection type", type(selection))
         return project_specimen(inputs, evidence, selection, options)
+
+    def document_for(self, inputs: ReplayInputs, evidence: object, selection: object, /) -> BaseModel:
+        """Return the document of ``evidence`` and ``selection``, which must be exactly the specimen's types."""
+        if type(evidence) is not SpecimenResult:
+            raise undeclared("result type", type(evidence))
+        if type(selection) is not SpecimenSelection:
+            raise undeclared("selection type", type(selection))
+        return project_specimen_document(inputs, evidence, selection)

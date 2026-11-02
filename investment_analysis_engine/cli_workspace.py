@@ -53,11 +53,14 @@ from investment_analysis_engine.core.strategy_errors import find, require
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
+from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
 from investment_analysis_engine.strategy_wiring import (
     BY_ALIAS,
     BY_METHOD_ID,
+    DOCUMENTS_BY_KEY,
     EVIDENCE_BY_KEY,
     REPLAYS_BY_KEY,
     RUN_SPECS_BY_KEY,
@@ -99,7 +102,7 @@ from investment_analysis_engine.workspace.watchlists import (
     normalize_ticker,
 )
 from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
-from investment_analysis_engine.workspace_documents.run_replay import project_run
+from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument, RunSummaryDocument
 from investment_analysis_engine.workspace_documents.runs_compare import (
     CompareColumn,
@@ -913,7 +916,12 @@ def runs_show(
             json_output=json_output,
         )
     try:
-        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+        if mode is PresentationMode.JSON:
+            rendered = strategy_document_json(
+                project_run_document(run, codecs=EVIDENCE_BY_KEY, documents=DOCUMENTS_BY_KEY)
+            )
+        else:
+            rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
     except (UnsupportedProjectionError, UnsupportedRunVersionError, InvalidStoredRunError) as exc:
         _fail_with(exc, json_output=json_output)
     typer.echo(rendered)

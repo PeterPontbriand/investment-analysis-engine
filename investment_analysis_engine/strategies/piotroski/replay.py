@@ -8,7 +8,13 @@ from datetime import UTC, datetime, time
 from investment_analysis_engine.reporting.headline import CellKind, Headline, HeadlineCell
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
-from investment_analysis_engine.strategies.piotroski.presenter import completeness_text, render_piotroski, score_text
+from investment_analysis_engine.strategies.piotroski.envelope import PiotroskiDocument
+from investment_analysis_engine.strategies.piotroski.presenter import (
+    completeness_text,
+    piotroski_document,
+    render_piotroski,
+    score_text,
+)
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
 
 
@@ -22,6 +28,14 @@ def project_piotroski(
     """
     del selection
     return render_piotroski(evidence, options.mode, instrument_profile=inputs.instrument_profile)
+
+
+def project_piotroski_document(
+    inputs: ReplayInputs, evidence: PiotroskiResult, selection: PiotroskiSelection
+) -> PiotroskiDocument:
+    """Return the Piotroski F-Score document from stored evidence only, as the live JSON mode writes it."""
+    del selection
+    return piotroski_document(evidence, instrument_profile=inputs.instrument_profile)
 
 
 def headline_piotroski(result: PiotroskiResult) -> Headline:

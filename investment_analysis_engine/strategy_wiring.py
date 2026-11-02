@@ -23,7 +23,12 @@ from investment_analysis_engine.orchestrator.analysis_tool_arguments import Anal
 from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler, ToolHandlerBinder, ToolRuntime
 from investment_analysis_engine.reporting.headline import Headline
-from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions, ReplayProjector
+from investment_analysis_engine.reporting.replay_inputs import (
+    ReplayDocumentProjector,
+    ReplayInputs,
+    ReplayOptions,
+    ReplayProjector,
+)
 from investment_analysis_engine.strategies.fcf_growth.codec import (
     decode_fcf_growth,
     encode_fcf_growth,
@@ -34,7 +39,11 @@ from investment_analysis_engine.strategies.fcf_growth.envelope import FCFDocumen
 from investment_analysis_engine.strategies.fcf_growth.models import METHOD_VERSION as FCF_GROWTH_METHOD_VERSION
 from investment_analysis_engine.strategies.fcf_growth.models import SCHEMA_VERSION as FCF_GROWTH_RESULT_SCHEMA_VERSION
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from investment_analysis_engine.strategies.fcf_growth.replay import headline_fcf_growth, project_fcf_growth
+from investment_analysis_engine.strategies.fcf_growth.replay import (
+    headline_fcf_growth,
+    project_fcf_growth,
+    project_fcf_growth_document,
+)
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.fcf_growth.tool import (
     FCFEarningsGrowthToolArguments,
@@ -53,7 +62,11 @@ from investment_analysis_engine.strategies.graham_growth.codec import (
     graham_growth_ticker,
 )
 from investment_analysis_engine.strategies.graham_growth.envelope import GrahamGrowthDocument
-from investment_analysis_engine.strategies.graham_growth.replay import headline_graham_growth, project_graham_growth
+from investment_analysis_engine.strategies.graham_growth.replay import (
+    headline_graham_growth,
+    project_graham_growth,
+    project_graham_growth_document,
+)
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 from investment_analysis_engine.strategies.graham_growth.settings import GrahamGrowthSettings
@@ -74,7 +87,11 @@ from investment_analysis_engine.strategies.graham_number.codec import (
     graham_number_ticker,
 )
 from investment_analysis_engine.strategies.graham_number.envelope import GrahamNumberDocument
-from investment_analysis_engine.strategies.graham_number.replay import headline_graham_number, project_graham_number
+from investment_analysis_engine.strategies.graham_number.replay import (
+    headline_graham_number,
+    project_graham_number,
+    project_graham_number_document,
+)
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.graham_number.tool import (
@@ -95,7 +112,11 @@ from investment_analysis_engine.strategies.momentum.codec import (
     momentum_ticker,
 )
 from investment_analysis_engine.strategies.momentum.envelope import MomentumDocument
-from investment_analysis_engine.strategies.momentum.replay import headline_momentum, project_momentum
+from investment_analysis_engine.strategies.momentum.replay import (
+    headline_momentum,
+    project_momentum,
+    project_momentum_document,
+)
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 from investment_analysis_engine.strategies.momentum.tool import (
@@ -116,7 +137,11 @@ from investment_analysis_engine.strategies.piotroski.codec import (
     piotroski_ticker,
 )
 from investment_analysis_engine.strategies.piotroski.envelope import PiotroskiDocument
-from investment_analysis_engine.strategies.piotroski.replay import headline_piotroski, project_piotroski
+from investment_analysis_engine.strategies.piotroski.replay import (
+    headline_piotroski,
+    project_piotroski,
+    project_piotroski_document,
+)
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
 from investment_analysis_engine.strategies.piotroski.tool import (
     PiotroskiToolArguments,
@@ -169,6 +194,10 @@ class BehaviorView(Protocol):
         """Render a stored run's decoded ``evidence`` and ``selection``, which must be exactly this strategy's types."""
         ...
 
+    def document_for(self, inputs: ReplayInputs, evidence: object, selection: object, /) -> BaseModel:
+        """Return a stored run's typed document; ``evidence`` and ``selection`` must be this strategy's exact types."""
+        ...
+
 
 @dataclass(frozen=True)
 class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
@@ -187,6 +216,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     native_status: Callable[[ResultT], CalculationStatus]
     headline: Callable[[ResultT], Headline]
     project: Callable[[ReplayInputs, ResultT, SelT, ReplayOptions], str]
+    document: Callable[[ReplayInputs, ResultT, SelT], BaseModel]
 
     def encode_object(self, evidence: object, /) -> StrictJsonMapping:
         """Encode ``evidence``, which must be exactly this strategy's result type."""
@@ -229,6 +259,14 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
             raise undeclared("selection type", type(selection))
         return self.project(inputs, evidence, selection, options)
 
+    def document_for(self, inputs: ReplayInputs, evidence: object, selection: object, /) -> BaseModel:
+        """Return the document of ``evidence`` and ``selection``, which must be exactly this strategy's types."""
+        if not isinstance(evidence, self.result_type) or type(evidence) is not self.result_type:
+            raise undeclared("result type", type(evidence))
+        if not isinstance(selection, self.selection_type) or type(selection) is not self.selection_type:
+            raise undeclared("selection type", type(selection))
+        return self.document(inputs, evidence, selection)
+
 
 @dataclass(frozen=True)
 class StrategyDescriptor:
@@ -261,6 +299,7 @@ MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, Mome
     native_status=momentum_native_status,
     headline=headline_momentum,
     project=project_momentum,
+    document=project_momentum_document,
 )
 GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
     GrahamNumberSelection, GrahamNumberAnalysis, GrahamNumberToolDependencies
@@ -275,6 +314,7 @@ GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
     native_status=graham_number_native_status,
     headline=headline_graham_number,
     project=project_graham_number,
+    document=project_graham_number_document,
 )
 GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     GrahamGrowthSelection, GrahamGrowthAnalysis, GrahamGrowthToolDependencies
@@ -289,6 +329,7 @@ GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     native_status=graham_growth_native_status,
     headline=headline_graham_growth,
     project=project_graham_growth,
+    document=project_graham_growth_document,
 )
 FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     FCFGrowthSelection, FCFEarningsGrowthResult, FCFEarningsGrowthToolDependencies
@@ -303,6 +344,7 @@ FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     native_status=fcf_growth_native_status,
     headline=headline_fcf_growth,
     project=project_fcf_growth,
+    document=project_fcf_growth_document,
 )
 
 MOMENTUM: Final = StrategyDescriptor(
@@ -381,6 +423,7 @@ PIOTROSKI_BEHAVIOR: Final = StrategyBehavior[PiotroskiSelection, PiotroskiResult
     native_status=piotroski_native_status,
     headline=headline_piotroski,
     project=project_piotroski,
+    document=project_piotroski_document,
 )
 PIOTROSKI: Final = StrategyDescriptor(
     analysis_id=PIOTROSKI_ANALYSIS_ID,
@@ -557,6 +600,15 @@ def replays_by_key(descriptors: tuple[StrategyDescriptor, ...]) -> Mapping[tuple
     )
 
 
+def documents_by_key(
+    descriptors: tuple[StrategyDescriptor, ...],
+) -> Mapping[tuple[str, str], ReplayDocumentProjector]:
+    """Return each descriptor's replay document projector keyed by ``(analysis_id, method_id)``, read-only."""
+    return MappingProxyType(
+        {(descriptor.analysis_id, descriptor.method_id): descriptor.behavior.document_for for descriptor in descriptors}
+    )
+
+
 def headlines_by_key(
     descriptors: tuple[StrategyDescriptor, ...],
 ) -> Mapping[tuple[str, str], Callable[[object], Headline]]:
@@ -569,6 +621,7 @@ def headlines_by_key(
 EVIDENCE_BY_KEY: Final = evidence_by_key(STRATEGIES)
 RUN_SPECS_BY_KEY: Final = run_specs_by_key(STRATEGIES)
 REPLAYS_BY_KEY: Final = replays_by_key(STRATEGIES)
+DOCUMENTS_BY_KEY: Final = documents_by_key(STRATEGIES)
 HEADLINES_BY_KEY: Final = headlines_by_key(STRATEGIES)
 
 

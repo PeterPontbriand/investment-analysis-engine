@@ -9,8 +9,10 @@ from investment_analysis_engine.strategies._graham.replay import (
     margin_cell,
     price_cell,
 )
+from investment_analysis_engine.strategies.graham_number.envelope import GrahamNumberDocument
 from investment_analysis_engine.strategies.graham_number.presenter import (
     GrahamNumberPresentation,
+    graham_number_document,
     number_with_public_quote_reason,
     render_graham_number,
 )
@@ -18,17 +20,17 @@ from investment_analysis_engine.strategies.graham_number.selection import Graham
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 
 
-def project_graham_number(
-    inputs: ReplayInputs, evidence: GrahamNumberAnalysis, selection: GrahamNumberSelection, options: ReplayOptions
-) -> str:
-    """Reconstruct a Graham Number presentation from stored evidence only.
+def _presentation(
+    inputs: ReplayInputs, evidence: GrahamNumberAnalysis, selection: GrahamNumberSelection
+) -> GrahamNumberPresentation:
+    """Reconstruct the Graham Number presentation both projections show from stored evidence only.
 
     Identity/kind evidence comes from the run's own ``instrument_profile`` rather than the native analysis's
     copy: the analyzer may leave `GrahamNumberAnalysis.instrument_profile` unset, so replay must use the
     profile captured on the run itself to render identity correctly.
     """
     del selection
-    presentation = GrahamNumberPresentation(
+    return GrahamNumberPresentation(
         ticker=evidence.ticker,
         assembly=number_with_public_quote_reason(friendly_graham_assembly(inputs.ticker, evidence.assembly)),
         result=evidence.result,
@@ -38,7 +40,20 @@ def project_graham_number(
         instrument_profile=inputs.instrument_profile,
         price_comparison=evidence.price_comparison,
     )
-    return render_graham_number(presentation, options.mode)
+
+
+def project_graham_number(
+    inputs: ReplayInputs, evidence: GrahamNumberAnalysis, selection: GrahamNumberSelection, options: ReplayOptions
+) -> str:
+    """Render the reconstructed Graham Number presentation in the requested text mode."""
+    return render_graham_number(_presentation(inputs, evidence, selection), options.mode)
+
+
+def project_graham_number_document(
+    inputs: ReplayInputs, evidence: GrahamNumberAnalysis, selection: GrahamNumberSelection
+) -> GrahamNumberDocument:
+    """Return the reconstructed Graham Number document, as the JSON mode of the live command writes it."""
+    return graham_number_document(_presentation(inputs, evidence, selection))
 
 
 def headline_graham_number(analysis: GrahamNumberAnalysis) -> Headline:

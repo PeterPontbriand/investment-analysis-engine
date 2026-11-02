@@ -70,11 +70,14 @@ from investment_analysis_engine.orchestrator.analysis_tools import register_anal
 from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
 from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler
+from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import (
+    ReplayDocumentProjector,
     ReplayInputs,
     ReplayOptions,
     ReplayProjector,
+    TextPresentationMode,
     UnsupportedProjectionError,
 )
 from investment_analysis_engine.strategy_wiring import (
@@ -84,6 +87,7 @@ from investment_analysis_engine.strategy_wiring import (
     StrategyDescriptor,
     bind_handlers,
     build_indexes,
+    documents_by_key,
     evidence_by_key,
     replays_by_key,
     run_spec_for,
@@ -97,12 +101,19 @@ from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
 from investment_analysis_engine.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
-from investment_analysis_engine.workspace_documents.run_replay import project_run
+from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
 from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
 from scripts.generate_strategy_docs import GENERATOR, BlockError, block_problem, current_body, strategy_list_blocks
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import Gap, Site, StrategyNames, load_sites
 from tests.test_no_unfilled_stubs import unfilled_stub_calls
+
+TEXT_PRESENTATION_MODES: tuple[TextPresentationMode, ...] = (
+    PresentationMode.CONCISE,
+    PresentationMode.DETAILS,
+    PresentationMode.DIAGNOSTICS,
+)
+"""The modes a text projection renders; the JSON mode is the document projection's."""
 
 _FIXTURE_CLOCK = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
 
@@ -136,6 +147,7 @@ BEHAVIOR_MEMBERS: frozenset[str] = frozenset(
         "native_status",
         "headline",
         "project",
+        "document",
     }
 )
 """The documented members of a strategy's behavior bundle."""
@@ -158,7 +170,16 @@ CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "refresh", "c
 """The documented fields of a CLI-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset(
-    {"result_type", "encode_object", "decode_for", "native_status_of", "headline_for", "bind_handler", "project_for"}
+    {
+        "result_type",
+        "encode_object",
+        "decode_for",
+        "native_status_of",
+        "headline_for",
+        "bind_handler",
+        "project_for",
+        "document_for",
+    }
 )
 """The behavior members that generic consumers can reach, through the erased view."""
 
@@ -569,7 +590,12 @@ type RunDecoder = Callable[[Mapping[tuple[str, str], EvidenceCodec]], NativeEvid
 type RunProjector = Callable[
     [ReplayOptions, Mapping[tuple[str, str], EvidenceCodec], Mapping[tuple[str, str], ReplayProjector]], str
 ]
-"""Replay one stored run with the supplied codecs and projectors, as its kind of run does."""
+"""Replay one stored run as text with the supplied codecs and projectors, as its kind of run does."""
+
+type RunDocumentProjector = Callable[
+    [Mapping[tuple[str, str], EvidenceCodec], Mapping[tuple[str, str], ReplayDocumentProjector]], BaseModel
+]
+"""Replay one stored run as its typed document with the supplied codecs and projectors, as its kind of run does."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -577,7 +603,8 @@ class StoredRun:
     """One descriptor's result and the run stored for it, with how that kind of run is decoded and replayed.
 
     A production run is an ``AnalysisRun``, whose selection the closed production union validates; the specimen
-    stores a run of its own, so each entry carries the two functions that decode and replay its run.
+    stores a run of its own, so each entry carries the functions that decode its run and replay it as text and as a
+    document.
     """
 
     descriptor: StrategyDescriptor
@@ -587,6 +614,7 @@ class StoredRun:
     run: RunRecord
     decode: RunDecoder
     project: RunProjector
+    project_document: RunDocumentProjector
 
 
 def _production_stored(
@@ -604,7 +632,13 @@ def _production_stored(
     ) -> str:
         return project_run(run, options, codecs=codecs, replays=replays)
 
-    return StoredRun(item, selection, result, run.ticker, run, decode, project)
+    def project_document(
+        codecs: Mapping[tuple[str, str], EvidenceCodec],
+        documents: Mapping[tuple[str, str], ReplayDocumentProjector],
+    ) -> BaseModel:
+        return project_run_document(run, codecs=codecs, documents=documents)
+
+    return StoredRun(item, selection, result, run.ticker, run, decode, project, project_document)
 
 
 def stored_runs(
@@ -700,16 +734,17 @@ def replay_gaps(
     tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
     local_runs: Sequence[StoredRun] = (),
 ) -> list[str]:
-    """T8 (replay): each stored run replays in every mode and writes the document its descriptor declares.
+    """T8 (replay): each stored run replays in every text mode and as the document its descriptor declares.
 
-    The JSON replay must validate against the descriptor's ``json_envelope``. A strategy with no stored run is
-    reported by T8's round trip, not here.
+    The document replay must be an instance of the descriptor's ``json_envelope`` and validate against it. A strategy
+    with no stored run is reported by T8's round trip, not here.
     """
     gaps: list[str] = []
     codecs = evidence_by_key(descriptors)
     replays = replays_by_key(descriptors)
+    documents = documents_by_key(descriptors)
     for entry in stored_runs(descriptors, tier, local_runs):
-        gaps.extend(_replay_entry_gaps(entry, codecs, replays))
+        gaps.extend(_replay_entry_gaps(entry, codecs, replays, documents))
     return gaps
 
 
@@ -717,11 +752,12 @@ def _replay_entry_gaps(
     entry: StoredRun,
     codecs: Mapping[tuple[str, str], EvidenceCodec],
     replays: Mapping[tuple[str, str], ReplayProjector],
+    documents: Mapping[tuple[str, str], ReplayDocumentProjector],
 ) -> list[str]:
-    """T8 (replay) for one stored run: it replays in every mode and its JSON validates as the declared envelope."""
+    """T8 (replay) for one stored run: it replays in every text mode and as a document of the declared envelope."""
     item = entry.descriptor
     gaps: list[str] = []
-    for mode in PresentationMode:
+    for mode in TEXT_PRESENTATION_MODES:
         try:
             text = entry.project(ReplayOptions(mode=mode), codecs, replays)
         except Exception as error:
@@ -729,14 +765,36 @@ def _replay_entry_gaps(
             continue
         if not text.strip():
             gaps.append(f"strategy {label(item)}: replay in {mode.value} mode is empty")
-        if mode is not PresentationMode.JSON:
-            continue
-        try:
-            item.json_envelope.model_validate_json(text)
-        except ValidationError as error:
-            gaps.append(
-                f"strategy {label(item)}: the replayed JSON does not validate as {item.json_envelope.__name__}: {error}"
-            )
+    try:
+        document = entry.project_document(codecs, documents)
+    except Exception as error:
+        gaps.append(f"strategy {label(item)}: replay in json mode raised {type(error).__name__}: {error}")
+        return gaps
+    try:
+        item.json_envelope.model_validate_json(strategy_document_json(document))
+    except ValidationError as error:
+        gaps.append(
+            f"strategy {label(item)}: the replayed JSON does not validate as {item.json_envelope.__name__}: {error}"
+        )
+        return gaps
+    if not isinstance(document, item.json_envelope):
+        gaps.append(
+            f"strategy {label(item)}: the replayed document is a {type(document).__name__}, "
+            f"not a {item.json_envelope.__name__}"
+        )
+    return gaps
+    if not isinstance(document, item.json_envelope):
+        gaps.append(
+            f"strategy {label(item)}: the replayed document is a {type(document).__name__}, "
+            f"not a {item.json_envelope.__name__}"
+        )
+        return gaps
+    try:
+        item.json_envelope.model_validate_json(strategy_document_json(document))
+    except ValidationError as error:
+        gaps.append(
+            f"strategy {label(item)}: the replayed JSON does not validate as {item.json_envelope.__name__}: {error}"
+        )
     return gaps
 
 
@@ -932,6 +990,28 @@ def _workspace_probes(
             gaps,
             f"{label(item)} project_run without its replay projector",
             partial(entry.project, replay_options, by_key, replays_without_own),
+            UnsupportedProjectionError,
+            names=item.method_id,
+        )
+        _expect_undeclared(
+            gaps,
+            f"{label(item)} document_for(object evidence)",
+            partial(item.behavior.document_for, inputs, object(), entry.selection),
+        )
+        _expect_undeclared(
+            gaps,
+            f"{label(item)} document_for(object selection)",
+            partial(item.behavior.document_for, inputs, entry.result, object()),
+        )
+        documents_without_own = {
+            key: value
+            for key, value in documents_by_key(descriptors).items()
+            if key != (item.analysis_id, item.method_id)
+        }
+        _expect_error(
+            gaps,
+            f"{label(item)} project_run_document without its document projector",
+            partial(entry.project_document, by_key, documents_without_own),
             UnsupportedProjectionError,
             names=item.method_id,
         )
@@ -2232,7 +2312,12 @@ def _replays(item: StrategyDescriptor, context: SiteContext) -> list[str]:
     entry = context.stored_run(item)
     if entry is None:
         return [_no_stored_run(item)]
-    return _replay_entry_gaps(entry, evidence_by_key(context.descriptors), replays_by_key(context.descriptors))
+    return _replay_entry_gaps(
+        entry,
+        evidence_by_key(context.descriptors),
+        replays_by_key(context.descriptors),
+        documents_by_key(context.descriptors),
+    )
 
 
 def site_presenter(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:

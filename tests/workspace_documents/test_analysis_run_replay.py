@@ -3,6 +3,7 @@
 import json
 from dataclasses import replace
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import patch
 from uuid import UUID
 
@@ -18,8 +19,13 @@ from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
     fixture_known_etf_profile,
 )
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
+from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.presentation import PresentationMode
-from investment_analysis_engine.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
+from investment_analysis_engine.reporting.replay_inputs import (
+    ReplayOptions,
+    TextPresentationMode,
+    UnsupportedProjectionError,
+)
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.graham_growth.calculation import (
@@ -38,13 +44,13 @@ from investment_analysis_engine.strategies.graham_number.service import GrahamNu
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
 from investment_analysis_engine.strategies.momentum.execution import run_momentum
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
-from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
+from investment_analysis_engine.strategy_wiring import DOCUMENTS_BY_KEY, EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.codecs import decode_evidence
 from investment_analysis_engine.workspace.execution import execute
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun
-from investment_analysis_engine.workspace_documents.run_replay import project_run
+from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
 from tests._wiring import encode_native
 from tests.workspace.test_fcf_growth_codec import _result as _fcf_codec_result
 
@@ -65,6 +71,33 @@ class _FakeSink:
 
     def insert(self, run: AnalysisRun) -> None:
         del run
+
+
+_TEXT_MODES: tuple[TextPresentationMode, ...] = (
+    PresentationMode.CONCISE,
+    PresentationMode.DETAILS,
+    PresentationMode.DIAGNOSTICS,
+)
+
+
+def _document_text(run: AnalysisRun) -> str:
+    """Return the run's document projection serialized as the JSON mode writes it."""
+    return strategy_document_json(project_run_document(run, codecs=EVIDENCE_BY_KEY, documents=DOCUMENTS_BY_KEY))
+
+
+def _document_payload(run: AnalysisRun) -> dict[str, Any]:
+    """Return the run's document projection as the JSON it serializes to."""
+    payload: dict[str, Any] = json.loads(_document_text(run))
+    return payload
+
+
+def _every_mode(run: AnalysisRun) -> list[str]:
+    """Return the run's three text projections and its serialized document projection."""
+    texts = [
+        project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+        for mode in _TEXT_MODES
+    ]
+    return [*texts, _document_text(run)]
 
 
 def _build_run(profile: InstrumentProfile | None = None) -> AnalysisRun:
@@ -190,17 +223,14 @@ def test_project_run_renders_the_captured_profile_not_the_native_evidence_copy()
 
 def test_project_run_all_modes_render_from_the_reopened_run() -> None:
     run = _build_run()
-    for mode in PresentationMode:
-        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+    for rendered in _every_mode(run):
         assert rendered
         assert "AAPL" in rendered
 
 
 def test_project_run_json_matches_the_run_owns_captured_values() -> None:
     run = _build_run()
-    payload = json.loads(
-        project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
-    )
+    payload = _document_payload(run)
     assert payload["result"]["sma_spread"] == 999.0
     assert payload["result"]["sma_spread_percent"] == 111.0
     assert payload["ticker"] == "AAPL"
@@ -293,17 +323,14 @@ def test_graham_project_run_renders_the_captured_profile_not_the_native_evidence
 
 def test_graham_project_run_all_modes_render_from_the_reopened_run() -> None:
     run = _graham_run()
-    for mode in PresentationMode:
-        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+    for rendered in _every_mode(run):
         assert rendered
         assert "KO" in rendered
 
 
 def test_graham_project_run_json_matches_the_stored_result() -> None:
     run = _graham_run()
-    payload = json.loads(
-        project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
-    )
+    payload = _document_payload(run)
     assert payload["result"]["maximum_indicated_price"] == 42.0
     assert payload["ticker"] == "KO"
     assert payload["analysis"] == "graham_number"
@@ -480,8 +507,7 @@ def test_graham_project_run_failure_fixtures_render_in_all_modes() -> None:
         _graham_run(profile=fixture_known_etf_profile(), analysis=_graham_etf_not_applicable_analysis()),
     )
     for run in failure_runs:
-        for mode in PresentationMode:
-            rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+        for rendered in _every_mode(run):
             assert rendered
             assert "Graham Number (maximum indicated price)" not in rendered
 
@@ -742,16 +768,13 @@ def test_growth_project_run_all_modes_render_from_the_reopened_run() -> None:
         _growth_run(profile=fixture_known_etf_profile(), analysis=_growth_etf_not_applicable_analysis()),
     )
     for run in runs:
-        for mode in PresentationMode:
-            rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+        for rendered in _every_mode(run):
             assert rendered
 
 
 def test_growth_project_run_json_matches_the_stored_result() -> None:
     run = _growth_run()
-    payload = json.loads(
-        project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
-    )
+    payload = _document_payload(run)
     assert payload["ticker"] == "KO"
 
 
@@ -860,17 +883,14 @@ def test_fcf_project_run_renders_partial_evidence_and_missing_forward_context() 
 
 def test_fcf_project_run_all_modes_render_from_the_reopened_run() -> None:
     run = _fcf_run()
-    for mode in PresentationMode:
-        rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+    for rendered in _every_mode(run):
         assert rendered
         assert "KO" in rendered
 
 
 def test_fcf_project_run_json_matches_the_stored_result() -> None:
     run = _fcf_run()
-    payload = json.loads(
-        project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
-    )
+    payload = _document_payload(run)
     assert payload["ticker"] == "KO"
     assert payload["result_schema_version"] == 6
 

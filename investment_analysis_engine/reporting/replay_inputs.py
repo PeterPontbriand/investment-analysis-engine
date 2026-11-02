@@ -7,7 +7,9 @@ leaf module holds the types both sides share, so a projector in a strategy packa
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, Literal
+
+from pydantic import BaseModel
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
@@ -21,9 +23,13 @@ class UnsupportedProjectionError(ValueError):
     reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.UNSUPPORTED_PROJECTION
 
 
+type TextPresentationMode = Literal[PresentationMode.CONCISE, PresentationMode.DETAILS, PresentationMode.DIAGNOSTICS]
+"""The presentation modes a text projection renders; the JSON mode is the document projection's."""
+
+
 @dataclass(frozen=True)
 class ReplayOptions:
-    """Explicit view selection for one replay.
+    """Explicit text view selection for one replay.
 
     Locale and time formatting are not configurable: projection v1 reuses
     the existing formatting helpers, which are already fixed to the
@@ -31,7 +37,7 @@ class ReplayOptions:
     the direct commands already show.
     """
 
-    mode: PresentationMode = PresentationMode.CONCISE
+    mode: TextPresentationMode = PresentationMode.CONCISE
 
 
 @dataclass(frozen=True)
@@ -52,6 +58,19 @@ class ReplayInputs:
 
 
 ReplayProjector = Callable[[ReplayInputs, object, object, ReplayOptions], str]
-"""A strategy's projector as the generic replay calls it: inputs, decoded evidence, stored selection, options."""
+"""A strategy's text projector as the generic replay calls it: inputs, decoded evidence, stored selection, options."""
 
-__all__ = ["ReplayInputs", "ReplayOptions", "ReplayProjector", "UnsupportedProjectionError"]
+ReplayDocumentProjector = Callable[[ReplayInputs, object, object], BaseModel]
+"""A strategy's document projector as the generic replay calls it: inputs, decoded evidence, stored selection.
+
+It returns the strategy's typed ``--json`` document; serializing it is the caller's edge.
+"""
+
+__all__ = [
+    "ReplayDocumentProjector",
+    "ReplayInputs",
+    "ReplayOptions",
+    "ReplayProjector",
+    "TextPresentationMode",
+    "UnsupportedProjectionError",
+]

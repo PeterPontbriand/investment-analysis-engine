@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Final
 
 import typer
+from pydantic import BaseModel
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.cli_strategy_wiring import add_strategy_commands
@@ -20,7 +21,7 @@ from investment_analysis_engine.evaluation.fixture_context import FixtureContext
 from investment_analysis_engine.orchestrator.dispatcher import AsyncToolDispatcher
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
 from investment_analysis_engine.orchestrator.types import ToolCallRequest
-from investment_analysis_engine.reporting.replay_inputs import ReplayOptions, ReplayProjector
+from investment_analysis_engine.reporting.replay_inputs import ReplayDocumentProjector, ReplayOptions, ReplayProjector
 from investment_analysis_engine.strategy_wiring import StrategyDescriptor, build_indexes, tool_for_arguments
 from investment_analysis_engine.workspace.codecs import EvidenceCodec
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence
@@ -35,7 +36,12 @@ from tests.specimen.closed_types import as_native_evidence
 from tests.specimen.evaluation import GOLDEN_MULTIPLIER, SAMPLE_SELECTION
 from tests.specimen.evaluation_tier import SPECIMEN_EVALUATION, SPECIMEN_EVALUATION_STRATEGIES
 from tests.specimen.execution import SpecimenExecution
-from tests.specimen.runs import build_specimen_run, decode_specimen_run, project_specimen_run
+from tests.specimen.runs import (
+    build_specimen_run,
+    decode_specimen_run,
+    project_specimen_run,
+    project_specimen_run_document,
+)
 from tests.specimen.vocabulary import ALIAS
 from tests.specimen.wiring import SPECIMEN, SPECIMEN_STRATEGIES
 
@@ -112,6 +118,12 @@ def specimen_stored_run() -> StoredRun:
     ) -> str:
         return project_specimen_run(run, options, codecs=codecs, replays=replays)
 
+    def project_document(
+        codecs: Mapping[tuple[str, str], EvidenceCodec],
+        documents: Mapping[tuple[str, str], ReplayDocumentProjector],
+    ) -> BaseModel:
+        return project_specimen_run_document(run, codecs=codecs, documents=documents)
+
     return StoredRun(
         SPECIMEN,
         SPECIMEN_EVALUATION.sample_selection,
@@ -120,6 +132,7 @@ def specimen_stored_run() -> StoredRun:
         run,
         decode,
         project,
+        project_document,
     )
 
 

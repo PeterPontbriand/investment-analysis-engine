@@ -360,6 +360,35 @@ def _document(
     )
 
 
+def _profile_and_identity(
+    result: PiotroskiResult,
+    identity_resolution: SecurityIdentityResolution | None,
+    instrument_profile: InstrumentProfile | None,
+) -> tuple[InstrumentProfile | None, SecurityIdentityResolution | None]:
+    """Return the profile shown and the identity resolution shown, each given or derived as the presenter does."""
+    profile = instrument_profile or result.instrument_profile
+    resolved = (
+        identity_resolution
+        if identity_resolution is not None or profile is None
+        else profile_identity_resolution(profile)
+    )
+    return profile, resolved
+
+
+def piotroski_document(
+    result: PiotroskiResult,
+    identity_resolution: SecurityIdentityResolution | None = None,
+    instrument_profile: InstrumentProfile | None = None,
+    provider_check: tuple[ProviderCheckItem, ...] | None = None,
+) -> PiotroskiDocument:
+    """Build the typed Piotroski F-Score document, which the JSON mode writes and a replay returns.
+
+    ``provider_check`` is what the provider check found; a replay passes none.
+    """
+    profile, resolved = _profile_and_identity(result, identity_resolution, instrument_profile)
+    return _document(result, resolved, profile, provider_check)
+
+
 def render_piotroski(
     result: PiotroskiResult,
     mode: PresentationMode = PresentationMode.CONCISE,
@@ -371,14 +400,11 @@ def render_piotroski(
 
     ``provider_check`` is what the provider check found; only the JSON document carries it, and a replay passes none.
     """
-    profile = instrument_profile or result.instrument_profile
-    resolved = (
-        identity_resolution
-        if identity_resolution is not None or profile is None
-        else profile_identity_resolution(profile)
-    )
     if mode is PresentationMode.JSON:
-        return strategy_document_json(_document(result, resolved, profile, provider_check))
+        return strategy_document_json(
+            piotroski_document(result, identity_resolution, instrument_profile, provider_check)
+        )
+    profile, resolved = _profile_and_identity(result, identity_resolution, instrument_profile)
     label = security_display_label(result.ticker, resolved)
     if mode is PresentationMode.DETAILS:
         return "\n".join(_details(result, label))

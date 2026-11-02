@@ -133,7 +133,7 @@ def render_graham_growth(
 ) -> str:
     """Render a Graham growth-value analysis using the approved investor grammar."""
     if mode is PresentationMode.JSON:
-        return strategy_document_json(_growth_document(presentation))
+        return strategy_document_json(graham_growth_document(presentation))
 
     lines = _growth_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -284,8 +284,11 @@ def _growth_warning_lines(p: GrahamGrowthPresentation) -> list[str]:
     return [f"Warning: {warning}" for warning in _growth_warnings(p)]
 
 
-def _growth_document(p: GrahamGrowthPresentation) -> GrahamGrowthDocument:
-    """Build the typed Graham Growth document; validation of the model is the output boundary."""
+def graham_growth_document(p: GrahamGrowthPresentation) -> GrahamGrowthDocument:
+    """Build the typed Graham Growth document, which the JSON mode writes and a replay returns.
+
+    Validation of the model is the output boundary.
+    """
     status, reason = effective_status_and_reason(
         p.assembly.status,
         p.assembly.reason,
