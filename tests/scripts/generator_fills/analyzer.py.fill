@@ -1,22 +1,15 @@
-"""The CI Probe strategy's result and analyzer."""
+from investment_analysis_engine.analysis.base_analyzer import require_ticker
 
-from dataclasses import dataclass
-from datetime import datetime
-
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
-
-
-@dataclass(frozen=True)
-class CiProbeResult:
-    """The complete evidence of one CI Probe run."""
-
-    ticker: str
-    effective_as_of: datetime
-
-
-class CiProbeAnalyzer(BaseAnalyzer[CiProbeResult]):
-    """Return the ticker and the run's effective point in time."""
-
-    def run_analysis(self, ticker: str, context: AnalysisContext) -> CiProbeResult:
-        """Return the evidence of one CI Probe run for ``ticker``."""
-        return CiProbeResult(ticker=require_ticker(ticker), effective_as_of=context.effective_as_of)
+#: body CiProbeAnalyzer.run_analysis
+return CiProbeResult(
+    ticker=require_ticker(ticker),
+    requested_as_of=context.as_of,
+    effective_as_of=context.effective_as_of,
+    instrument_profile=context.instrument_profile,
+    execution_status=CalculationStatus.OK,
+    reason_code=None,
+    reason=None,
+    input_failure=None,
+    warnings=(),
+    diagnostics=(),
+)

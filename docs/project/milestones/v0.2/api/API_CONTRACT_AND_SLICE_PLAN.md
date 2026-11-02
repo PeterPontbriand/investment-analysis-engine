@@ -150,7 +150,10 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   - `/v1/help/terms/{id}` and `/v1/help/documents/{id}`, which return Markdown, never HTML;
   - term references for all five strategies, Piotroski included.
 - **Branch:** `feat/api-help`.
-- **Detail:** ⚠ no slice plan yet
+- **Detail:**
+  - It follows "Changing what every strategy provides" in [`TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#changing-what-every-strategy-provides)
+    for the "glossary terms" edit site, and records any file that section missed in its own implementation record.
+  - ⚠ no slice plan yet
 
 ## 4. Out of scope
 

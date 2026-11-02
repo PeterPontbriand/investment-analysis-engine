@@ -6,7 +6,7 @@ It composes the instrument profile, calls the analyzer and captures the evidence
 from dataclasses import dataclass
 from datetime import datetime
 
-from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.strategies._shared.profile import compose_production_profile
@@ -57,5 +57,9 @@ def from_${module}_capture(capture: ${Class}Capture) -> ExecutionCapture:
 
     It passes the evidence, profile, native status and recorded provider failure.
     """
-    del capture
-    unfilled_stub("execution")
+    return ExecutionCapture(
+        native_evidence=capture.result,
+        profile=capture.profile,
+        native_status=capture.result.execution_status,
+        provider_failure=provider_failure_of((capture.result.provider_failure,)),
+    )

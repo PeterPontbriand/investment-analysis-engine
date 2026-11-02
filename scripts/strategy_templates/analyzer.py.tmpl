@@ -1,16 +1,61 @@
 """The $label strategy's result and analyzer."""
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.analysis.shared.metric_inputs import MetricInputsFailure
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
+from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ${Class}Result:
-    """The complete evidence of one $label run."""
+    """The complete evidence of one $label run.
+
+    It declares the fields every strategy's result carries, which the shared document header and tail and the
+    execution normalizer read. Add the strategy's own fields after them.
+
+    Attributes:
+        ticker: The normalized ticker.
+        requested_as_of: The requested point-in-time boundary, or ``None``.
+        effective_as_of: The boundary the run applied.
+        instrument_profile: The identity evidence the run was given.
+        execution_status: The status the run reports.
+        reason_code: Why the run is not ``ok``; ``None`` for ``ok``.
+        reason: A non-empty explanation exactly when ``reason_code`` is set.
+        input_failure: The provider failure that stopped the assembly; ``None`` otherwise.
+        warnings: Warnings about the run, in order.
+        diagnostics: Notes on how the inputs were assembled, in order.
+    """
 
     ticker: str
+    requested_as_of: datetime | None
+    effective_as_of: datetime
+    instrument_profile: InstrumentProfile | None
+    execution_status: CalculationStatus
+    reason_code: ReasonCode | None
+    reason: str | None
+    input_failure: MetricInputsFailure | None
+    warnings: tuple[str, ...]
+    diagnostics: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Require a reason exactly when the run is not ok, and a provider failure exactly for a provider error."""
+        if (self.execution_status is CalculationStatus.OK) != (self.reason_code is None):
+            raise ValueError("A reason code is set exactly when the run is not ok.")
+        if (self.reason_code is None) != (self.reason is None):
+            raise ValueError("A reason is set exactly when there is a reason code.")
+        if (self.execution_status is CalculationStatus.PROVIDER_ERROR) != (self.input_failure is not None):
+            raise ValueError("A provider failure is held exactly when the run is a provider error.")
+
+    @property
+    def provider_failure(self) -> ProviderFailureRecord | None:
+        """Return the record of the provider failure that stopped the run, when it was classified."""
+        return None if self.input_failure is None else self.input_failure.provider_failure
 
 
 class ${Class}Analyzer(BaseAnalyzer[${Class}Result]):
