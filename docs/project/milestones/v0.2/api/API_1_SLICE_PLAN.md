@@ -43,9 +43,8 @@ to it.
   - the document projection returns the strategy's `--json` document model. Serializing it with
     `strategy_document_json` happens only at the edge: the direct command's JSON branch and `ian runs show --json`.
 - **Scope:**
-  - each presenter's document builder is public (`piotroski_document`, `fcf_growth_document`,
-    `momentum_document`, `graham_number_document`, `graham_growth_document`); its JSON branch and the strategy's
-    document projector (`project_<module>_document`) call the same builder, and a replay passes no provider check;
+  - each presenter's public `<module>_document` builder is called by its JSON branch and by the strategy's
+    `project_<module>_document`, and a replay passes no provider check;
   - the descriptor's behavior bundle gains `document` and the erased view `document_for`, with
     `documents_by_key` and `DOCUMENTS_BY_KEY`;
   - `workspace_documents/run_replay.py` gains `project_run_document` beside `project_run`, sharing the version check,
@@ -88,9 +87,9 @@ Tests moved to the document path, and why:
   `ReplayOptions`, test the replay contract this slice changes. Each JSON-mode case moved to `project_run_document`
   and keeps its assertions, and each loop over every mode covers the three text modes through the text projection and
   the serialized document projection.
-- Moved: `tests/workspace_documents/test_analysis_run_replay.py`, `tests/analysis/graham_value/test_effective_as_of.py`,
-  `tests/test_specimen_strategy.py` and the specimen files (`replay.py`, `behavior.py`, `runs.py`, `site_context.py`),
-  and check T8 in `scripts/strategy_conformance.py`, which now replays every text mode through the text projection and
+- Moved: `tests/workspace_documents/test_analysis_run_replay.py`, `tests/test_specimen_strategy.py`, the specimen
+  files (`replay.py`, `behavior.py`, `runs.py`, `site_context.py`), every other test that called `project_run` or a
+  strategy's projector directly, and check T8 in `scripts/strategy_conformance.py`, which now replays every text mode through the text projection and
   the document projection for every strategy.
 - No test of an `ian` command or its output was edited.
 
@@ -135,9 +134,9 @@ Noticed for later slices:
 The API needs the same objects the CLI prints. The workspace commands print through functions that return strings,
 and a stored run's JSON projection was a string too. Making the projection a typed document first (API.1a) lets
 the application layer (API.1b) return it as it returns every other document, and leaves serialization to the edge
-that needs text. [Issue 205](https://github.com/PeterPontbriand/investment-analysis-engine/issues/205) (extensible
-authentication) and [issue 204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204) (what
-counts as an addition inside `/v1`) are settled in API.2 ([A14](#a14-the-application-context-and-205-2026-11-01),
+that needs text. What counts as an addition inside `/v1` (for example a new warning code such as the one in
+[issue 204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204)) and extensible authentication
+([issue 205](https://github.com/PeterPontbriand/investment-analysis-engine/issues/205)) are settled in API.2 ([A14](#a14-the-application-context-and-205-2026-11-01),
 [A15](#a15-the-v1-additions-rule-2026-11-01)).
 
 ## Appendix A: Decision records

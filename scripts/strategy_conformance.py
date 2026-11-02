@@ -783,19 +783,6 @@ def _replay_entry_gaps(
             f"not a {item.json_envelope.__name__}"
         )
     return gaps
-    if not isinstance(document, item.json_envelope):
-        gaps.append(
-            f"strategy {label(item)}: the replayed document is a {type(document).__name__}, "
-            f"not a {item.json_envelope.__name__}"
-        )
-        return gaps
-    try:
-        item.json_envelope.model_validate_json(strategy_document_json(document))
-    except ValidationError as error:
-        gaps.append(
-            f"strategy {label(item)}: the replayed JSON does not validate as {item.json_envelope.__name__}: {error}"
-        )
-    return gaps
 
 
 # ---------------------------------------------------------------------------
