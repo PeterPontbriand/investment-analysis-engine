@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
 from investment_analysis_engine.core.strategy_errors import find
 from investment_analysis_engine.reporting.replay_inputs import (
+    ReplayDocumentProjector,
     ReplayInputs,
     ReplayOptions,
     ReplayProjector,
@@ -117,3 +118,20 @@ def project_specimen_run(
     evidence = decode_specimen_run(run, codecs)
     inputs = ReplayInputs(ticker=run.ticker, instrument_profile=None, presentation_inputs=None)
     return projector(inputs, evidence, run.requested_config, options if options is not None else ReplayOptions())
+
+
+def project_specimen_run_document(
+    run: SpecimenRun,
+    *,
+    codecs: Mapping[tuple[str, str], EvidenceCodec],
+    documents: Mapping[tuple[str, str], ReplayDocumentProjector],
+) -> BaseModel:
+    """Return the run's typed document from its own evidence with the projector its identifiers select."""
+    projector = documents.get((run.analysis_id, run.method_id))
+    if projector is None:
+        raise UnsupportedProjectionError(
+            f"No v1 replay is implemented for analysis={run.analysis_id!r}, method={run.method_id!r}."
+        )
+    evidence = decode_specimen_run(run, codecs)
+    inputs = ReplayInputs(ticker=run.ticker, instrument_profile=None, presentation_inputs=None)
+    return projector(inputs, evidence, run.requested_config)

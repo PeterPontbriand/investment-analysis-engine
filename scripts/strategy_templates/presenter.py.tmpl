@@ -9,6 +9,22 @@ from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.security_identity import SecurityIdentityResolution
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.$module.analyzer import ${Class}Result
+from investment_analysis_engine.strategies.$module.envelope import ${Class}Document
+
+
+def ${module}_document(
+    result: ${Class}Result,
+    identity_resolution: SecurityIdentityResolution | None = None,
+    instrument_profile: InstrumentProfile | None = None,
+    provider_check: tuple[ProviderCheckItem, ...] | None = None,
+) -> ${Class}Document:
+    """Build the typed document of one $label result.
+
+    The JSON mode writes it and a replay returns it. ``provider_check`` is what the provider check found; a replay
+    passes none.
+    """
+    del result, identity_resolution, instrument_profile, provider_check
+    unfilled_stub("presenter")
 
 
 def render_$module(

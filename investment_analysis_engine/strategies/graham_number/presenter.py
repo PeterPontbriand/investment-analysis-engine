@@ -118,7 +118,7 @@ def render_graham_number(
 ) -> str:
     """Render a Graham Number analysis using the approved investor grammar."""
     if mode is PresentationMode.JSON:
-        return strategy_document_json(_number_document(presentation))
+        return strategy_document_json(graham_number_document(presentation))
 
     lines = _number_concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -325,8 +325,11 @@ def _number_reason(  # noqa: PLR0911
     return fallback
 
 
-def _number_document(p: GrahamNumberPresentation) -> GrahamNumberDocument:
-    """Build the typed Graham Number document; validation of the model is the output boundary."""
+def graham_number_document(p: GrahamNumberPresentation) -> GrahamNumberDocument:
+    """Build the typed Graham Number document, which the JSON mode writes and a replay returns.
+
+    Validation of the model is the output boundary.
+    """
     status, reason = effective_status_and_reason(
         p.assembly.status,
         p.assembly.reason,

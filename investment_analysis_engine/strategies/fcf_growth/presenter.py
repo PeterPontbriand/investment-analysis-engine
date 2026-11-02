@@ -457,6 +457,35 @@ def _document(
     )
 
 
+def _profile_and_identity(
+    result: FCFEarningsGrowthResult,
+    identity_resolution: SecurityIdentityResolution | None,
+    instrument_profile: InstrumentProfile | None,
+) -> tuple[InstrumentProfile | None, SecurityIdentityResolution | None]:
+    """Return the profile shown and the identity resolution shown, each given or derived as the presenter does."""
+    profile = instrument_profile or result.instrument_profile
+    resolved_identity = (
+        identity_resolution
+        if identity_resolution is not None or profile is None
+        else profile_identity_resolution(profile)
+    )
+    return profile, resolved_identity
+
+
+def fcf_growth_document(
+    result: FCFEarningsGrowthResult,
+    identity_resolution: SecurityIdentityResolution | None = None,
+    instrument_profile: InstrumentProfile | None = None,
+    provider_check: tuple[ProviderCheckItem, ...] | None = None,
+) -> FCFDocument:
+    """Build the typed FCF Growth document, which the JSON mode writes and a replay returns.
+
+    ``provider_check`` is what the provider check found; a replay passes none.
+    """
+    profile, resolved_identity = _profile_and_identity(result, identity_resolution, instrument_profile)
+    return _document(result, resolved_identity, profile, provider_check)
+
+
 def render_fcf_earnings_growth(
     result: FCFEarningsGrowthResult,
     mode: PresentationMode,
@@ -468,14 +497,11 @@ def render_fcf_earnings_growth(
 
     ``provider_check`` is what the provider check found; only the JSON document carries it, and a replay passes none.
     """
-    profile = instrument_profile or result.instrument_profile
-    resolved_identity = (
-        identity_resolution
-        if identity_resolution is not None or profile is None
-        else profile_identity_resolution(profile)
-    )
     if mode is PresentationMode.JSON:
-        return strategy_document_json(_document(result, resolved_identity, profile, provider_check))
+        return strategy_document_json(
+            fcf_growth_document(result, identity_resolution, instrument_profile, provider_check)
+        )
+    profile, resolved_identity = _profile_and_identity(result, identity_resolution, instrument_profile)
     if mode is PresentationMode.DETAILS:
         return "\n".join(_details(result, resolved_identity, profile))
     if mode is PresentationMode.DIAGNOSTICS:

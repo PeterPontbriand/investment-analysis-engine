@@ -9,8 +9,10 @@ from investment_analysis_engine.strategies._graham.replay import (
     margin_cell,
     price_cell,
 )
+from investment_analysis_engine.strategies.graham_growth.envelope import GrahamGrowthDocument
 from investment_analysis_engine.strategies.graham_growth.presenter import (
     GrahamGrowthPresentation,
+    graham_growth_document,
     growth_with_public_quote_reason,
     render_graham_growth,
 )
@@ -18,10 +20,10 @@ from investment_analysis_engine.strategies.graham_growth.selection import Graham
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 
 
-def project_graham_growth(
-    inputs: ReplayInputs, evidence: GrahamGrowthAnalysis, selection: GrahamGrowthSelection, options: ReplayOptions
-) -> str:
-    """Reconstruct a Graham Growth presentation from stored evidence only.
+def _presentation(
+    inputs: ReplayInputs, evidence: GrahamGrowthAnalysis, selection: GrahamGrowthSelection
+) -> GrahamGrowthPresentation:
+    """Reconstruct the Graham Growth presentation both projections show from stored evidence only.
 
     ``base_pe``/``growth_multiplier``/``baseline_aaa_yield`` come from the evidence's own captured ``policy``
     (the effective assumptions actually used at execution time), never from the live command's current
@@ -29,7 +31,7 @@ def project_graham_growth(
     future change to those defaults must never alter what an old run replays as.
     """
     del selection
-    presentation = GrahamGrowthPresentation(
+    return GrahamGrowthPresentation(
         ticker=evidence.ticker,
         assembly=growth_with_public_quote_reason(friendly_graham_assembly(inputs.ticker, evidence.assembly)),
         result=evidence.result,
@@ -42,7 +44,20 @@ def project_graham_growth(
         instrument_profile=inputs.instrument_profile,
         price_comparison=evidence.price_comparison,
     )
-    return render_graham_growth(presentation, options.mode)
+
+
+def project_graham_growth(
+    inputs: ReplayInputs, evidence: GrahamGrowthAnalysis, selection: GrahamGrowthSelection, options: ReplayOptions
+) -> str:
+    """Render the reconstructed Graham Growth presentation in the requested text mode."""
+    return render_graham_growth(_presentation(inputs, evidence, selection), options.mode)
+
+
+def project_graham_growth_document(
+    inputs: ReplayInputs, evidence: GrahamGrowthAnalysis, selection: GrahamGrowthSelection
+) -> GrahamGrowthDocument:
+    """Return the reconstructed Graham Growth document, as the JSON mode of the live command writes it."""
+    return graham_growth_document(_presentation(inputs, evidence, selection))
 
 
 def headline_graham_growth(analysis: GrahamGrowthAnalysis) -> Headline:

@@ -342,7 +342,7 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
             spec, "codec", [f"decode_{module}", f"encode_{module}", f"{module}_native_status", f"{module}_ticker"]
         ),
         _strategy_import(spec, "envelope", [f"{cls}Document"]),
-        _strategy_import(spec, "replay", [f"headline_{module}", f"project_{module}"]),
+        _strategy_import(spec, "replay", [f"headline_{module}", f"project_{module}", f"project_{module}_document"]),
         _strategy_import(spec, "selection", [f"{cls}Selection"]),
         _strategy_import(spec, "tool", [f"{cls}ToolArguments", f"{cls}ToolDependencies", f"{cls}ToolHandler"]),
         _strategy_import(spec, "vocabulary", [f"ANALYSIS_ID as {upper}_ANALYSIS_ID"]),
@@ -361,6 +361,7 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
         f"    native_status={module}_native_status,\n"
         f"    headline=headline_{module},\n"
         f"    project=project_{module},\n"
+        f"    document=project_{module}_document,\n"
         ")\n"
     )
     descriptor = (

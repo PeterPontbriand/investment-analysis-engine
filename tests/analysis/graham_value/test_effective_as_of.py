@@ -14,8 +14,7 @@ from investment_analysis_engine.evaluation.fixtures.graham import (
     SECURITY_ID,
     FixtureFinancialFactsProvider,
 )
-from investment_analysis_engine.reporting.presentation import PresentationMode
-from investment_analysis_engine.reporting.replay_inputs import ReplayOptions
+from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.strategies.graham_growth.analyzer import GrahamGrowthAnalyzer
 from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
@@ -27,9 +26,9 @@ from investment_analysis_engine.strategies.graham_number.analyzer import GrahamN
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
-from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, REPLAYS_BY_KEY
+from investment_analysis_engine.strategy_wiring import DOCUMENTS_BY_KEY, EVIDENCE_BY_KEY
 from investment_analysis_engine.workspace.codecs import decode_evidence
-from investment_analysis_engine.workspace_documents.run_replay import project_run
+from investment_analysis_engine.workspace_documents.run_replay import project_run_document
 from tests._wiring import encode_native
 from tests.workspace_documents.test_analysis_run_replay import _graham_run, _growth_run
 
@@ -66,7 +65,7 @@ def test_the_instant_survives_storage_and_replay(growth: bool) -> None:
     decoded = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(decoded, GrahamGrowthAnalysis | GrahamNumberAnalysis)
     assert decoded.effective_as_of == NOW
-    text = project_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
+    text = strategy_document_json(project_run_document(run, codecs=EVIDENCE_BY_KEY, documents=DOCUMENTS_BY_KEY))
     document = json.loads(text)
     assert document["requested_as_of"] is None
     assert document["effective_as_of"] == NOW.isoformat()

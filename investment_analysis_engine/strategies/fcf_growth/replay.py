@@ -2,8 +2,13 @@
 
 from investment_analysis_engine.reporting.headline import UNIT_PERCENT, CellKind, Headline, HeadlineCell
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
+from investment_analysis_engine.strategies.fcf_growth.envelope import FCFDocument
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
-from investment_analysis_engine.strategies.fcf_growth.presenter import render_fcf_earnings_growth, screen_word
+from investment_analysis_engine.strategies.fcf_growth.presenter import (
+    fcf_growth_document,
+    render_fcf_earnings_growth,
+    screen_word,
+)
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis
 
@@ -20,6 +25,14 @@ def project_fcf_growth(
     """
     del selection
     return render_fcf_earnings_growth(evidence, options.mode, instrument_profile=inputs.instrument_profile)
+
+
+def project_fcf_growth_document(
+    inputs: ReplayInputs, evidence: FCFEarningsGrowthResult, selection: FCFGrowthSelection
+) -> FCFDocument:
+    """Return the FCF/Earnings Growth document from stored evidence only, as the live JSON mode writes it."""
+    del selection
+    return fcf_growth_document(evidence, instrument_profile=inputs.instrument_profile)
 
 
 def headline_fcf_growth(result: FCFEarningsGrowthResult) -> Headline:

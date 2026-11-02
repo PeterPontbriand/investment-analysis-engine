@@ -32,14 +32,13 @@ from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyEr
 from investment_analysis_engine.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
 from investment_analysis_engine.orchestrator.tool_names import ToolName
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
-from investment_analysis_engine.reporting.presentation import PresentationMode
-from investment_analysis_engine.reporting.replay_inputs import ReplayOptions
 from investment_analysis_engine.strategy_wiring import (
     GRAHAM_GROWTH,
     GRAHAM_NUMBER,
     MOMENTUM,
     STRATEGIES,
     StrategyBehavior,
+    documents_by_key,
     evidence_by_key,
     replays_by_key,
 )
@@ -56,7 +55,13 @@ from tests.specimen.catalog import CATALOG_CASE_IDS
 from tests.specimen.cli_tier import SPECIMEN_CLI, SPECIMEN_CLI_STRATEGIES
 from tests.specimen.evaluation import SAMPLE_SELECTION
 from tests.specimen.evaluation_tier import SPECIMEN_EVALUATION, SPECIMEN_EVALUATION_STRATEGIES
-from tests.specimen.runs import SPECIMEN_RUN_STORE, SpecimenRun, decode_specimen_run, project_specimen_run
+from tests.specimen.runs import (
+    SPECIMEN_RUN_STORE,
+    SpecimenRun,
+    decode_specimen_run,
+    project_specimen_run,
+    project_specimen_run_document,
+)
 from tests.specimen.selection import SpecimenSelection
 from tests.specimen.settings import SpecimenSettings
 from tests.specimen.site_context import (
@@ -360,8 +365,9 @@ def test_t8_the_specimen_run_replays_the_concise_text_and_a_valid_document() -> 
     assert isinstance(run, SpecimenRun)
     codecs, replays = evidence_by_key(SPECIMEN_STRATEGIES), replays_by_key(SPECIMEN_STRATEGIES)
     assert project_specimen_run(run, codecs=codecs, replays=replays) == "SPEC specimen value: 6.0"
-    document = project_specimen_run(run, ReplayOptions(mode=PresentationMode.JSON), codecs=codecs, replays=replays)
-    assert SPECIMEN.json_envelope.model_validate_json(document).model_dump()["result"]["scaled"] == 6.0
+    document = project_specimen_run_document(run, codecs=codecs, documents=documents_by_key(SPECIMEN_STRATEGIES))
+    assert isinstance(document, SPECIMEN.json_envelope)
+    assert document.model_dump()["result"]["scaled"] == 6.0
     assert decode_specimen_run(run, codecs) == stored.result
 
 

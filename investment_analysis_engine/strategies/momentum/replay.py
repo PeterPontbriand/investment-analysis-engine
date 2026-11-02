@@ -3,18 +3,18 @@
 from investment_analysis_engine.reporting.headline import UNIT_POINTS, CellKind, Headline, HeadlineCell
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions, UnsupportedProjectionError
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
+from investment_analysis_engine.strategies.momentum.envelope import MomentumDocument
 from investment_analysis_engine.strategies.momentum.presenter import (
     MomentumPresentation,
+    momentum_document,
     render_momentum,
     trend_word,
 )
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 
 
-def project_momentum(
-    inputs: ReplayInputs, evidence: MomentumRun, selection: MomentumSelection, options: ReplayOptions
-) -> str:
-    """Reconstruct a Momentum presentation from stored evidence only.
+def _presentation(inputs: ReplayInputs, evidence: MomentumRun, selection: MomentumSelection) -> MomentumPresentation:
+    """Reconstruct the Momentum presentation both projections show from stored evidence only.
 
     Identity/kind evidence comes from the run's own ``instrument_profile`` rather than the native evidence's
     copy: Momentum's analyzer never sets `MomentumRun.instrument_profile` (the profile is composed outside the
@@ -34,7 +34,7 @@ def project_momentum(
     if not isinstance(captured_spread_percent, (float, int)) and captured_spread_percent is not None:
         raise UnsupportedProjectionError("Stored sma_spread_percent is not a finite number or null.")
 
-    presentation = MomentumPresentation(
+    return MomentumPresentation(
         ticker=evidence.ticker,
         effective_as_of=evidence.effective_as_of,
         execution_status=evidence.execution_status,
@@ -52,7 +52,28 @@ def project_momentum(
         captured_sma_spread=captured_spread,
         captured_sma_spread_percent=captured_spread_percent,
     )
-    return render_momentum(presentation, options.mode)
+
+
+def project_momentum(
+    inputs: ReplayInputs, evidence: MomentumRun, selection: MomentumSelection, options: ReplayOptions
+) -> str:
+    """Render the reconstructed Momentum presentation in the requested text mode.
+
+    Raises:
+        UnsupportedProjectionError: If a stored presentation input is not a number or null.
+    """
+    return render_momentum(_presentation(inputs, evidence, selection), options.mode)
+
+
+def project_momentum_document(
+    inputs: ReplayInputs, evidence: MomentumRun, selection: MomentumSelection
+) -> MomentumDocument:
+    """Return the reconstructed Momentum document, as the JSON mode of the live command writes it.
+
+    Raises:
+        UnsupportedProjectionError: If a stored presentation input is not a number or null.
+    """
+    return momentum_document(_presentation(inputs, evidence, selection))
 
 
 def headline_momentum(run: MomentumRun) -> Headline:

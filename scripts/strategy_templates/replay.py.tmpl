@@ -7,6 +7,7 @@ from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.reporting.headline import Headline
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from investment_analysis_engine.strategies.$module.analyzer import ${Class}Result
+from investment_analysis_engine.strategies.$module.envelope import ${Class}Document
 from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
 
 
@@ -15,6 +16,14 @@ def project_$module(
 ) -> str:
     """Reconstruct the $label presentation from stored evidence only."""
     del inputs, evidence, selection, options
+    unfilled_stub("replay")
+
+
+def project_${module}_document(
+    inputs: ReplayInputs, evidence: ${Class}Result, selection: ${Class}Selection
+) -> ${Class}Document:
+    """Return the $label document from stored evidence only."""
+    del inputs, evidence, selection
     unfilled_stub("replay")
 
 
