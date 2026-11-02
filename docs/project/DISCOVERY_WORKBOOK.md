@@ -165,7 +165,7 @@ This product-discovery evidence for a possible later composite screener is not a
 
 A related current-method policy question was whether historical FCF growth should use total company FCF, FCF per diluted share, or both. The approved decision is to show both, use total-company-FCF CAGR as the default `PASS`/`FAIL` control, and offer an explicit policy/CLI override that instead makes FCF/share CAGR controlling. This distinction is material because FCF/share incorporates dilution and repurchases; the approved extension therefore requires explicit weighted-average diluted-share, split/share-class compatibility, provenance, fixture, schema, and method-version decisions rather than an unversioned display calculation.
 
-Cash conversion is important to stakeholders but remains only a future candidate: “reject” and “penalize” describe different policies, and no ratio, period, threshold, or missing-data treatment was supplied. Before any future composite can become a specification, it must define formulas, normalization and outlier treatment, comparison universe, sector-relative versus absolute treatment, missing-data policy, thresholds, point-in-time data boundaries, evaluation/rebalancing frequency, and empirical or backtest validation.
+Cash conversion is important to stakeholders but remains only a future candidate: “reject” and “penalize” describe different policies, and no ratio, period, threshold, or missing-data treatment was supplied. Before any future composite can become a specification, it must define formulas, normalization and outlier treatment, comparison universe, sector-relative versus absolute treatment, missing-data policy, thresholds, point-in-time data boundaries, evaluation/rebalancing frequency, and empirical or backtest validation. Composite screens and their validation now belong to the future predictive evaluator ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)), not to the engine.
 
 ---
 
@@ -205,7 +205,7 @@ An earlier proposal (October 2026) put a model after the analyses to choose stra
 
 - **No local version exists.** The product is hosted and proprietary, and no open equivalent was identified. Local-first rules out a hosted model for core work.
 - **"Calibrated" has to be earned.** Stated odds mean something only after they have been compared with known answers on the same kind of question. Nothing supplied known answers for "which result is better".
-- **Ranking is a composite screen under another name.** Ordering results from different strategies needs the comparison universe, weights and backtest evidence that Step 4.3 already demands.
+- **Ranking is a composite screen under another name.** Ordering results from different strategies needs the comparison universe, weights and backtest evidence that only the future predictive evaluator ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)) would supply.
 - **The other jobs already belong to rules.** Which analyses apply to an instrument, whether evidence is fresh and complete, and how numbers compare with thresholds are all decided without a model.
 - **A probability beside a ticker reads as odds of making money**, whatever question produced it.
 
@@ -215,7 +215,7 @@ What survived is the useful core: ask a model one fixed question with a few fixe
 
 **What would reopen the question.** This is a decision to revisit, not a permanent ban. All three would need to hold:
 
-- the forecast ledger has at least a year of scored entries, so there are known answers to measure against;
+- the future predictive evaluator ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)) has at least a year of scored results for a comparable job, so there are known answers to measure against;
 - a local, open model of this kind exists and fits Light Mode;
 - a specific job is named that passes the test above and beats a plain rule.
 
@@ -229,7 +229,7 @@ Three jobs looked rule-based at first and are not entirely. Each has a soft part
 | :--- | :--- | :--- |
 | Which analyses matter most for a vague goal? | A rule first; a model only if it wins | Every applicable analysis runs. A topic rule orders what is shown by relevance to the question. A model replaces the rule only after beating it on labelled pairs |
 | How far should an average be trusted when one year is unusual? | A rule | The engine flags the unusual year as a warning; the number does not change; the filing may state the cause |
-| Which instruments suit this investor's preferences? | The investor | Their stated conditions become a visible filter that the engine applies by rule. They may name one measure to sort by. Weighing several measures against each other stays with Step 4.3 |
+| Which instruments suit this investor's preferences? | The investor | Their stated conditions become a visible filter that the engine applies by rule. They may name one measure to sort by. Weighing several measures against each other is a composite across instruments and is outside the engine ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)) |
 
 ### Autonomy
 The product distinguishes **bounded agentic workflow** from **unattended autonomy**.
@@ -369,7 +369,7 @@ Step 2.2 prefers native schema constraints when supported, retains Pydantic vali
 - **Report/view semantics:** a report is a deterministic, explicitly versioned projection of an Analysis Run. v0.2 does not create a second canonical report object. The projection version evolves independently from calculation method and result-schema versions, and replay uses persisted evidence plus explicit rendering options rather than provider/LLM calls, recalculation, mutable cache state, current identity lookup, or current-clock enrichment.
 - **Filing events (v0.3):** dated facts taken from SEC filing records with no model, such as a late-filing notice or an auditor change. Each carries its form type, filing date and acceptance time, so a historical `as_of` never sees a later filing.
 - **Filing readings (v0.3):** a model's answer to one fixed question about a named part of a filing. Stored with the quoted passage, the filing's identity and dates, the model's name and version, and the version of the question. A reading never contains a number. Where the model exposes its probability for the chosen answer, that is stored with the reading for measurement and is never shown to an investor.
-- **Forecast-ledger entries (v0.3):** dated questions stored with an Analysis Run, each with a prediction from a trivial rule, to be settled by later facts. They measure methods over time. They are not evidence about an instrument and never appear in an investor view.
+- **Forecast-ledger entries (moved 2026-11-01):** dated questions with a prediction from a trivial rule, to be settled by later facts. They measure methods over time and are not evidence about an instrument. They are no longer an engine record: the engine stores none, and the idea belongs to the future predictive evaluator ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)).
 - **Answer Records (v0.3):** one question, its research plan, the evidence used, the sentences shown, and the check results. Written once; showing it again never calls a model. Asking again creates a new record.
 - **Provenance:** stored/fixture data carries enough source/date/schema information to audit its origin.
 - **Separation:** market-data persistence, trajectory telemetry, Analysis Runs, Golden fixtures, rendered views, and evaluation results are distinct concerns.
@@ -564,17 +564,19 @@ The repository naturally demonstrates local-LLM orchestration, strict Python eng
 
 Finance remains primary. Core layers remain modular enough for possible later reuse, but the project does not commit to becoming a generic agent framework.
 
-Four directions are in view. Only the first has a scheduled start.
+Four directions are in view. None has a scheduled start.
 
 ### Forecast ledger
 With each Analysis Run, record a few dated questions that time will settle, such as "will next fiscal year's diluted EPS be higher than this year's?" Score them when the answer is known.
 
+**Moved 2026-11-01.** The ledger is the future predictive evaluator's work, not the engine's ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)). The evaluator holds later outcomes itself, so the engine never sees the outcomes it would be scored on. The reasons for the idea stand:
+
 - It turns "is this method any good?" into a record that grows by itself.
-- It is the evidence Step 4.3 requires before any composite screen or ranking.
+- It is the evidence any composite screen or ranking the project designs itself needs before it is allowed; Step 4.3 no longer carries that requirement because those screens moved to the evaluator.
 - It works with any predictor, including a trivial one, so it does not depend on a model.
-- It pays off slowly: a year or more of recorded questions before the scores mean much. Recording therefore starts in v0.3 (FL.1); scoring waits until entries can be settled.
+- It pays off slowly: a year or more of recorded questions before the scores mean much.
 - Entries are measurement records and are never shown to an investor.
-- A faster start exists for rule-based predictors: pose the question as of a past date and score it against later facts already on hand. This is unsound for a language model, which may already know what happened.
+- A faster start exists for rule-based predictors: pose the question as of a past date and score it against later facts already on hand. This is unsound for a language model, which may already know what happened. The engine's `--as-of` option, and the optional `as_of` on its API, make such requests possible.
 
 ### Outside assistants
 The same evidence and Answer Record shape could serve an assistant the user already has, through the deferred MCP server. The local `ian ask` path and an outside assistant would then be two ways to reach the same evidence.
@@ -653,8 +655,8 @@ The reader behind filing reading and the answer check (text in, one of a few fix
 9. Should the deferred MCP server move into v0.3? For someone who already uses a capable assistant it is the cheapest route to plain-English answers, but it puts the language work outside the local-first boundary.
 10. Must plain-English answers work in `fr-CA` from the start, given that a small local model writes the sentences?
 11. Should each strategy declare the question topics it speaks to in its descriptor, or should that mapping live in one separate table?
-12. Once the forecast ledger has scored entries, is there a measured job for a model over already-computed results, beyond relevance and sentence checking, that still passes the test in §7?
-13. Should an investor be able to state a preference across several measures ("prefer higher FCF yield, then lower debt")? Applied by rule it needs no model, but it is a weighting, so it would go through Step 4.3.
+12. Once the future predictive evaluator has scored results, is there a measured job for a model over already-computed results, beyond relevance and sentence checking, that still passes the test in §7?
+13. Should an investor be able to state a preference across several measures ("prefer higher FCF yield, then lower debt")? Applied by rule it needs no model, but it is a weighting across instruments, so under the product boundaries ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)) it is outside the engine unless a new decision admits it.
 
 ---
 
@@ -682,7 +684,7 @@ The reader behind filing reading and the answer check (text in, one of a few fix
 - **Filing reading** — A model's *found*, *not found* or *not determined* answer to one fixed question about a named part of a filing, stored with the quoted passage.
 - **Reading** — A model's answer to one fixed question, chosen from a few fixed answers. Never a number, a score or a summary.
 - **Stated-preference filter** — Conditions the investor stated in words, turned into a typed filter, shown back, and applied by rule. Unavailable results stay unavailable.
-- **Forecast-ledger entry** — Dated question stored with an Analysis Run, with a prediction from a trivial rule, to be settled by later facts. A measurement record; never shown to an investor.
+- **Forecast-ledger entry** — Dated question stored with an Analysis Run, with a prediction from a trivial rule, to be settled by later facts. A measurement record; never shown to an investor. Moved 2026-11-01 to the future predictive evaluator's scope.
 - **Floor** — What v0.3 delivers if no local model meets its bars: a fixed question menu, answers assembled by rule, filing events and keyword filing rules.
 - **Answer check** — Test of each written sentence against the evidence it names, by rules first and a model second, before the answer is shown.
 - **Answer Record** — Stored record of one question, its research plan, the evidence used, the sentences shown and the check results.
@@ -792,12 +794,14 @@ complete. See the
 | Fix every test set and bar before measuring, hold half of each set out of prompt tuning, and never use preference labels as an answer key | Prevents a bar from being met by tuning to the test or by agreeing with one person |
 | Say "validated at its threshold", not "calibrated" | The sample a personal project can label supports the first claim and not the second |
 | Relevance is decided by a topic rule; a model replaces it only after beating it on labelled pairs | Gives relevance the same measurement discipline as every other model-based job |
-| The investor may name one measure to sort filtered results by; weighing several measures stays with Step 4.3 | One named measure is the investor's own ordering; several measures are a weighting that needs validation |
+| The investor may name one measure to sort filtered results by; weighing several measures is outside the engine (2026-11-01; previously Step 4.3) | One named measure is the investor's own ordering; several measures are a weighting that needs validation by the future evaluator |
 | Start forecast-ledger recording in v0.3, after Step 3.5; never show entries to an investor | The evidence takes a year or more to build and nothing builds until recording starts; a prediction beside a ticker would read as advice |
 | Define the fixed-question reader's interface and measuring harness once; defer only its extraction into a package | Three jobs share it, and one definition prevents three slightly different ones |
 | Treat the no-model floor as a planned, complete outcome of v0.3 | The milestone's value should not depend on a result nobody has measured yet |
 | Approve the v0.3 acceptance bars and held-out set sizes before any measuring (2026-10-06) | A bar agreed after seeing results is not a bar |
-| A model's role over already-computed results is limited to relevance and sentence checking; revisit when the ledger has scored entries | Makes the narrowing an explicit decision with a stated trigger, not a side effect of the redesign |
+| A model's role over already-computed results is limited to relevance and sentence checking; revisit when the future evaluator has scored results | Makes the narrowing an explicit decision with a stated trigger, not a side effect of the redesign |
+| Record product boundaries: the engine, the Investment Analysis Desktop and a future predictive evaluator are separate applications (2026-11-01) | Keeps the engine a point-in-time evidence and filter provider; see the decision record in [Product boundaries](MASTER_PLAN.md#25-product-boundaries) |
+| Move the forecast ledger, and composite screens, universe screening and cross-sectional ranking that the project would design or validate itself, to the future evaluator (2026-11-01; published, fully specified screens stay in the engine); supersedes the decision to start forecast-ledger recording in v0.3 | The engine must not see the outcomes it is scored on, and a composite needs validation that belongs outside it |
 
 ---
 

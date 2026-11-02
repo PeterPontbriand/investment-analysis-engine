@@ -98,6 +98,51 @@ Step 2.3 established Graham's method, input-resolution, production-provider, and
 
 A model has four narrow jobs here: understand the question, read a named part of a filing, write sentences, and check sentences. It never calculates, never types a number, and never advises, scores or ranks. The [v0.3 plan](milestones/v0.3/IMPLEMENTATION_PLAN.md) has the detail.
 
+## 2.5 Product boundaries
+
+Three applications divide the work. Each does one job and talks to the others only through a stated route. The engine is this repository; the other two are separate applications, one built in its own repository and one only planned.
+
+| Application | Its job | What it must not do | How it talks to the others |
+| :--- | :--- | :--- | :--- |
+| **Investment Analysis Engine (IAN)** | Compute deterministic, point-in-time evidence for an instrument, keep it as Analysis Runs, and let an investor filter on it | Generate trading signals or orders; simulate portfolios or backtests; score its own predictions; show an investor any outcome it is later measured against; design, weight or validate its own composite scores or rankings. IAN implements published, fully specified methods, such as the Magic Formula's ordering of one watchlist's members, exactly as specified, and makes no claim that they predict anything | Serves the versioned [local HTTP API](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md). Calls no other application |
+| **Investment Analysis Desktop (IAD)** | The desktop application an investor uses: installs the engine, shows its results side by side, and starts its actions | Calculate anything; read the engine's database; import its Python code; merge several strategies' results into one score | Reads and acts only through the engine's local HTTP API |
+| **Future predictive evaluator** | Test whether a stated predictive claim about the engine's evidence held up over time, including the composite scores, rankings and screens that the project would design or validate itself | Change a strategy's calculation; feed its results back into the engine's investor views; let the engine see the outcomes it scores | Requests results from the engine's local HTTP API only, as of past dates |
+
+The Investment Analysis Desktop is the GUI application recorded in [API plan A.1](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md#a1-a-separate-gui-application-over-a-local-api-2026-10-30).
+
+### Future predictive evaluator
+
+The evaluator is a planned future application. It is unscheduled and has no repository yet. Three rules bind it:
+
+1. Its only input from IAN is the versioned local HTTP API: no database reads and no Python imports.
+2. It requests results as of a past date and holds later outcomes itself, so IAN never sees the outcomes it is scored on.
+3. Its results never flow back into IAN's investor views.
+
+#### Future predictive evaluator: starting principles
+
+These move to the evaluator's own repository when it gets one.
+
+- Calculations stay with each IAN strategy; the evaluator tests predictive claims without changing calculation semantics.
+- Negative and inconclusive results are valid outcomes.
+- Baselines and measures are chosen to fit the hypothesis; there is no universal benchmark or single success statistic.
+- Each hypothesis's test period is reserved before its first run, and every run is recorded in an append-only log.
+- Historical results depend on point-in-time data quality, including delisted companies; survivorship-biased universes are reported as a limitation.
+- A model-generated hypothesis is tested only on data after that model's training cutoff.
+
+### Open question: where LLM orchestration lives
+
+Do LLM orchestration, v0.3 ASK and v1.0 autonomy stay in IAN, or move to a separate assistant application over the same API? This is to be decided before v0.3 starts. No code or plan moves now.
+
+### Decision record: product boundaries (2026-11-01)
+
+Approved by the project owner on 2026-11-01.
+
+- IAN stays a point-in-time evidence and filter provider ([design principle 18](#3-core-design-principles)). It does not produce signals, portfolios or backtests, and does not score its own predictions. It does not design, weight or validate its own composite scores or rankings. IAN implements published, fully specified methods, such as the Magic Formula's ordering of one watchlist's members, exactly as specified, and makes no claim that they predict anything.
+- Predictive testing belongs to a separate future evaluator that reaches IAN only through the local HTTP API. The forecast ledger (v0.3 FL.1 and its scoring) and Step 4.3's composite screens, universe screening and cross-sectional ranking, where the project would design or validate them itself, moved to that evaluator's scope. Published, fully specified screens stay in IAN.
+- Per-instrument risk measures stay in IAN as ordinary deterministic analyses (Step 4.3).
+- Direct-analysis and run endpoints accept an optional `as_of` and echo the effective value, matching `--as-of` on the CLI (API.3 and API.4).
+- No new plan document was created: this section is the record.
+
 ## 3. Core Design Principles
 
 1. **Deterministic Execution over Autonomous Guesswork:** Perform math, caching, and data processing in native Python functions; use the LLM strictly for task planning, tool selection, and narrative synthesis. From v0.3 those jobs narrow to four: understand the question, read a named part of a filing, write sentences, and check them. Rules, not the model, then decide which analyses apply.
@@ -115,8 +160,9 @@ A model has four narrow jobs here: understand the question, read a named part of
 13. **Time-Aware Security Identity:** A ticker is a venue-scoped, reusable display identifier rather than permanent issuer or instrument identity. Investor views retain the ticker plus best-effort instrument identity and its resolution time; persisted historical runs keep the identity snapshot used at execution instead of silently relabeling an old result through a later ticker lookup.
 14. **Deterministic, Versioned Investor-Report Projection:** An investor report is a reproducible projection of a persisted Analysis Run, not a new calculation or canonical result. Projection versions evolve independently from strategy method and result-schema versions, and historical rendering never fetches current provider data or invokes an LLM.
 15. **Answers Are Built Only From Stored Evidence:** A plain-English answer may state only what stored evidence supports. Every sentence names its evidence, every number is placed by the engine from a stored value, and missing evidence is stated, not skipped. An answer is stored once; showing it again never calls a model.
-16. **Evidence, Not Advice:** The engine does not tell anyone to buy, sell or hold, and it attaches no score, rank or probability to an instrument's prospects. A model's confidence is used only to decide between *found*, *not found* and *not determined* for a narrow factual reading, and is not shown beside an instrument. Forecast-ledger entries are measurement records and never appear in an investor view.
+16. **Evidence, Not Advice:** The engine does not tell anyone to buy, sell or hold, and it attaches no score, rank or probability to an instrument's prospects. A published screen's score or rank, such as the F-Score or the Magic Formula, describes that screen's own rule and is not a statement about the instrument's prospects. A model's confidence is used only to decide between *found*, *not found* and *not determined* for a narrow factual reading, and is not shown beside an instrument. Testing whether a method predicts anything belongs to the future evaluator ([Product boundaries](#25-product-boundaries)), not to the engine.
 17. **Measured Before Trusted:** A model-based step is used only after its accuracy has been measured against known answers on the model Light Mode actually runs. If a plain rule does the job as well, the rule is used.
+18. **A Point-in-Time Evidence and Filter Provider:** The engine's role is to provide point-in-time evidence and filters, for example "only allow an equity where Graham passes and Momentum is bullish as of date T", not to be a trading-signal or order-generation system. IAN does not: generate trading signals or orders; simulate portfolios or backtests; score its own predictions; design, weight or validate its own composite scores or rankings. IAN implements published, fully specified methods, such as the Magic Formula's ordering of one watchlist's members, exactly as specified, and makes no claim that they predict anything. The wording originates in [the IR plan's section 6](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md#6-background-origin-of-this-work-package); the boundary to the other applications is in [Product boundaries](#25-product-boundaries).
 
 ---
 
@@ -234,7 +280,6 @@ A person asks a question in ordinary words and gets an answer in ordinary words,
 | Work package | What it delivers |
 | :--- | :--- |
 | **ASK.0 — Feasibility checks** | Measures, before anything is designed, whether a Light Mode model can understand questions, read filing passages and check sentences well enough. |
-| **FL.1 — Forecast ledger, recording only** | Each covered Analysis Run stores a few dated questions that later facts will settle. Nothing is scored yet and nothing is shown to an investor. |
 | **FR.1 — Filing events** | Dated warning signs taken from SEC filing records with no model: late-filing notices, auditor changes, non-reliance statements, amended annual reports. |
 | **ASK.1 — Ask** | `ian ask "<question>"`: question → research plan → Analysis Runs → written answer with sources, stored as an Answer Record. Results are ordered by how well they bear on the question. A preference the investor states in words becomes a visible filter that the engine applies by rule; the investor may name one measure to sort by. |
 | **ASK.2 — Answer check** | Every sentence is tested against its evidence before it is shown; a sentence that fails is removed. |
@@ -255,10 +300,10 @@ Momentum, Graham, Free Cash Flow & Earnings Growth, and the Step 3.5 quantitativ
 * **Step 4.1: Additional Fundamental Valuation Multiples & Screening Analyzers:** Add deterministic fundamental and relative-valuation screens using the existing typed analysis and financial-fact boundaries.
   * **Price-to-Cash-Flow and Price-to-Free-Cash-Flow Screens (`P/CF` & `P/FCF`):** Implement analyzers evaluating market capitalization against operating cash flow (`P/CF = Market Cap / Operating Cash Flow`) and free cash flow (`P/FCF = Market Cap / FCF`). These are valuation multiples/screens rather than intrinsic-value models.
   * **Free-Cash-Flow Reuse:** Reuse the Step 2.4 canonical FCF definition (`FCF = CFO - CapEx`), CapEx sign normalization, period-alignment rules, provenance, and edge-case semantics rather than defining a competing FCF calculation. Broader FCF variants or discounted-cash-flow models require separate explicit specification.
-  * **Candidate Independent Analyses:** Subject to separate product-policy approval and data evidence, consider independently typed deterministic analyses for cash-conversion quality; point-in-time estimate revisions; growth-adjusted cash-flow valuation; and leverage and earnings stability. FCF/share growth is owned by Step 2.4 and may be consumed independently by later aggregation. These candidates do not define a composite method. ROIC and incremental ROIC, formerly a candidate here, moved into Step 3.5 on 2026-09-30. See the [Evidence Provider Roadmap](EVIDENCE_PROVIDER_ROADMAP.md) for further, less-developed candidates beyond this list.
+  * **Candidate Independent Analyses:** Subject to separate product-policy approval and data evidence, consider independently typed deterministic analyses for cash-conversion quality; point-in-time estimate revisions; growth-adjusted cash-flow valuation; and leverage and earnings stability. FCF/share growth is owned by Step 2.4. These candidates do not define a composite method. ROIC and incremental ROIC, formerly a candidate here, moved into Step 3.5 on 2026-09-30. See the [Evidence Provider Roadmap](EVIDENCE_PROVIDER_ROADMAP.md) for further, less-developed candidates beyond this list.
   * **Data & Resolution Seam:** Reuse and extend the financial-fact boundary established in Steps 2.3–2.4 rather than adding provider-specific retrieval logic to the analyzer.
 * **Step 4.2: Additional Technical Indicators:** Expand beyond the initial SMA/crossover Momentum implementation (for example RSI/EMA/MACD only when explicitly selected and specified).
-* **Step 4.3: Analytical Aggregator & Risk Metrics:** Combine independent deterministic strategy outputs (for example Graham ceilings, momentum signals, FCF/earnings-growth trends, and cash-flow valuation multiples) into unified typed models with basic risk measures such as maximum drawdown and volatility. Later product-policy work may define a composite screen, universe screening, or cross-sectional ranking over those outputs. Before implementation, any such method must explicitly define and validate its comparison universe; sector-relative versus absolute treatment; normalization and outlier handling; missing-data policy; formulas, thresholds, and weights; point-in-time data boundaries; evaluation/rebalancing frequency; empirical or backtest evidence; and versioned deterministic result semantics. The LLM may select, combine, and explain typed results, but it may not perform, improvise, or silently reweight the financial calculations. A model also may not rank instruments by its own judgment: that would be an unvalidated composite under another name. A forecast ledger, which starts recording in v0.3 (FL.1), is the proposed way to collect the required evidence; see the [Discovery Workbook](DISCOVERY_WORKBOOK.md#forecast-ledger).
+* **Step 4.3: Risk Metrics:** Add per-instrument risk measures, for example maximum drawdown and volatility, as ordinary deterministic analyses in the engine, independently typed like every other strategy. The Investment Analysis Desktop can show results side by side; the engine does not merge independent strategy outputs into unified typed models. Composite screens, universe screening and cross-sectional ranking that the project would design or validate itself, with their empirical validation, move to the future predictive evaluator (published, fully specified screens stay in the engine); see [Product boundaries](#25-product-boundaries). A model may not rank instruments by its own judgment: that would be an unvalidated composite under another name.
 
 #### Step 5: Localization Engine for Canadian Markets (en-CA / fr-CA)
 * **Step 5.1:** i18n core framework.
@@ -344,7 +389,6 @@ The project distinguishes these related but separate concerns:
 8. **Result views/reports** are deterministic, explicitly versioned projections of an Analysis Run in concise terminal, detailed, diagnostic, JSON, or later Markdown/PDF form. In v0.2 a report is not a second canonical persisted result object. Projection versions evolve independently from calculation method and result-schema versions; historical projections use only persisted run evidence and explicit rendering options.
 9. **Filing events and filing readings** (v0.3) are dated evidence taken from SEC filings. An event comes from filing records with no model. A reading is a model's answer to one fixed question about a named part of a filing, stored with the quoted passage, the model's name and version, and the version of the question.
 10. **Answer Records** (v0.3) store one question, its research plan, the evidence used, the sentences shown and the check results. An answer is not a report projection: it is written once and stored, and showing it again never calls a model.
-11. **Forecast-ledger entries** (v0.3) are dated questions stored with an Analysis Run, each with a prediction from a trivial rule, to be settled by later facts. They exist to measure methods over time. They are not evidence about an instrument and are never shown to an investor.
 
 Step 2.3 established the minimum data capabilities required by Momentum and Graham:
 

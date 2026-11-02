@@ -26,14 +26,16 @@ owns the milestone's place in the roadmap; the
 | Order | Work | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | 1 | [Feasibility checks (ASK.0)](#ask0--feasibility-checks) | Planned | |
-| 2 | [Forecast ledger, recording only (FL.1)](#fl1--forecast-ledger-recording-only) | Planned | |
-| 3 | [Filing events, no model (FR.1)](#fr1--filing-events) | Planned | |
-| 4 | [Ask: question in, stored answer out (ASK.1)](#ask1--ask) | Planned | |
-| 5 | [Answer check (ASK.2)](#ask2--answer-check) | Planned | |
-| 6 | [Filing reading, with a model (FR.2)](#fr2--filing-reading) | Planned | |
+| 2 | [Filing events, no model (FR.1)](#fr1--filing-events) | Planned | |
+| 3 | [Ask: question in, stored answer out (ASK.1)](#ask1--ask) | Planned | |
+| 4 | [Answer check (ASK.2)](#ask2--answer-check) | Planned | |
+| 5 | [Filing reading, with a model (FR.2)](#fr2--filing-reading) | Planned | |
 | Deferred | [Unusual-year flag (candidate)](#candidate-unusual-year-flag) | Deferred | |
-| Deferred | [Forecast ledger scoring](#deferred-forecast-ledger-scoring) | Deferred | |
 | Deferred | [Reader as a separate package](#deferred-reader-as-a-separate-package) | Deferred | |
+
+The forecast ledger (formerly FL.1) and its deferred scoring moved to the scope of the future
+predictive evaluator on 2026-11-01; see [Product boundaries](../../MASTER_PLAN.md#25-product-boundaries)
+and [A.2](#a2-forecast-ledger-moved-to-the-future-evaluator-2026-11-01).
 
 **Two outcomes, both a success.** ASK.0 decides which one this milestone delivers. The floor is a
 complete product, not a consolation: it needs no model at all.
@@ -52,12 +54,11 @@ Answer Records, and advice is declined. A user with Full Dual-Tier hardware may 
 Mode always gets at least the floor.
 
 **Work-package codes.** `ASK` covers the path from a question to a stored answer. `FR` ("filing
-records") covers new evidence taken from SEC filings. `FL` is the forecast ledger. Letter codes are used because Steps 4–7 are
+records") covers new evidence taken from SEC filings. Letter codes are used because Steps 4–7 are
 already taken by later milestones.
 
 **Why this order.** ASK.0 decides whether the model-based parts are worth building at all. FR.1
-needs no model, so it delivers new evidence whatever ASK.0 finds. FL.1 is small, depends on
-nothing else here, and earns nothing until it starts, so it goes early. ASK.1 and ASK.2 give plain-English
+needs no model, so it delivers new evidence whatever ASK.0 finds. ASK.1 and ASK.2 give plain-English
 answers over evidence that already exists. FR.2 comes last because it depends most on ASK.0's
 results.
 
@@ -119,27 +120,6 @@ results.
     job is dropped.
   - Choice probabilities are not available → the reader relies on its three fixed answers alone,
     with *not determined* as the way to express doubt.
-- **Branch:** not opened.
-- **Detail:** ⚠ no slice plan yet
-
-### FL.1 — Forecast ledger, recording only
-
-- **Problem:** Step 4.3 will ask for evidence that a method is any good before a composite screen or
-  ranking is allowed. That evidence takes a year or more to build up, and nothing builds up until
-  recording starts.
-- **Decision:** start recording now and score later. Each covered Analysis Run stores a few dated
-  questions that later facts will settle.
-- **Scope:**
-  - A short fixed list of questions, each answerable from facts the engine already fetches. For
-    example: "will next fiscal year's diluted EPS be higher than this year's?"
-  - Each entry holds the question and its version, the instrument's identity, the run's as-of date,
-    the date after which it can be settled, and a prediction from a trivial rule such as "same
-    direction as last year".
-  - No model is involved, and nothing is scored yet.
-  - Entries are measurement records. They are never shown in an answer or any investor view; a
-    prediction beside a ticker would break the evidence-not-advice rule.
-- **Timing:** begins only after Step 3.5, when stored result shapes have settled. Entries recorded
-  against shapes that later change would be thrown away.
 - **Branch:** not opened.
 - **Detail:** ⚠ no slice plan yet
 
@@ -256,17 +236,6 @@ results.
   the filing attribute this year's result to a one-time item?" is a candidate FR.2 question.
 - **Why not scheduled:** it touches existing strategies' output, so it needs its own approval.
 
-### Deferred: forecast ledger scoring
-
-- **Idea:** once enough entries from FL.1 can be settled, score each predictor against what
-  happened and keep the running record.
-- **Why it matters:** it is the evidence Step 4.3 requires before any composite screen or ranking,
-  and it works with any predictor, including a trivial one.
-- **A faster start:** because analyses can run "as of" a past date, a question posed as of 2022 can
-  be scored against 2023 facts today. This is sound for rule-based predictors only. A language
-  model may already know what happened.
-- **Why deferred:** scoring needs settled entries, and recording has only just begun.
-
 ### Deferred: reader as a separate package
 
 - **Idea:** the fixed-question reader is not specific to finance and could live in its own package.
@@ -277,12 +246,12 @@ results.
 ## 4. Out of scope
 
 - Advice to buy, sell or hold, and any score, rank or probability about an instrument's future.
-- Model-based ranking or comparison of instruments. Composite screens stay with Step 4.3 and its
-  validation requirements. The test: if a model's answer would change which instrument looks
+- Model-based ranking or comparison of instruments. Composite screens, universe screening and
+  cross-sectional ranking that the project would design or validate itself belong to the future evaluator ([Product boundaries](../../MASTER_PLAN.md#25-product-boundaries)).
+  The test: if a model's answer would change which instrument looks
   better, the job does not belong to a model.
 - Filters with weights, scores, "or" conditions, sorting by more than one measure, or conditions
   the investor did not state.
-- Showing a forecast-ledger entry in any investor view.
 - Memory between questions. Each question stands alone.
 - Reading news, web pages, earnings-call transcripts or anything other than SEC filings.
 - A cloud or hosted model in the core path.
@@ -305,8 +274,6 @@ fixed before any measured run; changing one afterwards needs a new decision reco
 - **Relevance**, on at least 200 held-out pairs: at most 1 in 10 results that bear on the question
   is left out of the answer. A model is used only if it beats the topic rule on the pairs where the
   two disagree, by the same sign test as filing reading. Otherwise the topic rule ships.
-- **Forecast ledger:** every Analysis Run of a covered strategy records its questions, and no
-  ledger entry appears in any investor view.
 - **Stated-preference filters:** the typed filter matches the stated conditions, with nothing added
   and nothing dropped, for at least 90 of 100 held-out requests. Every filter is shown back before
   it is applied.
@@ -348,3 +315,12 @@ On 2026-10-06 the project owner approved the acceptance bars in
 [ASK.0](#ask0--feasibility-checks): about 100 questions, 200 relevance pairs, 100 passages per
 filing question, and 200 correct plus 200 planted-error sentences. The labelling effort this implies
 was accepted. The rest of this plan remains a draft until Milestone v0.2 closes.
+
+### A.2 Forecast ledger moved to the future evaluator (2026-11-01)
+
+The project owner approved the product boundaries in
+[Master Plan section 2.5](../../MASTER_PLAN.md#25-product-boundaries) on 2026-11-01. FL.1 (forecast
+ledger, recording only) and the deferred forecast-ledger scoring were removed from this milestone.
+Both move to the scope of the future predictive evaluator, which holds later outcomes itself so that
+the engine never sees the outcomes it would be scored on. The sequence table was renumbered. The
+Step 4.3 composite-screen evidence requirement moved to the evaluator at the same time.
