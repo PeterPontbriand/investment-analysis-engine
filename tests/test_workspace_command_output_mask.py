@@ -46,19 +46,15 @@ _SPELLINGS: dict[str, Callable[[Path], Path]] = {
     "short-name": _short_name_spelling,
 }
 
-_SPELLING_PARAMS = [
-    "dotdot",
-    pytest.param(
-        "symlink",
-        marks=pytest.mark.skipif(
-            sys.platform == "win32", reason="creating a symbolic link needs a privilege on Windows"
-        ),
+_PLATFORM_MARKS: dict[str, pytest.MarkDecorator] = {
+    "symlink": pytest.mark.skipif(
+        sys.platform == "win32", reason="creating a symbolic link needs a privilege on Windows"
     ),
-    pytest.param(
-        "short-name",
-        marks=pytest.mark.skipif(sys.platform != "win32", reason="8.3 short names exist only on Windows"),
-    ),
-]
+    "short-name": pytest.mark.skipif(sys.platform != "win32", reason="8.3 short names exist only on Windows"),
+}
+assert _PLATFORM_MARKS.keys() <= _SPELLINGS.keys(), "a platform mark names a spelling that does not exist"
+
+_SPELLING_PARAMS = [pytest.param(name, marks=_PLATFORM_MARKS.get(name, ()), id=name) for name in _SPELLINGS]
 
 
 @pytest.fixture
