@@ -822,8 +822,8 @@ class _FakeProvider:
     def __init__(self, facts: tuple[ProviderFact, ...]) -> None:
         self._facts = facts
 
-    def fetch_facts(self, request: FinancialFactRequest) -> tuple[ProviderFact, ...]:  # noqa: ARG002
-        del request
+    def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
+        del request, effective_as_of
         return self._facts
 
 
@@ -845,7 +845,7 @@ def test_fake_returns_tuple_of_facts() -> None:
         field_name=FinancialField.EPS,
         provider_id="yfinance",
     )
-    result = fake.fetch_facts(req)
+    result = fake.fetch_facts(req, effective_as_of=AS_OF)
     assert result == (fact, fact)
     assert all(isinstance(f, ProviderFact) for f in result)
 
@@ -858,7 +858,7 @@ def test_empty_tuple_represents_unavailable_not_zero() -> None:
         field_name=FinancialField.CURRENT_PRICE,
         provider_id="yfinance",
     )
-    result = fake.fetch_facts(req)
+    result = fake.fetch_facts(req, effective_as_of=AS_OF)
     assert result == ()
     assert isinstance(result, tuple)
     assert len(result) == 0

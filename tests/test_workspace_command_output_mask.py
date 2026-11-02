@@ -25,16 +25,12 @@ def _dotdot_spelling(real: Path) -> Path:
 
 
 def _symlink_spelling(real: Path) -> Path:
-    if sys.platform == "win32":
-        pytest.skip("creating a symbolic link needs a privilege on Windows")
     link = real.parent / "link"
     link.symlink_to(real, target_is_directory=True)
     return link
 
 
 def _short_name_spelling(real: Path) -> Path:
-    if sys.platform != "win32":
-        pytest.skip("8.3 short names exist only on Windows")
     import ctypes  # noqa: PLC0415 - Windows only
 
     buffer = ctypes.create_unicode_buffer(32768)
@@ -50,6 +46,16 @@ _SPELLINGS: dict[str, Callable[[Path], Path]] = {
     "short-name": _short_name_spelling,
 }
 
+_PLATFORM_MARKS: dict[str, pytest.MarkDecorator] = {
+    "symlink": pytest.mark.skipif(
+        sys.platform == "win32", reason="creating a symbolic link needs a privilege on Windows"
+    ),
+    "short-name": pytest.mark.skipif(sys.platform != "win32", reason="8.3 short names exist only on Windows"),
+}
+assert _PLATFORM_MARKS.keys() <= _SPELLINGS.keys(), "a platform mark names a spelling that does not exist"
+
+_SPELLING_PARAMS = [pytest.param(name, marks=_PLATFORM_MARKS.get(name, ()), id=name) for name in _SPELLINGS]
+
 
 @pytest.fixture
 def real_directory(tmp_path: Path) -> Path:
@@ -58,7 +64,7 @@ def real_directory(tmp_path: Path) -> Path:
     return directory
 
 
-@pytest.mark.parametrize("spelling", list(_SPELLINGS))
+@pytest.mark.parametrize("spelling", _SPELLING_PARAMS)
 def test_a_printed_resolved_path_is_masked_whichever_way_the_root_was_spelled(
     real_directory: Path, spelling: str
 ) -> None:
@@ -69,7 +75,7 @@ def test_a_printed_resolved_path_is_masked_whichever_way_the_root_was_spelled(
     assert _mask(f'Database: "{printed}"', [scenario_root(other)]) == 'Database: "<database>"'
 
 
-@pytest.mark.parametrize("spelling", list(_SPELLINGS))
+@pytest.mark.parametrize("spelling", _SPELLING_PARAMS)
 def test_masking_the_unresolved_spelling_alone_misses_the_printed_path(real_directory: Path, spelling: str) -> None:
     """Documents the cause: without resolving first, the printed form survives the mask."""
     other = _SPELLINGS[spelling](real_directory)

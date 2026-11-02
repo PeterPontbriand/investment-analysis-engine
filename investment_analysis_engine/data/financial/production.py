@@ -79,7 +79,7 @@ class ProductionFinancialFactsProvider:
     def fetch_instant_series(self, request: InstantSeriesRequest, *, effective_as_of: datetime) -> InstantSeriesFacts:
         """Dispatch a balance-sheet series to the requested provider, or report every year-end unsupported."""
         provider = self._providers.get(request.provider_id)
-        if not isinstance(provider, InstantSeriesProvider):
+        if provider is None or not isinstance(provider, InstantSeriesProvider):
             return InstantSeriesFacts(
                 absences=tuple(
                     InstantAbsence(
@@ -95,7 +95,7 @@ class ProductionFinancialFactsProvider:
     def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:
         """Delegate optional source verification without rewriting its evidence."""
         provider = self._providers.get(request.provider_id)
-        if not isinstance(provider, SecurityUnitProvider):
+        if provider is None or not isinstance(provider, SecurityUnitProvider):
             return SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_UNSUPPORTED)
         return provider.resolve_security_unit(request)
 
@@ -129,7 +129,7 @@ class ProductionFinancialFactsProvider:
     def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
         """Route an optional anchor year-end request without widening numeric facts."""
         provider = self._providers.get(request.provider_id)
-        if not isinstance(provider, AnchorYearEndProvider):
+        if provider is None or not isinstance(provider, AnchorYearEndProvider):
             return AnchorYearEndResolution(
                 reason=AnchorYearEndUnavailableReason.NO_ANALYSIS_SCOPE,
                 message=f"Provider {request.provider_id!r} does not give an anchor year-end.",
@@ -139,6 +139,6 @@ class ProductionFinancialFactsProvider:
     def resolve_cover_listing(self, request: CoverListingRequest) -> ListingResolution:
         """Route an optional cover-listing request without widening numeric facts."""
         provider = self._providers.get(request.provider_id)
-        if not isinstance(provider, CoverListingProvider):
+        if provider is None or not isinstance(provider, CoverListingProvider):
             return ListingResolution(reason=CoverUnavailableReason.PROVIDER_UNSUPPORTED)
         return provider.resolve_cover_listing(request)

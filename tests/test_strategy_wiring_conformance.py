@@ -424,6 +424,11 @@ def test_t15_reports_an_undocumented_cli_tier_member(monkeypatch: pytest.MonkeyP
     assert gaps[1].startswith("CLI tier entry fields differ from the documented set")
 
 
+def test_t15_reports_descriptors_that_are_not_a_tuple() -> None:
+    """The closed descriptor tuple is a tuple, so a list is reported."""
+    assert conformance.descriptor_is_closed_gaps(list(STRATEGIES)) == ["STRATEGIES is not a tuple"]
+
+
 def test_t15_reports_a_cli_tier_that_is_not_a_tuple() -> None:
     """The closed tier is a tuple, so a list is reported."""
     tier: list[CliStrategy] = list(CLI_STRATEGIES)

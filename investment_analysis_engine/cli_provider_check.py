@@ -76,7 +76,7 @@ def _implicated_providers(failures: Iterable[ProviderFailure | None]) -> tuple[s
 def _finding_of(probe: ProviderCheck, provider_id: str, *, requested: bool) -> ProbeFinding:
     """Ask the probe, failing open: any error or unexpected answer is a provider that could not be checked."""
     try:
-        finding = probe.check(provider_id, requested=requested)
+        finding: object = probe.check(provider_id, requested=requested)
     except Exception:
         logger.warning("The provider check of %s failed.", provider_id, exc_info=True)
         return ProbeFinding(provider_id, ProbeVerdict.NOT_CHECKED)
