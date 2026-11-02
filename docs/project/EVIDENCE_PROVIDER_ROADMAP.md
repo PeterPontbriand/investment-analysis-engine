@@ -46,8 +46,10 @@ and ROIC / incremental ROIC. [Step 4.1](MASTER_PLAN.md#milestone-v04-analytics-e
 lists price-to-cash-flow/price-to-free-cash-flow screens as committed scope, with cash-conversion
 quality, point-in-time estimate revisions, growth-adjusted cash-flow valuation, and leverage
 and earnings stability named as candidates subject to separate approval; Step 4.2 covers further
-technical indicators; Step 4.3 covers aggregation, drawdown, and volatility, with cross-sectional
-ranking named as a possibility for later product-policy work. The strategy table below marks each
+technical indicators; Step 4.3 covers drawdown and volatility. Composite screens, universe
+screening and cross-sectional ranking that the project would design or validate itself moved to
+the future predictive evaluator on 2026-11-01; published, fully specified screens stay in the engine
+([Product boundaries](MASTER_PLAN.md#25-product-boundaries)). The strategy table below marks each
 candidate against these owners; the plans stay authoritative for sequencing.
 
 ## Cross-cutting platform features
@@ -60,12 +62,15 @@ differentiators.
   becoming a false fail. `MetricResult` (`investment_analysis_engine/core/metric_result.py`) already distinguishes `ok`,
   `unavailable`, and `not_applicable` outcomes rather than silently defaulting to zero or a false
   boolean — most screeners do not make this distinction, and it is the foundation this idea would
-  build on, though a genuinely composable screen-combination layer does not exist yet. Step 4.3
-  already requires an explicit missing-data policy for any composite screen; three-valued logic
-  could be that policy.
+  build on, though a genuinely composable screen-combination layer does not exist yet. Three-valued
+  logic could be the missing-data policy for the investor-stated filters of v0.3 ASK.1; composite
+  screens themselves now belong to the future predictive evaluator
+  ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)).
 - **Historical identity and survivorship.** Extend the current identity work into history: CIK as
   the primary key, dated ticker changes, delisted companies, and FIGI mapping via the free
-  OpenFIGI service. Screens without delisted companies are biased toward survivors.
+  OpenFIGI service. Screens without delisted companies are biased toward survivors. The future
+  predictive evaluator ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)) is the main
+  consumer of this history.
 - **Bitemporal facts and restatement evidence.** Record when each value was learned, not only when
   it became available, so "what was known on date X" and "what is true now" are both answerable.
   Restatements (10-K/A amendments, revised XBRL facts) become evidence in their own right.
@@ -138,7 +143,7 @@ inputs.
 | Market-implied and relative valuation | Point-in-time EV multiples | EV/EBIT, EV/EBITDA, earnings yield with as-of share count and net debt | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples) covers EV/EBITDA and FCF yield, and its [Magic Formula](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula) computes earnings yield (EBIT/EV); EV/EBIT as a standalone multiple is not named there | Yes |
 | Market-implied and relative valuation | Greenblatt Magic Formula | Earnings yield plus return on capital, combined rank | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula) | Yes |
 | Market-implied and relative valuation | Shareholder yield and dividend safety | Dividends + net buybacks + debt paydown; payout coverage by FCF | New | Yes |
-| Market-implied and relative valuation | Peer-relative percentiles | Rank within point-in-time peer group, with coverage counts | Step 4.3 names cross-sectional ranking only as a possibility for later product-policy work, not committed scope | Partial |
+| Market-implied and relative valuation | Peer-relative percentiles | Rank within point-in-time peer group, with coverage counts | A peer-relative ranking the project would design or validate itself moved from Step 4.3 to the future predictive evaluator ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)); not committed engine scope | Partial |
 | Price and market structure | Liquidity and capacity | Average daily dollar volume, Amihud illiquidity, spread proxies | New | Yes |
 | Price and market structure | Risk profile | Realized volatility, maximum drawdown, Ulcer index, downside deviation, beta | Step 4.3 names maximum drawdown and volatility as committed examples of its basic risk measures; Ulcer index, downside deviation, and beta specifically are not named there | Yes |
 | Price and market structure | Momentum variants | 12-minus-1-month momentum, 52-week-high proximity, time-series momentum, trend with hysteresis | Step 4.2 is the general "additional technical indicators" step (its own named examples are RSI/EMA/MACD); these specific variants are not separately named and would need their own specification under 4.2's "only when explicitly selected and specified" gate | Yes |
@@ -196,8 +201,8 @@ sequenced as [R3](milestones/v0.2/r3/R3_DEAD_CODE_AUDIT_PLAN.md),
    the contract as settled from the four existing analyzers alone.
 2. **Step 3.5 quantitative screens.** As already planned: Piotroski, Altman, Beneish, EV/EBITDA and
    FCF yield, Magic Formula, Interest Coverage, ROIC.
-3. **Three-valued composable screens.** Proposed as the missing-data policy Step 4.3 requires;
-   multiplies the value of every strategy.
+3. **Three-valued composable screens.** Proposed as the missing-data policy for investor-stated
+   filters (v0.3 ASK.1); multiplies the value of every strategy.
 4. **Graham Defensive and Enterprising criteria, and NCAV.** New, and almost entirely reuse the
    Graham fact resolution.
 5. **Reverse DCF.** High explanatory value per line of code; needs its own DCF specification under

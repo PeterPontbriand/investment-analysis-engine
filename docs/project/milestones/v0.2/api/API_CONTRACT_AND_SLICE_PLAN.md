@@ -99,6 +99,11 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Scope:** watchlist create, rename, delete, add and remove; direct analysis of one ticker with
   chosen strategies, saved or not; refresh with progress; the CLI switched to each; a conformance
   check that every selection field has a description and a type the API's form schema supports.
+  Direct-analysis and run endpoints (served in API.4) accept an optional `as_of` and echo the
+  effective value in the response, matching `--as-of` on the CLI. This lets a client such as the
+  future predictive evaluator ([Product boundaries](../../../MASTER_PLAN.md#25-product-boundaries))
+  request results as of a past date. API.3 therefore carries `as_of` through the application layer's
+  direct-analysis and run operations.
 - **Branch:** `feat/api-application-actions`.
 - **Detail:** ⚠ no slice plan yet. When it is written it also decides Site 19, the watchlist flag bundle
   ([SWC.1 design H.10](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)),
@@ -110,7 +115,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Decision:** action endpoints over API.3. A refresh runs as a job inside the `ian serve`
   process, one at a time, with a status endpoint the client polls and a stop endpoint. A job does
   not outlive the process.
-- **Scope:** the action endpoints; the job status and stop endpoints; their `openapi.json` entries
+- **Scope:** the action endpoints, with the optional `as_of` and its echoed effective value on the
+  direct-analysis and run endpoints; the job status and stop endpoints; their `openapi.json` entries
   and tests.
 - **Branch:** `feat/api-actions`.
 - **Detail:** ⚠ no slice plan yet
