@@ -92,8 +92,9 @@ What changed, by area:
   `schema_version: Literal[1] = 1`, `has_more` and `items`, in that order. `WatchlistListDocument` has
   `schema_version` and `items`. `build_runs_list_document(summaries, *, has_more)` sets `has_more`; the module
   docstrings no longer call the documents unversioned.
-- **`application`:** `list_runs` returns a new frozen `RunPage` (`summaries`, `has_more`).
-- **`workspace`:** `SQLiteAnalysisRunRepository.list` gains the keyword `extra_rows` (default `0`).
+- **`workspace`:** a new frozen `RunPage` (`summaries`, `has_more`) beside `RunQuery`; `SQLiteAnalysisRunRepository.list`
+  returns it.
+- **`application`:** `list_runs` returns the repository's `RunPage` unchanged.
 - **`cli_workspace.py`:** both `--json` branches write the new documents. The help texts are "Emit one JSON object
   holding a page of run summaries." and "Emit one JSON object holding the watchlist summaries." Text output is
   unchanged.
@@ -101,11 +102,10 @@ What changed, by area:
 - **Docs:** `docs/user/WORKSPACE.md` (both documents, with an example and the empty case) and `docs/user/USAGE.md` (the
   additions rule), and the API contract (sequence table, API.2 and API.3 entries, §1, §4 and the not-served list).
 
-How `has_more` is read: `RunQuery` and its bounds (limit 1 to `RUN_QUERY_MAX_LIMIT`) are unchanged.
-`list_runs` calls the repository with `extra_rows=1`, which reads `limit + 1` rows, returns the first `limit` rows and
-sets `has_more` when the extra row came back. A caller asking for the maximum limit therefore reads 101 rows and gets a
-correct `has_more`. The extra row is a keyword of the repository's `list`, so no stored shape or public bound changes
-and existing callers of `list(query)` read what they read before.
+How `has_more` is read: `RunQuery` and its bounds (limit 1 to `RUN_QUERY_MAX_LIMIT`) are unchanged. The repository's
+`list` reads `limit + 1` rows in its one query, returns the first `limit` as `summaries` and sets `has_more` when the
+extra row came back. A caller asking for the maximum limit therefore reads 101 rows and gets a correct `has_more`. No
+parameter selects this: a page always carries its flag, so no stored shape or public bound changes.
 
 User-visible changes:
 
@@ -123,6 +123,9 @@ Tests edited, and why:
     `watchlist-list-json-timestamps`, plus the new `runs-list-empty-json`: the scenario step that reads the first run
     reads `items`, and the stored outputs were regenerated;
   - `tests/application/test_runs.py`: `list_runs` returns a `RunPage`.
+- Tests that call the repository's `list`, edited only to read `.summaries` from the returned page; no assertion
+  changed: `tests/workspace/repositories/test_analysis_runs.py`, `tests/_strategy_document_output.py`,
+  `tests/test_cli_momentum_statuses.py`, `tests/test_cli_save_run.py` and `tests/test_save_run_every_direct_command.py`.
 - Tests that read the array of `runs list --json`, edited only to read `items`; no assertion about a run's content
   changed:
   - `tests/test_cli_refresh.py` (eight reads), `tests/test_cli_workspace.py` (two reads) and
@@ -131,9 +134,10 @@ Tests edited, and why:
 
 New tests:
 
-- `tests/application/test_runs.py`: `has_more` false on an empty store, on a short page and when the store holds exactly
-  `limit` rows; true when exactly one more row exists; correct at the maximum limit, with and without an offset, and past
-  the end; the page keeps the order and drops the extra row.
+- `tests/workspace/repositories/test_analysis_runs.py`: `has_more` false on an empty store, on a short page and when the
+  store holds exactly `limit` rows; true when exactly one more row exists; correct at the maximum limit, with and without
+  an offset, and past the end; the page keeps the order and drops the extra row.
+- `tests/application/test_runs.py`: `list_runs` passes the page and `has_more` through.
 - `tests/workspace_documents/test_runs_list_document.py`: the empty-store output, key order, `has_more` through the
   command, and text output unchanged by the flag.
 - Both empty outputs, key order of both documents and the schemas matching the models are covered in

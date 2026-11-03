@@ -40,7 +40,7 @@ def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -
             result = CliRunner().invoke(app, [*_COMMANDS[alias], "--save-run"])
         assert result.exit_code == 0, result.output
         repository = SQLiteAnalysisRunRepository(SQLiteDatabase(isolated))
-        runs = (repository.get(summary.analysis_run_id) for summary in repository.list(RunQuery()))
+        runs = (repository.get(summary.analysis_run_id) for summary in repository.list(RunQuery()).summaries)
         return tuple(item for item in runs if item is not None)
 
     return run

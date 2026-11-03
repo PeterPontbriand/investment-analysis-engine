@@ -24,7 +24,7 @@ from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.data.repositories.schema import analysis_runs
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from investment_analysis_engine.workspace.runs import AnalysisRun, AnalysisRunSummary, RunQuery
+from investment_analysis_engine.workspace.runs import AnalysisRun, AnalysisRunSummary, RunPage, RunQuery
 
 _ENVELOPE_ADAPTER: TypeAdapter[AnalysisRun] = TypeAdapter(AnalysisRun)
 
@@ -131,11 +131,12 @@ class SQLiteAnalysisRunRepository:
                 return None
             return self._decode(dict(row))
 
-    def list(self, query: RunQuery, *, extra_rows: int = 0) -> tuple[AnalysisRunSummary, ...]:
-        """Return a bounded, filtered page of run summaries.
+    def list(self, query: RunQuery) -> RunPage:
+        """Return a bounded, filtered page of run summaries and whether more rows follow it.
 
-        ``extra_rows`` reads that many rows past the page, so a caller can tell whether more rows follow without
-        a second query; the caller drops them. It does not change the bounds of ``query``.
+        The one query reads ``query.limit + 1`` rows: the first ``query.limit`` are the page, and ``has_more`` is
+        true when the extra row came back. This needs no second count query and does not change the bounds of
+        ``query``.
 
         Filters combine with AND; results order by completion descending then
         run ID descending. Only indexed summary columns are read, so an
@@ -161,12 +162,12 @@ class SQLiteAnalysisRunRepository:
             )
             .where(and_(*conditions))
             .order_by(analysis_runs.c.completed_at.desc(), analysis_runs.c.analysis_run_id.desc())
-            .limit(query.limit + extra_rows)
+            .limit(query.limit + 1)
             .offset(query.offset)
         )
         with self._database.read() as connection:
             rows = connection.execute(statement).mappings().all()
-        return tuple(
+        summaries = tuple(
             AnalysisRunSummary(
                 analysis_run_id=UUID(row["analysis_run_id"]),
                 ticker=row["ticker"],
@@ -175,8 +176,9 @@ class SQLiteAnalysisRunRepository:
                 completed_at=datetime.fromisoformat(row["completed_at"]),
                 refresh_id=None if row["refresh_id"] is None else UUID(row["refresh_id"]),
             )
-            for row in rows
+            for row in rows[: query.limit]
         )
+        return RunPage(summaries=summaries, has_more=len(rows) > query.limit)
 
     def list_refresh_runs(self, refresh_id: UUID) -> tuple[StoredRefreshRun, ...]:
         """Return every run saved by one refresh, in batch order, with no row limit.

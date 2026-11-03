@@ -24,7 +24,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
     SQLiteAnalysisRunRepository,
 )
 from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
-from investment_analysis_engine.workspace.runs import AnalysisRun, RunQuery
+from investment_analysis_engine.workspace.runs import RUN_QUERY_MAX_LIMIT, AnalysisRun, RunQuery
 from investment_analysis_engine.workspace.watchlists import WatchlistSpec
 from tests._migrated_database import migrated_database_url
 from tests._wiring import alias_for
@@ -149,7 +149,7 @@ def test_get_detects_corrupted_envelope_but_list_still_reports_it(
         )
     with pytest.raises(ValueError, match="validation error"):
         repository.get(MOMENTUM_ID)
-    summaries = repository.list(RunQuery())
+    summaries = repository.list(RunQuery()).summaries
     assert [summary.analysis_run_id for summary in summaries] == [MOMENTUM_ID]
 
 
@@ -169,20 +169,20 @@ def test_list_orders_by_completion_desc_then_id_desc_and_filters_combine_with_an
     for run in (same_time_low, same_time_high, earlier_run):
         repository.insert(run)
 
-    all_summaries = repository.list(RunQuery())
+    all_summaries = repository.list(RunQuery()).summaries
     assert [s.analysis_run_id for s in all_summaries] == [high_id, low_id, FCF_ID]
     assert same_time_high.completed_at == same_time_low.completed_at == later
 
-    by_ticker = repository.list(RunQuery(ticker="KO"))
+    by_ticker = repository.list(RunQuery(ticker="KO")).summaries
     assert [s.analysis_run_id for s in by_ticker] == [high_id, FCF_ID]
 
-    by_ticker_and_method = repository.list(RunQuery(ticker="KO", method_id="graham_number"))
+    by_ticker_and_method = repository.list(RunQuery(ticker="KO", method_id="graham_number")).summaries
     assert [s.analysis_run_id for s in by_ticker_and_method] == [high_id]
 
-    by_outcome = repository.list(RunQuery(status=RunOutcome.COMPLETED))
+    by_outcome = repository.list(RunQuery(status=RunOutcome.COMPLETED)).summaries
     assert len(by_outcome) == 3
 
-    assert repository.list(RunQuery(refresh_id=UUID("11111111-1111-4111-8111-111111111111"))) == ()
+    assert repository.list(RunQuery(refresh_id=UUID("11111111-1111-4111-8111-111111111111"))).summaries == ()
 
 
 def test_list_limit_and_offset_page_a_read_snapshot(repository: SQLiteAnalysisRunRepository) -> None:
@@ -193,8 +193,8 @@ def test_list_limit_and_offset_page_a_read_snapshot(repository: SQLiteAnalysisRu
     assert query.limit == 20
     assert query.offset == 0
 
-    first_page = repository.list(RunQuery(limit=2))
-    second_page = repository.list(RunQuery(limit=2, offset=2))
+    first_page = repository.list(RunQuery(limit=2)).summaries
+    second_page = repository.list(RunQuery(limit=2, offset=2)).summaries
     assert len(first_page) == 2
     assert len(second_page) == 2
     assert {s.analysis_run_id for s in first_page} | {s.analysis_run_id for s in second_page} == {
@@ -203,7 +203,52 @@ def test_list_limit_and_offset_page_a_read_snapshot(repository: SQLiteAnalysisRu
         GRAHAM_GROWTH_ID,
         FCF_ID,
     }
-    assert repository.list(RunQuery(limit=1, offset=4)) == ()
+    assert repository.list(RunQuery(limit=1, offset=4)).summaries == ()
+
+
+def _insert_copies(repository: SQLiteAnalysisRunRepository, count: int) -> None:
+    """Insert ``count`` runs that differ only in their IDs, which are 1 to ``count``."""
+    template = _momentum_run()
+    for number in range(1, count + 1):
+        repository.insert(template.model_copy(update={"analysis_run_id": UUID(int=number)}))
+
+
+@pytest.mark.parametrize(
+    ("stored", "query", "expected"),
+    [
+        pytest.param(0, RunQuery(limit=5), (0, False), id="empty-store"),
+        pytest.param(3, RunQuery(limit=5), (3, False), id="short-page"),
+        pytest.param(5, RunQuery(limit=5), (5, False), id="exactly-limit-rows"),
+        pytest.param(6, RunQuery(limit=5), (5, True), id="exactly-one-more-row"),
+        pytest.param(7, RunQuery(limit=5, offset=2), (5, False), id="offset-reaches-the-end"),
+        pytest.param(8, RunQuery(limit=5, offset=2), (5, True), id="offset-leaves-one-more"),
+        pytest.param(9, RunQuery(limit=5, offset=20), (0, False), id="offset-past-the-end"),
+        pytest.param(100, RunQuery(limit=RUN_QUERY_MAX_LIMIT), (100, False), id="maximum-limit-exactly-full"),
+        pytest.param(101, RunQuery(limit=RUN_QUERY_MAX_LIMIT), (100, True), id="maximum-limit-one-more-row"),
+        pytest.param(101, RunQuery(limit=RUN_QUERY_MAX_LIMIT, offset=1), (100, False), id="maximum-limit-with-offset"),
+    ],
+)
+def test_has_more_reports_whether_a_row_follows_the_page(
+    repository: SQLiteAnalysisRunRepository, stored: int, query: RunQuery, expected: tuple[int, bool]
+) -> None:
+    _insert_copies(repository, stored)
+
+    page = repository.list(query)
+
+    assert (len(page.summaries), page.has_more) == expected
+
+
+def test_the_page_is_the_first_rows_in_order_and_the_extra_row_is_dropped(
+    repository: SQLiteAnalysisRunRepository,
+) -> None:
+    _insert_copies(repository, 4)
+
+    first = repository.list(RunQuery(limit=3))
+    second = repository.list(RunQuery(limit=3, offset=3))
+
+    assert [item.analysis_run_id.int for item in first.summaries] == [4, 3, 2]
+    assert [item.analysis_run_id.int for item in second.summaries] == [1]
+    assert (first.has_more, second.has_more) == (True, False)
 
 
 def test_independent_cache_and_telemetry_deletion_cannot_erase_runs(
@@ -220,7 +265,7 @@ def test_independent_cache_and_telemetry_deletion_cannot_erase_runs(
         connection.execute(delete(market_data_cache_entries))
 
     assert repository.get(MOMENTUM_ID) == run
-    assert [s.analysis_run_id for s in repository.list(RunQuery())] == [MOMENTUM_ID]
+    assert [s.analysis_run_id for s in repository.list(RunQuery()).summaries] == [MOMENTUM_ID]
     assert watchlist_repository.get("Unrelated Watchlist") is not None
 
 

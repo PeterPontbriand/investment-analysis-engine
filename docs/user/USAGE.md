@@ -224,6 +224,10 @@ The failure's code chooses its `reason` message, and the same code gives the sam
 
 Financial cache bypass is available through `--no-cache` on both Graham commands and `fcf-growth`. Quote responses expire independently after 300 seconds by default, even when annual-fact cache reuse is unlimited. Set the `IAN_QUOTE_CACHE_TTL_SECONDS` environment setting to a finite nonnegative value; zero disables quote reuse. An expired quote is refreshed once without substituting a stale value on failure. Old quotes with an unspecified cache basis are refreshed under the descriptive quote basis; annual caches and database schema are unchanged.
 
+[Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Investment Analysis Engine currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
+
+JSON intentionally retains stable machine identifiers such as snake_case field names where those identifiers are part of the programmatic contract.
+
 #### What may change in the JSON output
 
 The same rule covers every published JSON document, whether a command writes it with `--json` or a later interface serves it. `runs list --json` and `watchlist list --json` each print one versioned object, with the items under `items`.
@@ -243,10 +247,6 @@ The same rule covers every published JSON document, whether a command writes it 
   - a different HTTP status for an existing condition.
 
 A program that reads this output must tolerate unknown fields, unknown values and a higher `schema_version`. The published files in `schemas/` are exact (each `schema_version` is a constant and no unknown key is allowed) and describe this engine version, so validate against them in tests, not against the output of a newer engine in production.
-
-[Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Investment Analysis Engine currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
-
-JSON intentionally retains stable machine identifiers such as snake_case field names where those identifiers are part of the programmatic contract.
 
 ## Historical / point-in-time analysis
 

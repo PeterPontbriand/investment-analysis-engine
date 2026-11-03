@@ -142,7 +142,7 @@ def test_momentum_default_call_saves_nothing(mock_run: MagicMock, isolated_save_
 
     assert result.exit_code == 0
     assert "Saved Analysis Run" not in result.output
-    assert _repository(isolated_save_run_database).list(RunQuery()) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery()).summaries == ()
 
 
 @patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
@@ -166,7 +166,7 @@ def test_momentum_save_run_persists_and_reports_id_on_stderr(
     assert "Saved Analysis Run:" in json_result.stderr
     assert "Saved Analysis Run:" not in json_result.stdout
 
-    saved = _repository(isolated_save_run_database).list(RunQuery())
+    saved = _repository(isolated_save_run_database).list(RunQuery()).summaries
     assert len(saved) == 2
     assert {item.ticker for item in saved} == {"BTC-USD"}
     assert all(item.method_id == "sma_crossover" for item in saved)
@@ -185,7 +185,7 @@ def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(
     context = mock_run.call_args.kwargs["context"]
     assert context.as_of == datetime(2026, 8, 1, 23, 59, 59, 999999, tzinfo=UTC)
     assert context.use_cache is False
-    (summary,) = _repository(isolated_save_run_database).list(RunQuery())
+    (summary,) = _repository(isolated_save_run_database).list(RunQuery()).summaries
     run = _repository(isolated_save_run_database).get(summary.analysis_run_id)
     assert run is not None
     selection = run.requested_config
@@ -218,7 +218,7 @@ def test_momentum_saved_run_timing_span_contains_the_analysis(
         result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
 
     assert result.exit_code == 0, result.output
-    (summary,) = _repository(isolated_save_run_database).list(RunQuery())
+    (summary,) = _repository(isolated_save_run_database).list(RunQuery()).summaries
     run = _repository(isolated_save_run_database).get(summary.analysis_run_id)
     assert run is not None
     (analysis_instant,) = analysis_instants
@@ -300,7 +300,7 @@ def test_graham_number_save_run_persists_a_completed_run(isolated_save_run_datab
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH")).summaries
     assert len(saved) == 1
     assert saved[0].method_id == "graham_number"
 
@@ -328,7 +328,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome(
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="FLSW"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="FLSW")).summaries
     assert len(saved) == 1
     assert saved[0].status is RunOutcome.NOT_APPLICABLE
 
@@ -346,7 +346,7 @@ def test_graham_number_no_cache_plus_save_run_still_saves(isolated_save_run_data
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH")).summaries
     assert len(saved) == 1
 
 
@@ -360,7 +360,7 @@ def test_graham_number_default_call_saves_nothing(isolated_save_run_database: Pr
     assert result.exit_code == 0
     assert "Saved Analysis Run" not in result.output
 
-    assert _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH")) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH")).summaries == ()
 
 
 def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() -> None:
@@ -404,7 +404,7 @@ def test_graham_growth_save_run_persists_with_stored_assumptions(isolated_save_r
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="SYNTH")).summaries
     assert len(saved) == 1
     full = SQLiteAnalysisRunRepository(SQLiteDatabase(isolated_save_run_database)).get(saved[0].analysis_run_id)
     assert full is not None
@@ -428,7 +428,7 @@ def test_fcf_growth_save_run_persists(isolated_save_run_database: ProjectSetting
     assert result.exit_code == 0
     assert "Saved Analysis Run:" in result.output
 
-    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="ACME"))
+    saved = _repository(isolated_save_run_database).list(RunQuery(ticker="ACME")).summaries
     assert len(saved) == 1
     assert saved[0].method_id == "reported_fcf_eps_cagr"
 
@@ -443,7 +443,7 @@ def test_fcf_growth_default_call_saves_nothing(isolated_save_run_database: Proje
     assert result.exit_code == 0
     assert "Saved Analysis Run" not in result.output
 
-    assert _repository(isolated_save_run_database).list(RunQuery(ticker="ACME")) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery(ticker="ACME")).summaries == ()
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +464,7 @@ def test_interrupt_during_analysis_stores_no_run(
     result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
 
     assert "Saved Analysis Run" not in result.output
-    assert _repository(isolated_save_run_database).list(RunQuery()) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery()).summaries == ()
 
 
 @patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
@@ -479,4 +479,4 @@ def test_interrupt_while_storing_leaves_no_partial_run(
         result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
 
     assert "Saved Analysis Run" not in result.output
-    assert _repository(isolated_save_run_database).list(RunQuery()) == ()
+    assert _repository(isolated_save_run_database).list(RunQuery()).summaries == ()

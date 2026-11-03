@@ -173,6 +173,13 @@ class RunQuery(_FrozenModel):
     offset: int = Field(default=0, ge=0)
 
 
+class RunPage(_FrozenModel):
+    """One page of run summaries and whether more rows follow it for the same filters."""
+
+    summaries: tuple[AnalysisRunSummary, ...]
+    has_more: bool
+
+
 class WatchlistEntry(_FrozenModel):
     """One (ticker, selection) pair within a watchlist, addressed by its own position.
 
@@ -234,6 +241,7 @@ __all__ = [
     "AnalysisRun",
     "AnalysisRunNotFoundError",
     "AnalysisRunSummary",
+    "RunPage",
     "RunQuery",
     "Watchlist",
     "WatchlistEntry",

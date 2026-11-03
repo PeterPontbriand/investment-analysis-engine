@@ -1,7 +1,6 @@
 """The Analysis Run read operations: list, replay and compare."""
 
 import logging
-from dataclasses import dataclass
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -20,7 +19,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import SQLi
 from investment_analysis_engine.workspace.runs import (
     AnalysisRun,
     AnalysisRunNotFoundError,
-    AnalysisRunSummary,
+    RunPage,
     RunQuery,
 )
 from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
@@ -73,23 +72,10 @@ def _stored_run(context: ApplicationContext, run_id: UUID) -> AnalysisRun:
     return run
 
 
-@dataclass(frozen=True)
-class RunPage:
-    """One page of run summaries and whether more rows follow it."""
-
-    summaries: tuple[AnalysisRunSummary, ...]
-    has_more: bool
-
-
 def list_runs(context: ApplicationContext, query: RunQuery) -> RunPage:
-    """Return the page of run summaries matching ``query``, most recently completed first.
-
-    The repository reads one row past ``query.limit``; that row sets ``has_more`` and is not returned, so the
-    query's own bounds, including the maximum limit, stay as they are.
-    """
+    """Return the page of run summaries matching ``query``, most recently completed first, and whether more follow."""
     with open_database(context) as database:
-        rows = SQLiteAnalysisRunRepository(database).list(query, extra_rows=1)
-    return RunPage(summaries=rows[: query.limit], has_more=len(rows) > query.limit)
+        return SQLiteAnalysisRunRepository(database).list(query)
 
 
 def replay_run_text(context: ApplicationContext, run_id: UUID, mode: TextPresentationMode) -> str:
@@ -133,4 +119,4 @@ def compare_refresh_runs(context: ApplicationContext, refresh_id: UUID) -> RunsC
     return build_runs_compare(refresh_id, stored, _compare_columns())
 
 
-__all__ = ["RunPage", "compare_refresh_runs", "list_runs", "replay_run_document", "replay_run_text"]
+__all__ = ["compare_refresh_runs", "list_runs", "replay_run_document", "replay_run_text"]
