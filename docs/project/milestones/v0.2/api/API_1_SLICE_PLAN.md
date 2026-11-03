@@ -152,7 +152,6 @@ Tests moved to a name's new home ([A23](#a23-tests-2026-11-02)); no assertion ch
   `investment_analysis_engine.workspace.repositories.watchlists.SQLiteWatchlistRepository.add_entries`.
 - A22 renames in `tests/test_cli_health.py` (`build_health_document`, two references) and
   `tests/reporting/test_failure_envelope.py` (`failure_document_json`, four references).
-
 - A22 renames in test data that pins generated names: the specimen presenter and replay (`build_specimen_document`),
   the generator fills `tests/scripts/generator_fills/presenter.py.fill` and `replay.py.fill`, and the expected stub
   names in `tests/scripts/test_new_strategy.py`.
@@ -161,12 +160,10 @@ Test data that follows from the new unit and the new typed failures:
 
 - `tests/test_strategy_import_layering.py`: `_ROOT_IMPORTERS` lists `application.runs` and `application.watchlists`,
   as its comment requires of the change that first makes a module import the composition root. No check was added.
-
 - `tests/_failure_code_table.py` gains the rows of `AnalysisRunNotFoundError` and `DuplicateRefreshRunsError`, which
   the table must list because each now declares its code.
-- `tests/reporting/test_failure_envelope.py`: `_COMMAND_CONTEXT_CODES` held only `analysis_run_not_found`, the one code
-  a command raised with no exception behind it. That exception now exists, so the set is empty and the two assertions
-  that read it are unchanged.
+- `tests/reporting/test_failure_envelope.py`: `_COMMAND_CONTEXT_CODES` is removed, because no code is raised without an
+  exception any more, and the coverage test now asserts that every failure code comes from an exception.
 
 New tests: `tests/application/` (`test_context.py`, `test_database.py`, `test_watchlists.py`, `test_runs.py`, with
 `runs show` parametrized over `STRATEGIES` in every text mode and in JSON, and the readiness failure of every
@@ -296,7 +293,6 @@ The `ApplicationContext` of [A3](#a3-the-application-context-2026-11-01) is API.
 
 The rule on what counts as an addition inside `/v1` is recorded in API.2's entry of the
 [API contract](API_CONTRACT_AND_SLICE_PLAN.md#api2--ian-serve-and-the-read-endpoints).
-
 
 ### A16 The watchlist list document (2026-11-02)
 

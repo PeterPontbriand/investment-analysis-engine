@@ -60,7 +60,6 @@ from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.strategy_errors import require
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
@@ -140,8 +139,6 @@ def _workspace_failures(command: str, *, json_output: bool = False) -> Iterator[
         yield
     except (typer.Exit, typer.Abort):
         raise
-    except DatabaseReadinessError as exc:
-        _fail_with(exc, json_output=json_output)
     except Exception as exc:
         if isinstance(getattr(exc, "reason_code", None), FailureReasonCode):
             _fail_with(exc, json_output=json_output)

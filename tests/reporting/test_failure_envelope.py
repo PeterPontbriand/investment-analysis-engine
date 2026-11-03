@@ -46,10 +46,6 @@ from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassificati
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
-# Codes raised by a command with no exception to classify. None remains: a missing run is an exception that
-# declares its own code.
-_COMMAND_CONTEXT_CODES: set[FailureReasonCode] = set()
-
 
 _SOURCE_ROOT = PACKAGE_ROOT
 
@@ -130,11 +126,10 @@ def test_every_exception_reason_code_attribute_is_a_failure_reason_code() -> Non
 
 
 def test_every_code_the_classifier_can_return_is_a_member_and_every_member_can_be_returned() -> None:
-    """T18: the rules, the readiness codes and the default cover the enumeration, except command-context codes."""
+    """T18: the rules, the readiness codes and the default cover the enumeration."""
     returned = {FailureReasonCode(row.reason_code) for row in PINNED_CLASSIFICATIONS}
     returned.add(classify_failure(RuntimeError("unrecognized")).reason_code)
-    assert returned | _COMMAND_CONTEXT_CODES == set(FailureReasonCode)
-    assert not returned & _COMMAND_CONTEXT_CODES
+    assert returned == set(FailureReasonCode)
     assert classify_failure(RuntimeError("unrecognized")).reason_code is FailureReasonCode.EXECUTION_ERROR
 
 

@@ -106,9 +106,9 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   the dependencies `starlette` and `uvicorn`, and `httpx` for tests (approved 2026-10-30, [A.2](#a2-api-shape-and-dependencies-2026-10-30)).
 - **Branch:** `feat/api-serve-read`.
 - **Detail:** ⚠ no slice plan yet. The runs-list and watchlist-list documents are both top-level arrays, so a
-  list-level field can never be added to either; the slice plan decides whether the endpoints wrap them. When it is written it also decides what counts as an addition inside `/v1`
-  (new document fields, new warning codes, new `status` and reason-code values) and that clients must tolerate
-  unknown values; see [#204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204) and
+  list-level field can never be added to either; the slice plan decides whether the endpoints wrap them. When it is
+  written it also decides what counts as an addition inside `/v1` (new document fields, new warning codes, new
+  `status` and reason-code values) and that clients must tolerate unknown values; see [#204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204) and
   [#205](https://github.com/PeterPontbriand/investment-analysis-engine/issues/205). The extensible authentication of
   #205 is settled there; API.1b's `ApplicationContext` is only its first part
   ([A14](API_1_SLICE_PLAN.md#a14-the-application-context-and-205-2026-11-01)).
