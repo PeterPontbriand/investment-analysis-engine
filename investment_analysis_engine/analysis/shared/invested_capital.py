@@ -1,4 +1,4 @@
-"""Invested capital from the balance-sheet values at one fiscal year-end (Greenblatt's tangible capital employed).
+"""Invested capital from the balance-sheet values at one fiscal year-end (tangible capital employed).
 
 The function is pure. A balance-sheet value at year-end *t* is a ``ResolvedInput`` or an ``InstantAbsence``.
 

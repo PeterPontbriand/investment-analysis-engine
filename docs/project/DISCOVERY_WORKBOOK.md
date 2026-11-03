@@ -267,7 +267,7 @@ CLI / bounded orchestrator
 
 The initial Momentum and Graham pair is deliberately heterogeneous. Their coexistence tests whether the architecture is genuinely general rather than Momentum-specific.
 
- Step 2.5 consumes their stable strategy contracts. Step 3.5 later adds the deterministic quantitative screening suite (Piotroski, Altman Z, Beneish M, valuation multiples, Magic Formula, Interest Coverage, ROIC).
+ Step 2.5 consumes their stable strategy contracts. Step 3.5 later adds the deterministic quantitative screening suite (Piotroski, Altman Z, an accrual ratio, valuation multiples, Interest Coverage, ROIC, Shareholder Yield).
 
 Planned for v0.3, a question passes through five fixed stages: understand, gather, write, check, store. The [Master Plan](MASTER_PLAN.md#planned-for-v03-asking-in-plain-english) has the diagram.
 

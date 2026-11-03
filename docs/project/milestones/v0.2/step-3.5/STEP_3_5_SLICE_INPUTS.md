@@ -30,8 +30,7 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
 **Starting points in the code and the dependency check**
 
 - It reads the persisted runs of one `refresh_id` and the four existing strategies' decoded evidence, so
-  it needs no new data (3.5.1) and no shared metric or ranking helper (3.5.2). Its only forward
-  reference is the sort option over the ranked view, which arrives with 3.5.6.
+  it needs no new data (3.5.1) and no shared metric (3.5.2).
 - It depends on the finished SWC work: the behavior bundle, the CLI tier and the injected replay and codec
   mappings.
 - The fiscal period end comes from each result: FCF-Growth records its period span; the Graham results
@@ -46,7 +45,7 @@ Definitions live in [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) (SD) an
 end, the taxonomy and the run ID; text and `--json` forms. The `headline` member returns a `Headline`: a
 fixed-order tuple of cells, a period end, the label that says what the period end is and a taxonomy. A cell has a stable key, a label, a kind (number
 or text), a finite number or a text, an explicit unit, the metric's own status and the reason code the result
-carries for that cell (none where the result carries a text reason only, as the Graham results do). On paper the eleven strategies need only these shapes:
+carries for that cell (none where the result carries a text reason only, as the Graham results do). On paper the strategies need only these shapes:
 
 | Strategy | Cells |
 | :--- | :--- |
@@ -56,20 +55,19 @@ carries for that cell (none where the result carries a text reason only, as the 
 | FCF-Growth | FCF CAGR (percent), EPS CAGR (percent), classification (text) |
 | Piotroski | score (number, points), completeness (text: "x of n") |
 | Altman | score (number), zone (text), model (text) |
-| Beneish | score (number), threshold flag (text) |
+| Accrual ratio, Shareholder Yield | cells settled in their slice plans |
 | Valuation Multiples | EV/EBITDA (number, multiple), FCF yield (number, percent) |
 | Interest Coverage | EBIT coverage (number, multiple), band (text) |
 | ROIC | trailing ROIC (percent), incremental ROIC (percent) |
-| Magic Formula (analyzer) | return on capital (percent), earnings yield (percent) |
 
 **Tests:** built from one `refresh_id` with provider, cache, clock and calculator disabled; each of the
 four existing strategies' headline equals the reviewed cells for a stored run; differing fiscal year-ends
 shown, not normalized; a strategy with no fiscal period is left out of the period-ends block and one whose run
 recorded no period end shows "not recorded"; a failed or unavailable run
 shows its outcome and does not drop the row; two runs for one ticker and strategy refuse and name the
-duplicates. The sort option is tested in 3.5.6.
+duplicates.
 
-**Non-goals:** no new persistence, batch ID or run type; no composite column; no ranking in this slice.
+**Non-goals:** no new persistence, batch ID or run type; no composite column; no ranking.
 
 ## 3. 3.5.1 — Data mappings and applicability
 
@@ -96,39 +94,35 @@ captured evidence, and adds the ifrs-full equivalents.
 
 | Field | Candidate us-gaap concept | Kind | Used by |
 | :--- | :--- | :--- | :--- |
-| Total assets | `Assets` | Instant | Piotroski, Altman, Beneish |
+| Total assets | `Assets` | Instant | Piotroski, Altman, accrual ratio |
 | Total liabilities | `Liabilities` | Instant | Altman |
-| Current assets | `AssetsCurrent` | Instant | Piotroski, Altman, Beneish, IC |
-| Current liabilities | `LiabilitiesCurrent` | Instant | Piotroski, Altman, Beneish, IC |
+| Current assets | `AssetsCurrent` | Instant | Piotroski, Altman, IC |
+| Current liabilities | `LiabilitiesCurrent` | Instant | Piotroski, Altman, IC |
 | Cash and equivalents | `CashAndCashEquivalentsAtCarryingValue` | Instant | EV, IC |
 | Short-term investments | `ShortTermInvestments` | Instant | EV, IC |
-| Long-term investments | `LongTermInvestments` | Instant | Beneish |
-| Net PP&E | `PropertyPlantAndEquipmentNet` | Instant | IC, Beneish |
-| Receivables | `AccountsReceivableNetCurrent` | Instant | Beneish |
+| Net PP&E | `PropertyPlantAndEquipmentNet` | Instant | IC |
 | Retained earnings | `RetainedEarningsAccumulatedDeficit` | Instant | Altman |
 | Short-term borrowings | `ShortTermBorrowings` | Instant | Total debt, IC |
 | Current portion of long-term debt | `LongTermDebtCurrent` | Instant | Total debt, Piotroski, IC |
-| Noncurrent long-term debt | `LongTermDebtNoncurrent` | Instant | Total debt, Piotroski, Beneish |
+| Noncurrent long-term debt | `LongTermDebtNoncurrent` | Instant | Total debt, Piotroski |
 | Long-term debt, direct total | `LongTermDebt` | Instant | Reconciliation only |
 | Lease liabilities counted as debt | `FinanceLeaseLiability` | Instant | Total debt |
 | Preferred stock | `PreferredStockValue` | Instant | EV |
 | Noncontrolling interest | `MinorityInterest` | Instant | EV |
-| Sales | `RevenueFromContractWithCustomerExcludingAssessedTax`, `Revenues` | Annual | Piotroski, Altman, Beneish |
+| Sales | `RevenueFromContractWithCustomerExcludingAssessedTax`, `Revenues` | Annual | Piotroski, Altman |
 | Cost of revenue | `CostOfRevenue`, `CostOfGoodsAndServicesSold` | Annual | Gross profit |
-| Gross profit | `GrossProfit` | Annual | Piotroski, Beneish |
+| Gross profit | `GrossProfit` | Annual | Piotroski |
 | Operating income | `OperatingIncomeLoss` | Annual | EBIT |
-| SG&A | `SellingGeneralAndAdministrativeExpense` | Annual | Beneish |
-| D&A | `DepreciationDepletionAndAmortization` | Annual | EBITDA, Beneish DEPI (fallback basis) |
-| Depreciation alone | `Depreciation` | Annual | Beneish DEPI (preferred basis) |
+| D&A | `DepreciationDepletionAndAmortization` | Annual | EBITDA |
 | Interest expense, gross | `InterestExpense` | Annual | Interest Coverage, total debt |
 | Pretax income | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | Annual | ROIC |
 | Income tax expense | `IncomeTaxExpenseBenefit` | Annual | ROIC |
-| Net income | `NetIncomeLoss` | Annual | Piotroski, Beneish |
-| Income from continuing operations | `IncomeLossFromContinuingOperations` | Annual | Beneish |
-| Discontinued operations | `IncomeLossFromDiscontinuedOperationsNetOfTax` | Annual | Beneish |
+| Net income | `NetIncomeLoss` | Annual | Piotroski, accrual ratio |
 
 Already mapped and reused: operating cash flow, capital expenditures, stockholders' equity, common
-shares outstanding.
+shares outstanding. The fields that only the Beneish M-Score used (long-term investments, receivables, SG&A,
+depreciation alone, income from continuing operations and discontinued operations) were removed with it
+([A.16](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)).
 
 **Other new evidence**
 
@@ -157,17 +151,6 @@ For every field in the table, the slice captures filing evidence and records, pe
 
 An unsupported field makes its consumers `unavailable`. It is never approximated by a neighbor.
 
-**Depreciation evidence (for Beneish DEPI)**
-
-- A filing reporting depreciation alone, one reporting only combined D&A, and one reporting both.
-- Where both are reported, check the identity D&A = depreciation + amortization. If it does not
-  hold, the candidate concepts do not mean what the table assumes.
-- Confirm the depreciation concept is the year's expense, not accumulated depreciation.
-- Confirm net PP&E is consistently obtainable for the same dates.
-- US GAAP and IFRS examples of each where they exist.
-- Outcome: the depreciation-alone mapping is approved, limited or unsupported. If unsupported,
-  every Beneish run uses the D&A basis (SS §3).
-
 **Tests**
 
 - Each new field carries its correct unit; existing fields and stored values are unchanged.
@@ -194,7 +177,7 @@ selection; no SIC in the instrument profile; no schema migration.
 
 **New data:** none beyond 3.5.1.
 
-**Sub-slices:** 3.5.2a the ranking helper, 3.5.2b the pure shared metrics, 3.5.2c the listing check, 3.5.2d the shared
+**Sub-slices:** 3.5.2a the slice plan and a ranking helper (removed on 2026-11-02, [A.16](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)), 3.5.2b the pure shared metrics, 3.5.2c the listing check, 3.5.2d the shared
 input assembly, 3.5.2e FCF-Growth adopts the shared market cap ([slice plan](STEP_3_5_2_SLICE_PLAN.md)).
 
 **Result shape:** each shared metric is a pure function over resolved facts that returns a
@@ -230,18 +213,8 @@ taken as zero.
   split-history fixture so one golden case has the yield `ok`, and a test asserts every other expected value is
   unchanged. A market-data failure makes the yield `unavailable` with `provider_error` and a warning, and leaves the
   run's `execution_status` and the classification unchanged (decision K10).
-- Ranking helper, on synthetic members:
-  - any input order gives the same output;
-  - duplicate issuers keep the alphabetically first ticker and report the rest, with the
-    canonical-representative diagnostic;
-  - a member missing any metric is excluded with its reason;
-  - nine eligible members return no ranks, ten return ranks;
-  - tied values share the average rank;
-  - tied sums share a position and the next position skips (1, 1, 3);
-  - higher-is-better and lower-is-better directions.
 
-**Non-goals:** no weights; no persistence; no knowledge of strategies or runs in the helper; no
-change to the FCF or FCF-yield formulas.
+**Non-goals:** no change to the FCF or FCF-yield formulas.
 
 ## 5. 3.5.3 — Piotroski F-Score
 
@@ -280,9 +253,9 @@ case.**
 **Non-goals:** no issuance-proceeds reading; no user-selectable denominators or income basis; no
 ranking of partial scores. An envelope change Piotroski needs is applied to every analyzer.
 
-## 6. 3.5.4 — Altman and Beneish
+## 6. 3.5.4 — Altman and the accrual ratio
 
-Two sub-slices: 3.5.4a Altman, 3.5.4b Beneish.
+Two sub-slices: 3.5.4a Altman, 3.5.4b the accrual ratio.
 
 **New data:** none beyond 3.5.1.
 
@@ -290,38 +263,18 @@ Two sub-slices: 3.5.4a Altman, 3.5.4b Beneish.
 
 - Altman: the model used (Z or Z″), each variable as a `MetricResult`, the score, the zone as
   a result field, and the result-level `execution_status`.
-- Beneish: eight indices as `MetricResult`s, the score, the threshold flag, the income basis TATA
-  used, the DEPI basis and the result-level `execution_status`.
+- Accrual ratio: the ratio as a `MetricResult` with its operands and provenance, and the result-level
+  `execution_status`. The rest of the shape is settled in its slice plan.
 
 **Tests**
 
 - Altman: model selection by industry class; each zone boundary at equality and on either side;
   negative retained earnings and negative book equity are valid; total assets or total liabilities
   ≤ 0 is `unavailable`; market cap unavailable makes Z `unavailable` and leaves Z″ unaffected.
-- Beneish: any one missing index makes the score `unavailable`; no index defaults to 1.0; each
-  zero denominator; TATA's three income cases (SS §3); LVGI uses noncurrent debt only; the flag
-  wording never says "manipulator" and never states a probability.
-- Beneish DEPI basis: depreciation alone in both years gives the canonical basis; D&A only gives
-  the D&A basis with its diagnostic; depreciation alone in one year only gives the D&A basis for
-  both; neither gives `unavailable`; the basis appears in every view and in stored-run replay.
+- Accrual ratio: the formula and inputs are in [Strategy specifications §3](STEP_3_5_STRATEGY_SPECIFICATIONS.md#3-accrual-ratio);
+  its tests, edge cases and decisions are settled in its slice plan.
 
-**SG&A:** selling, general and administrative expense is unsupported under ifrs-full, where no concept is the combined line, and
-unavailable for a US GAAP filer that reports selling and administrative costs as separate lines (Alphabet). Beneish has no
-partial score, so those issuers are `input_unavailable` for Beneish. Accepted by the project owner (2026-10-26,
-[plan A.1, H19](STEP_3_5_1_SLICE_PLAN.md#a1-decisions-f1-to-f10-2026-10-25)); **SAP and Alphabet are 3.5.4b test cases.**
-
-**Receivables index and related concepts:** receivables are unavailable for the Beneish receivables index when the
-balance-sheet series reports a related concept tagged at either of the two year-ends. Duke Energy fiscal 2025 is the case:
-its receivables moved to "Receivables of VIEs", so the mapped line fell from 1,889 to 16 million and the index would
-measure the move, not the receivables. Decided by the project owner (2026-10-26,
-[plan A.1, H17](STEP_3_5_1_SLICE_PLAN.md#a1-decisions-f1-to-f10-2026-10-25)); a test case for it is due in 3.5.4b.
-
-**Entry criterion for 3.5.4b:** 3.5.1's depreciation evidence is complete, and the DEPI algebra
-(period expense over expense plus net PP&E, prior year over current year) has been checked by hand
-against one captured filing.
-
-**Non-goals:** no imputation; no probability; no partial Beneish score; Z′ (the private-firm
-model) is not offered.
+**Non-goals:** no imputation; Z′ (the private-firm model) is not offered.
 
 ## 7. 3.5.5 — Valuation multiples, Interest Coverage and ROIC
 
@@ -353,36 +306,17 @@ Three sub-slices: 3.5.5a Valuation Multiples, 3.5.5b Interest Coverage, 3.5.5c R
 **Non-goals:** no FCF / EV; no fixed-charge coverage; no non-recurring adjustments; no lease
 normalization; no EBIT-only ROIC variant.
 
-## 8. 3.5.6 — Magic Formula and ranked refresh view
+## 8. 3.5.6 — Shareholder Yield
 
-Two sub-slices: 3.5.6a the analyzer, 3.5.6b the ranked view.
+**New data:** dividends paid, a new mapping that the slice plan evidences the way 3.5.1 did. The rest comes from
+what the step already assembles: the change in the already-mapped total-debt instants, the split-adjusted share-count
+series (3.5.1d), market cap and FCF.
 
-**New data:** none beyond 3.5.1 and 3.5.2.
+**Result shape:** dividend yield, net buyback yield and net debt-reduction yield, each as a percentage of market cap,
+and their sum; total returned capital ÷ FCF as a metric, reported and never a cap or filter. The rest of the shape,
+the edge cases and the decisions are settled in the slice plan ([Strategy specifications §5](STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-shareholder-yield)).
 
-**Result shape**
-
-- Analyzer: return on capital and earnings yield as `MetricResult`s, with their operands and the result-level `execution_status`. No rank.
-- Ranked view: per member, each metric's rank and percentile, the rank sum, the position and the
-  taxonomy; the excluded members with reasons; the duplicate-issuer and mixed-framework
-  diagnostics. Nothing is persisted.
-
-**Tests**
-
-- Analyzer: EBIT ≤ 0, IC ≤ 0 and EV ≤ 0 are `not_applicable`; financial issuers and utilities are
-  `not_applicable`. The reason code `nonpositive_denominator` is added by the first slice that produces it (decision
-  L5).
-- Ranked view: built from stored runs with provider, cache, clock and calculator disabled; mixed
-  `as_of` values refuse; fewer than ten eligible members return values without ranks; two runs of
-  the strategy for one ticker refuse and name the duplicates; two share classes of one issuer keep
-  one member; mixed taxonomies rank with the diagnostic; the same refresh always gives the same
-  view.
-- Side-by-side table: its sort option over this view gives the view's order, and a refresh with
-  no Magic Formula runs refuses the option and says why.
-
-**Glossary:** the terms for ranking ("rank sum", "display percentile", "eligible member", and any others the ranked view
-needs) arrive with the ranked view in 3.5.6, not with the helper.
-
-**Non-goals:** no ad-hoc ticker list; no persisted ranks; no market-wide universe; no weights.
+**Tests and non-goals:** settled in the slice plan.
 
 ## 9. 3.5.7 — Golden suite and cross-cutting docs
 

@@ -41,8 +41,8 @@ independently of this backlog but addressing the same "library-readiness" observ
 originally raised (see "Suggested priorities" below) — all three before
 [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)'s
 seven new analyzers land. Step 3.5 (plan accepted) covers Piotroski F-Score, Altman Z-Score and Z'',
-Beneish M-Score, EV/EBITDA and FCF yield, the Greenblatt Magic Formula ranking, Interest Coverage,
-and ROIC / incremental ROIC. [Step 4.1](MASTER_PLAN.md#milestone-v04-analytics-expansion--canadian-localization)
+an accrual ratio, EV/EBITDA and FCF yield, Interest Coverage, ROIC / incremental ROIC and Shareholder
+Yield. [Step 4.1](MASTER_PLAN.md#milestone-v04-analytics-expansion--canadian-localization)
 lists price-to-cash-flow/price-to-free-cash-flow screens as committed scope, with cash-conversion
 quality, point-in-time estimate revisions, growth-adjusted cash-flow valuation, and leverage
 and earnings stability named as candidates subject to separate approval; Step 4.2 covers further
@@ -134,15 +134,15 @@ inputs.
 | Accounting quality and distress | Piotroski F-Score | Nine binary signals, each with status and reason | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#1-piotroski-f-score) | Yes |
 | Accounting quality and distress | Altman Z-Score and Z'' | Distress zone for manufacturers and non-manufacturers | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#2-altman-z-score) covers the classic 1968 model for manufacturers and Z'' for other non-financial public firms; the private-firm variants are not in that scope | Yes |
 | Accounting quality and distress | Ohlson O-Score | Bankruptcy-probability evidence | New | Yes |
-| Accounting quality and distress | Beneish M-Score | Earnings-manipulation likelihood | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#3-beneish-m-score) | Yes |
-| Accounting quality and distress | Sloan accruals ratio and cash conversion | Earnings quality relative to cash | Step 4.1 names cash-conversion quality as a candidate subject to separate approval; the Sloan accruals ratio specifically is not named there — New for that part | Yes |
+| Accounting quality and distress | Beneish M-Score | Earnings-manipulation likelihood | Dropped from Step 3.5 on 2026-11-02 in favor of the accrual ratio below ([A.16](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)) | Yes |
+| Accounting quality and distress | Sloan accruals ratio and cash conversion | Earnings quality relative to cash | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#3-accrual-ratio) covers the cash-flow accrual ratio, (net income − operating cash flow) ÷ average total assets ([A.16](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)); Step 4.1 names cash-conversion quality as a candidate subject to separate approval, and the balance-sheet version of the Sloan ratio is not named there — New for that part | Yes |
 | Accounting quality and distress | Dilution and stock-comp-adjusted FCF | Share-count creep; FCF after stock-based compensation | New | Yes |
 | Accounting quality and distress | ROIC and gross profitability | Capital efficiency and quality | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#7-roic-and-incremental-roic) covers ROIC and incremental ROIC; gross profitability specifically is not named there — New for that part | Yes |
 | Accounting quality and distress | Kind-specific metrics | FFO/AFFO for REITs; efficiency ratio, capital ratios, NIM for banks | New — confirmed to require extending `InstrumentKind` (`investment_analysis_engine/data/instrument_profile.py`) beyond its current equity/ETF/cryptocurrency set; deliberately not planned further until after Step 3.5 | Partial |
-| Market-implied and relative valuation | Reverse DCF | Growth rate the current price implies, by deterministic root-finding | New (Step 4.1 requires a separate DCF specification before any DCF-based method) | Yes |
-| Market-implied and relative valuation | Point-in-time EV multiples | EV/EBIT, EV/EBITDA, earnings yield with as-of share count and net debt | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples) covers EV/EBITDA and FCF yield, and its [Magic Formula](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula) computes earnings yield (EBIT/EV); EV/EBIT as a standalone multiple is not named there | Yes |
-| Market-implied and relative valuation | Greenblatt Magic Formula | Earnings yield plus return on capital, combined rank | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula) | Yes |
-| Market-implied and relative valuation | Shareholder yield and dividend safety | Dividends + net buybacks + debt paydown; payout coverage by FCF | New | Yes |
+| Market-implied and relative valuation | Reverse DCF | Growth rate the current price implies, by deterministic root-finding | New; not part of Step 3.5 ([A.16](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)). A candidate for the evaluator application or Milestone v0.3. Its result depends mainly on the chosen cost of capital, which [the FCF-Growth guide](../user/strategies/FCF_GROWTH.md) deliberately excludes; Step 4.1 requires a separate DCF specification before any DCF-based method | Yes |
+| Market-implied and relative valuation | Point-in-time EV multiples | EV/EBIT, EV/EBITDA, earnings yield with as-of share count and net debt | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples) covers EV/EBITDA and FCF yield; EV/EBIT and earnings yield (EBIT/EV) as standalone multiples are not named there | Yes |
+| Market-implied and relative valuation | Greenblatt Magic Formula | Earnings yield plus return on capital, combined rank | Removed from Step 3.5 on 2026-11-02: ranking across companies belongs to the evaluator application ([A.16](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)) | Yes |
+| Market-implied and relative valuation | Shareholder yield and dividend safety | Dividends + net buybacks + debt paydown; payout coverage by FCF | [Step 3.5](milestones/v0.2/step-3.5/STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-shareholder-yield) covers shareholder yield and total returned capital ÷ FCF ([A.16](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)); dividend safety as a separate payout test is not named there — New for that part | Yes |
 | Market-implied and relative valuation | Peer-relative percentiles | Rank within point-in-time peer group, with coverage counts | A peer-relative ranking the project would design or validate itself moved from Step 4.3 to the future predictive evaluator ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)); not committed engine scope | Partial |
 | Price and market structure | Liquidity and capacity | Average daily dollar volume, Amihud illiquidity, spread proxies | New | Yes |
 | Price and market structure | Risk profile | Realized volatility, maximum drawdown, Ulcer index, downside deviation, beta | Step 4.3 names maximum drawdown and volatility as committed examples of its basic risk measures; Ulcer index, downside deviation, and beta specifically are not named there | Yes |
@@ -199,14 +199,14 @@ sequenced as [R3](milestones/v0.2/r3/R3_DEAD_CODE_AUDIT_PLAN.md),
    before Step 3.5. IR's own contract additionally calls for validating the new typed analyzer
    contract against Piotroski — Step 3.5's first analyzer — once it exists, rather than treating
    the contract as settled from the four existing analyzers alone.
-2. **Step 3.5 quantitative screens.** As already planned: Piotroski, Altman, Beneish, EV/EBITDA and
-   FCF yield, Magic Formula, Interest Coverage, ROIC.
+2. **Step 3.5 quantitative screens.** As already planned: Piotroski, Altman, the accrual ratio,
+   EV/EBITDA and FCF yield, Interest Coverage, ROIC, Shareholder Yield.
 3. **Three-valued composable screens.** Proposed as the missing-data policy for investor-stated
    filters (v0.3 ASK.1); multiplies the value of every strategy.
 4. **Graham Defensive and Enterprising criteria, and NCAV.** New, and almost entirely reuse the
    Graham fact resolution.
 5. **Reverse DCF.** High explanatory value per line of code; needs its own DCF specification under
-   Step 4.1.
+   Step 4.1, and is a candidate for the evaluator application or Milestone v0.3.
 6. **Liquidity evidence.** A cheap gate nearly every consumer would need.
 7. **EDGAR filing-behavior flags.** Distinctive, and built on a client this project already has.
 8. **Historical identity and survivorship.** Builds directly on the existing identity work.
@@ -222,7 +222,7 @@ The following terms appear above without a corresponding entry in
 by this document.
 
 Piotroski F-Score, Altman Z-Score, Z'' (Altman Z-double-prime), Ohlson O-Score, Beneish M-Score,
-Sloan accruals ratio, ROIC (Return on Invested Capital), Greenblatt Magic Formula, Reverse DCF,
+Sloan accruals ratio, accrual ratio, ROIC (Return on Invested Capital), Greenblatt Magic Formula, Reverse DCF,
 EV/EBIT, EV/EBITDA, FCF Yield (as a market-implied multiple, distinct from the existing FCF Yield
 glossary entry's own scope), shareholder yield, Amihud illiquidity, Ulcer index, downside
 deviation, beta, 52-week-high, FIGI (Financial Instrument Global Identifier), CUSIP, XBRL

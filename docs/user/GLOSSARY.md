@@ -231,7 +231,7 @@ Market capitalization plus total debt, preferred stock and noncontrolling intere
 Short-term borrowings, the current portion of long-term debt, noncurrent long-term debt and the lease liabilities counted as debt. A missing debt figure is never assumed to be zero without evidence that the filer has none.
 
 ### Invested Capital
-Net working capital (without cash, short-term investments and the debt in current liabilities) plus net property, plant and equipment: Greenblatt's tangible capital employed. Goodwill and intangibles are excluded.
+Net working capital (without cash, short-term investments and the debt in current liabilities) plus net property, plant and equipment: the tangible capital employed. Goodwill and intangibles are excluded.
 
 ### BVPS (Book Value Per Share)
 Book value attributable to common shareholders divided by period-end common shares outstanding. BVPS is an accounting measure of net assets per common share, not a market price. When using SEC EDGAR data, Investment Analysis Engine derives it from eligible fiscal-year-end balance-sheet components rather than claiming a direct SEC BVPS field.

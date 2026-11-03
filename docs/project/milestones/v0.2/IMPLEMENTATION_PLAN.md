@@ -19,7 +19,7 @@ current codes:
   split, both pure refactors with no new functionality.
 - `R3` — a repository-wide dead code audit ([plan](r3/R3_DEAD_CODE_AUDIT_PLAN.md)): locate and remove
   code, branches, and files that can no longer be reached, across all of `investment_analysis_engine/`, not scoped to one
-  strategy or module. Scheduled deliberately before Step 3.5 (which adds seven new
+  strategy or module. Scheduled deliberately before Step 3.5 (which adds the
   quantitative-screen analyzers) so the audit runs while the codebase is still a manageable size,
   rather than after another substantial expansion makes the same audit larger and more error-prone.
 - `P1` / `P2` — short for "Profile": the instrument-identity/kind applicability work, then the
@@ -355,8 +355,8 @@ no speculative plugin framework or ETF schema is authorized here.
 
 ### 4.11 Step 3.5 – Deterministic Quantitative Screening Strategies
 
-Implement independently typed Piotroski, Altman, Beneish, valuation-multiple, Magic Formula,
-Interest Coverage and ROIC analyses using public data, explicit applicability and provenance.
+Implement independently typed Piotroski, Altman, accrual-ratio, valuation-multiple,
+Interest Coverage, ROIC and Shareholder Yield analyses using public data, explicit applicability and provenance.
 The [screening contract](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md) owns
 component scope and local delivery detail.
 

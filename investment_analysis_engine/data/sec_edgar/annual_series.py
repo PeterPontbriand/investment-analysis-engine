@@ -49,39 +49,31 @@ US_GAAP_ANNUAL_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
     FinancialField.COST_OF_REVENUE: ("CostOfRevenue", "CostOfGoodsAndServicesSold"),
     FinancialField.GROSS_PROFIT: ("GrossProfit",),
     FinancialField.OPERATING_INCOME: ("OperatingIncomeLoss",),
-    FinancialField.SELLING_GENERAL_ADMINISTRATIVE: ("SellingGeneralAndAdministrativeExpense",),
     FinancialField.DEPRECIATION_AND_AMORTIZATION: (
         "DepreciationDepletionAndAmortization",
         "DepreciationAndAmortization",
         "DepreciationAmortizationAndAccretionNet",
     ),
-    FinancialField.DEPRECIATION: ("Depreciation",),
     FinancialField.INTEREST_EXPENSE: ("InterestExpense", "InterestExpenseNonoperating"),
     FinancialField.PRETAX_INCOME: (
         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
     ),
     FinancialField.INCOME_TAX_EXPENSE: ("IncomeTaxExpenseBenefit",),
     FinancialField.NET_INCOME: ("NetIncomeLoss",),
-    FinancialField.INCOME_FROM_CONTINUING_OPERATIONS: ("IncomeLossFromContinuingOperations",),
-    FinancialField.DISCONTINUED_OPERATIONS: ("IncomeLossFromDiscontinuedOperationsNetOfTax",),
 }
 IFRS_ANNUAL_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
     FinancialField.SALES: ("Revenue", "RevenueFromContractsWithCustomers"),
     FinancialField.COST_OF_REVENUE: ("CostOfSales",),
     FinancialField.GROSS_PROFIT: ("GrossProfit",),
     FinancialField.OPERATING_INCOME: ("ProfitLossFromOperatingActivities",),
-    FinancialField.SELLING_GENERAL_ADMINISTRATIVE: (),
     FinancialField.DEPRECIATION_AND_AMORTIZATION: (
         "DepreciationAndAmortisationExpense",
         "AdjustmentsForDepreciationAndAmortisationExpense",
     ),
-    FinancialField.DEPRECIATION: (),
     FinancialField.INTEREST_EXPENSE: ("InterestExpense",),
     FinancialField.PRETAX_INCOME: ("ProfitLossBeforeTax",),
     FinancialField.INCOME_TAX_EXPENSE: ("IncomeTaxExpenseContinuingOperations",),
     FinancialField.NET_INCOME: ("ProfitLossAttributableToOwnersOfParent",),
-    FinancialField.INCOME_FROM_CONTINUING_OPERATIONS: ("IncomeFromContinuingOperationsAttributableToOwnersOfParent",),
-    FinancialField.DISCONTINUED_OPERATIONS: ("ProfitLossFromDiscontinuedOperations",),
 }
 
 

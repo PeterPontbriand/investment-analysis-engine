@@ -1,19 +1,19 @@
 # Step 3.5 — Quantitative Screens: Contract and Slice Plan
 
-Adds seven deterministic screening strategies, the shared metric definitions they depend on, and
-cross-sectional ranking and side-by-side views over a watchlist refresh.
+Adds deterministic screening strategies, the shared metric definitions they depend on, and a
+side-by-side view over a watchlist refresh.
 
 Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status).
 
 ## 1. At a glance
 
-- **What this step adds:** Piotroski F-Score, Altman Z / Z″, Beneish M-Score, Cash-Flow Valuation
-  Multiples, Greenblatt Magic Formula, Interest Coverage, and ROIC / Incremental ROIC; one shared
-  definition each for market cap, EBIT, EBITDA, EV, invested capital and FCF; a reusable ranking
-  helper; and a ranked, side-by-side view over the runs of one watchlist refresh.
-- **What it does not do:** composite scores, cross-strategy weighting, user-defined filter
-  expressions, trading signals, or ranking against an implicit market-wide universe. Full list:
-  [Out of scope](#4-out-of-scope).
+- **What this step adds:** Piotroski F-Score, Altman Z / Z″, the accrual ratio, Cash-Flow Valuation
+  Multiples, Interest Coverage, ROIC / Incremental ROIC and Shareholder Yield; one shared
+  definition each for market cap, EBIT, EBITDA, EV, invested capital and FCF; and a side-by-side
+  view over the runs of one watchlist refresh.
+- **What it does not do:** composite scores, cross-strategy weighting, ranking companies against each
+  other (a separate evaluator application does that, [A.16](#a16-strategy-set-revised-2026-11-02)),
+  user-defined filter expressions or trading signals. Full list: [Out of scope](#4-out-of-scope).
 - **Entry condition:** implementation waits for integration readiness (IR), strategy wiring
   consolidation (SWC), the dead code audit (R3), provider health (PH), package layering (LAY, which resolves the two-way
   package dependencies filed as [issue #114](https://github.com/PeterPontbriand/investment-analysis-engine/issues/114)) and the package rename (PKG). 3.5.0b began by
@@ -21,7 +21,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
 - **Rules every slice follows:**
   - One definition per shared metric, used everywhere, with no per-strategy fallback variants.
   - Every calculated numeric metric is a `MetricResult` with an explicit `ReasonCode`. Nothing
-    missing becomes zero, neutral or `NaN`. Scores, zones, bands, ranks and completeness are typed
+    missing becomes zero, neutral or `NaN`. Scores, zones, bands and completeness are typed
     fields of the strategy's own result, not `MetricResult`s.
   - Every input respects the analysis boundary, including the industry class.
   - Fundamentals come from SEC EDGAR annual filings only.
@@ -36,7 +36,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
   - A strategy slice ships complete: analyzer, wiring (including its `headline` function for the
     side-by-side table), presentation, tests, user guide, and `FINANCE_MATH.md` and `GLOSSARY.md` entries.
   - The managed quality gate after every slice, and explicit authorization before the next begins.
-- **Where the detail lives:** shared definitions, applicability and ranking in
+- **Where the detail lives:** shared definitions and applicability in
   [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md); per-strategy formulas and edge cases in
   [Strategy specifications](STEP_3_5_STRATEGY_SPECIFICATIONS.md); live source evidence and the
   arithmetic oracle for Piotroski in the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md);
@@ -76,8 +76,8 @@ next begins.
 | Issue 207 | [Align how the existing strategies order their checks and provider requests](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) | Complete | 2026-11-01 |
 | Issue 210 | [Strategy development: four generator and provider shortfalls (3.5.3)](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210) | Complete | 2026-11-01 |
 | 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
-| 3.5.4 | [Altman Z-Score and Beneish M-Score](#354--altman-z-score-and-beneish-m-score) | Planned | |
-| 3.5.6 | [Magic Formula and ranked refresh view](#356--magic-formula-and-ranked-refresh-view) | Planned | |
+| 3.5.4 | [Altman Z-Score and accrual ratio](#354--altman-z-score-and-accrual-ratio) | Planned | |
+| 3.5.6 | [Shareholder Yield](#356--shareholder-yield) | Planned | |
 | 3.5.7 | [Golden suite and cross-cutting docs](#357--golden-suite-and-cross-cutting-docs) | Planned | |
 
 Issue 207 and issue 210 finish before API.1 ([A.14](#a14-353-sub-slices-and-scope-2026-10-29)), in that order, after 3.5.3e1c; API.1 starts after them.
@@ -129,7 +129,7 @@ sites it touches. The guide's workflow is the reference.
 Every Step 3.5 strategy slice records in its plan's implementation record every point where `docs/TOOL_DEVELOPMENT.md` fell short, and fixes the guide in the same slice where that is within its scope. 3.5.0b's own record of the points it met is
 [A.3 of the 3.5.0 slice plan](STEP_3_5_0_SLICE_PLAN.md#a3-350b-implementation-record-2026-10-25); 3.5.3's plan links it.
 
-**Repetition checkpoint.** All seven strategies read SEC annual filings only and share the same selection
+**Repetition checkpoint.** Every strategy of this step reads SEC annual filings only and shares the same selection
 fields, so their wiring is expected to be near-identical. The first strategy slice (3.5.3) owns a review
 before the second strategy starts (3.5.5a):
 
@@ -151,22 +151,20 @@ before the second strategy starts (3.5.5a):
 candidates. A mapping becomes a production mapping only after captured filings show its meaning,
 units, period behavior and the filers it holds for. 3.5.1 does that work.
 
-**One analyzer per review gate.** Slices 3.5.4, 3.5.5 and 3.5.6 each hold more than one deliverable.
-Their slice plans split them into sub-slices (3.5.4a Altman, 3.5.4b Beneish, and so on), each with
+**One analyzer per review gate.** Slices 3.5.4 and 3.5.5 each hold more than one deliverable.
+Their slice plans split them into sub-slices (3.5.4a Altman, 3.5.4b the accrual ratio, and so on), each with
 its own quality gate and authorization.
 
 ### 3.5.0 — Side-by-side refresh table
 
 - **Problem:** a refresh already runs several strategies over a watchlist and records one
   `refresh_id`, but its results can only be inspected run by run. The table needs a per-strategy
-  headline for every strategy, and building it after the new strategies would mean retrofitting eleven.
+  headline for every strategy, and building it after the new strategies would mean retrofitting every one.
 - **Decision:** build the table first, over the four existing strategies, so the SWC behavior bundle's
   `headline` member has a real consumer before any new analyzer is written and every new strategy supplies
   it from the start. It is a table view, one row per ticker and one column group per strategy, rebuilt
   from the persisted runs of one refresh, with no persistence and no new batch mechanism. It depends only
-  on the finished SWC work and on runs that already exist: no new data (3.5.1), no shared metric or
-  ranking helper (3.5.2). Sorting by the ranked view needs that view, so it arrives with Magic Formula
-  (3.5.6).
+  on the finished SWC work and on runs that already exist: no new data (3.5.1), no shared metric (3.5.2).
 - **Scope:** Momentum's result-level status (3.5.0a, [A.8](#a8-momentum-provider-failure-and-result-status-question-from-ph2-2026-10-07));
   `AGENTS.md` §0 removal (the first commit of 3.5.0b); the `headline` member and
   the `Headline` and `HeadlineCell` types added to the SWC behavior bundle, with the four existing
@@ -181,7 +179,7 @@ its own quality gate and authorization.
 
 ### 3.5.1 — Data mappings and applicability
 
-- **Problem:** the seven strategies need line items the financial-fact layer does not map yet,
+- **Problem:** the strategies need line items the financial-fact layer does not map yet,
   an industry classification nothing in the codebase records, and split history the market-data
   boundary does not expose.
 - **Decision:** classify by the SEC SIC code as filed with the selected annual filing, so the
@@ -207,14 +205,13 @@ its own quality gate and authorization.
   functions over resolved facts, and move the existing FCF and FCF-yield definitions beside them unchanged in
   behavior. Assemble the shared inputs once (the anchor year-end, the share-count path, the price and the split
   history, and the balance-sheet and annual inputs at that year-end), so no consumer builds them itself. FCF-Growth's
-  FCF yield adopts the shared market cap, with no formula change. The ranking helper is a pure,
-  analysis-agnostic function, tested here on synthetic inputs before Magic Formula consumes it.
+  FCF yield adopts the shared market cap, with no formula change. The slice built a ranking helper in
+  3.5.2a, which was removed on 2026-11-02 ([A.16](#a16-strategy-set-revised-2026-11-02)).
   The slice is six sub-slices, each with its own branch, managed gate and authorization
   ([A.13](#a13-352-sub-slices-and-scope-2026-10-26)); the listing check that decides whether a ticker is a share of
   the issuer is its own sub-slice, 3.5.2c, and the assembly follows it as 3.5.2d.
 - **Scope:** shared metric functions and their tests, gross profit included; the listing check of the anchor
-  filing's cover; the ranking helper
-  (`investment_analysis_engine/analysis/shared/ranking.py`); the shared input assembly, which also routes the balance-sheet series
+  filing's cover; the shared input assembly, which also routes the balance-sheet series
   through the production financial-facts provider and declares a split-history provider protocol that carries `as_of`
   and `adjusted_on`; FCF-Growth's market-cap wiring; `FINANCE_MATH.md` entries for every shared metric.
 - **Detail:** [Shared definitions §4–§9](STEP_3_5_SHARED_DEFINITIONS.md#4-market-capitalization),
@@ -255,31 +252,33 @@ its own quality gate and authorization.
   and [Slice inputs §7](STEP_3_5_SLICE_INPUTS.md#7-355--valuation-multiples-interest-coverage-and-roic).
   ⚠ no slice plan yet
 
-### 3.5.4 — Altman Z-Score and Beneish M-Score
+### 3.5.4 — Altman Z-Score and accrual ratio
 
-- **Problem:** both are distress and accounting-risk screens that must refuse financial issuers
-  and must not impute missing components.
+- **Problem:** both are distress and accounting-risk screens. Altman must refuse financial issuers and
+  neither may impute a missing component.
 - **Decision:** Altman selects the classic Z for manufacturers and Z″ for other non-financial
-  issuers by SIC code. Beneish is unavailable when any index cannot be computed; it has no partial
-  score. Its depreciation index prefers depreciation alone and falls back to combined D&A as a
-  named deviation.
+  issuers by SIC code. The accrual ratio is (net income − operating cash flow) ÷ average total assets,
+  the cash-flow version, built only from data already mapped. It pairs with Altman because it keeps the
+  accrual core of Beneish's model and complements Piotroski's cash-versus-income test
+  ([A.16](#a16-strategy-set-revised-2026-11-02)). Its full specification, edge cases and decisions are
+  settled in its slice plan.
 - **Scope:** both analyzers with the same completeness as 3.5.3.
 - **Detail:** [Strategy specifications §2–§3](STEP_3_5_STRATEGY_SPECIFICATIONS.md#2-altman-z-score)
-  and [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-beneish). ⚠ no slice plan yet
+  and [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-the-accrual-ratio). ⚠ no slice plan yet
 
-### 3.5.6 — Magic Formula and ranked refresh view
+### 3.5.6 — Shareholder Yield
 
-- **Problem:** Magic Formula is cross-sectional, but `BaseAnalyzer.run_analysis` is per ticker.
-- **Decision:** the Magic Formula analyzer computes one ticker's return on capital and earnings
-  yield like any other analyzer. Ranking is a separate, deterministic view over the persisted runs
-  of one watchlist refresh, built on the 3.5.2 ranking helper and never persisted. The universe is
-  always a watchlist.
-- **Scope:** analyzer with the same completeness as 3.5.3; the ranked view and its command, with a typed
-  `--json` model and checked-in schema, and the command's entry in `JSON_DOCUMENTS`
-  (`workspace_documents/json_documents.py`), which T21 requires; and the side-by-side table's sort option over this view (the table itself is 3.5.0).
-- **Detail:** [Strategy specifications §5](STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-greenblatt-magic-formula),
-  [Shared definitions §9](STEP_3_5_SHARED_DEFINITIONS.md#9-ranking-helper) and
-  [Slice inputs §8](STEP_3_5_SLICE_INPUTS.md#8-356--magic-formula-and-ranked-refresh-view).
+- **Problem:** dividends, buybacks and debt reduction each return capital to shareholders, and no
+  strategy reports them together as one share of market value.
+- **Decision:** Shareholder Yield is dividend yield + net buyback yield + net debt-reduction yield, each as a
+  percentage of market cap, with total returned capital ÷ FCF reported as a metric (not a cap or filter).
+  Net debt reduction comes from the change in the already-mapped total-debt instants and net buybacks from
+  the split-adjusted share-count series (3.5.1d). Dividends paid needs a new mapping, evidenced in this
+  slice's plan the way 3.5.1 evidenced the others. It takes the slice Magic Formula vacated
+  ([A.16](#a16-strategy-set-revised-2026-11-02)).
+- **Scope:** analyzer with the same completeness as 3.5.3, and the dividends-paid mapping.
+- **Detail:** [Strategy specifications §5](STEP_3_5_STRATEGY_SPECIFICATIONS.md#5-shareholder-yield) and
+  [Slice inputs §8](STEP_3_5_SLICE_INPUTS.md#8-356--shareholder-yield).
   ⚠ no slice plan yet
 
 ### 3.5.7 — Golden suite and cross-cutting docs
@@ -302,7 +301,8 @@ its own quality gate and authorization.
 - Non-recurring-item adjustments to EBIT.
 - Lease normalization across accounting frameworks
   ([Shared definitions §6](STEP_3_5_SHARED_DEFINITIONS.md#lease-liabilities)).
-- Ranking an ad-hoc ticker list without a watchlist.
+- Ranking companies against each other, with or without a watchlist: a separate evaluator application owns it ([A.16](#a16-strategy-set-revised-2026-11-02)).
+- Reverse DCF: recorded as a candidate in the [evidence provider roadmap](../../../EVIDENCE_PROVIDER_ROADMAP.md).
 - Changing any existing strategy's formulas or classifications. FCF-Growth's FCF yield becoming
   available through the shared market cap is evidence becoming available, not a formula change.
 - Changing the default selection of a new or existing watchlist. Each new strategy is selected
@@ -328,7 +328,7 @@ its own quality gate and authorization.
 - **Workflow:** every strategy is selectable on watchlists and refreshable, so Step 3.6 can verify
   it in the Light Mode workflow.
 - **Documentation:** each strategy has a user guide under `docs/user/strategies/`, Finance Math
-  entries and Glossary terms; the ranked view and side-by-side table are documented in
+  entries and Glossary terms; the side-by-side table is documented in
   `WORKSPACE.md`.
 - **Quality gate:** the complete managed gate after every slice, with at least 85% coverage and
   meaningful branch coverage on new financial code.
@@ -348,6 +348,10 @@ On 2026-09-30 the project owner revised the step:
   percentile logic, tie handling and missing-data exclusion.
 - **The contract was tightened** so that it does not contradict the project's fail-closed rules.
 
+On 2026-11-02 the project owner revised the strategy set again: Magic Formula and the ranked view left the
+step, an accrual ratio replaced Beneish, and Shareholder Yield took Magic Formula's slice
+([A.16](#a16-strategy-set-revised-2026-11-02)).
+
 The decisions themselves are recorded in [Appendix A](#appendix-a-decision-records-and-history).
 
 ---
@@ -366,6 +370,8 @@ Module paths in this plan's detail documents name the `investment_analysis_engin
 
 ### A.2 Strategy set expanded from five to seven (2026-09-30)
 
+*Superseded in part: the ranking helper was removed ([A.16](#a16-strategy-set-revised-2026-11-02)).*
+
 - **Interest Coverage added:** a direct, intuitive solvency companion to Altman, with low
   incremental data cost once EBIT, EBITDA and interest-expense mappings exist.
 - **ROIC / Incremental ROIC added:** previously a Step 4.1 candidate. Kept as a
@@ -376,6 +382,8 @@ Module paths in this plan's detail documents name the `investment_analysis_engin
   does not own private ranking logic.
 
 ### A.3 Review decisions (2026-09-30)
+
+*Superseded in part: the Beneish and ranking-helper decisions no longer apply ([A.16](#a16-strategy-set-revised-2026-11-02)).*
 
 A critical review of the expanded contract found it contradicting its own fail-closed rules in
 several places. Each resolution was decided, not left open:
@@ -404,6 +412,8 @@ several places. Each resolution was decided, not left open:
 
 ### A.4 Repository fit (2026-09-30)
 
+*Superseded in part: Magic Formula and its ranked view were removed ([A.16](#a16-strategy-set-revised-2026-11-02)).*
+
 When the revised contract was checked against the codebase before it was committed:
 
 - **Outcomes:** the contract's "inapplicable" and "not meaningful" states map to the existing
@@ -418,6 +428,8 @@ When the revised contract was checked against the codebase before it was committ
 - **Piotroski:** split into its own slice because IR names it as the analyzer envelope's test.
 
 ### A.5 Earlier Piotroski planning reconciled (2026-10-02)
+
+*Superseded in part: the Magic Formula ranking row no longer applies ([A.16](#a16-strategy-set-revised-2026-11-02)).*
 
 Planning done in September 2026, before the step was revised, was never committed. It covered a
 five-strategy contract, a Piotroski research record and a thirteen-slice Piotroski handoff plan.
@@ -440,6 +452,8 @@ Unchanged from September and now written into the spec: beginning-of-year assets
 strict comparisons, three total-asset dates, and unavailable-is-not-fail.
 
 ### A.6 Review hardening (2026-10-02)
+
+*Superseded in part: the Beneish and duplicate-issuer ranking rows no longer apply ([A.16](#a16-strategy-set-revised-2026-11-02)).*
 
 A review of the reconciled documents found one contradiction and several places where a developer
 would have had to decide policy while coding. Each was decided:
@@ -474,6 +488,8 @@ Three review points were not adopted as proposed:
   [Slice inputs](STEP_3_5_SLICE_INPUTS.md); the rest waits for the code it describes.
 
 ### A.7 Build order and result status (2026-10-03)
+
+*Superseded in part: the sort option over the ranked view was removed ([A.16](#a16-strategy-set-revised-2026-11-02)).*
 
 Two decisions made while finalizing the SWC design, which this step's documents own:
 
@@ -563,6 +579,8 @@ The 2026-10-02 rule in A.6 is kept as recorded.
 
 ### A.13 3.5.2 sub-slices and scope (2026-10-26)
 
+*Superseded in part: the ranking helper of 3.5.2a was removed ([A.16](#a16-strategy-set-revised-2026-11-02)).*
+
 Decided by the project owner while the [3.5.2 slice plan](STEP_3_5_2_SLICE_PLAN.md) was written; the plan's
 [Appendix A](STEP_3_5_2_SLICE_PLAN.md#a1-decisions-k1-to-k17-2026-10-26) holds all seventeen decisions (K1 to K17).
 
@@ -600,3 +618,16 @@ Decided by the project owner after potential users asked for EV/EBITDA and FCF y
 | :--- | :--- | :--- | :--- |
 | Order of 3.5.4 and 3.5.5 | 3.5.4 (Altman Z-Score and Beneish M-Score) first, 3.5.5 (valuation multiples, Interest Coverage and ROIC) second | 3.5.5 runs first and 3.5.4 follows it; 3.5.5a, valuation multiples, is the first strategy slice after API.6 | Potential users want to cross-check valuation from two independent angles rather than rely on the Graham Number alone (answer A5 in IAD's charter) |
 | Numbers | 3.5.4, 3.5.5 and their sub-slices | Kept; only the order changes | Many records, including verbatim decision appendices, cite those numbers |
+
+### A.16 Strategy set revised (2026-11-02)
+
+Decided by the project owner. The change lands as one pull request: the documents, and the removal of the code and
+tests that lose their only consumer.
+
+| Topic | Before | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| Magic Formula and the ranked view (D1) | A Magic Formula analyzer in 3.5.6, a ranked refresh view over the runs of one watchlist refresh, a side-by-side table sort option over that view, and the 3.5.2a ranking helper | All removed from Step 3.5, including `investment_analysis_engine/analysis/shared/ranking.py` and `tests/analysis/shared/test_ranking.py`, since Magic Formula was their only planned consumer. Git history keeps them. Ranking across companies belongs in a separate evaluator application ([Product boundaries](../../../MASTER_PLAN.md#25-product-boundaries)), not the engine | The per-ticker factors largely duplicate EV/EBITDA and ROIC, and ranking a watchlist does not reproduce Greenblatt's market-wide method |
+| Beneish M-Score (D2) | A Beneish M-Score analyzer in 3.5.4 beside Altman | Replaced by an accrual-ratio strategy: (net income − operating cash flow) ÷ average total assets, the cash-flow version, built only from data already mapped. The mappings, fields and tests that existed only for Beneish were removed; a mapping that another strategy, a shared metric or the EBITDA fallback uses stays | Beneish's coefficients are old and prone to false alarms, and its result is opaque to a beginner. It needed the most special-case rules (a depreciation fallback, three income cases for TATA, no partial score), and any missing index makes it unavailable. The accrual ratio keeps Beneish's useful core, since TATA is an accrual ratio, and complements Piotroski's cash-versus-income test |
+| Shareholder Yield (D3) | 3.5.6 held Magic Formula | 3.5.6 is Shareholder Yield: dividend yield + net buyback yield + net debt-reduction yield, each as a percentage of market cap, with total returned capital ÷ FCF reported as a metric (not a cap or filter). Net debt reduction comes from the change in the already-mapped total-debt instants, net buybacks from the split-adjusted share-count series (3.5.1d), and dividends paid needs a new mapping, evidenced in that slice's plan the 3.5.1 way | The slice Magic Formula vacated takes a strategy that reports capital returned to shareholders, built on evidence the step already assembles |
+| Reverse DCF (D4) | A roadmap candidate | Not part of Step 3.5. Recorded in the [evidence provider roadmap](../../../EVIDENCE_PROVIDER_ROADMAP.md) as a candidate for the evaluator application or Milestone v0.3 | Its result depends mainly on the chosen cost of capital, which [the FCF-Growth guide](../../../../user/strategies/FCF_GROWTH.md) deliberately excludes |
+| Numbers | 3.5.4, 3.5.6 and their sub-slices | Kept; 3.5.4 is Altman and the accrual ratio, 3.5.6 is Shareholder Yield, and 3.5.5 still runs before 3.5.4 ([A.15](#a15-355-before-354-2026-11-02)) | Many records cite those numbers |

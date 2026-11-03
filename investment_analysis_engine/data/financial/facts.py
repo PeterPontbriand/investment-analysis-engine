@@ -152,9 +152,7 @@ class FinancialField(StrEnum):
     CURRENT_LIABILITIES = "current_liabilities"
     CASH_AND_EQUIVALENTS = "cash_and_equivalents"
     SHORT_TERM_INVESTMENTS = "short_term_investments"
-    LONG_TERM_INVESTMENTS = "long_term_investments"
     NET_PPE = "net_ppe"
-    RECEIVABLES = "receivables"
     RETAINED_EARNINGS = "retained_earnings"
     SHORT_TERM_BORROWINGS = "short_term_borrowings"
     CURRENT_PORTION_OF_LONG_TERM_DEBT = "current_portion_of_long_term_debt"
@@ -167,15 +165,11 @@ class FinancialField(StrEnum):
     COST_OF_REVENUE = "cost_of_revenue"
     GROSS_PROFIT = "gross_profit"
     OPERATING_INCOME = "operating_income"
-    SELLING_GENERAL_ADMINISTRATIVE = "selling_general_administrative"
     DEPRECIATION_AND_AMORTIZATION = "depreciation_and_amortization"
-    DEPRECIATION = "depreciation"
     INTEREST_EXPENSE = "interest_expense"
     PRETAX_INCOME = "pretax_income"
     INCOME_TAX_EXPENSE = "income_tax_expense"
     NET_INCOME = "net_income"
-    INCOME_FROM_CONTINUING_OPERATIONS = "income_from_continuing_operations"
-    DISCONTINUED_OPERATIONS = "discontinued_operations"
 
 
 class FinancialUnit(StrEnum):
@@ -197,9 +191,7 @@ INSTANT_SERIES_FIELDS = frozenset(
         FinancialField.CURRENT_LIABILITIES,
         FinancialField.CASH_AND_EQUIVALENTS,
         FinancialField.SHORT_TERM_INVESTMENTS,
-        FinancialField.LONG_TERM_INVESTMENTS,
         FinancialField.NET_PPE,
-        FinancialField.RECEIVABLES,
         FinancialField.RETAINED_EARNINGS,
         FinancialField.SHORT_TERM_BORROWINGS,
         FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT,
@@ -239,15 +231,11 @@ ANNUAL_PERIOD_FIELDS = frozenset(
         FinancialField.COST_OF_REVENUE,
         FinancialField.GROSS_PROFIT,
         FinancialField.OPERATING_INCOME,
-        FinancialField.SELLING_GENERAL_ADMINISTRATIVE,
         FinancialField.DEPRECIATION_AND_AMORTIZATION,
-        FinancialField.DEPRECIATION,
         FinancialField.INTEREST_EXPENSE,
         FinancialField.PRETAX_INCOME,
         FinancialField.INCOME_TAX_EXPENSE,
         FinancialField.NET_INCOME,
-        FinancialField.INCOME_FROM_CONTINUING_OPERATIONS,
-        FinancialField.DISCONTINUED_OPERATIONS,
     }
 )
 

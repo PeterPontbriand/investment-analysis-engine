@@ -57,6 +57,8 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
 
 ### 3.5.2a — Slice plan and ranking helper
 
+*The ranking helper was removed on 2026-11-02 ([contract A.16](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)); this sub-slice stays Complete as history.*
+
 - **Problem:** Magic Formula (3.5.6) is the first strategy that ranks across members, and any later multi-metric ranking
   would otherwise re-implement tie handling, percentiles and missing-data exclusion.
 - **Decision (K13):**

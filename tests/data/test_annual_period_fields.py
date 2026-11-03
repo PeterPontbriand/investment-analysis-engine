@@ -1,4 +1,4 @@
-"""The completed-annual income-statement and cash-flow fields, and the depreciation evidence behind Beneish's DEPI."""
+"""The completed-annual income-statement and cash-flow fields, and the depreciation-and-amortization evidence."""
 
 import copy
 import hashlib
@@ -56,10 +56,8 @@ def _latest(ticker: str, field: FinancialField) -> float | None:
 # --- fields, units and the series set ------------------------------------------------------------------------------
 
 
-def test_the_thirteen_annual_fields_are_currency_fields_and_the_series_set_accepts_only_them_and_the_older_four() -> (
-    None
-):
-    assert len(ANNUAL_PERIOD_FIELDS) == 13
+def test_the_nine_annual_fields_are_currency_fields_and_the_series_set_accepts_only_them_and_the_older_four() -> None:
+    assert len(ANNUAL_PERIOD_FIELDS) == 9
     assert all(_expected_unit(field) is FinancialUnit.CURRENCY for field in ANNUAL_PERIOD_FIELDS)
     for field in ANNUAL_PERIOD_FIELDS:
         request = annual_request("SYN", field, count=3)
@@ -74,13 +72,10 @@ def test_the_thirteen_annual_fields_are_currency_fields_and_the_series_set_accep
     assert _expected_unit(F.EPS) is FinancialUnit.CURRENCY_PER_SHARE
 
 
-def test_every_annual_field_has_a_list_per_taxonomy_and_only_the_two_unsupported_ifrs_ones_are_empty() -> None:
+def test_every_annual_field_has_a_non_empty_list_per_taxonomy() -> None:
     assert set(US_GAAP_ANNUAL_CONCEPTS) == ANNUAL_PERIOD_FIELDS == set(IFRS_ANNUAL_CONCEPTS)
     assert all(US_GAAP_ANNUAL_CONCEPTS.values())
-    assert {field for field, names in IFRS_ANNUAL_CONCEPTS.items() if not names} == {
-        F.SELLING_GENERAL_ADMINISTRATIVE,
-        F.DEPRECIATION,
-    }
+    assert all(IFRS_ANNUAL_CONCEPTS.values())
     assert annual_concepts(F.TOTAL_ASSETS, "us-gaap") == ()
     assert annual_concepts(F.SALES, "ifrs-full") == ("Revenue", "RevenueFromContractsWithCustomers")
 
@@ -223,7 +218,6 @@ def test_values_match_the_rendered_statements_the_evidence_checked() -> None:
         ("WMT", F.SALES): 713_163e6,
         ("WMT", F.COST_OF_REVENUE): 535_395e6,
         ("WMT", F.OPERATING_INCOME): 29_825e6,
-        ("WMT", F.SELLING_GENERAL_ADMINISTRATIVE): 147_943e6,
         ("WMT", F.PRETAX_INCOME): 29_469e6,
         ("WMT", F.INCOME_TAX_EXPENSE): 7_199e6,
         ("WMT", F.NET_INCOME): 21_893e6,
@@ -234,7 +228,6 @@ def test_values_match_the_rendered_statements_the_evidence_checked() -> None:
         ("GOOGL", F.PRETAX_INCOME): 158_826e6,
         ("GOOGL", F.INCOME_TAX_EXPENSE): 26_656e6,
         ("GOOGL", F.NET_INCOME): 132_170e6,
-        ("GOOGL", F.DEPRECIATION): 21_136e6,
         ("MRNA", F.SALES): 1_944e6,
         ("MRNA", F.COST_OF_REVENUE): 868e6,
         ("MRNA", F.OPERATING_INCOME): -3_074e6,
@@ -246,12 +239,9 @@ def test_values_match_the_rendered_statements_the_evidence_checked() -> None:
         ("MNST", F.INCOME_TAX_EXPENSE): 577.097e6,
         ("HON", F.SALES): 37_442e6,
         ("HON", F.COST_OF_REVENUE): 23_613e6,
-        ("HON", F.SELLING_GENERAL_ADMINISTRATIVE): 5_450e6,
         ("HON", F.PRETAX_INCOME): 5_476e6,
         ("HON", F.INCOME_TAX_EXPENSE): 1_008e6,
         ("HON", F.NET_INCOME): 4_729e6,
-        ("HON", F.DISCONTINUED_OPERATIONS): 304e6,
-        ("HON", F.DEPRECIATION): 546e6,
         ("HON", F.DEPRECIATION_AND_AMORTIZATION): 1_388e6,
         ("SAP", F.SALES): 36_800e6,
         ("SAP", F.COST_OF_REVENUE): 9_986e6,
@@ -261,7 +251,6 @@ def test_values_match_the_rendered_statements_the_evidence_checked() -> None:
         ("SAP", F.INCOME_TAX_EXPENSE): 2_944e6,
         ("SAP", F.NET_INCOME): 7_161e6,
         ("SAP", F.DEPRECIATION_AND_AMORTIZATION): 1_311e6,
-        ("SAP", F.DISCONTINUED_OPERATIONS): 0.0,
         ("NTR", F.SALES): 26_885e6,
         ("NTR", F.COST_OF_REVENUE): 17_602e6,
         ("NTR", F.GROSS_PROFIT): 8_347e6,
@@ -285,14 +274,8 @@ def test_every_field_of_every_regression_issuer_answers_with_only_annual_facts_i
             assert len({fact.provider_field for fact in facts}) <= 1, (ticker, field)
 
 
-def test_unsupported_ifrs_fields_and_unreported_lines_are_unavailable_never_borrowed() -> None:
-    for ticker in ("SAP", "NTR"):
-        for field in (F.SELLING_GENERAL_ADMINISTRATIVE, F.DEPRECIATION):
-            assert annual_series(ticker, field) == ()
-    # Moderna reports "selling, general and administrative" under a general-and-administrative concept: not SG&A.
-    assert annual_series("MRNA", F.SELLING_GENERAL_ADMINISTRATIVE) == ()
-    # Alphabet reports no SG&A and no gross profit; Walmart reports no gross profit; Monster tags only ProfitLoss.
-    assert annual_series("GOOGL", F.SELLING_GENERAL_ADMINISTRATIVE) == ()
+def test_unreported_lines_are_unavailable_never_borrowed() -> None:
+    # Walmart reports no gross profit; Monster tags only ProfitLoss.
     assert annual_series("WMT", F.GROSS_PROFIT) == ()
     assert annual_series("MNST", F.NET_INCOME) == ()
     # Walmart's gross interest is two lines (debt and finance leases), and InterestExpenseDebt is not the field.
@@ -310,18 +293,13 @@ def test_interest_expense_reads_either_concept_the_evidence_shows_to_be_the_same
     assert _by_year(annual_series("NTR", F.INTEREST_EXPENSE))[2025] == 746e6
 
 
-# --- pretax, tax, continuing and discontinued income share one fiscal period ---------------------------------------
+# --- pretax and tax share one fiscal period -----------------------------------------------------------------------
 
 
-def test_pretax_tax_continuing_and_discontinued_income_are_read_from_the_same_fiscal_period() -> None:
+def test_pretax_and_tax_are_read_from_the_same_fiscal_period() -> None:
     for ticker in ("HON", "DUK"):
         periods = {}
-        for field in (
-            F.PRETAX_INCOME,
-            F.INCOME_TAX_EXPENSE,
-            F.INCOME_FROM_CONTINUING_OPERATIONS,
-            F.DISCONTINUED_OPERATIONS,
-        ):
+        for field in (F.PRETAX_INCOME, F.INCOME_TAX_EXPENSE):
             facts = annual_series(ticker, field)
             latest = max(fact.observation_period_end for fact in facts if fact.observation_period_end)
             periods[field] = {
@@ -330,57 +308,9 @@ def test_pretax_tax_continuing_and_discontinued_income_are_read_from_the_same_fi
                 if fact.observation_period_end == latest
             }
         assert len({frozenset(value) for value in periods.values()}) == 1, ticker
-    # Honeywell: income from continuing operations (4,461) is the parent's share, so the parent's net income (4,729)
-    # is that plus the parent's share of the discontinued result (268), not the 304 of the face.
-    assert _by_year(annual_series("HON", F.INCOME_FROM_CONTINUING_OPERATIONS))[2025] == 4_461e6
-    assert _by_year(annual_series("HON", F.DISCONTINUED_OPERATIONS))[2025] == 304e6
-    # Under IFRS the same parent basis: SAP's continuing profit attributable to owners (7,161) is its net income.
-    assert _by_year(annual_series("SAP", F.INCOME_FROM_CONTINUING_OPERATIONS))[2025] == 7_161e6
-    assert _by_year(annual_series("SAP", F.NET_INCOME))[2025] == 7_161e6
-    # A filer reporting neither continuing nor discontinued income reports nothing for them.
-    assert annual_series("WMT", F.INCOME_FROM_CONTINUING_OPERATIONS) == ()
-    assert annual_series("WMT", F.DISCONTINUED_OPERATIONS) == ()
 
 
-# --- depreciation evidence -----------------------------------------------------------------------------------------
-
-
-def _fixture_values(ticker: str, concept: str, year: int) -> list[float]:
-    document = load(ticker, ANNUAL_FIXTURES)
-    units = document["companyfacts"]["facts"]["us-gaap"][concept]["units"]["USD"]
-    return [
-        row["val"] for row in units if row["end"].startswith(str(year)) and row["accn"] == document["anchor_accession"]
-    ]
-
-
-def test_a_filing_that_reports_depreciation_alone_one_that_reports_only_combined_da_and_one_that_reports_both() -> None:
-    # Alphabet: depreciation of property and equipment alone, no combined concept.
-    assert _by_year(annual_series("GOOGL", F.DEPRECIATION))[2025] == 21_136e6
-    assert annual_series("GOOGL", F.DEPRECIATION_AND_AMORTIZATION) == ()
-    # Walmart, Monster, Moderna, Deere, Duke and Prologis: combined D&A only.
-    for ticker in ("WMT", "MNST", "MRNA", "DE", "DUK", "PLD", "JPM"):
-        assert annual_series(ticker, F.DEPRECIATION) == ()
-        assert annual_series(ticker, F.DEPRECIATION_AND_AMORTIZATION) != ()
-    # Honeywell: both, and the identity D&A = depreciation + amortization holds to the dollar.
-    depreciation = _by_year(annual_series("HON", F.DEPRECIATION))
-    combined = _by_year(annual_series("HON", F.DEPRECIATION_AND_AMORTIZATION))
-    amortization = {year: _fixture_values("HON", "AdjustmentForAmortization", year) for year in (2023, 2024, 2025)}
-    sums = {year: depreciation[year] + amortization[year][0] for year in (2023, 2024, 2025)}
-    # Exact in 2023 and 2025; in 2024 the filer's own lines, each rounded to millions, differ by one million.
-    assert sums[2023] == combined[2023]
-    assert sums[2025] == combined[2025]
-    assert abs(sums[2024] - combined[2024]) == 1e6
-
-
-def test_depreciation_is_the_expense_of_the_year_and_not_the_accumulated_balance() -> None:
-    for ticker in ("HON", "GOOGL"):
-        for fact in annual_series(ticker, F.DEPRECIATION):
-            assert fact.provider_field == "us-gaap:Depreciation"
-            assert fact.observation_period_start is not None
-            assert fact.observation_period_end is not None
-            assert 335 <= (fact.observation_period_end - fact.observation_period_start).days + 1 <= 395
-    # Honeywell's expense (546 million) is a fraction of its accumulated depreciation (7,431 million of 12,060 gross).
-    assert _by_year(annual_series("HON", F.DEPRECIATION))[2025] < 7_431e6 / 10
+# --- depreciation and amortization evidence ------------------------------------------------------------------------
 
 
 def test_the_three_us_gaap_combined_concepts_are_one_line_item_and_ifrs_has_two_names_for_it() -> None:
@@ -405,7 +335,7 @@ def test_the_three_us_gaap_combined_concepts_are_one_line_item_and_ifrs_has_two_
     assert len(set(both.values())) == 1
 
 
-def test_net_ppe_is_obtainable_for_the_same_dates_as_depreciation_where_a_filer_tags_it() -> None:
+def test_net_ppe_is_obtainable_where_a_filer_tags_it() -> None:
     # Alphabet changed the concept of its balance-sheet line in 2025 and Honeywell and Moderna use the finance-lease
     # variant throughout; both concepts are the face line of the filer that uses them.
     honeywell = series("HON", F.NET_PPE, count=2)
@@ -421,21 +351,6 @@ def test_net_ppe_is_obtainable_for_the_same_dates_as_depreciation_where_a_filer_
     alphabet = series("GOOGL", F.NET_PPE)
     assert len(alphabet.facts) == 2
     assert [item.reason.value for item in alphabet.absences] == ["other_concept"]
-
-
-def test_the_depi_algebra_checked_by_hand_against_honeywell() -> None:
-    depreciation = _by_year(annual_series("HON", F.DEPRECIATION))
-    plant = {
-        fact.observation_period_end.year: fact.value
-        for fact in series("HON", F.NET_PPE, count=2).facts
-        if fact.observation_period_end
-    }
-    # [depreciation / (depreciation + net PP&E)] of the prior year, over the same for the year.
-    prior = depreciation[2024] / (depreciation[2024] + plant[2024])
-    current = depreciation[2025] / (depreciation[2025] + plant[2025])
-    assert prior == pytest.approx(493 / (493 + 4_457))
-    assert current == pytest.approx(546 / (546 + 4_629))
-    assert prior / current == pytest.approx(0.9439, abs=1e-4)
 
 
 def test_the_new_fields_work_without_an_analysis_scope_for_us_gaap_filers() -> None:

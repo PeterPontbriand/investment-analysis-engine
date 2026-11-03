@@ -335,14 +335,14 @@ Added at the start of 3.5.1c, decided by the project owner (2026-10-26):
 
 | # | Topic | Decision |
 | :--- | :--- | :--- |
-| H17 | Beneish receivables | Receivables are unavailable for the Beneish receivables index when the balance-sheet series reports a related concept tagged at either of the two year-ends (Duke Energy fiscal 2025, where receivables moved to "Receivables of VIEs"). [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-beneish) states it, and a test case is due in 3.5.4b. |
+| H17 | Beneish receivables | Receivables are unavailable for the Beneish receivables index when the balance-sheet series reports a related concept tagged at either of the two year-ends (Duke Energy fiscal 2025, where receivables moved to "Receivables of VIEs"). [Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-the-accrual-ratio) states it, and a test case is due in 3.5.4b. |
 | H18 | Paging for the annual series | The submissions paging of 3.5.1b is extended to the completed-annual series request, bounded the same way and read only when the recent block does not reach back far enough. The request is shared with FCF-Growth and Graham, so a frequent filer such as JPMorgan gains the acceptance times of its older annual years there; the pull request lists it as a user-visible change, and the work stops only if an existing stored output changes. |
 
 Accepted by the project owner at the start of 3.5.1d (2026-10-26), as consequences of 3.5.1c:
 
 | # | Topic | Decision |
 | :--- | :--- | :--- |
-| H19 | Beneish and SG&A | SG&A is unsupported under ifrs-full and unavailable for US GAAP filers that report selling and administrative costs as separate lines (Alphabet). Beneish has no partial score, so those issuers are `input_unavailable` for Beneish. SAP and Alphabet are 3.5.4b test cases ([Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-beneish)). |
+| H19 | Beneish and SG&A | SG&A is unsupported under ifrs-full and unavailable for US GAAP filers that report selling and administrative costs as separate lines (Alphabet). Beneish has no partial score, so those issuers are `input_unavailable` for Beneish. SAP and Alphabet are 3.5.4b test cases ([Slice inputs §6](STEP_3_5_SLICE_INPUTS.md#6-354--altman-and-the-accrual-ratio)). |
 | H20 | Piotroski and net income | Net income is unavailable for a filer that tags only `ProfitLoss` (Monster), so its net-income tests are unavailable and the score is partial when at least six tests remain. Monster is a 3.5.3 test case ([Slice inputs §5](STEP_3_5_SLICE_INPUTS.md#5-353--piotroski-f-score)). |
 
 Decided under delegation during 3.5.1c (2026-10-26):
