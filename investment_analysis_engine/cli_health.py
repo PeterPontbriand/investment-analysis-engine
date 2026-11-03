@@ -75,7 +75,7 @@ def _library_of(provider_id: str, library_version: Callable[[str], str]) -> Prov
         return None
 
 
-def health_document(
+def build_health_document(
     results: Sequence[ProviderCheckResult], *, library_version: Callable[[str], str] = installed_version
 ) -> ProviderHealthDocument:
     """Build the typed ``--json`` document from the check results, in the order given.
@@ -131,7 +131,7 @@ def health(
         if not json_output:
             typer.echo(format_result(result))
     if json_output:
-        typer.echo(health_document(results).model_dump_json())
+        typer.echo(build_health_document(results).model_dump_json())
     if not all(result.passed for result in results):
         raise typer.Exit(code=1)
 

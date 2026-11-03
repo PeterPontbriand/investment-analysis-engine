@@ -6,7 +6,7 @@ from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
 from investment_analysis_engine.strategies.momentum.envelope import MomentumDocument
 from investment_analysis_engine.strategies.momentum.presenter import (
     MomentumPresentation,
-    momentum_document,
+    build_momentum_document,
     render_momentum,
     trend_word,
 )
@@ -73,7 +73,7 @@ def project_momentum_document(
     Raises:
         UnsupportedProjectionError: If a stored presentation input is not a number or null.
     """
-    return momentum_document(_presentation(inputs, evidence, selection))
+    return build_momentum_document(_presentation(inputs, evidence, selection))
 
 
 def headline_momentum(run: MomentumRun) -> Headline:

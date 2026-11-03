@@ -5,7 +5,7 @@ from investment_analysis_engine.reporting.headline import CellKind, Headline, He
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from tests.specimen.analyzer import SpecimenResult
 from tests.specimen.envelope import SpecimenDocument
-from tests.specimen.presenter import render_specimen, specimen_document
+from tests.specimen.presenter import build_specimen_document, render_specimen
 from tests.specimen.selection import SpecimenSelection
 
 
@@ -22,7 +22,7 @@ def project_specimen_document(
 ) -> SpecimenDocument:
     """Return the specimen's document from stored evidence only."""
     del inputs, selection
-    return specimen_document(evidence)
+    return build_specimen_document(evidence)
 
 
 def headline_specimen(result: SpecimenResult) -> Headline:

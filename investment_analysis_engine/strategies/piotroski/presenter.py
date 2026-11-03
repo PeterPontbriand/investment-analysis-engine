@@ -375,7 +375,7 @@ def _profile_and_identity(
     return profile, resolved
 
 
-def piotroski_document(
+def build_piotroski_document(
     result: PiotroskiResult,
     identity_resolution: SecurityIdentityResolution | None = None,
     instrument_profile: InstrumentProfile | None = None,
@@ -402,7 +402,7 @@ def render_piotroski(
     """
     if mode is PresentationMode.JSON:
         return strategy_document_json(
-            piotroski_document(result, identity_resolution, instrument_profile, provider_check)
+            build_piotroski_document(result, identity_resolution, instrument_profile, provider_check)
         )
     profile, resolved = _profile_and_identity(result, identity_resolution, instrument_profile)
     label = security_display_label(result.ticker, resolved)

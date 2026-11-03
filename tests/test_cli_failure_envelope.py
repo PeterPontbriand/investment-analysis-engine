@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-import investment_analysis_engine.cli_workspace
+import investment_analysis_engine.application.watchlists
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.base_client import DataFetchError
@@ -190,7 +190,7 @@ def test_removing_a_missing_entry_is_reported_under_its_own_code() -> None:
 
 def test_runs_list_json_failure_on_a_readiness_error_carries_the_database_facts(tmp_path: Path) -> None:
     error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, tmp_path / "cli.sqlite3", "0001_head")
-    with patch("investment_analysis_engine.cli_workspace.ensure_database_ready", side_effect=error):
+    with patch("investment_analysis_engine.application.database.ensure_database_ready", side_effect=error):
         result = runner.invoke(app, ["runs", "list", "--json"])
 
     assert result.exit_code == 1
@@ -203,7 +203,7 @@ def test_runs_list_json_failure_on_a_readiness_error_carries_the_database_facts(
 
 def test_a_readiness_error_without_json_stays_text_on_standard_error(tmp_path: Path) -> None:
     error = DatabaseReadinessError(ReadinessReason.BUSY, tmp_path / "cli.sqlite3")
-    with patch("investment_analysis_engine.cli_workspace.ensure_database_ready", side_effect=error):
+    with patch("investment_analysis_engine.application.database.ensure_database_ready", side_effect=error):
         result = runner.invoke(app, ["watchlist", "list"])
 
     assert result.exit_code == 1
@@ -218,7 +218,7 @@ def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(
     database = SQLiteDatabase(isolated_cli_settings)
     try:
         _create("Core")
-        investment_analysis_engine.cli_workspace._watchlist_repository(database).add_entries(
+        investment_analysis_engine.application.watchlists.watchlist_repository(database).add_entries(
             "Core", [("AAPL", selection), ("MSFT", selection), ("KO", selection), ("IBM", selection)]
         )
     finally:

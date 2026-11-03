@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+[{"watchlist_id": "<uuid>", "display_name": "Core", "entry_count": 4, "created_at": "<time>", "updated_at": "<time>"}, {"watchlist_id": "<uuid>", "display_name": "Seeded", "entry_count": 2, "created_at": "<time>", "updated_at": "<time>"}]
+--- stderr
+

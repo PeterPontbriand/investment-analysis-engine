@@ -12,7 +12,7 @@ from investment_analysis_engine.strategies._graham.replay import (
 from investment_analysis_engine.strategies.graham_number.envelope import GrahamNumberDocument
 from investment_analysis_engine.strategies.graham_number.presenter import (
     GrahamNumberPresentation,
-    graham_number_document,
+    build_graham_number_document,
     number_with_public_quote_reason,
     render_graham_number,
 )
@@ -53,7 +53,7 @@ def project_graham_number_document(
     inputs: ReplayInputs, evidence: GrahamNumberAnalysis, selection: GrahamNumberSelection
 ) -> GrahamNumberDocument:
     """Return the reconstructed Graham Number document, as the JSON mode of the live command writes it."""
-    return graham_number_document(_presentation(inputs, evidence, selection))
+    return build_graham_number_document(_presentation(inputs, evidence, selection))
 
 
 def headline_graham_number(analysis: GrahamNumberAnalysis) -> Headline:

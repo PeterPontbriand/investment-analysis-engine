@@ -10,7 +10,7 @@ identifiers and finite-value guarantees.
 """
 
 from datetime import date
-from typing import Literal
+from typing import ClassVar, Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, Field, field_validator, model_validator
@@ -22,8 +22,15 @@ from investment_analysis_engine.analysis.run_models import (
     _FrozenModel,
 )
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
+
+
+class AnalysisRunNotFoundError(ValueError):
+    """No Analysis Run exists with the requested ID, or no run is stored for the requested refresh."""
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.ANALYSIS_RUN_NOT_FOUND
 
 
 class AnalysisRun(_FrozenModel):
@@ -225,6 +232,7 @@ __all__ = [
     "RUN_QUERY_MAX_LIMIT",
     "RUN_QUERY_MIN_LIMIT",
     "AnalysisRun",
+    "AnalysisRunNotFoundError",
     "AnalysisRunSummary",
     "RunQuery",
     "Watchlist",

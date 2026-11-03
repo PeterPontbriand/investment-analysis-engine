@@ -25,6 +25,15 @@ import typer
 from pydantic import BaseModel
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.database import open_database
+from investment_analysis_engine.application.runs import (
+    compare_refresh_runs,
+    list_runs,
+    replay_run_document,
+    replay_run_text,
+)
+from investment_analysis_engine.application.watchlists import get_watchlist, list_watchlists, watchlist_repository
 from investment_analysis_engine.cli_composition import momentum_settings
 from investment_analysis_engine.cli_provider_check import (
     ProviderCheckFindings,
@@ -49,25 +58,14 @@ from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.core.strategy_errors import find, require
+from investment_analysis_engine.core.strategy_errors import require
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ensure_database_ready
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.reporting.presentation import PresentationMode
-from investment_analysis_engine.reporting.replay_inputs import ReplayOptions, UnsupportedProjectionError
-from investment_analysis_engine.strategy_wiring import (
-    BY_ALIAS,
-    BY_METHOD_ID,
-    DOCUMENTS_BY_KEY,
-    EVIDENCE_BY_KEY,
-    REPLAYS_BY_KEY,
-    RUN_SPECS_BY_KEY,
-    STRATEGIES,
-)
+from investment_analysis_engine.strategy_wiring import BY_ALIAS, BY_METHOD_ID, RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from investment_analysis_engine.workspace.refresh import (
     MAX_WORKERS,
     MIN_WORKERS,
@@ -102,19 +100,12 @@ from investment_analysis_engine.workspace.watchlists import (
     normalize_ticker,
 )
 from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
-from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
-from investment_analysis_engine.workspace_documents.runs import RunsListDocument, RunSummaryDocument
-from investment_analysis_engine.workspace_documents.runs_compare import (
-    CompareColumn,
-    DuplicateRefreshRunsError,
-    build_runs_compare,
-    no_runs_message,
-    render_runs_compare_text,
-)
+from investment_analysis_engine.workspace_documents.runs import build_runs_list_document
+from investment_analysis_engine.workspace_documents.runs_compare import render_runs_compare_text
 from investment_analysis_engine.workspace_documents.watchlist import (
     WatchlistDeleteDocument,
-    WatchlistDocument,
-    WatchlistEntryDocument,
+    build_watchlist_document,
+    build_watchlist_list_document,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,34 +126,38 @@ _ANALYSIS_CHOICES = _alias_choices()
 
 
 @contextmanager
-def _workspace_database(command: str, *, json_output: bool = False) -> Iterator[SQLiteDatabase]:
-    """Own one invocation's readiness-checked database connection.
+def _workspace_failures(command: str, *, json_output: bool = False) -> Iterator[None]:
+    """Report a failure raised inside the block as a sanitized message and exit 1.
 
-    A readiness failure is reported as a sanitized message and exit 1 here,
-    at the one place every command shares, rather than repeated per command.
-    ``command`` is the command as the user types it after ``ian``. An exception raised inside the block that
-    declares its own ``reason_code`` (a rejected parameter, an unreadable stored selection, a missing watchlist)
-    keeps its own message; any other exception is an ``execution_error`` with one fixed message naming the
-    command, and its detail goes to the log with its traceback, so no library text reaches the user.
+    ``command`` is the command as the user types it after ``ian``. A readiness error, or an exception raised inside
+    the block that declares its own ``reason_code`` (a rejected parameter, an unreadable stored selection, a missing
+    watchlist), keeps its own message; any other exception is an ``execution_error`` with one fixed message naming
+    the command, and its detail goes to the log with its traceback, so no library text reaches the user.
     ``json_output`` selects the failure envelope on standard output instead of text on standard error.
     """
-    database = SQLiteDatabase(settings)
     try:
-        try:
-            ensure_database_ready(database)
-        except DatabaseReadinessError as exc:
+        yield
+    except (typer.Exit, typer.Abort):
+        raise
+    except Exception as exc:
+        if isinstance(getattr(exc, "reason_code", None), FailureReasonCode):
             _fail_with(exc, json_output=json_output)
-        try:
-            yield database
-        except (typer.Exit, typer.Abort):
-            raise
-        except Exception as exc:
-            if isinstance(getattr(exc, "reason_code", None), FailureReasonCode):
-                _fail_with(exc, json_output=json_output)
-            logger.exception("Unexpected failure in 'ian %s'.", command)
-            _fail(FailureReasonCode.EXECUTION_ERROR, f"{command} failed unexpectedly.", json_output=json_output)
-    finally:
-        database.close()
+        logger.exception("Unexpected failure in 'ian %s'.", command)
+        _fail(FailureReasonCode.EXECUTION_ERROR, f"{command} failed unexpectedly.", json_output=json_output)
+
+
+@contextmanager
+def _workspace_database(command: str, *, json_output: bool = False) -> Iterator[SQLiteDatabase]:
+    """Own one invocation's readiness-checked database connection and report its failures.
+
+    The action commands use it; the read commands call an application operation inside
+    :func:`_workspace_failures`.
+    """
+    with (
+        _workspace_failures(command, json_output=json_output),
+        open_database(ApplicationContext(settings=settings)) as database,
+    ):
+        yield database
 
 
 def _fail(reason_code: FailureReasonCode, message: str, *, json_output: bool = False) -> NoReturn:
@@ -189,17 +184,6 @@ def _alias_for_method_id(method_id: str) -> str:
 def _method_id_for_alias(alias: str) -> str:
     """Return the canonical method identifier of a validated CLI alias."""
     return require(BY_ALIAS, alias, what="alias").method_id
-
-
-def _stored_method_alias(method_id: str) -> str | None:
-    """Return the alias of a stored method identifier, or ``None`` if this version declares no such method."""
-    descriptor = find(BY_METHOD_ID, method_id)
-    return None if descriptor is None else descriptor.alias
-
-
-def _watchlist_repository(database: SQLiteDatabase) -> SQLiteWatchlistRepository:
-    """Compose the watchlist repository with the declared strategies' alias vocabulary."""
-    return SQLiteWatchlistRepository(database, alias_for=_stored_method_alias)
 
 
 def _selection_detail_text(selection: AnalysisSelection) -> str:
@@ -256,23 +240,9 @@ def _document_json(document: BaseModel) -> str:
     return json.dumps(document.model_dump(mode="json"), ensure_ascii=False, allow_nan=False)
 
 
-def _watchlist_document(watchlist: Watchlist) -> WatchlistDocument:
-    """Build the watchlist document: the flat, ordered entry list, each carrying the 1-based index a user sees."""
-    return WatchlistDocument(
-        watchlist_id=watchlist.watchlist_id,
-        display_name=watchlist.display_name,
-        created_at=watchlist.created_at,
-        updated_at=watchlist.updated_at,
-        entries=tuple(
-            WatchlistEntryDocument(index=index, ticker=entry.ticker, selection=entry.selection)
-            for index, entry in enumerate(watchlist.entries, start=1)
-        ),
-    )
-
-
 def _watchlist_json(watchlist: Watchlist) -> str:
     """Emit the complete watchlist document."""
-    return _document_json(_watchlist_document(watchlist))
+    return _document_json(build_watchlist_document(watchlist))
 
 
 def _summary_line(summary: WatchlistSummary) -> str:
@@ -465,7 +435,7 @@ def watchlist_create(  # noqa: PLR0913
             entries = [(ticker, selection) for ticker in seed_tickers]
 
     with _workspace_database("watchlist create") as database:
-        repository = _watchlist_repository(database)
+        repository = watchlist_repository(database)
         # Every argument is checked before the watchlist is created, so a rejected one leaves nothing behind.
         if not name.strip():
             raise InvalidParameterError("NAME must not be blank.", parameters=("NAME",))
@@ -585,7 +555,7 @@ def watchlist_add_selection(  # noqa: PLR0913
         )
     entries = [(ticker, selection) for ticker in tickers]
     with _workspace_database("watchlist add-selection") as database:
-        repository = _watchlist_repository(database)
+        repository = watchlist_repository(database)
         _require_tickers(tickers)
         try:
             watchlist = repository.add_entries(name, entries)
@@ -634,7 +604,7 @@ def watchlist_remove_entry(
         if index < 1:
             raise InvalidParameterError("INDEX must be 1 or greater.", parameters=("INDEX",))
     with _workspace_database("watchlist remove-entry") as database:
-        repository = _watchlist_repository(database)
+        repository = watchlist_repository(database)
         try:
             removed = repository.remove_entry(name, index - 1)
         except (WatchlistNotFoundError, WatchlistEntryNotFoundError) as exc:
@@ -650,7 +620,7 @@ def watchlist_remove_ticker(
 ) -> None:
     """Remove every entry for the given ticker(s), across every method (bulk, idempotent)."""
     with _workspace_database("watchlist remove-ticker") as database:
-        repository = _watchlist_repository(database)
+        repository = watchlist_repository(database)
         _require_tickers(tickers)
         try:
             removed = repository.remove_entries_for_ticker(name, tickers)
@@ -672,7 +642,7 @@ def watchlist_remove_method(
     with parameter_failures(json_output=False):
         method = _parse_analysis(analysis)
     with _workspace_database("watchlist remove-method") as database:
-        repository = _watchlist_repository(database)
+        repository = watchlist_repository(database)
         try:
             removed = repository.remove_entries_for_method(name, _method_id_for_alias(method))
         except WatchlistNotFoundError as exc:
@@ -720,7 +690,7 @@ def watchlist_delete(
             raise InvalidParameterError("--yes is required when input is not interactive.", parameters=("--yes",))
     deleted: DeletedWatchlist | None = None
     with _workspace_database("watchlist delete", json_output=json_output) as database:
-        repository = _watchlist_repository(database)
+        repository = watchlist_repository(database)
         try:
             if not yes:
                 summary = repository.summary(name)
@@ -753,7 +723,7 @@ def watchlist_delete(
         assert deleted.unreadable is not None  # exactly one of watchlist and unreadable is set
         _fail_with(deleted.unreadable, json_output=json_output)
     document = WatchlistDeleteDocument(
-        requested_name=name, deleted=True, watchlist=_watchlist_document(deleted.watchlist)
+        requested_name=name, deleted=True, watchlist=build_watchlist_document(deleted.watchlist)
     )
     typer.echo(_document_json(document))
 
@@ -767,7 +737,7 @@ def watchlist_rename(
 ) -> None:
     """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
     with _workspace_database("watchlist rename", json_output=json_output) as database:
-        repository = _watchlist_repository(database)
+        repository = watchlist_repository(database)
         if not new_name.strip():
             raise InvalidParameterError("NEW_NAME must not be blank.", parameters=("NEW_NAME",))
         try:
@@ -791,10 +761,16 @@ def watchlist_rename(
 
 
 @watchlist_app.command("list")
-def watchlist_list() -> None:
+def watchlist_list(
+    *,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit one JSON array of watchlist summaries.")] = False,
+) -> None:
     """List every watchlist with its entry count."""
-    with _workspace_database("watchlist list") as database:
-        summaries = _watchlist_repository(database).list()
+    with _workspace_failures("watchlist list", json_output=json_output):
+        summaries = list_watchlists(ApplicationContext(settings=settings))
+    if json_output:
+        typer.echo(_document_json(build_watchlist_list_document(summaries)))
+        return
     if not summaries:
         typer.echo("No watchlists exist yet.")
         return
@@ -816,10 +792,8 @@ def watchlist_show(
     with parameter_failures(json_output=json_output):
         if normalized_group_by not in ("ticker", "method"):
             raise InvalidParameterError("--group-by must be 'ticker' or 'method'.", parameters=("--group-by",))
-    with _workspace_database("watchlist show", json_output=json_output) as database:
-        watchlist = _watchlist_repository(database).get(name)
-    if watchlist is None:
-        _fail(FailureReasonCode.WATCHLIST_NOT_FOUND, f"No watchlist named {name!r} exists.", json_output=json_output)
+    with _workspace_failures("watchlist show", json_output=json_output):
+        watchlist = get_watchlist(ApplicationContext(settings=settings), name)
     typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist, group_by=normalized_group_by))
 
 
@@ -860,23 +834,10 @@ def runs_list(  # noqa: PLR0913
             limit=limit,
             offset=offset,
         )
-    with _workspace_database("runs list", json_output=json_output) as database:
-        summaries = SQLiteAnalysisRunRepository(database).list(query)
+    with _workspace_failures("runs list", json_output=json_output):
+        summaries = list_runs(ApplicationContext(settings=settings), query)
     if json_output:
-        runs = RunsListDocument(
-            tuple(
-                RunSummaryDocument(
-                    analysis_run_id=item.analysis_run_id,
-                    ticker=item.ticker,
-                    method_id=item.method_id,
-                    status=item.status,
-                    completed_at=item.completed_at,
-                    refresh_id=item.refresh_id,
-                )
-                for item in summaries
-            )
-        )
-        typer.echo(_document_json(runs))
+        typer.echo(_document_json(build_runs_list_document(summaries)))
         return
     if not summaries:
         typer.echo("No matching runs.")
@@ -896,34 +857,12 @@ def runs_show(
     with parameter_failures(json_output=json_output):
         mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         parsed_id = _parse_run_id(run_id, field="RUN_ID")
-    with _workspace_database("runs show", json_output=json_output) as database:
-        try:
-            run = SQLiteAnalysisRunRepository(database).get(parsed_id)
-        except ValueError:
-            # The repository's own documented contract: a malformed or internally inconsistent stored envelope
-            # raises a plain ValueError from get(); its text is the validation library's, so it goes to the log.
-            logger.exception("Analysis Run %s could not be read.", parsed_id)
-            _fail(
-                FailureReasonCode.INVALID_STORED_RUN,
-                f"Analysis Run {parsed_id} could not be read: "
-                "its stored record is malformed or does not match its summary.",
-                json_output=json_output,
-            )
-    if run is None:
-        _fail(
-            FailureReasonCode.ANALYSIS_RUN_NOT_FOUND,
-            f"No Analysis Run with ID {parsed_id} exists.",
-            json_output=json_output,
-        )
-    try:
+    context = ApplicationContext(settings=settings)
+    with _workspace_failures("runs show", json_output=json_output):
         if mode is PresentationMode.JSON:
-            rendered = strategy_document_json(
-                project_run_document(run, codecs=EVIDENCE_BY_KEY, documents=DOCUMENTS_BY_KEY)
-            )
+            rendered = strategy_document_json(replay_run_document(context, parsed_id))
         else:
-            rendered = project_run(run, ReplayOptions(mode=mode), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY)
-    except (UnsupportedProjectionError, UnsupportedRunVersionError, InvalidStoredRunError) as exc:
-        _fail_with(exc, json_output=json_output)
+            rendered = replay_run_text(context, parsed_id, mode)
     typer.echo(rendered)
 
 
@@ -935,30 +874,9 @@ def runs_compare(
     """Show the runs of one refresh side by side: one row per ticker, one column group per strategy."""
     with parameter_failures(json_output=json_output):
         parsed_id = _parse_run_id(refresh_id, field="REFRESH_ID")
-    with _workspace_database("runs compare", json_output=json_output) as database:
-        stored = SQLiteAnalysisRunRepository(database).list_refresh_runs(parsed_id)
-        if not stored:
-            _fail(FailureReasonCode.ANALYSIS_RUN_NOT_FOUND, no_runs_message(parsed_id), json_output=json_output)
-        try:
-            document = build_runs_compare(parsed_id, stored, _compare_columns())
-        except DuplicateRefreshRunsError as exc:
-            _fail(FailureReasonCode.INVALID_INPUT, str(exc), json_output=json_output)
+    with _workspace_failures("runs compare", json_output=json_output):
+        document = compare_refresh_runs(ApplicationContext(settings=settings), parsed_id)
     typer.echo(_document_json(document) if json_output else render_runs_compare_text(document))
-
-
-def _compare_columns() -> tuple[CompareColumn, ...]:
-    """Return the declared strategies as table columns, in the order the strategies are declared."""
-    return tuple(
-        CompareColumn(
-            analysis_id=descriptor.analysis_id,
-            method_id=descriptor.method_id,
-            alias=descriptor.alias,
-            label=descriptor.label,
-            codec=EVIDENCE_BY_KEY[(descriptor.analysis_id, descriptor.method_id)],
-            headline=descriptor.behavior.headline_for,
-        )
-        for descriptor in STRATEGIES
-    )
 
 
 def _parse_run_id(value: str, *, field: str) -> UUID:
@@ -1117,7 +1035,7 @@ def refresh(  # noqa: PLR0913
                 profile_cache = production_instrument_profile_cache(database, clock=utc_now)
                 summary = refresh_watchlist(
                     name,
-                    watchlists=_watchlist_repository(database),
+                    watchlists=watchlist_repository(database),
                     repository=SQLiteAnalysisRunRepository(database),
                     executor=lambda ticker, selection: _refresh_executor(
                         ticker, selection, profile_cache=profile_cache

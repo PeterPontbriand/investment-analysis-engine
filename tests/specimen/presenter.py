@@ -9,7 +9,7 @@ from tests.specimen.envelope import DOCUMENT_SCHEMA_VERSION, SpecimenDocument, S
 from tests.specimen.vocabulary import ANALYSIS_ID, METHOD_ID
 
 
-def specimen_document(result: SpecimenResult) -> SpecimenDocument:
+def build_specimen_document(result: SpecimenResult) -> SpecimenDocument:
     """Build the typed document of one specimen result."""
     return SpecimenDocument(
         schema_version=DOCUMENT_SCHEMA_VERSION,
@@ -41,7 +41,7 @@ def specimen_document(result: SpecimenResult) -> SpecimenDocument:
 def render_specimen(result: SpecimenResult, mode: PresentationMode = PresentationMode.CONCISE) -> str:
     """Render one specimen result in ``mode``."""
     if mode is PresentationMode.JSON:
-        return strategy_document_json(specimen_document(result))
+        return strategy_document_json(build_specimen_document(result))
     lines = [f"{result.ticker} specimen value: {result.scaled}"]
     if mode in {PresentationMode.DETAILS, PresentationMode.DIAGNOSTICS}:
         lines.append(f"Input value: {result.value}; multiplier: {result.multiplier}")

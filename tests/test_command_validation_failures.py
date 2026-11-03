@@ -856,7 +856,10 @@ def test_a_corrupt_stored_row_is_an_unexpected_failure_that_shows_none_of_the_li
         RunQuery(limit=0)
     except ValidationError as error:
         corrupt = error
-    with patch("investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.add_entries", side_effect=corrupt):
+    with patch(
+        "investment_analysis_engine.workspace.repositories.watchlists.SQLiteWatchlistRepository.add_entries",
+        side_effect=corrupt,
+    ):
         result = runner.invoke(app, ["watchlist", "add-selection", "Odd", "-a", "momentum", "AAPL"])
     assert result.exit_code == 1
     assert result.stderr.strip() == "watchlist add-selection failed unexpectedly."

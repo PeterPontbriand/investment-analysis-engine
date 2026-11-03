@@ -157,7 +157,7 @@ kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/presenter.py"
 generated = true
 check = "site_presenter"
-defines = ["render_.+", ".+_document"]
+defines = ["render_.+", "build_.+_document"]
 fails = "the replayed JSON does not validate as X"
 
 [[site]]

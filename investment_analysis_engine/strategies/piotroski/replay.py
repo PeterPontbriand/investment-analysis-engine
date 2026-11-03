@@ -10,8 +10,8 @@ from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, Rep
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
 from investment_analysis_engine.strategies.piotroski.envelope import PiotroskiDocument
 from investment_analysis_engine.strategies.piotroski.presenter import (
+    build_piotroski_document,
     completeness_text,
-    piotroski_document,
     render_piotroski,
     score_text,
 )
@@ -35,7 +35,7 @@ def project_piotroski_document(
 ) -> PiotroskiDocument:
     """Return the Piotroski F-Score document from stored evidence only, as the live JSON mode writes it."""
     del selection
-    return piotroski_document(evidence, instrument_profile=inputs.instrument_profile)
+    return build_piotroski_document(evidence, instrument_profile=inputs.instrument_profile)
 
 
 def headline_piotroski(result: PiotroskiResult) -> Headline:

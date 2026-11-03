@@ -39,8 +39,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | :--- | :--- | :--- | :--- |
 | API.0 | [Plan and milestone changes](#api0--plan-and-milestone-changes) | Complete | 2026-10-30 |
 | API.1a | [Replay document projection](#api1a--replay-document-projection) | Complete | 2026-11-01 |
-| API.1b | [Application layer: reading](#api1b--application-layer-reading) | Next | |
-| API.2 | [`ian serve` and the read endpoints](#api2--ian-serve-and-the-read-endpoints) | Planned | |
+| API.1b | [Application layer: reading](#api1b--application-layer-reading) | Complete | 2026-11-02 |
+| API.2 | [`ian serve` and the read endpoints](#api2--ian-serve-and-the-read-endpoints) | Next | |
 | API.3 | [Application layer: actions](#api3--application-layer-actions) | Planned | |
 | API.4 | [Action endpoints and refresh jobs](#api4--action-endpoints-and-refresh-jobs) | Planned | |
 | API.5 | [Help content](#api5--help-content) | Planned | |
@@ -81,14 +81,15 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Problem:** each Typer command in `cli_workspace.py` parses, composes, works and prints in one
   function and fails through `typer.Exit`, and production composition lives in the `cli` unit at
   the top of the package layers, so nothing else can reuse it.
-- **Decision:** a new unit, `application`, owns production composition and the operations. It
+- **Decision:** a new unit, `application`, owns the read operations; production composition joins it
+  in API.3 ([A11](API_1_SLICE_PLAN.md#a11-cli_compositionpy-stays-in-cli-until-api3-2026-11-01)). It
   returns the existing typed documents and domain objects, and raises typed failures that carry a
   `FailureReasonCode`. It knows no presentation and no strategy.
 - **Scope:** the read operations — watchlist list and show, runs list, show (each presentation
   mode) and compare — and the composition they need; the CLI switched to them; the new unit's row
   in [Architecture §13](../../../ARCHITECTURE.md#13-module-boundaries).
 - **Branch:** `feat/api-application-read`.
-- **Detail:** [API.1 slice plan](API_1_SLICE_PLAN.md).
+- **Detail:** [API.1 slice plan](API_1_SLICE_PLAN.md#32-api1b-implementation-record).
 
 ### API.2 — `ian serve` and the read endpoints
 
@@ -104,9 +105,10 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   script and compared by a test like `schemas/`; an endpoint test parametrized over `STRATEGIES`;
   the dependencies `starlette` and `uvicorn`, and `httpx` for tests (approved 2026-10-30, [A.2](#a2-api-shape-and-dependencies-2026-10-30)).
 - **Branch:** `feat/api-serve-read`.
-- **Detail:** ⚠ no slice plan yet. When it is written it also decides what counts as an addition inside `/v1`
-  (new document fields, new warning codes, new `status` and reason-code values) and that clients must tolerate
-  unknown values; see [#204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204) and
+- **Detail:** ⚠ no slice plan yet. The runs-list and watchlist-list documents are both top-level arrays, so a
+  list-level field can never be added to either; the slice plan decides whether the endpoints wrap them. When it is
+  written it also decides what counts as an addition inside `/v1` (new document fields, new warning codes, new
+  `status` and reason-code values) and that clients must tolerate unknown values; see [#204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204) and
   [#205](https://github.com/PeterPontbriand/investment-analysis-engine/issues/205). The extensible authentication of
   #205 is settled there; API.1b's `ApplicationContext` is only its first part
   ([A14](API_1_SLICE_PLAN.md#a14-the-application-context-and-205-2026-11-01)).

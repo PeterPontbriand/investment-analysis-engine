@@ -472,7 +472,7 @@ def _profile_and_identity(
     return profile, resolved_identity
 
 
-def fcf_growth_document(
+def build_fcf_growth_document(
     result: FCFEarningsGrowthResult,
     identity_resolution: SecurityIdentityResolution | None = None,
     instrument_profile: InstrumentProfile | None = None,
@@ -499,7 +499,7 @@ def render_fcf_earnings_growth(
     """
     if mode is PresentationMode.JSON:
         return strategy_document_json(
-            fcf_growth_document(result, identity_resolution, instrument_profile, provider_check)
+            build_fcf_growth_document(result, identity_resolution, instrument_profile, provider_check)
         )
     profile, resolved_identity = _profile_and_identity(result, identity_resolution, instrument_profile)
     if mode is PresentationMode.DETAILS:
