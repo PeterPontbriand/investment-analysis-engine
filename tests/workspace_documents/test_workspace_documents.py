@@ -32,7 +32,6 @@ _DATETIME_LEAVES: tuple[Any, ...] = (datetime, AwareDatetime, NaiveDatetime, Pas
 _TIMESTAMP_METADATA: tuple[Any, ...] = get_args(DocumentTimestamp)[1:]
 _SELECTION_MEMBERS: tuple[Any, ...] = get_args(SelectionMember)
 _UNVERSIONED_WORKSPACE_FILES = (
-    "runs-list.schema.json",
     "watchlist-delete.schema.json",
     "watchlist.schema.json",
 )
@@ -103,6 +102,16 @@ def test_each_unversioned_workspace_schema_states_that_the_document_is_unversion
     schema = json.loads(expected_schemas()[file_name])
     assert "unversioned" in schema["description"]
     assert "schema_version" not in schema.get("properties", {})
+
+
+def test_the_runs_list_schema_is_version_one_with_a_paging_flag_and_items() -> None:
+    schema = json.loads(expected_schemas()["runs-list.schema.json"])
+    assert schema["type"] == "object"
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["schema_version"]["const"] == 1
+    assert list(RunsListDocument.model_fields) == ["schema_version", "has_more", "items"]
+    assert schema["required"] == ["has_more", "items"]
+    assert "unversioned" not in schema["description"]
 
 
 def test_the_refresh_summary_schema_is_version_two() -> None:
@@ -254,8 +263,12 @@ def test_the_delete_document_requires_the_watchlist_if_and_only_if_it_was_delete
         WatchlistDeleteDocument(requested_name="Core", deleted=False, watchlist=document)
 
 
-def test_the_runs_list_is_a_bare_array_and_an_empty_list_is_an_empty_array() -> None:
-    assert RunsListDocument(()).model_dump(mode="json") == []
+def test_the_runs_list_is_a_versioned_object_and_an_empty_page_has_no_items() -> None:
+    assert RunsListDocument(has_more=False, items=()).model_dump(mode="json") == {
+        "schema_version": 1,
+        "has_more": False,
+        "items": [],
+    }
     row = RunSummaryDocument(
         analysis_run_id=UUID(int=1),
         ticker="AAPL",
@@ -264,7 +277,10 @@ def test_the_runs_list_is_a_bare_array_and_an_empty_list_is_an_empty_array() -> 
         completed_at=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
         refresh_id=None,
     )
-    assert RunsListDocument((row,)).model_dump(mode="json") == [
+    document = RunsListDocument(has_more=True, items=(row,)).model_dump(mode="json")
+    assert list(document) == ["schema_version", "has_more", "items"]
+    assert document["has_more"] is True
+    assert document["items"] == [
         {
             "analysis_run_id": "00000000-0000-0000-0000-000000000001",
             "ticker": "AAPL",
@@ -357,7 +373,7 @@ def test_the_generator_publishes_the_four_workspace_documents() -> None:
     assert {
         name: model
         for name, model in DOCUMENTS
-        if name in {*_UNVERSIONED_WORKSPACE_FILES, "refresh-summary.schema.json"}
+        if name in {*_UNVERSIONED_WORKSPACE_FILES, "refresh-summary.schema.json", "runs-list.schema.json"}
     } == {
         "watchlist.schema.json": WatchlistDocument,
         "watchlist-delete.schema.json": WatchlistDeleteDocument,

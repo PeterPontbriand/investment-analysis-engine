@@ -141,7 +141,7 @@ def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMoc
     # 5. Browse the saved runs for this ticker.
     result = runner.invoke(app, ["runs", "list", "--ticker", "SYNTH", "--json"])
     assert result.exit_code == 0, result.output
-    summaries = json.loads(result.output)
+    summaries = json.loads(result.output)["items"]
     assert len(summaries) == 3
     method_ids = {item["method_id"] for item in summaries}
     assert method_ids == {"sma_crossover", "graham_number", "graham_growth_value"}

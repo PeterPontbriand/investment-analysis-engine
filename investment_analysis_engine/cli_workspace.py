@@ -763,7 +763,9 @@ def watchlist_rename(
 @watchlist_app.command("list")
 def watchlist_list(
     *,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit one JSON array of watchlist summaries.")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Emit one JSON object holding the watchlist summaries.")
+    ] = False,
 ) -> None:
     """List every watchlist with its entry count."""
     with _workspace_failures("watchlist list", json_output=json_output):
@@ -811,7 +813,9 @@ def runs_list(  # noqa: PLR0913
     ] = None,
     limit: Annotated[int, typer.Option("--limit", help="Maximum rows (1-100).")] = 20,
     offset: Annotated[int, typer.Option("--offset", help="Rows to skip.")] = 0,
-    json_output: Annotated[bool, typer.Option("--json", help="Emit one JSON array of summaries.")] = False,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Emit one JSON object holding a page of run summaries.")
+    ] = False,
 ) -> None:
     """List Analysis Run summaries, most recently completed first."""
     with parameter_failures(json_output=json_output):
@@ -835,9 +839,10 @@ def runs_list(  # noqa: PLR0913
             offset=offset,
         )
     with _workspace_failures("runs list", json_output=json_output):
-        summaries = list_runs(ApplicationContext(settings=settings), query)
+        page = list_runs(ApplicationContext(settings=settings), query)
+    summaries = page.summaries
     if json_output:
-        typer.echo(_document_json(build_runs_list_document(summaries)))
+        typer.echo(_document_json(build_runs_list_document(summaries, has_more=page.has_more)))
         return
     if not summaries:
         typer.echo("No matching runs.")

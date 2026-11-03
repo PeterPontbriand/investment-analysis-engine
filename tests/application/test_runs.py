@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.runs import (
+    RunPage,
     compare_refresh_runs,
     list_runs,
     replay_run_document,
@@ -28,7 +29,12 @@ from investment_analysis_engine.reporting.replay_inputs import TextPresentationM
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from investment_analysis_engine.workspace.runs import AnalysisRun, AnalysisRunNotFoundError, RunQuery
+from investment_analysis_engine.workspace.runs import (
+    RUN_QUERY_MAX_LIMIT,
+    AnalysisRun,
+    AnalysisRunNotFoundError,
+    RunQuery,
+)
 from investment_analysis_engine.workspace_documents.runs_compare import (
     DuplicateRefreshRunsError,
     no_runs_message,
@@ -74,7 +80,7 @@ def _unreadable_message(run_id: UUID) -> str:
 
 @pytest.mark.usefixtures("isolated_cli_settings")
 def test_an_empty_store_lists_no_runs(isolated_cli_settings: ProjectSettings) -> None:
-    assert list_runs(_context(isolated_cli_settings), RunQuery()) == ()
+    assert list_runs(_context(isolated_cli_settings), RunQuery()) == RunPage(summaries=(), has_more=False)
 
 
 def test_the_list_returns_the_stored_summaries_and_applies_the_query(isolated_cli_settings: ProjectSettings) -> None:
@@ -86,8 +92,59 @@ def test_the_list_returns_the_stored_summaries_and_applies_the_query(isolated_cl
     one = next(iter(runs.values()))
     filtered = list_runs(_context(isolated_cli_settings), RunQuery(method_id=one.method_id, limit=1))
 
-    assert {item.analysis_run_id for item in everything} == {run.analysis_run_id for run in runs.values()}
-    assert [item.analysis_run_id for item in filtered] == [one.analysis_run_id]
+    assert {item.analysis_run_id for item in everything.summaries} == {run.analysis_run_id for run in runs.values()}
+    assert [item.analysis_run_id for item in filtered.summaries] == [one.analysis_run_id]
+
+
+def _store_copies(settings: ProjectSettings, count: int) -> None:
+    """Store ``count`` runs that differ only in their IDs, which are 1 to ``count``."""
+    template = next(iter(_runs_by_alias().values()))
+    database = SQLiteDatabase(settings)
+    try:
+        repository = SQLiteAnalysisRunRepository(database)
+        for number in range(1, count + 1):
+            repository.insert(template.model_copy(update={"analysis_run_id": UUID(int=number)}))
+    finally:
+        database.close()
+
+
+@pytest.mark.parametrize(
+    ("stored", "query", "expected"),
+    [
+        pytest.param(0, RunQuery(limit=5), (0, False), id="empty-store"),
+        pytest.param(3, RunQuery(limit=5), (3, False), id="short-page"),
+        pytest.param(5, RunQuery(limit=5), (5, False), id="exactly-limit-rows"),
+        pytest.param(6, RunQuery(limit=5), (5, True), id="exactly-one-more-row"),
+        pytest.param(7, RunQuery(limit=5, offset=2), (5, False), id="offset-reaches-the-end"),
+        pytest.param(8, RunQuery(limit=5, offset=2), (5, True), id="offset-leaves-one-more"),
+        pytest.param(9, RunQuery(limit=5, offset=20), (0, False), id="offset-past-the-end"),
+        pytest.param(100, RunQuery(limit=RUN_QUERY_MAX_LIMIT), (100, False), id="maximum-limit-exactly-full"),
+        pytest.param(101, RunQuery(limit=RUN_QUERY_MAX_LIMIT), (100, True), id="maximum-limit-one-more-row"),
+        pytest.param(101, RunQuery(limit=RUN_QUERY_MAX_LIMIT, offset=1), (100, False), id="maximum-limit-with-offset"),
+    ],
+)
+def test_has_more_reports_whether_a_row_follows_the_page(
+    stored: int, query: RunQuery, expected: tuple[int, bool], isolated_cli_settings: ProjectSettings
+) -> None:
+    _store_copies(isolated_cli_settings, stored)
+
+    page = list_runs(_context(isolated_cli_settings), query)
+
+    assert (len(page.summaries), page.has_more) == expected
+
+
+def test_the_page_is_the_first_rows_in_order_and_the_extra_row_is_dropped(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    _store_copies(isolated_cli_settings, 4)
+    context = _context(isolated_cli_settings)
+
+    first = list_runs(context, RunQuery(limit=3))
+    second = list_runs(context, RunQuery(limit=3, offset=3))
+
+    assert [item.analysis_run_id.int for item in first.summaries] == [4, 3, 2]
+    assert [item.analysis_run_id.int for item in second.summaries] == [1]
+    assert (first.has_more, second.has_more) == (True, False)
 
 
 @pytest.mark.parametrize("alias", [descriptor.alias for descriptor in STRATEGIES])

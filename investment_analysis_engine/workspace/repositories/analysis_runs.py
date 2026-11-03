@@ -131,8 +131,11 @@ class SQLiteAnalysisRunRepository:
                 return None
             return self._decode(dict(row))
 
-    def list(self, query: RunQuery) -> tuple[AnalysisRunSummary, ...]:
+    def list(self, query: RunQuery, *, extra_rows: int = 0) -> tuple[AnalysisRunSummary, ...]:
         """Return a bounded, filtered page of run summaries.
+
+        ``extra_rows`` reads that many rows past the page, so a caller can tell whether more rows follow without
+        a second query; the caller drops them. It does not change the bounds of ``query``.
 
         Filters combine with AND; results order by completion descending then
         run ID descending. Only indexed summary columns are read, so an
@@ -158,7 +161,7 @@ class SQLiteAnalysisRunRepository:
             )
             .where(and_(*conditions))
             .order_by(analysis_runs.c.completed_at.desc(), analysis_runs.c.analysis_run_id.desc())
-            .limit(query.limit)
+            .limit(query.limit + extra_rows)
             .offset(query.offset)
         )
         with self._database.read() as connection:
