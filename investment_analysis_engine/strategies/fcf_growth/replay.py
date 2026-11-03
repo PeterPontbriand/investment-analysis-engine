@@ -5,7 +5,7 @@ from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, Rep
 from investment_analysis_engine.strategies.fcf_growth.envelope import FCFDocument
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
 from investment_analysis_engine.strategies.fcf_growth.presenter import (
-    fcf_growth_document,
+    build_fcf_growth_document,
     render_fcf_earnings_growth,
     screen_word,
 )
@@ -32,7 +32,7 @@ def project_fcf_growth_document(
 ) -> FCFDocument:
     """Return the FCF/Earnings Growth document from stored evidence only, as the live JSON mode writes it."""
     del selection
-    return fcf_growth_document(evidence, instrument_profile=inputs.instrument_profile)
+    return build_fcf_growth_document(evidence, instrument_profile=inputs.instrument_profile)
 
 
 def headline_fcf_growth(result: FCFEarningsGrowthResult) -> Headline:

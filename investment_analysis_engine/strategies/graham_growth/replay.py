@@ -12,7 +12,7 @@ from investment_analysis_engine.strategies._graham.replay import (
 from investment_analysis_engine.strategies.graham_growth.envelope import GrahamGrowthDocument
 from investment_analysis_engine.strategies.graham_growth.presenter import (
     GrahamGrowthPresentation,
-    graham_growth_document,
+    build_graham_growth_document,
     growth_with_public_quote_reason,
     render_graham_growth,
 )
@@ -57,7 +57,7 @@ def project_graham_growth_document(
     inputs: ReplayInputs, evidence: GrahamGrowthAnalysis, selection: GrahamGrowthSelection
 ) -> GrahamGrowthDocument:
     """Return the reconstructed Graham Growth document, as the JSON mode of the live command writes it."""
-    return graham_growth_document(_presentation(inputs, evidence, selection))
+    return build_graham_growth_document(_presentation(inputs, evidence, selection))
 
 
 def headline_graham_growth(analysis: GrahamGrowthAnalysis) -> Headline:

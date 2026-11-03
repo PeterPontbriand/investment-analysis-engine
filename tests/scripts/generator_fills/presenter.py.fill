@@ -4,7 +4,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import str
 from investment_analysis_engine.strategies.ci_probe.envelope import DOCUMENT_SCHEMA_VERSION, CiProbeDocument
 from investment_analysis_engine.strategies.ci_probe.vocabulary import ANALYSIS_ID, METHOD_ID
 
-#: body ci_probe_document
+#: body build_ci_probe_document
 del identity_resolution, instrument_profile, provider_check
 return CiProbeDocument(
     schema_version=DOCUMENT_SCHEMA_VERSION,
@@ -33,7 +33,7 @@ return CiProbeDocument(
 
 #: body render_ci_probe
 if mode is PresentationMode.JSON:
-    return strategy_document_json(ci_probe_document(result, identity_resolution, instrument_profile, provider_check))
+    return strategy_document_json(build_ci_probe_document(result, identity_resolution, instrument_profile, provider_check))
 lines = [f"{result.ticker} CI Probe ran."]
 if mode is PresentationMode.DIAGNOSTICS:
     lines.append(f"Effective as of: {result.effective_as_of.isoformat()}")

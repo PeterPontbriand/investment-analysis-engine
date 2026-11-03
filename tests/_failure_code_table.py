@@ -37,7 +37,9 @@ from investment_analysis_engine.workspace.repositories.watchlists import (
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
 )
+from investment_analysis_engine.workspace.runs import AnalysisRunNotFoundError
 from investment_analysis_engine.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError
+from investment_analysis_engine.workspace_documents.runs_compare import DuplicateRefreshRunsError
 
 
 @dataclass(frozen=True)
@@ -124,6 +126,8 @@ PINNED_CLASSIFICATIONS: tuple[PinnedClassification, ...] = (
     ),
     _row(UnsupportedRunVersionError, "unsupported_run_version", "error"),
     _row(InvalidStoredRunError, "invalid_stored_run", "error"),
+    _row(AnalysisRunNotFoundError, "analysis_run_not_found", "error"),
+    _row(DuplicateRefreshRunsError, "invalid_input", "error"),
     _row(UnsupportedProjectionError, "unsupported_projection", "error"),
     _row(StoredSelectionError, "stored_selection_unreadable", "error"),
     _row(WatchlistNotFoundError, "watchlist_not_found", "error"),

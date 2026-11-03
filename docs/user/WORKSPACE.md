@@ -76,7 +76,10 @@ List every watchlist you have:
 
 ```bash
 uv run ian watchlist list
+uv run ian watchlist list --json
 ```
+
+`watchlist list --json` prints one JSON array, described by `schemas/watchlist-list.schema.json`; it has no `schema_version`. Each `created_at` and `updated_at` is written with its UTC offset, as `+00:00` (`updated_at` is `null` until the watchlist is first changed). An empty store prints `[]`.
 
 ### Adding, removing, and comparing entries
 

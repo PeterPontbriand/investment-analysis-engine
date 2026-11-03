@@ -18,12 +18,13 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal, Self
+from typing import Any, ClassVar, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
 from investment_analysis_engine.reporting.headline import (
@@ -83,6 +84,8 @@ class DuplicateRefreshRunsError(ValueError):
     The command reports it as ``invalid_input``; the runs themselves are valid, the refresh simply holds more than
     one table cell can show.
     """
+
+    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.INVALID_INPUT
 
 
 class _Document(BaseModel):

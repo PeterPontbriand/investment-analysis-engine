@@ -1,15 +1,25 @@
-"""The watchlist documents: ``watchlist show``, ``watchlist rename`` and ``watchlist delete`` with ``--json``.
+"""The watchlist documents: ``watchlist list``, ``show``, ``rename`` and ``delete`` with ``--json``.
 
-Neither document carries a ``schema_version``: they are unversioned. A change to a key, a type or a
+No document carries a ``schema_version``: they are unversioned. A change to a key, a type or a
 timestamp spelling is a listed output change in the slice that makes it, and the generated schema shows it.
 """
 
+from collections.abc import Sequence
 from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, field_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    SerializerFunctionWrapHandler,
+    field_serializer,
+    model_validator,
+)
 
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp, document_json_value
+from investment_analysis_engine.workspace.runs import Watchlist, WatchlistSummary
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection, SelectionMember
 
 
@@ -71,4 +81,63 @@ class WatchlistDeleteDocument(BaseModel):
         return self
 
 
-__all__ = ["WatchlistDeleteDocument", "WatchlistDocument", "WatchlistEntryDocument"]
+class WatchlistSummaryDocument(BaseModel):
+    """One watchlist, summarized: its identity, name, entry count and timestamps."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    watchlist_id: UUID
+    display_name: str
+    entry_count: int
+    created_at: DocumentTimestamp
+    updated_at: DocumentTimestamp | None = Field(description="Null until the watchlist is first changed.")
+
+
+class WatchlistListDocument(RootModel[tuple[WatchlistSummaryDocument, ...]]):
+    """The whole ``watchlist list --json`` output: an array of watchlist summaries, in the order listed.
+
+    This document is unversioned: it has no ``schema_version``, and it is an array, so it has nowhere to put one.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+
+def build_watchlist_document(watchlist: Watchlist) -> WatchlistDocument:
+    """Build the watchlist document: the flat, ordered entry list, each carrying the 1-based index a user sees."""
+    return WatchlistDocument(
+        watchlist_id=watchlist.watchlist_id,
+        display_name=watchlist.display_name,
+        created_at=watchlist.created_at,
+        updated_at=watchlist.updated_at,
+        entries=tuple(
+            WatchlistEntryDocument(index=index, ticker=entry.ticker, selection=entry.selection)
+            for index, entry in enumerate(watchlist.entries, start=1)
+        ),
+    )
+
+
+def build_watchlist_list_document(summaries: Sequence[WatchlistSummary]) -> WatchlistListDocument:
+    """Build the watchlist-list document from watchlist summaries, keeping their order."""
+    return WatchlistListDocument(
+        tuple(
+            WatchlistSummaryDocument(
+                watchlist_id=item.watchlist_id,
+                display_name=item.display_name,
+                entry_count=item.entry_count,
+                created_at=item.created_at,
+                updated_at=item.updated_at,
+            )
+            for item in summaries
+        )
+    )
+
+
+__all__ = [
+    "WatchlistDeleteDocument",
+    "WatchlistDocument",
+    "WatchlistEntryDocument",
+    "WatchlistListDocument",
+    "WatchlistSummaryDocument",
+    "build_watchlist_document",
+    "build_watchlist_list_document",
+]

@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "WatchlistSummaryDocument": {
+      "additionalProperties": false,
+      "description": "One watchlist, summarized: its identity, name, entry count and timestamps.",
+      "properties": {
+        "created_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "entry_count": {
+          "title": "Entry Count",
+          "type": "integer"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null until the watchlist is first changed.",
+          "title": "Updated At"
+        },
+        "watchlist_id": {
+          "format": "uuid",
+          "title": "Watchlist Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "watchlist_id",
+        "display_name",
+        "entry_count",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "WatchlistSummaryDocument",
+      "type": "object"
+    }
+  },
+  "description": "The whole ``watchlist list --json`` output: an array of watchlist summaries, in the order listed.\n\nThis document is unversioned: it has no ``schema_version``, and it is an array, so it has nowhere to put one.",
+  "items": {
+    "$ref": "#/$defs/WatchlistSummaryDocument"
+  },
+  "title": "WatchlistListDocument",
+  "type": "array"
+}

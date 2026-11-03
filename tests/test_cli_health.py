@@ -349,7 +349,7 @@ def test_the_library_version_is_read_from_package_metadata() -> None:
         seen.append(name)
         return "9.8.7"
 
-    document = cli_health.health_document(results, library_version=fake_version)
+    document = cli_health.build_health_document(results, library_version=fake_version)
 
     assert seen == ["yfinance"]
     assert document.providers[0].library == ProviderLibrary(name="yfinance", version="9.8.7")
@@ -360,7 +360,7 @@ def test_a_library_that_is_not_installed_is_reported_as_null_and_not_as_a_failur
     def missing(name: str) -> str:
         raise PackageNotFoundError(name)
 
-    document = cli_health.health_document(
+    document = cli_health.build_health_document(
         [ProviderCheckResult("yfinance", "probe", True, 0.0)], library_version=missing
     )
 

@@ -19,7 +19,11 @@ from investment_analysis_engine.reporting.documents.health import ProviderHealth
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
 from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
-from investment_analysis_engine.workspace_documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
+from investment_analysis_engine.workspace_documents.watchlist import (
+    WatchlistDeleteDocument,
+    WatchlistDocument,
+    WatchlistListDocument,
+)
 
 
 @dataclass(frozen=True)
@@ -37,6 +41,7 @@ FAILURE_DOCUMENT: Final = JsonDocument("failure.schema.json", FailureEnvelope, (
 DOCUMENTS: Final = (
     FAILURE_DOCUMENT,
     JsonDocument("database-maintenance-report.schema.json", DatabaseMaintenanceReport, ("db status", "db upgrade")),
+    JsonDocument("watchlist-list.schema.json", WatchlistListDocument, ("watchlist list",)),
     JsonDocument("watchlist.schema.json", WatchlistDocument, ("watchlist show", "watchlist rename")),
     JsonDocument("watchlist-delete.schema.json", WatchlistDeleteDocument, ("watchlist delete",)),
     JsonDocument("runs-list.schema.json", RunsListDocument, ("runs list",)),

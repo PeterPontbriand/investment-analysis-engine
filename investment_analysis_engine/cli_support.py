@@ -43,7 +43,7 @@ from investment_analysis_engine.data.yfinance.client import (
 )
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
-from investment_analysis_engine.reporting.presentation import PresentationMode, failure_document
+from investment_analysis_engine.reporting.presentation import PresentationMode, failure_document_json
 from investment_analysis_engine.telemetry.quality import record_cli_quality
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 
@@ -364,7 +364,7 @@ class FailureScope:
 def report_failure(envelope: FailureEnvelope, *, json_output: bool) -> NoReturn:
     """Write one failure envelope to standard output, or its message to standard error, and exit 1."""
     if json_output:
-        typer.echo(failure_document(envelope))
+        typer.echo(failure_document_json(envelope))
     else:
         typer.echo(envelope.reason, err=True)
     raise typer.Exit(code=1)
@@ -424,7 +424,7 @@ def execution_errors(
         )
         findings = provider_check_findings((envelope.provider_failure,), provider_check)
         if scope.mode is PresentationMode.JSON:
-            typer.echo(failure_document(envelope.with_provider_check(findings.element())))
+            typer.echo(failure_document_json(envelope.with_provider_check(findings.element())))
         else:
             echo_provider_check(findings, err=True)
             typer.echo(description.message, err=True)

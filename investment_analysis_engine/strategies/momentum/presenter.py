@@ -117,7 +117,7 @@ def render_momentum(
 ) -> str:
     """Render Momentum using the same progressive-disclosure grammar as Graham."""
     if mode is PresentationMode.JSON:
-        return strategy_document_json(momentum_document(presentation))
+        return strategy_document_json(build_momentum_document(presentation))
 
     lines = _concise_lines(presentation)
     if mode is PresentationMode.DETAILS:
@@ -495,7 +495,7 @@ def _crossover_state(signal: float | None) -> CrossoverState | None:
     return CrossoverState.NO_NEW_CROSSOVER
 
 
-def momentum_document(p: MomentumPresentation) -> MomentumDocument:
+def build_momentum_document(p: MomentumPresentation) -> MomentumDocument:
     """Build the typed Momentum document, which the JSON mode writes and a replay returns.
 
     Validation of the model is the output boundary.

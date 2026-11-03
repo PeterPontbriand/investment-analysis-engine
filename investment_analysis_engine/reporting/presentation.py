@@ -153,11 +153,11 @@ def format_money(value: float, currency: str | None) -> str:
     return f"{number} (currency unspecified)"
 
 
-def json_document(payload: dict[str, Any]) -> str:
+def indented_json(payload: dict[str, Any]) -> str:
     """Serialize a stable human-readable JSON document."""
     return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False)
 
 
-def failure_document(envelope: FailureEnvelope) -> str:
+def failure_document_json(envelope: FailureEnvelope) -> str:
     """Render a failure envelope as the stable JSON document every ``--json`` failure writes to standard output."""
-    return json_document(envelope.model_dump(mode="json"))
+    return indented_json(envelope.model_dump(mode="json"))

@@ -33,7 +33,7 @@ from investment_analysis_engine.data.repositories.readiness import DatabaseReadi
 from investment_analysis_engine.reporting.documents.database import DatabaseMaintenanceReport
 from investment_analysis_engine.reporting.documents.failure import FailureDatabase, FailureDiagnostic, FailureEnvelope
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
-from investment_analysis_engine.reporting.presentation import failure_document
+from investment_analysis_engine.reporting.presentation import failure_document_json
 from investment_analysis_engine.reporting.replay_inputs import UnsupportedProjectionError
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from investment_analysis_engine.workspace.refresh import EmptyRefreshTargetError
@@ -46,8 +46,9 @@ from tests._failure_code_table import PINNED_CLASSIFICATIONS, PinnedClassificati
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
-# Codes raised by a command with no exception to classify: the run a command looked up does not exist.
-_COMMAND_CONTEXT_CODES = {FailureReasonCode.ANALYSIS_RUN_NOT_FOUND}
+# Codes raised by a command with no exception to classify. None remains: a missing run is an exception that
+# declares its own code.
+_COMMAND_CONTEXT_CODES: set[FailureReasonCode] = set()
 
 
 _SOURCE_ROOT = PACKAGE_ROOT
@@ -205,7 +206,7 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
         method="sma_crossover",
         ticker="ACME",
     )
-    text = failure_document(envelope)
+    text = failure_document_json(envelope)
     assert json.loads(text) == {
         "schema_version": 10,
         "status": "input_unavailable",
@@ -379,7 +380,7 @@ def test_a_raised_failure_reaches_the_envelope_with_one_null_input(
         reason_code=code, inputs=(ProviderFailureInput(input=None, provider_id="sec_edgar", kind=kind),)
     )
     assert envelope.provider_failure.reason_code is envelope.reason_code
-    assert json.loads(failure_document(envelope))["provider_failure"] == {
+    assert json.loads(failure_document_json(envelope))["provider_failure"] == {
         "reason_code": code.value,
         "inputs": [{"input": None, "provider_id": "sec_edgar", "kind": kind.value}],
     }
@@ -426,7 +427,7 @@ def test_the_element_accepts_only_provider_codes_and_at_least_one_input() -> Non
 
 def test_the_failure_envelope_is_version_10_and_its_json_carries_the_element_keys() -> None:
     envelope = failure_envelope(FailureReasonCode.INVALID_INPUT, "s")
-    document = json.loads(failure_document(envelope))
+    document = json.loads(failure_document_json(envelope))
     assert document["schema_version"] == 10
     assert document["parameters"] is None
     assert document["provider_failure"] is None
@@ -450,7 +451,7 @@ def test_the_envelope_carries_parameters_exactly_for_an_invalid_parameter_failur
     error = InvalidParameterError("--a is wrong.", parameters=("--a",))
     envelope = failure_envelope(FailureReasonCode.INVALID_PARAMETER, str(error), cause=error)
     assert envelope.parameters == ("--a",)
-    assert json.loads(failure_document(envelope))["parameters"] == ["--a"]
+    assert json.loads(failure_document_json(envelope))["parameters"] == ["--a"]
     other = failure_envelope(FailureReasonCode.INVALID_INPUT, "x", cause=error)
     assert other.parameters is None
 

@@ -108,7 +108,7 @@ def strategy_document_json(document: BaseModel) -> str:
 
     Keys are written in the model's field order, at every depth, so a document begins with the shared header and ends
     with the shared tail. The other documents (failure, workspace, database) keep sorted keys through
-    :func:`~investment_analysis_engine.reporting.presentation.json_document`.
+    :func:`~investment_analysis_engine.reporting.presentation.indented_json`.
     """
     return json.dumps(document.model_dump(mode="json"), indent=2, ensure_ascii=False, allow_nan=False)
 
