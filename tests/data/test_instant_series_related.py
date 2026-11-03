@@ -100,13 +100,6 @@ def test_a_related_concept_is_reported_for_a_date_the_run_does_not_cover() -> No
     ]
 
 
-def test_duke_receivables_exclude_the_receivables_of_variable_interest_entities() -> None:
-    result = series("DUK", FinancialField.RECEIVABLES)
-    values = {fact.observation_period_end.year: fact.value for fact in result.facts if fact.observation_period_end}
-    assert values == {2023: 3_019_000_000.0, 2024: 1_889_000_000.0, 2025: 16_000_000.0}
-    assert all("related_concept_tagged=us-gaap:AccountsAndOtherReceivablesNetCurrent" in f.notes for f in result.facts)
-
-
 # --- extra submissions pages ----------------------------------------------------------------------------------------
 
 

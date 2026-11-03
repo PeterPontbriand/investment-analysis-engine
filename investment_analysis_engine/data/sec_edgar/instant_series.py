@@ -35,7 +35,7 @@ US_GAAP: Final = "us-gaap"
 IFRS_FULL: Final = "ifrs-full"
 
 # One list per field and taxonomy, in priority order. A list holds several concepts only where the evidence shows
-# that they are the same line item (receivables, short-term investments, and net PP&E under IFRS). An empty list is a
+# that they are the same line item (short-term investments, and net PP&E under IFRS). An empty list is a
 # field the evidence did not support for the taxonomy: it is unavailable, and no neighboring concept stands in.
 US_GAAP_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
     FinancialField.TOTAL_ASSETS: ("Assets",),
@@ -48,12 +48,10 @@ US_GAAP_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
         "MarketableSecuritiesCurrent",
         "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
     ),
-    FinancialField.LONG_TERM_INVESTMENTS: ("LongTermInvestments",),
     FinancialField.NET_PPE: (
         "PropertyPlantAndEquipmentNet",
         "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
     ),
-    FinancialField.RECEIVABLES: ("AccountsReceivableNetCurrent", "ReceivablesNetCurrent"),
     FinancialField.RETAINED_EARNINGS: ("RetainedEarningsAccumulatedDeficit",),
     FinancialField.SHORT_TERM_BORROWINGS: ("ShortTermBorrowings", "CommercialPaper"),
     FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT: ("LongTermDebtCurrent",),
@@ -70,9 +68,7 @@ IFRS_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
     FinancialField.CURRENT_LIABILITIES: ("CurrentLiabilities",),
     FinancialField.CASH_AND_EQUIVALENTS: ("CashAndCashEquivalents",),
     FinancialField.SHORT_TERM_INVESTMENTS: (),
-    FinancialField.LONG_TERM_INVESTMENTS: (),
     FinancialField.NET_PPE: ("PropertyPlantAndEquipment", "PropertyPlantAndEquipmentIncludingRightofuseAssets"),
-    FinancialField.RECEIVABLES: ("CurrentTradeReceivables",),
     FinancialField.RETAINED_EARNINGS: ("RetainedEarnings",),
     FinancialField.SHORT_TERM_BORROWINGS: ("ShorttermBorrowings",),
     FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT: ("CurrentPortionOfLongtermBorrowings",),
@@ -88,7 +84,6 @@ IFRS_CONCEPTS: Final[Mapping[FinancialField, tuple[str, ...]]] = {
 # that reads the field decides what that means (an absent debt component is zero only when no related concept is
 # tagged). The lists hold what the regression set showed and nothing speculative.
 US_GAAP_RELATED: Final[Mapping[FinancialField, tuple[str, ...]]] = {
-    FinancialField.RECEIVABLES: ("AccountsAndOtherReceivablesNetCurrent",),
     FinancialField.SHORT_TERM_BORROWINGS: ("DebtCurrent",),
     FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT: ("DebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
     FinancialField.NONCURRENT_LONG_TERM_DEBT: ("LongTermDebtAndCapitalLeaseObligations",),

@@ -1,7 +1,7 @@
 # Step 3.5 — Strategy Specifications
 
 Owns each Step 3.5 strategy's formulas, outcomes and edge cases. Shared metrics (market cap,
-EBIT, EBITDA, EV, invested capital, FCF), applicability, outcomes and ranking are defined once in
+EBIT, EBITDA, EV, invested capital, FCF), applicability and outcomes are defined once in
 [Shared definitions](STEP_3_5_SHARED_DEFINITIONS.md) and referenced here as "SD §n". Scope,
 sequencing and status live in the [contract](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status).
 
@@ -25,9 +25,9 @@ which then becomes their authority.
 | :--- | :--- | :--- |
 | 1 | Piotroski F-Score | Is fundamental quality improving across nine binary tests? |
 | 2 | Altman Z-Score (Z and Z″) | How far is a non-financial firm from statistical distress? |
-| 3 | Beneish M-Score | Do the accounts show patterns associated with earnings manipulation? |
+| 3 | Accrual ratio | How much of reported income is accruals rather than operating cash flow? |
 | 4 | Cash-Flow Valuation Multiples | How expensive is the business relative to its cash generation? |
-| 5 | Greenblatt Magic Formula | Which names in a watchlist combine high return on capital with a high earnings yield? |
+| 5 | Shareholder Yield | How much capital does the business return to shareholders, as a share of its market value? |
 | 6 | Interest Coverage | How comfortably do operating earnings cover interest? |
 | 7 | ROIC and Incremental ROIC | How well does management deploy capital, and do returns hold up on new capital? |
 
@@ -170,69 +170,17 @@ Zones: Safe when Z″ > 2.60; Grey when 1.10 ≤ Z″ ≤ 2.60; Distress when Z�
 - Negative retained earnings and negative book equity are valid inputs, not errors.
 - Total assets ≤ 0 or total liabilities ≤ 0 makes the score `unavailable`.
 
-## 3. Beneish M-Score
+## 3. Accrual ratio
 
-The eight-variable model from Beneish (1999), under the conventions listed with the edge cases
-below. Where a deviation applies to a run, the result names it; the score is then a Beneish-style
-score on the project's stated convention, not the canonical one.
+**Accrual ratio = (net income − operating cash flow) ÷ average total assets**
 
-M = −4.84 + 0.920·DSRI + 0.528·GMI + 0.404·AQI + 0.892·SGI + 0.115·DEPI − 0.172·SGAI +
-4.679·TATA − 0.327·LVGI
+The cash-flow version of the accrual ratio. It is built only from data already mapped: net income and operating
+cash flow of year *t*, and total assets at the year-ends that average. It keeps the accrual core of the Beneish
+M-Score (its TATA term is an accrual ratio) and complements Piotroski's test of operating cash flow against income
+([A.16](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)).
 
-| Index | Definition |
-| :--- | :--- |
-| DSRI | (receivables ÷ sales)ₜ ÷ (receivables ÷ sales)ₜ₋₁ |
-| GMI | gross marginₜ₋₁ ÷ gross marginₜ |
-| AQI | [1 − (current assets + net PP&E + long-term investments) ÷ total assets]ₜ ÷ the same for *t−1* |
-| SGI | salesₜ ÷ salesₜ₋₁ |
-| DEPI | [depreciation ÷ (depreciation + net PP&E)]ₜ₋₁ ÷ the same for *t*; see [DEPI basis](#depi-basis) |
-| SGAI | (SG&A ÷ sales)ₜ ÷ (SG&A ÷ sales)ₜ₋₁ |
-| LVGI | [(current liabilities + noncurrent long-term debt) ÷ total assets]ₜ ÷ the same for *t−1* |
-| TATA | (income from continuing operations − CFO)ₜ ÷ total assetsₜ |
-
-**Edge cases**
-
-- Any index that cannot be computed makes the whole score `unavailable`. No index defaults to 1.0.
-- **No partial score.** The M-Score is one regression equation whose coefficients assume all eight
-  inputs, so a score over fewer indices has no meaning. Piotroski's partial score is different: it
-  is an additive count of independent tests.
-- Long-term investments follow the absent-component convention (SD §3).
-- **LVGI debt** is the noncurrent portion only. The current portion of long-term debt is already
-  inside current liabilities and is not counted twice.
-- **TATA income:** income from continuing operations when the filer reports it. When the filer
-  reports neither that concept nor any discontinued-operations amount for the year, net income is
-  the same quantity and is used, with a diagnostic. When discontinued operations are reported
-  without continuing income, TATA is `unavailable`. Many filers, Apple among them, never report a
-  continuing-operations concept, so requiring it would make the score unavailable for them.
-- Financial issuers: `not_applicable`.
-
-### DEPI basis
-
-The model defines DEPI on depreciation alone. Many filers report only combined depreciation and
-amortization (D&A), so the basis is chosen in this order:
-
-| Depreciation alone, both years | Combined D&A (SD §5), both years | DEPI basis | Result |
-| :--- | :--- | :--- | :--- |
-| Available | — | `depreciation` | Canonical index |
-| Not available | Available | `depreciation_and_amortization` | Index computed, with a diagnostic naming the deviation |
-| Not available | Not available | — | DEPI and the M-Score are `unavailable` |
-
-- **One basis per run.** Years *t* and *t−1* always use the same basis. If depreciation alone
-  exists for only one of the two years, the D&A basis is used for both.
-- **The basis is part of the result.** It is recorded in provenance and shown in the details,
-  diagnostics and JSON views. A score on the D&A basis is never presented as equivalent to the
-  canonical model, and the guide says it may differ from published M-Scores.
-- **Period expense only.** The depreciation input is the year's expense, never accumulated
-  depreciation. PP&E is net, as in the original model's data item.
-- **Depreciation alone requires an approved mapping.** Until 3.5.1's evidence approves one, every
-  run uses the D&A basis.
-
-**Presentation**
-
-- Shows the numeric score and a flag when M > −1.78, worded as "above the threshold associated
-  with manipulators in the original study."
-- Names the DEPI basis and the TATA income basis whenever either is not the canonical one.
-- Never labels a company a manipulator, and never converts the score to a stated probability.
+The full specification, the edge cases and the decisions (applicability, the averaging years, unavailable and
+non-positive denominators, presentation) are settled in the strategy's slice plan, not here.
 
 ## 4. Cash-Flow Valuation Multiples
 
@@ -249,20 +197,22 @@ amortization (D&A), so the basis is chosen in this order:
 - EV/EBITDA is not comparable between US GAAP and IFRS filers with material leases (SD §6, lease
   liabilities). The guide says so.
 
-## 5. Greenblatt Magic Formula
+## 5. Shareholder Yield
 
-The analyzer computes one ticker's two metrics. Ranking is the ranked refresh view (SD §9), never
-part of a single run.
+**Shareholder Yield = dividend yield + net buyback yield + net debt-reduction yield**
 
-| Metric | Definition | `not_applicable` when |
-| :--- | :--- | :--- |
-| Return on capital | EBIT (SD §5) ÷ invested capital (SD §7) | EBIT ≤ 0 or IC ≤ 0 |
-| Earnings yield | EBIT ÷ EV (SD §6) | EBIT ≤ 0 or EV ≤ 0 |
+Each term is a percentage of market cap (SD §4).
 
-- **Industry class:** financial issuers and utilities are `not_applicable` (SD §1).
-- **Ranking:** the ranked refresh view ranks both metrics higher-is-better. Members whose metrics
-  are not `ok` are excluded with their reason codes. The view shows each metric's rank and
-  percentile, the rank sum and the final position.
+| Term | Source |
+| :--- | :--- |
+| Dividend yield | Dividends paid, a new mapping evidenced in the slice plan the way 3.5.1 evidenced the others |
+| Net buyback yield | The split-adjusted share-count series (3.5.1d) |
+| Net debt-reduction yield | The change in the already-mapped total-debt instants (SD §6) |
+
+Total returned capital ÷ FCF (SD §8) is reported as a metric. It is not a cap or a filter on the yield.
+
+The full specification, the edge cases and the decisions are settled in the strategy's slice plan, not here
+([A.16](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)).
 
 ## 6. Interest Coverage
 
@@ -331,15 +281,10 @@ Each fiscal year uses its own rate.
 
 **Financial issuers:** `not_applicable`.
 
-**Relationship to Magic Formula (for the guide)**
+**For the guide**
 
-ROIC and Magic Formula's return on capital share the invested-capital definition (SD §7) on
-purpose, so the two stay comparable. ROIC adds three things the Magic Formula figure lacks:
-
-- it is after tax;
-- it uses average rather than ending capital;
-- through incremental ROIC, it shows whether new capital is still earning an attractive return,
-  which Magic Formula's single-period figure cannot answer.
+ROIC is after tax, uses average rather than ending capital, and, through incremental ROIC, shows whether new capital
+is still earning an attractive return.
 
 **Limitation (documented, not handled):** non-recurring items are not adjusted out; reported EBIT
 is used as-is.

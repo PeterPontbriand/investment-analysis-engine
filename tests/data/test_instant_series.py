@@ -115,8 +115,8 @@ def _assets(*rows: tuple[str, float, str]) -> dict[str, list[tuple[str, list[dic
 # --- fields, units and the request --------------------------------------------------------------------------------
 
 
-def test_the_seventeen_instant_fields_are_currency_fields_and_the_older_routing_is_unchanged() -> None:
-    assert len(INSTANT_SERIES_FIELDS) == 17
+def test_the_instant_fields_are_currency_fields_and_the_older_routing_is_unchanged() -> None:
+    assert len(INSTANT_SERIES_FIELDS) == 15
     assert all(_expected_unit(field) is FinancialUnit.CURRENCY for field in INSTANT_SERIES_FIELDS)
     assert _expected_unit(FinancialField.EPS) is FinancialUnit.CURRENCY_PER_SHARE
     assert _expected_unit(FinancialField.BVPS) is FinancialUnit.CURRENCY_PER_SHARE
@@ -452,19 +452,16 @@ def test_values_match_the_rendered_statements_the_evidence_checked() -> None:
     expected = {
         ("WMT", FinancialField.TOTAL_ASSETS): (date(2026, 1, 31), 284_668_000_000.0),
         ("WMT", FinancialField.RETAINED_EARNINGS): (date(2026, 1, 31), 104_774_000_000.0),
-        ("WMT", FinancialField.RECEIVABLES): (date(2026, 1, 31), 11_172_000_000.0),
         ("WMT", FinancialField.LEASE_LIABILITIES_AS_DEBT): (date(2026, 1, 31), 6_761_000_000.0),
         ("WMT", FinancialField.NONCONTROLLING_INTEREST): (date(2026, 1, 31), 6_270_000_000.0),
         ("SAP", FinancialField.TOTAL_ASSETS): (date(2025, 12, 31), 70_362_000_000.0),
         ("SAP", FinancialField.NET_PPE): (date(2025, 12, 31), 4_497_000_000.0),
-        ("SAP", FinancialField.RECEIVABLES): (date(2025, 12, 31), 5_790_000_000.0),
         ("SAP", FinancialField.LEASE_LIABILITIES_AS_DEBT): (date(2025, 12, 31), 1_684_000_000.0),
         ("NTR", FinancialField.SHORT_TERM_BORROWINGS): (date(2025, 12, 31), 873_000_000.0),
         ("NTR", FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT): (date(2025, 12, 31), 513_000_000.0),
         ("PLD", FinancialField.PREFERRED_STOCK): (date(2025, 12, 31), 63_948_000.0),
         ("GOOGL", FinancialField.SHORT_TERM_INVESTMENTS): (date(2025, 12, 31), 96_135_000_000.0),
         ("MRNA", FinancialField.SHORT_TERM_INVESTMENTS): (date(2025, 12, 31), 3_204_000_000.0),
-        ("MNST", FinancialField.LONG_TERM_INVESTMENTS): (date(2025, 12, 31), 487_329_000.0),
     }
     for (ticker, field), (day, value) in expected.items():
         result = series(ticker, field, count=1)
@@ -484,7 +481,6 @@ def test_every_field_of_every_regression_issuer_resolves_or_says_why_not() -> No
 def test_unsupported_mappings_are_reported_unsupported_under_ifrs_only() -> None:
     unsupported = (
         FinancialField.SHORT_TERM_INVESTMENTS,
-        FinancialField.LONG_TERM_INVESTMENTS,
         FinancialField.NONCURRENT_LONG_TERM_DEBT,
         FinancialField.LONG_TERM_DEBT_TOTAL,
         FinancialField.PREFERRED_STOCK,
@@ -558,11 +554,9 @@ def test_commercial_paper_is_short_term_borrowings_only_and_operating_leases_are
 
 def test_equivalent_concepts_are_a_priority_list_with_one_concept_for_the_run() -> None:
     for ticker, field, concept in (
-        ("WMT", FinancialField.RECEIVABLES, "us-gaap:ReceivablesNetCurrent"),
         ("GOOGL", FinancialField.SHORT_TERM_INVESTMENTS, "us-gaap:MarketableSecuritiesCurrent"),
         ("MRNA", FinancialField.SHORT_TERM_INVESTMENTS, "us-gaap:AvailableForSaleSecuritiesDebtSecuritiesCurrent"),
         ("MNST", FinancialField.SHORT_TERM_INVESTMENTS, "us-gaap:ShortTermInvestments"),
-        ("MNST", FinancialField.RECEIVABLES, "us-gaap:AccountsReceivableNetCurrent"),
     ):
         result = series(ticker, field)
         assert {fact.provider_field for fact in result.facts} == {concept}, (ticker, field)
@@ -571,20 +565,20 @@ def test_equivalent_concepts_are_a_priority_list_with_one_concept_for_the_run() 
 
 def test_the_first_listed_concept_wins_and_another_is_never_filled_in() -> None:
     concepts = {
-        "AccountsReceivableNetCurrent": [("USD", [_row("2025-12-31", 30.0, _NEW), _row("2024-12-31", 20.0, _NEW)])],
-        "ReceivablesNetCurrent": [
+        "ShortTermInvestments": [("USD", [_row("2025-12-31", 30.0, _NEW), _row("2024-12-31", 20.0, _NEW)])],
+        "MarketableSecuritiesCurrent": [
             ("USD", [_row("2025-12-31", 31.0, _NEW), _row("2024-12-31", 21.0, _NEW), _row("2023-12-31", 11.0, _MID)])
         ],
     }
-    result = _series(concepts, FinancialField.RECEIVABLES)
+    result = _series(concepts, FinancialField.SHORT_TERM_INVESTMENTS)
 
     assert _values(result) == {_Y24: 20.0, _Y25: 30.0}
-    assert {fact.provider_field for fact in result.facts} == {"us-gaap:AccountsReceivableNetCurrent"}
+    assert {fact.provider_field for fact in result.facts} == {"us-gaap:ShortTermInvestments"}
     assert _reasons(result) == {_Y23: _REASON.OTHER_CONCEPT}
     assert "none is substituted" in result.absences[0].detail
-    only_second = {"ReceivablesNetCurrent": concepts["ReceivablesNetCurrent"]}
-    assert _values(_series(only_second, FinancialField.RECEIVABLES)) == {_Y23: 11.0, _Y24: 21.0, _Y25: 31.0}
-    nothing_listed = _series(_assets(("2025-12-31", 1.0, _NEW)), FinancialField.RECEIVABLES)
+    only_second = {"MarketableSecuritiesCurrent": concepts["MarketableSecuritiesCurrent"]}
+    assert _values(_series(only_second, FinancialField.SHORT_TERM_INVESTMENTS)) == {_Y23: 11.0, _Y24: 21.0, _Y25: 31.0}
+    nothing_listed = _series(_assets(("2025-12-31", 1.0, _NEW)), FinancialField.SHORT_TERM_INVESTMENTS)
     assert _reasons(nothing_listed) == dict.fromkeys((_Y23, _Y24, _Y25), _REASON.NOT_TAGGED)
 
 

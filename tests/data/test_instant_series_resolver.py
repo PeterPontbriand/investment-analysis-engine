@@ -84,7 +84,7 @@ class _Series:
 
 def test_each_date_present_is_one_resolved_input_naming_its_concept_and_the_absent_dates_are_listed() -> None:
     ends = year_ends(date(2026, 1, 31))
-    request = InstantSeriesRequest("WMT", FinancialField.RECEIVABLES, SEC_PROVIDER_ID, ends)
+    request = InstantSeriesRequest("WMT", FinancialField.TOTAL_ASSETS, SEC_PROVIDER_ID, ends)
 
     result = _resolver(adapter_for("WMT")).resolve_instant_series(request)
 
@@ -93,8 +93,8 @@ def test_each_date_present_is_one_resolved_input_naming_its_concept_and_the_abse
     assert [item.observation_period_end.date() for item in result.inputs if item.observation_period_end] == list(ends)
     first = result.inputs[0]
     assert (first.field_name, first.provider_field, first.units, first.currency) == (
-        "receivables",
-        "us-gaap:ReceivablesNetCurrent",
+        "total_assets",
+        "us-gaap:Assets",
         "currency",
         "USD",
     )

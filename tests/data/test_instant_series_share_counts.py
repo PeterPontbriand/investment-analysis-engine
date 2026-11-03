@@ -91,7 +91,7 @@ def test_the_series_accepts_the_common_share_count_and_no_other_share_field() ->
 
 
 def test_the_currency_only_field_set_is_unchanged_and_the_units_are_right() -> None:
-    assert len(INSTANT_SERIES_FIELDS) == 17
+    assert len(INSTANT_SERIES_FIELDS) == 15
     assert _SHARES not in INSTANT_SERIES_FIELDS
     assert instant_series_unit(_SHARES) is FinancialUnit.SHARES
     assert all(instant_series_unit(name) is FinancialUnit.CURRENCY for name in INSTANT_SERIES_FIELDS)

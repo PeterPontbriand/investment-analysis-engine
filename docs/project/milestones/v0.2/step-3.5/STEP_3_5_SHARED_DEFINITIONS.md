@@ -1,7 +1,7 @@
 # Step 3.5 — Shared Definitions
 
 Owns the definitions every Step 3.5 strategy shares: applicability, outcomes, data sources, the
-shared metrics, the ranking helper, and the side-by-side refresh table. Per-strategy formulas live
+shared metrics, and the side-by-side refresh table. Per-strategy formulas live
 in [Strategy specifications](STEP_3_5_STRATEGY_SPECIFICATIONS.md). Scope, sequencing and status
 live in the [contract](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status).
 
@@ -23,11 +23,11 @@ and unavailable from the project's sources.
 | :--- | :--- | :--- | :--- |
 | Piotroski | Applicable, with a warning | Applicable | |
 | Altman | Not applicable | Applicable | Classic Z for manufacturers, Z″ for all others |
-| Beneish | Not applicable | Applicable | |
 | Cash-Flow Valuation Multiples | Not applicable | Applicable | |
-| Magic Formula | Not applicable | Not applicable | Greenblatt excludes both |
 | Interest Coverage | Not applicable | Applicable | |
 | ROIC | Not applicable | Applicable | |
+
+The accrual ratio's and Shareholder Yield's rows are set in their slice plans ([A.16](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)).
 
 An issuer whose SIC code falls in none of the three ranges is an ordinary non-financial,
 non-manufacturing issuer.
@@ -73,8 +73,7 @@ introduced.
 - No value is ever `NaN` or `Inf`. A ratio with a zero or non-positive denominator is `unavailable`
   or `not_applicable` with a reason code, as each definition below states.
 - **What is not a `MetricResult`:** strategy-level scores, zones, bands, completeness and
-  eligibility flags are typed fields of the strategy's own result. Ranks and percentiles belong to
-  the ranked view. None of them is forced through `MetricResult`, and none is a new status. A
+  eligibility flags are typed fields of the strategy's own result. None of them is forced through `MetricResult`, and none is a new status. A
   field that is itself a number with its own availability (the Piotroski score) is the one case
   that is also a `MetricResult`.
 
@@ -92,12 +91,11 @@ status.
 | :--- | :--- | :--- | :--- |
 | Piotroski F-Score | The score is `ok`: nine tests available (complete) or six to eight (partial). | Fewer than six tests available. An unknown industry class does not change the status: Piotroski is not sector-gated, runs, and states the class is unknown. | None: financial issuers are applicable with a warning. |
 | Altman Z / Z″ | The score is `ok` for the selected model. | The score is `unavailable`, including total assets or total liabilities not positive, or an unknown industry class. | A financial issuer. |
-| Beneish M-Score | All eight indices computed and the score is `ok`. There is no partial score. | Any index cannot be computed, including DEPI with neither basis and TATA with discontinued operations and no continuing income, or an unknown industry class. | A financial issuer. |
 | Cash-Flow Valuation Multiples | At least one of EV/EBITDA and FCF yield is `ok`. | Neither is `ok` and at least one is `unavailable`, or an unknown industry class. | A financial issuer, or both metrics `not_applicable`. |
 | Interest Coverage | A band is assigned, including "no material interest expense". | Interest expense is not reported while total debt is positive, only net interest is reported, EBIT is missing, or an unknown industry class. | A financial issuer. |
 | ROIC and Incremental ROIC | Trailing ROIC is `ok`; incremental ROIC's own availability is reported separately. | Trailing ROIC is `unavailable`, or an unknown industry class. | A financial issuer, or average invested capital not positive. |
-| Greenblatt Magic Formula | Return on capital and earnings yield are both `ok`. | Either is `unavailable`, or an unknown industry class. | A financial issuer or a utility, or either metric `not_applicable` with neither `unavailable`. |
 
+The accrual ratio's and Shareholder Yield's rows are set in their slice plans ([A.16](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)).
 The outcome that decides each row is the one the strategy specification already states for its metrics;
 the table adds no formula, threshold or classification. Momentum's result carries an `execution_status` too
 ([3.5.0a](STEP_3_5_0_SLICE_PLAN.md#350a--momentum-result-level-status)): `ok` when the trend is bullish or
@@ -152,17 +150,15 @@ a diagnostic saying so:
 - preferred stock;
 - noncontrolling interest;
 - short-term investments;
-- long-term investments.
 
 Filers do not tag a line they do not have, so for these items an absent element is the normal way
 a filing says "none", and requiring an explicit zero would make EV unavailable for most issuers.
 
 - **Equivalent concepts:** a field may map to a priority list of concepts where the evidence shows they are the same
-  line item (receivables, short-term investments). The convention applies only when none of the listed
+  line item (short-term investments). The convention applies only when none of the listed
   concepts is tagged for the year-end. One issuer uses one concept for every year of a run, so a year the run's concept
   does not cover is absent, not zero. Alphabet (marketable securities) and Moderna (investments) tag
-  short-term investments under other names than `ShortTermInvestments`; Walmart tags receivables as
-  `ReceivablesNetCurrent`.
+  short-term investments under other names than `ShortTermInvestments`.
 - **Unsupported mappings:** the convention never applies to a field whose mapping is recorded as unsupported for the
   taxonomy. The field is `unavailable`.
 - **Short-term investments need a classified balance sheet:** the zero applies to short-term investments only when
@@ -272,7 +268,7 @@ in which an absent element yields a number.
 
 - **Gross profit:** the reported gross profit; otherwise sales minus cost of revenue when both are reported, keeping
   both inputs' provenance. It is never taken from operating income, and a filer that reports neither form has none
-  (Piotroski and Beneish use it).
+  (Piotroski uses it).
 - **EBIT:** reported operating income (`OperatingIncomeLoss`, or
   `ProfitLossFromOperatingActivities` under IFRS). It is never rebuilt from pretax income plus
   interest. Absent operating income makes EBIT `unavailable`.
@@ -351,17 +347,15 @@ Lease figures are used as each accounting framework reports them. Nothing is nor
   cost sits below EBITDA.
 - **The two frameworks are not comparable with each other.** For the same leased assets, an IFRS
   filer shows higher EBITDA, higher EBIT and higher EV than a US GAAP filer. This affects
-  EV/EBITDA, earnings yield, return on capital, ROIC and interest coverage.
+  EV/EBITDA, ROIC and interest coverage.
 - **Invested capital** ([§7](#7-invested-capital)) uses net PP&E as reported. Right-of-use assets
   reported on their own line are not added, under either framework.
-- **What the product does about it:** every result names its taxonomy. The ranked view and the
-  side-by-side table show it per row, and a ranking whose members mix us-gaap and ifrs-full
-  carries a diagnostic saying the members are not fully comparable. The guides state the
-  limitation.
+- **What the product does about it:** every result names its taxonomy. The side-by-side table
+  shows it per row. The guides state the limitation.
 
 ## 7. Invested capital
 
-Greenblatt's tangible capital employed:
+Tangible capital employed:
 
 **IC = net working capital + net PP&E**
 
@@ -382,66 +376,11 @@ Greenblatt's tangible capital employed:
   with the [§4](#4-market-capitalization) market cap. 3.5.2 supplies FCF-Growth's market-cap
   evidence; its formula does not change.
 
-## 9. Ranking helper
+## 9. Ranking
 
-A pure, analysis-agnostic function in `investment_analysis_engine/analysis/shared/ranking.py`. It knows nothing about
-strategies, runs or persistence.
-
-**Input**
-
-- Members: each with a ticker, an issuer key (an opaque, non-empty string the caller supplies) and, per requested
-  metric, a `MetricResult`. A result that is not `ok` excludes the member and carries its own reason code and
-  reason into the exclusion.
-- Metrics: each with a name and a direction (higher-is-better or lower-is-better).
-
-**Behavior**
-
-1. **Deduplicate by issuer.** When several members share an issuer key (share classes of one SEC
-   filer), the member whose ticker sorts first alphabetically is kept and the others are reported
-   in a diagnostic. The choice does not depend on input order, and the issuer stays in the
-   ranking. The kept ticker is a canonical representative for ranking only. The diagnostic says so,
-   and says the rule does not assert that the share classes are economically equivalent: their
-   prices and rights can differ. Tickers are compared by ordinal order after upper-casing.
-2. **Determine the eligible set,** after deduplication. A member is eligible only if every requested metric is `ok`.
-   Each excluded member is listed with its reason. When the kept share class lacks a metric, the issuer is excluded
-   even if another class has the value, and the diagnostic names both classes.
-3. **Enforce a minimum universe.** With fewer than 10 eligible members, the helper returns no ranks,
-   only the values and a diagnostic.
-4. **Rank each metric.** Rank 1 is best. Tied values share the average (fractional) rank. Values and ranks are
-   compared exactly, with no tolerance: ranks are multiples of one half.
-5. **Report a display percentile:** 100 × (N − rank) ÷ (N − 1). Higher is better.
-6. **Aggregate.** The aggregate is the sum of per-metric ranks, with equal weights and no weights
-   parameter. Final positions follow the ascending sum.
-7. **Assign positions** by competition ranking: equal sums share a position, and the next position
-   skips the tied ones (1, 1, 3). Ticker order among tied members is display order only and
-   carries no ranking meaning.
-
-**Guarantees**
-
-- The same members produce the same output in any input order.
-- Values are never imputed.
-- Every exclusion carries its reason.
-- The universe is exactly the members passed in.
-
-The minimum of 10 eligible members is a named, documented module constant of the helper
-(`MINIMUM_ELIGIBLE_MEMBERS`), not a parameter and not a number buried in the calculation: no caller can lower it for
-one ranking.
-
-### Ranked refresh view
-
-The ranked view (3.5.6) applies the helper to the persisted runs of one watchlist refresh:
-
-- **Universe:** the refresh's runs of the selected strategy. The universe is always a watchlist;
-  an ad-hoc ticker list is out of scope.
-- **Time consistency:** every included run must share the same requested `as_of`. If the refresh
-  mixes `as_of` values, the view refuses to rank and says why. Runs with no requested `as_of` rank
-  together and the view shows the refresh's execution window.
-- **One run per member:** the refresh must hold at most one run of the selected strategy per
-  ticker. If it holds more (two configurations of one strategy), the view refuses to rank and names
-  the duplicates.
-- **Mixed frameworks:** members on different taxonomies are ranked together with the diagnostic
-  [lease liabilities](#lease-liabilities) describes.
-- **Not persisted:** the view is recomputed from the stored runs each time it is requested.
+The engine does not rank companies against each other. A ranking helper built in 3.5.2a and the ranked refresh view
+planned for 3.5.6 were removed on 2026-11-02; ranking across companies belongs in a separate evaluator application
+([A.16](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a16-strategy-set-revised-2026-11-02)).
 
 ## 10. Side-by-side refresh table
 
@@ -466,8 +405,6 @@ member and records one `refresh_id` on each run.
 - **Rebuilt from storage:** the table is recomputed from the persisted runs of one `refresh_id`,
   with no recalculation, provider access or clock reads.
 - **Fiscal year-ends** that differ across members are displayed, not normalized.
-- **Ranking:** once the [ranked refresh view](#ranked-refresh-view) exists (3.5.6), the table can sort by
-  it for any strategy in the refresh.
 - **Text layout:** the text table packs the strategies' column groups into bands, in `STRATEGIES` order, up to
   `TEXT_WIDTH` (120) characters, a named constant of `runs_compare.py` and not a command option. A band's width counts
   the Ticker column and the two-space gaps, and a group's width is measured as it is rendered, including its strategy
