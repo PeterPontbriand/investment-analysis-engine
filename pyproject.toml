@@ -37,6 +37,8 @@ dependencies = [
     "sqlalchemy>=2.0,<3",
     "alembic>=1.13,<2",
     "platformdirs>=4.11",
+    "starlette>=1.10.0",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]
@@ -51,6 +53,7 @@ dev = [
     "responses>=0.25.0",
     "pandas-stubs>=3.0.3.260530",
     "pytest-asyncio>=1.4.0",
+    "httpx>=0.28.1",
 ]
 
 [tool.uv]

@@ -1,0 +1,5818 @@
+{
+  "components": {
+    "schemas": {
+      "AccountingScope": {
+        "description": "Accounting scope of a financial-statement line item.",
+        "enum": [
+          "consolidated",
+          "parent",
+          "segment"
+        ],
+        "title": "AccountingScope",
+        "type": "string"
+      },
+      "AdjustmentWindow": {
+        "description": "Where an applied provider adjustment fell relative to the share count and the price.",
+        "enum": [
+          "count_to_price",
+          "price_to_adjustment"
+        ],
+        "title": "AdjustmentWindow",
+        "type": "string"
+      },
+      "CalculationStatus": {
+        "description": "Machine-readable outcome of a calculation attempt.\n\nPure calculators (Slice B) may return:\n\n- ``OK`` — required inputs resolved and calculation completed.\n- ``NOT_APPLICABLE`` — inputs are valid but the selected method is\n  inapplicable (e.g. non-positive EPS or BVPS for the Graham Number).\n- ``INVALID_INPUT`` — supplied value, unit, basis, or method/flag\n  combination is invalid.\n\nResolver/provider layers (Slice C and later) will additionally return:\n\n- ``INPUT_UNAVAILABLE`` — a required input could not be resolved under\n  the requested time boundary.\n- ``PROVIDER_ERROR`` — the configured provider failed in a way that\n  should be distinguished from an absent fact.",
+        "enum": [
+          "ok",
+          "not_applicable",
+          "invalid_input",
+          "input_unavailable",
+          "provider_error"
+        ],
+        "title": "CalculationStatus",
+        "type": "string"
+      },
+      "CapitalExpenditureSign": {
+        "description": "Sign convention used by a provider when reporting capital expenditures.",
+        "enum": [
+          "positive_expenditure",
+          "negative_cash_outflow"
+        ],
+        "title": "CapitalExpenditureSign",
+        "type": "string"
+      },
+      "CellKind": {
+        "description": "Whether a cell holds a number or a text.",
+        "enum": [
+          "number",
+          "text"
+        ],
+        "title": "CellKind",
+        "type": "string"
+      },
+      "CheckOutcome": {
+        "description": "Outcome of one test. An unavailable test is never a fail.",
+        "enum": [
+          "pass",
+          "fail",
+          "unavailable"
+        ],
+        "title": "CheckOutcome",
+        "type": "string"
+      },
+      "Classification": {
+        "description": "Headline historical screening conclusion.",
+        "enum": [
+          "pass",
+          "fail",
+          "indeterminate"
+        ],
+        "title": "Classification",
+        "type": "string"
+      },
+      "CompareCellDocument": {
+        "additionalProperties": false,
+        "description": "One headline cell of a run.",
+        "properties": {
+          "key": {
+            "description": "The cell's stable key.",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CellKind"
+          },
+          "label": {
+            "description": "The column header the text table uses for the cell.",
+            "title": "Label",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reason code the result carries for the cell, if any."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "unavailable",
+                  "not_applicable",
+                  "input_unavailable",
+                  "invalid_input",
+                  "provider_error"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The status of a number cell's value; null for a text cell.",
+            "title": "Status"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The unit of a number: percent, points, multiple, or '<currency> per share'.",
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The number or text; null when the run has none.",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "kind",
+          "value",
+          "unit",
+          "status",
+          "reason_code"
+        ],
+        "title": "CompareCellDocument",
+        "type": "object"
+      },
+      "CompareEntryDocument": {
+        "additionalProperties": false,
+        "description": "One ticker's run of one strategy.",
+        "properties": {
+          "method_id": {
+            "title": "Method Id",
+            "type": "string"
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompareRunDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The stored run; null when the ticker has none for this column."
+          }
+        },
+        "required": [
+          "method_id",
+          "run"
+        ],
+        "title": "CompareEntryDocument",
+        "type": "object"
+      },
+      "CompareHeadlineDocument": {
+        "additionalProperties": false,
+        "description": "One run's headline: its cells, the fiscal period end it used and its taxonomy.",
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/CompareCellDocument"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The fiscal period end the run used; null if not recorded.",
+            "title": "Period End"
+          },
+          "period_end_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the period end is, in the strategy's own words.",
+            "title": "Period End Label"
+          },
+          "taxonomy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The filing taxonomy; null where the run records none.",
+            "title": "Taxonomy"
+          }
+        },
+        "required": [
+          "cells",
+          "period_end",
+          "period_end_label",
+          "taxonomy"
+        ],
+        "title": "CompareHeadlineDocument",
+        "type": "object"
+      },
+      "CompareRowDocument": {
+        "additionalProperties": false,
+        "description": "One ticker, with an entry for each strategy in column order.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/CompareEntryDocument"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "entries"
+        ],
+        "title": "CompareRowDocument",
+        "type": "object"
+      },
+      "CompareRunDocument": {
+        "additionalProperties": false,
+        "description": "One stored run in the table.",
+        "properties": {
+          "analysis_run_id": {
+            "format": "uuid",
+            "title": "Analysis Run Id",
+            "type": "string"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompareHeadlineDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run's cells; null when headline_unavailable is set."
+          },
+          "headline_unavailable": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unsupported_version",
+                  "strategy_not_declared",
+                  "no_result_stored"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the run has no headline, if it has none.",
+            "title": "Headline Unavailable"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/RunOutcome",
+            "description": "The run's outcome, read from its stored envelope."
+          },
+          "requested_as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The point in time the run asked for; null means now.",
+            "title": "Requested As Of"
+          }
+        },
+        "required": [
+          "analysis_run_id",
+          "outcome",
+          "requested_as_of",
+          "headline",
+          "headline_unavailable"
+        ],
+        "title": "CompareRunDocument",
+        "type": "object"
+      },
+      "CompareStrategyDocument": {
+        "additionalProperties": false,
+        "description": "One column group: a strategy present in the refresh.",
+        "properties": {
+          "alias": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The strategy's command alias; null for a strategy no longer declared.",
+            "title": "Alias"
+          },
+          "analysis_id": {
+            "title": "Analysis Id",
+            "type": "string"
+          },
+          "declared": {
+            "title": "Declared",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "The strategy's display name; its stored method identifier if no longer declared.",
+            "title": "Label",
+            "type": "string"
+          },
+          "method_id": {
+            "title": "Method Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_id",
+          "method_id",
+          "alias",
+          "label",
+          "declared"
+        ],
+        "title": "CompareStrategyDocument",
+        "type": "object"
+      },
+      "Completeness": {
+        "description": "Whether a score rests on all nine tests or on six to eight.",
+        "enum": [
+          "complete",
+          "partial"
+        ],
+        "title": "Completeness",
+        "type": "string"
+      },
+      "CrossoverState": {
+        "description": "What the latest crossover signal says.",
+        "enum": [
+          "bullish_crossover",
+          "bearish_crossover",
+          "no_new_crossover"
+        ],
+        "title": "CrossoverState",
+        "type": "string"
+      },
+      "DiagnosticPart": {
+        "additionalProperties": false,
+        "description": "One diagnostics entry that names no provider: a resolver event or the legacy identity entry.",
+        "properties": {
+          "field_name": {
+            "title": "Field Name",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_name",
+          "stage",
+          "outcome",
+          "message"
+        ],
+        "title": "DiagnosticPart",
+        "type": "object"
+      },
+      "FCFClassificationBasis": {
+        "description": "Free-cash-flow measure controlling classification.",
+        "enum": [
+          "total_fcf",
+          "fcf_per_share"
+        ],
+        "title": "FCFClassificationBasis",
+        "type": "string"
+      },
+      "FCFDocument": {
+        "additionalProperties": false,
+        "description": "The FCF Growth document, version 10, as ``fcf-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+        "properties": {
+          "analysis": {
+            "const": "fcf_earnings_growth",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "annual_observations": {
+            "items": {
+              "$ref": "#/components/schemas/FCFObservationPart"
+            },
+            "title": "Annual Observations",
+            "type": "array"
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Classification"
+          },
+          "classification_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classification Reason"
+          },
+          "classification_reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "diagnostics": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DiagnosticPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ProviderDiagnosticPart"
+                }
+              ]
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "effective_as_of": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Effective As Of",
+            "type": "string"
+          },
+          "eps_cagr": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          },
+          "fcf_cagr": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          },
+          "fcf_per_share_cagr": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          },
+          "fcf_yield": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          },
+          "forward_evidence": {
+            "$ref": "#/components/schemas/FCFForwardEvidencePart"
+          },
+          "instrument_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstrumentKindPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "market_capitalization": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFMarketCapPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method": {
+            "const": "reported_fcf_eps_cagr",
+            "title": "Method",
+            "type": "string"
+          },
+          "method_version": {
+            "title": "Method Version",
+            "type": "integer"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/FCFPolicyPart"
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProviderCheckItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Check"
+          },
+          "provider_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested As Of"
+          },
+          "result_schema_version": {
+            "title": "Result Schema Version",
+            "type": "integer"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "security_identity": {
+            "$ref": "#/components/schemas/SecurityIdentityPart"
+          },
+          "selected_horizon_years": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Horizon Years"
+          },
+          "selected_observation_count": {
+            "title": "Selected Observation Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalculationStatus"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "trend_classification": {
+            "$ref": "#/components/schemas/TrendClassification"
+          },
+          "used_horizon_fallback": {
+            "title": "Used Horizon Fallback",
+            "type": "boolean"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "analysis",
+          "method",
+          "ticker",
+          "status",
+          "provider_failure",
+          "provider_check",
+          "requested_as_of",
+          "effective_as_of",
+          "security_identity",
+          "instrument_kind",
+          "result_schema_version",
+          "method_version",
+          "policy",
+          "classification",
+          "classification_reason_code",
+          "classification_reason",
+          "selected_horizon_years",
+          "selected_observation_count",
+          "used_horizon_fallback",
+          "period_start",
+          "period_end",
+          "annual_observations",
+          "fcf_cagr",
+          "fcf_per_share_cagr",
+          "eps_cagr",
+          "trend_classification",
+          "market_capitalization",
+          "fcf_yield",
+          "forward_evidence",
+          "warnings",
+          "limitations",
+          "diagnostics"
+        ],
+        "title": "FCFDocument",
+        "type": "object"
+      },
+      "FCFForwardEvidencePart": {
+        "additionalProperties": false,
+        "description": "The analyst-consensus forward evidence for the next two fiscal years.",
+        "properties": {
+          "actual_to_fy1_growth": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          },
+          "confirms_positive_growth": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirms Positive Growth"
+          },
+          "fy1_consensus_eps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fy1_to_fy2_growth": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          },
+          "fy2_consensus_eps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest_actual_eps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ForwardEvidenceStatus"
+          }
+        },
+        "required": [
+          "status",
+          "latest_actual_eps",
+          "fy1_consensus_eps",
+          "fy2_consensus_eps",
+          "actual_to_fy1_growth",
+          "fy1_to_fy2_growth",
+          "confirms_positive_growth"
+        ],
+        "title": "FCFForwardEvidencePart",
+        "type": "object"
+      },
+      "FCFGrowthSelection": {
+        "additionalProperties": false,
+        "description": "Historical FCF/Earnings Growth request options, independent of Graham configs.",
+        "properties": {
+          "analysis_id": {
+            "const": "fcf_earnings_growth",
+            "default": "fcf_earnings_growth",
+            "title": "Analysis Id",
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "As Of"
+          },
+          "config_schema_version": {
+            "const": 2,
+            "default": 2,
+            "title": "Config Schema Version",
+            "type": "integer"
+          },
+          "currency": {
+            "default": "USD",
+            "title": "Currency",
+            "type": "string"
+          },
+          "method_id": {
+            "const": "reported_fcf_eps_cagr",
+            "default": "reported_fcf_eps_cagr",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/FCFPolicySnapshot"
+          },
+          "use_cache": {
+            "default": true,
+            "title": "Use Cache",
+            "type": "boolean"
+          }
+        },
+        "title": "FCFGrowthSelection",
+        "type": "object"
+      },
+      "FCFLineagePart": {
+        "additionalProperties": false,
+        "description": "How a derived input was composed from other inputs.",
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/FCFResolvedInputPart"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "transformation": {
+            "title": "Transformation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transformation",
+          "components"
+        ],
+        "title": "FCFLineagePart",
+        "type": "object"
+      },
+      "FCFListingCheckPart": {
+        "additionalProperties": false,
+        "description": "The listing check's outcome: affirmed with the accession read, or refused with its code and reason.",
+        "properties": {
+          "accession": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accession"
+          },
+          "affirmed": {
+            "title": "Affirmed",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rename": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFListingRenamePart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "affirmed",
+          "accession",
+          "reason_code",
+          "reason",
+          "rename"
+        ],
+        "title": "FCFListingCheckPart",
+        "type": "object"
+      },
+      "FCFListingRenamePart": {
+        "additionalProperties": false,
+        "description": "The two covers that show one share line renamed, with the symbols as filed.",
+        "properties": {
+          "anchor_accession": {
+            "title": "Anchor Accession",
+            "type": "string"
+          },
+          "anchor_form": {
+            "title": "Anchor Form",
+            "type": "string"
+          },
+          "anchor_symbol": {
+            "title": "Anchor Symbol",
+            "type": "string"
+          },
+          "latest_accession": {
+            "title": "Latest Accession",
+            "type": "string"
+          },
+          "latest_form": {
+            "title": "Latest Form",
+            "type": "string"
+          },
+          "latest_symbol": {
+            "title": "Latest Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "anchor_accession",
+          "anchor_form",
+          "anchor_symbol",
+          "latest_accession",
+          "latest_form",
+          "latest_symbol"
+        ],
+        "title": "FCFListingRenamePart",
+        "type": "object"
+      },
+      "FCFMarketCapPart": {
+        "additionalProperties": false,
+        "description": "Market capitalization at the boundary with the share count, price and splits behind it.",
+        "properties": {
+          "filing_currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filing Currency"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form"
+          },
+          "listing_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFListingCheckPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "price_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Date"
+          },
+          "provider_adjustments": {
+            "items": {
+              "$ref": "#/components/schemas/FCFProviderAdjustmentPart"
+            },
+            "title": "Provider Adjustments",
+            "type": "array"
+          },
+          "quote_currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quote Currency"
+          },
+          "result": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          },
+          "scaled_share_count": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scaled Share Count"
+          },
+          "share_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "share_count_basis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareCountBasis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "share_count_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Count Date"
+          },
+          "share_count_filing_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Count Filing Date"
+          }
+        },
+        "required": [
+          "result",
+          "share_count",
+          "share_count_basis",
+          "share_count_date",
+          "share_count_filing_date",
+          "scaled_share_count",
+          "provider_adjustments",
+          "price",
+          "price_date",
+          "form",
+          "filing_currency",
+          "quote_currency",
+          "listing_check"
+        ],
+        "title": "FCFMarketCapPart",
+        "type": "object"
+      },
+      "FCFObservationPart": {
+        "additionalProperties": false,
+        "description": "One completed fiscal year with every component preserved.",
+        "properties": {
+          "diluted_eps": {
+            "$ref": "#/components/schemas/FCFResolvedInputPart"
+          },
+          "fiscal_year": {
+            "title": "Fiscal Year",
+            "type": "integer"
+          },
+          "free_cash_flow": {
+            "$ref": "#/components/schemas/FCFResolvedInputPart"
+          },
+          "free_cash_flow_per_diluted_share": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "normalized_capital_expenditures": {
+            "$ref": "#/components/schemas/FCFResolvedInputPart"
+          },
+          "operating_cash_flow": {
+            "$ref": "#/components/schemas/FCFResolvedInputPart"
+          },
+          "period_end": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "weighted_average_diluted_shares": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "fiscal_year",
+          "period_start",
+          "period_end",
+          "operating_cash_flow",
+          "normalized_capital_expenditures",
+          "free_cash_flow",
+          "diluted_eps",
+          "weighted_average_diluted_shares",
+          "free_cash_flow_per_diluted_share"
+        ],
+        "title": "FCFObservationPart",
+        "type": "object"
+      },
+      "FCFPolicyPart": {
+        "additionalProperties": false,
+        "description": "The investor-selected controls of the run.",
+        "properties": {
+          "classification_basis": {
+            "$ref": "#/components/schemas/FCFClassificationBasis"
+          },
+          "forward_policy": {
+            "$ref": "#/components/schemas/ForwardPolicy"
+          },
+          "historical_horizon": {
+            "$ref": "#/components/schemas/HistoricalHorizon"
+          },
+          "include_fcf_yield": {
+            "title": "Include Fcf Yield",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "historical_horizon",
+          "classification_basis",
+          "forward_policy",
+          "include_fcf_yield"
+        ],
+        "title": "FCFPolicyPart",
+        "type": "object"
+      },
+      "FCFPolicySnapshot": {
+        "additionalProperties": false,
+        "description": "Validated immutable copy of the existing FCF policy and its native enums.",
+        "properties": {
+          "classification_basis": {
+            "$ref": "#/components/schemas/FCFClassificationBasis",
+            "default": "total_fcf"
+          },
+          "forward_policy": {
+            "$ref": "#/components/schemas/ForwardPolicy",
+            "default": "display_only"
+          },
+          "historical_horizon": {
+            "$ref": "#/components/schemas/HistoricalHorizon",
+            "default": "longest_available"
+          },
+          "include_fcf_yield": {
+            "default": true,
+            "title": "Include Fcf Yield",
+            "type": "boolean"
+          }
+        },
+        "title": "FCFPolicySnapshot",
+        "type": "object"
+      },
+      "FCFProviderAdjustmentPart": {
+        "additionalProperties": false,
+        "description": "One provider split adjustment that scaled the share count: its ex-date, ratio and the window it fell in.",
+        "properties": {
+          "ex_date": {
+            "format": "date",
+            "title": "Ex Date",
+            "type": "string"
+          },
+          "ratio": {
+            "title": "Ratio",
+            "type": "number"
+          },
+          "window": {
+            "$ref": "#/components/schemas/AdjustmentWindow"
+          }
+        },
+        "required": [
+          "ex_date",
+          "ratio",
+          "window"
+        ],
+        "title": "FCFProviderAdjustmentPart",
+        "type": "object"
+      },
+      "FCFResolvedInputPart": {
+        "additionalProperties": false,
+        "description": "One resolved input with its full provenance, including the annual-fact fields.",
+        "properties": {
+          "accounting_scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccountingScope"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "available_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available At"
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "cache_schema_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Schema Version"
+          },
+          "capital_expenditure_sign": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CapitalExpenditureSign"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "field_name": {
+            "title": "Field Name",
+            "type": "string"
+          },
+          "fiscal_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fiscal Year"
+          },
+          "lineage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FCFLineagePart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "observation_period_end": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Period End"
+          },
+          "observation_period_start": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Period Start"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "origin_source_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "period_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeriodKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_fact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Fact Id"
+          },
+          "provider_field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Field"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "resolved_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Resolved At",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/SourceKind"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units"
+          },
+          "value": {
+            "description": "A finite number, written as the source value was.",
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "field_name",
+          "value",
+          "source_kind",
+          "resolved_at",
+          "origin_source_kind",
+          "basis",
+          "units",
+          "currency",
+          "provider_id",
+          "provider_field",
+          "observation_period_start",
+          "observation_period_end",
+          "observed_at",
+          "available_at",
+          "as_of",
+          "retrieved_at",
+          "cache_schema_version",
+          "lineage",
+          "notes",
+          "fiscal_year",
+          "period_kind",
+          "accounting_scope",
+          "capital_expenditure_sign",
+          "provider_fact_id"
+        ],
+        "title": "FCFResolvedInputPart",
+        "type": "object"
+      },
+      "FailureDatabase": {
+        "additionalProperties": false,
+        "description": "Facts about the database a ``database_*`` failure concerns, taken from the readiness error.",
+        "properties": {
+          "database_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The configured target; null for an in-memory database.",
+            "title": "Database Path"
+          },
+          "expected_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The bundled schema revision, when it could be determined.",
+            "title": "Expected Revision"
+          }
+        },
+        "required": [
+          "database_path",
+          "expected_revision"
+        ],
+        "title": "FailureDatabase",
+        "type": "object"
+      },
+      "FailureDiagnostic": {
+        "additionalProperties": false,
+        "description": "One failed historical-quality rule and its sanitized reason.",
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule",
+          "reason"
+        ],
+        "title": "FailureDiagnostic",
+        "type": "object"
+      },
+      "FailureEnvelope": {
+        "additionalProperties": false,
+        "description": "The one JSON document a failure produces, for a command and for an API response.\n\nA command with ``--json`` writes it to standard output when it fails, and it is the body of every non-2xx API\nresponse.\n\n``schema_version`` is this document's own lineage: it identifies a shape only within this schema\nand is independent of the ``schema_version`` of every success document. A consumer dispatches on\n``status`` and ``result`` first, then on ``analysis``. ``reason_code`` is stable; ``reason`` and\n``diagnostics[].reason`` are messages for people and carry no guarantee.",
+        "properties": {
+          "analysis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The analysis of a direct command; null for any other command and for an API response.",
+            "title": "Analysis"
+          },
+          "database": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FailureDatabase"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Set only for a database_* code; null otherwise."
+          },
+          "diagnostics": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FailureDiagnostic"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The method of a direct command; null for any other command and for an API response.",
+            "title": "Method"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Set exactly when reason_code is invalid_parameter: the offending options (declared primary long spelling), command arguments (upper-case name) and API query or path parameters (their name); null otherwise.",
+            "title": "Parameters"
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProviderCheckItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "What one test request found for each provider provider_failure names; null when no check ran or provider_failure is null.",
+            "title": "Provider Check"
+          },
+          "provider_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Set exactly when reason_code is one of the four provider failure codes; null otherwise."
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reason_code": {
+            "$ref": "#/components/schemas/FailureReasonCode"
+          },
+          "result": {
+            "default": null,
+            "description": "Always null, so success and failure share top-level keys.",
+            "title": "Result",
+            "type": "null"
+          },
+          "schema_version": {
+            "const": 11,
+            "default": 11,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "error",
+              "input_unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The requested ticker of a direct command; null for any other command and for an API response.",
+            "title": "Ticker"
+          }
+        },
+        "required": [
+          "status",
+          "reason_code",
+          "reason"
+        ],
+        "title": "FailureEnvelope",
+        "type": "object"
+      },
+      "FailureReasonCode": {
+        "description": "Stable failure categories a caller may branch on.\n\nA value is never renamed, repurposed or removed within the public contract. New values may be\nadded, so a caller must treat an unrecognized value as a generic failure and use ``status`` for the\ncategory.",
+        "enum": [
+          "execution_error",
+          "historical_quality",
+          "provider_error",
+          "provider_unreachable",
+          "provider_rate_limited",
+          "provider_unexpected_response",
+          "provider_no_data",
+          "configuration_error",
+          "no_eligible_observations",
+          "invalid_input",
+          "invalid_parameter",
+          "database_upgrade_required",
+          "database_incompatible_schema",
+          "database_busy",
+          "database_permission_denied",
+          "database_invalid_file",
+          "database_io_error",
+          "database_resources_unavailable",
+          "database_initialization_failed",
+          "database_migration_failed",
+          "invalid_stored_run",
+          "unsupported_run_version",
+          "watchlist_not_found",
+          "watchlist_entry_not_found",
+          "watchlist_empty",
+          "watchlist_name_conflict",
+          "analysis_run_not_found",
+          "stored_selection_unreadable",
+          "unsupported_projection",
+          "not_authenticated",
+          "host_not_allowed",
+          "origin_not_allowed",
+          "endpoint_not_found",
+          "port_unavailable"
+        ],
+        "title": "FailureReasonCode",
+        "type": "string"
+      },
+      "ForwardEvidenceStatus": {
+        "description": "Completeness of the forward consensus evidence block.",
+        "enum": [
+          "complete",
+          "partial",
+          "unavailable"
+        ],
+        "title": "ForwardEvidenceStatus",
+        "type": "string"
+      },
+      "ForwardPolicy": {
+        "description": "How forward consensus evidence affects the headline result.",
+        "enum": [
+          "display_only",
+          "confirmation",
+          "hard_gate"
+        ],
+        "title": "ForwardPolicy",
+        "type": "string"
+      },
+      "GrahamGrowthAssumptionsPart": {
+        "additionalProperties": false,
+        "description": "The method assumptions the calculation used.",
+        "properties": {
+          "base_pe": {
+            "title": "Base Pe",
+            "type": "number"
+          },
+          "baseline_aaa_yield": {
+            "title": "Baseline Aaa Yield",
+            "type": "number"
+          },
+          "growth_multiplier": {
+            "title": "Growth Multiplier",
+            "type": "number"
+          }
+        },
+        "required": [
+          "base_pe",
+          "growth_multiplier",
+          "baseline_aaa_yield"
+        ],
+        "title": "GrahamGrowthAssumptionsPart",
+        "type": "object"
+      },
+      "GrahamGrowthDocument": {
+        "additionalProperties": false,
+        "description": "The Graham Growth document, version 9, as ``graham-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+        "properties": {
+          "analysis": {
+            "const": "graham_growth_value",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "diagnostics": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DiagnosticPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ProviderDiagnosticPart"
+                }
+              ]
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "effective_as_of": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Effective As Of",
+            "type": "string"
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/GrahamGrowthInputsPart"
+          },
+          "instrument_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstrumentKindPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "method": {
+            "const": "graham_growth_value",
+            "title": "Method",
+            "type": "string"
+          },
+          "method_assumptions": {
+            "$ref": "#/components/schemas/GrahamGrowthAssumptionsPart"
+          },
+          "price_comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceComparisonPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProviderCheckItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Check"
+          },
+          "provider_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quote": {
+            "$ref": "#/components/schemas/QuotePart"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "requested_as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested As Of"
+          },
+          "result": {
+            "$ref": "#/components/schemas/GrahamGrowthResultPart"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "security_identity": {
+            "$ref": "#/components/schemas/SecurityIdentityPart"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalculationStatus"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "analysis",
+          "method",
+          "ticker",
+          "status",
+          "provider_failure",
+          "provider_check",
+          "requested_as_of",
+          "effective_as_of",
+          "security_identity",
+          "instrument_kind",
+          "price_comparison",
+          "reason",
+          "result",
+          "inputs",
+          "method_assumptions",
+          "quote",
+          "warnings",
+          "limitations",
+          "diagnostics"
+        ],
+        "title": "GrahamGrowthDocument",
+        "type": "object"
+      },
+      "GrahamGrowthInputsPart": {
+        "additionalProperties": false,
+        "description": "The inputs the method needs, each null when it could not be resolved.",
+        "properties": {
+          "current_aaa_yield": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_growth": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eps",
+          "expected_growth",
+          "current_aaa_yield",
+          "current_price"
+        ],
+        "title": "GrahamGrowthInputsPart",
+        "type": "object"
+      },
+      "GrahamGrowthResultPart": {
+        "additionalProperties": false,
+        "description": "The computed value; null unless the calculation succeeded.",
+        "properties": {
+          "growth_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Growth Value"
+          },
+          "margin_of_safety_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Of Safety Percent"
+          }
+        },
+        "required": [
+          "growth_value",
+          "margin_of_safety_percent"
+        ],
+        "title": "GrahamGrowthResultPart",
+        "type": "object"
+      },
+      "GrahamGrowthSelection": {
+        "additionalProperties": false,
+        "description": "Graham growth-value selection requiring explicit growth and AAA yield percentages.",
+        "properties": {
+          "aaa_yield_override": {
+            "title": "Aaa Yield Override",
+            "type": "number"
+          },
+          "analysis_id": {
+            "const": "graham_growth_value",
+            "default": "graham_growth_value",
+            "title": "Analysis Id",
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "As Of"
+          },
+          "config_schema_version": {
+            "const": 2,
+            "default": 2,
+            "title": "Config Schema Version",
+            "type": "integer"
+          },
+          "eps_basis": {
+            "anyOf": [
+              {
+                "enum": [
+                  "three_year_average",
+                  "fiscal_year"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Eps Basis"
+          },
+          "eps_override": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Eps Override"
+          },
+          "expected_growth": {
+            "title": "Expected Growth",
+            "type": "number"
+          },
+          "method_id": {
+            "const": "graham_growth_value",
+            "default": "graham_growth_value",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "quote_override": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quote Override"
+          },
+          "use_cache": {
+            "default": true,
+            "title": "Use Cache",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expected_growth",
+          "aaa_yield_override"
+        ],
+        "title": "GrahamGrowthSelection",
+        "type": "object"
+      },
+      "GrahamNumberDocument": {
+        "additionalProperties": false,
+        "description": "The Graham Number document, version 9, as ``graham-number --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+        "properties": {
+          "analysis": {
+            "const": "graham_number",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "diagnostics": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DiagnosticPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ProviderDiagnosticPart"
+                }
+              ]
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "effective_as_of": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Effective As Of",
+            "type": "string"
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/GrahamNumberInputsPart"
+          },
+          "instrument_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstrumentKindPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "method": {
+            "const": "graham_number",
+            "title": "Method",
+            "type": "string"
+          },
+          "price_comparison": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceComparisonPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProviderCheckItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Check"
+          },
+          "provider_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quote": {
+            "$ref": "#/components/schemas/QuotePart"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "requested_as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested As Of"
+          },
+          "result": {
+            "$ref": "#/components/schemas/GrahamNumberResultPart"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "security_identity": {
+            "$ref": "#/components/schemas/SecurityIdentityPart"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalculationStatus"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "analysis",
+          "method",
+          "ticker",
+          "status",
+          "provider_failure",
+          "provider_check",
+          "requested_as_of",
+          "effective_as_of",
+          "security_identity",
+          "instrument_kind",
+          "price_comparison",
+          "reason",
+          "result",
+          "inputs",
+          "quote",
+          "warnings",
+          "limitations",
+          "diagnostics"
+        ],
+        "title": "GrahamNumberDocument",
+        "type": "object"
+      },
+      "GrahamNumberInputsPart": {
+        "additionalProperties": false,
+        "description": "The inputs the method needs, each null when it could not be resolved.",
+        "properties": {
+          "bvps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eps": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResolvedInputPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eps",
+          "bvps",
+          "current_price"
+        ],
+        "title": "GrahamNumberInputsPart",
+        "type": "object"
+      },
+      "GrahamNumberResultPart": {
+        "additionalProperties": false,
+        "description": "The computed ceiling; null unless the calculation succeeded.",
+        "properties": {
+          "margin_of_safety_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Margin Of Safety Percent"
+          },
+          "maximum_indicated_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum Indicated Price"
+          }
+        },
+        "required": [
+          "maximum_indicated_price",
+          "margin_of_safety_percent"
+        ],
+        "title": "GrahamNumberResultPart",
+        "type": "object"
+      },
+      "GrahamNumberSelection": {
+        "additionalProperties": false,
+        "description": "Immutable Graham Number selection with an optional book-value override.",
+        "properties": {
+          "analysis_id": {
+            "const": "graham_number",
+            "default": "graham_number",
+            "title": "Analysis Id",
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "As Of"
+          },
+          "bvps_override": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bvps Override"
+          },
+          "config_schema_version": {
+            "const": 3,
+            "default": 3,
+            "title": "Config Schema Version",
+            "type": "integer"
+          },
+          "eps_override": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Eps Override"
+          },
+          "method_id": {
+            "const": "graham_number",
+            "default": "graham_number",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "quote_override": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quote Override"
+          },
+          "use_cache": {
+            "default": true,
+            "title": "Use Cache",
+            "type": "boolean"
+          }
+        },
+        "title": "GrahamNumberSelection",
+        "type": "object"
+      },
+      "HistoricalHorizon": {
+        "description": "Requested historical elapsed-year horizon for classification.",
+        "enum": [
+          "longest_available",
+          "3",
+          "4",
+          "5"
+        ],
+        "title": "HistoricalHorizon",
+        "type": "string"
+      },
+      "IndustryClass": {
+        "description": "Industry class of an issuer. An unknown class is the absence of a value, never a member.",
+        "enum": [
+          "financial",
+          "utility",
+          "manufacturer",
+          "other"
+        ],
+        "title": "IndustryClass",
+        "type": "string"
+      },
+      "InfoDocument": {
+        "additionalProperties": false,
+        "description": "What a client may learn about the engine it is talking to; it never holds a credential's value.",
+        "properties": {
+          "api_versions": {
+            "description": "The API versions this engine serves, such as v1.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Api Versions",
+            "type": "array"
+          },
+          "engine_version": {
+            "description": "The version of the engine package.",
+            "title": "Engine Version",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "sec_identity_configured": {
+            "description": "Whether an SEC identity is configured; its value is never shown.",
+            "title": "Sec Identity Configured",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "api_versions",
+          "engine_version",
+          "sec_identity_configured"
+        ],
+        "title": "InfoDocument",
+        "type": "object"
+      },
+      "InstrumentKind": {
+        "description": "Reviewed provider-neutral instrument classifications.",
+        "enum": [
+          "equity",
+          "etf",
+          "cryptocurrency"
+        ],
+        "title": "InstrumentKind",
+        "type": "string"
+      },
+      "InstrumentKindPart": {
+        "additionalProperties": false,
+        "description": "The instrument-kind evidence a provider returned: the raw provider value and the reviewed kind it maps to.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstrumentKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_value": {
+            "title": "Provider Value",
+            "type": "string"
+          },
+          "resolved_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Resolved At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "provider_value",
+          "provider_id",
+          "resolved_at"
+        ],
+        "title": "InstrumentKindPart",
+        "type": "object"
+      },
+      "LineagePart": {
+        "additionalProperties": false,
+        "description": "How a derived input was composed from other inputs.",
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedInputPart"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "transformation": {
+            "title": "Transformation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transformation",
+          "components"
+        ],
+        "title": "LineagePart",
+        "type": "object"
+      },
+      "MetricResultPart": {
+        "additionalProperties": false,
+        "description": "One metric: its status, its value when the status is ok, and the reason it has none otherwise.",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/MetricStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "status",
+          "value",
+          "reason_code",
+          "reason"
+        ],
+        "title": "MetricResultPart",
+        "type": "object"
+      },
+      "MetricStatus": {
+        "description": "Outcome of one calculated metric.",
+        "enum": [
+          "ok",
+          "unavailable",
+          "not_applicable"
+        ],
+        "title": "MetricStatus",
+        "type": "string"
+      },
+      "MomentumDataResolutionPart": {
+        "additionalProperties": false,
+        "description": "Where the historical series came from at execution time.",
+        "properties": {
+          "cache_schema_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Schema Version"
+          },
+          "cached_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached At"
+          },
+          "resolved_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Resolved At",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/SourceKind"
+          }
+        },
+        "required": [
+          "source_kind",
+          "retrieved_at",
+          "cached_at",
+          "resolved_at",
+          "cache_schema_version"
+        ],
+        "title": "MomentumDataResolutionPart",
+        "type": "object"
+      },
+      "MomentumDocument": {
+        "additionalProperties": false,
+        "description": "The Momentum document, version 10, as ``momentum --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+        "properties": {
+          "analysis": {
+            "const": "momentum",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "data_resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentumDataResolutionPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "diagnostics": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DiagnosticPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ProviderDiagnosticPart"
+                }
+              ]
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "effective_as_of": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Effective As Of",
+            "type": "string"
+          },
+          "instrument_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstrumentKindPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "method": {
+            "const": "sma_crossover",
+            "title": "Method",
+            "type": "string"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/MomentumParametersPart"
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProviderCheckItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Check"
+          },
+          "provider_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested As Of"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentumResultPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "security_identity": {
+            "$ref": "#/components/schemas/SecurityIdentityPart"
+          },
+          "source": {
+            "$ref": "#/components/schemas/MomentumSourcePart"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalculationStatus"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "analysis",
+          "method",
+          "ticker",
+          "status",
+          "provider_failure",
+          "provider_check",
+          "requested_as_of",
+          "effective_as_of",
+          "security_identity",
+          "instrument_kind",
+          "reason_code",
+          "reason",
+          "result",
+          "parameters",
+          "source",
+          "data_resolution",
+          "warnings",
+          "limitations",
+          "diagnostics"
+        ],
+        "title": "MomentumDocument",
+        "type": "object"
+      },
+      "MomentumParametersPart": {
+        "additionalProperties": false,
+        "description": "The windows and period the analysis used.",
+        "properties": {
+          "long_window": {
+            "title": "Long Window",
+            "type": "integer"
+          },
+          "rsi_period": {
+            "title": "Rsi Period",
+            "type": "integer"
+          },
+          "short_window": {
+            "title": "Short Window",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "short_window",
+          "long_window",
+          "rsi_period"
+        ],
+        "title": "MomentumParametersPart",
+        "type": "object"
+      },
+      "MomentumResultPart": {
+        "additionalProperties": false,
+        "description": "The computed trend and metrics; each metric is null when the available history cannot support it.\n\n``trend`` is the verdict (``UNKNOWN`` when the history cannot support both moving averages), never the\ndocument's ``status``. The document's ``status`` is ``input_unavailable`` for an ``UNKNOWN`` trend.",
+        "properties": {
+          "crossover_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricResultPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "crossover_signal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crossover Signal"
+          },
+          "crossover_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrossoverState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "current_price": {
+            "title": "Current Price",
+            "type": "number"
+          },
+          "long_sma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Long Sma"
+          },
+          "price_basis": {
+            "$ref": "#/components/schemas/PriceBasis"
+          },
+          "rsi": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          },
+          "short_sma": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Sma"
+          },
+          "sma_spread": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sma Spread"
+          },
+          "sma_spread_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sma Spread Percent"
+          },
+          "trend": {
+            "$ref": "#/components/schemas/TrendStatus"
+          },
+          "trend_relationship": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrendRelationship"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "trend",
+          "current_price",
+          "price_basis",
+          "short_sma",
+          "long_sma",
+          "sma_spread",
+          "sma_spread_percent",
+          "trend_relationship",
+          "crossover_signal",
+          "crossover_result",
+          "crossover_state",
+          "rsi"
+        ],
+        "title": "MomentumResultPart",
+        "type": "object"
+      },
+      "MomentumSelection": {
+        "additionalProperties": false,
+        "description": "Immutable snapshot of the effective Momentum configuration.\n\nThe canonical analysis/method identifiers are fixed to the contract matrix values\n(``momentum`` / ``sma_crossover``) and cannot be overridden or made to disagree\nwith one another. Window and RSI values are materialized from explicit inputs or\nthe current configured policy at creation time; later settings changes do not\naffect an existing selection. ``as_of`` and ``use_cache`` are persisted with the\nselection, so a saved or refreshed run reuses the boundary and cache choice it was\ncreated with.",
+        "properties": {
+          "analysis_id": {
+            "const": "momentum",
+            "default": "momentum",
+            "title": "Analysis Id",
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "As Of"
+          },
+          "config_schema_version": {
+            "const": 2,
+            "default": 2,
+            "title": "Config Schema Version",
+            "type": "integer"
+          },
+          "long_window": {
+            "exclusiveMinimum": 0,
+            "title": "Long Window",
+            "type": "integer"
+          },
+          "method_id": {
+            "const": "sma_crossover",
+            "default": "sma_crossover",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "rsi_period": {
+            "exclusiveMinimum": 0,
+            "title": "Rsi Period",
+            "type": "integer"
+          },
+          "short_window": {
+            "exclusiveMinimum": 0,
+            "title": "Short Window",
+            "type": "integer"
+          },
+          "use_cache": {
+            "default": true,
+            "title": "Use Cache",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "short_window",
+          "long_window",
+          "rsi_period"
+        ],
+        "title": "MomentumSelection",
+        "type": "object"
+      },
+      "MomentumSourcePart": {
+        "additionalProperties": false,
+        "description": "What the historical market data said about itself; every field is null when it said nothing.",
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "data_as_of": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data As Of"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "observation_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Count"
+          },
+          "price_adjustment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Adjustment"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          }
+        },
+        "required": [
+          "provider",
+          "data_as_of",
+          "interval",
+          "observation_count",
+          "currency",
+          "price_adjustment"
+        ],
+        "title": "MomentumSourcePart",
+        "type": "object"
+      },
+      "PeriodKind": {
+        "description": "Classification of the reporting period behind a financial fact.",
+        "enum": [
+          "completed_annual",
+          "quarterly",
+          "ttm",
+          "instant"
+        ],
+        "title": "PeriodKind",
+        "type": "string"
+      },
+      "PiotroskiAnchorPart": {
+        "additionalProperties": false,
+        "description": "The anchor annual filing and its fiscal year-end.",
+        "properties": {
+          "accession": {
+            "title": "Accession",
+            "type": "string"
+          },
+          "filing_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filing Date"
+          },
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "year_end": {
+            "format": "date",
+            "title": "Year End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "year_end",
+          "accession",
+          "form",
+          "filing_date"
+        ],
+        "title": "PiotroskiAnchorPart",
+        "type": "object"
+      },
+      "PiotroskiDocument": {
+        "additionalProperties": false,
+        "description": "The Piotroski F-Score document, version 1.\n\n``piotroski --json`` and a replay write it.",
+        "properties": {
+          "analysis": {
+            "const": "piotroski",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "anchor": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PiotroskiAnchorPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "available_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Count"
+          },
+          "completeness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Completeness"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "diagnostics": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DiagnosticPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ProviderDiagnosticPart"
+                }
+              ]
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "effective_as_of": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Effective As Of",
+            "type": "string"
+          },
+          "industry_class": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IndustryClass"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "industry_class_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PiotroskiUnavailablePart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PiotroskiInputFailurePart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instrument_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstrumentKindPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "method": {
+            "const": "piotroski",
+            "title": "Method",
+            "type": "string"
+          },
+          "method_version": {
+            "title": "Method Version",
+            "type": "integer"
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProviderCheckItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Check"
+          },
+          "provider_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requested_as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested As Of"
+          },
+          "result_schema_version": {
+            "title": "Result Schema Version",
+            "type": "integer"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MetricResultPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "security_identity": {
+            "$ref": "#/components/schemas/SecurityIdentityPart"
+          },
+          "source_filings": {
+            "items": {
+              "$ref": "#/components/schemas/PiotroskiSourceFilingPart"
+            },
+            "title": "Source Filings",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalculationStatus"
+          },
+          "taxonomy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taxonomy"
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/PiotroskiTestPart"
+            },
+            "title": "Tests",
+            "type": "array"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "unavailable_tests": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Unavailable Tests",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "analysis",
+          "method",
+          "ticker",
+          "status",
+          "provider_failure",
+          "provider_check",
+          "requested_as_of",
+          "effective_as_of",
+          "security_identity",
+          "instrument_kind",
+          "result_schema_version",
+          "method_version",
+          "reason_code",
+          "reason",
+          "industry_class",
+          "industry_class_unknown",
+          "anchor",
+          "source_filings",
+          "taxonomy",
+          "score",
+          "completeness",
+          "available_count",
+          "unavailable_tests",
+          "tests",
+          "input_failure",
+          "warnings",
+          "limitations",
+          "diagnostics"
+        ],
+        "title": "PiotroskiDocument",
+        "type": "object"
+      },
+      "PiotroskiInputFailurePart": {
+        "additionalProperties": false,
+        "description": "The input whose provider failure stopped the assembly, and the explanation.",
+        "properties": {
+          "input_name": {
+            "title": "Input Name",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "input_name",
+          "reason"
+        ],
+        "title": "PiotroskiInputFailurePart",
+        "type": "object"
+      },
+      "PiotroskiOperandPart": {
+        "additionalProperties": false,
+        "description": "One input a test used, under the name the test gives it, with its provenance.",
+        "properties": {
+          "input": {
+            "$ref": "#/components/schemas/ResolvedInputPart"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "input"
+        ],
+        "title": "PiotroskiOperandPart",
+        "type": "object"
+      },
+      "PiotroskiRatioPart": {
+        "additionalProperties": false,
+        "description": "One ratio a test compared, under the name the test gives it.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/MetricResultPart"
+          }
+        },
+        "required": [
+          "name",
+          "result"
+        ],
+        "title": "PiotroskiRatioPart",
+        "type": "object"
+      },
+      "PiotroskiSelection": {
+        "additionalProperties": false,
+        "description": "The Piotroski F-Score selection: the shared point-in-time and cache fields.",
+        "properties": {
+          "analysis_id": {
+            "const": "piotroski",
+            "default": "piotroski",
+            "title": "Analysis Id",
+            "type": "string"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "As Of"
+          },
+          "config_schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Config Schema Version",
+            "type": "integer"
+          },
+          "method_id": {
+            "const": "piotroski",
+            "default": "piotroski",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "use_cache": {
+            "default": true,
+            "title": "Use Cache",
+            "type": "boolean"
+          }
+        },
+        "title": "PiotroskiSelection",
+        "type": "object"
+      },
+      "PiotroskiSourceFilingPart": {
+        "additionalProperties": false,
+        "description": "A filing an operand came from and its filing date.",
+        "properties": {
+          "accession": {
+            "title": "Accession",
+            "type": "string"
+          },
+          "filing_date": {
+            "format": "date",
+            "title": "Filing Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accession",
+          "filing_date"
+        ],
+        "title": "PiotroskiSourceFilingPart",
+        "type": "object"
+      },
+      "PiotroskiTestPart": {
+        "additionalProperties": false,
+        "description": "One of the nine tests: its outcome, the ratios and operands behind it, and why it is unavailable.",
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Diagnostics",
+            "type": "array"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "operands": {
+            "items": {
+              "$ref": "#/components/schemas/PiotroskiOperandPart"
+            },
+            "title": "Operands",
+            "type": "array"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/CheckOutcome"
+          },
+          "ratios": {
+            "items": {
+              "$ref": "#/components/schemas/PiotroskiRatioPart"
+            },
+            "title": "Ratios",
+            "type": "array"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "number",
+          "name",
+          "group",
+          "outcome",
+          "ratios",
+          "operands",
+          "diagnostics",
+          "reason_code",
+          "reason"
+        ],
+        "title": "PiotroskiTestPart",
+        "type": "object"
+      },
+      "PiotroskiUnavailablePart": {
+        "additionalProperties": false,
+        "description": "Why a value is unavailable.",
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reason_code": {
+            "$ref": "#/components/schemas/ReasonCode"
+          }
+        },
+        "required": [
+          "reason_code",
+          "reason"
+        ],
+        "title": "PiotroskiUnavailablePart",
+        "type": "object"
+      },
+      "PriceBasis": {
+        "description": "Which close the current price is.",
+        "enum": [
+          "latest_adjusted_historical_close",
+          "latest_historical_close"
+        ],
+        "title": "PriceBasis",
+        "type": "string"
+      },
+      "PriceComparisonPart": {
+        "additionalProperties": false,
+        "description": "The relationship between a method's value and the current price, with the evidence behind it.",
+        "properties": {
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecurityUnitProvenancePart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quote_freshness": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuoteFreshnessPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "security_unit_evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SecurityUnitEvidencePart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "percent",
+          "quote_freshness",
+          "security_unit_evidence",
+          "provenance"
+        ],
+        "title": "PriceComparisonPart",
+        "type": "object"
+      },
+      "ProviderCheckItem": {
+        "additionalProperties": false,
+        "description": "The verdict for one provider.",
+        "properties": {
+          "provider_id": {
+            "description": "The provider the test request went to.",
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/ProviderCheckVerdict"
+          }
+        },
+        "required": [
+          "provider_id",
+          "verdict"
+        ],
+        "title": "ProviderCheckItem",
+        "type": "object"
+      },
+      "ProviderCheckVerdict": {
+        "description": "What a test request to a provider found: five provider conditions, or that nothing was checked.",
+        "enum": [
+          "healthy",
+          "unreachable",
+          "rate_limited",
+          "unexpected_response",
+          "no_data",
+          "not_checked"
+        ],
+        "title": "ProviderCheckVerdict",
+        "type": "string"
+      },
+      "ProviderDiagnosticPart": {
+        "additionalProperties": false,
+        "description": "One diagnostics entry for an instrument-profile capability, which names the provider consulted.",
+        "properties": {
+          "field_name": {
+            "title": "Field Name",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field_name",
+          "stage",
+          "outcome",
+          "message",
+          "provider_id"
+        ],
+        "title": "ProviderDiagnosticPart",
+        "type": "object"
+      },
+      "ProviderFailure": {
+        "additionalProperties": false,
+        "description": "Why an analysis outcome is a provider failure: one of four codes and the inputs that caused it.\n\nThe same element is carried by the failure envelope and by every document that reports an analysis\noutcome. ``reason_code`` is the single code derived from the kinds in ``inputs``.",
+        "properties": {
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderFailureInput"
+            },
+            "minItems": 1,
+            "title": "Inputs",
+            "type": "array"
+          },
+          "reason_code": {
+            "$ref": "#/components/schemas/FailureReasonCode"
+          }
+        },
+        "required": [
+          "reason_code",
+          "inputs"
+        ],
+        "title": "ProviderFailure",
+        "type": "object"
+      },
+      "ProviderFailureInput": {
+        "additionalProperties": false,
+        "description": "One failed input: which provider failed it and what the adapter observed.",
+        "properties": {
+          "input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The strategy input the failure was recorded against; null when the failure was raised.",
+            "title": "Input"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProviderFailureKind"
+          },
+          "provider_id": {
+            "description": "The provider that failed.",
+            "title": "Provider Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "input",
+          "provider_id",
+          "kind"
+        ],
+        "title": "ProviderFailureInput",
+        "type": "object"
+      },
+      "ProviderFailureKind": {
+        "description": "What a provider failure was, as observed by the adapter.\n\n``UNREACHABLE``: the service did not serve the request (DNS, connection, timeout, blocking, server errors).\n``RATE_LIMITED``: the service refused the request because it is limiting requests (HTTP 429, or the library's\nrate-limit error). ``UNEXPECTED_RESPONSE``: the service answered, but not in the form the adapter reads.\n``NO_DATA``: the service answered correctly and has nothing for this request.",
+        "enum": [
+          "unreachable",
+          "rate_limited",
+          "unexpected_response",
+          "no_data"
+        ],
+        "title": "ProviderFailureKind",
+        "type": "string"
+      },
+      "QuoteFreshnessPart": {
+        "additionalProperties": false,
+        "description": "How recent the quote behind a price comparison was.",
+        "properties": {
+          "evaluated_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "market_observed_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Observed At"
+          },
+          "max_retrieval_age_seconds": {
+            "title": "Max Retrieval Age Seconds",
+            "type": "number"
+          },
+          "retrieval_age_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieval Age Seconds"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          },
+          "status": {
+            "enum": [
+              "recent_retrieval",
+              "expired",
+              "unknown_retrieval_time",
+              "future_timestamp",
+              "user_supplied",
+              "historical"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "evaluated_at",
+          "retrieved_at",
+          "retrieval_age_seconds",
+          "max_retrieval_age_seconds",
+          "market_observed_at"
+        ],
+        "title": "QuoteFreshnessPart",
+        "type": "object"
+      },
+      "QuotePart": {
+        "additionalProperties": false,
+        "description": "The optional current-quote attempt: ``ok``, ``not_attempted`` or the status of the failed lookup.",
+        "properties": {
+          "provider_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProviderFailureInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "reason",
+          "provider_failure"
+        ],
+        "title": "QuotePart",
+        "type": "object"
+      },
+      "ReasonCode": {
+        "description": "Machine-readable reasons shared by deterministic metric results.",
+        "enum": [
+          "insufficient_history",
+          "non_contiguous_history",
+          "missing_fact",
+          "incompatible_period",
+          "incompatible_units",
+          "incompatible_currency",
+          "incompatible_scope",
+          "ambiguous_fact",
+          "not_available_as_of",
+          "nonpositive_beginning",
+          "nonpositive_ending",
+          "sign_change",
+          "fcf_not_growing",
+          "eps_not_growing",
+          "fcf_and_eps_not_growing",
+          "forward_growth_not_confirmed",
+          "consensus_unavailable",
+          "market_cap_unavailable",
+          "provider_error",
+          "invalid_request",
+          "not_requested",
+          "instrument_kind_not_applicable",
+          "industry_class_not_applicable",
+          "industry_class_unknown",
+          "unsupported_mapping",
+          "debt_not_visible",
+          "nonpositive_denominator",
+          "insufficient_tests"
+        ],
+        "title": "ReasonCode",
+        "type": "string"
+      },
+      "ReplayTextDocument": {
+        "additionalProperties": false,
+        "description": "A saved run replayed as text in one presentation mode.",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/TextPresentationMode",
+            "description": "The presentation mode of the text."
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "text": {
+            "description": "The text the mode shows, as the command line would print it.",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "text"
+        ],
+        "title": "ReplayTextDocument",
+        "type": "object"
+      },
+      "ResolvedInputPart": {
+        "additionalProperties": false,
+        "description": "One method input and where it came from, as the Graham documents write it.",
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "available_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available At"
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "cache_schema_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Schema Version"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "field_name": {
+            "title": "Field Name",
+            "type": "string"
+          },
+          "lineage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LineagePart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "observation_period_end": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Period End"
+          },
+          "observation_period_start": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Period Start"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "origin_source_kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Field"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "resolved_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Resolved At",
+            "type": "string"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/SourceKind"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Units"
+          },
+          "value": {
+            "description": "A finite number, written as the source value was.",
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "field_name",
+          "value",
+          "source_kind",
+          "origin_source_kind",
+          "basis",
+          "units",
+          "currency",
+          "provider_id",
+          "provider_field",
+          "observation_period_start",
+          "observation_period_end",
+          "observed_at",
+          "available_at",
+          "as_of",
+          "retrieved_at",
+          "resolved_at",
+          "cache_schema_version",
+          "notes",
+          "lineage"
+        ],
+        "title": "ResolvedInputPart",
+        "type": "object"
+      },
+      "RunOutcome": {
+        "description": "Terminal outcome of a workspace analysis run.\n\nOnly terminal states exist; there is deliberately no in-progress value because\nthe envelope records an immutable completed attempt rather than live state.",
+        "enum": [
+          "completed",
+          "unavailable",
+          "not_applicable",
+          "failed"
+        ],
+        "title": "RunOutcome",
+        "type": "string"
+      },
+      "RunSummaryDocument": {
+        "additionalProperties": false,
+        "description": "One saved run, summarized.",
+        "properties": {
+          "analysis_run_id": {
+            "format": "uuid",
+            "title": "Analysis Run Id",
+            "type": "string"
+          },
+          "completed_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          },
+          "method_id": {
+            "title": "Method Id",
+            "type": "string"
+          },
+          "refresh_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The refresh that saved the run; null for a run saved by a direct command.",
+            "title": "Refresh Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunOutcome"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_run_id",
+          "ticker",
+          "method_id",
+          "status",
+          "completed_at",
+          "refresh_id"
+        ],
+        "title": "RunSummaryDocument",
+        "type": "object"
+      },
+      "RunsCompareDocument": {
+        "additionalProperties": false,
+        "description": "The whole ``runs compare --json`` output.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
+        "properties": {
+          "refresh_id": {
+            "format": "uuid",
+            "title": "Refresh Id",
+            "type": "string"
+          },
+          "rows": {
+            "description": "The tickers, in watchlist order.",
+            "items": {
+              "$ref": "#/components/schemas/CompareRowDocument"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "strategies": {
+            "description": "The columns, in order.",
+            "items": {
+              "$ref": "#/components/schemas/CompareStrategyDocument"
+            },
+            "title": "Strategies",
+            "type": "array"
+          },
+          "watchlist_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The watchlist the refresh ran; null if no readable run records it.",
+            "title": "Watchlist Id"
+          },
+          "watchlist_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The watchlist's name when the refresh ran.",
+            "title": "Watchlist Name"
+          }
+        },
+        "required": [
+          "refresh_id",
+          "watchlist_id",
+          "watchlist_name",
+          "strategies",
+          "rows"
+        ],
+        "title": "RunsCompareDocument",
+        "type": "object"
+      },
+      "RunsListDocument": {
+        "additionalProperties": false,
+        "description": "The whole ``runs list --json`` output: one page of run summaries, most recently completed first.",
+        "properties": {
+          "has_more": {
+            "description": "True when at least one more run follows this page for the same filters.",
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RunSummaryDocument"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "has_more",
+          "items"
+        ],
+        "title": "RunsListDocument",
+        "type": "object"
+      },
+      "SecurityIdentityPart": {
+        "additionalProperties": false,
+        "description": "The identity snapshot a run retains; every descriptive field is null when the provider returned none.",
+        "properties": {
+          "instrument_identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument Identifier"
+          },
+          "instrument_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument Name"
+          },
+          "issuer_identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer Identifier"
+          },
+          "listing_venue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listing Venue"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "instrument_name",
+          "listing_venue",
+          "issuer_identifier",
+          "instrument_identifier",
+          "provider_id",
+          "resolved_at"
+        ],
+        "title": "SecurityIdentityPart",
+        "type": "object"
+      },
+      "SecurityUnitDocumentPart": {
+        "additionalProperties": false,
+        "description": "One filing document that supports the share-unit evidence.",
+        "properties": {
+          "accession": {
+            "title": "Accession",
+            "type": "string"
+          },
+          "available_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Available At",
+            "type": "string"
+          },
+          "context_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Context Ids",
+            "type": "array"
+          },
+          "listing_venue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listing Venue"
+          },
+          "retrieved_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Retrieved At",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accession",
+          "url",
+          "context_ids",
+          "available_at",
+          "retrieved_at",
+          "listing_venue"
+        ],
+        "title": "SecurityUnitDocumentPart",
+        "type": "object"
+      },
+      "SecurityUnitEvidencePart": {
+        "additionalProperties": false,
+        "description": "The evidence relating the filing's share unit to the quoted one.",
+        "properties": {
+          "filing_unit_kind": {
+            "title": "Filing Unit Kind",
+            "type": "string"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "quoted_unit_kind": {
+            "title": "Quoted Unit Kind",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "underlying_shares_per_quoted_unit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Underlying Shares Per Quoted Unit"
+          }
+        },
+        "required": [
+          "ticker",
+          "filing_unit_kind",
+          "quoted_unit_kind",
+          "underlying_shares_per_quoted_unit",
+          "provider_id",
+          "source"
+        ],
+        "title": "SecurityUnitEvidencePart",
+        "type": "object"
+      },
+      "SecurityUnitProvenancePart": {
+        "additionalProperties": false,
+        "description": "The reviewed single-class inference behind the share-unit evidence.",
+        "properties": {
+          "cik": {
+            "title": "Cik",
+            "type": "string"
+          },
+          "class_title": {
+            "title": "Class Title",
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/SecurityUnitDocumentPart"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "mapping_id": {
+            "title": "Mapping Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mapping_id",
+          "cik",
+          "class_title",
+          "documents"
+        ],
+        "title": "SecurityUnitProvenancePart",
+        "type": "object"
+      },
+      "ShareCountBasis": {
+        "description": "Where a share count was taken from.",
+        "enum": [
+          "year_end",
+          "cover_page"
+        ],
+        "title": "ShareCountBasis",
+        "type": "string"
+      },
+      "SourceKind": {
+        "description": "How a resolved input value was obtained.",
+        "enum": [
+          "override",
+          "cache",
+          "provider",
+          "derived"
+        ],
+        "title": "SourceKind",
+        "type": "string"
+      },
+      "StrategiesDocument": {
+        "additionalProperties": false,
+        "description": "The strategies this engine supports, in the order they are declared.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StrategyItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "StrategiesDocument",
+        "type": "object"
+      },
+      "StrategyItem": {
+        "additionalProperties": false,
+        "description": "One strategy this engine supports.",
+        "properties": {
+          "analysis": {
+            "description": "The analysis identifier, as a strategy document's analysis key names it.",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "label": {
+            "description": "The name a person sees.",
+            "title": "Label",
+            "type": "string"
+          },
+          "method": {
+            "description": "The method identifier, as a strategy document's method key and a run's method_id.",
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis",
+          "method",
+          "label"
+        ],
+        "title": "StrategyItem",
+        "type": "object"
+      },
+      "TextPresentationMode": {
+        "enum": [
+          "concise",
+          "details",
+          "diagnostics"
+        ],
+        "type": "string"
+      },
+      "TrendClassification": {
+        "description": "Historical relationship between FCF and earnings growth (evidence, not a score).",
+        "enum": [
+          "both_growing",
+          "fcf_growing_earnings_not",
+          "earnings_growing_fcf_not",
+          "neither_growing",
+          "insufficient_or_nonmeaningful_growth"
+        ],
+        "title": "TrendClassification",
+        "type": "string"
+      },
+      "TrendRelationship": {
+        "description": "How the short moving average stands against the long one.",
+        "enum": [
+          "short_above_long",
+          "short_below_long",
+          "short_equal_long"
+        ],
+        "title": "TrendRelationship",
+        "type": "string"
+      },
+      "TrendStatus": {
+        "description": "Strongly-typed market trend indicators with localization support.\n\nAttributes:\n    BULLISH: Bullish market trend.\n    BEARISH: Bearish market trend.\n    UNKNOWN: Unknown or neutral market state.",
+        "enum": [
+          "BULLISH",
+          "BEARISH",
+          "UNKNOWN"
+        ],
+        "title": "TrendStatus",
+        "type": "string"
+      },
+      "WatchlistDocument": {
+        "additionalProperties": false,
+        "description": "The complete watchlist, as ``watchlist show`` and ``watchlist rename`` write it with ``--json``.\n\nThis document is unversioned: it has no ``schema_version``.",
+        "properties": {
+          "created_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistEntryDocument"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null until the watchlist is first changed.",
+            "title": "Updated At"
+          },
+          "watchlist_id": {
+            "format": "uuid",
+            "title": "Watchlist Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "watchlist_id",
+          "display_name",
+          "created_at",
+          "updated_at",
+          "entries"
+        ],
+        "title": "WatchlistDocument",
+        "type": "object"
+      },
+      "WatchlistEntryDocument": {
+        "additionalProperties": false,
+        "description": "One entry of a watchlist: its 1-based position, its ticker and the selection stored for it.",
+        "properties": {
+          "index": {
+            "description": "The 1-based position a user sees and passes to 'remove-entry'.",
+            "title": "Index",
+            "type": "integer"
+          },
+          "selection": {
+            "description": "The stored selection; its method_id says which strategy. Its instants (as_of) carry a UTC offset.",
+            "discriminator": {
+              "mapping": {
+                "graham_growth_value": "#/components/schemas/GrahamGrowthSelection",
+                "graham_number": "#/components/schemas/GrahamNumberSelection",
+                "piotroski": "#/components/schemas/PiotroskiSelection",
+                "reported_fcf_eps_cagr": "#/components/schemas/FCFGrowthSelection",
+                "sma_crossover": "#/components/schemas/MomentumSelection"
+              },
+              "propertyName": "method_id"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MomentumSelection"
+              },
+              {
+                "$ref": "#/components/schemas/GrahamNumberSelection"
+              },
+              {
+                "$ref": "#/components/schemas/GrahamGrowthSelection"
+              },
+              {
+                "$ref": "#/components/schemas/FCFGrowthSelection"
+              },
+              {
+                "$ref": "#/components/schemas/PiotroskiSelection"
+              }
+            ],
+            "title": "Selection"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "ticker",
+          "selection"
+        ],
+        "title": "WatchlistEntryDocument",
+        "type": "object"
+      },
+      "WatchlistListDocument": {
+        "additionalProperties": false,
+        "description": "The whole ``watchlist list --json`` output: every watchlist's summary, in the order listed. It is not paged.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistSummaryDocument"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "WatchlistListDocument",
+        "type": "object"
+      },
+      "WatchlistSummaryDocument": {
+        "additionalProperties": false,
+        "description": "One watchlist, summarized: its identity, name, entry count and timestamps.",
+        "properties": {
+          "created_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "entry_count": {
+            "title": "Entry Count",
+            "type": "integer"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null until the watchlist is first changed.",
+            "title": "Updated At"
+          },
+          "watchlist_id": {
+            "format": "uuid",
+            "title": "Watchlist Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "watchlist_id",
+          "display_name",
+          "entry_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WatchlistSummaryDocument",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "The read endpoints of `ian serve`. Every request carries the per-launch bearer token. A client must tolerate unknown fields, unknown values and a higher schema_version.",
+    "title": "Investment Analysis Engine local API",
+    "version": "0.1.0 (v1)"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/info": {
+      "get": {
+        "operationId": "get_info",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InfoDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "Describe the engine this server runs."
+      }
+    },
+    "/v1/refreshes/{refresh_id}/compare": {
+      "get": {
+        "operationId": "compare_refresh",
+        "parameters": [
+          {
+            "description": "The refresh's ID.",
+            "in": "path",
+            "name": "refresh_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunsCompareDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Compare the runs of one refresh: one row per ticker, one column group per strategy."
+      }
+    },
+    "/v1/runs": {
+      "get": {
+        "operationId": "list_runs",
+        "parameters": [
+          {
+            "description": "Only runs of this ticker.",
+            "in": "query",
+            "name": "ticker",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only runs of this method.",
+            "in": "query",
+            "name": "method_id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only runs with this outcome.",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only runs saved by this refresh.",
+            "in": "query",
+            "name": "refresh_id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Maximum rows (1 to 100); 20 when absent.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip; 0 when absent.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunsListDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "List saved Analysis Runs, most recently completed first."
+      }
+    },
+    "/v1/runs/{analysis_run_id}": {
+      "get": {
+        "operationId": "get_run",
+        "parameters": [
+          {
+            "description": "The run's ID.",
+            "in": "path",
+            "name": "analysis_run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MomentumDocument"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GrahamNumberDocument"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GrahamGrowthDocument"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FCFDocument"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PiotroskiDocument"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Show one saved run as its strategy's document."
+      }
+    },
+    "/v1/runs/{analysis_run_id}/text": {
+      "get": {
+        "operationId": "get_run_text",
+        "parameters": [
+          {
+            "description": "The run's ID.",
+            "in": "path",
+            "name": "analysis_run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The presentation mode.",
+            "in": "query",
+            "name": "mode",
+            "required": true,
+            "schema": {
+              "enum": [
+                "concise",
+                "details",
+                "diagnostics"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayTextDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Show one saved run as text in one presentation mode."
+      }
+    },
+    "/v1/strategies": {
+      "get": {
+        "operationId": "list_strategies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategiesDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "List the strategies this engine supports."
+      }
+    },
+    "/v1/watchlists": {
+      "get": {
+        "operationId": "list_watchlists",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistListDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "List every watchlist."
+      }
+    },
+    "/v1/watchlists/{watchlist_id}": {
+      "get": {
+        "operationId": "get_watchlist",
+        "parameters": [
+          {
+            "description": "The watchlist's ID.",
+            "in": "path",
+            "name": "watchlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Show one watchlist."
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": {
+        "port": {
+          "default": "0"
+        }
+      }
+    }
+  ]
+}

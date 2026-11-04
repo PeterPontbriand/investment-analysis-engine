@@ -129,6 +129,14 @@ def test_every_code_the_classifier_can_return_is_a_member_and_every_member_can_b
     """T18: the rules, the readiness codes and the default cover the enumeration."""
     returned = {FailureReasonCode(row.reason_code) for row in PINNED_CLASSIFICATIONS}
     returned.add(classify_failure(RuntimeError("unrecognized")).reason_code)
+    # The API's request checks and ``ian serve``'s launch write these directly; no exception declares them.
+    returned |= {
+        FailureReasonCode.NOT_AUTHENTICATED,
+        FailureReasonCode.HOST_NOT_ALLOWED,
+        FailureReasonCode.ORIGIN_NOT_ALLOWED,
+        FailureReasonCode.ENDPOINT_NOT_FOUND,
+        FailureReasonCode.PORT_UNAVAILABLE,
+    }
     assert returned == set(FailureReasonCode)
     assert classify_failure(RuntimeError("unrecognized")).reason_code is FailureReasonCode.EXECUTION_ERROR
 
@@ -203,7 +211,7 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
     )
     text = failure_document_json(envelope)
     assert json.loads(text) == {
-        "schema_version": 10,
+        "schema_version": 11,
         "status": "input_unavailable",
         "reason_code": "provider_error",
         "reason": "No usable history.",
@@ -420,10 +428,10 @@ def test_the_element_accepts_only_provider_codes_and_at_least_one_input() -> Non
         ProviderFailure(reason_code=FailureReasonCode.PROVIDER_UNREACHABLE, inputs=())
 
 
-def test_the_failure_envelope_is_version_10_and_its_json_carries_the_element_keys() -> None:
+def test_the_failure_envelope_is_version_11_and_its_json_carries_the_element_keys() -> None:
     envelope = failure_envelope(FailureReasonCode.INVALID_INPUT, "s")
     document = json.loads(failure_document_json(envelope))
-    assert document["schema_version"] == 10
+    assert document["schema_version"] == 11
     assert document["parameters"] is None
     assert document["provider_failure"] is None
     assert document["provider_check"] is None

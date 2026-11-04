@@ -2,12 +2,18 @@
 
 from collections.abc import Callable
 from pathlib import Path
+from uuid import UUID, uuid4
 
 import pytest
 
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
-from investment_analysis_engine.application.watchlists import get_watchlist, list_watchlists, watchlist_repository
+from investment_analysis_engine.application.watchlists import (
+    get_watchlist_by_id,
+    get_watchlist_by_name,
+    list_watchlists,
+    watchlist_repository,
+)
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
@@ -43,7 +49,7 @@ def test_the_list_summarizes_every_watchlist_with_its_entry_count(isolated_cli_s
 def test_get_returns_the_watchlist_with_its_entries_in_order(isolated_cli_settings: ProjectSettings) -> None:
     _seed(isolated_cli_settings)
 
-    watchlist = get_watchlist(ApplicationContext(settings=isolated_cli_settings), "Core")
+    watchlist = get_watchlist_by_name(ApplicationContext(settings=isolated_cli_settings), "Core")
 
     assert watchlist.display_name == "Core"
     assert [entry.ticker for entry in watchlist.entries] == ["AAPL", "MSFT"]
@@ -53,14 +59,41 @@ def test_get_of_an_unknown_name_raises_the_not_found_error_with_the_message_the_
     isolated_cli_settings: ProjectSettings,
 ) -> None:
     with pytest.raises(WatchlistNotFoundError) as caught:
-        get_watchlist(ApplicationContext(settings=isolated_cli_settings), "Nowhere")
+        get_watchlist_by_name(ApplicationContext(settings=isolated_cli_settings), "Nowhere")
     assert str(caught.value) == "No watchlist named 'Nowhere' exists."
+
+
+def test_get_by_id_returns_the_watchlist_with_that_id(isolated_cli_settings: ProjectSettings) -> None:
+    _seed(isolated_cli_settings)
+    context = ApplicationContext(settings=isolated_cli_settings)
+    expected = get_watchlist_by_name(context, "Core")
+
+    watchlist = get_watchlist_by_id(context, expected.watchlist_id)
+
+    assert watchlist == expected
+    assert [entry.ticker for entry in watchlist.entries] == ["AAPL", "MSFT"]
+
+
+def test_get_by_id_of_an_unknown_id_raises_the_not_found_error_with_its_message(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    _seed(isolated_cli_settings)
+    missing: UUID = uuid4()
+
+    with pytest.raises(WatchlistNotFoundError) as caught:
+        get_watchlist_by_id(ApplicationContext(settings=isolated_cli_settings), missing)
+
+    assert str(caught.value) == f"No watchlist with ID {missing} exists."
 
 
 @pytest.mark.parametrize(
     "operation",
-    [list_watchlists, lambda context: get_watchlist(context, "Core")],
-    ids=["list", "get"],
+    [
+        list_watchlists,
+        lambda context: get_watchlist_by_name(context, "Core"),
+        lambda context: get_watchlist_by_id(context, uuid4()),
+    ],
+    ids=["list", "get", "get-by-id"],
 )
 def test_an_unready_database_is_a_readiness_error(
     operation: Callable[[ApplicationContext], object], tmp_path: Path

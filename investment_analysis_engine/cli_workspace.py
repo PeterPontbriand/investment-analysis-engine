@@ -24,16 +24,21 @@ from uuid import UUID
 import typer
 from pydantic import BaseModel
 
-from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
 from investment_analysis_engine.application.runs import (
+    RunQueryNames,
+    build_run_query,
     compare_refresh_runs,
     list_runs,
     replay_run_document,
     replay_run_text,
 )
-from investment_analysis_engine.application.watchlists import get_watchlist, list_watchlists, watchlist_repository
+from investment_analysis_engine.application.watchlists import (
+    get_watchlist_by_name,
+    list_watchlists,
+    watchlist_repository,
+)
 from investment_analysis_engine.cli_composition import momentum_settings
 from investment_analysis_engine.cli_provider_check import (
     ProviderCheckFindings,
@@ -84,10 +89,7 @@ from investment_analysis_engine.workspace.repositories.watchlists import (
     WatchlistEntryNotFoundError,
 )
 from investment_analysis_engine.workspace.runs import (
-    RUN_QUERY_MAX_LIMIT,
-    RUN_QUERY_MIN_LIMIT,
     AnalysisRunSummary,
-    RunQuery,
     Watchlist,
     WatchlistEntry,
     WatchlistSummary,
@@ -97,7 +99,6 @@ from investment_analysis_engine.workspace.watchlists import (
     StoredSelectionError,
     WatchlistNotFoundError,
     WatchlistSpec,
-    normalize_ticker,
 )
 from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.runs import build_runs_list_document
@@ -123,6 +124,16 @@ def _alias_choices() -> str:
 
 
 _ANALYSIS_CHOICES = _alias_choices()
+
+_RUN_QUERY_NAMES = RunQueryNames(
+    ticker="--ticker",
+    method="--analysis",
+    status="--status",
+    refresh_id="--refresh-id",
+    limit="--limit",
+    offset="--offset",
+)
+"""The runs-list options, spelled as the command declares them."""
 
 
 @contextmanager
@@ -795,7 +806,7 @@ def watchlist_show(
         if normalized_group_by not in ("ticker", "method"):
             raise InvalidParameterError("--group-by must be 'ticker' or 'method'.", parameters=("--group-by",))
     with _workspace_failures("watchlist show", json_output=json_output):
-        watchlist = get_watchlist(ApplicationContext(settings=settings), name)
+        watchlist = get_watchlist_by_name(ApplicationContext(settings=settings), name)
     typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist, group_by=normalized_group_by))
 
 
@@ -819,22 +830,13 @@ def runs_list(  # noqa: PLR0913
 ) -> None:
     """List Analysis Run summaries, most recently completed first."""
     with parameter_failures(json_output=json_output):
-        if ticker is not None and not ticker.strip():
-            raise InvalidParameterError("--ticker must not be empty.", parameters=("--ticker",))
-        method_id = None if analysis is None else _method_id_for_alias(_parse_analysis(analysis))
-        outcome = None if status is None else _parse_status(status)
-        refresh_batch = None if refresh_id is None else _parse_run_id(refresh_id, field="--refresh-id")
-        if not RUN_QUERY_MIN_LIMIT <= limit <= RUN_QUERY_MAX_LIMIT:
-            raise InvalidParameterError(
-                f"--limit must be between {RUN_QUERY_MIN_LIMIT} and {RUN_QUERY_MAX_LIMIT}.", parameters=("--limit",)
-            )
-        if offset < 0:
-            raise InvalidParameterError("--offset must be 0 or greater.", parameters=("--offset",))
-        query = RunQuery(
-            ticker=None if ticker is None else normalize_ticker(ticker),
-            method_id=method_id,
-            status=outcome,
-            refresh_id=refresh_batch,
+        query = build_run_query(
+            names=_RUN_QUERY_NAMES,
+            resolve_method=lambda alias: _method_id_for_alias(_parse_analysis(alias)),
+            ticker=ticker,
+            method=analysis,
+            status=status,
+            refresh_id=refresh_id,
             limit=limit,
             offset=offset,
         )
@@ -893,14 +895,6 @@ def _parse_run_id(value: str, *, field: str) -> UUID:
             "by 'runs list' or 'refresh' — not a shortened or partial value.",
             parameters=(field,),
         ) from exc
-
-
-def _parse_status(value: str) -> RunOutcome:
-    try:
-        return RunOutcome(value)
-    except ValueError as exc:
-        allowed = ", ".join(item.value for item in RunOutcome)
-        raise InvalidParameterError(f"--status must be one of: {allowed}.", parameters=("--status",)) from exc
 
 
 def _run_summary_line(summary: AnalysisRunSummary) -> str:

@@ -33,7 +33,7 @@ end-to-end test can run the conformance tests with nothing deselected. The slice
 | :--- | :--- | :--- | :--- |
 | SWC.6c | [Make the pins derived, and the reviewed ones sites](#swc6c--strategy-pins) | Complete | 2026-10-18 |
 | SWC.7a | [Contributor guide and permanent rules](SWC_CONTRACT_AND_SLICE_PLAN.md#swc7a--contributor-guide-and-permanent-rules) | Complete | 2026-10-18 |
-| SWC.7b | [Independent review of the guide](SWC_CONTRACT_AND_SLICE_PLAN.md#swc7b--independent-review-of-the-guide) | Next | |
+| SWC.7b | [Independent review of the guide](SWC_CONTRACT_AND_SLICE_PLAN.md#swc7b--independent-review-of-the-guide) | Complete | 2026-10-19 |
 
 ## 3. The slice
 

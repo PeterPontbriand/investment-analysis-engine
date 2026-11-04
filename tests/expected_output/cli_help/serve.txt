@@ -1,0 +1,12 @@
+Usage: root serve [OPTIONS]
+Serve the read API on loopback until standard input closes.
+Once the server is listening it writes one JSON line holding the port and a
+bearer token to standard output.
+Options
+--port <int> Loopback port to listen on; 0 lets the system
+choose.
+[default: 0]
+--allow-origin <str> An origin allowed to call the API, as
+scheme://host[:port]; repeatable.
+--database-url <str> Override the configured SQLite target.
+--help Show this message and exit.

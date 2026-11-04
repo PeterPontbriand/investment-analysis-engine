@@ -192,7 +192,7 @@ def run_scenario() -> list[Step]:
         for module in (
             "investment_analysis_engine.cli_support",
             "investment_analysis_engine.cli_workspace",
-            "investment_analysis_engine.cli_database",
+            "investment_analysis_engine.cli_database_target",
         ):
             stack.enter_context(patch(f"{module}.settings", settings))
         stack.enter_context(

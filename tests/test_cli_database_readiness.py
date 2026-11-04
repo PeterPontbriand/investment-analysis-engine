@@ -65,7 +65,7 @@ def test_typed_readiness_failure_preserves_envelope_and_closes_storage(
     assert "private SQL" not in result.output
     if mode == ["--json"]:
         report = json.loads(result.stdout)
-        assert report["schema_version"] == 10
+        assert report["schema_version"] == 11
         assert report["status"] == "error"
         assert report["result"] is None
         assert report["reason_code"] == reason.value
@@ -138,7 +138,7 @@ def test_help_never_opens_storage(tmp_path: Path, command: list[str]) -> None:
     selected = ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
     with (
         patch("investment_analysis_engine.cli_support.settings", selected),
-        patch("investment_analysis_engine.cli_database.settings", selected),
+        patch("investment_analysis_engine.cli_database_target.settings", selected),
         patch(
             "investment_analysis_engine.cli_support.SQLiteDatabase", side_effect=AssertionError("Storage must not open")
         ) as analysis_db,

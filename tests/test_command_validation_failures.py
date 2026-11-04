@@ -16,7 +16,7 @@ import pytest
 from pydantic import ValidationError
 from typer.testing import CliRunner
 
-import investment_analysis_engine.cli_database
+import investment_analysis_engine.cli_database_target
 import investment_analysis_engine.cli_workspace
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
@@ -663,7 +663,7 @@ def test_a_command_with_json_writes_one_valid_failure_document_and_nothing_to_st
     envelope = FailureEnvelope.model_validate(document)
     assert document["reason_code"] == "invalid_parameter"
     assert document["status"] == "error"
-    assert document["schema_version"] == 10
+    assert document["schema_version"] == 11
     assert document["result"] is None
     assert document["parameters"] == list(check.parameters)
     assert envelope.parameters == check.parameters
@@ -713,7 +713,7 @@ def test_a_report_path_windows_would_only_partly_anchor_is_an_invalid_parameter(
 
 def test_a_private_memory_target_from_the_settings_is_a_configuration_error() -> None:
     memory = ProjectSettings(database_url="sqlite:///:memory:")
-    with patch.object(investment_analysis_engine.cli_database, "settings", memory):
+    with patch.object(investment_analysis_engine.cli_database_target, "settings", memory):
         result = runner.invoke(app, ["db", "status", "--json"])
         text = runner.invoke(app, ["db", "upgrade"])
     document = json.loads(result.stdout)

@@ -1,4 +1,4 @@
-"""The failure envelope: one typed document for every ``--json`` failure.
+"""The failure envelope: one typed document for every ``--json`` command failure and every API error response.
 
 This module imports only ``investment_analysis_engine.core``, so the command line, the strategy documents and the schema
 generator can all depend on it without a cycle. The code vocabulary and the ``provider_failure`` element live in
@@ -42,7 +42,10 @@ class FailureDatabase(BaseModel):
 
 
 class FailureEnvelope(BaseModel):
-    """The one JSON document written to standard output when a command with ``--json`` fails.
+    """The one JSON document a failure produces, for a command and for an API response.
+
+    A command with ``--json`` writes it to standard output when it fails, and it is the body of every non-2xx API
+    response.
 
     ``schema_version`` is this document's own lineage: it identifies a shape only within this schema
     and is independent of the ``schema_version`` of every success document. A consumer dispatches on
@@ -52,18 +55,27 @@ class FailureEnvelope(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[10] = 10
+    schema_version: Literal[11] = 11
     status: FailureStatus
     reason_code: FailureReasonCode
     reason: str
-    analysis: str | None = Field(default=None, description="The analysis of a direct command; null otherwise.")
-    method: str | None = Field(default=None, description="The method of a direct command; null otherwise.")
-    ticker: str | None = Field(default=None, description="The requested ticker of a direct command; null otherwise.")
+    analysis: str | None = Field(
+        default=None,
+        description="The analysis of a direct command; null for any other command and for an API response.",
+    )
+    method: str | None = Field(
+        default=None, description="The method of a direct command; null for any other command and for an API response."
+    )
+    ticker: str | None = Field(
+        default=None,
+        description="The requested ticker of a direct command; null for any other command and for an API response.",
+    )
     parameters: tuple[str, ...] | None = Field(
         default=None,
         description=(
             "Set exactly when reason_code is invalid_parameter: the offending options (declared primary long "
-            "spelling) and arguments (upper-case name); null otherwise."
+            "spelling), command arguments (upper-case name) and API query or path parameters (their name); "
+            "null otherwise."
         ),
     )
     result: None = Field(default=None, description="Always null, so success and failure share top-level keys.")

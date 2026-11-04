@@ -87,7 +87,12 @@
         "watchlist_name_conflict",
         "analysis_run_not_found",
         "stored_selection_unreadable",
-        "unsupported_projection"
+        "unsupported_projection",
+        "not_authenticated",
+        "host_not_allowed",
+        "origin_not_allowed",
+        "endpoint_not_found",
+        "port_unavailable"
       ],
       "title": "FailureReasonCode",
       "type": "string"
@@ -194,7 +199,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The one JSON document written to standard output when a command with ``--json`` fails.\n\n``schema_version`` is this document's own lineage: it identifies a shape only within this schema\nand is independent of the ``schema_version`` of every success document. A consumer dispatches on\n``status`` and ``result`` first, then on ``analysis``. ``reason_code`` is stable; ``reason`` and\n``diagnostics[].reason`` are messages for people and carry no guarantee.",
+  "description": "The one JSON document a failure produces, for a command and for an API response.\n\nA command with ``--json`` writes it to standard output when it fails, and it is the body of every non-2xx API\nresponse.\n\n``schema_version`` is this document's own lineage: it identifies a shape only within this schema\nand is independent of the ``schema_version`` of every success document. A consumer dispatches on\n``status`` and ``result`` first, then on ``analysis``. ``reason_code`` is stable; ``reason`` and\n``diagnostics[].reason`` are messages for people and carry no guarantee.",
   "properties": {
     "analysis": {
       "anyOf": [
@@ -206,7 +211,7 @@
         }
       ],
       "default": null,
-      "description": "The analysis of a direct command; null otherwise.",
+      "description": "The analysis of a direct command; null for any other command and for an API response.",
       "title": "Analysis"
     },
     "database": {
@@ -239,7 +244,7 @@
         }
       ],
       "default": null,
-      "description": "The method of a direct command; null otherwise.",
+      "description": "The method of a direct command; null for any other command and for an API response.",
       "title": "Method"
     },
     "parameters": {
@@ -255,7 +260,7 @@
         }
       ],
       "default": null,
-      "description": "Set exactly when reason_code is invalid_parameter: the offending options (declared primary long spelling) and arguments (upper-case name); null otherwise.",
+      "description": "Set exactly when reason_code is invalid_parameter: the offending options (declared primary long spelling), command arguments (upper-case name) and API query or path parameters (their name); null otherwise.",
       "title": "Parameters"
     },
     "provider_check": {
@@ -300,8 +305,8 @@
       "type": "null"
     },
     "schema_version": {
-      "const": 10,
-      "default": 10,
+      "const": 11,
+      "default": 11,
       "title": "Schema Version",
       "type": "integer"
     },
@@ -323,7 +328,7 @@
         }
       ],
       "default": null,
-      "description": "The requested ticker of a direct command; null otherwise.",
+      "description": "The requested ticker of a direct command; null for any other command and for an API response.",
       "title": "Ticker"
     }
   },

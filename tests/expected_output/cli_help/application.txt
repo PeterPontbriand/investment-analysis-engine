@@ -7,6 +7,7 @@ refresh Execute every entry in a watchlist and, by default, persist
 each result.
 health Check that Yahoo and SEC EDGAR still answer in the shape the
 adapters read.
+serve Serve the read API on loopback until standard input closes.
 momentum Execute SMA crossover momentum analysis over daily historical
 market prices.
 graham-number Execute the Graham Number earnings-and-book-value screen.

@@ -42,8 +42,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.0 | [Plan and milestone changes](#api0--plan-and-milestone-changes) | Complete | 2026-10-30 |
 | API.1a | [Replay document projection](#api1a--replay-document-projection) | Complete | 2026-11-01 |
 | API.1b | [Application layer: reading](#api1b--application-layer-reading) | Complete | 2026-11-02 |
-| API.2a | [Versioned list documents](API_2_SLICE_PLAN.md#api2a--versioned-list-documents) | Next | |
-| API.2b | [`ian serve` and the read endpoints](#api2--ian-serve-and-the-read-endpoints) | Planned | |
+| API.2a | [Versioned list documents](API_2_SLICE_PLAN.md#api2a--versioned-list-documents) | Complete | 2026-11-03 |
+| API.2b | [`ian serve` and the read endpoints](#api2--ian-serve-and-the-read-endpoints) | Next | |
 | API.3 | [Application layer: actions](#api3--application-layer-actions) | Planned | |
 | API.4 | [Action endpoints and refresh jobs](#api4--action-endpoints-and-refresh-jobs) | Planned | |
 | API.5 | [Help content](#api5--help-content) | Planned | |
@@ -150,6 +150,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Scope:** the action endpoints, with the optional `as_of` and its echoed effective value on the
   direct-analysis and run endpoints; the job status and stop endpoints; their `openapi.json` entries
   and tests.
+- **Open question for API.4's slice plan:** whether two `ian serve` processes may run refresh jobs and writes against
+  the same database, and what the second one does. It is not decided here.
 - **Branch:** `feat/api-actions`.
 - **Detail:** ⚠ no slice plan yet
 

@@ -107,8 +107,9 @@ def strategy_document_json(document: BaseModel) -> str:
     """Return ``document`` as the text a strategy ``--json`` command writes.
 
     Keys are written in the model's field order, at every depth, so a document begins with the shared header and ends
-    with the shared tail. The other documents (failure, workspace, database) keep sorted keys through
-    :func:`~investment_analysis_engine.reporting.presentation.indented_json`.
+    with the shared tail. The failure and database documents keep sorted keys through
+    :func:`~investment_analysis_engine.reporting.presentation.indented_json`; the workspace documents are written by
+    the workspace commands as one line of JSON in field order.
     """
     return json.dumps(document.model_dump(mode="json"), indent=2, ensure_ascii=False, allow_nan=False)
 

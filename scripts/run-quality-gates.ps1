@@ -202,6 +202,7 @@ try {
     Invoke-Step -Name "check_doc_links" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_doc_links.py"))
     Invoke-Step -Name "check_sequence_tables" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_sequence_tables.py"))
     Invoke-Step -Name "check_package_dependencies" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_package_dependencies.py"))
+    Invoke-Step -Name "generate_openapi --check" -Executable "uv" -Arguments @("run", "--no-sync", "python", "-m", "scripts.generate_openapi", "--check")
     Invoke-Step -Name "ruff check" -Executable "uv" -Arguments @("run", "--no-sync", "ruff", "check", "--no-cache", ".")
     Invoke-Step -Name "ruff format" -Executable "uv" -Arguments @("run", "--no-sync", "ruff", "format", "--check", ".")
     Invoke-Step -Name "mypy" -Executable "uv" -Arguments @(

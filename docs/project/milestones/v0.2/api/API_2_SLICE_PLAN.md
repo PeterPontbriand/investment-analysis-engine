@@ -18,15 +18,15 @@ the local server and the read endpoints.
   - inside `/v1` a change only adds ([S4](#s4-the-v1-additions-rule-2026-11-03));
   - the managed quality gate, with the Python 3.14 second pass, after each slice, and the project owner's approval
     before the next slice starts.
-- **Where the history lives:** decisions S1 to S21 are in [Appendix A](#appendix-a-decision-records), approved by the
+- **Where the history lives:** decisions S1 to S44 are in [Appendix A](#appendix-a-decision-records), approved by the
   project owner on 2026-11-03.
 
 ## 2. Sequence and status
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| API.2a | [Versioned list documents and this plan](#api2a--versioned-list-documents) | Next | |
-| API.2b | [`ian serve` and the read endpoints](#api2b--ian-serve-and-the-read-endpoints) | Planned | |
+| API.2a | [Versioned list documents and this plan](#api2a--versioned-list-documents) | Complete | 2026-11-03 |
+| API.2b | [`ian serve` and the read endpoints](#api2b--ian-serve-and-the-read-endpoints) | Next | |
 
 ## 3. The slices
 
@@ -81,8 +81,8 @@ the local server and the read endpoints.
   - tests: every endpoint in process with no socket, an endpoint test parametrized over `STRATEGIES`, and the one
     socket test of [S21](#s21-one-socket-test-2026-11-03).
 - **Branch:** `feat/api-serve-read`.
-- **Detail:** ⚠ no slice plan yet. This plan owns its decisions; the slice plan of API.2b is written at the start of that
-  slice.
+- **Detail:** [Implementation record](#32-api2b-implementation-record). This plan owns its decisions, S22 to S44 among
+  them ([S22](#s22-this-plan-is-api2bs-slice-plan-2026-11-03)).
 
 ### 3.1 API.2a implementation record
 
@@ -159,6 +159,125 @@ Noticed for API.2b and later slices:
   [#204](https://github.com/PeterPontbriand/investment-analysis-engine/issues/204) stays open for Step 3.5's shared
   definitions.
 
+### 3.2 API.2b implementation record
+
+What changed, by area:
+
+- **`api` (new unit, layer 9):**
+  - `routes.py` holds the route table ([S41](#s41-one-route-table-2026-11-03)): each route's method, path, parameters
+    and the response model for each status code;
+  - `app.py` holds `create_app(...)`, which builds the Starlette application from that table, with the request checks as
+    its middleware and 404 and 405 answered as `endpoint_not_found` envelopes;
+  - `checks.py` holds the request checks in the order of [S30](#s30-the-order-of-the-request-checks-2026-11-03) and the
+    CORS headers of [S31](#s31-cors-headers-2026-11-03);
+  - `handlers.py` holds the synchronous endpoint handlers, the parameter checks and the error mapping through the core
+    classifier ([S40](#s40-synchronous-handlers-2026-11-03));
+  - `responses.py` holds the one serializer ([S39](#s39-one-serializer-2026-11-03)) and the status table of
+    [S14](#s14-errors-2026-11-03);
+  - `documents.py` holds the info, strategies and replay-text documents ([S38](#s38-the-api-only-documents-2026-11-03));
+  - `origins.py` holds the one parser of an origin ([S29](#s29---allow-origin-2026-11-03)).
+  - `api` imports exactly [S12](#s12-the-api-unit-2026-11-03)'s list, and no `utils`, `h11` or loop-specific API.
+- **`cli`:** `cli_serve.py` holds `ian serve` ([S25](#s25-the-socket-and-the-ready-line-2026-11-03),
+  [S26](#s26-stopping-2026-11-03), [S27](#s27-launch-failures-2026-11-03)); `cli_database_target.py` holds the shared
+  `--database-url` validation, which `cli_database.py` and `cli_serve.py` both call
+  ([S28](#s28-the---database-url-validation-is-shared-2026-11-03)); `cli.py` registers the command. `cli` moves to layer
+  10 and `api` is layer 9 in [Architecture §13](../../../ARCHITECTURE.md#13-module-boundaries).
+- **`application`:** `build_run_query` and `RunQueryNames` check the runs-list parameters in the caller's spelling, and
+  `declared_method_id` checks a `method_id` ([S33](#s33-one-check-of-the-runs-list-parameters-2026-11-03));
+  `get_watchlist_by_id`, and `get_watchlist` renamed `get_watchlist_by_name`
+  ([S36](#s36-watchlists-by-id-2026-11-03)). `cli_workspace.py` calls both and keeps its own `--analysis` alias resolution.
+- **`core`, `reporting`:** the five codes in `core/failure_codes.py` ([S27](#s27-launch-failures-2026-11-03)); the failure
+  envelope is version 11 with reworded descriptions ([S37](#s37-the-failure-envelope-is-version-11-2026-11-03)); the
+  `strategy_document_json` docstring now says what the workspace documents are.
+- **`schemas/`, `scripts/`:** `schemas/openapi.json` and `scripts/generate_openapi.py`, run in check mode by both gate
+  wrappers; every schema that embeds the failure code list or the failure envelope regenerated.
+- **Dependencies:** `starlette` and `uvicorn` in `dependencies`, `httpx` in the `dev` group; `uv.lock` updated. The
+  permission of 2026-10-30 ([contract A.2](API_CONTRACT_AND_SLICE_PLAN.md#a2-api-shape-and-dependencies-2026-10-30)) is
+  stated in the pull request.
+- **Docs:** `docs/user/API.md` (new) and its entry in `docs/user/README.md`; `docs/user/USAGE.md` (the failure document's
+  version and the headers sentence of [S43](#s43-response-headers-are-not-part-of-the-contract-2026-11-03)); Architecture
+  §13 and its read-operations paragraph; this plan and the contract's sequence tables and API.4 open question; the
+  `SWC_6C_STRATEGY_PINS_PLAN.md` row for SWC.7b, set to Complete on 2026-10-19 as the SWC contract records it.
+
+Deviations from the decisions as written:
+
+- **S33 needed `application` to import `analysis`.** The status check builds a `RunOutcome`, which `analysis` defines, so
+  Architecture §13 now lists `analysis` among `application`'s imports. The project owner approved this on 2026-11-03;
+  `application` stays at layer 8.
+- **S36 reads by ID without a new repository method.** `SQLiteWatchlistRepository` reads a watchlist by name only, so
+  `get_watchlist_by_id` finds the summary with that ID and then reads the watchlist by its name inside one connection. A
+  by-ID read in the repository would be one query; adding it changes `workspace`, which this slice does not touch.
+- **One edit outside the listed scope.** `scripts/strategy_conformance.py` lists `serve` in `NON_STRATEGY_COMMANDS`,
+  because test T7 requires every top-level command to be a strategy alias, a group or a listed non-strategy command. The
+  project owner approved it on 2026-11-03.
+- **The shared refresh-ID message.** The message of a malformed `refresh_id` is the CLI's, which names `runs list` and
+  `refresh`, because the CLI's messages may not change ([S33](#s33-one-check-of-the-runs-list-parameters-2026-11-03)).
+  The API gives it for a malformed `refresh_id` query parameter.
+- **Ordering inside S30.** A request that fails the `Host` check is answered without CORS headers, because the origin has
+  not been judged yet. Any `OPTIONS` request from an allowed origin is a preflight, with or without
+  `Access-Control-Request-Method`.
+
+User-visible changes:
+
+- A new command, `ian serve`, with `--port`, `--allow-origin` and `--database-url`, and its help text.
+- Five new failure reason codes, and `schema_version` 11 of the failure document. A program that dispatches on the
+  version reads the new value; no field was removed or retyped.
+- `schemas/failure.schema.json` and every schema that embeds the failure code list changed with it.
+- No other CLI output, message or exit code changed.
+
+Tests edited, and why:
+
+- Patch targets that moved with the `--database-url` validation ([S28](#s28-the---database-url-validation-is-shared-2026-11-03)):
+  `tests/test_cli_database.py`, `tests/test_cli_database_readiness.py`, `tests/test_command_validation_failures.py` and
+  `tests/_workspace_command_output.py` patch `settings` and `is_windows` in `cli_database_target`, where they are now read.
+  No assertion changed.
+- `tests/application/test_watchlists.py`: `get_watchlist` is `get_watchlist_by_name` ([S36](#s36-watchlists-by-id-2026-11-03)).
+- Tests that pin the failure document's version ([S37](#s37-the-failure-envelope-is-version-11-2026-11-03)):
+  `tests/reporting/test_failure_envelope.py` (the version, one pinned document and the name of the version test),
+  `tests/test_cli_failure_envelope.py`, `tests/test_command_validation_failures.py`,
+  `tests/test_existing_strategy_failure_output.py` and `tests/test_cli_database_readiness.py` read 11. Their strategy
+  and database-report versions are unchanged.
+- `tests/reporting/test_failure_envelope.py`: the test that every code can be returned lists the five codes that are
+  written directly, because no exception declares them.
+- `tests/scripts/test_generate_schemas.py`: the file-set check ignores `openapi.json`, which has its own generator.
+- `tests/specimen/specimen-test.schema.json`: regenerated, because it embeds the failure code list.
+- `tests/test_strategy_import_layering.py`: `api.documents` and `api.routes` join the listed importers of the composition
+  root, as [S12](#s12-the-api-unit-2026-11-03) allows `api` to import `strategy_wiring`.
+- `tests/_cli_help_output.py` and `tests/test_cli_help_output.py`: `serve` is a help target and appears in the documented
+  command order; `tests/expected_output/cli_help/application.txt` gains its line and `serve.txt` is new.
+- No other test was edited.
+
+New tests:
+
+- `tests/api/test_request_checks.py`: the Host check, the Origin check, the preflight, the token, and each in order,
+  including 401 for an unknown path without a token and 404 or 405 only with one; the CORS headers.
+- `tests/api/test_endpoints.py`: every endpoint in process, an empty store, missing resources, and a test parametrized over
+  `STRATEGIES` reading a saved run of each strategy through `/v1/runs/{analysis_run_id}` and `/text` in each mode, compared
+  with the command line.
+- `tests/api/test_parameters.py`: each case of [S34](#s34-parameters-that-are-rejected-2026-11-03), the defaults and the
+  missing `mode` of [S35](#s35-defaults-and-the-required-mode-2026-11-03), and the runs-list checks in API spelling.
+- `tests/api/test_errors.py`: every reason code reaching its status, the fixed `execution_error` with its traceback in the
+  log and no token in it, and a database that is not ready.
+- `tests/api/test_routes_and_description.py`: the application serves exactly the route table; `schemas/openapi.json` is
+  current and the check fails when it is stale or missing; the origin parser.
+- `tests/test_cli_serve.py`: each launch failure of [S27](#s27-launch-failures-2026-11-03), with `port_unavailable` from a
+  socket the test holds, the [S29](#s29---allow-origin-2026-11-03) cases, and the one socket test of
+  [S21](#s21-one-socket-test-2026-11-03).
+- `tests/application/test_watchlists.py`: both watchlist reads and the not-found message.
+- The CLI's runs-list checks are covered by the existing `tests/test_command_validation_failures.py` cases, which pass
+  unchanged.
+
+Noticed for later slices:
+
+- Starlette's test client warns that `httpx` is deprecated there in favour of `httpx2`. `httpx` is the approved
+  dependency, so the warning is left; a change of test client would need a new dependency permission.
+- Ctrl+C shutdown is not covered by a test: the socket test stops the process by closing standard input, which is the
+  documented way, and sending an interrupt to a child is not portable on Windows.
+- `ian serve` initializes a proven-empty database at launch, as every other command does on first use
+  (`ensure_database_ready`); it does not migrate an older one.
+- API.4's slice plan must decide whether two `ian serve` processes may run refresh jobs and writes against one database
+  ([contract](API_CONTRACT_AND_SLICE_PLAN.md#api4--action-endpoints-and-refresh-jobs)).
+
 ## 4. Scope limits and acceptance criteria
 
 - API.2a changes no CLI output except the two `--json` list documents and their help texts: every text output, every
@@ -190,7 +309,8 @@ new runs is a method change under its `method_version`, which is also allowed
 
 ## Appendix A: Decision records
 
-S1 to S21 were approved by the project owner on 2026-11-03.
+S1 to S44 were approved by the project owner on 2026-11-03. S22 to S44 were approved after the API.2a merge, for API.2b;
+where one differs from S1 to S21 it says so, and the later decision wins.
 
 ### S1 API.2 is split (2026-11-03)
 
@@ -240,6 +360,7 @@ The rule applies to every published document, CLI `--json` included.
 - Clients must tolerate unknown fields, unknown values and a higher `schema_version`. Published schemas stay exact
   (constant versions, `additionalProperties` false) and describe this engine version; clients must not validate strictly
   against them.
+- Response headers are outside the rule: [S43](#s43-response-headers-are-not-part-of-the-contract-2026-11-03).
 
 ### S5 The client reference is docs/user/API.md (2026-11-03)
 
@@ -282,7 +403,8 @@ allowed origin; a request whose `Origin` is not allowed is rejected. The GUI pas
 
 ### S11 Launch and the application context (2026-11-03)
 
-`ian serve` has the options `--port`, `--allow-origin` and `--database-url` (as the workspace commands have). Settings
+`ian serve` has the options `--port`, `--allow-origin` and `--database-url` (as `ian db status` and `ian db upgrade` have
+it; [S28](#s28-the---database-url-validation-is-shared-2026-11-03)). Settings
 are read once at launch into one `ApplicationContext`. Database readiness is checked at launch as well as per operation;
 a database that is not ready fails the launch with the failure envelope on standard output and exit 1.
 
@@ -324,8 +446,8 @@ read operation in `application`. Query parameters are named after document field
 | `GET /v1/watchlists` | the watchlist-list document |
 | `GET /v1/watchlists/{watchlist_id}` | the watchlist document |
 | `GET /v1/runs?ticker&method_id&status&refresh_id&limit&offset` | the runs-list document |
-| `GET /v1/runs/{run_id}` | the strategy's document |
-| `GET /v1/runs/{run_id}/text?mode=concise\|details\|diagnostics` | [S17](#s17-the-replay-text-endpoint-returns-json-2026-11-03) |
+| `GET /v1/runs/{analysis_run_id}` | the strategy's document |
+| `GET /v1/runs/{analysis_run_id}/text?mode=concise\|details\|diagnostics` | [S17](#s17-the-replay-text-endpoint-returns-json-2026-11-03) |
 | `GET /v1/refreshes/{refresh_id}/compare` | the runs-compare document |
 
 ### S16 The strategies document (2026-11-03)
@@ -358,3 +480,161 @@ status code and compared in the gate. It is not served at runtime.
 One test opens a socket: it starts `ian serve` on loopback port 0, reads the ready line, makes one authenticated request,
 closes standard input and checks that the process exits. Every endpoint test stays in process with no socket. If it hits
 `WinError 10055`, that is a new occurrence for issue #116.
+
+### S22 This plan is API.2b's slice plan (2026-11-03)
+
+This document is API.2b's slice plan; there is no separate one. S22 to S44 are recorded here, and
+[§3.2](#32-api2b-implementation-record) records what API.2b did. Both sequence tables, this one and the contract's, show
+API.2a as Complete on 2026-11-03 and API.2b as Next; API.2b becomes Complete only after it merges.
+
+### S23 API.2b is one slice (2026-11-03)
+
+API.2b is not split further.
+
+### S24 Dependencies (2026-11-03)
+
+Plain `uvicorn` (no `[standard]` extras) and `starlette` are runtime dependencies, and `httpx` is a development and test
+dependency. uvicorn's `loop` and `http` settings stay at their default, `auto`. Nothing in `api` imports `h11`, a
+loop-specific `asyncio` API or anything else that depends on the plain stack, so moving to `uvicorn[standard]` later is a
+dependency change only. The permission to edit `pyproject.toml` and `uv.lock` for exactly these three was given on
+2026-10-30 ([contract A.2](API_CONTRACT_AND_SLICE_PLAN.md#a2-api-shape-and-dependencies-2026-10-30)); API.2b's pull
+request states it. No other dependency is added.
+
+### S25 The socket and the ready line (2026-11-03)
+
+`ian serve` binds its own socket on `127.0.0.1` at `--port` (default 0), reads the actual port from the socket and hands
+the socket to uvicorn. It writes the ready line of [S7](#s7-the-token-and-the-ready-line-2026-11-03) only after uvicorn
+reports that startup is complete. There is one process, no workers and no reload, and `server_header` is off.
+
+### S26 Stopping (2026-11-03)
+
+A thread watching standard input asks uvicorn to stop when standard input reaches end of file. A request in flight gets a
+5 second graceful timeout. The exit code is 0 after standard input closes and after Ctrl+C.
+
+### S27 Launch failures (2026-11-03)
+
+Every launch failure writes the failure envelope to standard output and exits 1:
+
+- a `--port` outside 0 to 65535, or a malformed `--allow-origin`, is `invalid_parameter`, and `parameters` names the
+  option;
+- a database that is not ready is its `database_*` code ([S11](#s11-launch-and-the-application-context-2026-11-03));
+- a bind failure, whether the port is in use or not permitted, is the new code `port_unavailable`.
+
+The new codes are therefore `not_authenticated`, `host_not_allowed`, `origin_not_allowed`, `endpoint_not_found` and
+`port_unavailable`, all with status `error`. This amends [S14](#s14-errors-2026-11-03), which listed the first four.
+`port_unavailable` occurs only at launch, so it has no HTTP status.
+
+### S28 The `--database-url` validation is shared (2026-11-03)
+
+`--database-url` on `ian serve` is validated exactly as `ian db status` validates it, including the anchoring of a
+relative path and the rejection of an in-memory target. That validation moves out of `cli_database.py` into one helper
+that both commands call, and `ian db` behaviour and output do not change.
+[S11](#s11-launch-and-the-application-context-2026-11-03) is corrected: the option matches `ian db status` and
+`ian db upgrade`, not the workspace commands.
+
+### S29 `--allow-origin` (2026-11-03)
+
+`--allow-origin` accepts exactly `scheme://host` or `scheme://host:port`, with any scheme (so `tauri://localhost` and
+`http://tauri.localhost` work), no path and no trailing slash. `*` and `null` are rejected as `invalid_parameter`.
+Comparison with a request's `Origin` is exact after lower-casing the scheme and the host.
+
+### S30 The order of the request checks (2026-11-03)
+
+Request checks run in this order: the `Host` header ([S8](#s8-the-host-check-2026-11-03)), then `Origin`
+([S9](#s9-cors-2026-11-03)), then a preflight answer for an allowed origin, then the bearer token, then routing. Without a
+valid token every path, including an unknown one, gets 401 `not_authenticated`; `endpoint_not_found` (404 or 405) is
+returned only to an authenticated caller. The token is `secrets.token_urlsafe(32)` and is compared with
+`secrets.compare_digest`.
+
+### S31 CORS headers (2026-11-03)
+
+For an allowed origin, responses carry `Access-Control-Allow-Origin` with that origin echoed, and `Vary: Origin`. A
+preflight answer allows method `GET` only and header `Authorization` only, with `Access-Control-Max-Age: 600`.
+`Access-Control-Expose-Headers: WWW-Authenticate` is set, and `Access-Control-Allow-Credentials` never is. A request with no
+`Origin` header passes the origin check.
+
+### S32 Path parameters are named after document fields (2026-11-03)
+
+The paths are `/v1/runs/{analysis_run_id}`, `/v1/runs/{analysis_run_id}/text`, `/v1/watchlists/{watchlist_id}` and
+`/v1/refreshes/{refresh_id}/compare`. This amends the table of [S15](#s15-endpoint-paths-and-names-2026-11-03), which is
+updated to match.
+
+### S33 One check of the runs-list parameters (2026-11-03)
+
+The runs-list parameter checks (an empty ticker, ticker normalization, the method, the status, the refresh ID, and the
+limit and offset bounds) move out of `cli_workspace.py` into one function in `application`. It takes the raw values and the
+caller's spelling of each parameter, and returns a `RunQuery` or raises `InvalidParameterError` whose message and
+`parameters` use the caller's spelling. The CLI passes `--ticker`, `--analysis`, `--status`, `--refresh-id`, `--limit` and
+`--offset`, and keeps resolving `--analysis` aliases to a method ID; the API passes `ticker`, `method_id`, `status`,
+`refresh_id`, `limit` and `offset`. CLI messages, exit codes and output do not change. As a result `api` imports exactly
+[S12](#s12-the-api-unit-2026-11-03)'s list.
+
+The function turns `status` into a `RunOutcome`, which is defined in `analysis`. `application` therefore imports `analysis`,
+an import the Architecture §13 table did not list. The project owner approved the new edge on 2026-11-03: `application`
+imports `RunOutcome` from `investment_analysis_engine.analysis.run_models`, its defining module, and stays at layer 8.
+
+### S34 Parameters that are rejected (2026-11-03)
+
+Each of these is `invalid_parameter` (400) and names the parameter: an unknown `method_id`; an unknown query parameter name;
+a query parameter given more than once; a malformed UUID in a path (not 404).
+
+### S35 Defaults and the required mode (2026-11-03)
+
+On `GET /v1/runs`, `limit` defaults to 20 and `offset` to 0, as on the CLI. On `GET /v1/runs/{analysis_run_id}/text`, `mode`
+is required, with no default.
+
+### S36 Watchlists by ID (2026-11-03)
+
+`application/watchlists.py` gains `get_watchlist_by_id(context, watchlist_id)`, and `get_watchlist` is renamed
+`get_watchlist_by_name`, with every caller updated. A missing ID raises `WatchlistNotFoundError` with the message
+"No watchlist with ID <id> exists."
+
+### S37 The failure envelope is version 11 (2026-11-03)
+
+`FailureEnvelope.schema_version` goes from 10 to 11. Its docstrings and the descriptions of `analysis`, `method`, `ticker`
+and `parameters` are reworded to cover an API response as well as a command: `parameters` names an option by its long
+spelling, a command argument by its upper-case name, or an API query or path parameter by its name.
+`schemas/failure.schema.json` is regenerated, and the version is updated wherever the docs state it.
+
+### S38 The API-only documents (2026-11-03)
+
+The info ([S18](#s18-the-info-document-2026-11-03)), strategies ([S16](#s16-the-strategies-document-2026-11-03)) and
+replay-text ([S17](#s17-the-replay-text-endpoint-returns-json-2026-11-03)) document models live in `api` and are built
+there. They are published only as components of `schemas/openapi.json`, not as separate `schemas/*.schema.json` files.
+
+### S39 One serializer (2026-11-03)
+
+Every API response body, success or failure, uses one serializer: `model_dump(mode="json")` in field order, compact,
+UTF-8, `allow_nan=False`, with `Content-Type: application/json` and `Cache-Control: no-store`. Document shapes are the
+CLI's; the CLI's whitespace and key order are not carried over. Tests compare parsed JSON, not text.
+
+### S40 Synchronous handlers (2026-11-03)
+
+Endpoint handlers are synchronous (`def`) and run in Starlette's thread pool. Each operation opens its own connection, as
+the `application` operations already do.
+
+### S41 One route table (2026-11-03)
+
+One declared route table in `api` lists each route's method, path, parameters and response model for each status code.
+`create_app(...)` and `scripts/generate_openapi.py` both read it, and a test checks that the application serves exactly the
+routes in the table. `scripts/generate_openapi.py` follows `scripts/generate_schemas.py`: a write mode, and a check mode
+that fails when `schemas/openapi.json` is missing or out of date. Both gate wrappers run the check.
+
+### S42 Logging (2026-11-03)
+
+`ian serve` sets up the project's file logging as the other commands do. uvicorn gets `log_config=None`, so its loggers
+propagate to the file log, and `access_log=False`. `api` configures no logging and imports no `utils`. An unexpected
+exception is logged with its traceback and answered with the fixed-message `execution_error` of
+[S14](#s14-errors-2026-11-03). The token never appears in any log.
+
+### S43 Response headers are not part of the contract (2026-11-03)
+
+Response headers are not part of the contract, except `Content-Type` and `WWW-Authenticate`; they may change within `/v1`.
+This is added to the additions rule in `docs/user/USAGE.md` and to `docs/user/API.md`, and is cross-referenced from
+[S4](#s4-the-v1-additions-rule-2026-11-03).
+
+### S44 No client is named in the API reference (2026-11-03)
+
+No path, field, document, reason code or text in `docs/user/API.md` names a particular client. It speaks of "a client", and
+notes that a client must load its pages from an origin other than `null` (for example a custom scheme or `localhost`),
+because `null` is never allowed. Plan text may still say the desktop application is the first client.
