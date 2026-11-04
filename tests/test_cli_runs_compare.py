@@ -378,7 +378,10 @@ def test_a_malformed_refresh_id_is_an_invalid_parameter() -> None:
     code, out, _err = _compare("not-a-uuid", "--json")
 
     assert code == 1
-    assert json.loads(out)["reason_code"] == "invalid_parameter"
+    envelope = json.loads(out)
+    assert envelope["reason_code"] == "invalid_parameter"
+    assert envelope["reason"] == "REFRESH_ID 'not-a-uuid' is not a valid refresh ID."
+    assert envelope["parameters"] == ["REFRESH_ID"]
 
 
 # Runs the table cannot read -------------------------------------------------------------------------------------

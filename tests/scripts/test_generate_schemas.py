@@ -17,7 +17,8 @@ def test_published_schemas_are_current() -> None:
 
 def test_every_document_has_a_schema_file_and_no_other_file_is_published() -> None:
     names = {name for name, _model in DOCUMENTS}
-    assert {path.name for path in SCHEMA_DIRECTORY.glob("*.json")} == names
+    # ``openapi.json`` is the API description, generated and checked by scripts/generate_openapi.py.
+    assert {path.name for path in SCHEMA_DIRECTORY.glob("*.json")} - {"openapi.json"} == names
 
 
 def test_schema_text_uses_sorted_keys_two_space_indent_and_a_trailing_line_feed() -> None:

@@ -50,6 +50,11 @@ class FailureReasonCode(StrEnum):
     ANALYSIS_RUN_NOT_FOUND = "analysis_run_not_found"
     STORED_SELECTION_UNREADABLE = "stored_selection_unreadable"
     UNSUPPORTED_PROJECTION = "unsupported_projection"
+    NOT_AUTHENTICATED = "not_authenticated"
+    HOST_NOT_ALLOWED = "host_not_allowed"
+    ORIGIN_NOT_ALLOWED = "origin_not_allowed"
+    ENDPOINT_NOT_FOUND = "endpoint_not_found"
+    PORT_UNAVAILABLE = "port_unavailable"
 
 
 FailureStatus = Literal["error", "input_unavailable"]

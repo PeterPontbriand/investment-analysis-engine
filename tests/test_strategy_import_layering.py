@@ -41,6 +41,8 @@ _ROOT_IMPORTERS = frozenset(
         "investment_analysis_engine.cli_workspace",
         "investment_analysis_engine.application.runs",
         "investment_analysis_engine.application.watchlists",
+        "investment_analysis_engine.api.documents",
+        "investment_analysis_engine.api.routes",
     }
 )
 # The evaluation tier pairs each strategy's fixture composition with its core bundle. It may import the root

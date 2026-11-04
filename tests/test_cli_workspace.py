@@ -697,8 +697,7 @@ def test_runs_list_rejects_an_invalid_ticker_or_refresh_id_as_a_usage_error() ->
     result = runner.invoke(app, ["runs", "list", "--refresh-id", "not-a-uuid"])
     assert result.exit_code == 1
     output = normalize_cli_output(result.output)
-    assert "not a shortened or partial value" in output
-    assert "--refresh-id" in output
+    assert "--refresh-id 'not-a-uuid' is not a valid refresh ID." in output
 
 
 def test_runs_list_json_and_text_render_real_persisted_summaries(isolated_cli_settings: ProjectSettings) -> None:

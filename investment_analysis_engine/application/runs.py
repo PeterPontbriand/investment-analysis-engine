@@ -1,14 +1,19 @@
 """The Analysis Run read operations: list, replay and compare."""
 
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
 from uuid import UUID
 
 from pydantic import BaseModel
 
+from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
+from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.reporting.replay_inputs import ReplayOptions, TextPresentationMode
 from investment_analysis_engine.strategy_wiring import (
+    BY_METHOD_ID,
     DOCUMENTS_BY_KEY,
     EVIDENCE_BY_KEY,
     REPLAYS_BY_KEY,
@@ -17,11 +22,14 @@ from investment_analysis_engine.strategy_wiring import (
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.runs import (
+    RUN_QUERY_MAX_LIMIT,
+    RUN_QUERY_MIN_LIMIT,
     AnalysisRun,
     AnalysisRunNotFoundError,
     RunPage,
     RunQuery,
 )
+from investment_analysis_engine.workspace.watchlists import normalize_ticker
 from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
 from investment_analysis_engine.workspace_documents.runs_compare import (
     CompareColumn,
@@ -31,6 +39,100 @@ from investment_analysis_engine.workspace_documents.runs_compare import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class RunQueryNames:
+    """How a caller spells each runs-list parameter, so a rejection names the parameter the caller used."""
+
+    ticker: str
+    method: str
+    status: str
+    refresh_id: str
+    limit: str
+    offset: str
+
+
+def declared_method_id(value: str, *, name: str) -> str:
+    """Return ``value`` when it is the ``method_id`` of a declared strategy.
+
+    Raises:
+        InvalidParameterError: If no declared strategy has that method identifier; ``name`` is the caller's
+            spelling of the parameter.
+    """
+    if value not in BY_METHOD_ID:
+        allowed = ", ".join(BY_METHOD_ID)
+        raise InvalidParameterError(f"{name} must be one of: {allowed}.", parameters=(name,))
+    return value
+
+
+def parse_refresh_id(value: str, *, name: str) -> UUID:
+    """Return ``value`` as a refresh ID.
+
+    Raises:
+        InvalidParameterError: If ``value`` is not a UUID; ``name`` is the caller's spelling of the parameter.
+    """
+    try:
+        return UUID(value)
+    except ValueError as exc:
+        raise InvalidParameterError(f"{name} {value!r} is not a valid refresh ID.", parameters=(name,)) from exc
+
+
+def build_run_query(  # noqa: PLR0913
+    *,
+    names: RunQueryNames,
+    resolve_method: Callable[[str], str],
+    ticker: str | None,
+    method: str | None,
+    status: str | None,
+    refresh_id: str | None,
+    limit: int,
+    offset: int,
+) -> RunQuery:
+    """Check the raw values of a runs-list request, in the order the parameters are listed, and build the query.
+
+    Args:
+        names: The caller's spelling of each parameter, used in every message and in ``parameters``.
+        resolve_method: Maps the caller's raw method value to a method identifier, raising
+            :class:`InvalidParameterError` for one it does not accept.
+        ticker: The raw ticker filter, or ``None``.
+        method: The raw method filter, or ``None``.
+        status: The raw outcome filter, or ``None``.
+        refresh_id: The raw refresh ID filter, or ``None``.
+        limit: The row limit.
+        offset: The number of rows to skip.
+
+    Raises:
+        InvalidParameterError: If any value is rejected; the first rejected parameter is reported.
+    """
+    if ticker is not None and not ticker.strip():
+        raise InvalidParameterError(f"{names.ticker} must not be empty.", parameters=(names.ticker,))
+    method_id = None if method is None else resolve_method(method)
+    outcome = None
+    if status is not None:
+        try:
+            outcome = RunOutcome(status)
+        except ValueError as exc:
+            allowed = ", ".join(item.value for item in RunOutcome)
+            raise InvalidParameterError(
+                f"{names.status} must be one of: {allowed}.", parameters=(names.status,)
+            ) from exc
+    refresh_batch = None if refresh_id is None else parse_refresh_id(refresh_id, name=names.refresh_id)
+    if not RUN_QUERY_MIN_LIMIT <= limit <= RUN_QUERY_MAX_LIMIT:
+        raise InvalidParameterError(
+            f"{names.limit} must be between {RUN_QUERY_MIN_LIMIT} and {RUN_QUERY_MAX_LIMIT}.",
+            parameters=(names.limit,),
+        )
+    if offset < 0:
+        raise InvalidParameterError(f"{names.offset} must be 0 or greater.", parameters=(names.offset,))
+    return RunQuery(
+        ticker=None if ticker is None else normalize_ticker(ticker),
+        method_id=method_id,
+        status=outcome,
+        refresh_id=refresh_batch,
+        limit=limit,
+        offset=offset,
+    )
 
 
 def _compare_columns() -> tuple[CompareColumn, ...]:
@@ -119,4 +221,13 @@ def compare_refresh_runs(context: ApplicationContext, refresh_id: UUID) -> RunsC
     return build_runs_compare(refresh_id, stored, _compare_columns())
 
 
-__all__ = ["compare_refresh_runs", "list_runs", "replay_run_document", "replay_run_text"]
+__all__ = [
+    "RunQueryNames",
+    "build_run_query",
+    "compare_refresh_runs",
+    "declared_method_id",
+    "list_runs",
+    "parse_refresh_id",
+    "replay_run_document",
+    "replay_run_text",
+]

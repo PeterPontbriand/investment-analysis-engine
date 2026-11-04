@@ -1,5 +1,7 @@
 """The watchlist read operations."""
 
+from uuid import UUID
+
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
 from investment_analysis_engine.core.strategy_errors import find
@@ -27,7 +29,7 @@ def list_watchlists(context: ApplicationContext) -> tuple[WatchlistSummary, ...]
         return watchlist_repository(database).list()
 
 
-def get_watchlist(context: ApplicationContext, name: str) -> Watchlist:
+def get_watchlist_by_name(context: ApplicationContext, name: str) -> Watchlist:
     """Return the watchlist named ``name``.
 
     Raises:
@@ -40,4 +42,17 @@ def get_watchlist(context: ApplicationContext, name: str) -> Watchlist:
     return watchlist
 
 
-__all__ = ["get_watchlist", "list_watchlists", "watchlist_repository"]
+def get_watchlist_by_id(context: ApplicationContext, watchlist_id: UUID) -> Watchlist:
+    """Return the watchlist with ID ``watchlist_id``.
+
+    Raises:
+        WatchlistNotFoundError: If no watchlist has that ID.
+    """
+    with open_database(context) as database:
+        watchlist = watchlist_repository(database).get_by_id(watchlist_id)
+    if watchlist is None:
+        raise WatchlistNotFoundError(f"No watchlist with ID {watchlist_id} exists.")
+    return watchlist
+
+
+__all__ = ["get_watchlist_by_id", "get_watchlist_by_name", "list_watchlists", "watchlist_repository"]

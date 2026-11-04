@@ -22,7 +22,8 @@ def target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Select disposable storage without touching operational settings."""
     path = tmp_path / "nested" / "selected.sqlite3"
     monkeypatch.setattr(
-        "investment_analysis_engine.cli_database.settings", ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
+        "investment_analysis_engine.cli_database_target.settings",
+        ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"),
     )
     return path
 
@@ -259,7 +260,7 @@ def test_relative_override_resolves_against_the_current_folder(tmp_path: Path, m
     data = tmp_path / "data"
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
-    monkeypatch.setattr("investment_analysis_engine.cli_database.settings", ProjectSettings(data_dir=data))
+    monkeypatch.setattr("investment_analysis_engine.cli_database_target.settings", ProjectSettings(data_dir=data))
     monkeypatch.chdir(elsewhere)
     target = elsewhere / "nested" / "selected % café.sqlite3"
     result = CliRunner().invoke(
@@ -276,7 +277,7 @@ def test_a_partly_anchored_windows_path_is_rejected_before_any_settings_are_buil
     target: Path, command: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Runs on every operating system: the Windows rule is switched on for the ``--database-url`` value only."""
-    monkeypatch.setattr("investment_analysis_engine.cli_database.is_windows", lambda: True)
+    monkeypatch.setattr("investment_analysis_engine.cli_database_target.is_windows", lambda: True)
 
     result = CliRunner().invoke(app, ["db", command, "--database-url", "sqlite:////e/ir8-probe/x.sqlite3"])
 

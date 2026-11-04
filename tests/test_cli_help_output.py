@@ -32,7 +32,7 @@ def test_every_declared_strategy_has_a_stored_command_help_snapshot() -> None:
 
 def test_application_help_lists_the_commands_in_the_documented_order() -> None:
     """The strategy commands follow ``refresh`` and ``health``, in declaration order, before ``evaluate``."""
-    expected = ["refresh", "health", "momentum", "graham-number", "graham-growth", "fcf-growth", "evaluate"]
+    expected = ["refresh", "health", "serve", "momentum", "graham-number", "graham-growth", "fcf-growth", "evaluate"]
     expected += ["watchlist", "runs"]
     lines = render_help("").decode("utf-8").splitlines()
     assert [line.split()[0] for line in lines if line.split()[0] in expected] == expected

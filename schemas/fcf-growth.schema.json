@@ -859,7 +859,12 @@
         "watchlist_name_conflict",
         "analysis_run_not_found",
         "stored_selection_unreadable",
-        "unsupported_projection"
+        "unsupported_projection",
+        "not_authenticated",
+        "host_not_allowed",
+        "origin_not_allowed",
+        "endpoint_not_found",
+        "port_unavailable"
       ],
       "title": "FailureReasonCode",
       "type": "string"
