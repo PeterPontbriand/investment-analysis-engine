@@ -228,6 +228,26 @@ Financial cache bypass is available through `--no-cache` on both Graham commands
 
 JSON intentionally retains stable machine identifiers such as snake_case field names where those identifiers are part of the programmatic contract.
 
+#### What may change in the JSON output
+
+The same rule covers every published JSON document, whether a command writes it with `--json` or a later interface serves it. `runs list --json` and `watchlist list --json` each print one versioned object, with the items under `items`.
+
+- **Additions, which keep a document's version path:**
+  - a new endpoint or optional request parameter;
+  - a new document field;
+  - a new value of an open vocabulary: a `status`, a run outcome, a calculation status, a `reason_code`, a warning code or a `method_id`;
+  - a new strategy;
+  - a `schema_version` increase made only for an addition;
+  - a changed calculation for new runs, recorded under its `method_version`.
+- **Breaking changes, which need a new version path (`/v2` for the API):**
+  - removing, renaming or retyping a field;
+  - a nullable field becoming non-null, or the reverse;
+  - changing what an existing value means;
+  - a new required request parameter, or a changed default;
+  - a different HTTP status for an existing condition.
+
+A program that reads this output must tolerate unknown fields, unknown values and a higher `schema_version`. The published files in `schemas/` are exact (each `schema_version` is a constant and no unknown key is allowed) and describe this engine version, so validate against them in tests, not against the output of a newer engine in production.
+
 ## Historical / point-in-time analysis
 
 Where supported:

@@ -79,7 +79,13 @@ uv run ian watchlist list
 uv run ian watchlist list --json
 ```
 
-`watchlist list --json` prints one JSON array, described by `schemas/watchlist-list.schema.json`; it has no `schema_version`. Each `created_at` and `updated_at` is written with its UTC offset, as `+00:00` (`updated_at` is `null` until the watchlist is first changed). An empty store prints `[]`.
+`watchlist list --json` prints one JSON object, described by `schemas/watchlist-list.schema.json`. Its keys are `schema_version` (currently `1`) and `items`, one entry per watchlist; the list is not paged. Each `created_at` and `updated_at` is written with its UTC offset, as `+00:00` (`updated_at` is `null` until the watchlist is first changed).
+
+```json
+{"schema_version": 1, "items": [{"watchlist_id": "5d0c...", "display_name": "Core Holdings", "entry_count": 4, "created_at": "2026-09-19T14:00:02+00:00", "updated_at": null}]}
+```
+
+An empty store prints `{"schema_version": 1, "items": []}`. Before this object existed the command printed the bare array of items, so a program that read the array reads `items` instead.
 
 ### Adding, removing, and comparing entries
 
@@ -290,7 +296,13 @@ uv run ian runs list --refresh-id 7c1a...
 uv run ian runs list --json
 ```
 
-`runs list --json` prints one JSON array, described by `schemas/runs-list.schema.json`; it has no `schema_version`. Each `completed_at` is written with its UTC offset, as `+00:00` (it was written as `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
+`runs list --json` prints one JSON object, described by `schemas/runs-list.schema.json`. Its keys are `schema_version` (currently `1`), `has_more` and `items`, one entry per run on the page. `has_more` is `true` when at least one more run follows the page for the same filters, so a program pages with `--limit` and `--offset` until it is `false`. Each `completed_at` is written with its UTC offset, as `+00:00` (it was written as `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
+
+```json
+{"schema_version": 1, "has_more": false, "items": [{"analysis_run_id": "3f9b...", "ticker": "AAPL", "method_id": "sma_crossover", "status": "completed", "completed_at": "2026-09-19T14:02:11+00:00", "refresh_id": null}]}
+```
+
+A listing with no matching runs prints `{"schema_version": 1, "has_more": false, "items": []}`. Before this object existed the command printed the bare array of items, so a program that read the array reads `items` instead.
 
 Show one saved run in full, exactly as it was originally captured — replaying a saved run never re-fetches data or recalculates anything, so it always shows the same result it showed the moment it was saved, even if your configuration or a data provider has since changed:
 

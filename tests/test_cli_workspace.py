@@ -711,7 +711,7 @@ def test_runs_list_json_and_text_render_real_persisted_summaries(isolated_cli_se
 
     result = runner.invoke(app, ["runs", "list", "--json"])
     assert result.exit_code == 0
-    payload = json.loads(result.output)
+    payload = json.loads(result.output)["items"]
     assert len(payload) == 1
     assert payload[0]["analysis_run_id"] == str(run.analysis_run_id)
     assert payload[0]["ticker"] == "AAPL"
@@ -859,7 +859,7 @@ def test_runs_list_text_shows_the_alias_and_json_keeps_the_canonical_method_id(
     assert "momentum" in text.output
     assert "sma_crossover" not in text.output
 
-    payload = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
+    payload = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)["items"]
     assert payload[0]["method_id"] == "sma_crossover"
 
 

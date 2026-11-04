@@ -49,10 +49,26 @@
       "type": "object"
     }
   },
-  "description": "The whole ``watchlist list --json`` output: an array of watchlist summaries, in the order listed.\n\nThis document is unversioned: it has no ``schema_version``, and it is an array, so it has nowhere to put one.",
-  "items": {
-    "$ref": "#/$defs/WatchlistSummaryDocument"
+  "additionalProperties": false,
+  "description": "The whole ``watchlist list --json`` output: every watchlist's summary, in the order listed. It is not paged.",
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/WatchlistSummaryDocument"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
   },
+  "required": [
+    "items"
+  ],
   "title": "WatchlistListDocument",
-  "type": "array"
+  "type": "object"
 }

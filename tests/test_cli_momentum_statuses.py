@@ -124,7 +124,7 @@ def test_a_failed_quality_check_is_unavailable_with_a_text_reason_and_no_code() 
 def _stored(settings: ProjectSettings) -> list[RunOutcome]:
     database = SQLiteDatabase(settings)
     try:
-        return [item.status for item in SQLiteAnalysisRunRepository(database).list(RunQuery())]
+        return [item.status for item in SQLiteAnalysisRunRepository(database).list(RunQuery()).summaries]
     finally:
         database.close()
 
@@ -139,7 +139,7 @@ def test_save_run_stores_a_provider_failure_as_a_failed_run_with_its_code(
     assert "Saved Analysis Run:" in result.stderr
     database = SQLiteDatabase(isolated_cli_settings)
     try:
-        (summary,) = SQLiteAnalysisRunRepository(database).list(RunQuery())
+        (summary,) = SQLiteAnalysisRunRepository(database).list(RunQuery()).summaries
         run = SQLiteAnalysisRunRepository(database).get(summary.analysis_run_id)
     finally:
         database.close()
@@ -203,7 +203,9 @@ def test_refresh_stores_a_failed_run_with_its_batch_context_and_counts_every_out
     database = SQLiteDatabase(isolated_cli_settings)
     try:
         repository = SQLiteAnalysisRunRepository(database)
-        runs = {summary.ticker: repository.get(summary.analysis_run_id) for summary in repository.list(RunQuery())}
+        runs = {
+            summary.ticker: repository.get(summary.analysis_run_id) for summary in repository.list(RunQuery()).summaries
+        }
     finally:
         database.close()
     failed = runs["BAD"]

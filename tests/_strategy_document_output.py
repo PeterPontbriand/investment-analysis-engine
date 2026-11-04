@@ -381,7 +381,7 @@ def _replay(settings: ProjectSettings, run_id: str) -> CommandOutput:
 def _single_run(settings: ProjectSettings) -> AnalysisRun:
     """Return the one run the database holds."""
     repository = SQLiteAnalysisRunRepository(SQLiteDatabase(settings))
-    summaries = repository.list(RunQuery())
+    summaries = repository.list(RunQuery()).summaries
     assert len(summaries) == 1, summaries
     run = repository.get(summaries[0].analysis_run_id)
     assert run is not None

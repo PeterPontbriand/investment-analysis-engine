@@ -21,12 +21,14 @@ runner = CliRunner()
 _CREATED = datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC)
 
 
-def test_the_list_is_a_bare_array_and_an_empty_list_is_an_empty_array() -> None:
-    assert build_watchlist_list_document(()).model_dump(mode="json") == []
+def test_the_list_is_a_versioned_object_and_an_empty_list_has_no_items() -> None:
+    assert build_watchlist_list_document(()).model_dump(mode="json") == {"schema_version": 1, "items": []}
     summary = WatchlistSummary(
         watchlist_id=UUID(int=1), display_name="Core", entry_count=2, created_at=_CREATED, updated_at=None
     )
-    assert build_watchlist_list_document((summary,)).model_dump(mode="json") == [
+    document = build_watchlist_list_document((summary,)).model_dump(mode="json")
+    assert list(document) == ["schema_version", "items"]
+    assert document["items"] == [
         {
             "watchlist_id": "00000000-0000-0000-0000-000000000001",
             "display_name": "Core",
@@ -37,17 +39,21 @@ def test_the_list_is_a_bare_array_and_an_empty_list_is_an_empty_array() -> None:
     ]
 
 
-def test_the_document_is_published_for_the_command_and_states_it_is_unversioned() -> None:
+def test_the_document_is_published_for_the_command_as_a_version_one_object() -> None:
     assert JSON_DOCUMENTS["watchlist list"].model is WatchlistListDocument
     schema = json.loads(expected_schemas()["watchlist-list.schema.json"])
-    assert "unversioned" in schema["description"]
-    assert schema["type"] == "array"
+    assert "unversioned" not in schema["description"]
+    assert schema["type"] == "object"
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["schema_version"]["const"] == 1
+    assert set(schema["properties"]) == {"schema_version", "items"}
+    assert "has_more" not in schema["properties"]
 
 
 @pytest.mark.usefixtures("isolated_cli_settings")
 def test_the_command_output_validates_as_the_document_and_keeps_the_offset() -> None:
     empty = runner.invoke(app, ["watchlist", "list", "--json"])
-    assert (empty.exit_code, empty.stdout.strip()) == (0, "[]")
+    assert (empty.exit_code, empty.stdout.strip()) == (0, '{"schema_version": 1, "items": []}')
 
     for name in ("Core", "Other"):
         assert runner.invoke(app, ["watchlist", "create", name]).exit_code == 0
@@ -55,5 +61,5 @@ def test_the_command_output_validates_as_the_document_and_keeps_the_offset() -> 
 
     assert result.exit_code == 0, result.output
     document = WatchlistListDocument.model_validate_json(result.stdout)
-    assert {item.display_name for item in document.root} == {"Core", "Other"}
-    assert all(item["created_at"].endswith("+00:00") for item in json.loads(result.stdout))
+    assert {item.display_name for item in document.items} == {"Core", "Other"}
+    assert all(item["created_at"].endswith("+00:00") for item in json.loads(result.stdout)["items"])

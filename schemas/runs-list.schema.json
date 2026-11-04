@@ -63,10 +63,32 @@
       "type": "object"
     }
   },
-  "description": "The whole ``runs list --json`` output: an array of run summaries, most recently completed first.\n\nThis document is unversioned: it has no ``schema_version``.",
-  "items": {
-    "$ref": "#/$defs/RunSummaryDocument"
+  "additionalProperties": false,
+  "description": "The whole ``runs list --json`` output: one page of run summaries, most recently completed first.",
+  "properties": {
+    "has_more": {
+      "description": "True when at least one more run follows this page for the same filters.",
+      "title": "Has More",
+      "type": "boolean"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/RunSummaryDocument"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
   },
+  "required": [
+    "has_more",
+    "items"
+  ],
   "title": "RunsListDocument",
-  "type": "array"
+  "type": "object"
 }

@@ -28,7 +28,12 @@ from investment_analysis_engine.reporting.replay_inputs import TextPresentationM
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from investment_analysis_engine.workspace.runs import AnalysisRun, AnalysisRunNotFoundError, RunQuery
+from investment_analysis_engine.workspace.runs import (
+    AnalysisRun,
+    AnalysisRunNotFoundError,
+    RunPage,
+    RunQuery,
+)
 from investment_analysis_engine.workspace_documents.runs_compare import (
     DuplicateRefreshRunsError,
     no_runs_message,
@@ -74,7 +79,7 @@ def _unreadable_message(run_id: UUID) -> str:
 
 @pytest.mark.usefixtures("isolated_cli_settings")
 def test_an_empty_store_lists_no_runs(isolated_cli_settings: ProjectSettings) -> None:
-    assert list_runs(_context(isolated_cli_settings), RunQuery()) == ()
+    assert list_runs(_context(isolated_cli_settings), RunQuery()) == RunPage(summaries=(), has_more=False)
 
 
 def test_the_list_returns_the_stored_summaries_and_applies_the_query(isolated_cli_settings: ProjectSettings) -> None:
@@ -86,8 +91,21 @@ def test_the_list_returns_the_stored_summaries_and_applies_the_query(isolated_cl
     one = next(iter(runs.values()))
     filtered = list_runs(_context(isolated_cli_settings), RunQuery(method_id=one.method_id, limit=1))
 
-    assert {item.analysis_run_id for item in everything} == {run.analysis_run_id for run in runs.values()}
-    assert [item.analysis_run_id for item in filtered] == [one.analysis_run_id]
+    assert {item.analysis_run_id for item in everything.summaries} == {run.analysis_run_id for run in runs.values()}
+    assert [item.analysis_run_id for item in filtered.summaries] == [one.analysis_run_id]
+
+
+def test_the_page_and_has_more_pass_through_from_the_repository(isolated_cli_settings: ProjectSettings) -> None:
+    runs = list(_runs_by_alias().values())
+    for run in runs:
+        _store(isolated_cli_settings, run)
+    context = _context(isolated_cli_settings)
+
+    page = list_runs(context, RunQuery(limit=1))
+    last = list_runs(context, RunQuery(limit=1, offset=len(runs) - 1))
+
+    assert (len(page.summaries), page.has_more) == (1, len(runs) > 1)
+    assert (len(last.summaries), last.has_more) == (1, False)
 
 
 @pytest.mark.parametrize("alias", [descriptor.alias for descriptor in STRATEGIES])

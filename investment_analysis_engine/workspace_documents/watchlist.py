@@ -1,18 +1,17 @@
 """The watchlist documents: ``watchlist list``, ``show``, ``rename`` and ``delete`` with ``--json``.
 
-No document carries a ``schema_version``: they are unversioned. A change to a key, a type or a
-timestamp spelling is a listed output change in the slice that makes it, and the generated schema shows it.
+Only the watchlist list document carries a ``schema_version``; the others are unversioned. A change to a key, a type
+or a timestamp spelling is a listed output change in the slice that makes it, and the generated schema shows it.
 """
 
 from collections.abc import Sequence
-from typing import Self
+from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    RootModel,
     SerializerFunctionWrapHandler,
     field_serializer,
     model_validator,
@@ -93,13 +92,13 @@ class WatchlistSummaryDocument(BaseModel):
     updated_at: DocumentTimestamp | None = Field(description="Null until the watchlist is first changed.")
 
 
-class WatchlistListDocument(RootModel[tuple[WatchlistSummaryDocument, ...]]):
-    """The whole ``watchlist list --json`` output: an array of watchlist summaries, in the order listed.
+class WatchlistListDocument(BaseModel):
+    """The whole ``watchlist list --json`` output: every watchlist's summary, in the order listed. It is not paged."""
 
-    This document is unversioned: it has no ``schema_version``, and it is an array, so it has nowhere to put one.
-    """
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
-    model_config = ConfigDict(frozen=True)
+    schema_version: Literal[1] = 1
+    items: tuple[WatchlistSummaryDocument, ...]
 
 
 def build_watchlist_document(watchlist: Watchlist) -> WatchlistDocument:
@@ -119,7 +118,7 @@ def build_watchlist_document(watchlist: Watchlist) -> WatchlistDocument:
 def build_watchlist_list_document(summaries: Sequence[WatchlistSummary]) -> WatchlistListDocument:
     """Build the watchlist-list document from watchlist summaries, keeping their order."""
     return WatchlistListDocument(
-        tuple(
+        items=tuple(
             WatchlistSummaryDocument(
                 watchlist_id=item.watchlist_id,
                 display_name=item.display_name,

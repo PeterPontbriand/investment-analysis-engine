@@ -84,6 +84,7 @@ _STEPS: tuple[tuple[str, list[str]], ...] = (
     ("runs-list-json", ["runs", "list", "--json"]),
     ("runs-list-filtered", ["runs", "list", "--ticker", "AAPL", "--analysis", "momentum", "--status", "completed"]),
     ("runs-list-empty", ["runs", "list", "--ticker", "NONE"]),
+    ("runs-list-empty-json", ["runs", "list", "--ticker", "NONE", "--json"]),
     ("runs-show", ["runs", "show", "<run>"]),
     ("runs-show-details", ["runs", "show", "<run>", "--details"]),
     ("runs-show-diagnostics", ["runs", "show", "<run>", "--diagnostics"]),
@@ -226,7 +227,7 @@ def run_scenario() -> list[Step]:
             if name == "refresh-json":
                 refresh_id = json.loads(result.stdout)["refresh_id"]
             if name == "runs-list-json":
-                run_id = json.loads(result.stdout)[0]["analysis_run_id"]
+                run_id = json.loads(result.stdout)["items"][0]["analysis_run_id"]
             keep = name in _OFFSET_STEPS
             steps.append(
                 Step(

@@ -19,7 +19,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import SQLi
 from investment_analysis_engine.workspace.runs import (
     AnalysisRun,
     AnalysisRunNotFoundError,
-    AnalysisRunSummary,
+    RunPage,
     RunQuery,
 )
 from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
@@ -72,8 +72,8 @@ def _stored_run(context: ApplicationContext, run_id: UUID) -> AnalysisRun:
     return run
 
 
-def list_runs(context: ApplicationContext, query: RunQuery) -> tuple[AnalysisRunSummary, ...]:
-    """Return the run summaries matching ``query``, most recently completed first."""
+def list_runs(context: ApplicationContext, query: RunQuery) -> RunPage:
+    """Return the page of run summaries matching ``query``, most recently completed first, and whether more follow."""
     with open_database(context) as database:
         return SQLiteAnalysisRunRepository(database).list(query)
 

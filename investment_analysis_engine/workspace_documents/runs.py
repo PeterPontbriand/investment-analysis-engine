@@ -1,12 +1,10 @@
-"""The ``runs list --json`` document: one JSON array of run summaries.
-
-The document is unversioned: it has no ``schema_version``, and it is an array, so it has nowhere to put one.
-"""
+"""The ``runs list --json`` document: one versioned JSON object holding a page of run summaries."""
 
 from collections.abc import Sequence
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
@@ -28,19 +26,21 @@ class RunSummaryDocument(BaseModel):
     )
 
 
-class RunsListDocument(RootModel[tuple[RunSummaryDocument, ...]]):
-    """The whole ``runs list --json`` output: an array of run summaries, most recently completed first.
+class RunsListDocument(BaseModel):
+    """The whole ``runs list --json`` output: one page of run summaries, most recently completed first."""
 
-    This document is unversioned: it has no ``schema_version``.
-    """
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
-    model_config = ConfigDict(frozen=True)
+    schema_version: Literal[1] = 1
+    has_more: bool = Field(description="True when at least one more run follows this page for the same filters.")
+    items: tuple[RunSummaryDocument, ...]
 
 
-def build_runs_list_document(summaries: Sequence[AnalysisRunSummary]) -> RunsListDocument:
+def build_runs_list_document(summaries: Sequence[AnalysisRunSummary], *, has_more: bool) -> RunsListDocument:
     """Build the runs-list document from run summaries, keeping their order."""
     return RunsListDocument(
-        tuple(
+        has_more=has_more,
+        items=tuple(
             RunSummaryDocument(
                 analysis_run_id=item.analysis_run_id,
                 ticker=item.ticker,
@@ -50,7 +50,7 @@ def build_runs_list_document(summaries: Sequence[AnalysisRunSummary]) -> RunsLis
                 refresh_id=item.refresh_id,
             )
             for item in summaries
-        )
+        ),
     )
 
 

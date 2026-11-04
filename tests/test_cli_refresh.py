@@ -375,7 +375,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0(
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "FLSW", "--json"]).output)
+    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "FLSW", "--json"]).output)["items"]
     assert len(payload) == 1
     assert payload[0]["status"] == "not_applicable"
 
@@ -447,7 +447,7 @@ def test_refresh_graham_growth_selection_persists_with_configured_assumptions(
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "SYNTH", "--json"]).output)
+    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "SYNTH", "--json"]).output)["items"]
     assert len(payload) == 1
     assert payload[0]["method_id"] == "graham_growth_value"
     assert payload[0]["status"] == "completed"
@@ -464,7 +464,7 @@ def test_refresh_fcf_growth_selection_persists(isolated_cli_settings: ProjectSet
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "ACME", "--json"]).output)
+    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "ACME", "--json"]).output)["items"]
     assert len(payload) == 1
     assert payload[0]["method_id"] == "reported_fcf_eps_cagr"
     assert payload[0]["status"] == "completed"
@@ -503,7 +503,7 @@ def test_refresh_no_save_executes_but_persists_nothing(
     assert "completed=2" in output
     assert mock_run.call_count == 2
 
-    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "AAPL", "--json"]).output)
+    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "AAPL", "--json"]).output)["items"]
     assert payload == []
 
 
@@ -541,7 +541,7 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1(isolated_cli_settings
     assert "unavailable" in output
     assert "(not saved)" in output
 
-    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", SUBJECT_MISSING, "--json"]).output)
+    payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", SUBJECT_MISSING, "--json"]).output)["items"]
     assert payload == []
 
 
@@ -581,10 +581,10 @@ def test_delete_keeps_saved_runs_browsable_and_replayable(
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only(isolated_cli_settings, "Scratch", ["AAPL"])
     assert runner.invoke(app, ["refresh", "Scratch", "--workers", "1"]).exit_code == 0
-    (saved,) = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
+    (saved,) = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)["items"]
 
     deleted = runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes"])
-    listed = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
+    listed = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)["items"]
     shown = runner.invoke(app, ["runs", "show", saved["analysis_run_id"]])
 
     assert deleted.exit_code == 0, deleted.output
@@ -646,7 +646,7 @@ def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ra
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(kwargs["ticker"])
     _create_momentum_only(isolated_cli_settings, "Before", ["AAPL"])
     assert runner.invoke(app, ["refresh", "Before", "--workers", "1"]).exit_code == 0
-    (saved,) = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)
+    (saved,) = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)["items"]
 
     assert runner.invoke(app, ["watchlist", "rename", "Before", "After"]).exit_code == 0
     shown = runner.invoke(app, ["runs", "show", saved["analysis_run_id"]])
