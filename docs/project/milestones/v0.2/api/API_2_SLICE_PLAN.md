@@ -191,7 +191,8 @@ What changed, by area:
   `strategy_document_json` docstring now says what the workspace documents are.
 - **`schemas/`, `scripts/`:** `schemas/openapi.json` and `scripts/generate_openapi.py`, run in check mode by both gate
   wrappers; every schema that embeds the failure code list or the failure envelope regenerated.
-- **Dependencies:** `starlette` and `uvicorn` in `dependencies`, `httpx` in the `dev` group; `uv.lock` updated. The
+- **Dependencies:** `starlette`, `uvicorn` and `httpx` in `dependencies` (`httpx` started in the `dev` group and moved
+  in the review fixes), `httpx2` in the `dev` group; `uv.lock` updated. The
   permission of 2026-10-30 ([contract A.2](API_CONTRACT_AND_SLICE_PLAN.md#a2-api-shape-and-dependencies-2026-10-30)) is
   stated in the pull request.
 - **Docs:** `docs/user/API.md` (new) and its entry in `docs/user/README.md`; `docs/user/USAGE.md` (the failure document's
@@ -204,18 +205,18 @@ Deviations from the decisions as written:
 - **S33 needed `application` to import `analysis`.** The status check builds a `RunOutcome`, which `analysis` defines, so
   Architecture §13 now lists `analysis` among `application`'s imports. The project owner approved this on 2026-11-03;
   `application` stays at layer 8.
-- **S36 reads by ID without a new repository method.** `SQLiteWatchlistRepository` reads a watchlist by name only, so
-  `get_watchlist_by_id` finds the summary with that ID and then reads the watchlist by its name inside one connection. A
-  by-ID read in the repository would be one query; adding it changes `workspace`, which this slice does not touch.
+- **S36 adds a by-ID read to the watchlist repository.** `SQLiteWatchlistRepository.get_by_id` (an edit outside the listed
+  scope, approved on 2026-11-04) reads a watchlist by ID in one transaction; the first implementation, which found the
+  name in the list and then read by name, was replaced (see the review fixes below).
 - **One edit outside the listed scope.** `scripts/strategy_conformance.py` lists `serve` in `NON_STRATEGY_COMMANDS`,
   because test T7 requires every top-level command to be a strategy alias, a group or a listed non-strategy command. The
   project owner approved it on 2026-11-03.
-- **The shared refresh-ID message.** The message of a malformed `refresh_id` is the CLI's, which names `runs list` and
-  `refresh`, because the CLI's messages may not change ([S33](#s33-one-check-of-the-runs-list-parameters-2026-11-03)).
-  The API gives it for a malformed `refresh_id` query parameter.
+- **The shared refresh-ID message.** The first implementation reused the CLI's message, which names `runs list` and
+  `refresh`, because the CLI's messages could not change ([S33](#s33-one-check-of-the-runs-list-parameters-2026-11-03)).
+  The review fixes replaced it with one client-neutral message (F8 below).
 - **Ordering inside S30.** A request that fails the `Host` check is answered without CORS headers, because the origin has
-  not been judged yet. Any `OPTIONS` request from an allowed origin is a preflight, with or without
-  `Access-Control-Request-Method`.
+  not been judged yet. (The first implementation also treated every `OPTIONS` request from an allowed origin as a
+  preflight; F5 below limits that to one that carries `Access-Control-Request-Method`.)
 
 User-visible changes:
 
@@ -223,6 +224,8 @@ User-visible changes:
 - Five new failure reason codes, and `schema_version` 11 of the failure document. A program that dispatches on the
   version reads the new value; no field was removed or retyped.
 - `schemas/failure.schema.json` and every schema that embeds the failure code list changed with it.
+- The review fixes changed two messages: a malformed `--refresh-id` of `runs list` and a malformed `REFRESH_ID` of
+  `runs compare` now read "<name> '<value>' is not a valid refresh ID." (`parameters` and exit codes are unchanged).
 - No other CLI output, message or exit code changed.
 
 Tests edited, and why:
@@ -263,20 +266,65 @@ New tests:
 - `tests/test_cli_serve.py`: each launch failure of [S27](#s27-launch-failures-2026-11-03), with `port_unavailable` from a
   socket the test holds, the [S29](#s29---allow-origin-2026-11-03) cases, and the one socket test of
   [S21](#s21-one-socket-test-2026-11-03).
-- `tests/application/test_watchlists.py`: both watchlist reads and the not-found message.
-- The CLI's runs-list checks are covered by the existing `tests/test_command_validation_failures.py` cases, which pass
-  unchanged.
+- `tests/application/test_watchlists.py`: both watchlist reads and the not-found message.- The CLI's runs-list checks are covered by the existing `tests/test_command_validation_failures.py` cases, which pass
+  unchanged except the refresh-ID message (see the review fixes).
 
 Noticed for later slices:
 
-- Starlette's test client warns that `httpx` is deprecated there in favour of `httpx2`. `httpx` is the approved
-  dependency, so the warning is left; a change of test client would need a new dependency permission.
 - Ctrl+C shutdown is not covered by a test: the socket test stops the process by closing standard input, which is the
   documented way, and sending an interrupt to a child is not portable on Windows.
 - `ian serve` initializes a proven-empty database at launch, as every other command does on first use
   (`ensure_database_ready`); it does not migrate an older one.
 - API.4's slice plan must decide whether two `ian serve` processes may run refresh jobs and writes against one database
   ([contract](API_CONTRACT_AND_SLICE_PLAN.md#api4--action-endpoints-and-refresh-jobs)).
+
+Review fixes (2026-11-04):
+
+The project owner reviewed the branch and approved these fixes on 2026-11-04. They are decided and done.
+
+- **F1, watchlist by ID.** `SQLiteWatchlistRepository.get_by_id(watchlist_id)` reads the watchlist in one read
+  transaction through `_load`, and returns `None` when no watchlist has that ID. `get_watchlist_by_id` calls it; the
+  list-then-name workaround is gone. The not-found message is unchanged. Repository tests cover found and not found.
+- **F2, engine version.** `engine_version` is the installed version of the `investment-analysis-engine` distribution,
+  read with `importlib.metadata.version` once, when the app is created; there is no fallback constant.
+  `ProjectSettings.version` is deleted. Its other readers were `scripts/generate_openapi.py`, which now takes
+  `info.version` from the same source (and `schemas/openapi.json` was regenerated), and `tests/test_settings_environment.py`,
+  which dropped its `version` assertion in `test_unprefixed_names_are_not_read`. The info test compares the value with
+  `importlib.metadata.version`. The prompt's assumption that `ProjectSettings.version` had no other reader was wrong;
+  the project owner approved the corrected scope.
+- **F2a, the other identity constants.** `ProjectSettings.environment` and `ProjectSettings.encoding` had no reader but
+  `test_application_identity_is_constant`, so all three class constants and the `ClassVar` import are deleted, and that
+  test with them. `IAN_VERSION` still fails closed, and `VERSION` is still not read.
+- **F3, withdrawn.** `RouteSpec.method` stays, because API.4's action endpoints need methods other than `GET`; F4 uses it.
+- **F4, undeclared methods.** The app serves exactly the method each route declares. A request with any other method,
+  `HEAD` included (which Starlette otherwise adds to every `GET` route), is answered 405 `endpoint_not_found` with an
+  `Allow` header naming the declared method. The route-table test now compares the served methods with the table without
+  excluding `HEAD`.
+- **F5, preflight.** Only an `OPTIONS` request from an allowed origin that carries `Access-Control-Request-Method` is a
+  preflight. Any other `OPTIONS` request passes the token check and then routing (405 on a known path, 404 on an unknown
+  one). This corrects the "Ordering inside S30" deviation above.
+- **F6, errors outside a handler.** An application-level handler for any exception answers one raised outside an endpoint
+  handler (in the request checks, for example) with the fixed-message `execution_error` envelope, status 500; the
+  traceback goes to the log and the token never does.
+- **F7, dependencies.** `httpx` moved from the `dev` group to `dependencies`, with the same lower bound, because
+  production code imports it (inside the 2026-10-30 permission). `httpx2>=2.16.0` was added to the `dev` group
+  (permission of 2026-11-04), so Starlette's test client no longer takes the deprecated `httpx` path; the test run shows
+  no `StarletteDeprecationWarning`. `uv.lock` also gained `httpx2`'s own requirements: `httpcore2`, `httpx2-jsfetch` and
+  `truststore`.
+- **F8, refresh-ID messages.** Every malformed refresh ID reads "<name> '<value>' is not a valid refresh ID." with the
+  caller's spelling: `--refresh-id` (`runs list`), `REFRESH_ID` (`runs compare`), `refresh_id` (the `GET /v1/runs` query
+  and the `/v1/refreshes/{refresh_id}/compare` path). The two CLI messages changed; `parameters` and exit codes did not.
+  `RUN_ID` on `runs show` keeps its message. The API's other path IDs name their kind: "analysis_run_id '<value>' is not
+  a valid Analysis Run ID." and "watchlist_id '<value>' is not a valid watchlist ID."
+- **Approved edits outside the listed scope:** `workspace/repositories/watchlists.py` (F1), `config/__init__.py`,
+  `scripts/generate_openapi.py`, `schemas/openapi.json` and `tests/test_settings_environment.py` (F2, F2a).
+- **Tests edited or added:** `tests/api/test_endpoints.py` (the info version), `tests/api/test_parameters.py` (the
+  path-ID and refresh-ID messages), `tests/api/test_request_checks.py` (preflight, `HEAD` and other methods, an exception
+  outside a handler),
+  `tests/api/test_routes_and_description.py` (served methods without `HEAD`), `tests/test_command_validation_failures.py`,
+  `tests/test_cli_workspace.py` and `tests/test_cli_runs_compare.py` (the refresh-ID messages),
+  `tests/test_settings_environment.py` (the deleted assertions and test), and
+  `tests/workspace/repositories/test_watchlist_repository.py` (`get_by_id`).
 
 ## 4. Scope limits and acceptance criteria
 

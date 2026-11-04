@@ -66,7 +66,6 @@ def test_unprefixed_names_are_not_read(unprefixed: str, tmp_path: Path, monkeypa
     assert configured.data_dir != (tmp_path / "ignored").resolve()
     assert configured.schema_config.max_validation_retries == 3
     assert configured.schema_config.ollama_version is None
-    assert configured.version == "0.1.0"
 
 
 @pytest.mark.parametrize(
@@ -112,15 +111,6 @@ def test_sec_user_agent_keeps_its_name_in_any_case(spelling: str, monkeypatch: p
     _replace_environment(monkeypatch, {spelling: "Test Identity test@example.invalid", "MASSIVE_API_KEY": "retired"})
 
     assert ProjectSettings().sec_user_agent == "Test Identity test@example.invalid"
-
-
-def test_application_identity_is_constant() -> None:
-    assert (ProjectSettings.version, ProjectSettings.environment, ProjectSettings.encoding) == (
-        "0.1.0",
-        "development",
-        "utf-8",
-    )
-    assert not {"version", "environment", "encoding"} & set(ProjectSettings.model_fields)
 
 
 def test_invalid_value_is_described_by_variable_without_the_value(monkeypatch: pytest.MonkeyPatch) -> None:

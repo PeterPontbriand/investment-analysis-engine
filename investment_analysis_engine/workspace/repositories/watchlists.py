@@ -147,6 +147,17 @@ class SQLiteWatchlistRepository:
                 return None
             return self._load(connection, watchlist_id)
 
+    def get_by_id(self, watchlist_id: UUID) -> Watchlist | None:
+        """Return the watchlist with ID ``watchlist_id`` in one read transaction, or None."""
+        stored_id = str(watchlist_id)
+        with self._database.read() as connection:
+            found = connection.execute(
+                select(watchlists.c.watchlist_id).where(watchlists.c.watchlist_id == stored_id)
+            ).scalar_one_or_none()
+            if found is None:
+                return None
+            return self._load(connection, found)
+
     def list(self) -> tuple[WatchlistSummary, ...]:
         """Return every watchlist as a summary, ordered by creation then ID."""
         with self._database.read() as connection:

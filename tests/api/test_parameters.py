@@ -36,7 +36,10 @@ def _rejected(response_json: dict[str, object], *, parameters: list[str]) -> Non
     ],
 )
 def test_an_unknown_or_repeated_query_parameter_is_invalid_and_named(
-    path: str, query: list[tuple[str, str]], parameter: str, isolated_cli_settings: ProjectSettings
+    path: str,
+    query: list[tuple[str, str | int | float | bool | None]],
+    parameter: str,
+    isolated_cli_settings: ProjectSettings,
 ) -> None:
     with client_for(isolated_cli_settings) as client:
         response = client.get(path, params=query, headers=AUTH)
@@ -45,21 +48,26 @@ def test_an_unknown_or_repeated_query_parameter_is_invalid_and_named(
 
 
 @pytest.mark.parametrize(
-    ("path", "name"),
+    ("path", "name", "message"),
     [
-        ("/v1/runs/not-a-uuid", "analysis_run_id"),
-        ("/v1/runs/not-a-uuid/text", "analysis_run_id"),
-        ("/v1/watchlists/12345", "watchlist_id"),
-        ("/v1/refreshes/abc/compare", "refresh_id"),
+        ("/v1/runs/not-a-uuid", "analysis_run_id", "analysis_run_id 'not-a-uuid' is not a valid Analysis Run ID."),
+        (
+            "/v1/runs/not-a-uuid/text",
+            "analysis_run_id",
+            "analysis_run_id 'not-a-uuid' is not a valid Analysis Run ID.",
+        ),
+        ("/v1/watchlists/12345", "watchlist_id", "watchlist_id '12345' is not a valid watchlist ID."),
+        ("/v1/refreshes/abc/compare", "refresh_id", "refresh_id 'abc' is not a valid refresh ID."),
     ],
 )
 def test_a_malformed_id_in_a_path_is_invalid_not_missing(
-    path: str, name: str, isolated_cli_settings: ProjectSettings
+    path: str, name: str, message: str, isolated_cli_settings: ProjectSettings
 ) -> None:
     with client_for(isolated_cli_settings) as client:
         response = client.get(path, params={"mode": "concise"} if path.endswith("/text") else None, headers=AUTH)
     assert response.status_code == 400
     _rejected(response.json(), parameters=[name])
+    assert response.json()["reason"] == message
 
 
 @pytest.mark.parametrize(
@@ -68,7 +76,7 @@ def test_a_malformed_id_in_a_path_is_invalid_not_missing(
         ({"ticker": " "}, "ticker", "ticker must not be empty."),
         ({"method_id": "nonsense"}, "method_id", None),
         ({"status": "great"}, "status", "status must be one of: completed, unavailable, not_applicable, failed."),
-        ({"refresh_id": "abc"}, "refresh_id", None),
+        ({"refresh_id": "abc"}, "refresh_id", "refresh_id 'abc' is not a valid refresh ID."),
         ({"limit": "0"}, "limit", "limit must be between 1 and 100."),
         ({"limit": "101"}, "limit", "limit must be between 1 and 100."),
         ({"limit": "ten"}, "limit", "limit must be an integer."),
@@ -86,7 +94,7 @@ def test_each_runs_list_check_rejects_with_the_api_spelling(
     _rejected(response.json(), parameters=[parameter])
     if message is not None:
         assert response.json()["reason"] == message
-    assert "--" not in response.json()["reason"].split("Use the full ID")[0]
+    assert "--" not in response.json()["reason"]
 
 
 def test_an_unknown_method_id_lists_the_declared_method_ids(isolated_cli_settings: ProjectSettings) -> None:

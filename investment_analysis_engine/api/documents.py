@@ -1,5 +1,6 @@
 """The documents only the API serves: the engine information, the strategy list and the replay text."""
 
+from importlib.metadata import version
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,6 +10,18 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES
 
 API_VERSIONS: tuple[str, ...] = ("v1",)
 """The API versions this engine serves, as the first path segment of their endpoints."""
+
+ENGINE_DISTRIBUTION = "investment-analysis-engine"
+"""The name of the installed distribution whose version the information document reports."""
+
+
+def installed_engine_version() -> str:
+    """Return the installed version of the engine distribution.
+
+    Raises:
+        importlib.metadata.PackageNotFoundError: If the distribution is not installed.
+    """
+    return version(ENGINE_DISTRIBUTION)
 
 
 class InfoDocument(BaseModel):

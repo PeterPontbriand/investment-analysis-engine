@@ -66,6 +66,18 @@ def declared_method_id(value: str, *, name: str) -> str:
     return value
 
 
+def parse_refresh_id(value: str, *, name: str) -> UUID:
+    """Return ``value`` as a refresh ID.
+
+    Raises:
+        InvalidParameterError: If ``value`` is not a UUID; ``name`` is the caller's spelling of the parameter.
+    """
+    try:
+        return UUID(value)
+    except ValueError as exc:
+        raise InvalidParameterError(f"{name} {value!r} is not a valid refresh ID.", parameters=(name,)) from exc
+
+
 def build_run_query(  # noqa: PLR0913
     *,
     names: RunQueryNames,
@@ -105,16 +117,7 @@ def build_run_query(  # noqa: PLR0913
             raise InvalidParameterError(
                 f"{names.status} must be one of: {allowed}.", parameters=(names.status,)
             ) from exc
-    refresh_batch = None
-    if refresh_id is not None:
-        try:
-            refresh_batch = UUID(refresh_id)
-        except ValueError as exc:
-            raise InvalidParameterError(
-                f"{names.refresh_id} {refresh_id!r} is not a valid Analysis Run ID. Use the full ID exactly as shown "
-                "by 'runs list' or 'refresh' — not a shortened or partial value.",
-                parameters=(names.refresh_id,),
-            ) from exc
+    refresh_batch = None if refresh_id is None else parse_refresh_id(refresh_id, name=names.refresh_id)
     if not RUN_QUERY_MIN_LIMIT <= limit <= RUN_QUERY_MAX_LIMIT:
         raise InvalidParameterError(
             f"{names.limit} must be between {RUN_QUERY_MIN_LIMIT} and {RUN_QUERY_MAX_LIMIT}.",
@@ -224,6 +227,7 @@ __all__ = [
     "compare_refresh_runs",
     "declared_method_id",
     "list_runs",
+    "parse_refresh_id",
     "replay_run_document",
     "replay_run_text",
 ]

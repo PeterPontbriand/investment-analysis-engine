@@ -31,6 +31,7 @@ from investment_analysis_engine.application.runs import (
     build_run_query,
     compare_refresh_runs,
     list_runs,
+    parse_refresh_id,
     replay_run_document,
     replay_run_text,
 )
@@ -880,7 +881,7 @@ def runs_compare(
 ) -> None:
     """Show the runs of one refresh side by side: one row per ticker, one column group per strategy."""
     with parameter_failures(json_output=json_output):
-        parsed_id = _parse_run_id(refresh_id, field="REFRESH_ID")
+        parsed_id = parse_refresh_id(refresh_id, name="REFRESH_ID")
     with _workspace_failures("runs compare", json_output=json_output):
         document = compare_refresh_runs(ApplicationContext(settings=settings), parsed_id)
     typer.echo(_document_json(document) if json_output else render_runs_compare_text(document))

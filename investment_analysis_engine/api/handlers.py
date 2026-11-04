@@ -18,6 +18,7 @@ from investment_analysis_engine.api.documents import (
     build_info_document,
     build_replay_text_document,
     build_strategies_document,
+    installed_engine_version,
 )
 from investment_analysis_engine.api.responses import document_response, failure_of, failure_response
 from investment_analysis_engine.api.routes import (
@@ -33,6 +34,7 @@ from investment_analysis_engine.application.runs import (
     compare_refresh_runs,
     declared_method_id,
     list_runs,
+    parse_refresh_id,
     replay_run_document,
     replay_run_text,
 )
@@ -79,13 +81,13 @@ class RequestParameters:
 type Operation = Callable[[ApplicationContext, RequestParameters], BaseModel]
 
 
-def _uuid(parameters: RequestParameters, name: str) -> UUID:
-    """Return the path parameter ``name`` as a UUID."""
+def _uuid(parameters: RequestParameters, name: str, kind: str) -> UUID:
+    """Return the path parameter ``name`` as a UUID; ``kind`` names the sort of ID in the message."""
     value = parameters.path[name]
     try:
         return UUID(value)
     except ValueError as exc:
-        raise InvalidParameterError(f"{name} {value!r} is not a valid ID.", parameters=(name,)) from exc
+        raise InvalidParameterError(f"{name} {value!r} is not a valid {kind} ID.", parameters=(name,)) from exc
 
 
 def _integer(parameters: RequestParameters, name: str, default: int) -> int:
@@ -145,7 +147,7 @@ def endpoint_for(route: RouteSpec, operation: Operation, context: ApplicationCon
 
 def _info(settings: ProjectSettings) -> Operation:
     document = build_info_document(
-        engine_version=ProjectSettings.version,
+        engine_version=installed_engine_version(),
         sec_identity_configured=bool(settings.sec_user_agent and settings.sec_user_agent.strip()),
     )
     return lambda _context, _parameters: document
@@ -160,7 +162,7 @@ def _watchlists(context: ApplicationContext, _parameters: RequestParameters) -> 
 
 
 def _watchlist(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
-    return build_watchlist_document(get_watchlist_by_id(context, _uuid(parameters, "watchlist_id")))
+    return build_watchlist_document(get_watchlist_by_id(context, _uuid(parameters, "watchlist_id", "watchlist")))
 
 
 def _runs(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
@@ -179,11 +181,11 @@ def _runs(context: ApplicationContext, parameters: RequestParameters) -> BaseMod
 
 
 def _run(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
-    return replay_run_document(context, _uuid(parameters, "analysis_run_id"))
+    return replay_run_document(context, _uuid(parameters, "analysis_run_id", "Analysis Run"))
 
 
 def _run_text(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
-    run_id = _uuid(parameters, "analysis_run_id")
+    run_id = _uuid(parameters, "analysis_run_id", "Analysis Run")
     value = parameters.query.get("mode")
     if value is None:
         raise InvalidParameterError("mode is required.", parameters=("mode",))
@@ -194,7 +196,7 @@ def _run_text(context: ApplicationContext, parameters: RequestParameters) -> Bas
 
 
 def _compare(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
-    return compare_refresh_runs(context, _uuid(parameters, "refresh_id"))
+    return compare_refresh_runs(context, parse_refresh_id(parameters.path["refresh_id"], name="refresh_id"))
 
 
 def operations(settings: ProjectSettings) -> Mapping[str, Operation]:

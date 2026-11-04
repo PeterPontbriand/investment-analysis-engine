@@ -21,7 +21,8 @@ class RequestChecks:
     """ASGI middleware that rejects a request before any route sees it.
 
     The checks run in a fixed order: the ``Host`` header, then the ``Origin`` header, then the answer to a preflight
-    from an allowed origin, then the bearer token. A request that fails none of them is passed on.
+    (an ``OPTIONS`` request from an allowed origin that carries ``Access-Control-Request-Method``), then the bearer
+    token. A request that fails none of them is passed on.
     """
 
     def __init__(self, app: ASGIApp, *, token: str, port: int, allowed_origins: Collection[str]) -> None:
@@ -57,7 +58,7 @@ class RequestChecks:
                 await response(scope, receive, send)
                 return
         reply = send if origin is None else _with_cors_headers(send, origin)
-        if origin is not None and scope["method"] == "OPTIONS":
+        if origin is not None and scope["method"] == "OPTIONS" and "access-control-request-method" in headers:
             preflight = Response(
                 status_code=204,
                 headers={

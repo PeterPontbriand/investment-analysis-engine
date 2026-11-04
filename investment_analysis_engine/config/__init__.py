@@ -7,7 +7,7 @@ import re
 from collections import defaultdict
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Self
+from typing import Any, Literal, Self
 
 from dotenv import dotenv_values, load_dotenv
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -146,11 +146,6 @@ class ProjectSettings(BaseSettings):
     in any case. An ``IAN_`` variable that names no setting, or two variables differing only by case for one
     setting, raise :class:`SettingsEnvironmentError`.
     """
-
-    # Fixed application identity; deliberately not environment-overridable.
-    version: ClassVar[str] = "0.1.0"
-    environment: ClassVar[str] = "development"
-    encoding: ClassVar[str] = "utf-8"
 
     # AI/Agent Settings
     ollama_base_url: str = "http://localhost:11434"

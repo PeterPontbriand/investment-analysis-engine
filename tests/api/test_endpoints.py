@@ -1,6 +1,7 @@
 """Every read endpoint, in process: its document is the one the command line writes, parsed."""
 
 import json
+from importlib.metadata import version
 from uuid import uuid4
 
 import pytest
@@ -49,7 +50,7 @@ def test_info_names_the_served_versions_and_never_the_sec_identity(isolated_cli_
     assert response.json() == {
         "schema_version": 1,
         "api_versions": list(API_VERSIONS),
-        "engine_version": ProjectSettings.version,
+        "engine_version": version("investment-analysis-engine"),
         "sec_identity_configured": True,
     }
     assert "someone@example.com" not in response.text

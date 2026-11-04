@@ -94,6 +94,22 @@ def test_get_is_case_and_whitespace_insensitive(repository: SQLiteWatchlistRepos
     assert repository.get("nonexistent") is None
 
 
+def test_get_by_id_returns_the_watchlist_with_its_entries(repository: SQLiteWatchlistRepository) -> None:
+    repository.create(WatchlistSpec(display_name="Other"))
+    created = repository.create(WatchlistSpec(display_name="Dividend Growth"))
+    repository.add_entries(created.display_name, [("KO", GrahamNumberSelection())])
+    found = repository.get_by_id(SECOND_ID)
+    assert found is not None
+    assert found.watchlist_id == SECOND_ID
+    assert found.display_name == "Dividend Growth"
+    assert [entry.ticker for entry in found.entries] == ["KO"]
+
+
+def test_get_by_id_is_none_when_no_watchlist_has_that_id(repository: SQLiteWatchlistRepository) -> None:
+    repository.create(WatchlistSpec(display_name="Only"))
+    assert repository.get_by_id(SECOND_ID) is None
+
+
 def test_list_orders_by_creation_and_reports_entry_count(repository: SQLiteWatchlistRepository) -> None:
     repository.create(WatchlistSpec(display_name="Second"))
     first = repository.create(WatchlistSpec(display_name="First"))

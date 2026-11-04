@@ -65,8 +65,10 @@ The checks run in this order, before the request is routed:
    `--allow-origin`; otherwise it is `origin_not_allowed`. Comparison is exact after lower-casing the scheme and the host.
    `*` and `null` are never accepted, so a page must be loaded from an origin other than `null`, for example a custom
    scheme or `localhost`.
-3. **Preflight.** An `OPTIONS` request from an allowed origin is answered without the token: status 204, method `GET`
-   only, header `Authorization` only, `Access-Control-Max-Age: 600`.
+3. **Preflight.** An `OPTIONS` request from an allowed origin that carries `Access-Control-Request-Method` is a
+   preflight and is answered without the token: status 204, method `GET` only, header `Authorization` only,
+   `Access-Control-Max-Age: 600`. Any other `OPTIONS` request goes through the token check and then routing like any
+   other request: 405 on a known path, 404 on an unknown one.
 4. **Token.** As above.
 
 For an allowed origin every response carries `Access-Control-Allow-Origin` with that origin, `Vary: Origin` and
@@ -93,11 +95,12 @@ or path parameter. The five codes only the API and `ian serve` use are `not_auth
 | 400 | `invalid_parameter`, `host_not_allowed`, `origin_not_allowed` |
 | 401 | `not_authenticated` |
 | 404 | `analysis_run_not_found`, `watchlist_not_found`, `endpoint_not_found` |
-| 405 | `endpoint_not_found` (a method the endpoint does not accept) |
+| 405 | `endpoint_not_found` (a method the endpoint does not declare, `HEAD` included), with an `Allow` header naming the declared method |
 | 503 | `database_busy` |
 | 500 | every other code, including every other `database_*` code and `execution_error` |
 
-An unexpected failure is `execution_error` with a fixed message; its detail goes to the log. `port_unavailable` occurs only
+An unexpected failure, whether in an endpoint or in the checks before it, is `execution_error` with a fixed message and
+status 500; its detail goes to the log. `port_unavailable` occurs only
 at launch.
 
 A parameter is rejected with `invalid_parameter`, naming it, when it is unknown, when it is given more than once, when it
@@ -105,7 +108,7 @@ is malformed (including an ID that is not a UUID in a path, which is never a 404
 
 ## Endpoints
 
-All endpoints use `GET` and sit under `/v1`.
+All endpoints use `GET` and sit under `/v1`. Any other method, `HEAD` included, is answered 405 `endpoint_not_found`.
 
 | Path | Query parameters | Response |
 | :--- | :--- | :--- |

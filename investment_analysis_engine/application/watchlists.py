@@ -48,14 +48,9 @@ def get_watchlist_by_id(context: ApplicationContext, watchlist_id: UUID) -> Watc
     Raises:
         WatchlistNotFoundError: If no watchlist has that ID.
     """
-    watchlist = None
     with open_database(context) as database:
-        repository = watchlist_repository(database)
-        # The repository reads a watchlist by name only; the summary list gives the name of the one with this ID.
-        match = next((item for item in repository.list() if item.watchlist_id == watchlist_id), None)
-        if match is not None:
-            watchlist = repository.get(match.display_name)
-    if watchlist is None or watchlist.watchlist_id != watchlist_id:
+        watchlist = watchlist_repository(database).get_by_id(watchlist_id)
+    if watchlist is None:
         raise WatchlistNotFoundError(f"No watchlist with ID {watchlist_id} exists.")
     return watchlist
 

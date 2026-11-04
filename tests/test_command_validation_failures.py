@@ -483,7 +483,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         _check(
             "WRK-12",
             ("runs", "list", "--refresh-id", "abc"),
-            f"--refresh-id 'abc' {tail}",
+            "--refresh-id 'abc' is not a valid refresh ID.",
             ("--refresh-id",),
             json_flag=True,
         )

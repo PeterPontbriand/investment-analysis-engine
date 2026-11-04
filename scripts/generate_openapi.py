@@ -22,9 +22,8 @@ from typing import Any
 from pydantic import BaseModel
 from pydantic.json_schema import models_json_schema
 
-from investment_analysis_engine.api.documents import API_VERSIONS
+from investment_analysis_engine.api.documents import API_VERSIONS, installed_engine_version
 from investment_analysis_engine.api.routes import ROUTES, RouteSpec
-from investment_analysis_engine.config import ProjectSettings
 from scripts.repository_root import REPOSITORY_ROOT
 
 OPENAPI_FILE = REPOSITORY_ROOT / "schemas" / "openapi.json"
@@ -91,7 +90,7 @@ def openapi_description() -> dict[str, Any]:
         "openapi": "3.1.0",
         "info": {
             "title": "Investment Analysis Engine local API",
-            "version": f"{ProjectSettings.version} ({', '.join(API_VERSIONS)})",
+            "version": f"{installed_engine_version()} ({', '.join(API_VERSIONS)})",
             "description": (
                 "The read endpoints of `ian serve`. Every request carries the per-launch bearer token. A client "
                 "must tolerate unknown fields, unknown values and a higher schema_version."

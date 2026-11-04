@@ -18,11 +18,7 @@ from scripts.generate_openapi import OPENAPI_FILE, openapi_description, openapi_
 def test_the_application_serves_exactly_the_routes_of_the_table(isolated_cli_settings: ProjectSettings) -> None:
     app = create_app(context=ApplicationContext(settings=isolated_cli_settings), token="t", port=1)
     served = {
-        (method, route.path)
-        for route in app.routes
-        if isinstance(route, Route)
-        for method in (route.methods or set())
-        if method != "HEAD"
+        (method, route.path) for route in app.routes if isinstance(route, Route) for method in (route.methods or set())
     }
     assert served == {(route.method, route.path) for route in ROUTES}
     assert len(app.routes) == len(ROUTES)

@@ -10,9 +10,9 @@ from starlette.responses import Response
 from starlette.routing import Route
 
 from investment_analysis_engine.api.checks import RequestChecks
-from investment_analysis_engine.api.handlers import endpoint_for, operations
+from investment_analysis_engine.api.handlers import Endpoint, endpoint_for, error_response, operations
 from investment_analysis_engine.api.responses import failure_of
-from investment_analysis_engine.api.routes import ROUTES
+from investment_analysis_engine.api.routes import ROUTES, RouteSpec
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 
@@ -25,6 +25,18 @@ def _not_found(_request: Request, exception: Exception) -> Response:
     status = exception.status_code if isinstance(exception, HTTPException) else 404
     headers = dict(exception.headers) if isinstance(exception, HTTPException) and exception.headers else None
     return failure_of(FailureReasonCode.ENDPOINT_NOT_FOUND, ENDPOINT_NOT_FOUND_MESSAGE, status=status, headers=headers)
+
+
+def _unexpected(_request: Request, exception: Exception) -> Response:
+    """Answer an exception raised outside an endpoint handler with the fixed-message ``execution_error``."""
+    return error_response(exception)
+
+
+def _route(route: RouteSpec, endpoint: Endpoint) -> Route:
+    """Build the route serving exactly the method the table declares, without the HEAD that Starlette adds to GET."""
+    served = Route(route.path, endpoint, methods=[route.method])
+    served.methods = {route.method}
+    return served
 
 
 def create_app(
@@ -44,14 +56,11 @@ def create_app(
     """
     handlers = operations(context.settings)
     app = Starlette(
-        routes=[
-            Route(route.path, endpoint_for(route, handlers[route.operation_id], context), methods=[route.method])
-            for route in ROUTES
-        ],
+        routes=[_route(route, endpoint_for(route, handlers[route.operation_id], context)) for route in ROUTES],
         middleware=[
             Middleware(RequestChecks, token=token, port=port, allowed_origins=tuple(allowed_origins)),
         ],
-        exception_handlers={HTTPException: _not_found},
+        exception_handlers={HTTPException: _not_found, Exception: _unexpected},
     )
     app.router.redirect_slashes = False
     return app
