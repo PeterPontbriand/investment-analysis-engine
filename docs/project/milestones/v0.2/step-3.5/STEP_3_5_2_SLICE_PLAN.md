@@ -207,7 +207,7 @@ sub-slice has its own branch off `main`, named `feat/step-3-5-2<letter>-<topic>`
   - **No market-data request when the yield is not wanted (V2):** with `include_fcf_yield` false, for a
     provider-confirmed ETF, and when no fiscal year of free cash flow was resolved, no quote, split history, share
     count, year-end or cover is requested, and `market_capitalization` stays empty.
-  - Note (2026-11-05): the `include_fcf_yield` option was removed (issue #227, decision W2 of the API.3 slice plan): nothing ever set it to false, so FCF yield is always computed and the `not_requested` reason code was removed with it.
+  - Note (2026-11-05): the `include_fcf_yield` option was removed (issue #227, decision W2 of the API.3 slice plan): no command, selection builder or stored selection set it to false, and the FCF Growth tool, which offered it to a model, defaulted to true, so FCF yield is always computed and the `not_requested` reason code was removed with it.
   - **The yield requires the year-end (K4):** it is computed only when FCF-Growth's latest observation ends at the
     anchor year-end *t*; otherwise it is `unavailable` with `incompatible_period`. The filing currency of the market
     cap is the currency of that observation's monetary facts (N6).
@@ -579,7 +579,7 @@ owner can reverse any.
 | Quote freshness | The resolver that reads the quote and the share counts shares the run's financial cache and uses the quote freshness policy of the settings, as Graham's resolver does; no table or cache is added. |
 | Fixtures | The success fixture's share count, split history, quote and cover are Python fixtures in `evaluation/fixtures/fcf_earnings_growth.py`, like the annual facts, so there is no checksum file. Every other case gets fixture providers that hold nothing. The case expectations are not edited; the yield's value is asserted by a test. |
 
-Note (2026-11-05): the `include_fcf_yield` option was removed (issue #227, decision W2 of the API.3 slice plan): nothing ever set it to false, so FCF yield is always computed and the `not_requested` reason code was removed with it.
+Note (2026-11-05): the `include_fcf_yield` option was removed (issue #227, decision W2 of the API.3 slice plan): no command, selection builder or stored selection set it to false, and the FCF Growth tool, which offered it to a model, defaulted to true, so FCF yield is always computed and the `not_requested` reason code was removed with it.
 
 ### A.12 Review decisions (2026-10-28)
 

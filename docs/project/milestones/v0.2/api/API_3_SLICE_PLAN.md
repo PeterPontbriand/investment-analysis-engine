@@ -530,7 +530,7 @@ Amends C14. A model nested one level inside a selection, whose own fields are ea
 
 ### W2 FCF Growth's include_fcf_yield option is removed (2026-11-05)
 
-Nothing set it to false, so FCF yield is always computed. Removed before API.3b, in its own pull request, with the `not_requested` metric reason code that only it produced (issue #227).
+No command, selection builder or stored selection set it to false, and the FCF Growth tool, which offered it to a model, defaulted to true, so FCF yield is always computed. Removed before API.3b, in its own pull request, with the `not_requested` metric reason code that only it produced (issue #227).
 
 ### W3 The field-to-option table carries converters (2026-11-05)
 

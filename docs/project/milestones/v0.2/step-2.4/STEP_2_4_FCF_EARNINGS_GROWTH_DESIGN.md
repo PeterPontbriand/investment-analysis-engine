@@ -427,7 +427,7 @@ Execution status is assigned independently:
 
 When `include_fcf_yield = false`, `fcf_yield` has `status = not_applicable` and `reason_code = not_requested`.
 
-Note (2026-11-05): the `include_fcf_yield` option was removed (issue #227, decision W2 of the API.3 slice plan): nothing ever set it to false, so FCF yield is always computed and the `not_requested` reason code was removed with it.
+Note (2026-11-05): the `include_fcf_yield` option was removed (issue #227, decision W2 of the API.3 slice plan): no command, selection builder or stored selection set it to false, and the FCF Growth tool, which offered it to a model, defaulted to true, so FCF yield is always computed and the `not_requested` reason code was removed with it.
 
 When several conditions apply, `classification_reason_code` identifies the first applicable category in this order: invalid request, required-provider error, incompatible or missing evidence required by the selected classification basis, insufficient or non-contiguous history, nonmeaningful controlling historical growth, unavailable required consensus, then failed growth gate. More specific details remain in the affected `MetricResult`, diagnostics, and warnings. Failed gates use `fcf_not_growing`, `eps_not_growing`, `fcf_and_eps_not_growing`, or `forward_growth_not_confirmed` as applicable; the result's policy identifies whether `fcf_not_growing` refers to total FCF or FCF/share.
 
