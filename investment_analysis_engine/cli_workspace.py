@@ -16,7 +16,7 @@ import logging
 import signal
 import sys
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from typing import Annotated, NoReturn
 from uuid import UUID
@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
+from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.application.provider_check import (
     ProviderCheckChoice,
     ProviderCheckFindings,
@@ -47,8 +48,18 @@ from investment_analysis_engine.application.runs import (
 )
 from investment_analysis_engine.application.tier import refresh_executor_for
 from investment_analysis_engine.application.watchlists import (
+    add_watchlist_entries,
+    check_tickers,
+    check_watchlist_name,
+    create_watchlist,
+    delete_watchlist,
     get_watchlist_by_name,
+    get_watchlist_summary,
     list_watchlists,
+    remove_watchlist_entry,
+    remove_watchlist_method,
+    remove_watchlist_tickers,
+    rename_watchlist,
     watchlist_repository,
 )
 from investment_analysis_engine.cli_provider_check import echo_provider_check
@@ -88,12 +99,7 @@ from investment_analysis_engine.workspace.refresh import (
     refresh_watchlist,
 )
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
-from investment_analysis_engine.workspace.repositories.watchlists import (
-    DeletedWatchlist,
-    SQLiteWatchlistRepository,
-    WatchlistConflictError,
-    WatchlistEntryNotFoundError,
-)
+from investment_analysis_engine.workspace.repositories.watchlists import DeletedWatchlist, RemovedEntries
 from investment_analysis_engine.workspace.runs import (
     AnalysisRunSummary,
     Watchlist,
@@ -103,8 +109,10 @@ from investment_analysis_engine.workspace.runs import (
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import (
     StoredSelectionError,
+    WatchlistId,
+    WatchlistName,
     WatchlistNotFoundError,
-    WatchlistSpec,
+    WatchlistRef,
 )
 from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.runs import build_runs_list_document
@@ -186,11 +194,43 @@ def _fail(reason_code: FailureReasonCode, message: str, *, json_output: bool = F
     report_failure(failure_envelope(reason_code, message), json_output=json_output)
 
 
+def _operator_message(exception: Exception) -> str:
+    """Return the exception's own message, with the command that removes an unreadable watchlist entry.
+
+    The stored-selection error names the entry and its state; the command that removes it is the CLI's to offer.
+    """
+    message = str(exception)
+    if isinstance(exception, StoredSelectionError) and exception.watchlist_name is not None:
+        message += f' Remove it with: ian watchlist remove-entry "{exception.watchlist_name}" {exception.entry_number}'
+    return message
+
+
 def _fail_with(exception: Exception, *, json_output: bool = False) -> NoReturn:
     """Report a classified failure with the exception's own sanitized message and exit 1."""
     classification = classify_failure(exception)
-    envelope = failure_envelope(classification.reason_code, str(exception), cause=exception)
+    envelope = failure_envelope(classification.reason_code, _operator_message(exception), cause=exception)
     report_failure(envelope, json_output=json_output)
+
+
+_CREATE_PARAMETERS = {"name": "NAME", "tickers": "TICKER"}
+_ADD_SELECTION_PARAMETERS = {"tickers": "TICKER"}
+_REMOVE_ENTRY_PARAMETERS = {"entry_number": "INDEX"}
+_REMOVE_TICKER_PARAMETERS = {"tickers": "TICKER"}
+_RENAME_PARAMETERS = {"new_name": "NEW_NAME"}
+
+
+@contextmanager
+def _watchlist_action(command: str, parameters: Mapping[str, str], *, json_output: bool = False) -> Iterator[None]:
+    """Report a failure of a watchlist action as :func:`_workspace_failures` does, in the command's own spelling.
+
+    ``parameters`` maps each parameter name the action rejects under to the argument or option of ``command``,
+    so an action's parameter error is reported as the command has always spelled it.
+    """
+    with _workspace_failures(command, json_output=json_output):
+        try:
+            yield
+        except ActionParameterError as exc:
+            raise exc.named(parameters) from None
 
 
 def _alias_for_method_id(method_id: str) -> str:
@@ -274,12 +314,6 @@ def _parse_analysis(value: str) -> str:
         allowed = ", ".join(CLI_BUILDERS)
         raise InvalidParameterError(f"--analysis must be one of: {allowed}.", parameters=("--analysis",))
     return normalized
-
-
-def _require_tickers(tickers: list[str]) -> None:
-    """Reject a blank ticker argument before any repository call."""
-    if any(not ticker.strip() for ticker in tickers):
-        raise InvalidParameterError("TICKER must not be empty.", parameters=("TICKER",))
 
 
 def _build_selection(  # noqa: PLR0913
@@ -407,6 +441,7 @@ def watchlist_create(  # noqa: PLR0913
     currency: Annotated[
         str, typer.Option("--currency", help="ISO 4217 reporting currency for compatible annual facts (fcf-growth).")
     ] = "USD",
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the created watchlist document.")] = False,
 ) -> None:
     """Create a watchlist, optionally seeded with one method across the given tickers.
 
@@ -420,7 +455,7 @@ def watchlist_create(  # noqa: PLR0913
     """
     seed_tickers = tickers or []
     entries: list[tuple[str, AnalysisSelection]] = []
-    with parameter_failures(json_output=False):
+    with parameter_failures(json_output=json_output):
         if analysis is None and seed_tickers:
             raise InvalidParameterError(
                 "--analysis is required to seed TICKER... at creation.", parameters=("--analysis", "TICKER")
@@ -451,19 +486,15 @@ def watchlist_create(  # noqa: PLR0913
             )
             entries = [(ticker, selection) for ticker in seed_tickers]
 
-    with _workspace_database("watchlist create") as database:
-        repository = watchlist_repository(database)
+    with _watchlist_action("watchlist create", _CREATE_PARAMETERS, json_output=json_output):
         # Every argument is checked before the watchlist is created, so a rejected one leaves nothing behind.
-        if not name.strip():
-            raise InvalidParameterError("NAME must not be blank.", parameters=("NAME",))
-        _require_tickers(seed_tickers)
-        try:
-            watchlist = repository.create(WatchlistSpec(display_name=name))
-        except WatchlistConflictError as exc:
-            _fail_with(exc)
+        check_watchlist_name(name)
+        check_tickers(seed_tickers)
+        context = ApplicationContext(settings=settings)
+        watchlist = create_watchlist(context, name)
         if entries:
-            watchlist = repository.add_entries(watchlist.display_name, entries)
-    typer.echo(_watchlist_text(watchlist))
+            watchlist = add_watchlist_entries(context, WatchlistName(watchlist.display_name), entries)
+    typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist))
 
 
 @watchlist_app.command("add-selection")
@@ -543,6 +574,7 @@ def watchlist_add_selection(  # noqa: PLR0913
     currency: Annotated[
         str, typer.Option("--currency", help="ISO 4217 reporting currency for compatible annual facts (fcf-growth).")
     ] = "USD",
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the updated watchlist document.")] = False,
 ) -> None:
     """Append one entry per given ticker for one method to an existing watchlist.
 
@@ -550,7 +582,7 @@ def watchlist_add_selection(  # noqa: PLR0913
     --analysis does in 'watchlist create'. The method's flags are the same as
     those of its own command, including which are required.
     """
-    with parameter_failures(json_output=False):
+    with parameter_failures(json_output=json_output):
         method = _parse_analysis(analysis)
         selection = _build_selection(
             method,
@@ -571,14 +603,9 @@ def watchlist_add_selection(  # noqa: PLR0913
             currency=currency,
         )
     entries = [(ticker, selection) for ticker in tickers]
-    with _workspace_database("watchlist add-selection") as database:
-        repository = watchlist_repository(database)
-        _require_tickers(tickers)
-        try:
-            watchlist = repository.add_entries(name, entries)
-        except WatchlistNotFoundError as exc:
-            _fail_with(exc)
-    typer.echo(_watchlist_text(watchlist))
+    with _watchlist_action("watchlist add-selection", _ADD_SELECTION_PARAMETERS, json_output=json_output):
+        watchlist = add_watchlist_entries(ApplicationContext(settings=settings), WatchlistName(name), entries)
+    typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist))
 
 
 def _plural_entries(count: int) -> str:
@@ -594,57 +621,44 @@ def _removal_confirmation(count: int, name: str, subject: str | None) -> str:
     return f"Removed {_plural_entries(count)}{scope} from watchlist {name!r}."
 
 
-def _read_back_after_removal(repository: SQLiteWatchlistRepository, name: str, confirmation: str) -> Watchlist:
-    """Read a watchlist back to display it after a removal that has already committed.
+def _report_removal(removed: RemovedEntries, confirmation: str, *, json_output: bool) -> None:
+    """Report a removal that has already committed: the confirmation, then the watchlist read back with it.
 
-    ``confirmation`` is printed first on every path. If another entry cannot be read, the
-    removal stands: the error naming the next unreadable entry and the command that removes it
-    follows, and the command exits 1.
+    The confirmation goes to standard output, or to standard error with ``json_output`` so that standard output
+    holds only the document. If another entry cannot be read, the removal stands: the error naming the next
+    unreadable entry and the command that removes it follows, and the command exits 1.
     """
-    typer.echo(confirmation)
-    try:
-        watchlist = repository.get(name)
-    except StoredSelectionError as exc:
-        _fail_with(exc)
-    if watchlist is None:
-        _fail(FailureReasonCode.WATCHLIST_NOT_FOUND, f"No watchlist named {name!r} exists.")
-    return watchlist
+    typer.echo(confirmation, err=json_output)
+    if removed.watchlist is None:
+        assert removed.unreadable is not None  # exactly one of watchlist and unreadable is set
+        _fail_with(removed.unreadable, json_output=json_output)
+    typer.echo(_watchlist_json(removed.watchlist) if json_output else _watchlist_text(removed.watchlist))
 
 
 @watchlist_app.command("remove-entry")
 def watchlist_remove_entry(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
     index: Annotated[int, typer.Argument(help="1-based entry number, as shown by 'watchlist show'.")],
+    *,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the updated watchlist document.")] = False,
 ) -> None:
     """Remove exactly one entry by its displayed 1-based index."""
-    with parameter_failures(json_output=False):
-        if index < 1:
-            raise InvalidParameterError("INDEX must be 1 or greater.", parameters=("INDEX",))
-    with _workspace_database("watchlist remove-entry") as database:
-        repository = watchlist_repository(database)
-        try:
-            removed = repository.remove_entry(name, index - 1)
-        except (WatchlistNotFoundError, WatchlistEntryNotFoundError) as exc:
-            _fail_with(exc)
-        watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, None))
-    typer.echo(_watchlist_text(watchlist))
+    with _watchlist_action("watchlist remove-entry", _REMOVE_ENTRY_PARAMETERS, json_output=json_output):
+        removed = remove_watchlist_entry(ApplicationContext(settings=settings), WatchlistName(name), index)
+    _report_removal(removed, _removal_confirmation(removed.removed, name, None), json_output=json_output)
 
 
 @watchlist_app.command("remove-ticker")
 def watchlist_remove_ticker(
     name: Annotated[str, typer.Argument(help="Watchlist name.")],
     tickers: Annotated[list[str], typer.Argument(help="Tickers to remove every entry for, across every method.")],
+    *,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the updated watchlist document.")] = False,
 ) -> None:
     """Remove every entry for the given ticker(s), across every method (bulk, idempotent)."""
-    with _workspace_database("watchlist remove-ticker") as database:
-        repository = watchlist_repository(database)
-        _require_tickers(tickers)
-        try:
-            removed = repository.remove_entries_for_ticker(name, tickers)
-        except WatchlistNotFoundError as exc:
-            _fail_with(exc)
-        watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, ", ".join(tickers)))
-    typer.echo(_watchlist_text(watchlist))
+    with _watchlist_action("watchlist remove-ticker", _REMOVE_TICKER_PARAMETERS, json_output=json_output):
+        removed = remove_watchlist_tickers(ApplicationContext(settings=settings), WatchlistName(name), tickers)
+    _report_removal(removed, _removal_confirmation(removed.removed, name, ", ".join(tickers)), json_output=json_output)
 
 
 @watchlist_app.command("remove-method")
@@ -654,18 +668,16 @@ def watchlist_remove_method(
     analysis: Annotated[
         str, typer.Option("--analysis", "-a", help="Method to remove every entry for, across every ticker.")
     ],
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the updated watchlist document.")] = False,
 ) -> None:
     """Remove every entry for the given method, across every ticker (bulk, idempotent)."""
-    with parameter_failures(json_output=False):
+    with parameter_failures(json_output=json_output):
         method = _parse_analysis(analysis)
-    with _workspace_database("watchlist remove-method") as database:
-        repository = watchlist_repository(database)
-        try:
-            removed = repository.remove_entries_for_method(name, _method_id_for_alias(method))
-        except WatchlistNotFoundError as exc:
-            _fail_with(exc)
-        watchlist = _read_back_after_removal(repository, name, _removal_confirmation(removed, name, method))
-    typer.echo(_watchlist_text(watchlist))
+    with _workspace_failures("watchlist remove-method", json_output=json_output):
+        removed = remove_watchlist_method(
+            ApplicationContext(settings=settings), WatchlistName(name), _method_id_for_alias(method)
+        )
+    _report_removal(removed, _removal_confirmation(removed.removed, name, method), json_output=json_output)
 
 
 def _windows_console_attached() -> bool:  # pragma: no cover - needs a real Windows console handle
@@ -706,11 +718,12 @@ def watchlist_delete(
         if not yes and not _stdin_is_interactive():
             raise InvalidParameterError("--yes is required when input is not interactive.", parameters=("--yes",))
     deleted: DeletedWatchlist | None = None
-    with _workspace_database("watchlist delete", json_output=json_output) as database:
-        repository = watchlist_repository(database)
+    context = ApplicationContext(settings=settings)
+    with _workspace_failures("watchlist delete", json_output=json_output):
         try:
+            ref: WatchlistRef = WatchlistName(name)
             if not yes:
-                summary = repository.summary(name)
+                summary = get_watchlist_summary(context, ref)
                 question = (
                     f"Delete watchlist {summary.display_name!r} (ID {summary.watchlist_id}, "
                     f"{_plural_entries(summary.entry_count)})? Saved Analysis Runs are kept."
@@ -718,7 +731,9 @@ def watchlist_delete(
                 if not typer.confirm(question):
                     typer.echo("Nothing was deleted.")
                     raise typer.Exit(code=1)
-            deleted = repository.delete(name)
+                # Delete the watchlist that was asked about: a rename since the summary cannot redirect the delete.
+                ref = WatchlistId(summary.watchlist_id)
+            deleted = delete_watchlist(context, ref)
         except WatchlistNotFoundError as exc:
             if not missing_ok:
                 _fail_with(exc, json_output=json_output)
@@ -753,28 +768,17 @@ def watchlist_rename(
     json_output: Annotated[bool, typer.Option("--json", help="Emit the renamed watchlist document.")] = False,
 ) -> None:
     """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
-    with _workspace_database("watchlist rename", json_output=json_output) as database:
-        repository = watchlist_repository(database)
-        if not new_name.strip():
-            raise InvalidParameterError("NEW_NAME must not be blank.", parameters=("NEW_NAME",))
-        try:
-            repository.rename(name, new_name)
-        except (WatchlistNotFoundError, WatchlistConflictError) as exc:
-            _fail_with(exc, json_output=json_output)
-        confirmation = f"Renamed watchlist {name!r} to {new_name.strip()!r}."
-        if not json_output:
-            typer.echo(confirmation)
-        try:
-            watchlist = repository.get(new_name)
-        except StoredSelectionError as exc:
-            if json_output:
-                typer.echo(confirmation, err=True)
-            _fail_with(exc, json_output=json_output)
-    if watchlist is None:
-        _fail(
-            FailureReasonCode.WATCHLIST_NOT_FOUND, f"No watchlist named {new_name!r} exists.", json_output=json_output
-        )
-    typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist))
+    with _watchlist_action("watchlist rename", _RENAME_PARAMETERS, json_output=json_output):
+        renamed = rename_watchlist(ApplicationContext(settings=settings), WatchlistName(name), new_name)
+    confirmation = f"Renamed watchlist {name!r} to {new_name.strip()!r}."
+    if not json_output:
+        typer.echo(confirmation)
+    if renamed.watchlist is None:
+        if json_output:
+            typer.echo(confirmation, err=True)
+        assert renamed.unreadable is not None  # exactly one of watchlist and unreadable is set
+        _fail_with(renamed.unreadable, json_output=json_output)
+    typer.echo(_watchlist_json(renamed.watchlist) if json_output else _watchlist_text(renamed.watchlist))
 
 
 @watchlist_app.command("list")

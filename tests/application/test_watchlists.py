@@ -17,7 +17,7 @@ from investment_analysis_engine.application.watchlists import (
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
-from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError, WatchlistSpec
+from investment_analysis_engine.workspace.watchlists import WatchlistName, WatchlistNotFoundError, WatchlistSpec
 from tests.application._unready_database import unready_database_url
 
 _SELECTION = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
@@ -28,7 +28,7 @@ def _seed(settings: ProjectSettings) -> None:
         repository = watchlist_repository(database)
         repository.create(WatchlistSpec(display_name="Empty"))
         repository.create(WatchlistSpec(display_name="Core"))
-        repository.add_entries("Core", [("AAPL", _SELECTION), ("msft", _SELECTION)])
+        repository.add_entries(WatchlistName("Core"), [("AAPL", _SELECTION), ("msft", _SELECTION)])
 
 
 def test_an_empty_store_lists_no_watchlists(isolated_cli_settings: ProjectSettings) -> None:

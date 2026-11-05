@@ -1,6 +1,8 @@
 """Every read endpoint, in process: its document is the one the command line writes, parsed."""
 
 import json
+import sqlite3
+from contextlib import closing
 from importlib.metadata import version
 from uuid import uuid4
 
@@ -18,7 +20,7 @@ from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
-from investment_analysis_engine.workspace.watchlists import WatchlistSpec
+from investment_analysis_engine.workspace.watchlists import WatchlistName, WatchlistSpec
 from investment_analysis_engine.workspace_documents.watchlist import (
     build_watchlist_document,
     build_watchlist_list_document,
@@ -76,7 +78,7 @@ def test_the_watchlist_list_and_a_watchlist_by_id_are_the_commands_documents(
         repository = watchlist_repository(database)
         repository.create(WatchlistSpec(display_name="Empty"))
         repository.create(WatchlistSpec(display_name="Core"))
-        repository.add_entries("Core", [("AAPL", _SELECTION), ("msft", _SELECTION)])
+        repository.add_entries(WatchlistName("Core"), [("AAPL", _SELECTION), ("msft", _SELECTION)])
         summaries = repository.list()
     core = get_watchlist_by_name(context, "Core")
 
@@ -108,6 +110,32 @@ def test_a_missing_watchlist_is_not_found_with_the_message_of_the_operation(
     assert response.status_code == 404
     assert response.json()["reason_code"] == "watchlist_not_found"
     assert response.json()["reason"] == f"No watchlist with ID {missing} exists."
+
+
+def test_an_unreadable_entry_is_served_without_a_command_to_run(isolated_cli_settings: ProjectSettings) -> None:
+    """The reason names the entry and its state; the command line offers the remedy, the API does not."""
+    context = ApplicationContext(settings=isolated_cli_settings)
+    with open_database(context) as database:
+        repository = watchlist_repository(database)
+        created = repository.create(WatchlistSpec(display_name="Core"))
+        repository.add_entries(WatchlistName("Core"), [("AAPL", _SELECTION), ("msft", _SELECTION)])
+    with closing(sqlite3.connect(isolated_cli_settings.database_url.removeprefix("sqlite:///"))) as connection:
+        connection.execute("UPDATE watchlist_entries SET selection_json = '{\"x\":1}' WHERE ticker = 'MSFT'")
+        connection.commit()
+
+    with client_for(isolated_cli_settings) as client:
+        unreadable = client.get(f"/v1/watchlists/{created.watchlist_id}", headers=AUTH)
+        missing = client.get(f"/v1/watchlists/{uuid4()}", headers=AUTH)
+        malformed = client.get("/v1/watchlists/not-an-id", headers=AUTH)
+
+    document = unreadable.json()
+    assert document["reason_code"] == "stored_selection_unreadable"
+    assert document["reason"] == (
+        "Watchlist 'Core', entry 2 (MSFT, momentum): its stored selection is not in a shape this version can read."
+    )
+    for response in (unreadable, missing, malformed):
+        assert response.status_code >= 400
+        assert "ian " not in response.text
 
 
 def test_the_runs_list_filters_and_pages_like_the_command(isolated_cli_settings: ProjectSettings) -> None:

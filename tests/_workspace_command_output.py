@@ -118,6 +118,21 @@ _STEPS: tuple[tuple[str, list[str]], ...] = (
     ("watchlist-show-json-as-of-timestamps", ["watchlist", "show", "Dated", "--json"]),
     ("watchlist-rename-json-timestamps", ["watchlist", "rename", "Fresh", "Fresh Renamed", "--json"]),
     ("watchlist-delete-json-timestamps", ["watchlist", "delete", "Fresh Renamed", "--yes", "--json"]),
+    # The watchlist writing commands with --json: the document on standard output, a removal's confirmation on
+    # standard error.
+    ("watchlist-create-json", ["watchlist", "create", "Json Empty", "--json"]),
+    (
+        "watchlist-create-seeded-json",
+        ["watchlist", "create", "Json Seeded", "KO", "MSFT", "-a", "graham-number", "--json"],
+    ),
+    (
+        "watchlist-add-selection-json",
+        ["watchlist", "add-selection", "Json Seeded", "AAPL", "-a", "fcf-growth", "--json"],
+    ),
+    ("watchlist-remove-entry-json", ["watchlist", "remove-entry", "Json Seeded", "1", "--json"]),
+    ("watchlist-remove-ticker-json", ["watchlist", "remove-ticker", "Json Seeded", "MSFT", "--json"]),
+    ("watchlist-remove-ticker-json-nothing-removed", ["watchlist", "remove-ticker", "Json Seeded", "ZZZ", "--json"]),
+    ("watchlist-remove-method-json", ["watchlist", "remove-method", "Json Seeded", "-a", "fcf-growth", "--json"]),
 )
 
 # Steps whose stored text keeps each timestamp's offset suffix.

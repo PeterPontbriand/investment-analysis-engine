@@ -1196,7 +1196,7 @@ def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fix
 def test_an_exception_that_declares_its_own_code_keeps_its_own_message() -> None:
     _create("Core")
     with patch(
-        "investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.get",
+        "investment_analysis_engine.workspace.repositories.watchlists.SQLiteWatchlistRepository.get",
         side_effect=WatchlistNotFoundError("own message"),
     ):
         result = runner.invoke(app, ["watchlist", "show", "Core", "--json"])
@@ -1207,6 +1207,9 @@ def test_an_exception_that_declares_its_own_code_keeps_its_own_message() -> None
 
 def test_a_deliberate_exit_passes_through_the_catch_all() -> None:
     _create("Core")
-    with patch("investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.get", side_effect=typer.Exit(7)):
+    with patch(
+        "investment_analysis_engine.workspace.repositories.watchlists.SQLiteWatchlistRepository.get",
+        side_effect=typer.Exit(7),
+    ):
         result = runner.invoke(app, ["watchlist", "show", "Core"])
     assert result.exit_code == 7

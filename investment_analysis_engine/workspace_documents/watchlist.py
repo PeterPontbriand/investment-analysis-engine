@@ -1,4 +1,4 @@
-"""The watchlist documents: ``watchlist list``, ``show``, ``rename`` and ``delete`` with ``--json``.
+"""The watchlist documents: the ``watchlist`` commands that write ``--json``.
 
 Only the watchlist list document carries a ``schema_version``; the others are unversioned. A change to a key, a type
 or a timestamp spelling is a listed output change in the slice that makes it, and the generated schema shows it.
@@ -45,7 +45,10 @@ class WatchlistEntryDocument(BaseModel):
 
 
 class WatchlistDocument(BaseModel):
-    """The complete watchlist, as ``watchlist show`` and ``watchlist rename`` write it with ``--json``.
+    """The complete watchlist, as every command that writes one with ``--json`` prints it.
+
+    These are ``watchlist show``, ``create``, ``add-selection``, ``remove-entry``, ``remove-ticker``,
+    ``remove-method`` and ``rename``.
 
     This document is unversioned: it has no ``schema_version``.
     """

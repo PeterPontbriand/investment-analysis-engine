@@ -388,7 +388,7 @@
     },
     "WatchlistDocument": {
       "additionalProperties": false,
-      "description": "The complete watchlist, as ``watchlist show`` and ``watchlist rename`` write it with ``--json``.\n\nThis document is unversioned: it has no ``schema_version``.",
+      "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show``, ``create``, ``add-selection``, ``remove-entry``, ``remove-ticker``,\n``remove-method`` and ``rename``.\n\nThis document is unversioned: it has no ``schema_version``.",
       "properties": {
         "created_at": {
           "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",

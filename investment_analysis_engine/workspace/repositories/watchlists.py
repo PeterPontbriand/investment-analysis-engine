@@ -32,11 +32,15 @@ from investment_analysis_engine.workspace.runs import Watchlist, WatchlistEntry,
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import (
     StoredSelectionError,
+    WatchlistId,
+    WatchlistName,
     WatchlistNotFoundError,
+    WatchlistRef,
     WatchlistSpec,
     decode_selection,
     encode_selection,
     normalize_ticker,
+    not_found_message,
 )
 
 
@@ -74,9 +78,54 @@ class DeletedWatchlist:
             raise ValueError("DeletedWatchlist holds exactly one of watchlist and unreadable.")
 
 
+@dataclass(frozen=True)
+class RenamedWatchlist:
+    """What :meth:`SQLiteWatchlistRepository.rename` committed, read back in the same transaction.
+
+    Exactly one of ``watchlist`` (every entry decoded) and ``unreadable`` (the error for the first
+    entry this version cannot decode) is set: the rename never depends on decoding, so it commits
+    whatever the other entries hold.
+    """
+
+    watchlist: Watchlist | None
+    unreadable: StoredSelectionError | None
+
+    def __post_init__(self) -> None:
+        """Require exactly one of the decoded aggregate and the decoding error."""
+        if (self.watchlist is None) == (self.unreadable is None):
+            raise ValueError("RenamedWatchlist holds exactly one of watchlist and unreadable.")
+
+
+@dataclass(frozen=True)
+class RemovedEntries:
+    """What a removal committed, read back in the same transaction.
+
+    ``removed`` is the number of entries removed (0 for a no-op). Exactly one of ``watchlist`` (every
+    remaining entry decoded) and ``unreadable`` (the error for the first remaining entry this version
+    cannot decode) is set: a removal never depends on decoding, so it commits whatever the other
+    entries hold.
+    """
+
+    removed: int
+    watchlist: Watchlist | None
+    unreadable: StoredSelectionError | None
+
+    def __post_init__(self) -> None:
+        """Require exactly one of the decoded aggregate and the decoding error."""
+        if (self.watchlist is None) == (self.unreadable is None):
+            raise ValueError("RemovedEntries holds exactly one of watchlist and unreadable.")
+
+
 def _normalize_name(name: str) -> str:
     """Apply the watchlist name comparison convention: trim, then casefold."""
     return name.strip().casefold()
+
+
+def _label(ref: WatchlistRef) -> str:
+    """Name a watchlist in a message the way the caller addressed it."""
+    if isinstance(ref, WatchlistName):
+        return f"watchlist {ref.name!r}"
+    return f"the watchlist with ID {ref.watchlist_id}"
 
 
 def _utc(value: datetime) -> str:
@@ -184,23 +233,20 @@ class SQLiteWatchlistRepository:
             updated_at=None if row["updated_at"] is None else datetime.fromisoformat(row["updated_at"]),
         )
 
-    def summary(self, name: str) -> WatchlistSummary:
+    def summary(self, ref: WatchlistRef) -> WatchlistSummary:
         """Return one watchlist's identity and stored entry count without decoding any entry.
 
         Raises:
-            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistNotFoundError: If no watchlist matches ``ref``.
         """
         with self._database.read() as connection:
+            watchlist_id = self._find_id(connection, ref)
             row = (
-                connection.execute(select(watchlists).where(watchlists.c.normalized_name == _normalize_name(name)))
-                .mappings()
-                .one_or_none()
+                connection.execute(select(watchlists).where(watchlists.c.watchlist_id == watchlist_id)).mappings().one()
             )
-            if row is None:
-                raise WatchlistNotFoundError(f"No watchlist named {name!r} exists.")
             return self._summarize(connection, row)
 
-    def delete(self, name: str) -> DeletedWatchlist:
+    def delete(self, ref: WatchlistRef) -> DeletedWatchlist:
         """Delete a watchlist and all its entries in one transaction, without decoding any entry.
 
         Saved Analysis Runs are not touched: they carry their own snapshot of the watchlist's
@@ -210,10 +256,10 @@ class SQLiteWatchlistRepository:
         in the result and never prevents or rolls back the deletion.
 
         Raises:
-            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistNotFoundError: If no watchlist matches ``ref``.
         """
         with self._database.transaction() as connection:
-            watchlist_id = self._find_id(connection, name)
+            watchlist_id = self._find_id(connection, ref)
             row = (
                 connection.execute(select(watchlists).where(watchlists.c.watchlist_id == watchlist_id)).mappings().one()
             )
@@ -234,16 +280,18 @@ class SQLiteWatchlistRepository:
                 unreadable=unreadable,
             )
 
-    def rename(self, name: str, new_display_name: str) -> None:
-        """Change a watchlist's display name, keeping its ID and entries; nothing is decoded.
+    def rename(self, ref: WatchlistRef, new_display_name: str) -> RenamedWatchlist:
+        """Change a watchlist's display name, keeping its ID and entries; no entry need be decodable.
 
         The new name is trimmed. Renaming to a different casing of the watchlist's own name is
         allowed and changes only ``display_name``. Renaming to the identical display name is a
-        no-op that leaves ``updated_at`` alone; any real change bumps it.
+        no-op that leaves ``updated_at`` alone; any real change bumps it. The watchlist is read
+        back in the same transaction; an entry that cannot be decoded is returned, not raised, so
+        the rename still commits.
 
         Raises:
             ValueError: If ``new_display_name`` is blank after trimming.
-            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistNotFoundError: If no watchlist matches ``ref``.
             WatchlistConflictError: If the new normalized name belongs to a different watchlist.
         """
         display_name = new_display_name.strip()
@@ -251,35 +299,38 @@ class SQLiteWatchlistRepository:
             raise ValueError("display_name must not be blank.")
         normalized = _normalize_name(display_name)
         with self._database.transaction() as connection:
-            watchlist_id = self._find_id(connection, name)
+            watchlist_id = self._find_id(connection, ref)
             current = connection.execute(
                 select(watchlists.c.display_name).where(watchlists.c.watchlist_id == watchlist_id)
             ).scalar_one()
-            if current == display_name:
-                return
-            try:
-                connection.execute(
-                    update(watchlists)
-                    .where(watchlists.c.watchlist_id == watchlist_id)
-                    .values(display_name=display_name, normalized_name=normalized, updated_at=_utc(self._clock()))
-                )
-            except IntegrityError as exc:
-                raise WatchlistConflictError(f"A watchlist named {new_display_name!r} already exists.") from exc
+            if current != display_name:
+                try:
+                    connection.execute(
+                        update(watchlists)
+                        .where(watchlists.c.watchlist_id == watchlist_id)
+                        .values(display_name=display_name, normalized_name=normalized, updated_at=_utc(self._clock()))
+                    )
+                except IntegrityError as exc:
+                    raise WatchlistConflictError(f"A watchlist named {new_display_name!r} already exists.") from exc
+            watchlist, unreadable = self._read_back(connection, watchlist_id)
+            return RenamedWatchlist(watchlist=watchlist, unreadable=unreadable)
 
-    def add_entries(self, name: str, entries: Sequence[tuple[str, AnalysisSelection]]) -> Watchlist:
+    def add_entries(self, ref: WatchlistRef, entries: Sequence[tuple[str, AnalysisSelection]]) -> Watchlist:
         """Append one entry per (ticker, selection) pair, after the current highest position.
 
         Tickers are normalized; the whole batch is validated before any row
         is written, and applied in one transaction. An empty ``entries`` is a
-        no-op that still returns the current watchlist.
+        no-op that still returns the current watchlist. A watchlist holding an
+        entry this version cannot read is refused: nothing is written.
 
         Raises:
             ValueError: If any ticker normalizes to empty.
-            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistNotFoundError: If no watchlist matches ``ref``.
+            StoredSelectionError: If an entry of the watchlist cannot be read; the add is rolled back.
         """
         normalized_entries = [(normalize_ticker(ticker), selection) for ticker, selection in entries]
         with self._database.transaction() as connection:
-            watchlist_id = self._find_id(connection, name)
+            watchlist_id = self._find_id(connection, ref)
             if normalized_entries:
                 next_position = self._next_position(connection, watchlist_id)
                 rows: list[dict[str, Any]] = [
@@ -297,41 +348,42 @@ class SQLiteWatchlistRepository:
                 self._touch(connection, watchlist_id)
             return self._load(connection, watchlist_id)
 
-    def remove_entry(self, name: str, position: int) -> int:
+    def remove_entry(self, ref: WatchlistRef, position: int) -> RemovedEntries:
         """Remove exactly one entry by its stored 0-based position, renumbering survivors.
 
-        Returns the number of entries removed, which is always 1. Nothing is decoded, so the
-        removal commits even when other entries can no longer be read; read the result back
-        with :meth:`get`.
+        The result's ``removed`` is always 1. No entry need be decodable, so the removal commits even
+        when other entries can no longer be read: the watchlist is read back in the same transaction
+        and an entry that cannot be decoded is returned, not raised.
 
         Raises:
-            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistNotFoundError: If no watchlist matches ``ref``.
             WatchlistEntryNotFoundError: If no entry exists at ``position``.
         """
         with self._database.transaction() as connection:
-            watchlist_id = self._find_id(connection, name)
+            watchlist_id = self._find_id(connection, ref)
             rows = self._entry_rows(connection, watchlist_id)
             survivors = [row for row in rows if row["position"] != position]
             if len(survivors) == len(rows):
-                raise WatchlistEntryNotFoundError(f"No entry at position {position} in watchlist {name!r}.")
+                raise WatchlistEntryNotFoundError(f"No entry at position {position} in {_label(ref)}.")
             self._replace_entries(connection, watchlist_id, survivors)
             self._touch(connection, watchlist_id)
-            return len(rows) - len(survivors)
+            return self._removed(connection, watchlist_id, len(rows) - len(survivors))
 
-    def remove_entries_for_ticker(self, name: str, tickers: Sequence[str]) -> int:
+    def remove_entries_for_ticker(self, ref: WatchlistRef, tickers: Sequence[str]) -> RemovedEntries:
         """Remove every entry for the given ticker(s); absent tickers are a no-op.
 
-        Returns the number of entries removed (0 for a no-op). Nothing is decoded, so the
-        removal commits even when other entries can no longer be read; read the result back
-        with :meth:`get`.
+        The result's ``removed`` is the number of entries removed (0 for a no-op). No entry need be
+        decodable, so the removal commits even when other entries can no longer be read: the watchlist
+        is read back in the same transaction and an entry that cannot be decoded is returned, not
+        raised.
 
         Raises:
             ValueError: If any ticker normalizes to empty.
-            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistNotFoundError: If no watchlist matches ``ref``.
         """
         normalized_tickers = {normalize_ticker(ticker) for ticker in tickers}
         with self._database.transaction() as connection:
-            watchlist_id = self._find_id(connection, name)
+            watchlist_id = self._find_id(connection, ref)
             removed = 0
             if normalized_tickers:
                 rows = self._entry_rows(connection, watchlist_id)
@@ -340,27 +392,42 @@ class SQLiteWatchlistRepository:
                 if removed:
                     self._replace_entries(connection, watchlist_id, survivors)
                     self._touch(connection, watchlist_id)
-            return removed
+            return self._removed(connection, watchlist_id, removed)
 
-    def remove_entries_for_method(self, name: str, method_id: str) -> int:
+    def remove_entries_for_method(self, ref: WatchlistRef, method_id: str) -> RemovedEntries:
         """Remove every entry for ``method_id``; absent is a no-op.
 
-        Returns the number of entries removed (0 for a no-op). Nothing is decoded, so the
-        removal commits even when other entries can no longer be read; read the result back
-        with :meth:`get`.
+        The result's ``removed`` is the number of entries removed (0 for a no-op). No entry need be
+        decodable, so the removal commits even when other entries can no longer be read: the watchlist
+        is read back in the same transaction and an entry that cannot be decoded is returned, not
+        raised.
 
         Raises:
-            WatchlistNotFoundError: If no watchlist matches ``name``.
+            WatchlistNotFoundError: If no watchlist matches ``ref``.
         """
         with self._database.transaction() as connection:
-            watchlist_id = self._find_id(connection, name)
+            watchlist_id = self._find_id(connection, ref)
             rows = self._entry_rows(connection, watchlist_id)
             survivors = [row for row in rows if row["method_id"] != method_id]
             removed = len(rows) - len(survivors)
             if removed:
                 self._replace_entries(connection, watchlist_id, survivors)
                 self._touch(connection, watchlist_id)
-            return removed
+            return self._removed(connection, watchlist_id, removed)
+
+    def _removed(self, connection: Connection, watchlist_id: str, removed: int) -> RemovedEntries:
+        """Read the watchlist back in the open transaction and pair it with the count removed."""
+        watchlist, unreadable = self._read_back(connection, watchlist_id)
+        return RemovedEntries(removed=removed, watchlist=watchlist, unreadable=unreadable)
+
+    def _read_back(
+        self, connection: Connection, watchlist_id: str
+    ) -> tuple[Watchlist | None, StoredSelectionError | None]:
+        """Decode a watchlist in the open transaction; an unreadable entry is returned, not raised."""
+        try:
+            return self._load(connection, watchlist_id), None
+        except StoredSelectionError as exc:
+            return None, exc
 
     def _touch(self, connection: Connection, watchlist_id: str) -> None:
         """Bump ``updated_at`` to the injected clock's current instant."""
@@ -368,14 +435,17 @@ class SQLiteWatchlistRepository:
             update(watchlists).where(watchlists.c.watchlist_id == watchlist_id).values(updated_at=_utc(self._clock()))
         )
 
-    def _find_id(self, connection: Connection, name: str) -> str:
-        """Resolve a name to its watchlist ID, or raise if none matches."""
-        watchlist_id = connection.execute(
-            select(watchlists.c.watchlist_id).where(watchlists.c.normalized_name == _normalize_name(name))
-        ).scalar_one_or_none()
-        if watchlist_id is None:
-            raise WatchlistNotFoundError(f"No watchlist named {name!r} exists.")
-        return cast(str, watchlist_id)
+    def _find_id(self, connection: Connection, ref: WatchlistRef) -> str:
+        """Resolve a name or ID to its stored watchlist ID, or raise if none matches."""
+        match ref:
+            case WatchlistName(name=name):
+                condition = watchlists.c.normalized_name == _normalize_name(name)
+            case WatchlistId(watchlist_id=stored_id):
+                condition = watchlists.c.watchlist_id == str(stored_id)
+        found = connection.execute(select(watchlists.c.watchlist_id).where(condition)).scalar_one_or_none()
+        if found is None:
+            raise WatchlistNotFoundError(not_found_message(ref))
+        return cast(str, found)
 
     @staticmethod
     def _next_position(connection: Connection, watchlist_id: str) -> int:
@@ -425,7 +495,7 @@ class SQLiteWatchlistRepository:
             )
 
     def _decode_entry(self, display_name: str, index: int, entry_row: RowMapping) -> WatchlistEntry:
-        """Decode one stored entry, naming it and the command that removes it if it cannot be read.
+        """Decode one stored entry, naming it if it cannot be read.
 
         The entry is named by its method alias when it has one. An entry stored by an earlier
         version may carry a method identifier this version no longer maps, so the stored identifier
@@ -438,8 +508,11 @@ class SQLiteWatchlistRepository:
         except StoredSelectionError as exc:
             method = self._alias_for(entry_row["method_id"]) or entry_row["method_id"]
             raise StoredSelectionError(
-                f"Watchlist {display_name!r}, entry {index} ({entry_row['ticker']}, {method}): "
-                f'{exc}. Remove it with: ian watchlist remove-entry "{display_name}" {index}'
+                str(exc),
+                watchlist_name=display_name,
+                entry_number=index,
+                ticker=entry_row["ticker"],
+                method=method,
             ) from exc
         return WatchlistEntry(ticker=entry_row["ticker"], selection=selection)
 
@@ -463,6 +536,8 @@ class SQLiteWatchlistRepository:
 
 __all__ = [
     "DeletedWatchlist",
+    "RemovedEntries",
+    "RenamedWatchlist",
     "SQLiteWatchlistRepository",
     "WatchlistConflictError",
     "WatchlistEntryNotFoundError",

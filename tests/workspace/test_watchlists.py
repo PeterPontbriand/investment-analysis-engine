@@ -1,6 +1,7 @@
 """Focused tests for the watchlist creation spec and selection JSON codec."""
 
 import json
+from uuid import UUID
 
 import pytest
 from pydantic import ValidationError
@@ -11,10 +12,13 @@ from investment_analysis_engine.strategies.graham_number.selection import Graham
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.watchlists import (
     StoredSelectionError,
+    WatchlistId,
+    WatchlistName,
     WatchlistSpec,
     decode_selection,
     encode_selection,
     normalize_ticker,
+    not_found_message,
 )
 
 
@@ -100,3 +104,24 @@ def test_decode_selection_rejects_malformed_json() -> None:
 def test_decode_selection_rejects_unknown_method_id() -> None:
     with pytest.raises(ValueError, match="not in a shape this version can read"):
         decode_selection("unknown_method", 1, '{"method_id": "unknown_method"}')
+
+
+def test_a_stored_selection_error_names_an_entry_by_all_four_fields_or_by_none() -> None:
+    clause_only = StoredSelectionError("its stored selection is not valid JSON")
+    named = StoredSelectionError(
+        "its stored selection is not valid JSON", watchlist_name="Core", entry_number=2, ticker="KO", method="momentum"
+    )
+
+    assert str(clause_only) == "its stored selection is not valid JSON"
+    assert clause_only.watchlist_name is None
+    assert str(named) == "Watchlist 'Core', entry 2 (KO, momentum): its stored selection is not valid JSON."
+    assert (named.watchlist_name, named.entry_number, named.ticker, named.method) == ("Core", 2, "KO", "momentum")
+    with pytest.raises(ValueError, match="all of its four fields or by none"):
+        StoredSelectionError("clause", watchlist_name="Core")
+
+
+def test_the_not_found_message_names_the_watchlist_as_it_was_addressed() -> None:
+    watchlist_id = UUID(int=3)
+
+    assert not_found_message(WatchlistName("Core")) == "No watchlist named 'Core' exists."
+    assert not_found_message(WatchlistId(watchlist_id)) == f"No watchlist with ID {watchlist_id} exists."

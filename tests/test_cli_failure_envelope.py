@@ -21,6 +21,7 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._cli_helpers import normalize_cli_output
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
@@ -219,7 +220,7 @@ def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(
     try:
         _create("Core")
         investment_analysis_engine.application.watchlists.watchlist_repository(database).add_entries(
-            "Core", [("AAPL", selection), ("MSFT", selection), ("KO", selection), ("IBM", selection)]
+            WatchlistName("Core"), [("AAPL", selection), ("MSFT", selection), ("KO", selection), ("IBM", selection)]
         )
     finally:
         database.close()
