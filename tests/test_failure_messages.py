@@ -22,14 +22,14 @@ from sqlalchemy.exc import OperationalError
 from typer.testing import CliRunner, Result
 
 import investment_analysis_engine.cli_workspace
-from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS
-from investment_analysis_engine.cli_support import (
+from investment_analysis_engine.application.failures import (
     InternalDefectError,
-    describe_failure,
     require_job_ticker,
     stored_configuration,
 )
+from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS
+from investment_analysis_engine.cli_support import describe_failure
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
@@ -232,7 +232,7 @@ def _refresh(settings: ProjectSettings, row: Row, flags: list[str]) -> tuple[Bas
             )
         else:
             run = stack.enter_context(
-                patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+                patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
             )
             run.side_effect = lambda **kw: _mock_momentum_run(kw["ticker"])
             if row.step == "spec":
@@ -298,7 +298,6 @@ def _analysis_raises(alias: str, exception: BaseException) -> AbstractContextMan
 def _migrated(directory: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     url = migrated_database_url(directory / "direct")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
-    monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
     monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)
 
 
@@ -362,7 +361,10 @@ def test_the_graham_resolver_build_gives_the_same_code_and_message(
     with ExitStack() as stack:
         enter_fixture_providers(stack, alias)
         stack.enter_context(
-            patch(f"investment_analysis_engine.strategies.{module}.cli.build_graham_resolver", side_effect=exception)
+            patch(
+                f"investment_analysis_engine.strategies.{module}.application.build_graham_resolver",
+                side_effect=exception,
+            )
         )
         result = runner.invoke(app, [*_COMMANDS[alias], "--json", *no_provider_check_flag(alias)])
     document = json.loads(result.stdout)

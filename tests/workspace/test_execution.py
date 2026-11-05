@@ -16,12 +16,12 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
-from investment_analysis_engine.strategies.momentum.execution import (
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.workspace import (
     capture_momentum,
     from_momentum_capture,
     run_momentum,
 )
-from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, run_spec_for
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.codecs import decode_evidence

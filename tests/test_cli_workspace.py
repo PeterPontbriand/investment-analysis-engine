@@ -21,8 +21,8 @@ from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.schema import analysis_runs
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureDataClient
-from investment_analysis_engine.strategies.momentum.execution import run_momentum
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.workspace import run_momentum
 from investment_analysis_engine.strategy_wiring import STRATEGIES, run_spec_for
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.execution import execute

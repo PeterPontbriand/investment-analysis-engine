@@ -12,8 +12,9 @@ import pytest
 from typer.testing import CliRunner
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.providers import production_historical_client
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_support import production_historical_client
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
@@ -70,15 +71,15 @@ def test_momentum_cli_reuses_history_and_preserves_profile_provider(
     profile = InstrumentProfile(ticker="ACME", identity=None, kind_evidence=None, diagnostics=())
     args = ["momentum", "ACME", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--json"]
     with (
-        patch("investment_analysis_engine.strategies.momentum.cli.YFinanceClient", return_value=provider),
+        patch("investment_analysis_engine.strategies.momentum.application.YFinanceClient", return_value=provider),
         patch.object(
             provider, "fetch_historical_data", side_effect=[history, AssertionError("Unexpected refetch")]
         ) as fetch,
         patch.object(provider, "fetch_current_price", side_effect=AssertionError("Historical analysis needs no quote")),
         patch(
-            "investment_analysis_engine.strategies.momentum.execution.compose_instrument_profile", return_value=profile
+            "investment_analysis_engine.strategies.momentum.workspace.compose_instrument_profile", return_value=profile
         ) as compose,
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase", side_effect=database),
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase", side_effect=database),
     ):
         first = CliRunner().invoke(app, args)
         with patch(
@@ -128,16 +129,20 @@ def test_settings_control_reuse_age(
     with (
         patch("investment_analysis_engine.data.cached_client.datetime", wraps=datetime) as clock,
         patch(
-            "investment_analysis_engine.cli_support.SQLiteMarketDataRepository",
+            "investment_analysis_engine.application.providers.SQLiteMarketDataRepository",
             side_effect=lambda db: SQLiteMarketDataRepository(db, clock=lambda: NOW),
         ),
         patch.object(provider, "fetch_historical_data", return_value=history) as fetch,
     ):
         clock.now.return_value = NOW
-        with production_historical_client(provider, use_cache=True, clock=clock.now) as client:
+        with production_historical_client(
+            ApplicationContext(settings=configured_settings), provider, use_cache=True, clock=clock.now
+        ) as client:
             client.fetch_historical_data("ACME", "2025-01-01", use_cache=True)
         clock.now.return_value = NOW + timedelta(seconds=age)
-        with production_historical_client(provider, use_cache=True, clock=clock.now) as client:
+        with production_historical_client(
+            ApplicationContext(settings=configured_settings), provider, use_cache=True, clock=clock.now
+        ) as client:
             client.fetch_historical_data("ACME", "2025-01-01", use_cache=True)
     assert fetch.call_count == calls
 
@@ -145,7 +150,9 @@ def test_settings_control_reuse_age(
 def test_quote_delegation_survives_closed_storage(configured_settings: ProjectSettings) -> None:
     assert configured_settings.database_url.startswith("sqlite:")
     provider = YFinanceClient()
-    with production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client:
+    with production_historical_client(
+        ApplicationContext(settings=configured_settings), provider, use_cache=True, clock=lambda: NOW
+    ) as client:
         pass
     with patch.object(provider, "fetch_current_price", return_value=87.5) as quote:
         assert client.fetch_current_price("ACME") == 87.5
@@ -156,10 +163,12 @@ def test_storage_closes_after_provider_error(configured_settings: ProjectSetting
     database = SQLiteDatabase(configured_settings)
     provider = YFinanceClient()
     with (
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase", return_value=database),
         patch.object(provider, "fetch_historical_data", side_effect=DataFetchError("offline")),
         pytest.raises(DataFetchError, match="offline"),
-        production_historical_client(provider, use_cache=True, clock=lambda: NOW) as client,
+        production_historical_client(
+            ApplicationContext(settings=configured_settings), provider, use_cache=True, clock=lambda: NOW
+        ) as client,
     ):
         client.fetch_data("ACME", "2025-01-01")
     with pytest.raises(RuntimeError, match="closed"), database.read():
@@ -171,12 +180,13 @@ def test_disabled_cache_never_checks_readiness(tmp_path: Path) -> None:
     settings = ProjectSettings(database_url=f"sqlite:///{(tmp_path / 'absent.sqlite3').as_posix()}")
     provider = YFinanceClient()
     with (
-        patch("investment_analysis_engine.cli_support.settings", settings),
         patch(
-            "investment_analysis_engine.cli_support.ensure_database_ready",
+            "investment_analysis_engine.application.providers.ensure_database_ready",
             side_effect=AssertionError("must not check readiness"),
         ),
-        production_historical_client(provider, use_cache=False, clock=lambda: NOW),
+        production_historical_client(
+            ApplicationContext(settings=settings), provider, use_cache=False, clock=lambda: NOW
+        ),
     ):
         pass
     assert not Path(settings.database_url.removeprefix("sqlite:///")).exists()
@@ -186,7 +196,7 @@ def test_custom_analyzer_client_remains_direct(history: HistoricalMarketData) ->
     custom = FixtureDataClient()
     with (
         patch(
-            "investment_analysis_engine.cli_support.SQLiteDatabase",
+            "investment_analysis_engine.application.providers.SQLiteDatabase",
             side_effect=AssertionError("Custom clients do not use production storage"),
         ),
         patch.object(custom, "fetch_data_with_context", return_value=history) as fetch,
@@ -214,19 +224,19 @@ def _momentum_options_run(
             )
         )
         stack.enter_context(
-            patch("investment_analysis_engine.strategies.momentum.cli.YFinanceClient", return_value=provider)
+            patch("investment_analysis_engine.strategies.momentum.application.YFinanceClient", return_value=provider)
         )
         fetch = stack.enter_context(patch.object(provider, "fetch_historical_data", return_value=history))
         stack.enter_context(
             patch(
-                "investment_analysis_engine.strategies.momentum.execution.compose_instrument_profile",
+                "investment_analysis_engine.strategies.momentum.workspace.compose_instrument_profile",
                 return_value=profile,
             )
         )
         if guard_readiness:
             stack.enter_context(
                 patch(
-                    "investment_analysis_engine.cli_support.ensure_database_ready",
+                    "investment_analysis_engine.application.providers.ensure_database_ready",
                     side_effect=AssertionError("Database must not be migrated"),
                 )
             )

@@ -1,60 +1,27 @@
-"""The specimen's CLI-layer functions: the direct command, the watchlist selection builder and the refresh executor.
-
-The settings path of the composition root is exercised here: the multiplier comes from the specimen's
-``settings.toml``, overridden per key by the user's ``strategies/specimen-test.toml``.
-"""
+"""The specimen's CLI-layer functions: the direct command and the watchlist selection builder."""
 
 from typing import Final
 
 import typer
 
+from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.cli_support import parse_as_of, presentation_mode
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import settings
-from investment_analysis_engine.config.component_settings import load_component_settings
 from investment_analysis_engine.core.clock import utc_now
-from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.workspace.capture import ExecutionCapture
-from tests.specimen.analyzer import SpecimenAnalyzer
-from tests.specimen.closed_types import as_native_evidence
-from tests.specimen.codec import specimen_native_status
-from tests.specimen.execution import execute_specimen, from_specimen_capture
+from tests.specimen.application import specimen_analyzer
 from tests.specimen.presenter import render_specimen
 from tests.specimen.runs import SPECIMEN_RUN_STORE, build_specimen_run
 from tests.specimen.selection import SpecimenSelection
-from tests.specimen.settings import SpecimenSettings
-from tests.specimen.vocabulary import ALIAS
+from tests.specimen.workspace import execute_specimen, from_specimen_capture
 
 WATCHLIST_VALUE: Final = 3.0
 """The input value a watchlist entry of the specimen uses; the watchlist commands have no flag for it."""
 
 
-def specimen_settings() -> SpecimenSettings:
-    """Return the specimen's validated settings, loaded once per process."""
-    return load_component_settings(ALIAS, SpecimenSettings, settings.config_dir)
-
-
-def _analyzer() -> SpecimenAnalyzer:
-    """Compose the analyzer with the configured multiplier."""
-    return SpecimenAnalyzer(multiplier=specimen_settings().multiplier)
-
-
 def build_selection(flags: WatchlistFlags) -> SpecimenSelection:
     """Build one validated specimen selection from the watchlist flags it concerns: the boundary and the cache."""
     return SpecimenSelection(value=WATCHLIST_VALUE, as_of=parse_as_of(flags.as_of), use_cache=not flags.no_cache)
-
-
-def refresh(
-    ticker: str, selection: SpecimenSelection, *, profile_cache: InstrumentProfileResolver | None
-) -> ExecutionCapture:
-    """Execute one specimen refresh job; the calculation reads no profile, so the cache is unused."""
-    del profile_cache
-    execution = from_specimen_capture(execute_specimen(_analyzer(), ticker, selection, executed_at=utc_now()))
-    return ExecutionCapture(
-        native_evidence=as_native_evidence(execution.native_evidence),
-        profile=None,
-        native_status=specimen_native_status(execution.native_evidence),
-    )
 
 
 def command(  # noqa: PLR0913
@@ -71,7 +38,8 @@ def command(  # noqa: PLR0913
     """Scale a value by the specimen's configured multiplier."""
     mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
     selection = SpecimenSelection(value=value, as_of=parse_as_of(as_of), use_cache=not no_cache)
-    capture = execute_specimen(_analyzer(), ticker, selection, executed_at=utc_now())
+    analyzer = specimen_analyzer(ApplicationContext(settings=settings))
+    capture = execute_specimen(analyzer, ticker, selection, executed_at=utc_now())
     if save_run:
         SPECIMEN_RUN_STORE.insert(build_specimen_run(ticker, selection, from_specimen_capture(capture)))
     typer.echo(render_specimen(capture.result, mode))

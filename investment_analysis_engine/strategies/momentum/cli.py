@@ -1,49 +1,29 @@
-"""Momentum's CLI-layer functions: the direct command, the watchlist selection builder and the refresh executor.
+"""Momentum's CLI-layer functions: the direct command and the watchlist selection builder.
 
 The CLI tier pairs these with the Momentum core bundle and adds the command to the application; nothing here
-registers itself.
+registers itself. The command parses its options, builds the selection and calls the direct-analysis operation.
 """
-
-from collections.abc import Callable
-from contextlib import AbstractContextManager
-from datetime import datetime
 
 import typer
 
 from investment_analysis_engine.analysis.base_analyzer import require_ticker
-from investment_analysis_engine.cli_composition import momentum_settings
-from investment_analysis_engine.cli_provider_check import (
-    provider_check_choice,
-)
-from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
+from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
     SAVE_RUN_OPTION,
+    analysis_output,
+    analyze_for_command,
     emit_output,
     execution_errors,
     parse_as_of,
-    production_historical_client,
-    render_execution,
-    require_job_ticker,
     resolve_command_target,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
-from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
-from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.market_data import MarketDataProvider
-from investment_analysis_engine.data.yfinance.client import YFinanceClient
-from investment_analysis_engine.strategies.momentum.analyzer import MomentumConfig
-from investment_analysis_engine.strategies.momentum.execution import (
-    execute_momentum,
-    from_momentum_capture,
-)
-from investment_analysis_engine.strategies.momentum.presenter import MomentumPresentation, render_momentum
+from investment_analysis_engine.strategies.momentum.application import momentum_settings
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
-from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.requests import AnalysisRequest
 
 
 def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
@@ -92,36 +72,10 @@ def build_selection(flags: WatchlistFlags) -> MomentumSelection:
     )
 
 
-def _historical_scope(
-    data_client: YFinanceClient, selection: MomentumSelection, executed_at: datetime
-) -> Callable[[], AbstractContextManager[MarketDataProvider]]:
-    """Return the scope that opens Momentum's historical client over the borrowed Yahoo client for one run."""
-    return lambda: production_historical_client(data_client, use_cache=selection.use_cache, clock=lambda: executed_at)
-
-
-def refresh(
-    ticker: str, selection: MomentumSelection, *, profile_cache: InstrumentProfileResolver | None
-) -> ExecutionCapture:
-    """Execute one Momentum refresh job with freshly composed, job-scoped dependencies."""
-    data_client = YFinanceClient()
-    executed_at = utc_now()
-    capture = execute_momentum(
-        selection,
-        require_ticker(require_job_ticker(ticker)),
-        data_client,
-        _historical_scope(data_client, selection, executed_at),
-        start_date=momentum_settings().history_start_date.isoformat(),
-        executed_at=executed_at,
-        profile_cache=profile_cache,
-    )
-    return from_momentum_capture(capture)
-
-
-_MOMENTUM_CLI_DEFAULTS = momentum_settings()
+_MOMENTUM_CLI_DEFAULTS = momentum_settings(ApplicationContext(settings=settings))
 
 
 def command(  # noqa: PLR0913
-    context: typer.Context,
     ticker: str | None = typer.Argument(None, help="Target stock/asset ticker symbol (e.g., AAPL, BTC-USD)"),
     *,
     ticker_option: str | None = typer.Option(
@@ -156,11 +110,10 @@ def command(  # noqa: PLR0913
     no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
-    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
+    provider_check = not no_provider_check
     with execution_errors(
         json_output=json_output,
         selection_type=MomentumSelection,
-        provider_check=provider_check,
     ) as scope:
         requested_ticker, mode = resolve_command_target(
             scope,
@@ -174,9 +127,6 @@ def command(  # noqa: PLR0913
         _validate_momentum_windows(short_window, long_window, rsi_period)
         boundary = parse_as_of(as_of)
         target_ticker = require_ticker(requested_ticker)
-        start_date = momentum_settings().history_start_date.isoformat()
-        data_client = YFinanceClient()
-        config = MomentumConfig(short_window=short_window, long_window=long_window, rsi_period=rsi_period)
         selection = MomentumSelection(
             short_window=short_window,
             long_window=long_window,
@@ -184,52 +134,6 @@ def command(  # noqa: PLR0913
             as_of=boundary,
             use_cache=not no_cache,
         )
-        # executed_at is the run's own execution clock, distinct from the requested as_of boundary.
-        executed_at = utc_now()
-
-        capture = analyze_and_maybe_save(
-            save_run=save_run,
-            executed_at=executed_at,
-            request_factory=lambda: AnalysisRequest(ticker=target_ticker, selection=selection),
-            run_adapter=lambda profile_cache: execute_momentum(
-                selection,
-                target_ticker,
-                data_client,
-                _historical_scope(data_client, selection, executed_at),
-                start_date=start_date,
-                executed_at=executed_at,
-                profile_cache=profile_cache,
-            ),
-            normalize=from_momentum_capture,
-        )
-        run = capture.run
-        execution = from_momentum_capture(capture)
-        embedded_profile = run.instrument_profile
-        if embedded_profile is None:
-            raise ValueError("Momentum result did not retain the instrument profile it ran with.")
-        output, exit_code = render_execution(
-            execution,
-            provider_check,
-            mode,
-            lambda element: render_momentum(
-                MomentumPresentation(
-                    ticker=run.ticker,
-                    effective_as_of=run.effective_as_of,
-                    execution_status=run.execution_status,
-                    metrics=run.metrics,
-                    config=config,
-                    reason_code=run.reason_code,
-                    reason=run.reason,
-                    provider_failure=run.provider_failure,
-                    provider_check=element,
-                    requested_as_of=boundary,
-                    market_data=run.market_data,
-                    resolution_trace=run.resolution_trace,
-                    data_resolution=run.data_resolution,
-                    identity_resolution=profile_identity_resolution(embedded_profile),
-                    instrument_profile=embedded_profile,
-                ),
-                mode,
-            ),
-        )
+        outcome = analyze_for_command(target_ticker, selection, save_run=save_run, provider_check=provider_check)
+        output, exit_code = analysis_output(outcome, mode)
         emit_output(output, exit_code, mode)

@@ -8,6 +8,8 @@ import pytest
 from typer.testing import CliRunner
 
 import investment_analysis_engine.cli
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
@@ -15,11 +17,11 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureSplitHistoryProvider,
 )
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from investment_analysis_engine.strategies.fcf_growth import cli as fcf_cli
+from investment_analysis_engine.strategies.fcf_growth import application as fcf_application
 from investment_analysis_engine.strategies.fcf_growth.analyzer import MarketCapDependencies
-from investment_analysis_engine.strategies.fcf_growth.execution import FCFGrowthCapture
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
+from investment_analysis_engine.strategies.fcf_growth.workspace import FCFGrowthCapture
 from tests._fcf_market_data import CLOCK, fcf_result
 
 
@@ -43,17 +45,20 @@ class Composition:
         composition = self
 
         @contextmanager
-        def financial_cache(*, use_cache: bool, clock: Any) -> Iterator[None]:  # noqa: ARG001
+        def financial_cache(context: object, *, use_cache: bool, clock: Any) -> Iterator[None]:  # noqa: ARG001
+            del context
             composition.cache_calls.append(use_cache)
             yield None
 
         @contextmanager
         def historical_client(
+            context: object,
             provider: object,
             *,
             use_cache: bool,
             clock: Any,  # noqa: ARG001
         ) -> Iterator[FixtureSplitHistoryProvider]:
+            del context
             composition.yahoo_clients.append(provider)
             composition.historical_calls.append(use_cache)
             yield composition.historical
@@ -63,11 +68,11 @@ class Composition:
             profile = fixture_instrument_profile("ACME", kind=InstrumentKind.EQUITY, provider_value="EQUITY")
             return FCFGrowthCapture(result=fcf_result(), profile=profile)
 
-        monkeypatch.setattr(fcf_cli, "production_financial_cache", financial_cache)
-        monkeypatch.setattr(fcf_cli, "production_historical_client", historical_client)
-        monkeypatch.setattr(fcf_cli, "build_sec_production_provider", lambda: composition.provider)
-        monkeypatch.setattr(fcf_cli, "YFinanceClient", object)
-        monkeypatch.setattr(fcf_cli, "execute_fcf_growth", execute)
+        monkeypatch.setattr(fcf_application, "production_financial_cache", financial_cache)
+        monkeypatch.setattr(fcf_application, "production_historical_client", historical_client)
+        monkeypatch.setattr(fcf_application, "build_sec_production_provider", lambda _context: composition.provider)
+        monkeypatch.setattr(fcf_application, "YFinanceClient", object)
+        monkeypatch.setattr(fcf_application, "execute_fcf_growth", execute)
 
     def market_data(self) -> MarketCapDependencies:
         """Return the one set of market-data dependencies the single execution received."""
@@ -99,7 +104,7 @@ def _assert_composed(composition: Composition, *, use_cache: bool) -> None:
 def test_refresh_composes_the_market_data_once(composition: Composition, use_cache: bool) -> None:
     selection = FCFGrowthSelection(use_cache=use_cache)
 
-    fcf_cli.refresh("ACME", selection, profile_cache=None)
+    fcf_application.refresh(ApplicationContext(settings=ProjectSettings()), "ACME", selection, profile_cache=None)
 
     _assert_composed(composition, use_cache=use_cache)
     assert isinstance(composition.executions[0]["args"][0], ProductionAnnualGrowthSeriesResolver)

@@ -13,11 +13,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from typer.testing import CliRunner
 
 import investment_analysis_engine.cli_database_target
 import investment_analysis_engine.cli_workspace
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.application.analysis import AnalysisOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
@@ -912,6 +914,10 @@ def test_exit_code_1_is_not_the_parser_for_any_command_check() -> None:
     }  # EVL-1 and EVL-4 have their own tests; DB-3 has its own test
 
 
+class _Document(BaseModel):
+    """A stand-in document."""
+
+
 _DIRECT_MODULES = {"graham-number": graham_number_cli, "graham-growth": graham_growth_cli}
 _PARITY_GROWTH = ("--expected-growth", "5", "--aaa-yield", "4")
 _PARITY_CASES = [
@@ -939,10 +945,10 @@ def test_the_direct_command_and_watchlist_create_accept_and_reject_the_same_valu
     command: str, options: tuple[str, ...]
 ) -> None:
     module = _DIRECT_MODULES[command]
-    with (
-        patch.object(module, "build_graham_resolver"),
-        patch.object(module, f"_run_{command.replace('-', '_')}", return_value=("ok", 0)),
-    ):
+    outcome = AnalysisOutcome(
+        document=_Document(), analysis_run_id=None, outcome=RunOutcome.COMPLETED, text_renderer=lambda _mode: "ok"
+    )
+    with patch.object(module, "analyze_for_command", return_value=outcome):
         direct = runner.invoke(app, [command, "AAPL", *options])
     watchlist = runner.invoke(app, ["watchlist", "create", "W", "AAPL", "-a", command, *options])
 

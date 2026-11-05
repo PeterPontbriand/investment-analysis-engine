@@ -1,7 +1,7 @@
 from typing import Final
 
 #: body compose_ci_probe
-del executed_at
+del context, executed_at
 return CiProbeAnalyzer(), _NO_PROVIDER
 
 #: add _NO_PROVIDER

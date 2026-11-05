@@ -14,7 +14,7 @@ from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.analysis.shared.market_cap import ShareCountBasis
 from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow, AppliedAdjustment
-from investment_analysis_engine.cli_support import exit_code_of
+from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
@@ -56,7 +56,6 @@ from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
 )
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer, MarketCapDependencies
-from investment_analysis_engine.strategies.fcf_growth.execution import execute_fcf_growth, from_fcf_growth_capture
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from investment_analysis_engine.strategies.fcf_growth.models import (
     FCFEarningsGrowthConfig,
@@ -64,6 +63,7 @@ from investment_analysis_engine.strategies.fcf_growth.models import (
     FCFEarningsGrowthResult,
 )
 from investment_analysis_engine.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from investment_analysis_engine.strategies.fcf_growth.workspace import execute_fcf_growth, from_fcf_growth_capture
 from tests._fcf_market_data import CLOCK
 
 SECRET = "SECRET provider text that must never reach an investor"
@@ -340,7 +340,7 @@ def test_a_failure_gives_the_same_outcome_and_exit_code_and_fires_no_provider_ch
 
     def execute(dependencies: MarketCapDependencies) -> tuple[RunOutcome, int, object]:
         with patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies.fcf_growth.workspace.compose_production_profile",
             return_value=profile,
         ):
             capture = execute_fcf_growth(

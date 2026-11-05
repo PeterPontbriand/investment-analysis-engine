@@ -8,6 +8,7 @@ each surface that does not cover it.
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
+from investment_analysis_engine.application.tier import APPLICATION_STRATEGIES, ApplicationStrategy
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy
 from investment_analysis_engine.evaluation.strategy_fixtures import EVALUATION_STRATEGIES, EvaluationStrategy
 from investment_analysis_engine.strategy_wiring import StrategyDescriptor
@@ -20,6 +21,7 @@ type Surface = Callable[[tuple[StrategyDescriptor, ...]], list[str]]
 
 def wiring_surfaces(
     cli_tier: tuple[CliStrategy, ...] = CLI_STRATEGIES,
+    application_tier: tuple[ApplicationStrategy, ...] = APPLICATION_STRATEGIES,
     evaluation_tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
     schema_directory_of: Callable[[StrategyDescriptor], Path] = lambda _item: SCHEMA_DIRECTORY,
 ) -> dict[str, Surface]:
@@ -30,6 +32,7 @@ def wiring_surfaces(
     """
     return {
         "CLI tier": lambda descriptors: conformance.cli_tier_gaps(descriptors, cli_tier),
+        "application tier": lambda descriptors: conformance.application_tier_gaps(descriptors, application_tier),
         "evaluation tier": lambda descriptors: conformance.evaluation_tier_gaps(descriptors, evaluation_tier),
         "published schemas": lambda descriptors: conformance.published_schema_gaps(
             descriptors, schema_directory_of(descriptors[0])

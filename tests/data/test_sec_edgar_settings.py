@@ -9,8 +9,9 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from investment_analysis_engine import cli_composition
-from investment_analysis_engine.config import component_settings, settings
+from investment_analysis_engine.application import providers
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.config import ProjectSettings, component_settings
 from investment_analysis_engine.config.component_settings import (
     clear_component_settings_cache,
     load_component_settings,
@@ -41,6 +42,15 @@ def _write_user(folder: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def _context(folder: Path) -> ApplicationContext:
+    """Return a context whose settings folder is ``folder`` and whose SEC identity is declared."""
+    return ApplicationContext(
+        settings=ProjectSettings.model_validate(
+            {"config_dir": folder, "SEC_USER_AGENT": "Fixture Tester fixture@example.com"}
+        )
+    )
 
 
 def test_the_shipped_file_sits_beside_the_model_and_its_override_table_is_empty(tmp_path: Path) -> None:
@@ -106,25 +116,19 @@ def test_composition_loads_the_settings_and_hands_the_overrides_to_the_adapter(
         def __init__(self, **keywords: Any) -> None:
             given.update(keywords)
 
-    monkeypatch.setattr(cli_composition, "_settings_folder", lambda: tmp_path)
-    monkeypatch.setattr(settings, "sec_user_agent", "Fixture Tester fixture@example.com")
-    monkeypatch.setattr(cli_composition, "SecEdgarFinancialFactsAdapter", _Recorder)
-    monkeypatch.setattr(cli_composition, "ProductionFinancialFactsProvider", lambda **_keywords: object())
+    monkeypatch.setattr(providers, "SecEdgarFinancialFactsAdapter", _Recorder)
+    monkeypatch.setattr(providers, "ProductionFinancialFactsProvider", lambda **_keywords: object())
 
-    cli_composition.build_sec_production_provider()
+    providers.build_sec_production_provider(_context(tmp_path))
 
     assert given["ticker_overrides"] == {"XOM": "0000034088"}
     assert given["user_agent"] == "Fixture Tester fixture@example.com"
 
 
-def test_loading_every_settings_file_at_startup_includes_the_sec_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_loading_every_settings_file_at_startup_includes_the_sec_file(tmp_path: Path) -> None:
     _write_user(tmp_path, "[ticker_overrides]\nXOM = 0\n")
-    monkeypatch.setattr(cli_composition, "_settings_folder", lambda: tmp_path)
-
     with pytest.raises(ComponentSettingsError, match="sec_edgar.toml"):
-        cli_composition.load_all_component_settings()
+        providers.load_all_component_settings(_context(tmp_path))
 
 
 def test_composition_passes_an_empty_override_table_when_the_user_has_none(
@@ -136,11 +140,9 @@ def test_composition_passes_an_empty_override_table_when_the_user_has_none(
         def __init__(self, **keywords: Any) -> None:
             given.update(keywords)
 
-    monkeypatch.setattr(cli_composition, "_settings_folder", lambda: tmp_path)
-    monkeypatch.setattr(settings, "sec_user_agent", "Fixture Tester fixture@example.com")
-    monkeypatch.setattr(cli_composition, "SecEdgarFinancialFactsAdapter", _Recorder)
-    monkeypatch.setattr(cli_composition, "ProductionFinancialFactsProvider", lambda **_keywords: object())
+    monkeypatch.setattr(providers, "SecEdgarFinancialFactsAdapter", _Recorder)
+    monkeypatch.setattr(providers, "ProductionFinancialFactsProvider", lambda **_keywords: object())
 
-    cli_composition.build_sec_production_provider()
+    providers.build_sec_production_provider(_context(tmp_path))
 
     assert given == {"user_agent": "Fixture Tester fixture@example.com", "ticker_overrides": {}}

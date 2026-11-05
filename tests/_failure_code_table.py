@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from investment_analysis_engine.cli_support import InternalDefectError
+from investment_analysis_engine.application.failures import InternalDefectError
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError

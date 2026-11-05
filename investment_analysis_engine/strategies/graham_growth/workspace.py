@@ -1,9 +1,9 @@
-"""Graham Growth execution adapter: borrow dependencies, call the existing analyzer.
+"""Graham Growth workspace adapter: borrow dependencies, call the existing analyzer.
 
 This adapter extracts the profile composition and analyzer invocation formerly inlined in the ``_run_graham_growth``
 helper so both the direct command and a future save/refresh service call identical code. Presentation, exit-code
-selection, and friendly failure rendering stay in the command
-(``investment_analysis_engine.strategies.graham_growth.cli``); this module captures execution evidence only. The
+selection, and friendly failure rendering stay in the strategy's application module
+(``investment_analysis_engine.strategies.graham_growth.application``); this module captures execution evidence only. The
 effective calculation policy (base P/E, growth multiplier, baseline AAA yield) is supplied by the caller — exactly as
 the composition root builds it from the configured Graham Growth settings (``GrahamGrowthSettings.to_policy()``) — and
 retained unmodified inside the native ``GrahamGrowthAnalysis.policy`` field; no new assumption is derived here.

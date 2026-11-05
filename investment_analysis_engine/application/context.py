@@ -10,6 +10,9 @@ class ApplicationContext:
     """What an operation needs from its caller.
 
     The caller builds it at call time, so an operation never reads a module-level settings object.
+
+    Attributes:
+        settings: The settings the operation reads, including its database and settings folder.
     """
 
     settings: ProjectSettings

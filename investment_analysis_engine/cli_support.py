@@ -1,51 +1,34 @@
 """Shared CLI parsing, resource ownership, and execution-error translation."""
 
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time, timedelta
-from typing import ClassVar, NoReturn
+from datetime import UTC, date, datetime, time
+from typing import NoReturn
 
 import typer
 from pydantic import ValidationError
 
-from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.analysis.selection_base import FrozenSelection
-from investment_analysis_engine.cli_provider_check import (
-    ProviderCheckChoice,
-    echo_provider_check,
-    provider_check_findings,
-    with_provider_check,
-)
+from investment_analysis_engine.application.analysis import AnalysisOutcome, analyze, exit_code_of
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.failures import SavingFailureError
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import PROVIDER_FAILURE_CODES, FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
-from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
-from investment_analysis_engine.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
-from investment_analysis_engine.data.instrument_profile_cache import CachedInstrumentProfileResolver
-from investment_analysis_engine.data.market_data import SPLIT_ADJUSTED_PRICE
-from investment_analysis_engine.data.quality import HistoricalQualityPolicy
-from investment_analysis_engine.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
-from investment_analysis_engine.data.repositories.market_data import SQLiteMarketDataRepository
-from investment_analysis_engine.data.repositories.readiness import ensure_database_ready
-from investment_analysis_engine.data.repositories.resolved_input_cache import SQLiteResolvedInputCache
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from investment_analysis_engine.data.yfinance.client import (
-    YFINANCE_HISTORICAL_INTERVAL,
-    YFINANCE_PRICE_ADJUSTMENT,
-    YFinanceClient,
-)
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
+from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.reporting.presentation import PresentationMode, failure_document_json
 from investment_analysis_engine.telemetry.quality import record_cli_quality
-from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.telemetry.run_context import RunContext, get_current_run_context
+from investment_analysis_engine.workspace.strategy_types import SelectionMember
 
 logger = logging.getLogger(__name__)
 # Without a configured handler (``--no-logging``) Python's last-resort handler would write the logged failure and its
@@ -86,27 +69,6 @@ _SHOWN_AS_RAISED = frozenset(
     }
 )
 _PROVIDER_CODES = frozenset({FailureReasonCode.PROVIDER_ERROR, *PROVIDER_FAILURE_CODES})
-
-
-class InternalDefectError(Exception):
-    """A failure only a defect can cause, such as a stored selection that no longer converts to a configuration."""
-
-    reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.EXECUTION_ERROR
-
-
-def stored_configuration[ConfigT](convert: Callable[[], ConfigT]) -> ConfigT:
-    """Return the configuration ``convert`` builds from a stored selection; a validation failure is a defect."""
-    try:
-        return convert()
-    except ValidationError as exc:
-        raise InternalDefectError("A stored selection no longer converts to a configuration.") from exc
-
-
-def require_job_ticker(ticker: str) -> str:
-    """Return ``ticker`` unchanged; a blank ticker in a refresh job is a defect."""
-    if not ticker.strip():
-        raise InternalDefectError("A refresh job has a blank ticker.")
-    return ticker
 
 
 @dataclass(frozen=True)
@@ -152,126 +114,12 @@ def describe_failure(exception: BaseException, ticker: str | None, *, saving: bo
     return FailureDescription(code=code, message=message)
 
 
-class SaveStage:
-    """Tells ``saving_failures`` whether the analysis has finished, so a later failure is a failure while saving."""
-
-    def __init__(self, *, analyzed: bool = False) -> None:
-        """Start before the analysis, or after it when ``analyzed`` is true."""
-        self.analyzed = analyzed
-
-    def after_analysis[RawCaptureT](
-        self, normalize: Callable[[RawCaptureT], ExecutionCapture]
-    ) -> Callable[[RawCaptureT], ExecutionCapture]:
-        """Wrap ``normalize`` so that the stage is marked analyzed once it has returned."""
-
-        def marked(raw: RawCaptureT) -> ExecutionCapture:
-            capture = normalize(raw)
-            self.analyzed = True
-            return capture
-
-        return marked
-
-
-class SavingFailureError(Exception):
-    """An exception raised after the analysis finished, while its result was saved; ``cause`` is the original."""
-
-    def __init__(self, cause: Exception) -> None:
-        """Keep the original exception."""
-        super().__init__(str(cause))
-        self.cause = cause
-
-
-@contextmanager
-def saving_failures(stage: SaveStage) -> Iterator[None]:
-    """Re-raise an exception from the block as :class:`SavingFailureError` once ``stage`` says the analysis finished.
-
-    ``typer.Exit`` and an exception raised before the analysis finished pass through unchanged.
-    """
-    try:
-        yield
-    except typer.Exit:
-        raise
-    except Exception as exc:
-        if stage.analyzed:
-            raise SavingFailureError(exc) from exc
-        raise
-
-
-@contextmanager
-def production_historical_client(
-    provider: YFinanceClient, *, use_cache: bool, clock: Callable[[], datetime]
-) -> Iterator[CachedHistoricalDataClient]:
-    """Borrow the Yahoo client and own historical storage for one analysis.
-
-    Daily adjusted request identity matches the provider's download configuration.
-    Reuse age comes from settings. Readiness is checked and storage initialized before
-    fetching only when ``use_cache`` is True; the per-call ``use_cache`` gate on the
-    yielded client's own methods is what actually skips reads/writes.
-    """
-    database = SQLiteDatabase(settings)
-    try:
-        if use_cache:
-            ensure_database_ready(database)
-        seconds = settings.historical_cache_ttl_seconds
-        yield CachedHistoricalDataClient(
-            provider,
-            SQLiteMarketDataRepository(database),
-            request_variant=f"{YFINANCE_HISTORICAL_INTERVAL}:{YFINANCE_PRICE_ADJUSTMENT}",
-            split_request_variant=f"{YFINANCE_HISTORICAL_INTERVAL}:{SPLIT_ADJUSTED_PRICE}",
-            ttl=None if seconds is None else timedelta(seconds=seconds),
-            clock=clock,
-            quality_policy=HistoricalQualityPolicy(expected_adjustment=YFINANCE_PRICE_ADJUSTMENT),
-        )
-    finally:
-        database.close()
-
-
-@contextmanager
-def production_financial_cache(
-    *, use_cache: bool, clock: Callable[[], datetime]
-) -> Iterator[ResolvedInputSeriesCacheProtocol]:
-    """Own one invocation's durable cache; schema upgrades remain explicit unless caching is disabled.
-
-    Financial facts use configured residence age (unlimited by default) and
-    temporal quality checks. Readiness is checked only when ``use_cache`` is True; the
-    resolver's own per-call ``use_cache`` gate is what actually skips reads/writes, so
-    disabling caching still never touches storage.
-    """
-    database = SQLiteDatabase(settings)
-    try:
-        if use_cache:
-            ensure_database_ready(database)
-        seconds = settings.financial_cache_ttl_seconds
-        yield SQLiteResolvedInputCache(
-            database, ttl=None if seconds is None else timedelta(seconds=seconds), clock=clock
-        )
-    finally:
-        database.close()
-
-
-def production_instrument_profile_cache(
-    database: SQLiteDatabase, *, clock: Callable[[], datetime]
-) -> CachedInstrumentProfileResolver:
-    """Build the durable instrument-profile cache over an already-open database.
-
-    Unlike the historical/financial cache helpers above, this does not own or
-    close ``database``: every caller already manages that lifecycle for its
-    own reason (Analysis Run persistence, watchlist storage), and durable
-    profiles are database-free lookups when the P2-Profiles contract calls
-    for staying live-only (no database is opened here or by any caller solely
-    to obtain one of these).
-    """
-    seconds = settings.instrument_profile_ttl_seconds
-    return CachedInstrumentProfileResolver(
-        SQLiteInstrumentProfileRepository(database),
-        ttl=None if seconds is None else timedelta(seconds=seconds),
-        clock=clock,
-    )
-
-
-def exit_code_of(outcome: RunOutcome) -> int:
-    """Return the exit code of a strategy command whose run had ``outcome``: 1 for unavailable and failed, else 0."""
-    return 1 if outcome in (RunOutcome.UNAVAILABLE, RunOutcome.FAILED) else 0
+def get_cli_run_context() -> RunContext:
+    """Return the explicit execution identity for the current CLI invocation."""
+    context = get_current_run_context()
+    if context is None:
+        raise RuntimeError("CLI RunContext has not been initialized.")
+    return context
 
 
 def presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) -> PresentationMode:
@@ -311,6 +159,11 @@ def resolve_ticker(positional: str | None, option: str | None, *, command: str) 
 def production_database() -> SQLiteDatabase:
     """Return the application database, which the caller opens, checks for readiness and closes."""
     return SQLiteDatabase(settings)
+
+
+def application_context() -> ApplicationContext:
+    """Return the application context for a command: this module's settings."""
+    return ApplicationContext(settings=settings)
 
 
 def parse_as_of(value: str | None) -> datetime | None:
@@ -392,17 +245,14 @@ def execution_errors(
     mode: PresentationMode | None = None,
     selection_type: type[FrozenSelection] | None = None,
     ticker: str | None = None,
-    provider_check: ProviderCheckChoice | None = None,
 ) -> Iterator[FailureScope]:
     """Translate execution failures while preserving deliberate CLI exits.
 
     The code and message of a failure come from :func:`describe_failure`, shared with refresh. A
     :class:`SavingFailureError` is described as a failure while saving, from its original exception. ``selection_type``
     is the command's own selection class, whose fixed ``analysis_id`` and ``method_id`` name the analysis in the
-    failure document. When a raised provider failure names its provider and ``provider_check`` is given, the check
-    runs once: its lines are written to standard error immediately before the failure text in every mode but
-    ``--json``, and in ``--json`` mode the failure envelope carries its findings as ``provider_check`` and nothing
-    extra is printed.
+    failure document. A provider failure leaves the direct-analysis operation as a stored run, never as an exception, so
+    the provider check is the operation's and this block runs none.
 
     A command enters the block before it checks its own arguments and sets ``scope.ticker`` and ``scope.mode`` on
     the yielded :class:`FailureScope` as it resolves them, so a rejected argument is reported through the same
@@ -422,11 +272,9 @@ def execution_errors(
         envelope = failure_envelope(
             description.code, description.message, cause=cause, analysis=analysis, method=method, ticker=scope.ticker
         )
-        findings = provider_check_findings((envelope.provider_failure,), provider_check)
         if scope.mode is PresentationMode.JSON:
-            typer.echo(failure_document_json(envelope.with_provider_check(findings.element())))
+            typer.echo(failure_document_json(envelope))
         else:
-            echo_provider_check(findings, err=True)
             typer.echo(description.message, err=True)
             if scope.mode is PresentationMode.DIAGNOSTICS:
                 for diagnostic in envelope.diagnostics:
@@ -467,30 +315,32 @@ def resolve_command_target(  # noqa: PLR0913
     return target_ticker, mode
 
 
-def render_execution(
-    execution: ExecutionCapture,
-    provider_check: ProviderCheckChoice | None,
-    mode: PresentationMode,
-    render: Callable[[tuple[ProviderCheckItem, ...] | None], str],
-) -> tuple[str, int]:
-    """Render a finished run and decide its exit code, running the provider check once and only after a failure.
+def analysis_output(outcome: AnalysisOutcome, mode: PresentationMode) -> tuple[str, int]:
+    """Return the text a direct command writes for a finished analysis and its exit code.
 
-    Args:
-        execution: The run's normalized capture, which names the outcome and any recorded provider failure.
-        provider_check: The command's provider-check choice.
-        mode: The presentation mode.
-        render: The strategy's renderer, given the ``provider_check`` document element (``None`` when no provider
-            is implicated).
-
-    Returns:
-        The text to write and the exit code. After a failure the text is preceded by the provider-check lines.
+    ``--json`` writes the outcome's document, which carries the provider-check element; every text mode writes what the
+    outcome renders, which after a failure starts with the provider-check lines. The exit code is the one
+    :func:`exit_code_of` gives for the run's outcome.
     """
-    exit_code = exit_code_of(execution.outcome)
-    findings = provider_check_findings((execution.provider_failure,) if exit_code else (), provider_check)
-    output = render(findings.element())
-    if exit_code:
-        output = with_provider_check(output, findings, mode)
-    return output, exit_code
+    output = strategy_document_json(outcome.document) if mode is PresentationMode.JSON else outcome.render_text(mode)
+    return output, exit_code_of(outcome.outcome)
+
+
+def analyze_for_command(  # noqa: PLR0913
+    ticker: str,
+    selection: SelectionMember,
+    *,
+    save_run: bool,
+    provider_check: bool,
+) -> AnalysisOutcome:
+    """Run the analysis operation for a direct command and report the saved run's ID on standard error.
+
+    The ID is written before the result, as it always has been, and only when the run was saved.
+    """
+    outcome = analyze(application_context(), ticker, selection, save=save_run, provider_check=provider_check)
+    if outcome.analysis_run_id is not None:
+        typer.echo(f"Saved Analysis Run: {outcome.analysis_run_id}", err=True)
+    return outcome
 
 
 def emit_output(output: str, exit_code: int, mode: PresentationMode) -> None:

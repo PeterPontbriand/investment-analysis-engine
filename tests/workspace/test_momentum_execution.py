@@ -29,15 +29,15 @@ from investment_analysis_engine.strategies.momentum.analyzer import (
     MomentumMetrics,
     MomentumRun,
 )
-from investment_analysis_engine.strategies.momentum.execution import (
+from investment_analysis_engine.strategies.momentum.presenter import _sma_spread, _sma_spread_percent
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.workspace import (
     capture_momentum,
     compose_momentum_profile,
     execute_momentum,
     from_momentum_capture,
     run_momentum,
 )
-from investment_analysis_engine.strategies.momentum.presenter import _sma_spread, _sma_spread_percent
-from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 
 STAMP = datetime(2026, 9, 18, 12, tzinfo=UTC)
 
@@ -276,7 +276,7 @@ def test_compose_momentum_profile_uses_one_client_as_both_identity_and_kind_cand
     client = object()
     profile = _profile("AAPL")
     with patch(
-        "investment_analysis_engine.strategies.momentum.execution.compose_instrument_profile", return_value=profile
+        "investment_analysis_engine.strategies.momentum.workspace.compose_instrument_profile", return_value=profile
     ) as compose:
         assert compose_momentum_profile("AAPL", data_client=client) is profile
     candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, client)
@@ -286,7 +286,7 @@ def test_compose_momentum_profile_uses_one_client_as_both_identity_and_kind_cand
 def test_compose_momentum_profile_resolves_through_the_cache_with_identical_candidates() -> None:
     client = object()
     cache = _RecordingCache(_profile("AAPL"))
-    with patch("investment_analysis_engine.strategies.momentum.execution.compose_instrument_profile") as compose:
+    with patch("investment_analysis_engine.strategies.momentum.workspace.compose_instrument_profile") as compose:
         assert compose_momentum_profile("AAPL", data_client=client, profile_cache=cache) is cache.profile
     compose.assert_not_called()
     candidate = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, client)

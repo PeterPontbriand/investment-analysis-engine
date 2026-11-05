@@ -8,6 +8,8 @@ from pydantic import ValidationError
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.analysis.shared.applicability import IndustryClass
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
@@ -17,7 +19,7 @@ from investment_analysis_engine.evaluation.fixtures.sec_edgar_statements import 
     STATEMENTS_MONSTER_FIXTURE_ID,
 )
 from investment_analysis_engine.orchestrator.tool_runtime import ToolRuntime
-from investment_analysis_engine.strategies.piotroski import cli as piotroski_cli
+from investment_analysis_engine.strategies.piotroski import application as piotroski_application
 from investment_analysis_engine.strategies.piotroski.analyzer import PIOTROSKI_SECTOR_GATE, PiotroskiAnalyzer
 from investment_analysis_engine.strategies.piotroski.evaluation import compose
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
@@ -130,9 +132,10 @@ def test_the_selection_holds_only_the_boundary_and_the_cache_choice_and_makes_a_
 
 def test_production_composes_one_adapter_that_serves_the_resolver_and_the_industry_class() -> None:
     adapter = SecEdgarFinancialFactsAdapter(user_agent="Synthetic test")
-    with patch.object(piotroski_cli, "build_sec_edgar_adapter", return_value=adapter) as build:
-        analyzer, provider = piotroski_cli.compose_piotroski(CLOCK)
-    build.assert_called_once_with()
+    context = ApplicationContext(settings=ProjectSettings())
+    with patch.object(piotroski_application, "build_sec_edgar_adapter", return_value=adapter) as build:
+        analyzer, provider = piotroski_application.compose_piotroski(context, CLOCK)
+    build.assert_called_once_with(context)
     assert isinstance(analyzer, PiotroskiAnalyzer)
     assert isinstance(provider, ProductionFinancialFactsProvider)
     assert analyzer._industry_classes is adapter

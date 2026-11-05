@@ -19,12 +19,12 @@ from investment_analysis_engine.strategies.graham_number.calculation import (
     GrahamNumberResult,
 )
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
-from investment_analysis_engine.strategies.graham_number.execution import (
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.graham_number.workspace import (
     GrahamNumberCapture,
     execute_graham_number,
     from_graham_number_capture,
 )
-from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 
 
 def _resolver() -> GrahamNumberInputResolver:

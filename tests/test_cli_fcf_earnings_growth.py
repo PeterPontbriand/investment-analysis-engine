@@ -37,15 +37,15 @@ def disable_live_instrument_profile_resolution() -> Iterator[None]:
 
     with (
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies.fcf_growth.workspace.compose_production_profile",
             side_effect=unknown_profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.production_financial_cache",
-            side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
+            "investment_analysis_engine.strategies.fcf_growth.application.production_financial_cache",
+            side_effect=lambda _context, **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.production_historical_client",
+            "investment_analysis_engine.strategies.fcf_growth.application.production_historical_client",
             side_effect=lambda *_a, **_k: nullcontext(FixtureSplitHistoryProvider(utc_now(), with_data=False)),
         ),
     ):
@@ -66,7 +66,7 @@ def _provider() -> ProductionFinancialFactsProvider:
 
 def test_cli_fcf_growth_runs_concise_and_json_from_same_typed_path() -> None:
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+        "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
         side_effect=[_provider(), _provider()],
     ):
         concise = runner.invoke(app, ["fcf-growth", "acme"])
@@ -90,10 +90,11 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
     )
     with (
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider
+            "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
+            return_value=provider,
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies.fcf_growth.workspace.compose_production_profile",
             return_value=profile,
         ),
         patch.object(provider, "fetch_facts", wraps=provider.fetch_facts) as fetch_facts,
@@ -113,7 +114,8 @@ def test_cli_fcf_growth_known_etf_is_successful_not_applicable_without_fact_reso
 
 def test_cli_fcf_growth_selects_per_share_classification_basis() -> None:
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()
+        "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
+        return_value=_provider(),
     ):
         result = runner.invoke(
             app,
@@ -149,7 +151,8 @@ def test_cli_fcf_growth_modes_are_mutually_exclusive() -> None:
 
 def test_cli_fcf_growth_accepts_hyphenated_forward_policy() -> None:
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=_provider()
+        "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
+        return_value=_provider(),
     ):
         result = runner.invoke(app, ["fcf-growth", "ACME", "--forward-policy", "hard-gate", "--json"])
 

@@ -65,7 +65,7 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
         arguments.extend(["--expected-growth", "5", "--aaa-yield", "4.5"])
     with (
         patch(
-            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli.build_graham_resolver",
+            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.application.build_graham_resolver",
             return_value=resolver,
         ),
         patch(
@@ -76,7 +76,7 @@ def test_verified_comparison_reaches_cli_and_cache(command: str, mode: str, bypa
             "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_instrument_kind", return_value=None
         ),
         patch(
-            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli.production_financial_cache",
+            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.application.production_financial_cache",
             return_value=_cache_context(),
         ),
         patch("socket.socket.connect", side_effect=AssertionError("Network forbidden")),
@@ -123,7 +123,10 @@ def test_bad_filing_preserves_value_and_reports_reason() -> None:
     provider = ProductionFinancialFactsProvider(sec_edgar=sec, yfinance=QuoteProvider())
     resolver = GrahamNumberInputResolver(provider, clock=lambda: NOW)
     with (
-        patch("investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver", return_value=resolver),
+        patch(
+            "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
+            return_value=resolver,
+        ),
         patch(
             "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity",
             return_value=None,

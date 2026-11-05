@@ -948,19 +948,19 @@ def _copy_strategy_files(root: Path, module: str, *files: str) -> None:
 
 def test_a_new_file_site_that_calls_an_unfilled_stub_is_missing_with_the_file_and_line(tmp_path: Path) -> None:
     """A file that defines every required name is still not done while a body in it calls ``unfilled_stub``."""
-    _copy_strategy_files(tmp_path, "fcf_growth", "execution.py")
-    path = tmp_path / "investment_analysis_engine/strategies/fcf_growth/execution.py"
+    _copy_strategy_files(tmp_path, "fcf_growth", "workspace.py")
+    path = tmp_path / "investment_analysis_engine/strategies/fcf_growth/workspace.py"
     text = path.read_text(encoding="utf-8")
-    path.write_text(f"{text}\n\ndef unwritten() -> None:\n    unfilled_stub('execution')\n", encoding="utf-8")
+    path.write_text(f"{text}\n\ndef unwritten() -> None:\n    unfilled_stub('workspace')\n", encoding="utf-8")
     line = len(path.read_text(encoding="utf-8").splitlines())
     context = replace(conformance.PRODUCTION, root=tmp_path)
-    gaps = conformance.site_execution(_names_of(FCF_GROWTH), context)
+    gaps = conformance.site_workspace(_names_of(FCF_GROWTH), context)
     assert [gap.message for gap in gaps] == [
-        f"investment_analysis_engine/strategies/fcf_growth/execution.py:{line}: "
-        "calls unfilled_stub('execution'), a generated body that has not been written"
+        f"investment_analysis_engine/strategies/fcf_growth/workspace.py:{line}: "
+        "calls unfilled_stub('workspace'), a generated body that has not been written"
     ]
     path.write_text(text, encoding="utf-8")
-    assert conformance.site_execution(_names_of(FCF_GROWTH), context) == []
+    assert conformance.site_workspace(_names_of(FCF_GROWTH), context) == []
 
 
 def test_a_site_that_runs_stored_code_says_which_unfilled_site_it_depends_on(tmp_path: Path) -> None:

@@ -433,9 +433,9 @@ def test_the_templates_write_only_the_config_free_analyzer_form() -> None:
         assert not configuration.search(_rendered(role).replace("config_schema_version", "")), role
 
 
-def test_the_execution_and_command_templates_compose_the_profile_and_offer_every_output_flag() -> None:
+def test_the_workspace_and_command_templates_compose_the_profile_and_offer_every_output_flag() -> None:
     """An ETF can be recognized, and the details, diagnostics and provider-check flags are reachable."""
-    execution = _rendered("execution")
+    execution = _rendered("workspace")
     assert "profile: InstrumentProfile" in execution
     assert "provider: object" in execution
     assert "profile_cache: InstrumentProfileResolver | None = None" in execution
@@ -443,7 +443,7 @@ def test_the_execution_and_command_templates_compose_the_profile_and_offer_every
     for flag in ('"--details"', '"--diagnostics"', '"--json"', '"--no-cache"'):
         assert flag in command
     assert "no_provider_check: bool = NO_PROVIDER_CHECK_OPTION" in command
-    assert "context: typer.Context" in command
+    assert "typer.Context" not in command
     assert "as_of: str | None = AS_OF_OPTION" in command
     assert "save_run: bool = SAVE_RUN_OPTION" in command
     assert "def to_analysis_context(" in _rendered("selection")
@@ -478,8 +478,9 @@ def test_the_templates_leave_unfilled_only_the_strategy_specific_bodies() -> Non
         "tool": set(),
         "selection": set(),
         "codec": {"encode_fresh_probe", "decode_fresh_probe", "fresh_probe_native_status"},
-        "execution": set(),
-        "cli": {"compose_fresh_probe"},
+        "workspace": set(),
+        "application": {"compose_fresh_probe"},
+        "cli": set(),
         "presenter": {"render_fresh_probe", "build_fresh_probe_document"},
         "replay": {"project_fresh_probe", "project_fresh_probe_document", "headline_fresh_probe"},
         "evaluation": {"compose"},
@@ -489,9 +490,9 @@ def test_the_templates_leave_unfilled_only_the_strategy_specific_bodies() -> Non
     assert {role: _stub_functions(role) for role in STUB_ROLES} == expected
 
 
-def test_the_generated_execution_function_composes_the_profile_and_runs_the_analyzer() -> None:
+def test_the_generated_workspace_function_composes_the_profile_and_runs_the_analyzer() -> None:
     """It composes the profile with the provider as both candidates, then runs the analyzer with the context."""
-    execution = _rendered("execution")
+    execution = _rendered("workspace")
     body = _function(execution, "execute_fresh_probe")
     assert {"compose_production_profile"} <= _called_names(body)
     assert "primary_provider=provider, yahoo_provider=provider, profile_cache=profile_cache" in execution
@@ -532,7 +533,7 @@ def test_the_generated_result_declares_the_common_fields_and_the_provider_failur
 
 def test_the_generated_normalizer_reads_the_common_fields() -> None:
     """It passes the evidence, profile, status and provider failure, as Piotroski's does, and is not a stub."""
-    execution = _rendered("execution")
+    execution = _rendered("workspace")
     body = ast.unparse(_function(execution, "from_fresh_probe_capture"))
     assert "native_status=capture.result.execution_status" in body
     assert "provider_failure_of((capture.result.provider_failure,))" in body
@@ -541,36 +542,34 @@ def test_the_generated_normalizer_reads_the_common_fields() -> None:
     assert "unfilled_stub" not in execution
 
 
-def test_the_generated_command_and_refresh_compose_the_analyzer_through_the_one_function() -> None:
-    """Both call ``compose_<name>`` with the run's one reading of the time, and the command renders like Piotroski's."""
-    cli = _rendered("cli")
-    for name in ("command", "refresh"):
-        assert "compose_fresh_probe" in _called_names(_function(cli, name)), name
-    assert "compose_fresh_probe(executed_at)" in cli
-    signature = _function(cli, "compose_fresh_probe")
-    assert [argument.arg for argument in signature.args.args] == ["executed_at"]
+def test_the_generated_run_and_refresh_compose_the_analyzer_through_the_one_function() -> None:
+    """Both call ``compose_<name>`` with the run's one reading of the time, and the run presents like Piotroski's."""
+    application = _rendered("application")
+    assert "compose_fresh_probe" in _called_names(_function(application, "run"))
+    assert "compose_fresh_probe(context, executed_at)" in application
+    signature = _function(application, "compose_fresh_probe")
+    assert [argument.arg for argument in signature.args.args] == ["context", "executed_at"]
     assert "never the ``--as-of`` boundary" in (ast.get_docstring(signature) or "")
-    assert "lambda element: render_fresh_probe(result, mode, identity_resolution, profile, element)" in cli
+    assert "render_fresh_probe(result, mode, identity_resolution, profile, element)" in application
+    assert "build_fresh_probe_document(result, identity_resolution, profile, element)" in application
 
 
-def test_the_generated_command_and_refresh_use_the_shared_command_helpers() -> None:
-    """The bodies are built from the helpers of ``cli_support`` and its neighbors, not from inlined code."""
+def test_the_generated_command_and_refresh_use_the_shared_helpers() -> None:
+    """The command calls the one operation through the CLI helpers; refresh runs through the run function."""
     cli = _rendered("cli")
     command = _called_names(_function(cli, "command"))
     assert {
-        "provider_check_choice",
         "execution_errors",
         "resolve_command_target",
         "parse_as_of",
-        "analyze_and_maybe_save",
-        "profile_identity_resolution",
-        "render_execution",
+        "analyze_for_command",
+        "analysis_output",
         "emit_output",
-        "utc_now",
     } <= command
-    assert {"require_job_ticker", "utc_now", "compose_fresh_probe", "execute_fresh_probe"} <= _called_names(
-        _function(cli, "refresh")
-    )
+    assert "render_execution" not in cli
+    assert "presenter" not in cli
+    application = _rendered("application")
+    assert {"require_job_ticker", "run", "utc_now"} <= _called_names(_function(application, "refresh"))
     assert "parse_as_of" in _called_names(_function(cli, "build_selection"))
     assert 'command="fresh-probe"' in cli
 

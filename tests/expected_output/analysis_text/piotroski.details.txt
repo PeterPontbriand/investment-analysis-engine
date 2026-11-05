@@ -1,0 +1,62 @@
+Apple Inc. (AAPL) — Piotroski F-Score: 7 of 9 (complete)
+Fiscal year-end: 2024-09-28 · 10-K 0000320193-24-000123 · us-gaap
+Industry class: manufacturer (SIC code as filed)
+
+Profitability
+  1 Positive ROA          pass         ROA 26.59% > 0
+  2 Positive CFO          pass         CFO / assets 33.54% > 0
+  3 Improving ROA         fail         ROA 26.59%, prior 27.50%
+  4 Cash exceeds income   pass         CFO 118,254,000,000 USD > net income 93,736,000,000 USD
+Leverage and liquidity
+  5 Falling leverage      pass         long-term debt / assets 26.94%, prior 29.80%
+  6 Improving liquidity   fail         current ratio 0.87x, prior 0.99x
+  7 No dilution           pass         shares 15,116,786,000, prior 15,550,061,000
+Efficiency
+  8 Improving margin      pass         gross margin 46.21%, prior 44.13%
+  9 Improving turnover    pass         asset turnover 1.11x, prior 1.09x
+
+Source: SEC EDGAR; latest evidence available 2024-11-01
+Limitation: Follows the Piotroski nine-test structure, with the net change in shares outstanding in place of the paper's equity-issuance test; not an investment recommendation.
+
+Details — operands of each test
+-------------------------------
+1 Positive ROA — pass
+  net_income_t: 93.736 billion USD at 2024-09-28
+  total_assets_t1: 352.583 billion USD at 2023-09-30
+2 Positive CFO — pass
+  operating_cash_flow_t: 118.254 billion USD at 2024-09-28
+  total_assets_t1: 352.583 billion USD at 2023-09-30
+3 Improving ROA — fail
+  net_income_t: 93.736 billion USD at 2024-09-28
+  total_assets_t1: 352.583 billion USD at 2023-09-30
+  net_income_t1: 96.995 billion USD at 2023-09-30
+  total_assets_t2: 352.755 billion USD at 2022-09-24
+4 Cash exceeds income — pass
+  operating_cash_flow_t: 118.254 billion USD at 2024-09-28
+  net_income_t: 93.736 billion USD at 2024-09-28
+5 Falling leverage — pass
+  long_term_debt_t:current_portion_of_long_term_debt: 10.912 billion USD at 2024-09-28
+  long_term_debt_t:noncurrent_long_term_debt: 85.750 billion USD at 2024-09-28
+  long_term_debt_t1:current_portion_of_long_term_debt: 9.822 billion USD at 2023-09-30
+  long_term_debt_t1:noncurrent_long_term_debt: 95.281 billion USD at 2023-09-30
+  total_assets_t: 364.980 billion USD at 2024-09-28
+  total_assets_t1: 352.583 billion USD at 2023-09-30
+  total_assets_t2: 352.755 billion USD at 2022-09-24
+6 Improving liquidity — fail
+  current_assets_t: 152.987 billion USD at 2024-09-28
+  current_liabilities_t: 176.392 billion USD at 2024-09-28
+  current_assets_t1: 143.566 billion USD at 2023-09-30
+  current_liabilities_t1: 145.308 billion USD at 2023-09-30
+7 No dilution — pass
+  shares_t: 15.117 billion shares at 2024-09-28
+  shares_t1: 15.550 billion shares at 2023-09-30
+8 Improving margin — pass
+  gross_profit_t:gross_profit: 180.683 billion USD at 2024-09-28
+  sales_t: 391.035 billion USD at 2024-09-28
+  gross_profit_t1:gross_profit: 169.148 billion USD at 2023-09-30
+  sales_t1: 383.285 billion USD at 2023-09-30
+9 Improving turnover — pass
+  sales_t: 391.035 billion USD at 2024-09-28
+  total_assets_t1: 352.583 billion USD at 2023-09-30
+  sales_t1: 383.285 billion USD at 2023-09-30
+  total_assets_t2: 352.755 billion USD at 2022-09-24

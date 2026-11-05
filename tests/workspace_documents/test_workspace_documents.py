@@ -12,7 +12,7 @@ from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic.types import AwareDatetime, FutureDatetime, NaiveDatetime, PastDatetime
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
-from investment_analysis_engine.cli_provider_check import ProviderCheckFindings
+from investment_analysis_engine.application.provider_check import ProviderCheckFindings
 from investment_analysis_engine.cli_workspace import _refresh_json, _watchlist_json
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp

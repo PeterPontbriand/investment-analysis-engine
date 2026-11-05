@@ -21,7 +21,6 @@ from investment_analysis_engine.reporting.replay_inputs import (
 from investment_analysis_engine.workspace.codecs import EvidenceCodec, InvalidStoredRunError, UnsupportedRunVersionError
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence
 from tests.specimen.codec import encode_specimen
-from tests.specimen.execution import SpecimenExecution
 from tests.specimen.selection import SpecimenSelection
 from tests.specimen.vocabulary import (
     ANALYSIS_ID,
@@ -31,6 +30,7 @@ from tests.specimen.vocabulary import (
     METHOD_VERSION,
     RESULT_SCHEMA_VERSION,
 )
+from tests.specimen.workspace import SpecimenExecution
 
 
 class SpecimenRun(BaseModel):

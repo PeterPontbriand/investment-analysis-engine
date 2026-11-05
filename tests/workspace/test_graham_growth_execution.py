@@ -20,12 +20,12 @@ from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrowthValueInputAssembly,
 )
 from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
-from investment_analysis_engine.strategies.graham_growth.execution import (
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_growth.workspace import (
     GrahamGrowthCapture,
     execute_graham_growth,
     from_graham_growth_capture,
 )
-from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 
 _POLICY = GrahamGrowthCalculationPolicy(base_pe=8.5, growth_multiplier=2.0, baseline_aaa_yield=4.4)
 

@@ -1,61 +1,31 @@
-"""FCF Growth's CLI-layer functions: the direct command, the watchlist selection builder and the refresh executor.
+"""FCF Growth's CLI-layer functions: the direct command and the watchlist selection builder.
 
 The CLI tier pairs these with the FCF Growth core bundle and adds the command to the application; nothing here
-registers itself.
+registers itself. The command parses its options, builds the selection and calls the direct-analysis operation.
 """
-
-from collections.abc import Callable
-from datetime import datetime, timedelta
 
 import typer
 
-from investment_analysis_engine.cli_composition import build_sec_production_provider
-from investment_analysis_engine.cli_provider_check import (
-    provider_check_choice,
-)
-from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
     SAVE_RUN_OPTION,
+    analysis_output,
+    analyze_for_command,
     emit_output,
     execution_errors,
     parse_as_of,
-    production_financial_cache,
-    production_historical_client,
-    render_execution,
-    require_job_ticker,
     resolve_command_target,
-    stored_configuration,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
-from investment_analysis_engine.config import settings
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.data.financial.cache import ResolvedInputSeriesCacheProtocol
-from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
-from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessPolicy
-from investment_analysis_engine.data.financial.resolver import InputResolver
-from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
-from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.market_data import DatedSplitAdjustedHistoryProvider
-from investment_analysis_engine.data.yfinance.client import YFinanceClient
-from investment_analysis_engine.strategies.fcf_growth.analyzer import MarketCapDependencies
-from investment_analysis_engine.strategies.fcf_growth.execution import (
-    execute_fcf_growth,
-    from_fcf_growth_capture,
-)
-from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
-from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
-from investment_analysis_engine.strategies.fcf_growth.presenter import render_fcf_earnings_growth
+from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection, FCFPolicySnapshot
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     FCFClassificationBasis,
     ForwardPolicy,
     HistoricalHorizon,
 )
-from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.requests import AnalysisRequest
 
 
 def _fcf_historical_horizon(growth_years: int | None) -> HistoricalHorizon:
@@ -119,62 +89,7 @@ def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
     )
 
 
-def _market_cap_dependencies(
-    provider: ProductionFinancialFactsProvider,
-    cache: ResolvedInputSeriesCacheProtocol,
-    historical_client: DatedSplitAdjustedHistoryProvider,
-    *,
-    clock: Callable[[], datetime],
-) -> MarketCapDependencies:
-    """Compose the FCF yield's dependencies once per run: the quote, the split history and the cover listing.
-
-    The quote and the share counts come through the production provider and the run's financial cache, with the quote's
-    own freshness policy; the split history comes through the cached historical client, as Momentum's prices do; the
-    cover is read through the production provider. No new cache is created.
-    """
-    return MarketCapDependencies(
-        resolver=InputResolver(
-            provider,
-            cache=cache,
-            clock=clock,
-            quote_freshness_policy=QuoteFreshnessPolicy(timedelta(seconds=settings.quote_cache_ttl_seconds)),
-        ),
-        split_history=historical_client,
-        listing=provider,
-    )
-
-
-def refresh(
-    ticker: str, selection: FCFGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
-) -> ExecutionCapture:
-    """Execute one FCF Growth refresh job with freshly composed, job-scoped dependencies."""
-    require_job_ticker(ticker)
-    config = stored_configuration(selection.to_fcf_config)
-    executed_at = utc_now()
-    with (
-        production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache,
-        production_historical_client(
-            YFinanceClient(), use_cache=selection.use_cache, clock=lambda: executed_at
-        ) as historical_client,
-    ):
-        provider = build_sec_production_provider()
-        resolver = ProductionAnnualGrowthSeriesResolver(provider, cache=cache, clock=lambda: executed_at)
-        capture = execute_fcf_growth(
-            resolver,
-            ticker,
-            config=config,
-            as_of=selection.as_of,
-            executed_at=executed_at,
-            use_cache=selection.use_cache,
-            provider=provider,
-            market_data=_market_cap_dependencies(provider, cache, historical_client, clock=lambda: executed_at),
-            profile_cache=profile_cache,
-        )
-    return from_fcf_growth_capture(capture)
-
-
 def command(  # noqa: PLR0913
-    context: typer.Context,
     ticker: str = typer.Argument(..., help="Target stock ticker symbol (e.g., AAPL, KO)"),
     *,
     growth_years: int | None = typer.Option(
@@ -202,13 +117,11 @@ def command(  # noqa: PLR0913
     no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Execute the historical free-cash-flow and diluted-EPS growth screen."""
-    executed_at = utc_now()
-    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
+    provider_check = not no_provider_check
 
     with execution_errors(
         json_output=json_output,
         selection_type=FCFGrowthSelection,
-        provider_check=provider_check,
     ) as scope:
         target_ticker, mode = resolve_command_target(
             scope, ticker, None, command="fcf-growth", details=details, diagnostics=diagnostics, json_output=json_output
@@ -221,53 +134,12 @@ def command(  # noqa: PLR0913
             classification_basis=_fcf_classification_basis(classification_basis),
             forward_policy=_fcf_forward_policy(forward_policy),
         )
-        config = FCFEarningsGrowthConfig(policy=policy, currency=normalized_currency)
-        with (
-            production_financial_cache(use_cache=not no_cache, clock=lambda: executed_at) as cache,
-            production_historical_client(
-                YFinanceClient(), use_cache=not no_cache, clock=lambda: executed_at
-            ) as historical_client,
-        ):
-            provider = build_sec_production_provider()
-            market_data = _market_cap_dependencies(provider, cache, historical_client, clock=lambda: executed_at)
-            resolver = ProductionAnnualGrowthSeriesResolver(
-                provider,
-                cache=cache,
-                clock=lambda: executed_at,
-            )
-            capture = analyze_and_maybe_save(
-                save_run=save_run,
-                executed_at=executed_at,
-                request_factory=lambda: AnalysisRequest(
-                    ticker=target_ticker,
-                    selection=FCFGrowthSelection(
-                        policy=FCFPolicySnapshot.model_validate(policy),
-                        currency=normalized_currency,
-                        as_of=analysis_as_of,
-                        use_cache=not no_cache,
-                    ),
-                ),
-                run_adapter=lambda profile_cache: execute_fcf_growth(
-                    resolver,
-                    target_ticker,
-                    config=config,
-                    as_of=analysis_as_of,
-                    executed_at=executed_at,
-                    use_cache=not no_cache,
-                    provider=provider,
-                    market_data=market_data,
-                    profile_cache=profile_cache,
-                ),
-                normalize=from_fcf_growth_capture,
-            )
-            result = capture.result
-            profile = capture.profile
-            identity_resolution = profile_identity_resolution(profile)
-
-    output, exit_code = render_execution(
-        from_fcf_growth_capture(capture),
-        provider_check,
-        mode,
-        lambda element: render_fcf_earnings_growth(result, mode, identity_resolution, profile, element),
-    )
+        selection = FCFGrowthSelection(
+            policy=FCFPolicySnapshot.model_validate(policy),
+            currency=normalized_currency,
+            as_of=analysis_as_of,
+            use_cache=not no_cache,
+        )
+        outcome = analyze_for_command(target_ticker, selection, save_run=save_run, provider_check=provider_check)
+        output, exit_code = analysis_output(outcome, mode)
     emit_output(output, exit_code, mode)

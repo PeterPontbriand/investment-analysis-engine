@@ -10,19 +10,17 @@ from typing import Annotated
 
 import typer
 
-from investment_analysis_engine.cli_composition import load_all_component_settings
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.providers import load_all_component_settings
 from investment_analysis_engine.cli_database import app as database_app
-from investment_analysis_engine.cli_health import build_provider_clients
 from investment_analysis_engine.cli_health import register as register_health_command
-from investment_analysis_engine.cli_run_support import get_cli_run_context
 from investment_analysis_engine.cli_serve import register as register_serve_command
 from investment_analysis_engine.cli_strategy_wiring import add_strategy_commands
-from investment_analysis_engine.cli_support import parameter_failures
+from investment_analysis_engine.cli_support import get_cli_run_context, parameter_failures
 from investment_analysis_engine.cli_workspace import register as register_workspace_commands
 from investment_analysis_engine.config import paths, settings
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.data.provider_probe import ProviderProbe
 from investment_analysis_engine.evaluation.catalog import (
     DETERMINISTIC_FIXTURE_SET_VERSION,
     DETERMINISTIC_SUITE_ID,
@@ -44,7 +42,7 @@ from investment_analysis_engine.telemetry.run_context import (
     set_current_run_context,
 )
 
-load_all_component_settings()
+load_all_component_settings(ApplicationContext(settings=settings))
 
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False
@@ -66,26 +64,11 @@ class EvaluationCliMode(StrEnum):
 type EvaluationCommandResult = EvaluationReport | OllamaEvaluationResult
 
 
-def build_provider_probe() -> ProviderProbe:
-    """Build the one automatic provider check of this process from the settings.
-
-    This is the only place the probe is built; the commands that report a provider failure receive it through the
-    Typer context. It contacts no provider until a command reports a provider failure.
-    """
-    return ProviderProbe(
-        enabled=settings.provider_check,
-        timeout_seconds=settings.provider_check_timeout_seconds,
-        clients=build_provider_clients,
-    )
-
-
 @app.callback()
-def main_entry_point(context: typer.Context) -> None:
-    """Initialize one RunContext for this CLI invocation if main.py did not, and hand the commands the probe."""
+def main_entry_point() -> None:
+    """Initialize one RunContext for this CLI invocation if main.py did not."""
     if get_current_run_context() is None:
         set_current_run_context(RunContext.new())
-    if context.obj is None:
-        context.obj = build_provider_probe()
 
 
 @app.command(name="evaluate")

@@ -94,8 +94,9 @@ did, the application runs the same check body for the provider the failure names
 `provider_failure` element, never from message text) and reports what it found: a line before the failure text in the
 text modes, and the `provider_check` element in `--json`. The probe is
 [`investment_analysis_engine/data/provider_probe.py`](../../investment_analysis_engine/data/provider_probe.py); the wording and the rules are in
-[`investment_analysis_engine/cli_provider_check.py`](../../investment_analysis_engine/cli_provider_check.py). It is built once, at the composition root in
-`investment_analysis_engine/cli.py`, and reaches the commands through the Typer context.
+[`investment_analysis_engine/application/provider_check.py`](../../investment_analysis_engine/application/provider_check.py). Each operation that
+reports a provider failure builds its own probe with `build_provider_probe` in
+`investment_analysis_engine/application/providers.py`, from the settings of its application context.
 
 - It runs one check under a 10-second limit (`IAN_PROVIDER_CHECK_TIMEOUT_SECONDS`), passed to the check body through
   its spec, at most once per provider per process; a refresh over many tickers probes once, after the batch.

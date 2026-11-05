@@ -24,12 +24,12 @@ from investment_analysis_engine.strategies.graham_number.calculation import (
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
-from investment_analysis_engine.strategies.momentum.execution import (
+from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.workspace import (
     capture_momentum,
     from_momentum_capture,
     run_momentum,
 )
-from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.refresh import (

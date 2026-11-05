@@ -11,9 +11,9 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.providers import production_financial_cache
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_composition import build_graham_resolver
-from investment_analysis_engine.cli_support import production_financial_cache
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, ProviderFact
@@ -26,6 +26,7 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     annual_series,
 )
 from investment_analysis_engine.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
+from investment_analysis_engine.strategies._graham.application import build_graham_resolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from tests._migrated_database import DATABASE_FILE_NAME, migrated_database_url
 
@@ -92,9 +93,13 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
 
     with (
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider
+            "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
+            return_value=provider,
         ),
-        patch("investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=provider),
+        patch(
+            "investment_analysis_engine.strategies._graham.application.build_sec_production_provider",
+            return_value=provider,
+        ),
         patch(
             "investment_analysis_engine.strategies._shared.invocation.compose_production_profile",
             return_value=profile,
@@ -104,13 +109,11 @@ def test_cli_reopens_cache_without_refetch(configured_database: Path, strategy: 
             return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies.fcf_growth.workspace.compose_production_profile",
             return_value=profile,
         ),
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase", side_effect=database),
-        patch("investment_analysis_engine.strategies.graham_number.cli.utc_now", return_value=NOW),
-        patch("investment_analysis_engine.strategies.graham_growth.cli.utc_now", return_value=NOW),
-        patch("investment_analysis_engine.strategies.fcf_growth.cli.utc_now", return_value=NOW),
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase", side_effect=database),
+        patch("investment_analysis_engine.application.analysis.utc_now", return_value=NOW),
     ):
         first = CliRunner().invoke(app, arguments)
         assert first.exit_code == 0, first.output
@@ -183,9 +186,13 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
             ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"),
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider", return_value=provider
+            "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
+            return_value=provider,
         ),
-        patch("investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=provider),
+        patch(
+            "investment_analysis_engine.strategies._graham.application.build_sec_production_provider",
+            return_value=provider,
+        ),
         patch(
             "investment_analysis_engine.strategies._shared.invocation.compose_production_profile",
             return_value=profile,
@@ -195,11 +202,11 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
             return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.execution.compose_production_profile",
+            "investment_analysis_engine.strategies.fcf_growth.workspace.compose_production_profile",
             return_value=profile,
         ),
         patch(
-            "investment_analysis_engine.cli_support.ensure_database_ready",
+            "investment_analysis_engine.application.providers.ensure_database_ready",
             side_effect=AssertionError("Database must not be migrated"),
         ),
     ):
@@ -214,10 +221,11 @@ def test_no_cache_does_not_open_database(tmp_path: Path, strategy: str) -> None:
 
 def test_cache_scope_closes_on_error(configured_database: Path) -> None:
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{configured_database.as_posix()}"))
+    context = ApplicationContext(settings=ProjectSettings(database_url=f"sqlite:///{configured_database.as_posix()}"))
     with (
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase", return_value=database),
         pytest.raises(ValueError, match="analysis failed"),
-        production_financial_cache(use_cache=True, clock=lambda: NOW),
+        production_financial_cache(context, use_cache=True, clock=lambda: NOW),
     ):
         raise ValueError("analysis failed")
     with pytest.raises(RuntimeError, match="closed"), database.read():
@@ -227,7 +235,13 @@ def test_cache_scope_closes_on_error(configured_database: Path) -> None:
 def test_explicit_memory_cache_is_retained() -> None:
     cache = InMemoryResolvedInputCache(clock=lambda: NOW)
     with patch(
-        "investment_analysis_engine.cli_composition.build_sec_production_provider", return_value=GrahamProvider()
+        "investment_analysis_engine.strategies._graham.application.build_sec_production_provider",
+        return_value=GrahamProvider(),
     ):
-        resolver = build_graham_resolver(resolver_type=GrahamNumberInputResolver, cache=cache, clock=lambda: NOW)
+        resolver = build_graham_resolver(
+            ApplicationContext(settings=ProjectSettings()),
+            resolver_type=GrahamNumberInputResolver,
+            cache=cache,
+            clock=lambda: NOW,
+        )
     assert resolver._cache is cache

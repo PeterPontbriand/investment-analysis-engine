@@ -19,12 +19,12 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_provider_check import (
+from investment_analysis_engine.application.provider_check import (
     ProviderCheckChoice,
     ProviderCheckFindings,
     provider_check_findings,
 )
+from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
@@ -44,6 +44,7 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from scripts.repository_root import REPOSITORY_ROOT
 from tests._direct_command_output import no_provider_check_flag
+from tests._probe_injection import injected_probe
 from tests._strategy_document_output import CASES, Case, _enter_providers
 from tests.test_cli_provider_check import (
     _SCENARIOS,
@@ -342,9 +343,9 @@ def test_only_the_shared_function_calls_the_probe() -> None:
         for path in source.rglob("*.py")
         if _attribute_calls(path, "check") and path.name != "provider_probe.py"
     }
-    assert callers == {"investment_analysis_engine/cli_provider_check.py"}
+    assert callers == {"investment_analysis_engine/application/provider_check.py"}
 
-    module = ast.parse((source / "cli_provider_check.py").read_text(encoding="utf-8"))
+    module = ast.parse((source / "application" / "provider_check.py").read_text(encoding="utf-8"))
     function_of_call: dict[str, set[str]] = {}
     for function in (node for node in ast.walk(module) if isinstance(node, ast.FunctionDef)):
         for call in ast.walk(function):
@@ -355,7 +356,11 @@ def test_only_the_shared_function_calls_the_probe() -> None:
 
 def test_a_presenter_does_not_call_the_probe() -> None:
     """A presenter receives the finding as data; it imports neither the probe nor the module that runs it."""
-    forbidden = ("investment_analysis_engine.data.provider_probe", "investment_analysis_engine.cli_provider_check")
+    forbidden = (
+        "investment_analysis_engine.data.provider_probe",
+        "investment_analysis_engine.cli_provider_check",
+        "investment_analysis_engine.application.provider_check",
+    )
     paths = [
         *(PACKAGE_ROOT / "strategies").glob("*/presenter.py"),
         *(PACKAGE_ROOT / "strategies").glob("*/replay.py"),
@@ -495,10 +500,14 @@ def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_ki
             raise DataFetchError("detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
         raise DataFetchError("detail", kind=ProviderFailureKind.NO_DATA, provider_id="yfinance")
 
-    with patch(
-        "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis", side_effect=failing
+    with (
+        patch(
+            "investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis",
+            side_effect=failing,
+        ),
+        injected_probe(fake.probe),
     ):
-        result = runner.invoke(app, ["refresh", "Two Providers", "--workers", "1", "--json"], obj=fake.probe)
+        result = runner.invoke(app, ["refresh", "Two Providers", "--workers", "1", "--json"])
 
     assert result.exit_code == 1
     document = json.loads(result.stdout)

@@ -64,7 +64,7 @@ def main(argv: list[str]) -> None:
     if mode == "crash":
         patches.append(
             patch(
-                "investment_analysis_engine.strategies.momentum.cli.provider_check_choice",
+                "investment_analysis_engine.strategies.momentum.cli.execution_errors",
                 side_effect=RuntimeError("driver crash"),
             )
         )

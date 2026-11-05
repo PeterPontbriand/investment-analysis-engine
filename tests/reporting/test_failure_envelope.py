@@ -304,7 +304,8 @@ def test_no_command_remediates_for_the_caller(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr("investment_analysis_engine.cli_database.upgrade_database", refuse)
     error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, Path("x.sqlite3"), "0001_head")
     monkeypatch.setattr(
-        "investment_analysis_engine.cli_support.ensure_database_ready", lambda _database: (_ for _ in ()).throw(error)
+        "investment_analysis_engine.application.providers.ensure_database_ready",
+        lambda _database: (_ for _ in ()).throw(error),
     )
     result = CliRunner().invoke(investment_analysis_engine.cli.app, ["graham-number", "ACME", "--json"])
     assert result.exit_code == 1

@@ -8,11 +8,10 @@ A *unit* is each directory directly under ``investment_analysis_engine/``, plus 
 groups ``investment_analysis_engine/main.py`` and every ``investment_analysis_engine/cli*.py``, and the role files
 below. ``investment_analysis_engine/__init__.py`` is ignored.
 
-The *role rule* assigns three files of each strategy package to the layer they adapt the strategy to: a file named
-``cli.py``, ``evaluation.py`` or ``execution.py`` directly inside a package under
-``investment_analysis_engine/strategies/`` (including ``_graham``) belongs to the unit ``cli``, ``evaluation`` or
-``workspace`` respectively. Every other file under ``investment_analysis_engine/strategies/`` belongs to ``strategies``.
-The rule is the data in ``ROLE_RULES``.
+The *role rule* is one rule: a file directly inside a package under ``investment_analysis_engine/strategies/``
+(including ``_graham``) whose name, without ``.py``, is the name of a unit in ``ROLE_UNITS`` (``cli``,
+``evaluation``, ``workspace`` or ``application``) belongs to that unit. Every other file under
+``investment_analysis_engine/strategies/`` belongs to ``strategies``.
 """
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ from __future__ import annotations
 import sys
 from collections import defaultdict, deque
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
 from pathlib import Path
 
 CLI_UNIT = "cli"
@@ -28,26 +26,19 @@ CLI_UNIT = "cli"
 Graph = dict[str, set[str]]
 
 
-@dataclass(frozen=True)
-class RoleRule:
-    """Files named ``<role>.py`` directly inside a package under ``under`` belong to the mapped unit."""
+ROLE_PARENT = "strategies"
+"""The package whose strategy packages hold role files."""
 
-    under: str
-    roles: Mapping[str, str]
-
-
-ROLE_RULES = (RoleRule("strategies", {"cli": "cli", "evaluation": "evaluation", "execution": "workspace"}),)
+ROLE_UNITS = frozenset({"cli", "evaluation", "workspace", "application"})
+"""The units a file inside a strategy package can belong to by its name."""
 
 
 def _role_unit(relative_path: Path) -> str | None:
-    """Return the unit the role rule assigns to a path relative to the source root, or ``None``."""
+    """Return the unit a file's name gives it inside a strategy package (relative to the source root), or ``None``."""
     parts = relative_path.parts
-    if len(parts) != 3 or relative_path.suffix != ".py":
+    if len(parts) != 3 or relative_path.suffix != ".py" or parts[0] != ROLE_PARENT:
         return None
-    for rule in ROLE_RULES:
-        if parts[0] == rule.under:
-            return rule.roles.get(relative_path.stem)
-    return None
+    return relative_path.stem if relative_path.stem in ROLE_UNITS else None
 
 
 def unit_of_path(relative_path: Path) -> str | None:

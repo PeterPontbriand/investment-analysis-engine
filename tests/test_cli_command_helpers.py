@@ -1,39 +1,22 @@
-"""The steps every direct command repeats: target resolution, rendering with the provider check, exit and save."""
+"""The steps every direct command repeats: target resolution, writing the outcome and exiting."""
 
-from datetime import UTC, datetime
+import json
 
 import pytest
 import typer
+from pydantic import BaseModel
 
-from investment_analysis_engine.cli_provider_check import ProviderCheckChoice
-from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
-from investment_analysis_engine.cli_support import (
-    FailureScope,
-    emit_output,
-    render_execution,
-    resolve_command_target,
-)
+from investment_analysis_engine.application.analysis import AnalysisOutcome
+from investment_analysis_engine.cli_support import FailureScope, analysis_output, emit_output, resolve_command_target
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
-from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.requests import AnalysisRequest
 from tests.workspace.test_execution import _momentum_native_evidence
 
 _FAILURE = provider_failure_of((ProviderFailureRecord(ProviderFailureKind.UNREACHABLE, "yfinance"),))
-
-
-class _Probe:
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, bool]] = []
-
-    def check(self, provider_id: str, *, requested: bool = True) -> ProbeFinding:
-        self.calls.append((provider_id, requested))
-        return ProbeFinding(provider_id, ProbeVerdict.UNREACHABLE)
 
 
 def _execution(status: CalculationStatus) -> ExecutionCapture:
@@ -83,66 +66,40 @@ def test_a_missing_ticker_names_the_command_and_records_nothing() -> None:
     assert (scope.ticker, scope.mode) == (None, None)
 
 
-def test_a_completed_run_is_rendered_without_a_provider_check() -> None:
-    probe = _Probe()
-    seen: list[tuple[ProviderCheckItem, ...] | None] = []
-
-    def render(element: tuple[ProviderCheckItem, ...] | None) -> str:
-        seen.append(element)
-        return "result"
-
-    output, exit_code = render_execution(
-        _execution(CalculationStatus.OK),
-        ProviderCheckChoice(probe=probe, requested=True),
-        PresentationMode.CONCISE,
-        render,
+def _outcome(status: CalculationStatus, *, mode_text: str = "result") -> AnalysisOutcome:
+    """Return an outcome whose document is a stand-in model and whose text is ``mode_text`` in every text mode."""
+    execution = _execution(status)
+    return AnalysisOutcome(
+        document=_Document(),
+        analysis_run_id=None,
+        outcome=execution.outcome,
+        text_renderer=lambda _mode: mode_text,
     )
+
+
+class _Document(BaseModel):
+    """A stand-in for a strategy document."""
+
+    value: int = 1
+
+
+def test_a_completed_outcome_is_written_as_its_text_with_exit_code_zero() -> None:
+    output, exit_code = analysis_output(_outcome(CalculationStatus.OK), PresentationMode.CONCISE)
 
     assert (output, exit_code) == ("result", 0)
-    assert seen == [None]
-    assert probe.calls == []
 
 
-def test_a_failed_run_runs_the_provider_check_once_and_precedes_the_text_with_its_lines() -> None:
-    probe = _Probe()
-    seen: list[tuple[ProviderCheckItem, ...] | None] = []
+def test_a_failed_outcome_has_exit_code_one_and_its_own_text() -> None:
+    output, exit_code = analysis_output(_outcome(CalculationStatus.PROVIDER_ERROR), PresentationMode.DETAILS)
 
-    def render(element: tuple[ProviderCheckItem, ...] | None) -> str:
-        seen.append(element)
-        return "result"
+    assert (output, exit_code) == ("result", 1)
 
-    output, exit_code = render_execution(
-        _execution(CalculationStatus.PROVIDER_ERROR),
-        ProviderCheckChoice(probe=probe, requested=False),
-        PresentationMode.CONCISE,
-        render,
-    )
 
+def test_the_json_mode_writes_the_serialized_document_not_the_text() -> None:
+    output, exit_code = analysis_output(_outcome(CalculationStatus.PROVIDER_ERROR), PresentationMode.JSON)
+
+    assert json.loads(output) == {"value": 1}
     assert exit_code == 1
-    assert probe.calls == [("yfinance", False)]
-    assert output.splitlines()[-1] == "result"
-    assert len(output.splitlines()) == 2
-    assert seen[0] is not None
-    assert seen[0][0].provider_id == "yfinance"
-
-
-def test_a_failed_run_in_json_mode_carries_the_findings_in_the_document_only() -> None:
-    output, exit_code = render_execution(
-        _execution(CalculationStatus.PROVIDER_ERROR),
-        ProviderCheckChoice(probe=_Probe(), requested=True),
-        PresentationMode.JSON,
-        lambda element: "{}" if element is None else "{provider_check}",
-    )
-
-    assert (output, exit_code) == ("{provider_check}", 1)
-
-
-def test_a_run_without_a_probe_renders_with_no_element_and_no_extra_lines() -> None:
-    output, exit_code = render_execution(
-        _execution(CalculationStatus.PROVIDER_ERROR), None, PresentationMode.CONCISE, str
-    )
-
-    assert (output, exit_code) == ("None", 1)
 
 
 @pytest.mark.parametrize(
@@ -173,47 +130,3 @@ def test_a_success_is_written_to_standard_output_in_every_mode_and_does_not_exit
 
     captured = capsys.readouterr()
     assert (captured.out, captured.err) == ("text\n", "")
-
-
-def test_without_save_run_the_adapter_runs_once_without_a_profile_cache_and_no_request_is_built() -> None:
-    adapter_arguments: list[object] = []
-
-    def build_request() -> AnalysisRequest:
-        raise AssertionError("the request is built only when the run is saved")
-
-    def adapter(profile_cache: object) -> str:
-        adapter_arguments.append(profile_cache)
-        return "raw"
-
-    result = analyze_and_maybe_save(
-        save_run=False,
-        executed_at=datetime(2026, 11, 1, tzinfo=UTC),
-        request_factory=build_request,
-        run_adapter=adapter,
-        normalize=lambda _raw: _execution(CalculationStatus.OK),
-    )
-
-    assert result == "raw"
-    assert adapter_arguments == [None]
-
-
-def _no_request() -> AnalysisRequest:
-    raise AssertionError("no request is built when nothing is saved")
-
-
-def test_an_analysis_failure_propagates_unchanged_when_nothing_is_saved() -> None:
-    error = ValueError("analysis failed")
-
-    def adapter(_profile_cache: object) -> str:
-        raise error
-
-    with pytest.raises(ValueError, match="analysis failed") as raised:
-        analyze_and_maybe_save(
-            save_run=False,
-            executed_at=datetime(2026, 11, 1, tzinfo=UTC),
-            request_factory=_no_request,
-            run_adapter=adapter,
-            normalize=lambda _raw: _execution(CalculationStatus.OK),
-        )
-
-    assert raised.value is error

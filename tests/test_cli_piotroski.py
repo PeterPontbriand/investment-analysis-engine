@@ -11,6 +11,7 @@ import pytest
 from typer.testing import CliRunner
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import settings
@@ -22,6 +23,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFi
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
 from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_statements import StatementsFetcher
+from investment_analysis_engine.strategies.piotroski import application as piotroski_application
 from investment_analysis_engine.strategies.piotroski import cli as piotroski_cli
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
@@ -58,8 +60,10 @@ def _provider_without_live_yahoo(*, sec_edgar: SecEdgarFinancialFactsAdapter) ->
 def apple_adapter(adapter: SecEdgarFinancialFactsAdapter | None = None) -> Iterator[None]:
     """Make the command build the captured Apple adapter and no live Yahoo client."""
     with (
-        patch.object(piotroski_cli, "build_sec_edgar_adapter", side_effect=lambda: adapter or adapter_of("aapl")),
-        patch.object(piotroski_cli, "ProductionFinancialFactsProvider", _provider_without_live_yahoo),
+        patch.object(
+            piotroski_application, "build_sec_edgar_adapter", side_effect=lambda _context: adapter or adapter_of("aapl")
+        ),
+        patch.object(piotroski_application, "ProductionFinancialFactsProvider", _provider_without_live_yahoo),
     ):
         yield
 
@@ -161,7 +165,9 @@ def test_the_selection_builder_reads_only_the_boundary_and_the_cache_flag() -> N
 def test_the_refresh_executor_runs_the_job_and_captures_the_evidence_and_status() -> None:
     selection = PiotroskiSelection(as_of=datetime(2025, 1, 15, tzinfo=UTC))
     with apple_adapter():
-        capture = piotroski_cli.refresh("AAPL", selection, profile_cache=None)
+        capture = piotroski_application.refresh(
+            ApplicationContext(settings=settings), "AAPL", selection, profile_cache=None
+        )
     assert capture.native_status is CalculationStatus.OK
     assert capture.outcome is RunOutcome.COMPLETED
     assert isinstance(capture.native_evidence, PiotroskiResult)

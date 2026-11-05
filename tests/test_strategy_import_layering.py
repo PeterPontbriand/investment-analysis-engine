@@ -36,8 +36,11 @@ _ROOT_IMPORTERS = frozenset(
         "investment_analysis_engine.evaluation.ollama_runner",
         "investment_analysis_engine.evaluation.strategy_fixtures",
         "investment_analysis_engine.cli_strategy_wiring",
-        "investment_analysis_engine.cli_composition",
-        "investment_analysis_engine.cli_run_support",
+        "investment_analysis_engine.application.analysis",
+        "investment_analysis_engine.application.providers",
+        "investment_analysis_engine.application.tier",
+        "investment_analysis_engine.strategies.graham_growth.application",
+        "investment_analysis_engine.strategies.momentum.application",
         "investment_analysis_engine.cli_workspace",
         "investment_analysis_engine.application.runs",
         "investment_analysis_engine.application.watchlists",
@@ -60,21 +63,46 @@ _FIXTURE_MODULE_PREFIX = "investment_analysis_engine.evaluation.fixtures."
 # it. As for the root, an entry must exist and import the tier.
 _CLI_TIER = "investment_analysis_engine.cli_strategy_wiring"
 _CLI_TIER_IMPORTERS = frozenset({"investment_analysis_engine.cli", "investment_analysis_engine.cli_workspace"})
-# The modules only listed importers may import: the root and the two tiers, with the name each is reported by.
-_IMPORTERS = MappingProxyType({_ROOT: _ROOT_IMPORTERS, _TIER: _TIER_IMPORTERS, _CLI_TIER: _CLI_TIER_IMPORTERS})
+# The application tier pairs each strategy's run function and refresh executor with its core bundle. It may import
+# the root and the ``application`` file of each strategy package, and only the modules listed here import it. As for
+# the root, an entry must exist and import the tier.
+_APPLICATION_TIER = "investment_analysis_engine.application.tier"
+_APPLICATION_TIER_IMPORTERS = frozenset(
+    {"investment_analysis_engine.application.analysis", "investment_analysis_engine.cli_workspace"}
+)
+# The modules only listed importers may import: the root and the three tiers, with the name each is reported by.
+_IMPORTERS = MappingProxyType(
+    {
+        _ROOT: _ROOT_IMPORTERS,
+        _TIER: _TIER_IMPORTERS,
+        _CLI_TIER: _CLI_TIER_IMPORTERS,
+        _APPLICATION_TIER: _APPLICATION_TIER_IMPORTERS,
+    }
+)
 _RESTRICTED_MODULES = MappingProxyType(
-    {_ROOT: "the composition root", _TIER: "the evaluation tier", _CLI_TIER: "the CLI tier"}
+    {
+        _ROOT: "the composition root",
+        _TIER: "the evaluation tier",
+        _CLI_TIER: "the CLI tier",
+        _APPLICATION_TIER: "the application tier",
+    }
 )
 # Each tier's report name and the one strategy role it may import.
-_TIER_ROLES = MappingProxyType({_TIER: ("evaluation tier", "evaluation"), _CLI_TIER: ("CLI tier", "cli")})
+_TIER_ROLES = MappingProxyType(
+    {
+        _TIER: ("evaluation tier", "evaluation"),
+        _CLI_TIER: ("CLI tier", "cli"),
+        _APPLICATION_TIER: ("application tier", "application"),
+    }
+)
 _TRANSITIONS: set[tuple[str, str, str]] = set()
 # Package initializers that sit in an import cycle. Only ``investment_analysis_engine.config`` does: its initializer
 # holds the settings code itself, not a re-export of its children.
 _BENIGN_CYCLE_PACKAGES = frozenset({"investment_analysis_engine.config"})
 _SAMPLE_STRATEGIES = frozenset({"momentum", "graham_number", "graham_growth"})
 # The adapter roles: for the package map each belongs to the layer it adapts the strategy to (``cli``,
-# ``evaluation`` and ``workspace``), so no other file of a strategy package may import one.
-_ADAPTER_ROLES = frozenset({"cli", "evaluation", "execution"})
+# ``evaluation``, ``workspace`` and ``application``), so no other file of a strategy package may import one.
+_ADAPTER_ROLES = frozenset({"cli", "evaluation", "workspace", "application"})
 
 
 def _module_name(path: Path) -> str:
@@ -523,7 +551,7 @@ def test_t13_fails_when_two_different_roles_of_equal_rank_import_each_other() ->
     package = "investment_analysis_engine.strategies.momentum"
     for first, second in (
         ("selection", "codec"),
-        ("tool", "execution"),
+        ("tool", "workspace"),
         ("cli", "evaluation"),
         ("envelope", "analyzer"),
     ):
@@ -663,7 +691,7 @@ def test_t13_permits_the_root_to_import_only_its_strategy_roles() -> None:
     package = "investment_analysis_engine.strategies.momentum"
     for role in sorted(_ROOT_ROLES):
         assert _edge_violations({(_ROOT, f"{package}.{role}")}, _SAMPLE_STRATEGIES, set()) == []
-    for role in ("execution", "presenter", "cli", "evaluation"):
+    for role in ("workspace", "presenter", "cli", "evaluation"):
         assert _edge_violations({(_ROOT, f"{package}.{role}")}, _SAMPLE_STRATEGIES, set()) == [
             f"composition root imports a role it may not: {_ROOT} -> {package}.{role}"
         ]
@@ -944,7 +972,7 @@ def test_t13_permits_the_cli_tier_to_import_only_the_root_and_strategy_cli_files
     ok = {(_CLI_TIER, _ROOT), (_CLI_TIER, f"{package}.cli")}
     assert _edge_violations(ok, _SAMPLE_STRATEGIES, set()) == []
     bad = {
-        (_CLI_TIER, f"{package}.execution"),
+        (_CLI_TIER, f"{package}.workspace"),
         (_CLI_TIER, f"{package}.analyzer"),
         (_CLI_TIER, f"{package}.evaluation"),
         (_CLI_TIER, "investment_analysis_engine.strategies._graham.replay"),
@@ -955,7 +983,7 @@ def test_t13_permits_the_cli_tier_to_import_only_the_root_and_strategy_cli_files
             "investment_analysis_engine.strategies._graham.replay",
             f"{package}.analyzer",
             f"{package}.evaluation",
-            f"{package}.execution",
+            f"{package}.workspace",
         )
     ]
 
@@ -969,25 +997,28 @@ def test_t13_lists_the_cli_tier_as_an_importer_of_the_root() -> None:
     ) == [f"module imports the composition root: investment_analysis_engine.strategies.momentum.cli -> {_ROOT}"]
 
 
-def test_no_core_file_of_a_strategy_imports_its_cli_evaluation_or_execution_file() -> None:
-    """The package map counts the three adapter files as other layers, so the strategy core must not import them."""
+def test_no_core_file_of_a_strategy_imports_its_cli_evaluation_workspace_or_application_file() -> None:
+    """The package map counts the four adapter files as other layers, so the strategy core must not import them."""
     _, edges, _ = _source_graph()
     assert _adapter_role_violations(edges) == []
 
 
 def test_the_adapter_role_rule_names_each_offending_import() -> None:
-    """A presenter or replay file importing an execution file fails, as does a vocabulary file importing a cli file."""
+    """A presenter or replay file importing a workspace file fails, as does a vocabulary file importing a cli file."""
     package = "investment_analysis_engine.strategies.momentum"
     edges = {
-        (f"{package}.presenter", f"{package}.execution"),
-        (f"{package}.replay", f"{package}.execution"),
+        (f"{package}.presenter", f"{package}.workspace"),
+        (f"{package}.replay", f"{package}.workspace"),
         (f"{package}.vocabulary", f"{package}.cli"),
-        (f"{package}.cli", f"{package}.execution"),
+        (f"{package}.cli", f"{package}.workspace"),
+        (f"{package}.cli", f"{package}.application"),
+        (f"{package}.presenter", f"{package}.application"),
         (f"{package}.evaluation", "investment_analysis_engine.strategies._graham.evaluation"),
         (f"{package}.analyzer", f"{package}.calculators"),
     }
     assert _adapter_role_violations(edges) == [
-        f"core file of a strategy imports an adapter role file: {package}.presenter -> {package}.execution",
-        f"core file of a strategy imports an adapter role file: {package}.replay -> {package}.execution",
+        f"core file of a strategy imports an adapter role file: {package}.presenter -> {package}.application",
+        f"core file of a strategy imports an adapter role file: {package}.presenter -> {package}.workspace",
+        f"core file of a strategy imports an adapter role file: {package}.replay -> {package}.workspace",
         f"core file of a strategy imports an adapter role file: {package}.vocabulary -> {package}.cli",
     ]

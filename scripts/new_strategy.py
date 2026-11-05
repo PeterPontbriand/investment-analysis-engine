@@ -64,7 +64,8 @@ STUB_ROLES: Final = (
     "tool",
     "selection",
     "codec",
-    "execution",
+    "workspace",
+    "application",
     "cli",
     "presenter",
     "envelope",
@@ -77,9 +78,10 @@ STRATEGY_WIRING: Final = "strategy_wiring.py"
 TOOL_NAMES: Final = "orchestrator/tool_names.py"
 STRATEGY_TYPES: Final = "workspace/strategy_types.py"
 CLI_TIER: Final = "cli_strategy_wiring.py"
+APPLICATION_TIER: Final = "application/tier.py"
 EVALUATION_TIER: Final = "evaluation/strategy_fixtures.py"
-EDITED_FILES: Final = (STRATEGY_WIRING, TOOL_NAMES, STRATEGY_TYPES, CLI_TIER, EVALUATION_TIER)
-"""The five existing files the generator edits, relative to the package folder."""
+EDITED_FILES: Final = (STRATEGY_WIRING, TOOL_NAMES, STRATEGY_TYPES, CLI_TIER, APPLICATION_TIER, EVALUATION_TIER)
+"""The six existing files the generator edits, relative to the package folder."""
 
 MAX_LABEL_LENGTH: Final = 40
 """The longest display label the templates are proven to handle."""
@@ -415,16 +417,31 @@ def _cli_tier_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str,
     imports = [
         _strategy_import(spec, "cli", [f"build_selection as build_{module}_selection"]),
         _strategy_import(spec, "cli", [f"command as {module}_command"]),
-        _strategy_import(spec, "cli", [f"refresh as refresh_{module}"]),
     ]
     entry = (
         f"pair_cli(\n    {upper}_BEHAVIOR,\n"
-        f"    CliComposition(build=build_{module}_selection, refresh=refresh_{module}, command={module}_command),\n)"
+        f"    CliComposition(build=build_{module}_selection, command={module}_command),\n)"
     )
     edited = append_imports(source, imports, where)
     edited = add_import_name(edited, f"{PACKAGE}.strategy_wiring", f"{upper}_BEHAVIOR", where)
-    introduced = (f"build_{module}_selection", f"{module}_command", f"refresh_{module}")
+    introduced = (f"build_{module}_selection", f"{module}_command")
     return append_tuple_entry(edited, "CLI_STRATEGIES", entry, where), introduced
+
+
+def _application_tier_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, ...]]:
+    module, upper = spec.module, spec.upper
+    imports = [
+        _strategy_import(spec, "application", [f"refresh as refresh_{module}"]),
+        _strategy_import(spec, "application", [f"run as run_{module}"]),
+    ]
+    entry = (
+        f"pair_application(\n    {upper}_BEHAVIOR,\n"
+        f"    ApplicationComposition(run=run_{module}, refresh=refresh_{module}),\n)"
+    )
+    edited = append_imports(source, imports, where)
+    edited = add_import_name(edited, f"{PACKAGE}.strategy_wiring", f"{upper}_BEHAVIOR", where)
+    introduced = (f"run_{module}", f"refresh_{module}")
+    return append_tuple_entry(edited, "APPLICATION_STRATEGIES", entry, where), introduced
 
 
 def _evaluation_tier_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, ...]]:
@@ -464,6 +481,7 @@ EDITS: Final = (
     EditedFile(TOOL_NAMES, _tool_name_edit, enums=("ToolName",)),
     EditedFile(STRATEGY_TYPES, _types_edit, unions=("NativeEvidence", "SelectionMember")),
     EditedFile(CLI_TIER, _cli_tier_edit, tuples=("CLI_STRATEGIES",)),
+    EditedFile(APPLICATION_TIER, _application_tier_edit, tuples=("APPLICATION_STRATEGIES",)),
     EditedFile(EVALUATION_TIER, _evaluation_tier_edit, tuples=("EVALUATION_STRATEGIES",)),
 )
 

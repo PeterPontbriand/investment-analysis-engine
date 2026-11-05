@@ -19,26 +19,26 @@ from investment_analysis_engine.core.failure_codes import PROVIDER_CODE_BY_KIND,
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
-from investment_analysis_engine.strategies.fcf_growth.execution import FCFGrowthCapture, from_fcf_growth_capture
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
+from investment_analysis_engine.strategies.fcf_growth.workspace import FCFGrowthCapture, from_fcf_growth_capture
 from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthValueResult,
     GrowthValueInputAssembly,
 )
-from investment_analysis_engine.strategies.graham_growth.execution import (
+from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_growth.workspace import (
     GrahamGrowthCapture,
     from_graham_growth_capture,
 )
-from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 from investment_analysis_engine.strategies.graham_number.calculation import (
     GrahamNumberInputAssembly,
     GrahamNumberResult,
 )
-from investment_analysis_engine.strategies.graham_number.execution import (
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.graham_number.workspace import (
     GrahamNumberCapture,
     from_graham_number_capture,
 )
-from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY, run_spec_for
 from investment_analysis_engine.workspace.capture import ExecutionCapture
