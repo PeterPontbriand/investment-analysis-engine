@@ -33,7 +33,7 @@ watchlist actions and builds a selection from its model's fields. The third adds
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
-| API.3a | [Execution composition and direct analysis](#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-04 |
+| API.3a | [Execution composition and direct analysis](#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-05 |
 | API.3b | [Watchlist actions, selections and Site 19](#api3b--watchlist-actions-selections-and-site-19) | Next | |
 | API.3c | [Refresh with progress](#api3c--refresh-with-progress) | Planned | |
 
@@ -289,7 +289,7 @@ The project owner reviewed the branch and approved these fixes, all done:
     The save step and the composition (`build_*`, the cache and database openers) reach no provider. An instrumented full
     run of the test suite agrees: the failure translation saw a provider failure 39 times, and every time the exception
     was raised by a test that replaced a function inside the analyzer, or by a unit test of the translation itself; no
-    test with real fixtures reached it. I found no path.
+    test with real fixtures reached it. No path was found.
   - *Branch taken:* none exists, so the provider-check branch is deleted from `execution_errors` along with its
     `provider_check` parameter and every command's argument for it; a provider failure that did leave `analyze` as an
     exception would be reported without a check. Output of every reachable case is unchanged.
