@@ -227,22 +227,16 @@ def test_the_rest_of_the_analysis_does_not_depend_on_market_data() -> None:
     _same_run(with_data, without)
 
 
-@pytest.mark.parametrize("etf", [False, True])
-def test_no_market_data_is_requested_when_the_yield_is_not_wanted(etf: bool) -> None:
+def test_no_market_data_is_requested_for_an_etf() -> None:
     provider = SpyProvider()
     split = FixtureSplitHistoryProvider(CLOCK, with_data=True)
     dependencies = _dependencies(provider, split)
-    policy = FCFEarningsGrowthPolicy(include_fcf_yield=etf)
-    if etf:
-        profile = fixture_known_etf_profile()
-        result = FCFEarningsGrowthAnalyzer(_annual(), dependencies).run_analysis(
-            GOLDEN_ETF_TICKER,
-            AnalysisContext(as_of=None, executed_at=CLOCK, use_cache=True, instrument_profile=profile),
-            CONFIG,
-        )
-    else:
-        result = _run(dependencies, policy=replace(policy, include_fcf_yield=False))
-        assert result.fcf_yield.reason_code is ReasonCode.NOT_REQUESTED
+    profile = fixture_known_etf_profile()
+    result = FCFEarningsGrowthAnalyzer(_annual(), dependencies).run_analysis(
+        GOLDEN_ETF_TICKER,
+        AnalysisContext(as_of=None, executed_at=CLOCK, use_cache=True, instrument_profile=profile),
+        CONFIG,
+    )
 
     assert result.market_capitalization is None
     assert provider.requests == []

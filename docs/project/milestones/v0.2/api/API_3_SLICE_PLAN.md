@@ -77,7 +77,9 @@ watchlist actions and builds a selection from its model's fields. The third adds
   - `WatchlistFlags` is replaced by one `add-selection` subcommand per strategy
     ([C12](#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04));
   - one schema per strategy, compared in the gate ([C13](#c13-one-selection-schema-per-strategy-2026-11-04)), with the
-    form-supported field types of [C14](#c14-form-supported-field-types-2026-11-04).
+    form-supported field types of [C14](#c14-form-supported-field-types-2026-11-04);
+  - the implementation decisions W1 to W13 ([Appendix A](#appendix-a-decision-records)); W2 was done before this slice,
+    in its own pull request.
 - **Scope:** the watchlist actions in `application`; `build_selection`; the selection schemas and their generator and
   conformance check; the CLI change of C12 with the documents it touches; the closure of Site 19 in the documents named
   in C12.
@@ -345,7 +347,7 @@ expected text of every mode was recorded from `main` before the change and the o
 
 ## Appendix A: Decision records
 
-C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5.
+C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05.
 
 ### C1 API.3 is three slices (2026-11-04)
 
@@ -521,3 +523,55 @@ This plan is written in API.3a, structured like [API.2's](API_2_SLICE_PLAN.md). 
 - the API.4 entry records two requirements: a client needs an endpoint giving each strategy's current configured
   selection defaults, because the selection schemas carry none (C13); and the direct-analysis endpoint can serve a run's
   text in a mode through `render_text`, as S17 does for saved runs (C5a).
+
+### W1 A nested selection model is a form type (2026-11-05)
+
+Amends C14. A model nested one level inside a selection, whose own fields are each of a form-supported type, is a form-supported type; a form shows its fields as a group. FCF Growth's `policy` stays nested, and no stored shape changes for it.
+
+### W2 FCF Growth's include_fcf_yield option is removed (2026-11-05)
+
+No command, selection builder or stored selection set it to false, and the FCF Growth tool, which offered it to a model, defaulted to true, so FCF yield is always computed. Removed before API.3b, in its own pull request, with the `not_requested` metric reason code that only it produced (issue #227).
+
+### W3 The field-to-option table carries converters (2026-11-05)
+
+Each row of a strategy's table (C11) names a selection field, its CLI option and, when the two differ in value, a converter from the option's typed value to the field's value, for example `--no-cache` to `use_cache` and `--growth-years` to `policy.historical_horizon`. Normalization that does not belong to the command line, such as upper-casing the currency, moves into the selection model, so the API applies it too.
+
+### W4 The as-of date rule is shared (2026-11-05)
+
+`build_selection` accepts `as_of` as a date or a timezone-aware timestamp. A date means the end of that day in UTC, the rule the CLI's `--as-of` applies today; the rule lives in `application`, and the CLI's parser calls it.
+
+### W5 build_selection is the only validator (2026-11-05)
+
+The CLI builders' own checks are removed. Each selection rule's message is a template naming fields; the API fills it with field names and the CLI with option names through the strategy's table (W3), so every CLI message stays byte-identical. A current CLI message that a template cannot reproduce is reported to the project owner, not reworded.
+
+### W6 Each strategy declares its selection options once (2026-11-05)
+
+Each strategy's `cli.py` declares its selection options once, as module-level `Annotated` aliases that its direct command and its `add-selection` command both use. `CliComposition` loses `build` and gains the `add_selection` command and the field-to-option table, and the CLI tier registers `ian watchlist add-selection <alias>` for each strategy. `cli_watchlist_flags.py` and the Momentum defaults read in `cli_workspace.py` are removed.
+
+### W7 A conformance check replaces site 19 (2026-11-05)
+
+No site replaces row 19. A conformance check requires that a strategy's `add-selection` options are exactly its direct command's selection options (all but `--details`, `--diagnostics`, `--json`, `--save-run`, `--no-provider-check` and `--ticker`), and that its table covers every selection field except `analysis_id`, `method_id` and `config_schema_version`. The generator's templates emit both, and a generated strategy passes.
+
+### W8 A watchlist action writes and reads back in one transaction (2026-11-05)
+
+Each action does its write and its read-back in one transaction (C9) and returns a result holding either the watchlist or the error that makes an entry unreadable, as `DeletedWatchlist` does. The CLI prints what it prints today.
+
+### W9 Delete is confirmed and done by ID (2026-11-05)
+
+`ian watchlist delete` asks its question from the watchlist's summary and then deletes by the summary's ID, so a rename between the two cannot delete a different watchlist. Its output does not change.
+
+### W10 Argument checks are in the actions (2026-11-05)
+
+The actions check their own arguments (a blank name or new name, a blank or missing ticker, an entry number below 1) and raise `InvalidParameterError` naming their parameters; the CLI maps the names to its arguments and its messages do not change. An entry is addressed by its 1-based number, as `watchlist show` displays it, in the CLI and the API; the repository's 0-based position stays inside.
+
+### W11 Every watchlist writing command has --json (2026-11-05)
+
+`watchlist create`, each `watchlist add-selection <alias>`, `remove-entry`, `remove-ticker` and `remove-method` gain `--json`, which writes the watchlist document. After a removal the confirmation goes to standard error, as `watchlist rename --json` does. This is the one CLI change besides C12.
+
+### W12 The selection schemas (2026-11-05)
+
+`scripts/generate_schemas.py` also writes `schemas/selections/<alias>.schema.json` and its existing drift check covers them. Each describes the fields `build_selection` accepts: not `analysis_id`, `method_id` or `config_schema_version` (checked separately, C14); a settings-backed field has no `default` and is not required (C13). `schemas/openapi.json` does not change until API.4 refers to them.
+
+### W13 API.3b's record and closures (2026-11-05)
+
+API.3b's detail is a section "3.2 API.3b implementation record" in this plan, which replaces the "no slice plan yet" line. Its pull request marks its row Complete and API.3c Next, and makes C12's closures: the lines in H.10 of `SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md` and B.3 of `STEP_3_5_3_SLICE_PLAN.md`, the removal of the exit-code paragraph in `docs/user/USAGE.md`, and row 19 of the strategy-site table.

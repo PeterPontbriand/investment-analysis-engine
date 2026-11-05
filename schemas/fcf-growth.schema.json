@@ -513,17 +513,12 @@
         },
         "historical_horizon": {
           "$ref": "#/$defs/HistoricalHorizon"
-        },
-        "include_fcf_yield": {
-          "title": "Include Fcf Yield",
-          "type": "boolean"
         }
       },
       "required": [
         "historical_horizon",
         "classification_basis",
-        "forward_policy",
-        "include_fcf_yield"
+        "forward_policy"
       ],
       "title": "FCFPolicyPart",
       "type": "object"
@@ -1176,7 +1171,6 @@
         "market_cap_unavailable",
         "provider_error",
         "invalid_request",
-        "not_requested",
         "instrument_kind_not_applicable",
         "industry_class_not_applicable",
         "industry_class_unknown",

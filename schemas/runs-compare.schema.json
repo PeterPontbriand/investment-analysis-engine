@@ -339,7 +339,6 @@
         "market_cap_unavailable",
         "provider_error",
         "invalid_request",
-        "not_requested",
         "instrument_kind_not_applicable",
         "industry_class_not_applicable",
         "industry_class_unknown",
@@ -380,8 +379,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "const": 2,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
     },

@@ -163,7 +163,7 @@ def _concise(
             f"Trend: {_trend_label(result)}",
         )
     )
-    if result.policy.include_fcf_yield and result.fcf_yield.status is MetricStatus.OK:
+    if result.fcf_yield.status is MetricStatus.OK:
         lines.append(f"FCF yield: {_metric(result.fcf_yield)}")
     if (
         result.forward_evidence.status is not ForwardEvidenceStatus.UNAVAILABLE

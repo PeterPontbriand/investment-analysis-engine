@@ -27,7 +27,6 @@ class FCFPolicySnapshot(FrozenSelection):
     historical_horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE
     classification_basis: FCFClassificationBasis = FCFClassificationBasis.TOTAL_FCF
     forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
-    include_fcf_yield: bool = Field(default=True, strict=True)
 
     @model_validator(mode="before")
     @classmethod
@@ -37,7 +36,6 @@ class FCFPolicySnapshot(FrozenSelection):
                 "historical_horizon": value.historical_horizon,
                 "classification_basis": value.classification_basis,
                 "forward_policy": value.forward_policy,
-                "include_fcf_yield": value.include_fcf_yield,
             }
         return value
 
@@ -47,7 +45,6 @@ class FCFPolicySnapshot(FrozenSelection):
             historical_horizon=self.historical_horizon,
             classification_basis=self.classification_basis,
             forward_policy=self.forward_policy,
-            include_fcf_yield=self.include_fcf_yield,
         )
 
 

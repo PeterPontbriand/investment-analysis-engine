@@ -207,12 +207,12 @@ def _run(result: FCFEarningsGrowthResult | None = None) -> AnalysisRun:
         ticker="KO",
         analysis_id="fcf_earnings_growth",
         method_id="reported_fcf_eps_cagr",
-        config_schema_version=2,
+        config_schema_version=3,
         requested_config=FCFGrowthSelection(),
         started_at=STAMP,
         completed_at=STAMP,
         method_version=2,
-        result_schema_version=6,
+        result_schema_version=7,
         evidence_codec_version=4,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(result or _result()),
@@ -227,7 +227,7 @@ def test_full_native_result_round_trip() -> None:
     assert restored == original
     assert restored.diagnostics == original.diagnostics
     assert restored.annual_observations[0].free_cash_flow is not original.annual_observations[0].free_cash_flow
-    assert (restored.method_version, restored.schema_version) == (2, 6)
+    assert (restored.method_version, restored.schema_version) == (2, 7)
     assert encode_native(restored) == run.result_evidence
 
 
@@ -238,14 +238,13 @@ def test_per_share_policy_and_missing_optional_metrics_round_trip() -> None:
         policy=FCFEarningsGrowthPolicy(
             classification_basis=FCFClassificationBasis.FCF_PER_SHARE,
             forward_policy=ForwardPolicy.CONFIRMATION,
-            include_fcf_yield=False,
         ),
         instrument_profile=None,
         market_capitalization=None,
         fcf_cagr=MetricResult.failure(
             MetricStatus.UNAVAILABLE, ReasonCode.MISSING_FACT, "Total FCF growth unavailable"
         ),
-        fcf_yield=MetricResult.failure(MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "Not requested"),
+        fcf_yield=MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.MISSING_FACT, "FCF yield unavailable"),
     )
     assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result
 
@@ -550,12 +549,3 @@ def test_a_refused_market_cap_with_its_known_inputs_round_trips_with_an_unavaila
         fcf_yield=MetricResult.failure(MetricStatus.UNAVAILABLE, ReasonCode.INCOMPATIBLE_UNITS, "A depositary share."),
     )
     assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result
-
-
-def test_market_cap_evidence_requires_a_requested_yield() -> None:
-    with pytest.raises(ValueError, match="requires include_fcf_yield=true"):
-        replace(
-            _result(),
-            policy=FCFEarningsGrowthPolicy(include_fcf_yield=False),
-            fcf_yield=MetricResult.failure(MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "Not requested"),
-        )

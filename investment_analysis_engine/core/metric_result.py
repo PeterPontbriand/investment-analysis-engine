@@ -38,7 +38,6 @@ class ReasonCode(StrEnum):
     MARKET_CAP_UNAVAILABLE = "market_cap_unavailable"
     PROVIDER_ERROR = "provider_error"
     INVALID_REQUEST = "invalid_request"
-    NOT_REQUESTED = "not_requested"
     INSTRUMENT_KIND_NOT_APPLICABLE = "instrument_kind_not_applicable"
     INDUSTRY_CLASS_NOT_APPLICABLE = "industry_class_not_applicable"
     INDUSTRY_CLASS_UNKNOWN = "industry_class_unknown"

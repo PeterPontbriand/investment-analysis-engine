@@ -353,7 +353,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert result.exit_code == 1
     assert "NaN" not in result.output
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == 10
+    assert payload["schema_version"] == 11
     assert payload["status"] == "input_unavailable"
     assert payload["reason_code"] == "insufficient_history"
     assert payload["result"]["short_sma"] is None

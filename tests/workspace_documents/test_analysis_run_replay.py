@@ -819,12 +819,12 @@ def _fcf_run(
         ticker=result.ticker,
         analysis_id="fcf_earnings_growth",
         method_id="reported_fcf_eps_cagr",
-        config_schema_version=2,
+        config_schema_version=3,
         requested_config=FCFGrowthSelection(),
         started_at=NOW,
         completed_at=NOW,
         method_version=2,
-        result_schema_version=6,
+        result_schema_version=7,
         evidence_codec_version=4,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(result),
@@ -898,7 +898,7 @@ def test_fcf_project_run_json_matches_the_stored_result() -> None:
     run = _fcf_run()
     payload = _document_payload(run)
     assert payload["ticker"] == "KO"
-    assert payload["result_schema_version"] == 6
+    assert payload["result_schema_version"] == 7
 
 
 def test_fcf_project_run_defaults_to_concise() -> None:

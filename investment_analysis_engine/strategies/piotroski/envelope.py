@@ -22,7 +22,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import (
 )
 from investment_analysis_engine.strategies.piotroski.vocabulary import AnalysisId, CheckOutcome, Completeness, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 1
+DOCUMENT_SCHEMA_VERSION: Final = 2
 
 
 class PiotroskiOperandPart(DocumentPart):
