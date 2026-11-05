@@ -413,7 +413,7 @@ def test_cli_momentum_classified_failure_names_its_kind_in_text_and_json(
 
     text = runner.invoke(app, ["momentum", "FCIM"])
     assert text.exit_code == 1
-    assert text.stderr.strip() == f"{_YAHOO_NOT_CHECKED_SWITCHED_OFF}\n{message}"
+    assert text.stderr.strip() == message
     assert "library detail" not in text.output
 
     document = json.loads(runner.invoke(app, ["momentum", "FCIM", "--json"]).stdout)

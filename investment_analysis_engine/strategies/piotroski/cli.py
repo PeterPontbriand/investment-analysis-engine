@@ -45,9 +45,7 @@ def command(  # noqa: PLR0913
     """Run the Piotroski F-Score analysis."""
     provider_check = not no_provider_check
 
-    with execution_errors(
-        json_output=json_output, selection_type=PiotroskiSelection, provider_check=provider_check
-    ) as scope:
+    with execution_errors(json_output=json_output, selection_type=PiotroskiSelection) as scope:
         target_ticker, mode = resolve_command_target(
             scope, ticker, None, command="piotroski", details=details, diagnostics=diagnostics, json_output=json_output
         )

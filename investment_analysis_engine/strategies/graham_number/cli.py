@@ -74,7 +74,6 @@ def command(  # noqa: PLR0913
     with execution_errors(
         json_output=json_output,
         selection_type=GrahamNumberSelection,
-        provider_check=provider_check,
     ) as scope:
         target_ticker, mode = resolve_command_target(
             scope,

@@ -162,3 +162,26 @@ def test_the_check_finds_an_import_of_the_module_level_settings_object(tmp_path:
     offender = tmp_path / "application.py"
     offender.write_text("from investment_analysis_engine.config import settings\n", encoding="utf-8")
     assert _reads_the_module_level_settings(offender) == ["application.py:1: imports the module-level settings object"]
+
+
+_PROBE_BUILDERS = frozenset({"build_provider_probe", "ProviderProbe"})
+_MAY_BUILD_A_PROBE = frozenset({"application", "cli_workspace.py"})
+"""The unit that builds a probe, and the one command that does until its refresh operation moves into it."""
+
+
+def test_only_the_application_and_the_refresh_command_build_a_probe() -> None:
+    """A direct command, the CLI's failure translation and the API never build one; the operation does."""
+    offenders = []
+    for path in sorted(PACKAGE_ROOT.rglob("*.py")):
+        relative = path.relative_to(PACKAGE_ROOT)
+        if relative.parts[0] in _MAY_BUILD_A_PROBE or relative.name in _MAY_BUILD_A_PROBE:
+            continue
+        if relative.parts[:2] == ("data", "provider_probe.py"):
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Call):
+                function = node.func
+                name = function.id if isinstance(function, ast.Name) else getattr(function, "attr", "")
+                if name in _PROBE_BUILDERS:
+                    offenders.append(f"{relative.as_posix()}:{node.lineno}")
+    assert offenders == []

@@ -91,7 +91,7 @@ watchlist actions and builds a selection from its model's fields. The third adds
   thread ([C15](#c15-progress-events-2026-11-04)); a failing callback never fails the refresh
   ([C16](#c16-a-failing-progress-callback-2026-11-04)); `ian refresh` shows no progress and its output does not change
   ([C17](#c17-ian-refresh-shows-no-progress-2026-11-04)).
-- **Scope:** the refresh operation, the progress event types, the cancellation event the CLI already uses, and the CLI
+- **Scope:** the refresh operation, which builds its own probe as `analyze` does (today `cli_workspace.py`'s refresh command is the one module outside `application/` that builds one), the progress event types, the cancellation event the CLI already uses, and the CLI
   switched to the operation.
 - **Branch:** `feat/api-refresh-progress`.
 - **Detail:** ⚠ no slice plan yet. Decisions C15 to C17 are in [Appendix A](#appendix-a-decision-records).
@@ -265,14 +265,41 @@ The project owner reviewed the branch and approved these fixes, all done:
 
 - **G1.** `ApplicationContext` is back to `settings` only. `build_provider_probe(context)` is in
   `application/providers.py` and reads `provider_check` and `provider_check_timeout_seconds` from the context's settings.
-  `analyze` builds one probe per call, the refresh command one per refresh, and the CLI's failure translation one per
-  failure it reports; none lives in a module. The CLI root's `build_provider_probe` and the `context.obj` hand-off are
+  `analyze` builds one probe per call and the refresh command one per refresh (API.3c's refresh operation will follow
+  this); none lives in a module. The CLI root's `build_provider_probe` and the `context.obj` hand-off are
   gone, the direct commands and `refresh` no longer take the Typer context, and `--no-provider-check` and
   `IAN_PROVIDER_CHECK` behave as before. The clients builder moved from `cli_health.py` with it.
 - **G2.** The step order above is recorded as an approved output change, with a test over `STRATEGIES`.
 - **G3.** `tests/application/test_analysis.py` masks only the values on the `Analysis timestamp:` and
   `Originally retrieved:` lines, the only text lines that hold the run's own reading of now. Every other time is compared
   exactly, and no recorded file differed from the operation's text on any other line.
+
+- **H1.** The trace and its result, then the branch taken.
+  - *What can leave `analyze`:* only an exception that carries a `kind` and a `provider_id` becomes a `provider_failure`
+    in a failure envelope, and only `DataFetchError` and `FinancialProviderError` do. Every call that reaches a provider
+    on a path of `analyze` is wrapped, so a provider failure is stored in the run:
+
+    | Strategy | Provider calls on its path | Where the failure is caught |
+    | :--- | :--- | :--- |
+    | Momentum | the price history (through the cached client); the profile's identity and kind | `MomentumAnalyzer._fetch` catches `DataFetchError` and returns the stored `provider_error`; the profile lookups in `data/instrument_profile.py` catch both types |
+    | Graham Number, Graham Growth | the input resolver's facts and quote; the security-unit lookup; the profile | `InputResolver` catches `FinancialProviderError` at each of its four provider calls and returns a provider-error result; `resolve_security_unit` and the profile lookups catch both types |
+    | FCF Growth | the annual series; the quote, share counts, split history and cover listing; the profile | the same resolver; `metric_inputs.py` catches `FinancialProviderError` or `DataFetchError` at the anchor, split-history, cover-listing and share-count calls; the profile lookups |
+    | Piotroski | the statements series; the as-filed industry class; the profile | the same resolver and `metric_inputs.py` (`resolve_industry_class` catches `FinancialProviderError`); the profile lookups |
+
+    The save step and the composition (`build_*`, the cache and database openers) reach no provider. An instrumented full
+    run of the test suite agrees: the failure translation saw a provider failure 39 times, and every time the exception
+    was raised by a test that replaced a function inside the analyzer, or by a unit test of the translation itself; no
+    test with real fixtures reached it. I found no path.
+  - *Branch taken:* none exists, so the provider-check branch is deleted from `execution_errors` along with its
+    `provider_check` parameter and every command's argument for it; a provider failure that did leave `analyze` as an
+    exception would be reported without a check. Output of every reachable case is unchanged.
+  - *Tests:* `tests/test_cli.py::test_cli_momentum_classified_failure_names_its_kind_in_text_and_json` forces such an
+    exception by replacing `run_analysis`, a case no input reaches, and no longer expects the "not checked" line it only
+    got from the deleted branch; it still checks the message, the code and the `provider_failure` element. The helper in
+    `tests/_probe_injection.py` patches two builders instead of three. A new test,
+    `tests/application/test_providers.py::test_only_the_application_and_the_refresh_command_build_a_probe`, fails if any
+    module outside `application/` and `cli_workspace.py` builds a probe. The refresh command builds one until API.3c moves
+    refresh into its operation.
 
 Accepted deviations, as recorded above: the application tier is the only module in `application/` that names strategies;
 `exit_code_of` lives in `application/analysis.py`; `cli_workspace.py` loads Momentum's option defaults until API.3b

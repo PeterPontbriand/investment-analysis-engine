@@ -14,9 +14,6 @@ from investment_analysis_engine.analysis.selection_base import FrozenSelection
 from investment_analysis_engine.application.analysis import AnalysisOutcome, analyze, exit_code_of
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.failures import SavingFailureError
-from investment_analysis_engine.application.provider_check import ProviderCheckChoice, provider_check_findings
-from investment_analysis_engine.application.providers import build_provider_probe
-from investment_analysis_engine.cli_provider_check import echo_provider_check
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import PROVIDER_FAILURE_CODES, FailureReasonCode
@@ -248,17 +245,14 @@ def execution_errors(
     mode: PresentationMode | None = None,
     selection_type: type[FrozenSelection] | None = None,
     ticker: str | None = None,
-    provider_check: bool | None = None,
 ) -> Iterator[FailureScope]:
     """Translate execution failures while preserving deliberate CLI exits.
 
     The code and message of a failure come from :func:`describe_failure`, shared with refresh. A
     :class:`SavingFailureError` is described as a failure while saving, from its original exception. ``selection_type``
     is the command's own selection class, whose fixed ``analysis_id`` and ``method_id`` name the analysis in the
-    failure document. When a raised provider failure names its provider and ``provider_check`` is given, the check
-    runs once: its lines are written to standard error immediately before the failure text in every mode but
-    ``--json``, and in ``--json`` mode the failure envelope carries its findings as ``provider_check`` and nothing
-    extra is printed.
+    failure document. A provider failure leaves the direct-analysis operation as a stored run, never as an exception, so
+    the provider check is the operation's and this block runs none.
 
     A command enters the block before it checks its own arguments and sets ``scope.ticker`` and ``scope.mode`` on
     the yielded :class:`FailureScope` as it resolves them, so a rejected argument is reported through the same
@@ -278,16 +272,9 @@ def execution_errors(
         envelope = failure_envelope(
             description.code, description.message, cause=cause, analysis=analysis, method=method, ticker=scope.ticker
         )
-        choice = (
-            None
-            if provider_check is None
-            else ProviderCheckChoice(build_provider_probe(application_context()), requested=provider_check)
-        )
-        findings = provider_check_findings((envelope.provider_failure,), choice)
         if scope.mode is PresentationMode.JSON:
-            typer.echo(failure_document_json(envelope.with_provider_check(findings.element())))
+            typer.echo(failure_document_json(envelope))
         else:
-            echo_provider_check(findings, err=True)
             typer.echo(description.message, err=True)
             if scope.mode is PresentationMode.DIAGNOSTICS:
                 for diagnostic in envelope.diagnostics:

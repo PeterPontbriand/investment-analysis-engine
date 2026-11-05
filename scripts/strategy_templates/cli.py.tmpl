@@ -44,7 +44,7 @@ def command(  # noqa: PLR0913
     provider_check = not no_provider_check
 
     with execution_errors(
-        json_output=json_output, selection_type=${Class}Selection, provider_check=provider_check
+        json_output=json_output, selection_type=${Class}Selection
     ) as scope:
         target_ticker, mode = resolve_command_target(
             scope, ticker, None, command="$alias", details=details, diagnostics=diagnostics, json_output=json_output
