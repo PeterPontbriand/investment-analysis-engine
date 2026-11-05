@@ -17,14 +17,16 @@ from collections.abc import Callable, Generator, Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, get_args
 
 import pytest
 import typer
 from typer.testing import CliRunner
 
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.tier import ApplicationStrategy
 from investment_analysis_engine.cli_strategy_wiring import CLI_STRATEGIES, CliStrategy, add_strategy_commands
+from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config.component_settings import clear_component_settings_cache
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.settings_error import ComponentSettingsError
@@ -49,8 +51,10 @@ from scripts.generate_schemas import SCHEMA_DIRECTORY
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_sites import load_sites, strategy_names
 from tests._wiring_gaps import Surface, assert_wired, find_wiring_gaps, wiring_surfaces
+from tests.specimen import application as specimen_application
 from tests.specimen import cli as specimen_cli
 from tests.specimen.analyzer import SpecimenAnalyzer, SpecimenConfig, SpecimenResult
+from tests.specimen.application_tier import SPECIMEN_APPLICATION_STRATEGIES
 from tests.specimen.catalog import CATALOG_CASE_IDS
 from tests.specimen.cli_tier import SPECIMEN_CLI, SPECIMEN_CLI_STRATEGIES
 from tests.specimen.evaluation import SAMPLE_SELECTION
@@ -90,10 +94,14 @@ def _production_surfaces() -> dict[str, Surface]:
 def _specimen_surfaces(
     cli_tier: tuple[CliStrategy, ...] = SPECIMEN_CLI_STRATEGIES,
     evaluation_tier: tuple[EvaluationStrategy, ...] = SPECIMEN_EVALUATION_STRATEGIES,
+    application_tier: tuple[ApplicationStrategy, ...] = SPECIMEN_APPLICATION_STRATEGIES,
 ) -> dict[str, Surface]:
     """The surfaces over the specimen tiers, with the specimen's own document in its own schema folder."""
     return wiring_surfaces(
-        cli_tier, evaluation_tier, lambda item: SPECIMEN_FOLDER if item is SPECIMEN else SCHEMA_DIRECTORY
+        cli_tier,
+        application_tier,
+        evaluation_tier,
+        lambda item: SPECIMEN_FOLDER if item is SPECIMEN else SCHEMA_DIRECTORY,
     )
 
 
@@ -259,10 +267,15 @@ def specimen_config_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> G
     """A user settings folder the specimen command reads, with the settings cache and run store emptied around it."""
     clear_component_settings_cache()
     SPECIMEN_RUN_STORE.clear()
-    monkeypatch.setattr(specimen_cli, "settings", SimpleNamespace(config_dir=tmp_path))
+    monkeypatch.setattr(specimen_cli, "settings", ProjectSettings(config_dir=tmp_path))
     yield tmp_path
     clear_component_settings_cache()
     SPECIMEN_RUN_STORE.clear()
+
+
+def _context(folder: Path) -> ApplicationContext:
+    """Return a context whose settings folder is ``folder``."""
+    return ApplicationContext(settings=ProjectSettings(config_dir=folder))
 
 
 def _invoke(*arguments: str) -> tuple[int, str]:
@@ -272,9 +285,8 @@ def _invoke(*arguments: str) -> tuple[int, str]:
 
 def test_the_calculation_uses_the_shipped_multiplier_through_the_composition_root(specimen_config_folder: Path) -> None:
     """The multiplier the command scales by is the shipped ``settings.toml``'s key, not a constant in the code."""
-    del specimen_config_folder
     assert SpecimenSettings.model_fields.keys() == {"multiplier"}
-    assert specimen_cli.specimen_settings().multiplier == 2.0
+    assert specimen_application.specimen_settings(_context(specimen_config_folder)).multiplier == 2.0
     assert _invoke("SPEC", "--value", "3") == (0, "SPEC specimen value: 6.0\n")
 
 
@@ -292,7 +304,7 @@ def test_an_invalid_user_setting_is_rejected_naming_the_file_and_the_key(specime
     folder.mkdir()
     (folder / "specimen-test.toml").write_text("multiplier = -1.0\n", encoding="utf-8")
     with pytest.raises(ComponentSettingsError, match=r"specimen-test\.toml is invalid: multiplier"):
-        specimen_cli.specimen_settings()
+        specimen_application.specimen_settings(_context(specimen_config_folder))
 
 
 # ---------------------------------------------------------------------------
@@ -407,6 +419,7 @@ def test_t11_every_dispatcher_over_the_specimen_tuples_rejects_an_undeclared_inp
         SPECIMEN_CLI_STRATEGIES,
         local_runs=(specimen_stored_run(),),
         outside_tool_names=(SPECIMEN,),
+        application_tier=SPECIMEN_APPLICATION_STRATEGIES,
     )
     assert gaps == []
 
@@ -483,7 +496,7 @@ def test_t12_part_1_a_specimen_added_to_the_production_tuple_with_no_tier_entrie
 ):
     """A declaration with no entries anywhere is reported on each surface that is still a table or a file."""
     assert find_wiring_gaps((*STRATEGIES, SPECIMEN), _production_surfaces()) == [
-        f"strategy {_KEY} is not wired in: CLI tier; evaluation tier; published schemas"
+        f"strategy {_KEY} is not wired in: CLI tier; application tier; evaluation tier; published schemas"
     ]
 
 
@@ -509,7 +522,7 @@ def test_t12_part_3_the_production_tier_check_body_fails_for_the_specimen_tuples
     incomplete_eval = tuple(entry for entry in SPECIMEN_EVALUATION_STRATEGIES if entry is not SPECIMEN_EVALUATION)
     with pytest.raises(AssertionError, match=re.escape(f"strategy {_KEY} is not wired in: evaluation tier")):
         assert_wired(SPECIMEN_STRATEGIES, _specimen_surfaces(evaluation_tier=incomplete_eval))
-    everywhere = f"strategy {_KEY} is not wired in: CLI tier; evaluation tier; published schemas"
+    everywhere = f"strategy {_KEY} is not wired in: CLI tier; application tier; evaluation tier; published schemas"
     with pytest.raises(AssertionError, match=re.escape(everywhere)):
         assert_wired((*STRATEGIES, SPECIMEN), _production_surfaces())
 

@@ -118,25 +118,36 @@ defines = ["encode_.+", "decode_.+", ".+_native_status", ".+_ticker"]
 fails = "the stored run does not decode to the result execute stored"
 
 [[site]]
-id = "execution"
-title = "Execution adapter, capture type, normalizer"
+id = "workspace"
+title = "Workspace adapter, capture type, normalizer"
 why = "The adapter runs the analyzer and the normalizer hands `ExecutionCapture` the evidence, the profile, the native status and the provider failure it recorded. It never names a `RunOutcome`: `RunOutcome.from_status` produces the outcome and `ExecutionCapture` derives it."
 kind = "new_file"
-path = "investment_analysis_engine/strategies/{module}/execution.py"
+path = "investment_analysis_engine/strategies/{module}/workspace.py"
 generated = true
-check = "site_execution"
+check = "site_workspace"
 defines = [".+Capture", "from_.+_capture"]
 fails = ""
 
 [[site]]
+id = "application"
+title = "Application file: run function, refresh executor"
+why = "The strategy composes its own providers and settings, and its run function returns the run with the means to present it as a document and as text, so no caller needs the strategy's presentation."
+kind = "new_file"
+path = "investment_analysis_engine/strategies/{module}/application.py"
+generated = true
+check = "site_application"
+defines = ["run", "refresh"]
+fails = ""
+
+[[site]]
 id = "cli"
-title = "CLI file: direct command, selection builder, refresh executor"
-why = "The strategy's command-line behavior lives in its own package, and the command takes its exit code from `exit_code_of` in `cli_support.py`."
+title = "CLI file: direct command, selection builder"
+why = "The strategy's command-line behavior lives in its own package, and the command takes its exit code from `exit_code_of` in `application/analysis.py`."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/cli.py"
 generated = true
 check = "site_cli"
-defines = ["build_selection", "refresh", "command"]
+defines = ["build_selection", "command"]
 fails = ""
 
 [[site]]
@@ -148,6 +159,16 @@ path = "investment_analysis_engine/cli_strategy_wiring.py"
 generated = true
 check = "site_cli_tier"
 fails = "strategy X is not wired in: CLI tier"
+
+[[site]]
+id = "application-tier"
+title = "Application-tier entry"
+why = "The application operations cannot import the strategy by name, so the tier pairs its run function and refresh executor with the descriptor's behavior."
+kind = "edit"
+path = "investment_analysis_engine/application/tier.py"
+generated = true
+check = "site_application_tier"
+fails = "strategy X is not wired in: application tier"
 
 [[site]]
 id = "presenter"

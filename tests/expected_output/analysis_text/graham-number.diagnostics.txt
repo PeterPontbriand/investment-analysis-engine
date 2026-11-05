@@ -1,0 +1,125 @@
+SYNTH — Graham Number (maximum indicated price): 36.69 USD
+Latest available quote: 52.30 USD
+Quote retrieved: 2025-07-01 12:00 UTC
+Quote response age: 0 seconds
+Market observation: 2025-06-30 16:00 UTC
+Price comparison: unavailable (share-unit evidence is unsupported by this provider)
+
+Basis: 3-year average EPS + BVPS basis unspecified
+EPS (3-year average): 3.23 USD
+Book value per common share: 18.50 USD
+Sources / freshness: EPS — derived from SEC EDGAR (available 2024-09-13); BVPS — provider (SEC EDGAR) (available 2025-02-10)
+Limitation: The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation.
+
+Details
+-------
+Security identity: unavailable
+Instrument kind: unavailable
+Price comparison status: unavailable (provider_unsupported)
+EPS: 3.233333
+  basis: 3-year average
+  units: currency per share
+  currency: USD
+  source: derived from SEC EDGAR
+  provider: SEC EDGAR
+  provider field: not applicable — derived from the listed components
+  period start: 2021-07-01
+  period end: 2024-06-30
+  observed at: not applicable — annual financial statement
+  available at: 2024-09-13 00:00 UTC
+  retrieved at: 2025-06-30 17:00 UTC
+  notes: Annual EPS compatibility established for provider concept, earnings-per-share basis, currency, units, fiscal periods, and exposed share-class/split metadata.; Duplicate-period restatements are rejected unless the provider adapter has already selected one fact.
+  derivation: arithmetic_mean
+  component 1:
+    field name: eps
+    value: 2.100000
+      basis: fiscal year
+      units: currency per share
+      currency: USD
+      source: provider (SEC EDGAR)
+      provider: SEC EDGAR
+      provider field: fx_annual_eps
+      period start: 2021-07-01
+      period end: 2022-06-30
+      observed at: not applicable — annual financial statement
+      available at: 2022-09-15 00:00 UTC
+      retrieved at: 2025-06-30 17:00 UTC
+      notes: fixture: FY2022 annual EPS
+  component 2:
+    field name: eps
+    value: 3.400000
+      basis: fiscal year
+      units: currency per share
+      currency: USD
+      source: provider (SEC EDGAR)
+      provider: SEC EDGAR
+      provider field: fx_annual_eps
+      period start: 2022-07-01
+      period end: 2023-06-30
+      observed at: not applicable — annual financial statement
+      available at: 2023-09-14 00:00 UTC
+      retrieved at: 2025-06-30 17:00 UTC
+      notes: fixture: FY2023 annual EPS
+  component 3:
+    field name: eps
+    value: 4.200000
+      basis: fiscal year
+      units: currency per share
+      currency: USD
+      source: provider (SEC EDGAR)
+      provider: SEC EDGAR
+      provider field: fx_annual_eps
+      period start: 2023-07-01
+      period end: 2024-06-30
+      observed at: not applicable — annual financial statement
+      available at: 2024-09-13 00:00 UTC
+      retrieved at: 2025-06-30 17:00 UTC
+      notes: fixture: FY2024 annual EPS
+BVPS: 18.500000
+  basis: not supplied by provider
+  units: currency per share
+  currency: USD
+  source: provider (SEC EDGAR)
+  provider: SEC EDGAR
+  provider field: fx_bvps
+  period start: not applicable — fiscal-year-end snapshot
+  period end: 2024-12-31
+  observed at: not applicable — annual financial statement
+  available at: 2025-02-10 00:00 UTC
+  retrieved at: 2025-06-30 17:00 UTC
+  notes: fixture: book value per share
+Current price: 52.300000
+  basis: latest provider quote
+  units: currency per share
+  currency: USD
+  source: provider (Yahoo Finance)
+  provider: Yahoo Finance
+  provider field: fx_quote
+  period start: not applicable — point quote
+  period end: not applicable — point quote
+  observed at: 2025-06-30 16:00 UTC
+  available at: 2025-06-30 16:00 UTC
+  retrieved at: 2025-07-01 12:00 UTC
+  notes: fixture: point-in-time quote
+
+Diagnostics
+-----------
+eps: override -> not_used — No explicit EPS override was supplied.
+eps: cache -> not_used — Cache use was disabled for the derived EPS resolution.
+eps: provider -> attempted — Requested completed fiscal-year EPS observations from the configured provider.
+eps: provider -> success — Provider returned 3 fiscal-year EPS candidate(s).
+eps: derivation -> attempted — Selecting three compatible, temporally eligible fiscal-year EPS observations.
+eps: derivation -> success — Derived three-year-average EPS from three compatible fiscal-year observations.
+bvps: override -> not_used — No explicit override was supplied.
+bvps: cache -> not_used — Cache use was disabled for this resolution.
+bvps: provider -> attempted — Requested bvps from provider 'sec_edgar'.
+bvps: provider -> success — Provider fact passed resolver validation and was accepted.
+current_price: override -> not_used — No explicit override was supplied.
+current_price: cache -> not_used — Cache use was disabled for this resolution.
+current_price: provider -> attempted — Requested current_price from provider 'yfinance'.
+current_price: provider -> success — Provider fact passed resolver validation and was accepted.
+security_identity: sec_edgar/unsupported — Provider 'sec_edgar' does not expose security identity metadata.
+security_identity: yfinance/unavailable — Provider 'yfinance' returned no security identity metadata.
+instrument_kind: yfinance/unavailable — Provider 'yfinance' returned no instrument-kind metadata.
+security_unit: sec_edgar/unavailable — Share-unit evidence: provider_unsupported.
+Price comparison status: unavailable (provider_unsupported)

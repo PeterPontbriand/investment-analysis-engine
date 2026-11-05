@@ -303,7 +303,10 @@ def run_user_settings_checks(results: Results, work: Path, python: Path, base: M
         [
             python,
             "-c",
-            "from investment_analysis_engine.cli_composition import momentum_settings as m; print(m().rsi_period)",
+            "from investment_analysis_engine.application.context import ApplicationContext as C; "
+            "from investment_analysis_engine.config import settings; "
+            "from investment_analysis_engine.strategies.momentum.application import momentum_settings as m; "
+            "print(m(C(settings=settings)).rsi_period)",
         ],
         cwd=work,
         env=environment,

@@ -350,14 +350,17 @@ def _enter_providers(stack: ExitStack, case: Case) -> None:
         for graham in ("graham_number", "graham_growth"):
             stack.enter_context(
                 patch(
-                    f"investment_analysis_engine.strategies.{graham}.cli.build_graham_resolver", return_value=resolver
+                    f"investment_analysis_engine.strategies.{graham}.application.build_graham_resolver",
+                    return_value=resolver,
                 )
             )
     for strategy in ("momentum", "graham_number", "graham_growth"):
-        stack.enter_context(patch(f"investment_analysis_engine.strategies.{strategy}.cli.YFinanceClient", case.yahoo))
+        stack.enter_context(
+            patch(f"investment_analysis_engine.strategies.{strategy}.application.YFinanceClient", case.yahoo)
+        )
     stack.enter_context(
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
             side_effect=lambda *_a, **_k: _fcf_provider(case, case.yahoo),
         )
     )
@@ -398,8 +401,7 @@ def run_saved(case: Case) -> tuple[CommandOutput, CommandOutput, AnalysisRun]:
     """
     with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
         settings = _migrated(Path(directory))
-        for module in ("investment_analysis_engine.cli_run_support", "investment_analysis_engine.cli_support"):
-            stack.enter_context(patch(f"{module}.settings", settings))
+        stack.enter_context(patch("investment_analysis_engine.cli_support.settings", settings))
         _enter_providers(stack, case)
         result = CliRunner().invoke(app, [*case.arguments, "--json", "--save-run"])
         direct = CommandOutput(result.exit_code, normalize(result.stdout_bytes), result.stderr_bytes)

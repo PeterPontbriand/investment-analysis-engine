@@ -1,10 +1,11 @@
-"""Graham Number execution adapter: borrow dependencies, call the existing analyzer.
+"""Graham Number workspace adapter: borrow dependencies, call the existing analyzer.
 
 This adapter extracts the profile composition and analyzer invocation
 formerly inlined in the ``_run_graham_number`` helper so both the
 direct command and a future save/refresh service call identical code.
 Presentation, exit-code selection, and friendly failure rendering stay in
-the command (``investment_analysis_engine.strategies.graham_number.cli``); this module captures execution evidence only.
+the strategy's application module
+(``investment_analysis_engine.strategies.graham_number.application``); this module captures execution evidence only.
 
 The module reports facts only: the native status and the recorded provider failure. The shared rule
 ``RunOutcome.from_status`` produces the outcome, and ``ExecutionCapture`` derives it.

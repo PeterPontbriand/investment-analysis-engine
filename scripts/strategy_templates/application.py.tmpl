@@ -1,0 +1,73 @@
+"""The $label strategy's application functions.
+
+They are the run function and the refresh executor, with the composition of the analyzer. The run function returns the
+run with the means to present it as a document and as text, so no caller needs the strategy's presentation.
+"""
+
+from datetime import datetime
+
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.failures import require_job_ticker
+from investment_analysis_engine.application.strategy_run import StrategyRun
+from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
+from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
+from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
+from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
+from investment_analysis_engine.strategies.$module.analyzer import ${Class}Analyzer
+from investment_analysis_engine.strategies.$module.envelope import ${Class}Document
+from investment_analysis_engine.strategies.$module.presenter import build_${module}_document, render_$module
+from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
+from investment_analysis_engine.strategies.$module.workspace import execute_$module, from_${module}_capture
+from investment_analysis_engine.workspace.capture import ExecutionCapture
+
+
+def compose_$module(context: ApplicationContext, executed_at: datetime) -> tuple[${Class}Analyzer, object]:
+    """Compose the $label analyzer and the provider its profile is composed from.
+
+    ``executed_at`` is the run's single reading of the current time, never the ``--as-of`` boundary.
+    """
+    del context, executed_at
+    unfilled_stub("application")
+
+
+def run(
+    context: ApplicationContext,
+    ticker: str,
+    selection: ${Class}Selection,
+    /,
+    *,
+    executed_at: datetime,
+    profile_cache: InstrumentProfileResolver | None,
+) -> StrategyRun:
+    """Run the $label analysis once and return it with its presentation."""
+    analyzer, provider = compose_$module(context, executed_at)
+    capture = execute_$module(
+        analyzer, ticker, selection, executed_at=executed_at, provider=provider, profile_cache=profile_cache
+    )
+    result = capture.result
+    profile = capture.profile
+    identity_resolution = profile_identity_resolution(profile)
+
+    def document(element: tuple[ProviderCheckItem, ...] | None) -> ${Class}Document:
+        return build_${module}_document(result, identity_resolution, profile, element)
+
+    def render_text(element: tuple[ProviderCheckItem, ...] | None, mode: TextPresentationMode) -> str:
+        return render_$module(result, mode, identity_resolution, profile, element)
+
+    execution = from_${module}_capture(capture)
+    return StrategyRun(execution=execution, document=document, render_text=render_text)
+
+
+def refresh(
+    context: ApplicationContext,
+    ticker: str,
+    selection: ${Class}Selection,
+    /,
+    *,
+    profile_cache: InstrumentProfileResolver | None,
+) -> ExecutionCapture:
+    """Execute one $label refresh job with a freshly composed, job-scoped analyzer."""
+    require_job_ticker(ticker)
+    return run(context, ticker, selection, executed_at=utc_now(), profile_cache=profile_cache).execution

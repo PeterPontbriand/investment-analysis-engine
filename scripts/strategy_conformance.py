@@ -34,6 +34,15 @@ from investment_analysis_engine.analysis.base_analyzer import (
     analyzer_config_type,
     analyzer_result_type,
 )
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.tier import (
+    APPLICATION_STRATEGIES,
+    ApplicationComposition,
+    ApplicationStrategy,
+    refresh_executor_for,
+    refreshers_by_key,
+    runners_by_key,
+)
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_strategy_wiring import (
     CLI_STRATEGIES,
@@ -42,11 +51,10 @@ from investment_analysis_engine.cli_strategy_wiring import (
     build_selection_for,
     builders_by_alias,
     pair_cli,
-    refresh_executor_for,
-    refreshers_by_key,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.cli_workspace import watchlist_app
+from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, require
@@ -160,14 +168,20 @@ EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset(
 )
 """The documented fields of an evaluation-tier entry: the paired core bundle and the erased composition."""
 
-CLI_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"build", "refresh", "command"})
+CLI_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"build", "command"})
 """The documented members of a strategy's CLI-tier composition."""
+
+APPLICATION_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"run", "refresh"})
+"""The documented members of a strategy's application-tier composition."""
 
 NON_STRATEGY_COMMANDS: frozenset[str] = frozenset({"evaluate", "health", "refresh", "serve"})
 """The top-level commands that are not a strategy's direct command; command groups are recognized by type."""
 
-CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "refresh", "command"})
+CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "command"})
 """The documented fields of a CLI-tier entry: the paired core bundle and the erased composition."""
+
+APPLICATION_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "run", "refresh"})
+"""The documented fields of an application-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset(
     {
@@ -439,7 +453,9 @@ def evaluation_coverage_gaps(descriptors: tuple[StrategyDescriptor, ...]) -> lis
 
 
 def _tier_gaps_for(
-    item: StrategyDescriptor, tier: Sequence[CliStrategy] | Sequence[EvaluationStrategy], tier_name: str
+    item: StrategyDescriptor,
+    tier: Sequence[CliStrategy] | Sequence[EvaluationStrategy] | Sequence[ApplicationStrategy],
+    tier_name: str,
 ) -> list[str]:
     """T10 for one descriptor: exactly one entry of the named tier is paired with its core bundle."""
     entries = sum(1 for entry in tier if entry.behavior is item.behavior)
@@ -486,6 +502,27 @@ def cli_tier_gaps(
     declared = {id(item.behavior) for item in descriptors}
     gaps.extend(
         "a CLI tier entry is paired with a bundle that no descriptor holds"
+        for entry in tier
+        if id(entry.behavior) not in declared
+    )
+    return gaps
+
+
+def application_tier_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[ApplicationStrategy, ...] = APPLICATION_STRATEGIES,
+) -> list[str]:
+    """T10 (application tier): every descriptor has exactly one tier entry, and every entry serves a descriptor.
+
+    An entry belongs to the descriptor whose core bundle it was paired with, so the tier and the descriptors are
+    compared as separate declarations: a strategy added to one only is reported by its identity.
+    """
+    gaps: list[str] = []
+    for item in descriptors:
+        gaps.extend(_tier_gaps_for(item, tier, "application tier"))
+    declared = {id(item.behavior) for item in descriptors}
+    gaps.extend(
+        "an application tier entry is paired with a bundle that no descriptor holds"
         for entry in tier
         if id(entry.behavior) not in declared
     )
@@ -1131,16 +1168,12 @@ def _cli_tier_probes(
     stored = stored_runs(descriptors, tier, local_runs)
     for item in descriptors:
         without = tuple(entry for entry in cli_tier if entry.behavior is not item.behavior)
-        for probe, action in (
-            ("builders_by_alias", partial(builders_by_alias, descriptors, without)),
-            ("refreshers_by_key", partial(refreshers_by_key, descriptors, without)),
-        ):
-            _expect_undeclared(
-                gaps,
-                f"{probe} without the {label(item)} CLI tier entry",
-                action,
-                names=item.method_id,
-            )
+        _expect_undeclared(
+            gaps,
+            f"builders_by_alias without the {label(item)} CLI tier entry",
+            partial(builders_by_alias, descriptors, without),
+            names=item.method_id,
+        )
         builders = builders_by_alias(descriptors, cli_tier)
         _expect_undeclared(
             gaps,
@@ -1153,9 +1186,45 @@ def _cli_tier_probes(
             ),
             names=item.alias,
         )
+    if len(stored) > 1:
+        second = stored[1]
+        behavior = stored[0].descriptor.behavior
+        if isinstance(behavior, StrategyBehavior):
+            wrong = pair_cli(
+                behavior,
+                CliComposition(build=lambda _flags: second.selection, command=lambda: None),
+            )
+            _expect_undeclared(
+                gaps,
+                "selection builder that returns another strategy's selection",
+                partial(wrong.build, flags),
+            )
+
+
+def _application_tier_probes(
+    gaps: list[str],
+    descriptors: tuple[StrategyDescriptor, ...],
+    tier: tuple[EvaluationStrategy, ...],
+    application_tier: tuple[ApplicationStrategy, ...],
+    local_runs: Sequence[StoredRun],
+) -> None:
+    """Record a gap unless a missing application-tier entry, key or another strategy's selection fails closed."""
+    stored = stored_runs(descriptors, tier, local_runs)
+    for item in descriptors:
+        without = tuple(entry for entry in application_tier if entry.behavior is not item.behavior)
+        for probe, action in (
+            ("runners_by_key", partial(runners_by_key, descriptors, without)),
+            ("refreshers_by_key", partial(refreshers_by_key, descriptors, without)),
+        ):
+            _expect_undeclared(
+                gaps,
+                f"{probe} without the {label(item)} application tier entry",
+                action,
+                names=item.method_id,
+            )
     for entry in stored:
         item = entry.descriptor
-        refreshers = refreshers_by_key(descriptors, cli_tier)
+        refreshers = refreshers_by_key(descriptors, application_tier)
         _expect_undeclared(
             gaps,
             f"refresh_executor_for without the {label(item)} refresh executor",
@@ -1167,36 +1236,29 @@ def _cli_tier_probes(
             names=item.method_id,
         )
     if len(stored) > 1:
-        first, second = stored[0], stored[1]
-        entry_of = {id(entry.behavior): entry for entry in cli_tier}
-        paired, other = entry_of.get(id(first.descriptor.behavior)), entry_of.get(id(second.descriptor.behavior))
-        if paired is not None and other is not None:
+        entry_of = {id(entry.behavior): entry for entry in application_tier}
+        paired = entry_of.get(id(stored[0].descriptor.behavior))
+        if paired is not None:
             _expect_undeclared(
                 gaps,
                 "refresh executor with another strategy's selection",
-                partial(paired.refresh, "X", second.selection, profile_cache=_NoProfileCache()),
+                partial(
+                    paired.refresh,
+                    ApplicationContext(settings=ProjectSettings()),
+                    "X",
+                    stored[1].selection,
+                    profile_cache=_NoProfileCache(),
+                ),
             )
-            behavior = first.descriptor.behavior
-            if isinstance(behavior, StrategyBehavior):
-                wrong = pair_cli(
-                    behavior,
-                    CliComposition(
-                        build=lambda _flags: second.selection, refresh=paired.refresh, command=paired.command
-                    ),
-                )
-                _expect_undeclared(
-                    gaps,
-                    "selection builder that returns another strategy's selection",
-                    partial(wrong.build, flags),
-                )
 
 
-def undeclared_input_gaps(
+def undeclared_input_gaps(  # noqa: PLR0913, PLR0917
     descriptors: tuple[StrategyDescriptor, ...],
     tier: tuple[EvaluationStrategy, ...] = EVALUATION_STRATEGIES,
     cli_tier: tuple[CliStrategy, ...] = CLI_STRATEGIES,
     local_runs: Sequence[StoredRun] = (),
     outside_tool_names: Sequence[StrategyDescriptor] = (),
+    application_tier: tuple[ApplicationStrategy, ...] = APPLICATION_STRATEGIES,
 ) -> list[str]:
     """T11: every dispatcher rejects an input that matches no declared strategy, naming it.
 
@@ -1209,6 +1271,7 @@ def undeclared_input_gaps(
     indexes = build_indexes(descriptors)
     _evaluation_tier_probes(gaps, descriptors, tier)
     _cli_tier_probes(gaps, descriptors, tier, cli_tier, local_runs)
+    _application_tier_probes(gaps, descriptors, tier, application_tier, local_runs)
     _workspace_probes(gaps, descriptors, tier, local_runs)
     fixtures = compose_fixture_dependencies(
         DETERMINISTIC_CASES[0], clock_at=_FIXTURE_CLOCK, descriptors=descriptors, tier=tier
@@ -1509,9 +1572,42 @@ def cli_tier_is_closed_gaps(tier: Sequence[CliStrategy] = CLI_STRATEGIES) -> lis
         entry = tier[0]
         if not _is_frozen(entry, "behavior"):
             gaps.append("CliStrategy is not frozen")
-        composition = CliComposition(build=entry.build, refresh=entry.refresh, command=entry.command)
+        composition = CliComposition(build=entry.build, command=entry.command)
         if not _is_frozen(composition, "build"):
             gaps.append("CliComposition is not frozen")
+    return gaps
+
+
+def application_tier_is_closed_gaps(tier: Sequence[ApplicationStrategy] = APPLICATION_STRATEGIES) -> list[str]:
+    """T15 (application tier): the composition and the tier entry have exactly the documented members."""
+    gaps: list[str] = []
+    members = {field.name for field in dataclasses.fields(ApplicationComposition)}
+    if members != APPLICATION_COMPOSITION_MEMBERS:
+        gaps.append(
+            f"application composition members differ from the documented set: {sorted(members)} != "
+            f"{sorted(APPLICATION_COMPOSITION_MEMBERS)}"
+        )
+    fields = {field.name for field in dataclasses.fields(ApplicationStrategy)}
+    if fields != APPLICATION_ENTRY_FIELDS:
+        gaps.append(
+            "application tier entry fields differ from the documented set: "
+            f"{sorted(fields)} != {sorted(APPLICATION_ENTRY_FIELDS)}"
+        )
+    if len(getattr(ApplicationComposition, "__parameters__", ())) != 1:
+        gaps.append("ApplicationComposition does not take exactly one type parameter, the selection type")
+    if getattr(ApplicationStrategy, "__parameters__", ()):
+        gaps.append("ApplicationStrategy is generic")
+    if ApplicationStrategy.__subclasses__() or ApplicationComposition.__subclasses__():
+        gaps.append("an application tier type is subclassed")
+    if not isinstance(tier, tuple):
+        gaps.append("APPLICATION_STRATEGIES is not a tuple")
+    elif tier:
+        entry = tier[0]
+        if not _is_frozen(entry, "behavior"):
+            gaps.append("ApplicationStrategy is not frozen")
+        composition = ApplicationComposition(run=entry.run, refresh=entry.refresh)
+        if not _is_frozen(composition, "run"):
+            gaps.append("ApplicationComposition is not frozen")
     return gaps
 
 
@@ -1900,6 +1996,7 @@ class SiteContext:
         name: Names the context in diagnostics.
         descriptors: The closed tuple of descriptors the strategy is declared in.
         cli_tier: The CLI tier its entry is in.
+        application_tier: The application tier its entry is in.
         evaluation_tier: The evaluation tier its entry is in.
         app: The command application its direct command is added to.
         stored_run: The result and run stored for a descriptor, or ``None`` when it has none.
@@ -1921,6 +2018,7 @@ class SiteContext:
     name: str
     descriptors: tuple[StrategyDescriptor, ...]
     cli_tier: tuple[CliStrategy, ...]
+    application_tier: tuple[ApplicationStrategy, ...]
     evaluation_tier: tuple[EvaluationStrategy, ...]
     app: typer.Typer
     stored_run: Callable[[StrategyDescriptor], StoredRun | None]
@@ -1939,6 +2037,7 @@ PRODUCTION = SiteContext(
     name="production",
     descriptors=STRATEGIES,
     cli_tier=CLI_STRATEGIES,
+    application_tier=APPLICATION_STRATEGIES,
     evaluation_tier=EVALUATION_STRATEGIES,
     app=app,
     stored_run=_production_stored_run,
@@ -2270,13 +2369,18 @@ def site_codec(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[
     return _file_site("codec", names, context, inspect_descriptor=round_trips)
 
 
-def site_execution(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
-    """Row 8: the execution file defines the capture type and the function that turns a capture into a run."""
-    return _file_site("execution", names, context)
+def site_workspace(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
+    """Row 8: the workspace file defines the capture type and the function that turns a capture into a run."""
+    return _file_site("workspace", names, context)
+
+
+def site_application(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
+    """Row 8a: the application file defines the strategy's run function and its refresh executor."""
+    return _file_site("application", names, context)
 
 
 def site_cli(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
-    """Row 9: the CLI file defines the selection builder, the refresh executor and the direct command."""
+    """Row 9: the CLI file defines the selection builder and the direct command."""
     return _file_site("cli", names, context)
 
 
@@ -2293,6 +2397,15 @@ def site_cli_tier(names: StrategyNames, context: SiteContext = PRODUCTION) -> li
         return [*found, *_strategy_flag_gaps_for(item.alias, command.params)]
 
     return _descriptor_site("cli-tier", names, context, wired)
+
+
+def site_application_tier(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
+    """Row 10a: one application-tier entry serves the descriptor."""
+
+    def wired(item: StrategyDescriptor) -> list[str]:
+        return _tier_gaps_for(item, context.application_tier, "application tier")
+
+    return _descriptor_site("application-tier", names, context, wired)
 
 
 def _replays(item: StrategyDescriptor, context: SiteContext) -> list[str]:

@@ -19,7 +19,9 @@ runner = CliRunner()
 def test_cli_growth_non_positive_value_explains_omitted_price_comparison() -> None:
     resolver = sec_labeled_growth_resolver()
 
-    with patch("investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver", return_value=resolver):
+    with patch(
+        "investment_analysis_engine.strategies.graham_growth.application.build_graham_resolver", return_value=resolver
+    ):
         result = runner.invoke(
             app,
             [

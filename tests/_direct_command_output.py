@@ -121,23 +121,26 @@ def enter_fixture_providers(stack: ExitStack, command: str) -> None:
     resolver = sec_labeled_growth_resolver() if command == "graham-growth" else sec_labeled_number_resolver()
     for graham in ("graham_number", "graham_growth"):
         stack.enter_context(
-            patch(f"investment_analysis_engine.strategies.{graham}.cli.build_graham_resolver", return_value=resolver)
+            patch(
+                f"investment_analysis_engine.strategies.{graham}.application.build_graham_resolver",
+                return_value=resolver,
+            )
         )
     stack.enter_context(
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
             side_effect=lambda *_a, **_k: _fcf_provider(),
         )
     )
     stack.enter_context(
         patch(
-            "investment_analysis_engine.strategies.piotroski.cli.build_sec_edgar_adapter",
+            "investment_analysis_engine.strategies.piotroski.application.build_sec_edgar_adapter",
             side_effect=lambda *_a, **_k: fixture_statements_adapter(STATEMENTS_APPLE_FIXTURE_ID, clock_at=utc_now()),
         )
     )
     stack.enter_context(
         patch(
-            "investment_analysis_engine.strategies.piotroski.cli.ProductionFinancialFactsProvider",
+            "investment_analysis_engine.strategies.piotroski.application.ProductionFinancialFactsProvider",
             side_effect=lambda *, sec_edgar: ProductionFinancialFactsProvider(
                 sec_edgar=sec_edgar,
                 yfinance=YFinanceFinancialFactsAdapter(client=cast(YFinanceClient, _FixtureYahoo())),
@@ -147,15 +150,17 @@ def enter_fixture_providers(stack: ExitStack, command: str) -> None:
     for cached in ("graham_number", "graham_growth", "fcf_growth"):
         stack.enter_context(
             patch(
-                f"investment_analysis_engine.strategies.{cached}.cli.production_financial_cache",
-                side_effect=lambda **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
+                f"investment_analysis_engine.strategies.{cached}.application.production_financial_cache",
+                side_effect=lambda _context, **_: nullcontext(InMemoryResolvedInputCache(clock=utc_now)),
             )
         )
     for yahoo in ("momentum", "graham_number", "graham_growth", "fcf_growth"):
-        stack.enter_context(patch(f"investment_analysis_engine.strategies.{yahoo}.cli.YFinanceClient", _FixtureYahoo))
+        stack.enter_context(
+            patch(f"investment_analysis_engine.strategies.{yahoo}.application.YFinanceClient", _FixtureYahoo)
+        )
     stack.enter_context(
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.production_historical_client",
+            "investment_analysis_engine.strategies.fcf_growth.application.production_historical_client",
             side_effect=lambda *_a, **_k: nullcontext(FixtureSplitHistoryProvider(utc_now(), with_data=False)),
         )
     )

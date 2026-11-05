@@ -18,8 +18,8 @@ import pytest
 from typer.main import get_command
 from typer.testing import CliRunner, Result
 
+from investment_analysis_engine.application.provider_check import ProviderCheckChoice, provider_check_findings
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_provider_check import ProviderCheckChoice, provider_check_findings
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure

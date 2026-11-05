@@ -2,7 +2,7 @@
 
 Isolation note: `isolated_cli_settings` (see `tests/_cli_isolation.py`) isolates the database of the commands, but it
 builds its settings from the defaults. This module replaces the `settings` of
-`investment_analysis_engine.cli_run_support` and `investment_analysis_engine.cli_support` locally with settings that
+`investment_analysis_engine.cli_support` locally with settings that
 preserve every other field from the real settings (built the same way `investment_analysis_engine.cli_database`'s own
 maintenance commands already do: `ProjectSettings(**(settings.model_dump() | {"database_url": ...}))`) so only the
 run-storage database target changes.
@@ -72,7 +72,6 @@ def isolated_save_run_database(
     """
     url = migrated_database_url(tmp_path / "save_run")
     isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
-    monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
     monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)
     return isolated
 
@@ -133,7 +132,7 @@ def _fcf_provider() -> ProductionFinancialFactsProvider:
 # ---------------------------------------------------------------------------
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_momentum_default_call_saves_nothing(mock_run: MagicMock, isolated_save_run_database: ProjectSettings) -> None:
     mock_run.return_value = _mock_momentum_run()
     carry_profile(mock_run)
@@ -145,7 +144,7 @@ def test_momentum_default_call_saves_nothing(mock_run: MagicMock, isolated_save_
     assert _repository(isolated_save_run_database).list(RunQuery()).summaries == ()
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_momentum_save_run_persists_and_reports_id_on_stderr(
     mock_run: MagicMock, isolated_save_run_database: ProjectSettings
 ) -> None:
@@ -172,7 +171,7 @@ def test_momentum_save_run_persists_and_reports_id_on_stderr(
     assert all(item.method_id == "sma_crossover" for item in saved)
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(
     mock_run: MagicMock, isolated_save_run_database: ProjectSettings
 ) -> None:
@@ -194,7 +193,7 @@ def test_momentum_save_run_persists_as_of_and_no_cache_on_the_selection(
     assert selection.use_cache is False
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_momentum_saved_run_timing_span_contains_the_analysis(
     mock_run: MagicMock, isolated_save_run_database: ProjectSettings
 ) -> None:
@@ -225,7 +224,7 @@ def test_momentum_saved_run_timing_span_contains_the_analysis(
     assert run.started_at < analysis_instant < run.completed_at
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_momentum_save_run_checks_readiness_before_the_first_provider_request(
     mock_run: MagicMock, isolated_save_run_database: ProjectSettings
 ) -> None:
@@ -248,7 +247,7 @@ def test_momentum_save_run_checks_readiness_before_the_first_provider_request(
         events.append("provider request")
 
     with (
-        patch("investment_analysis_engine.cli_run_support.ensure_database_ready", side_effect=ready),
+        patch("investment_analysis_engine.application.analysis.ensure_database_ready", side_effect=ready),
         patch(
             "investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity",
             side_effect=provider_request,
@@ -266,7 +265,7 @@ def test_momentum_save_run_checks_readiness_before_the_first_provider_request(
     assert events.index("provider request") < events.index("analysis")
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_momentum_save_run_with_rejected_storage_makes_no_provider_request(
     mock_run: MagicMock, isolated_save_run_database: ProjectSettings
 ) -> None:
@@ -275,7 +274,7 @@ def test_momentum_save_run_with_rejected_storage_makes_no_provider_request(
     error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, Path("selected.sqlite3"), "0001_persistence")
 
     with (
-        patch("investment_analysis_engine.cli_run_support.ensure_database_ready", side_effect=error),
+        patch("investment_analysis_engine.application.analysis.ensure_database_ready", side_effect=error),
         patch("investment_analysis_engine.data.yfinance.client.YFinanceClient.resolve_security_identity") as identity,
     ):
         result = runner.invoke(app, ["momentum", "BTC-USD", "--save-run"])
@@ -292,7 +291,7 @@ def test_momentum_save_run_with_rejected_storage_makes_no_provider_request(
 
 def test_graham_number_save_run_persists_a_completed_run(isolated_save_run_database: ProjectSettings) -> None:
     with patch(
-        "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+        "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
         return_value=sec_labeled_number_resolver(),
     ):
         result = runner.invoke(app, ["graham-number", "SYNTH", "--save-run"])
@@ -312,7 +311,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome(
     profile = fixture_known_etf_profile()
     with (
         patch(
-            "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+            "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
             return_value=sec_labeled_number_resolver(),
         ),
         patch(
@@ -335,7 +334,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome(
 
 def test_graham_number_no_cache_plus_save_run_still_saves(isolated_save_run_database: ProjectSettings) -> None:
     with patch(
-        "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+        "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
         return_value=sec_labeled_number_resolver(),
     ):
         result = runner.invoke(
@@ -352,7 +351,7 @@ def test_graham_number_no_cache_plus_save_run_still_saves(isolated_save_run_data
 
 def test_graham_number_default_call_saves_nothing(isolated_save_run_database: ProjectSettings) -> None:
     with patch(
-        "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+        "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
         return_value=sec_labeled_number_resolver(),
     ):
         result = runner.invoke(app, ["graham-number", "SYNTH"])
@@ -366,7 +365,7 @@ def test_graham_number_default_call_saves_nothing(isolated_save_run_database: Pr
 def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() -> None:
     with (
         patch(
-            "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+            "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
             return_value=sec_labeled_number_resolver(),
         ),
         patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=AnalysisRunConflictError("duplicate")),
@@ -385,7 +384,7 @@ def test_graham_number_save_run_storage_failure_is_visible_and_nonzero_exit() ->
 
 def test_graham_growth_save_run_persists_with_stored_assumptions(isolated_save_run_database: ProjectSettings) -> None:
     with patch(
-        "investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver",
+        "investment_analysis_engine.strategies.graham_growth.application.build_graham_resolver",
         return_value=sec_labeled_growth_resolver(),
     ):
         result = runner.invoke(
@@ -420,7 +419,7 @@ def test_graham_growth_save_run_persists_with_stored_assumptions(isolated_save_r
 
 def test_fcf_growth_save_run_persists(isolated_save_run_database: ProjectSettings) -> None:
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+        "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
         return_value=_fcf_provider(),
     ):
         result = runner.invoke(app, ["fcf-growth", "ACME", "--save-run"])
@@ -435,7 +434,7 @@ def test_fcf_growth_save_run_persists(isolated_save_run_database: ProjectSetting
 
 def test_fcf_growth_default_call_saves_nothing(isolated_save_run_database: ProjectSettings) -> None:
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+        "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
         return_value=_fcf_provider(),
     ):
         result = runner.invoke(app, ["fcf-growth", "ACME"])
@@ -451,7 +450,7 @@ def test_fcf_growth_default_call_saves_nothing(isolated_save_run_database: Proje
 # ---------------------------------------------------------------------------
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_interrupt_during_analysis_stores_no_run(
     mock_run: MagicMock, isolated_save_run_database: ProjectSettings
 ) -> None:
@@ -467,7 +466,7 @@ def test_interrupt_during_analysis_stores_no_run(
     assert _repository(isolated_save_run_database).list(RunQuery()).summaries == ()
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_interrupt_while_storing_leaves_no_partial_run(
     mock_run: MagicMock, isolated_save_run_database: ProjectSettings
 ) -> None:

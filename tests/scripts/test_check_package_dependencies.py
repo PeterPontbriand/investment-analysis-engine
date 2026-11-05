@@ -128,6 +128,8 @@ ROLE_FILES = {
     "strategies/s/other.py": "from investment_analysis_engine.strategies.s import analyzer\n",
     "strategies/s/cli.py": "from investment_analysis_engine.strategies.s import analyzer\n",
     "strategies/s/evaluation.py": "from investment_analysis_engine.strategies.s import analyzer\n",
+    "strategies/s/workspace.py": "from investment_analysis_engine.strategies.s import analyzer\n",
+    "strategies/s/application.py": "from investment_analysis_engine.strategies.s import analyzer\n",
     "strategies/s/execution.py": "from investment_analysis_engine.strategies.s import analyzer\n",
     "strategies/_graham/__init__.py": "",
     "strategies/_graham/helper.py": "VALUE = 1\n",
@@ -138,11 +140,13 @@ ROLE_FILES = {
 }
 
 
-def test_role_files_of_a_strategy_package_belong_to_cli_evaluation_and_workspace(tmp_path: Path) -> None:
+def test_a_file_of_a_strategy_package_named_for_a_unit_belongs_to_that_unit(tmp_path: Path) -> None:
+    """One rule, matched by name: `cli`, `evaluation`, `workspace` and `application`; `execution` is no unit."""
     source_root = build_repo(tmp_path, ROLE_FILES, []) / SOURCE_ROOT_NAME
-    assert list_units(source_root) == {"cli", "evaluation", "strategies", "user", "workspace"}
+    assert list_units(source_root) == {"application", "cli", "evaluation", "strategies", "user", "workspace"}
     edges = collect_imports(source_root)
     assert set(edges) == {
+        ("application", "strategies"),
         ("cli", "strategies"),
         ("evaluation", "strategies"),
         ("workspace", "strategies"),
@@ -157,7 +161,8 @@ def test_an_import_of_a_role_file_is_attributed_to_the_file_in_both_import_forms
             "import investment_analysis_engine.strategies.s.evaluation\n"
         ),
         "user/named.py": (
-            "from investment_analysis_engine.strategies.s import execution\n"
+            "from investment_analysis_engine.strategies.s import workspace\n"
+            "from investment_analysis_engine.strategies.s import application\n"
             "from investment_analysis_engine.strategies._graham import cli as graham_cli\n"
         ),
         "user/relative.py": "from ..strategies.s import cli\n",
@@ -165,13 +170,14 @@ def test_an_import_of_a_role_file_is_attributed_to_the_file_in_both_import_forms
     source_root = build_repo(tmp_path, files, []) / SOURCE_ROOT_NAME
     edges = collect_imports(source_root)
     imported_by_user = {imported for importer, imported in edges if importer == "user"}
-    assert imported_by_user == {"cli", "evaluation", "workspace"}
+    assert imported_by_user == {"application", "cli", "evaluation", "workspace"}
     assert [(path.as_posix(), line) for path, line in edges[("user", "cli")]] == [
         ("user/dotted.py", 1),
-        ("user/named.py", 2),
+        ("user/named.py", 3),
         ("user/relative.py", 1),
     ]
     assert [(path.as_posix(), line) for path, line in edges[("user", "workspace")]] == [("user/named.py", 1)]
+    assert [(path.as_posix(), line) for path, line in edges[("user", "application")]] == [("user/named.py", 2)]
 
 
 def test_any_other_file_of_a_strategy_package_stays_in_strategies(tmp_path: Path) -> None:

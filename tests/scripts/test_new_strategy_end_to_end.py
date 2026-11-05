@@ -46,7 +46,7 @@ COPIED_FILES: Final = ("pyproject.toml", ALEMBIC_INI.name)
 EXCLUDED: Final = ("__pycache__", "*.pyc", ".mypy_cache", ".ruff_cache", ".pytest_cache", "htmlcov", "*.egg-info")
 PROXY_VARIABLES: Final = frozenset({"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "FTP_PROXY"})
 
-STUB_FILL_ROLES: Final = ("analyzer", "codec", "cli", "presenter", "replay", "evaluation")
+STUB_FILL_ROLES: Final = ("analyzer", "codec", "application", "presenter", "replay", "evaluation")
 """The generated files with a body the fills write; the others are complete as generated.
 
 The tool handler is complete as generated: its body validates the arguments, builds the context and calls the analyzer.

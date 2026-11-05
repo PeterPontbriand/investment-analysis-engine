@@ -42,8 +42,8 @@ from investment_analysis_engine.strategies.graham_number.calculation import (
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnalyzer, MomentumRun
-from investment_analysis_engine.strategies.momentum.execution import run_momentum
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.workspace import run_momentum
 from investment_analysis_engine.strategy_wiring import DOCUMENTS_BY_KEY, EVIDENCE_BY_KEY, REPLAYS_BY_KEY, run_spec_for
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.codecs import decode_evidence
@@ -278,7 +278,9 @@ def test_project_run_never_calls_the_live_analyzer_or_settings() -> None:
     with (
         patch.object(MomentumAnalyzer, "run_analysis", forbidden),
         patch("investment_analysis_engine.config.component_settings.load_component_settings", forbidden),
-        patch("investment_analysis_engine.cli_composition.load_component_settings", forbidden),
+        patch("investment_analysis_engine.application.providers.load_component_settings", forbidden),
+        patch("investment_analysis_engine.strategies.momentum.application.load_component_settings", forbidden),
+        patch("investment_analysis_engine.strategies.graham_growth.application.load_component_settings", forbidden),
     ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
@@ -605,7 +607,9 @@ def test_growth_project_run_uses_the_stored_assumptions_not_current_settings() -
 
     with (
         patch("investment_analysis_engine.config.component_settings.load_component_settings", forbidden),
-        patch("investment_analysis_engine.cli_composition.load_component_settings", forbidden),
+        patch("investment_analysis_engine.application.providers.load_component_settings", forbidden),
+        patch("investment_analysis_engine.strategies.momentum.application.load_component_settings", forbidden),
+        patch("investment_analysis_engine.strategies.graham_growth.application.load_component_settings", forbidden),
     ):
         rendered = project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
@@ -788,7 +792,9 @@ def test_growth_project_run_never_calls_the_live_analyzer_or_settings() -> None:
             "investment_analysis_engine.strategies.graham_growth.analyzer.GrahamGrowthAnalyzer.run_analysis", forbidden
         ),
         patch("investment_analysis_engine.config.component_settings.load_component_settings", forbidden),
-        patch("investment_analysis_engine.cli_composition.load_component_settings", forbidden),
+        patch("investment_analysis_engine.application.providers.load_component_settings", forbidden),
+        patch("investment_analysis_engine.strategies.momentum.application.load_component_settings", forbidden),
+        patch("investment_analysis_engine.strategies.graham_growth.application.load_component_settings", forbidden),
     ):
         assert project_run(
             run, ReplayOptions(mode=PresentationMode.DETAILS), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY

@@ -4,17 +4,13 @@ A module opts in with ``pytestmark = pytest.mark.usefixtures("isolated_cli_setti
 or the subset of the two it needs; a test that uses the isolated settings takes ``isolated_cli_settings`` as an
 argument. Both fixtures are registered in ``tests/conftest.py``, so no module imports them.
 
-``isolated_cli_settings`` points ``investment_analysis_engine.cli_support``'s,
-``investment_analysis_engine.cli_workspace``'s and ``investment_analysis_engine.cli_run_support``'s database access at a
-disposable, already-migrated SQLite file instead of the real local database at the default
-``database_url``. Momentum/Graham CLI commands (via
-``production_historical_client``/``production_financial_cache``) and the
-watchlist/runs commands (via their own ``_workspace_database``) all call
-``ensure_database_ready`` before doing any work; without this isolation,
-tests that invoke those commands implicitly depend on the developer
-machine's real local database already being upgraded to the current schema
-head, which breaks after every migration until someone runs that upgrade by
-hand.
+``isolated_cli_settings`` points ``investment_analysis_engine.cli_support``'s and
+``investment_analysis_engine.cli_workspace``'s database access at a disposable, already-migrated SQLite file instead of
+the real local database at the default ``database_url``. The direct commands build their application context from
+``investment_analysis_engine.cli_support``'s settings, and the watchlist/runs commands open their database through their
+own ``_workspace_database``; all of them call ``ensure_database_ready`` before doing any work. Without this isolation,
+tests that invoke those commands implicitly depend on the developer machine's real local database already being
+upgraded to the current schema head, which breaks after every migration until someone runs that upgrade by hand.
 
 Deliberately not extended to ``investment_analysis_engine.cli``'s own ``settings`` binding: that
 name is shared for configuration well beyond database access (for example
@@ -46,7 +42,6 @@ def isolated_cli_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pr
     isolated = ProjectSettings(database_url=migrated_database_url(tmp_path))
     monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)
     monkeypatch.setattr("investment_analysis_engine.cli_workspace.settings", isolated)
-    monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
     return isolated
 
 

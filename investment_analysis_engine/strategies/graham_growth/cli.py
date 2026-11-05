@@ -1,62 +1,27 @@
-"""Graham Growth's CLI-layer functions: the direct command, the watchlist selection builder and the refresh executor.
+"""Graham Growth's CLI-layer functions: the direct command and the watchlist selection builder.
 
 The CLI tier pairs these with the Graham Growth core bundle and adds the command to the application; nothing here
-registers itself.
+registers itself. The command parses its options, builds the selection and calls the direct-analysis operation.
 """
-
-from dataclasses import replace
-from datetime import datetime
 
 import typer
 
-from investment_analysis_engine.analysis.shared.financial_resolution import PriceComparison
-from investment_analysis_engine.cli_composition import build_graham_resolver, graham_growth_settings
-from investment_analysis_engine.cli_provider_check import (
-    ProviderCheckChoice,
-    provider_check_choice,
-)
-from investment_analysis_engine.cli_run_support import analyze_and_maybe_save
+from investment_analysis_engine.cli_provider_check import provider_check_choice
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
     SAVE_RUN_OPTION,
+    analysis_output,
+    analyze_for_command,
     config_usage_errors,
     emit_output,
     execution_errors,
     parse_as_of,
-    production_financial_cache,
-    render_execution,
-    require_job_ticker,
     resolve_command_target,
-    stored_configuration,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
-from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
-from investment_analysis_engine.data.instrument_profile import InstrumentProfile, profile_identity_resolution
-from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.security_identity import SecurityIdentityResolution
-from investment_analysis_engine.data.yfinance.client import YFinanceClient
-from investment_analysis_engine.reporting.evidence_presentation import friendly_valuation_failure
-from investment_analysis_engine.reporting.presentation import PresentationMode
-from investment_analysis_engine.strategies.graham_growth.calculation import (
-    GrahamGrowthInputResolver,
-    GrowthValueInputAssembly,
-)
-from investment_analysis_engine.strategies.graham_growth.execution import (
-    execute_graham_growth,
-    from_graham_growth_capture,
-)
-from investment_analysis_engine.strategies.graham_growth.presenter import (
-    GrahamGrowthPresentation,
-    growth_with_public_quote_reason,
-    render_graham_growth,
-)
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
-from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.requests import AnalysisRequest
 
 
 def build_selection(flags: WatchlistFlags) -> GrahamGrowthSelection:
@@ -86,34 +51,6 @@ def build_selection(flags: WatchlistFlags) -> GrahamGrowthSelection:
                 "aaa_yield_override": flags.aaa_yield,
             }
         )
-
-
-def refresh(
-    ticker: str, selection: GrahamGrowthSelection, *, profile_cache: InstrumentProfileResolver | None
-) -> ExecutionCapture:
-    """Execute one Graham Growth refresh job with freshly composed, job-scoped dependencies."""
-    require_job_ticker(ticker)
-    config = stored_configuration(selection.to_graham_growth_config)
-    policy = graham_growth_settings().to_policy()
-    executed_at = utc_now()
-    with production_financial_cache(use_cache=selection.use_cache, clock=lambda: executed_at) as cache:
-        resolver = build_graham_resolver(
-            resolver_type=GrahamGrowthInputResolver,
-            cache=cache,
-            clock=lambda: executed_at,
-        )
-        capture = execute_graham_growth(
-            resolver,
-            ticker,
-            config,
-            policy,
-            YFinanceClient(),
-            as_of=selection.as_of,
-            executed_at=executed_at,
-            use_cache=selection.use_cache,
-            profile_cache=profile_cache,
-        )
-    return from_graham_growth_capture(capture)
 
 
 def command(  # noqa: PLR0913
@@ -165,7 +102,6 @@ def command(  # noqa: PLR0913
 ) -> None:
     """Execute Graham Growth Value with explicit growth and AAA-yield assumptions."""
     use_cache = not no_cache
-    executed_at = utc_now()
     provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
     with execution_errors(
         json_output=json_output,
@@ -194,147 +130,6 @@ def command(  # noqa: PLR0913
                     "use_cache": use_cache,
                 }
             )
-        with production_financial_cache(use_cache=use_cache, clock=lambda: executed_at) as cache:
-            with execution_errors(
-                mode=mode,
-                selection_type=GrahamGrowthSelection,
-                ticker=target_ticker,
-            ):
-                resolver = build_graham_resolver(
-                    resolver_type=GrahamGrowthInputResolver,
-                    cache=cache,
-                    clock=lambda: executed_at,
-                )
-            output, exit_code = _run_graham_growth(
-                resolver=resolver,
-                ticker=target_ticker,
-                selection=selection,
-                mode=mode,
-                profile_provider=YFinanceClient(),
-                executed_at=executed_at,
-                save_run=save_run,
-                provider_check=provider_check,
-            )
+        outcome = analyze_for_command(target_ticker, selection, save_run=save_run, provider_check=provider_check)
+        output, exit_code = analysis_output(outcome, mode)
     emit_output(output, exit_code, mode)
-
-
-def _run_graham_growth(  # noqa: PLR0913
-    *,
-    resolver: GrahamGrowthInputResolver,
-    ticker: str,
-    selection: GrahamGrowthSelection,
-    mode: PresentationMode,
-    profile_provider: object,
-    executed_at: datetime,
-    save_run: bool = False,
-    provider_check: ProviderCheckChoice | None = None,
-) -> tuple[str, int]:
-    """Resolve, calculate, and render one Graham growth-value analysis."""
-    policy = graham_growth_settings().to_policy()
-    config = selection.to_graham_growth_config()
-    as_of = selection.as_of
-    use_cache = selection.use_cache
-    capture = analyze_and_maybe_save(
-        save_run=save_run,
-        executed_at=executed_at,
-        request_factory=lambda: AnalysisRequest(ticker=ticker, selection=selection),
-        run_adapter=lambda profile_cache: execute_graham_growth(
-            resolver,
-            ticker,
-            config,
-            policy,
-            profile_provider,
-            as_of=as_of,
-            executed_at=executed_at,
-            use_cache=use_cache,
-            profile_cache=profile_cache,
-        ),
-        normalize=from_graham_growth_capture,
-    )
-    execution = from_graham_growth_capture(capture)
-    analysis = capture.analysis
-    profile = capture.profile
-    identity_resolution = profile_identity_resolution(profile)
-
-    def render(provider_check_element: tuple[ProviderCheckItem, ...] | None) -> str:
-        """Render the failure, not-applicable or success output of this analysis."""
-        assembly = analysis.assembly
-        if assembly.status is CalculationStatus.OK:
-            presentation = GrahamGrowthPresentation(
-                ticker=ticker,
-                assembly=growth_with_public_quote_reason(assembly),
-                result=analysis.result,
-                base_pe=policy.base_pe,
-                growth_multiplier=policy.growth_multiplier,
-                baseline_aaa_yield=policy.baseline_aaa_yield,
-                as_of=as_of,
-                effective_as_of=analysis.effective_as_of,
-                margin_of_safety_percent=analysis.margin_of_safety_percent,
-                price_comparison=analysis.price_comparison,
-                identity_resolution=identity_resolution,
-                instrument_profile=profile,
-                provider_check=provider_check_element,
-            )
-            return render_graham_growth(presentation, mode)
-        if assembly.status is CalculationStatus.NOT_APPLICABLE:
-            presentation = GrahamGrowthPresentation(
-                ticker=ticker,
-                assembly=assembly,
-                result=analysis.result,
-                price_comparison=analysis.price_comparison,
-                base_pe=policy.base_pe,
-                growth_multiplier=policy.growth_multiplier,
-                baseline_aaa_yield=policy.baseline_aaa_yield,
-                as_of=as_of,
-                effective_as_of=analysis.effective_as_of,
-                identity_resolution=identity_resolution,
-                instrument_profile=profile,
-                provider_check=provider_check_element,
-            )
-            return render_graham_growth(presentation, mode)
-        return _growth_failure_output(
-            ticker=ticker,
-            assembly=assembly,
-            as_of=as_of,
-            effective_as_of=analysis.effective_as_of,
-            mode=mode,
-            identity_resolution=identity_resolution,
-            instrument_profile=profile,
-            price_comparison=analysis.price_comparison,
-            provider_check=provider_check_element,
-        )
-
-    return render_execution(execution, provider_check, mode, render)
-
-
-def _growth_failure_output(  # noqa: PLR0913
-    *,
-    ticker: str,
-    assembly: GrowthValueInputAssembly,
-    as_of: datetime | None,
-    effective_as_of: datetime,
-    mode: PresentationMode,
-    identity_resolution: SecurityIdentityResolution,
-    instrument_profile: InstrumentProfile,
-    price_comparison: PriceComparison | None = None,
-    provider_check: tuple[ProviderCheckItem, ...] | None = None,
-) -> str:
-    """Render a failed growth analysis without leaking low-level details by default."""
-    reason = friendly_valuation_failure(ticker, assembly.status, assembly.reason)
-    safe_assembly = growth_with_public_quote_reason(replace(assembly, reason=reason))
-    policy = graham_growth_settings().to_policy()
-    presentation = GrahamGrowthPresentation(
-        ticker=ticker,
-        assembly=safe_assembly,
-        price_comparison=price_comparison,
-        result=None,
-        base_pe=policy.base_pe,
-        growth_multiplier=policy.growth_multiplier,
-        baseline_aaa_yield=policy.baseline_aaa_yield,
-        as_of=as_of,
-        effective_as_of=effective_as_of,
-        identity_resolution=identity_resolution,
-        instrument_profile=instrument_profile,
-        provider_check=provider_check,
-    )
-    return render_graham_growth(presentation, mode)

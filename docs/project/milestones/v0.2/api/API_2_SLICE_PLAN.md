@@ -26,7 +26,7 @@ the local server and the read endpoints.
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | API.2a | [Versioned list documents and this plan](#api2a--versioned-list-documents) | Complete | 2026-11-03 |
-| API.2b | [`ian serve` and the read endpoints](#api2b--ian-serve-and-the-read-endpoints) | Next | |
+| API.2b | [`ian serve` and the read endpoints](#api2b--ian-serve-and-the-read-endpoints) | Complete | 2026-11-04 |
 
 ## 3. The slices
 

@@ -43,8 +43,10 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.1a | [Replay document projection](#api1a--replay-document-projection) | Complete | 2026-11-01 |
 | API.1b | [Application layer: reading](#api1b--application-layer-reading) | Complete | 2026-11-02 |
 | API.2a | [Versioned list documents](API_2_SLICE_PLAN.md#api2a--versioned-list-documents) | Complete | 2026-11-03 |
-| API.2b | [`ian serve` and the read endpoints](#api2--ian-serve-and-the-read-endpoints) | Next | |
-| API.3 | [Application layer: actions](#api3--application-layer-actions) | Planned | |
+| API.2b | [`ian serve` and the read endpoints](#api2--ian-serve-and-the-read-endpoints) | Complete | 2026-11-04 |
+| API.3a | [Execution composition and direct analysis](API_3_SLICE_PLAN.md#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-04 |
+| API.3b | [Watchlist actions, selections and Site 19](API_3_SLICE_PLAN.md#api3b--watchlist-actions-selections-and-site-19) | Next | |
+| API.3c | [Refresh with progress](API_3_SLICE_PLAN.md#api3c--refresh-with-progress) | Planned | |
 | API.4 | [Action endpoints and refresh jobs](#api4--action-endpoints-and-refresh-jobs) | Planned | |
 | API.5 | [Help content](#api5--help-content) | Planned | |
 | API.6 | [Term references and help endpoints](#api6--term-references-and-help-endpoints) | Planned | |
@@ -85,7 +87,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   function and fails through `typer.Exit`, and production composition lives in the `cli` unit at
   the top of the package layers, so nothing else can reuse it.
 - **Decision:** a new unit, `application`, owns the read operations; production composition joins it
-  in API.3 ([A11](API_1_SLICE_PLAN.md#a11-cli_compositionpy-stays-in-cli-until-api3-2026-11-01)). It
+  in API.3a ([A11](API_1_SLICE_PLAN.md#a11-cli_compositionpy-stays-in-cli-until-api3-2026-11-01)). It
   returns the existing typed documents and domain objects, and raises typed failures that carry a
   `FailureReasonCode`. It knows no presentation and no strategy.
 - **Scope:** the read operations — watchlist list and show, runs list, show (each presentation
@@ -121,25 +123,34 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 
 - **Problem:** creating and editing watchlists, analyzing a ticker and refreshing are still
   CLI-only, and a refresh reports nothing until it ends.
-- **Decision:** the action operations move into `application` as API.1b's did. A refresh accepts
-  an observational progress callback, and keeps using the existing cancellation event. A selection
-  is built from its model's fields, not from the CLI's flag set.
-- **Scope:** watchlist create, rename, delete, add and remove; direct analysis of one ticker with
-  chosen strategies, saved or not; refresh with progress; the CLI switched to each; the selection model's JSON
-  Schema ([S19](API_2_SLICE_PLAN.md#s19-the-selection-model-schema-moves-to-api3-2026-11-03)); a conformance
-  check that every selection field has a description and a type the API's form schema supports.
-  Direct-analysis and run endpoints (served in API.4) accept an optional `as_of` and echo the
-  effective value in the response, matching `--as-of` on the CLI. This lets a client such as the
-  future predictive evaluator ([Product boundaries](../../../MASTER_PLAN.md#25-product-boundaries))
-  request results as of a past date. API.3 therefore carries `as_of` through the application layer's
-  direct-analysis and run operations.
-- **Branch:** `feat/api-application-actions`.
-- **Also moves:** `investment_analysis_engine/cli_composition.py` (the provider and resolver builders and the settings
-  loaders) moves into `application` in this slice, with the actions that use it
-  ([A11](API_1_SLICE_PLAN.md#a11-cli_compositionpy-stays-in-cli-until-api3-2026-11-01)).
-- **Detail:** ⚠ no slice plan yet. When it is written it also decides Site 19, the watchlist flag bundle
-  ([SWC.1 design H.10](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)),
-  using the weighing in [B.3 of the 3.5.3 slice plan](../step-3.5/STEP_3_5_3_SLICE_PLAN.md#b3-decisions-of-353b-to-353e).
+- **Decision:** the action operations move into `application` as API.1b's did, in three slices
+  ([C1](API_3_SLICE_PLAN.md#c1-api3-is-three-slices-2026-11-04)). A refresh accepts an observational progress
+  callback, and keeps using the existing cancellation event. A selection is built from its model's fields, not from the
+  CLI's flag set.
+- **Scope:**
+  - API.3a: strategy execution moves out of the CLI, with production composition, and direct analysis of one ticker is
+    an operation, saved or not;
+  - API.3b: watchlist create, rename, delete, add and remove; selection from model fields; the selection models' JSON
+    Schema ([S19](API_2_SLICE_PLAN.md#s19-the-selection-model-schema-moves-to-api3-2026-11-03)) and a conformance
+    check that every selection field has a description and a type the API's form schema supports; Site 19;
+  - API.3c: refresh with progress;
+  - the CLI switched to each operation in the slice that adds it.
+- **`as_of`:** direct-analysis and run endpoints (served in API.4) accept an optional `as_of`, matching `--as-of` on the
+  CLI, so a client such as the future predictive evaluator
+  ([Product boundaries](../../../MASTER_PLAN.md#25-product-boundaries)) can request results as of a past date. The echo
+  is the strategy documents' existing `requested_as_of` and `effective_as_of`; no field is added, and the selection's
+  `as_of` reaches the operation unchanged ([C6](API_3_SLICE_PLAN.md#c6-the-as-of-echo-is-the-existing-document-fields-2026-11-04)).
+- **Site 19:** the watchlist flag bundle is replaced by one `add-selection` subcommand per strategy, decided in
+  [C12](API_3_SLICE_PLAN.md#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04) and
+  implemented in API.3b.
+- **Branches:** `feat/api-execution-composition` (API.3a), `feat/api-watchlist-actions` (API.3b) and
+  `feat/api-refresh-progress` (API.3c); they replace the single `feat/api-application-actions`.
+- **Also moved:** `investment_analysis_engine/cli_composition.py` (the provider and resolver builders and the settings
+  loaders) was deleted in API.3a: the shared builders are in `application/providers.py` and each strategy's own are in its
+  `application.py` ([A11](API_1_SLICE_PLAN.md#a11-cli_compositionpy-stays-in-cli-until-api3-2026-11-01),
+  [C2](API_3_SLICE_PLAN.md#c2-one-rule-a-file-named-for-a-unit-belongs-to-that-unit-as-amended-2026-11-04),
+  [C8](API_3_SLICE_PLAN.md#c8-cli_compositionpy-is-deleted-2026-11-04)).
+- **Detail:** [API.3 slice plan](API_3_SLICE_PLAN.md).
 
 ### API.4 — Action endpoints and refresh jobs
 
@@ -150,6 +161,11 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Scope:** the action endpoints, with the optional `as_of` and its echoed effective value on the
   direct-analysis and run endpoints; the job status and stop endpoints; their `openapi.json` entries
   and tests.
+- **Requirements recorded for API.4's slice plan:**
+  - clients need an endpoint that gives each strategy's current configured selection defaults, because the selection
+    schemas carry none ([C13](API_3_SLICE_PLAN.md#c13-one-selection-schema-per-strategy-2026-11-04));
+  - the direct-analysis endpoint can serve a run's text in a mode through the outcome's `render_text`, as S17 does for
+    saved runs ([C5a](API_3_SLICE_PLAN.md#c5a-direct-analysis-is-an-operation-that-returns-an-outcome-2026-11-04)).
 - **Open question for API.4's slice plan:** whether two `ian serve` processes may run refresh jobs and writes against
   the same database, and what the second one does. It is not decided here.
 - **Branch:** `feat/api-actions`.

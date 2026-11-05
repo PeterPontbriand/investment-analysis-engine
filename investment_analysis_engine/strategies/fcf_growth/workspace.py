@@ -1,10 +1,10 @@
-"""FCF/Earnings Growth execution adapter: borrow dependencies, call the existing analyzer.
+"""FCF/Earnings Growth workspace adapter: borrow dependencies, call the existing analyzer.
 
 This adapter extracts the profile composition and analyzer invocation
 formerly inlined in the ``fcf-growth`` command so both the direct
 command and a future save/refresh service call identical code.
-Presentation and exit-code selection stay in the command
-(``investment_analysis_engine.strategies.fcf_growth.cli``); this module
+Presentation and exit-code selection stay in the strategy's application module
+(``investment_analysis_engine.strategies.fcf_growth.application``); this module
 captures execution evidence only.
 
 Unlike Graham Number/Growth, the CLI composes the FCF profile using the same

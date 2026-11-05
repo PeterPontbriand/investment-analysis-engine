@@ -286,7 +286,7 @@ def test_the_reversed_window_failure_names_both_options() -> None:
 def test_a_value_error_from_the_analysis_is_invalid_input_not_invalid_parameter() -> None:
     """The same command reports a bad option and bad data under different codes."""
     with patch(
-        "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
+        "investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis",
         side_effect=ValueError("internal detail"),
     ):
         data = runner.invoke(app, ["momentum", "ACME", "--json"])

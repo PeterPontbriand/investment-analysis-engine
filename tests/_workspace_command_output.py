@@ -196,7 +196,7 @@ def run_scenario() -> list[Step]:
         ):
             stack.enter_context(patch(f"{module}.settings", settings))
         stack.enter_context(
-            patch("investment_analysis_engine.strategies.momentum.cli.YFinanceClient", _FixtureYahooFailingFor)
+            patch("investment_analysis_engine.strategies.momentum.application.YFinanceClient", _FixtureYahooFailingFor)
         )
         stack.enter_context(
             patch(

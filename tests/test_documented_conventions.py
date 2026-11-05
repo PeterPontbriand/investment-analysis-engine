@@ -100,16 +100,16 @@ def _calls(path: Path) -> list[tuple[str, str]]:
 
 def test_momentum_composes_its_instrument_profile_in_one_function() -> None:
     composing = {path.name: sorted(set(_calls(path))) for path in MOMENTUM_PACKAGE.glob("*.py") if _calls(path)}
-    assert set(composing) == {"execution.py"}, f"Only execution.py may build the profile; found {sorted(composing)}."
-    functions = {name for name, _ in composing["execution.py"]}
+    assert set(composing) == {"workspace.py"}, f"Only workspace.py may build the profile; found {sorted(composing)}."
+    functions = {name for name, _ in composing["workspace.py"]}
     assert functions == {"compose_momentum_profile"}, f"Only compose_momentum_profile may build it; found {functions}."
-    execution = (MOMENTUM_PACKAGE / "execution.py").read_text(encoding="utf-8")
+    execution = (MOMENTUM_PACKAGE / "workspace.py").read_text(encoding="utf-8")
     assert execution.count("compose_momentum_profile(") == 2, "Only its definition and execute_momentum may name it."
-    cli = (MOMENTUM_PACKAGE / "cli.py").read_text(encoding="utf-8")
+    cli = (MOMENTUM_PACKAGE / "application.py").read_text(encoding="utf-8")
     assert "compose_momentum_profile" not in cli, (
         "The direct command, --save-run and refresh go through execute_momentum."
     )
-    assert cli.count("execute_momentum(") == 2, "The direct command and refresh must each call execute_momentum."
+    assert cli.count("execute_momentum(") == 1, "The run function, which refresh calls, must call execute_momentum."
 
 
 _REMOVED_OPTION_COMMANDS: Final = (
@@ -345,7 +345,7 @@ def test_run_outcome_from_status_is_total_and_matches_the_table() -> None:
 
 _PAIRING_ROOTS: Final = (REPOSITORY_ROOT / "investment_analysis_engine", REPOSITORY_ROOT / "scripts")
 _PAIRING_ALLOWED: Final = frozenset(
-    {"investment_analysis_engine/analysis/run_models.py", "investment_analysis_engine/cli_support.py"}
+    {"investment_analysis_engine/analysis/run_models.py", "investment_analysis_engine/application/analysis.py"}
 )
 
 

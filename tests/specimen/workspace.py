@@ -1,4 +1,4 @@
-"""The specimen's execution adapter: call the analyzer and capture the evidence."""
+"""The specimen's workspace adapter: call the analyzer and capture the evidence."""
 
 from dataclasses import dataclass
 from datetime import datetime

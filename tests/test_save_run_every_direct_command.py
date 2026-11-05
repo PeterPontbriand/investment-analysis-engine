@@ -33,7 +33,6 @@ def _stored_runs(directory: Path, monkeypatch: pytest.MonkeyPatch, alias: str) -
         directory.mkdir()
         url = migrated_database_url(directory)
         isolated = ProjectSettings(**(real_settings.model_dump() | {"database_url": url}))
-        monkeypatch.setattr("investment_analysis_engine.cli_run_support.settings", isolated)
         monkeypatch.setattr("investment_analysis_engine.cli_support.settings", isolated)
         with ExitStack() as stack:
             enter_fixture_providers(stack, alias)

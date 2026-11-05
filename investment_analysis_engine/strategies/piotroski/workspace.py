@@ -1,6 +1,8 @@
-"""The $label strategy's execution adapter.
+"""The Piotroski F-Score strategy's workspace adapter.
 
-It composes the instrument profile, calls the analyzer and captures the evidence.
+It composes the identity profile, calls the analyzer and captures the evidence. Presentation and exit-code selection
+stay in the strategy's application module; this module reports facts only: the evidence, its profile, the native
+status and the recorded provider failure.
 """
 
 from dataclasses import dataclass
@@ -10,36 +12,41 @@ from investment_analysis_engine.core.failure_classification import provider_fail
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.strategies._shared.profile import compose_production_profile
-from investment_analysis_engine.strategies.$module.analyzer import ${Class}Analyzer, ${Class}Result
-from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
+from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiAnalyzer, PiotroskiResult
+from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 
 
 @dataclass(frozen=True)
-class ${Class}Capture:
-    """The captured evidence of one $label execution."""
+class PiotroskiCapture:
+    """The captured evidence of one Piotroski F-Score execution.
 
-    result: ${Class}Result
+    ``result`` is the unmodified native analyzer result. ``profile`` is the profile composed before the calculation and
+    given to the analyzer.
+    """
+
+    result: PiotroskiResult
     profile: InstrumentProfile
 
 
-def execute_$module(  # noqa: PLR0913
-    analyzer: ${Class}Analyzer,
+def execute_piotroski(  # noqa: PLR0913
+    analyzer: PiotroskiAnalyzer,
     ticker: str,
-    selection: ${Class}Selection,
+    selection: PiotroskiSelection,
     *,
     executed_at: datetime,
     provider: object,
     profile_cache: InstrumentProfileResolver | None = None,
-) -> ${Class}Capture:
+) -> PiotroskiCapture:
     """Compose the profile and run the analyzer for ``selection``.
 
     Args:
         analyzer: A borrowed, already-composed analyzer.
         ticker: The normalized target ticker.
         selection: The validated selection: the boundary and the cache choice.
-        executed_at: The run's single reading of the current time, taken once by the caller.
-        provider: The provider used as both the primary and the Yahoo identity candidate of the profile.
+        executed_at: The run's own execution clock, a single aware read of "now" taken once by the caller.
+        provider: The production provider, used as both the primary and the Yahoo identity candidate, as the FCF and
+            Earnings Growth command composes it.
         profile_cache: When supplied, resolves the profile through the durable profile cache instead of composing live.
 
     Returns:
@@ -49,11 +56,11 @@ def execute_$module(  # noqa: PLR0913
         ticker, primary_provider=provider, yahoo_provider=provider, profile_cache=profile_cache
     )
     context = selection.to_analysis_context(executed_at=executed_at, instrument_profile=profile)
-    return ${Class}Capture(result=analyzer.run_analysis(ticker, context), profile=profile)
+    return PiotroskiCapture(result=analyzer.run_analysis(ticker, context), profile=profile)
 
 
-def from_${module}_capture(capture: ${Class}Capture) -> ExecutionCapture:
-    """Normalize a $label capture.
+def from_piotroski_capture(capture: PiotroskiCapture) -> ExecutionCapture:
+    """Normalize a Piotroski F-Score capture.
 
     It passes the evidence, profile, native status and recorded provider failure.
     """

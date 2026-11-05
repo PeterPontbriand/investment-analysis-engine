@@ -10,14 +10,14 @@ from typing import Annotated
 
 import typer
 
-from investment_analysis_engine.cli_composition import load_all_component_settings
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.providers import load_all_component_settings
 from investment_analysis_engine.cli_database import app as database_app
 from investment_analysis_engine.cli_health import build_provider_clients
 from investment_analysis_engine.cli_health import register as register_health_command
-from investment_analysis_engine.cli_run_support import get_cli_run_context
 from investment_analysis_engine.cli_serve import register as register_serve_command
 from investment_analysis_engine.cli_strategy_wiring import add_strategy_commands
-from investment_analysis_engine.cli_support import parameter_failures
+from investment_analysis_engine.cli_support import get_cli_run_context, parameter_failures
 from investment_analysis_engine.cli_workspace import register as register_workspace_commands
 from investment_analysis_engine.config import paths, settings
 from investment_analysis_engine.core.clock import utc_now
@@ -44,7 +44,7 @@ from investment_analysis_engine.telemetry.run_context import (
     set_current_run_context,
 )
 
-load_all_component_settings()
+load_all_component_settings(ApplicationContext(settings=settings))
 
 app = typer.Typer(
     help="Analyze financial data with transparent calculations and supporting evidence.", add_completion=False

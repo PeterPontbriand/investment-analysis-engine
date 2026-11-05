@@ -8,9 +8,9 @@ modifies a file.
 A *unit* is each directory directly under ``investment_analysis_engine/``, plus each top-level module under
 ``investment_analysis_engine/`` by its file name (``config``, ``strategy_wiring``). The exceptions are ``cli``, which
 groups ``investment_analysis_engine/main.py`` and every ``investment_analysis_engine/cli*.py``, and the role files: a
-file named ``cli.py``, ``evaluation.py`` or ``execution.py`` directly inside a package under
-``investment_analysis_engine/strategies/`` belongs to ``cli``, ``evaluation`` or ``workspace`` respectively (the rule is
-data in ``scripts/package_graph.py``). ``investment_analysis_engine/__init__.py`` is ignored.
+file directly inside a package under ``investment_analysis_engine/strategies/`` whose name, without ``.py``, is a
+unit's name (``cli``, ``evaluation``, ``workspace`` or ``application``) belongs to that unit (the unit names are data
+in ``scripts/package_graph.py``). ``investment_analysis_engine/__init__.py`` is ignored.
 
 A *dependency* is any ``import investment_analysis_engine.X...`` or ``from investment_analysis_engine.X... import ...``
 anywhere in a file under ``investment_analysis_engine/``, including imports inside functions, attributed

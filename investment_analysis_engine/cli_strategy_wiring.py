@@ -1,4 +1,4 @@
-"""The CLI tier: each strategy's direct command, selection builder and refresh executor paired with its core bundle.
+"""The CLI tier: each strategy's direct command and selection builder paired with its core bundle.
 
 ``CLI_STRATEGIES`` is the closed, statically declared tuple of strategy CLI compositions. Each entry is built
 by ``pair_cli``, which takes a strategy's typed ``StrategyBehavior`` and its ``CliComposition`` and ties them by
@@ -7,35 +7,29 @@ Nothing here discovers or registers a composition: the lookups below are pure fu
 tuples, and a strategy without an entry fails closed with ``UndeclaredStrategyError``. No strategy is a default.
 ``add_strategy_commands`` is the one place a command is added to the Typer application, by iterating the tuple.
 
-The tier exists because these functions import ``cli_support``, ``typer`` and the production provider
-composition, which neither the composition root nor the evaluation tier may import.
+The tier exists because these functions import ``cli_support`` and ``typer``, which neither the composition root nor
+the evaluation tier may import. Each strategy's run function and refresh executor are paired in the application tier.
 """
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Final, Protocol
+from typing import Final
 
 import typer
 
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, describe, require, undeclared
-from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.strategies.fcf_growth.cli import build_selection as build_fcf_growth_selection
 from investment_analysis_engine.strategies.fcf_growth.cli import command as fcf_growth_command
-from investment_analysis_engine.strategies.fcf_growth.cli import refresh as refresh_fcf_growth
 from investment_analysis_engine.strategies.graham_growth.cli import build_selection as build_graham_growth_selection
 from investment_analysis_engine.strategies.graham_growth.cli import command as graham_growth_command
-from investment_analysis_engine.strategies.graham_growth.cli import refresh as refresh_graham_growth
 from investment_analysis_engine.strategies.graham_number.cli import build_selection as build_graham_number_selection
 from investment_analysis_engine.strategies.graham_number.cli import command as graham_number_command
-from investment_analysis_engine.strategies.graham_number.cli import refresh as refresh_graham_number
 from investment_analysis_engine.strategies.momentum.cli import build_selection as build_momentum_selection
 from investment_analysis_engine.strategies.momentum.cli import command as momentum_command
-from investment_analysis_engine.strategies.momentum.cli import refresh as refresh_momentum
 from investment_analysis_engine.strategies.piotroski.cli import build_selection as build_piotroski_selection
 from investment_analysis_engine.strategies.piotroski.cli import command as piotroski_command
-from investment_analysis_engine.strategies.piotroski.cli import refresh as refresh_piotroski
 from investment_analysis_engine.strategy_wiring import (
     FCF_GROWTH_BEHAVIOR,
     GRAHAM_GROWTH_BEHAVIOR,
@@ -46,19 +40,7 @@ from investment_analysis_engine.strategy_wiring import (
     StrategyBehavior,
     StrategyDescriptor,
 )
-from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
-
-
-class RefreshExecutor[SelT: SelectionMember](Protocol):
-    """A refresh executor: one job for one ticker and one selection, with the job's shared profile cache."""
-
-    def __call__(
-        self, ticker: str, selection: SelT, /, *, profile_cache: InstrumentProfileResolver
-    ) -> ExecutionCapture:
-        """Execute the job and return its captured evidence."""
-        ...
-
 
 type SelectionBuilder = Callable[[WatchlistFlags], SelectionMember]
 """A selection builder with its selection type erased."""
@@ -66,17 +48,15 @@ type SelectionBuilder = Callable[[WatchlistFlags], SelectionMember]
 
 @dataclass(frozen=True)
 class CliComposition[SelT: SelectionMember]:
-    """One strategy's selection builder, refresh executor and direct command, over its own selection class.
+    """One strategy's selection builder and direct command, over its own selection class.
 
     Attributes:
         build: Builds one validated selection from the watchlist command's flags.
-        refresh: Executes one refresh job for a selection of exactly the strategy's own class.
         command: The strategy's direct command, a plain function whose options are its own. The tier supplies
             the command's name, the descriptor's alias.
     """
 
     build: Callable[[WatchlistFlags], SelT]
-    refresh: RefreshExecutor[SelT]
     command: Callable[..., None]
 
 
@@ -84,13 +64,12 @@ class CliComposition[SelT: SelectionMember]:
 class CliStrategy:
     """A composition paired with the core bundle of the strategy it serves, with the selection type erased.
 
-    ``behavior`` is the very bundle object a descriptor holds, so identity finds the descriptor it serves. Both
-    functions check that the selection they receive or return is exactly the paired bundle's selection class.
+    ``behavior`` is the very bundle object a descriptor holds, so identity finds the descriptor it serves. The
+    builder checks that the selection it returns is exactly the paired bundle's selection class.
     """
 
     behavior: object
     build: SelectionBuilder
-    refresh: RefreshExecutor[SelectionMember]
     command: Callable[..., None]
 
 
@@ -106,40 +85,29 @@ def pair_cli[SelT: SelectionMember, ResultT: NativeEvidence, DepsT](
             raise undeclared("selection type", type(selection))
         return selection
 
-    def refresh(
-        ticker: str, selection: SelectionMember, /, *, profile_cache: InstrumentProfileResolver
-    ) -> ExecutionCapture:
-        if not isinstance(selection, behavior.selection_type) or type(selection) is not behavior.selection_type:
-            raise undeclared("selection type", type(selection))
-        return composition.refresh(ticker, selection, profile_cache=profile_cache)
-
-    return CliStrategy(behavior=behavior, build=build, refresh=refresh, command=composition.command)
+    return CliStrategy(behavior=behavior, build=build, command=composition.command)
 
 
 CLI_STRATEGIES: Final = (
     pair_cli(
         MOMENTUM_BEHAVIOR,
-        CliComposition(build=build_momentum_selection, refresh=refresh_momentum, command=momentum_command),
+        CliComposition(build=build_momentum_selection, command=momentum_command),
     ),
     pair_cli(
         GRAHAM_NUMBER_BEHAVIOR,
-        CliComposition(
-            build=build_graham_number_selection, refresh=refresh_graham_number, command=graham_number_command
-        ),
+        CliComposition(build=build_graham_number_selection, command=graham_number_command),
     ),
     pair_cli(
         GRAHAM_GROWTH_BEHAVIOR,
-        CliComposition(
-            build=build_graham_growth_selection, refresh=refresh_graham_growth, command=graham_growth_command
-        ),
+        CliComposition(build=build_graham_growth_selection, command=graham_growth_command),
     ),
     pair_cli(
         FCF_GROWTH_BEHAVIOR,
-        CliComposition(build=build_fcf_growth_selection, refresh=refresh_fcf_growth, command=fcf_growth_command),
+        CliComposition(build=build_fcf_growth_selection, command=fcf_growth_command),
     ),
     pair_cli(
         PIOTROSKI_BEHAVIOR,
-        CliComposition(build=build_piotroski_selection, refresh=refresh_piotroski, command=piotroski_command),
+        CliComposition(build=build_piotroski_selection, command=piotroski_command),
     ),
 )
 
@@ -196,23 +164,6 @@ def builders_by_alias(
     return MappingProxyType({descriptor.alias: entry.build for descriptor, entry in cli_entries(descriptors, tier)})
 
 
-def refreshers_by_key(
-    descriptors: tuple[StrategyDescriptor, ...],
-    tier: tuple[CliStrategy, ...] = CLI_STRATEGIES,
-) -> Mapping[tuple[str, str], RefreshExecutor[SelectionMember]]:
-    """Return each descriptor's refresh executor keyed by ``(analysis_id, method_id)``, read-only.
-
-    Raises:
-        UndeclaredStrategyError: If a descriptor has no CLI-tier entry or an entry serves no descriptor.
-    """
-    return MappingProxyType(
-        {
-            (descriptor.analysis_id, descriptor.method_id): entry.refresh
-            for descriptor, entry in cli_entries(descriptors, tier)
-        }
-    )
-
-
 def add_strategy_commands(
     app: typer.Typer,
     descriptors: tuple[StrategyDescriptor, ...] = STRATEGIES,
@@ -230,7 +181,6 @@ def add_strategy_commands(
 
 
 CLI_BUILDERS: Final = builders_by_alias(STRATEGIES)
-CLI_REFRESHERS: Final = refreshers_by_key(STRATEGIES)
 
 
 def build_selection_for(
@@ -244,15 +194,3 @@ def build_selection_for(
         UndeclaredStrategyError: If no declared strategy has a selection builder for ``alias``.
     """
     return require(builders, alias, what="selection builder alias")(flags)
-
-
-def refresh_executor_for(
-    selection: SelectionMember,
-    refreshers: Mapping[tuple[str, str], RefreshExecutor[SelectionMember]] = CLI_REFRESHERS,
-) -> RefreshExecutor[SelectionMember]:
-    """Return the refresh executor of the strategy that owns ``selection``.
-
-    Raises:
-        UndeclaredStrategyError: If no declared strategy has a refresh executor for the selection's identifiers.
-    """
-    return require(refreshers, (selection.analysis_id, selection.method_id), what="refresh executor")

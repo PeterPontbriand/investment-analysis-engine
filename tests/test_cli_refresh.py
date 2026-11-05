@@ -145,7 +145,7 @@ def test_refresh_rejects_an_out_of_range_worker_count(isolated_cli_settings: Pro
     assert result.stderr.strip() == "--workers must be between 1 and 4."
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_refresh_sequential_persists_every_member_and_exits_0(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -316,7 +316,7 @@ def test_remove_by_method_commits_when_another_entry_is_unreadable(isolated_cli_
     assert _stored_tickers(isolated_cli_settings) == ["AAPL"]
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -334,7 +334,7 @@ def test_refresh_reuses_a_momentum_selections_as_of_and_no_cache(
     assert context.use_cache is False
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_refresh_json_emits_one_stable_final_document(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -364,7 +364,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0(
 
     with (
         patch(
-            "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+            "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
             return_value=sec_labeled_number_resolver(),
         ),
         patch(
@@ -380,7 +380,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0(
     assert payload[0]["status"] == "not_applicable"
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_refresh_storage_failure_is_visible_and_nonzero_exit(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -397,7 +397,7 @@ def test_refresh_storage_failure_is_visible_and_nonzero_exit(
     assert "error=1" in output or "error" in output
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_refresh_interrupted_stops_admission_persists_completed_and_exits_130(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -441,7 +441,7 @@ def test_refresh_graham_growth_selection_persists_with_configured_assumptions(
     _seed(isolated_cli_settings, "My Watch", [("SYNTH", growth)])
 
     with patch(
-        "investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver",
+        "investment_analysis_engine.strategies.graham_growth.application.build_graham_resolver",
         return_value=sec_labeled_growth_resolver(),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -458,7 +458,7 @@ def test_refresh_fcf_growth_selection_persists(isolated_cli_settings: ProjectSet
     _seed(isolated_cli_settings, "My Watch", [("ACME", FCFGrowthSelection())])
 
     with patch(
-        "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+        "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
         return_value=_fcf_provider(),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -475,7 +475,7 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1(isolated_cli_set
     _seed(isolated_cli_settings, "My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
     with patch(
-        "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+        "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
         return_value=sec_labeled_number_resolver(),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
@@ -485,7 +485,7 @@ def test_refresh_unavailable_outcome_still_persists_and_exits_1(isolated_cli_set
     assert "unavailable" in output
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_refresh_no_save_executes_but_persists_nothing(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -507,7 +507,7 @@ def test_refresh_no_save_executes_but_persists_nothing(
     assert payload == []
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -531,7 +531,7 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1(isolated_cli_settings
     _seed(isolated_cli_settings, "My Watch", [(SUBJECT_MISSING, GrahamNumberSelection())])
 
     with patch(
-        "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+        "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
         return_value=sec_labeled_number_resolver(),
     ):
         result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1", "--no-save"])
@@ -545,7 +545,7 @@ def test_refresh_no_save_unavailable_outcome_still_exits_1(isolated_cli_settings
     assert payload == []
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_refresh_text_shows_the_alias_and_json_keeps_the_canonical_method_id(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -573,7 +573,7 @@ def test_runs_list_by_alias_does_not_decode_a_watchlists_unreadable_entries(
     assert "No matching runs." in result.output
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_delete_keeps_saved_runs_browsable_and_replayable(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,
@@ -638,7 +638,7 @@ def test_delete_json_with_an_unreadable_entry_deletes_reports_the_failure_envelo
     assert _stored_tickers(isolated_cli_settings) == []
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_rename_leaves_a_saved_run_showing_the_name_the_watchlist_had_when_it_ran(
     mock_run: MagicMock,
     isolated_cli_settings: ProjectSettings,

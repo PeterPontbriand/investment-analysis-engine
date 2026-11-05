@@ -1,0 +1,359 @@
+ACME — Free Cash Flow & Earnings Growth
+
+Screen: PASS
+Classification basis: Total company free cash flow
+Period: FY2020–FY2025 (5 elapsed years; 6 annual observations)
+Free cash flow (FY2025): 130.00 USD
+FCF per diluted share (FY2025): 1.30 USD
+Free cash flow CAGR: +10.20%
+FCF per diluted share CAGR: +10.20%
+Diluted EPS CAGR: +17.61%
+Trend: Both free cash flow and diluted EPS increased over the measured period.
+Source: SEC EDGAR; latest evidence available 2025-02-01
+Warning: FCF yield is unavailable: Provider 'sec_edgar' does not give an anchor year-end.
+Limitation: Historical financial strength does not establish market opportunity, scarcity, durability of moat, or an investment recommendation.
+
+Details
+FCF yield: unavailable — Provider 'sec_edgar' does not give an anchor year-end.
+Forward EPS: unavailable — No evidence-approved FY1/FY2 consensus EPS provider mapping is available.
+Security identity: unavailable
+Instrument kind: unavailable
+FY2020 (2019-01-01 to 2020-01-01)
+  Operating cash flow: 100.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.operating_cash_flow
+    period start: 2019-01-01
+    period end: 2020-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2020-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Normalized capital expenditures: 20.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.capital_expenditures
+    period start: 2019-01-01
+    period end: 2020-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2020-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+    notes: Capital expenditure normalized from raw value 20.0.
+  Diluted EPS: 2.000000
+    basis: fiscal year
+    units: currency per share
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.eps
+    period start: 2019-01-01
+    period end: 2020-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2020-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Weighted-average diluted shares: 100.000000
+    basis: fiscal year
+    units: shares
+    currency: not applicable — share count
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.weighted_average_diluted_shares
+    period start: 2019-01-01
+    period end: 2020-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2020-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Derived free cash flow: 80.00 USD
+    derivation: operating_cash_flow - normalized_capital_expenditures
+  Derived FCF per diluted share: 0.80 USD
+    derivation: free_cash_flow / weighted_average_diluted_shares
+FY2021 (2020-01-01 to 2021-01-01)
+  Operating cash flow: 110.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.operating_cash_flow
+    period start: 2020-01-01
+    period end: 2021-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2021-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Normalized capital expenditures: 20.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.capital_expenditures
+    period start: 2020-01-01
+    period end: 2021-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2021-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+    notes: Capital expenditure normalized from raw value 20.0.
+  Diluted EPS: 2.500000
+    basis: fiscal year
+    units: currency per share
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.eps
+    period start: 2020-01-01
+    period end: 2021-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2021-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Weighted-average diluted shares: 100.000000
+    basis: fiscal year
+    units: shares
+    currency: not applicable — share count
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.weighted_average_diluted_shares
+    period start: 2020-01-01
+    period end: 2021-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2021-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Derived free cash flow: 90.00 USD
+    derivation: operating_cash_flow - normalized_capital_expenditures
+  Derived FCF per diluted share: 0.90 USD
+    derivation: free_cash_flow / weighted_average_diluted_shares
+FY2022 (2021-01-01 to 2022-01-01)
+  Operating cash flow: 120.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.operating_cash_flow
+    period start: 2021-01-01
+    period end: 2022-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2022-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Normalized capital expenditures: 20.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.capital_expenditures
+    period start: 2021-01-01
+    period end: 2022-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2022-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+    notes: Capital expenditure normalized from raw value 20.0.
+  Diluted EPS: 3.000000
+    basis: fiscal year
+    units: currency per share
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.eps
+    period start: 2021-01-01
+    period end: 2022-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2022-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Weighted-average diluted shares: 100.000000
+    basis: fiscal year
+    units: shares
+    currency: not applicable — share count
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.weighted_average_diluted_shares
+    period start: 2021-01-01
+    period end: 2022-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2022-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Derived free cash flow: 100.00 USD
+    derivation: operating_cash_flow - normalized_capital_expenditures
+  Derived FCF per diluted share: 1.00 USD
+    derivation: free_cash_flow / weighted_average_diluted_shares
+FY2023 (2022-01-01 to 2023-01-01)
+  Operating cash flow: 130.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.operating_cash_flow
+    period start: 2022-01-01
+    period end: 2023-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2023-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Normalized capital expenditures: 20.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.capital_expenditures
+    period start: 2022-01-01
+    period end: 2023-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2023-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+    notes: Capital expenditure normalized from raw value 20.0.
+  Diluted EPS: 3.500000
+    basis: fiscal year
+    units: currency per share
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.eps
+    period start: 2022-01-01
+    period end: 2023-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2023-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Weighted-average diluted shares: 100.000000
+    basis: fiscal year
+    units: shares
+    currency: not applicable — share count
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.weighted_average_diluted_shares
+    period start: 2022-01-01
+    period end: 2023-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2023-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Derived free cash flow: 110.00 USD
+    derivation: operating_cash_flow - normalized_capital_expenditures
+  Derived FCF per diluted share: 1.10 USD
+    derivation: free_cash_flow / weighted_average_diluted_shares
+FY2024 (2023-01-01 to 2024-01-01)
+  Operating cash flow: 140.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.operating_cash_flow
+    period start: 2023-01-01
+    period end: 2024-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2024-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Normalized capital expenditures: 20.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.capital_expenditures
+    period start: 2023-01-01
+    period end: 2024-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2024-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+    notes: Capital expenditure normalized from raw value 20.0.
+  Diluted EPS: 4.000000
+    basis: fiscal year
+    units: currency per share
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.eps
+    period start: 2023-01-01
+    period end: 2024-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2024-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Weighted-average diluted shares: 100.000000
+    basis: fiscal year
+    units: shares
+    currency: not applicable — share count
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.weighted_average_diluted_shares
+    period start: 2023-01-01
+    period end: 2024-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2024-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Derived free cash flow: 120.00 USD
+    derivation: operating_cash_flow - normalized_capital_expenditures
+  Derived FCF per diluted share: 1.20 USD
+    derivation: free_cash_flow / weighted_average_diluted_shares
+FY2025 (2024-01-01 to 2025-01-01)
+  Operating cash flow: 150.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.operating_cash_flow
+    period start: 2024-01-01
+    period end: 2025-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2025-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Normalized capital expenditures: 20.000000
+    basis: fiscal year
+    units: currency
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.capital_expenditures
+    period start: 2024-01-01
+    period end: 2025-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2025-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+    notes: Capital expenditure normalized from raw value 20.0.
+  Diluted EPS: 4.500000
+    basis: fiscal year
+    units: currency per share
+    currency: USD
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.eps
+    period start: 2024-01-01
+    period end: 2025-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2025-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Weighted-average diluted shares: 100.000000
+    basis: fiscal year
+    units: shares
+    currency: not applicable — share count
+    source: provider (SEC EDGAR)
+    provider: SEC EDGAR
+    provider field: fixture.weighted_average_diluted_shares
+    period start: 2024-01-01
+    period end: 2025-01-01
+    observed at: not applicable — annual financial statement
+    available at: 2025-02-01 00:00 UTC
+    retrieved at: 2026-02-01 00:00 UTC
+  Derived free cash flow: 130.00 USD
+    derivation: operating_cash_flow - normalized_capital_expenditures
+  Derived FCF per diluted share: 1.30 USD
+    derivation: free_cash_flow / weighted_average_diluted_shares
+
+Diagnostics
+Execution status: ok
+- operating_cash_flow: provider/attempted — Requested the operating_cash_flow fiscal-year series from provider 'sec_edgar'.
+- operating_cash_flow: provider/success — 6 fiscal-year observation(s) resolved; 0 left out as ineligible.
+- capital_expenditures: provider/attempted — Requested the capital_expenditures fiscal-year series from provider 'sec_edgar'.
+- capital_expenditures: provider/success — 6 fiscal-year observation(s) resolved; 0 left out as ineligible.
+- eps: provider/attempted — Requested the eps fiscal-year series from provider 'sec_edgar'.
+- eps: provider/success — 6 fiscal-year observation(s) resolved; 0 left out as ineligible.
+- weighted_average_diluted_shares: provider/attempted — Requested the weighted_average_diluted_shares fiscal-year series from provider 'sec_edgar'.
+- weighted_average_diluted_shares: provider/success — 6 fiscal-year observation(s) resolved; 0 left out as ineligible.
+- annual_growth_series: derivation/success — Aligned annual observations and calculated the selected-span growth metrics.
+- security_identity: sec_edgar/unavailable — Provider 'sec_edgar' returned no security identity metadata.
+- security_identity: yfinance/unavailable — Provider 'yfinance' returned no security identity metadata.
+- instrument_kind: yfinance/unavailable — Provider 'yfinance' returned no instrument-kind metadata.

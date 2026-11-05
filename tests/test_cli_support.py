@@ -9,10 +9,10 @@ import typer
 from pydantic import BaseModel, field_validator
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.cli_support import (
     config_usage_errors,
     execution_errors,
-    exit_code_of,
     parameter_failures,
     parse_as_of,
     presentation_mode,

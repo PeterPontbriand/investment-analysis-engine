@@ -142,7 +142,7 @@ def test_each_reachable_combination_renders_by_the_shared_rule(
     seen: list[tuple[str, str, str]] = []
     module = case.command.replace("-", "_")
     name = f"from_{module}_capture"
-    command_module = importlib.import_module(f"investment_analysis_engine.strategies.{module}.cli")
+    command_module = importlib.import_module(f"investment_analysis_engine.strategies.{module}.application")
     real = getattr(command_module, name)
 
     def recording(capture: Any) -> ExecutionCapture:

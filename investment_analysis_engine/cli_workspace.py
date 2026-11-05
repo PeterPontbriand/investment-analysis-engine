@@ -5,8 +5,8 @@ performs no storage or provider work at import time. Every command opens its
 own short-lived, readiness-checked :class:`SQLiteDatabase`, borrows it for
 one repository call, and closes it before returning — mirroring the existing
 ``production_historical_client``/``production_financial_cache`` pattern in
-``investment_analysis_engine.cli_support``. Direct-command saving (``--save-run``) lives in
-``investment_analysis_engine.cli_run_support``; this module's own provider/analyzer composition exists solely
+``investment_analysis_engine.application.providers``. Direct-command saving (``--save-run``) lives in
+``investment_analysis_engine.application.analysis``; this module's own provider/analyzer composition exists solely
 to dispatch one refresh job per stored selection.
 """
 
@@ -24,8 +24,11 @@ from uuid import UUID
 import typer
 from pydantic import BaseModel
 
+from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
+from investment_analysis_engine.application.provider_check import ProviderCheckFindings, provider_check_findings
+from investment_analysis_engine.application.providers import production_instrument_profile_cache
 from investment_analysis_engine.application.runs import (
     RunQueryNames,
     build_run_query,
@@ -35,30 +38,24 @@ from investment_analysis_engine.application.runs import (
     replay_run_document,
     replay_run_text,
 )
+from investment_analysis_engine.application.tier import refresh_executor_for
 from investment_analysis_engine.application.watchlists import (
     get_watchlist_by_name,
     list_watchlists,
     watchlist_repository,
 )
-from investment_analysis_engine.cli_composition import momentum_settings
-from investment_analysis_engine.cli_provider_check import (
-    ProviderCheckFindings,
-    echo_provider_check,
-    provider_check_choice,
-    provider_check_findings,
-)
-from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS, build_selection_for, refresh_executor_for
+from investment_analysis_engine.cli_provider_check import echo_provider_check, provider_check_choice
+from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS, build_selection_for
 from investment_analysis_engine.cli_support import (
     AS_OF_HELP,
     describe_failure,
-    exit_code_of,
     parameter_failures,
     presentation_mode,
-    production_instrument_profile_cache,
     report_failure,
 )
 from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import settings
+from investment_analysis_engine.config.component_settings import load_component_settings
 from investment_analysis_engine.config.paths import is_windows
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.failure_classification import classify_failure
@@ -70,7 +67,8 @@ from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.reporting.presentation import PresentationMode
-from investment_analysis_engine.strategy_wiring import BY_ALIAS, BY_METHOD_ID, RUN_SPECS_BY_KEY
+from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
+from investment_analysis_engine.strategy_wiring import BY_ALIAS, BY_METHOD_ID, MOMENTUM, RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.refresh import (
     MAX_WORKERS,
@@ -115,7 +113,7 @@ logger = logging.getLogger(__name__)
 watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their analysis selections.")
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
 
-_MOMENTUM_CLI_DEFAULTS = momentum_settings()
+_MOMENTUM_CLI_DEFAULTS = load_component_settings(MOMENTUM.alias, MomentumSettings, settings.config_dir)
 
 
 def _alias_choices() -> str:
@@ -919,7 +917,9 @@ def _refresh_executor(
     so sharing it across worker threads is safe by the resolver's own contract, not by accident. A selection of a
     strategy with no CLI-tier entry raises ``UndeclaredStrategyError``; no strategy is a default.
     """
-    return refresh_executor_for(selection)(ticker, selection, profile_cache=profile_cache)
+    return refresh_executor_for(selection)(
+        ApplicationContext(settings=settings), ticker, selection, profile_cache=profile_cache
+    )
 
 
 def _describe_job_failure(exception: BaseException, ticker: str, saving: bool) -> JobFailure:
@@ -1032,7 +1032,9 @@ def refresh(  # noqa: PLR0913
     try:
         with _workspace_database("refresh", json_output=json_output) as database:
             try:
-                profile_cache = production_instrument_profile_cache(database, clock=utc_now)
+                profile_cache = production_instrument_profile_cache(
+                    ApplicationContext(settings=settings), database, clock=utc_now
+                )
                 summary = refresh_watchlist(
                     name,
                     watchlists=watchlist_repository(database),

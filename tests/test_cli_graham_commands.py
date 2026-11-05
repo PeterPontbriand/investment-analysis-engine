@@ -6,8 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
+from pydantic import BaseModel
 from typer.testing import CliRunner
 
+from investment_analysis_engine.analysis.run_models import RunOutcome
+from investment_analysis_engine.application.analysis import AnalysisOutcome
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.evaluation.fixtures.graham import SECURITY_ID
@@ -17,6 +20,11 @@ from investment_analysis_engine.strategies.graham_number import cli as graham_nu
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from tests._cli_helpers import normalize_cli_output
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
+
+
+class _Document(BaseModel):
+    """A stand-in document."""
+
 
 _STRATEGY_CLI = {"graham-number": graham_number_cli, "graham-growth": graham_growth_cli}
 
@@ -37,8 +45,8 @@ def _arguments(command: str) -> list[str]:
 )
 def test_removed_commands_and_options_fail_before_composition(arguments: list[str]) -> None:
     with (
-        patch("investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver") as build_number,
-        patch("investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver") as build_growth,
+        patch("investment_analysis_engine.strategies.graham_number.application.build_graham_resolver") as build_number,
+        patch("investment_analysis_engine.strategies.graham_growth.application.build_graham_resolver") as build_growth,
     ):
         result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 2
@@ -61,13 +69,10 @@ def test_help_exposes_only_applicable_options(command: str) -> None:
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
 def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
     module = _STRATEGY_CLI[command]
-    with (
-        patch.object(module, "build_graham_resolver") as build,
-        patch.object(module, f"_run_{command.replace('-', '_')}", return_value=("ok", 0)) as run,
-        patch(
-            "investment_analysis_engine.cli_support.ensure_database_ready", side_effect=AssertionError("cache bypass")
-        ),
-    ):
+    outcome = AnalysisOutcome(
+        document=_Document(), analysis_run_id=None, outcome=RunOutcome.COMPLETED, text_renderer=lambda _mode: "ok"
+    )
+    with patch.object(module, "analyze_for_command", return_value=outcome) as run:
         result = CliRunner().invoke(
             app,
             [
@@ -89,7 +94,7 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
             ],
         )
     assert result.exit_code == 0, result.output
-    selection = run.call_args.kwargs["selection"]
+    selection = run.call_args.args[1]
     assert isinstance(selection, GrahamGrowthSelection if command == "graham-growth" else GrahamNumberSelection)
     if isinstance(selection, GrahamGrowthSelection):
         assert selection.eps_basis == "three_year_average"
@@ -97,8 +102,7 @@ def test_aliases_and_normalized_config_reach_execution(command: str) -> None:
     assert selection.quote_override == 20.0
     assert selection.as_of == datetime(2025, 12, 31, 12, tzinfo=UTC)
     assert selection.use_cache is False
-    assert run.call_args.kwargs["ticker"] == "KO"
-    build.assert_called_once()
+    assert run.call_args.args[0] == "KO"
 
 
 @pytest.mark.parametrize("command", ["graham-number", "graham-growth"])
@@ -107,7 +111,7 @@ def test_both_commands_execute_real_analyzers_with_fixture_evidence(command: str
     resolver = sec_labeled_growth_resolver() if command == "graham-growth" else sec_labeled_number_resolver()
     with (
         patch(
-            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli.build_graham_resolver",
+            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.application.build_graham_resolver",
             return_value=resolver,
         ),
         patch(
@@ -136,10 +140,10 @@ def test_both_commands_execute_real_analyzers_with_fixture_evidence(command: str
 def test_command_exception_closes_cache_and_preserves_exit(command: str, error: Exception) -> None:
     database = MagicMock()
     with (
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
-        patch("investment_analysis_engine.cli_support.ensure_database_ready"),
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase", return_value=database),
+        patch("investment_analysis_engine.application.providers.ensure_database_ready"),
         patch(
-            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli.build_graham_resolver",
+            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.application.build_graham_resolver",
             side_effect=error,
         ),
     ):
@@ -153,8 +157,10 @@ def test_command_exception_closes_cache_and_preserves_exit(command: str, error: 
 @pytest.mark.parametrize("options", [["--details", "--json"], ["--as-of", "bad"]])
 def test_usage_validation_precedes_resources(command: str, options: list[str]) -> None:
     with (
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase") as database,
-        patch(f"investment_analysis_engine.strategies.{command.replace('-', '_')}.cli.build_graham_resolver") as build,
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase") as database,
+        patch(
+            f"investment_analysis_engine.strategies.{command.replace('-', '_')}.application.build_graham_resolver"
+        ) as build,
     ):
         result = CliRunner().invoke(app, [*_arguments(command), *options])
     _assert_usage_error_without_resources(result.exit_code, result.output, database, build)
@@ -163,8 +169,8 @@ def test_usage_validation_precedes_resources(command: str, options: list[str]) -
 @pytest.mark.parametrize("options", [["--eps-basis", "unknown"], ["--eps-basis", "ttm"]])
 def test_graham_growth_basis_validation_precedes_resources(options: list[str]) -> None:
     with (
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase") as database,
-        patch("investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver") as build,
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase") as database,
+        patch("investment_analysis_engine.strategies.graham_growth.application.build_graham_resolver") as build,
     ):
         result = CliRunner().invoke(app, [*_arguments("graham-growth"), *options])
     _assert_usage_error_without_resources(result.exit_code, result.output, database, build)
@@ -182,8 +188,8 @@ def _assert_usage_error_without_resources(exit_code: int, output: str, database:
 @pytest.mark.parametrize("basis", ["three_year_average", "ttm"])
 def test_graham_number_has_no_eps_basis_option(basis: str) -> None:
     with (
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase") as database,
-        patch("investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver") as build,
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase") as database,
+        patch("investment_analysis_engine.strategies.graham_number.application.build_graham_resolver") as build,
     ):
         result = CliRunner().invoke(app, [*_arguments("graham-number"), "--eps-basis", basis])
     assert result.exit_code == 2

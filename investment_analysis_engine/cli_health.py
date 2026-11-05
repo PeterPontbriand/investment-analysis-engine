@@ -15,7 +15,8 @@ from typing import Annotated
 
 import typer
 
-from investment_analysis_engine.cli_composition import build_sec_production_provider
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.providers import build_sec_production_provider
 from investment_analysis_engine.cli_support import parameter_failures
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
@@ -41,7 +42,7 @@ def build_provider_clients() -> ProviderClients:
     """Compose the production adapters; a missing SEC identity becomes an unavailable SEC check, not a skipped one."""
     sec: SecTransport | SecUnavailable
     try:
-        build_sec_production_provider()
+        build_sec_production_provider(ApplicationContext(settings=settings))
     except AnalysisConfigurationError as exc:
         sec = SecUnavailable(str(exc))
     else:

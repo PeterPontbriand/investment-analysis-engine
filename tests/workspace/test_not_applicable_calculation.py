@@ -13,11 +13,11 @@ import pytest
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.strategies.graham_number.execution import (
+from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.graham_number.workspace import (
     GrahamNumberCapture,
     from_graham_number_capture,
 )
-from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.codecs import decode_evidence

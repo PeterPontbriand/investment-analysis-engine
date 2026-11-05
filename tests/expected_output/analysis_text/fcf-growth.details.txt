@@ -1,0 +1,37 @@
+ACME — Free Cash Flow & Earnings Growth
+
+Screen: PASS
+Classification basis: Total company free cash flow
+Period: FY2020–FY2025 (5 elapsed years; 6 annual observations)
+Free cash flow (FY2025): 130.00 USD
+FCF per diluted share (FY2025): 1.30 USD
+Free cash flow CAGR: +10.20%
+FCF per diluted share CAGR: +10.20%
+Diluted EPS CAGR: +17.61%
+Trend: Both free cash flow and diluted EPS increased over the measured period.
+Source: SEC EDGAR; latest evidence available 2025-02-01
+Warning: FCF yield is unavailable: Provider 'sec_edgar' does not give an anchor year-end.
+Limitation: Historical financial strength does not establish market opportunity, scarcity, durability of moat, or an investment recommendation.
+
+Details — annual calculation inputs
+-----------------------------------
+Fiscal year | Operating cash flow | Capital expenditures | Free cash flow | Diluted EPS | FCF/share
+2020 | 100 USD | 20 USD | 80 USD | 2.0000 USD | 0.8000 USD
+  Weighted-average diluted shares: 100 shares
+2021 | 110 USD | 20 USD | 90 USD | 2.5000 USD | 0.9000 USD
+  Weighted-average diluted shares: 100 shares
+2022 | 120 USD | 20 USD | 100 USD | 3.0000 USD | 1.0000 USD
+  Weighted-average diluted shares: 100 shares
+2023 | 130 USD | 20 USD | 110 USD | 3.5000 USD | 1.1000 USD
+  Weighted-average diluted shares: 100 shares
+2024 | 140 USD | 20 USD | 120 USD | 4.0000 USD | 1.2000 USD
+  Weighted-average diluted shares: 100 shares
+2025 | 150 USD | 20 USD | 130 USD | 4.5000 USD | 1.3000 USD
+  Weighted-average diluted shares: 100 shares
+Free cash flow = operating cash flow − normalized capital expenditures.
+FCF per diluted share = free cash flow / weighted-average diluted shares.
+CAGR = (ending value / starting value) raised to 1 / elapsed years, minus 1.
+Growth rates use unrounded inputs. Nonpositive or missing bases retain explicit unavailable reasons.
+FCF yield: unavailable — Provider 'sec_edgar' does not give an anchor year-end.
+Forward EPS: unavailable — No evidence-approved FY1/FY2 consensus EPS provider mapping is available.
+Full annual source fields, derivations and retrieval history: --diagnostics or --json.

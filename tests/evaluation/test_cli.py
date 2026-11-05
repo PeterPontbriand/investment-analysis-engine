@@ -91,7 +91,7 @@ def test_evaluate_cli_runs_full_deterministic_suite_and_writes_report(tmp_path: 
             side_effect=lambda *_args, **_kwargs: _recorder(),
         ),
         patch(
-            "investment_analysis_engine.cli_support.ensure_database_ready",
+            "investment_analysis_engine.application.providers.ensure_database_ready",
             side_effect=AssertionError("Evaluation must not migrate"),
         ) as ready,
         patch(

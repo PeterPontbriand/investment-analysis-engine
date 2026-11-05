@@ -1,4 +1,4 @@
-"""Momentum execution adapter: borrow dependencies, call the existing analyzer.
+"""Momentum workspace adapter: borrow dependencies, call the existing analyzer.
 
 ``execute_momentum`` is the one path the direct command, ``--save-run`` and ``refresh`` share, modelled on the other
 strategies' ``execute_<name>``: it composes Momentum's own profile, opens the historical client, runs the analyzer and

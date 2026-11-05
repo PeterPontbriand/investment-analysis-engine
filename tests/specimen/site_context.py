@@ -30,12 +30,12 @@ from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_conformance import PRODUCTION, SiteContext, StoredRun
 from scripts.strategy_sites import Gap, StrategyNames, strategy_names
 from tests.specimen.analyzer import SpecimenAnalyzer
+from tests.specimen.application_tier import SPECIMEN_APPLICATION_STRATEGIES
 from tests.specimen.cases import SPECIMEN_CASES
 from tests.specimen.cli_tier import SPECIMEN_CLI_STRATEGIES
 from tests.specimen.closed_types import as_native_evidence
 from tests.specimen.evaluation import GOLDEN_MULTIPLIER, SAMPLE_SELECTION
 from tests.specimen.evaluation_tier import SPECIMEN_EVALUATION, SPECIMEN_EVALUATION_STRATEGIES
-from tests.specimen.execution import SpecimenExecution
 from tests.specimen.runs import (
     build_specimen_run,
     decode_specimen_run,
@@ -44,6 +44,7 @@ from tests.specimen.runs import (
 )
 from tests.specimen.vocabulary import ALIAS
 from tests.specimen.wiring import SPECIMEN, SPECIMEN_STRATEGIES
+from tests.specimen.workspace import SpecimenExecution
 
 SPECIMEN_NAMES: Final[StrategyNames] = strategy_names("specimen", ALIAS)
 """The package name and command alias of the specimen."""
@@ -69,7 +70,8 @@ _FILE_SITES: Final = (
     "tool",
     "selection",
     "codec",
-    "execution",
+    "workspace",
+    "application",
     "cli",
     "presenter",
     "envelope",
@@ -83,6 +85,7 @@ _PATHS: Final = {
     "settings": f"{_FOLDER}/settings.toml",
     "descriptor": f"{_FOLDER}/wiring.py",
     "cli-tier": f"{_FOLDER}/cli_tier.py",
+    "application-tier": f"{_FOLDER}/application_tier.py",
     "evaluation-tier": f"{_FOLDER}/evaluation_tier.py",
     "guide": f"{_FOLDER}/{{guide}}.md",
     "schema": f"{_FOLDER}/{{alias}}.schema.json",
@@ -195,6 +198,7 @@ SPECIMEN_CONTEXT: Final = SiteContext(
     name="specimen",
     descriptors=SPECIMEN_STRATEGIES,
     cli_tier=SPECIMEN_CLI_STRATEGIES,
+    application_tier=SPECIMEN_APPLICATION_STRATEGIES,
     evaluation_tier=SPECIMEN_EVALUATION_STRATEGIES,
     app=specimen_app(),
     stored_run=_stored_run,

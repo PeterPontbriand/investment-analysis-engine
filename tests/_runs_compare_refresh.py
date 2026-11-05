@@ -119,7 +119,7 @@ def _fcf_provider() -> ProductionFinancialFactsProvider:
 def _resolver_for(kind: str) -> Callable[..., object]:
     """Return the Graham resolver factory for a strategy; ``ERROR`` and ``MISSING`` subjects use the fixtures' own."""
     build = sec_labeled_number_resolver if kind == "number" else sec_labeled_growth_resolver
-    return lambda **_kwargs: build()
+    return lambda _context, **_kwargs: build()
 
 
 def seed(settings: ProjectSettings, name: str, entries: list[tuple[str, AnalysisSelection]]) -> None:
@@ -143,19 +143,19 @@ def refresh_document(
     seed(settings, name, ENTRIES if entries is None else entries)
     with (
         patch(
-            "investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis",
+            "investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis",
             side_effect=momentum_run_for,
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+            "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
             side_effect=_resolver_for("number"),
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver",
+            "investment_analysis_engine.strategies.graham_growth.application.build_graham_resolver",
             side_effect=_resolver_for("growth"),
         ),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
             return_value=_fcf_provider(),
         ),
     ):

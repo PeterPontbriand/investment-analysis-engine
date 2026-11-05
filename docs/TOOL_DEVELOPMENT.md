@@ -36,8 +36,8 @@ uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <
 ```
 
 - `<module_name>` is the snake-case package name. It gives the analysis identifier, the method identifier and the tool name. The alias defaults to the hyphenated module name.
-- It writes typed stubs for the role files into `investment_analysis_engine/strategies/<module_name>/`: `vocabulary`, `analyzer`, `tool`, `selection`, `codec`, `execution`, `cli`, `presenter`, `envelope`, `replay` and `evaluation`.
-- It makes one insertion in each of five existing files: `strategy_wiring.py`, `orchestrator/tool_names.py`, `workspace/strategy_types.py`, `cli_strategy_wiring.py` and `evaluation/strategy_fixtures.py`.
+- It writes typed stubs for the role files into `investment_analysis_engine/strategies/<module_name>/`: `vocabulary`, `analyzer`, `tool`, `selection`, `codec`, `workspace`, `application`, `cli`, `presenter`, `envelope`, `replay` and `evaluation`.
+- It makes one insertion in each of six existing files: `strategy_wiring.py`, `orchestrator/tool_names.py`, `workspace/strategy_types.py`, `cli_strategy_wiring.py`, `application/tier.py` and `evaluation/strategy_fixtures.py`.
 - A label is at most 40 characters and a module name at most 40 (`MAX_LABEL_LENGTH` and `MAX_MODULE_NAME_LENGTH` in `scripts/new_strategy.py`), the lengths at which no generated line passes 120 characters, proven by `tests/scripts/test_new_strategy_label_limits.py`. A longer one is a usage error: the generator exits with code 2 and writes nothing. The longest name in the Step 3.5 specifications, "Cash-Flow Valuation Multiples", has 29.
 - It refuses to overwrite. If a target file exists, or the module name, alias, tool or method identifier is already used, it writes nothing and exits with code 2, listing the conflicts.
 - Every unfilled body calls `unfilled_stub(...)`. The generated files type-check as written, and the test suite fails while any such call remains under `investment_analysis_engine/`.
@@ -45,13 +45,13 @@ uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <
 - The analyzer stub is the form with no configuration, `BaseAnalyzer[<Name>Result]`; see [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter).
 - It writes these bodies in full, from the helpers in [Execution capture and durable persistence](#execution-capture-and-durable-persistence), as Piotroski's files do:
   - `execute_<module_name>` composes the instrument profile with `compose_production_profile`, so an ETF is recognized, builds the context from the selection and calls the analyzer;
-  - the direct command, with `--details`, `--diagnostics`, `--json`, `--save-run` and `--no-provider-check`, and `refresh`, which both call `compose_<module_name>`;
+  - the direct command in `cli.py`, with `--details`, `--diagnostics`, `--json`, `--save-run` and `--no-provider-check`, which calls the direct-analysis operation, and, in `application.py`, `run` and `refresh`, which both call `compose_<module_name>`;
   - `build_selection`, which carries the shared `as_of` and `use_cache` fields only;
   - the tool handler's `__call__`, which validates the arguments, builds the context with `tool_context` and calls the analyzer;
   - the result's common fields: the analyzer module declares `<Name>Result` with the names, types and checks of Piotroski's result for the ticker, the requested and effective boundaries, the instrument profile, the execution status, the reason code and reason, the input failure and the warnings and diagnostics, which the shared document header and tail and the normalizer read. Add the strategy's own fields after them;
   - `from_<module_name>_capture`, which passes the evidence, the profile, the status and the recorded provider failure, as `from_piotroski_capture` does.
 - It leaves these as stubs, because each is the strategy's own:
-  - `compose_<module_name>(executed_at)` in `cli.py`, which builds the analyzer and the provider the profile is composed from; `executed_at` is the run's single reading of the current time, never the `--as-of` boundary;
+  - `compose_<module_name>(context, executed_at)` in `application.py`, which builds the analyzer and the provider the profile is composed from; `executed_at` is the run's single reading of the current time, never the `--as-of` boundary;
   - the analyzer's body;
   - the presenter;
   - the evaluation `compose`.
@@ -66,12 +66,12 @@ uv run python -m scripts.strategy_status <module_name> [--alias <alias>]
 - It runs the same check functions as the conformance tests, so the two cannot disagree.
 - It does not run the type checker; the gate does.
 - `done` means the site exists, has the required names and calls no `unfilled_stub`. A new-file site whose file still calls `unfilled_stub` is `missing`, and its diagnostic names the file and the line of each call.
-- Right after the generator, expect `missing` on every site whose file has an unfilled body (`analyzer`, `codec`, `cli`, `presenter`, `replay` and `evaluation`; `execution` and `tool` are `done`), on the reviewed sites you have not yet written, and on `schema` and `strategy-docs` until step 5. `codec`, `presenter` and `replay` run the strategy's stored run, which needs the `evaluation` file's sample selection; until that is written their diagnostic ends `not checked: depends on unfilled evaluation (<file>:<line>)`. Fill the site it names first.
+- Right after the generator, expect `missing` on every site whose file has an unfilled body (`analyzer`, `codec`, `application`, `presenter`, `replay` and `evaluation`; `workspace`, `cli` and `tool` are `done`), on the reviewed sites you have not yet written, and on `schema` and `strategy-docs` until step 5. `codec`, `presenter` and `replay` run the strategy's stored run, which needs the `evaluation` file's sample selection; until that is written their diagnostic ends `not checked: depends on unfilled evaluation (<file>:<line>)`. Fill the site it names first.
 - If a strategy file was deleted or emptied, or a wiring entry removed, the package cannot be imported and no other site can be checked. The command matches the failing module or file against the site files and prints one `missing <site-id>` line with the file to change, and the original Python error on the next line; restore or write that site, and run the command again. An error that matches no site is printed as `missing  import` with the Python error.
 
 ### 3. Fill the stubs
 
-- Start from the financial question and the evidence it needs. Fill `vocabulary`, the models, `analyzer` and the resolver first, then the files that package the result: `codec`, `compose_<module_name>` in `cli`, `presenter`, `replay` and the `compose` function of `evaluation`. Add fields to `envelope` for what the result reports. `selection`, `tool`, `execution` and the rest of `cli` are complete as generated; edit them only when the strategy gains a parameter, as [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter) describes.
+- Start from the financial question and the evidence it needs. Fill `vocabulary`, the models, `analyzer` and the resolver first, then the files that package the result: `codec`, `compose_<module_name>` in `application`, `presenter`, `replay` and the `compose` function of `evaluation`. Add fields to `envelope` for what the result reports. `selection`, `tool`, `workspace`, `cli` and the rest of `application` are complete as generated; edit them only when the strategy gains a parameter, as [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter) describes.
 - The status command lists every `unfilled_stub` call that remains in a site's file, with file and line, and `uv run python -m pytest tests/test_no_unfilled_stubs.py` lists them all. The strict type check is `uv run python -m mypy --strict investment_analysis_engine tests scripts`.
 - Financial math is deterministic Python. The authority for formula semantics is [Financial Math & Data Conventions](user/FINANCE_MATH.md); add the strategy's definitions there and in the [Glossary](user/GLOSSARY.md).
 - Keep missing, unavailable and not-applicable evidence explicit (`MetricResult`, reason codes, retained provenance). Never substitute zero.
@@ -164,9 +164,11 @@ A strategy touches the places below. Run the [status command](#2-check-the-statu
 | `unions` | NativeEvidence and SelectionMember entries. Both unions are type-level lists that the descriptor's bounds are checked against. | `investment_analysis_engine/workspace/strategy_types.py` | edit | yes | `site_unions`: the descriptor's selection class or result type is not in the union |
 | `selection` | Selection class. The stored, typed choice of this strategy's parameters. | `investment_analysis_engine/strategies/{module}/selection.py` | new_file | yes | `site_selection`: the file is missing, or defines no `.+Selection`; descriptor X has no selection member |
 | `codec` | Codec and native-status function. A stored run is encoded and decoded by the strategy's own functions, and the native-status function returns the `CalculationStatus` the strategy reports. | `investment_analysis_engine/strategies/{module}/codec.py` | new_file | yes | `site_codec`: the file is missing, or defines no `encode_.+`, `decode_.+`, `.+_native_status`, `.+_ticker`; the stored run does not decode to the result execute stored |
-| `execution` | Execution adapter, capture type, normalizer. The adapter runs the analyzer and the normalizer hands `ExecutionCapture` the evidence, the profile, the native status and the provider failure it recorded. It never names a `RunOutcome`: `RunOutcome.from_status` produces the outcome and `ExecutionCapture` derives it. | `investment_analysis_engine/strategies/{module}/execution.py` | new_file | yes | `site_execution`: the file is missing, or defines no `.+Capture`, `from_.+_capture` |
-| `cli` | CLI file: direct command, selection builder, refresh executor. The strategy's command-line behavior lives in its own package, and the command takes its exit code from `exit_code_of` in `cli_support.py`. | `investment_analysis_engine/strategies/{module}/cli.py` | new_file | yes | `site_cli`: the file is missing, or defines no `build_selection`, `refresh`, `command` |
+| `workspace` | Workspace adapter, capture type, normalizer. The adapter runs the analyzer and the normalizer hands `ExecutionCapture` the evidence, the profile, the native status and the provider failure it recorded. It never names a `RunOutcome`: `RunOutcome.from_status` produces the outcome and `ExecutionCapture` derives it. | `investment_analysis_engine/strategies/{module}/workspace.py` | new_file | yes | `site_workspace`: the file is missing, or defines no `.+Capture`, `from_.+_capture` |
+| `application` | Application file: run function, refresh executor. The strategy composes its own providers and settings, and its run function returns the run with the means to present it as a document and as text, so no caller needs the strategy's presentation. | `investment_analysis_engine/strategies/{module}/application.py` | new_file | yes | `site_application`: the file is missing, or defines no `run`, `refresh` |
+| `cli` | CLI file: direct command, selection builder. The strategy's command-line behavior lives in its own package, and the command takes its exit code from `exit_code_of` in `application/analysis.py`. | `investment_analysis_engine/strategies/{module}/cli.py` | new_file | yes | `site_cli`: the file is missing, or defines no `build_selection`, `command` |
 | `cli-tier` | CLI-tier entry. A lower layer cannot import the command file, so the tier pairs it with the descriptor's behavior. | `investment_analysis_engine/cli_strategy_wiring.py` | edit | yes | `site_cli_tier`: strategy X is not wired in: CLI tier |
+| `application-tier` | Application-tier entry. The application operations cannot import the strategy by name, so the tier pairs its run function and refresh executor with the descriptor's behavior. | `investment_analysis_engine/application/tier.py` | edit | yes | `site_application_tier`: strategy X is not wired in: application tier |
 | `presenter` | Presenter and JSON builder. The strategy renders its own result in every presentation mode. | `investment_analysis_engine/strategies/{module}/presenter.py` | new_file | yes | `site_presenter`: the file is missing, or defines no `render_.+`, `build_.+_document`; the replayed JSON does not validate as X |
 | `envelope` | Envelope model and document version. Every --json document is a typed model with a published schema. | `investment_analysis_engine/strategies/{module}/envelope.py` | new_file | yes | `site_envelope`: the file is missing, or defines no `DOCUMENT_SCHEMA_VERSION`; command X offers --json but has no typed document model |
 | `replay` | Replay projector and headline function. A stored run is replayed through the strategy's own text projector and document projector, and the same file holds the strategy's headline function, which supplies its cells to the side-by-side refresh table. | `investment_analysis_engine/strategies/{module}/replay.py` | new_file | yes | `site_replay`: the file is missing, or defines no `project_.+`, `project_.+_document`, `headline_.+`; replay in X mode raised or is empty, or the replayed document is not X's document |
@@ -202,7 +204,7 @@ Users override any subset of the keys in `strategies/<alias>.toml` in their sett
 
 | Entry point | How the settings arrive |
 | :--- | :--- |
-| Direct command | A loader function in `cli_composition.py`, beside `momentum_settings`, supplies the command's option defaults, so `--help` shows the configured values |
+| Direct command | A loader function in the strategy's `application.py`, such as `momentum_settings`, takes the application context and supplies the command's option defaults, so `--help` shows the configured values |
 | Workspace selection | The configured values are copied into the selection when it is created; a later edit to the file never changes a saved entry, and replay never reads settings |
 | Calculation constants | Passed to the analyzer when it is built |
 | Local-model tool | The handler receives the settings in its dependencies; a tool argument with a configured default is optional, `None` means "use the configured value", and the field description says so |
@@ -279,19 +281,19 @@ The workspace selections expose `to_analysis_context(executed_at, instrument_pro
 
 ### How a strategy runs
 
-An invocation begins in CLI or orchestrator composition, which validates the method-specific selection and composes the provider, cache, resolver, and adapter dependencies. The adapter prepares the run's config and `AnalysisContext`, invokes the analyzer, and packages the native result with its profile and normalized execution outcome. A direct command presents that result. In the workspace flow, a capture callable returns a normalized capture to common `workspace.execute()`, which records envelope timing, encodes native evidence, constructs an `AnalysisRun`, and inserts it through the run repository.
+An invocation begins in the CLI, the API or the orchestrator, which validates the method-specific selection. The direct-analysis operation (`analyze` in `investment_analysis_engine/application/analysis.py`) finds the strategy's run function in the application tier, which composes the provider, cache, resolver, and adapter dependencies from the application context. The adapter in the strategy's `workspace.py` prepares the run's config and `AnalysisContext`, invokes the analyzer, and packages the native result with its profile and normalized execution outcome. The strategy's `application.py` builds the document and the text of that result; the operation returns them in an `AnalysisOutcome`, and a direct command writes them. In the workspace flow, a capture callable returns a normalized capture to common `workspace.execute()`, which records envelope timing, encodes native evidence, constructs an `AnalysisRun`, and inserts it through the run repository.
 
 The adapter connects a method to execution capture; it does not duplicate its financial rules. Common workspace execution owns the shared run envelope and persistence boundary; it does not calculate strategy metrics or reclassify the financial result.
 
 #### Strategy integration architecture
 
-The strategy supplies its own configuration (when it has one), inputs, calculations, and result; composition supplies the context and shared infrastructure. Persistence is conditional, not automatic: `maybe_save_run` (`investment_analysis_engine/cli_run_support.py`) is the one place that decides, from `--save-run`, whether a run reaches `workspace.execute()` at all. Every direct command calls it through `analyze_and_maybe_save`. A watchlist refresh reaches the same `execute()` through its own composition in `investment_analysis_engine/workspace/refresh.py` instead.
+The strategy supplies its own configuration (when it has one), inputs, calculations, and result; composition supplies the context and shared infrastructure. Persistence is conditional, not automatic: `analyze` (`investment_analysis_engine/application/analysis.py`) is the one place that decides, from its `save` argument (the `--save-run` option), whether a run reaches `workspace.execute()` at all. Every direct command calls it. A watchlist refresh reaches the same `execute()` through its own composition in `investment_analysis_engine/workspace/refresh.py` instead.
 
-**What the contributor owns:** strategy policy/configuration where there is any, required input semantics, deterministic calculations, typed result, tests, user-facing presentation where needed, and its execution-adapter integration. **What is shared:** provider/cache contracts, provenance values, the shared metrics and input assembly of [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs), the `maybe_save_run`/refresh persistence decision, workspace execution, run persistence, and shared financial conventions. Reuse the shared boundaries instead of rebuilding them inside a strategy.
+**What the contributor owns:** strategy policy/configuration where there is any, required input semantics, deterministic calculations, typed result, tests, user-facing presentation where needed, and its execution-adapter integration. **What is shared:** provider/cache contracts, provenance values, the shared metrics and input assembly of [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs), the `analyze`/refresh persistence decision, workspace execution, run persistence, and shared financial conventions. Reuse the shared boundaries instead of rebuilding them inside a strategy.
 
 #### What happens during an FCF & Earnings Growth run
 
-`analyze_and_maybe_save` (`investment_analysis_engine/cli_run_support.py`) runs `maybe_save_run`, marking the normalizer so that a failure after the analysis finished is reported as a failure while saving. `maybe_save_run` is a pure passthrough to the adapter when `--save-run` is not given — the default direct-command path never touches `workspace.execute()`, opens no database, and builds no durable profile cache. Only when `--save-run` is set does it open a database, build the capture closure, and call `execute()`. A watchlist refresh never goes through `maybe_save_run`; it reaches `workspace.execute()` through its own composition in `investment_analysis_engine/workspace/refresh.py`, following the same adapter/normalize contract.
+`analyze` (`investment_analysis_engine/application/analysis.py`) runs the strategy's run function from the application tier, marking the save stage so that a failure after the analysis finished is reported as a failure while saving. When `save` is false (no `--save-run`) the run function is called directly — the default direct-command path never touches `workspace.execute()`, opens no database, and builds no durable profile cache. Only when `save` is true does it open a database, build the capture closure, and call `execute()`. A watchlist refresh never goes through `analyze`; it reaches `workspace.execute()` through its own composition in `investment_analysis_engine/workspace/refresh.py`, following the same adapter/normalize contract.
 
 The steps below follow one `fcf-growth` command. The shared table gives the order; steps 4 and 13 differ by whether `--save-run` is set, and the two short tables after it give those steps for each branch.
 
@@ -300,9 +302,9 @@ The steps below follow one `fcf-growth` command. The shared table gives the orde
 | Step | Who | Does what |
 | --- | --- | --- |
 | 1 | User | Invokes `fcf-growth`. |
-| 2 | CLI composition | Reads `executed_at` once, resolves the ticker and the presentation mode with `resolve_command_target`, and composes the cache, the provider (`build_sec_production_provider`), and the `ProductionAnnualGrowthSeriesResolver`. |
-| 3 | CLI composition | Calls `analyze_and_maybe_save` with `save_run`, `executed_at`, `request_factory`, `run_adapter`, and `normalize`; it calls `maybe_save_run`. |
-| 4 | `maybe_save_run` | Reaches the adapter, `execute_fcf_growth(...)`: steps 4a, or 4b to 4d. |
+| 2 | CLI | Resolves the ticker and the presentation mode with `resolve_command_target`, parses the options and builds the `FCFGrowthSelection`. |
+| 3 | CLI | Calls `analyze_for_command`, which calls `analyze` with the application context, the ticker, the selection, `save_run` and the provider-check choice. |
+| 4 | `analyze` | Reads `executed_at` once, finds FCF Growth's run function in the application tier, and reaches it: steps 4a, or 4b to 4d. The run function composes the cache, the provider (`build_sec_production_provider`), the `ProductionAnnualGrowthSeriesResolver` and the market-data dependencies, and calls the adapter, `execute_fcf_growth(...)`. |
 | 5 | Adapter | Composes the instrument profile, through the profile cache when one was supplied. |
 | 6 | Adapter | Constructs the `AnalysisContext` from `as_of`, `executed_at`, `use_cache`, and the profile. |
 | 7 | Adapter | Calls `FCFEarningsGrowthAnalyzer.run_analysis(ticker, context, config)`. |
@@ -311,26 +313,26 @@ The steps below follow one `fcf-growth` command. The shared table gives the orde
 | 10 | Resolver | Returns the resolved observations and their provenance trace to the analyzer. |
 | 11 | Analyzer | Calculates the growth metrics and classification; when the FCF yield is requested, takes its market capitalization from `anchor_year_end_scope` and `resolve_market_cap_inputs` in `analysis/shared/metric_inputs.py`; returns a `FCFEarningsGrowthResult`. |
 | 12 | Adapter | Returns an `FCFGrowthCapture` holding the result and the profile. The normalizer `from_fcf_growth_capture` passes the result's `execution_status` and the recorded provider failure to `ExecutionCapture`, which derives the outcome through `RunOutcome.from_status`. |
-| 13 | `maybe_save_run` | Hands the capture back to the command: step 13a, or 13b to 13d. |
-| 14 | CLI | Calls `render_execution` on the normalized capture, which takes the exit code from `exit_code_of` of its outcome (1 for unavailable and failed, 0 otherwise), runs the provider check once and only after a failure, and calls the strategy's renderer in the requested mode (concise, details, diagnostics, or JSON). It then calls `emit_output`, which writes the text and exits with that code. |
+| 13 | `analyze` | Hands the capture back: step 13a, or 13b to 13d. After a failure it runs the provider check once, and it returns an `AnalysisOutcome` holding the document, the saved run's ID, the run's outcome and the means to render the text modes. |
+| 14 | CLI | Calls `analysis_output` on the outcome, which takes the exit code from `exit_code_of` of its outcome (1 for unavailable and failed, 0 otherwise) and writes the document in the `--json` mode or the outcome's text in the other modes. It then calls `emit_output`, which writes the text and exits with that code. |
 
 **Branch: `--save-run` not set (default)**
 
 | Step | Who | Does what |
 | --- | --- | --- |
-| 4a | `maybe_save_run` | Calls the adapter directly with no profile cache. |
-| 13a | `maybe_save_run` | Returns the `FCFGrowthCapture` unchanged. |
+| 4a | `analyze` | Calls the run function directly with no profile cache. |
+| 13a | `analyze` | Keeps the run as it is. |
 
 **Branch: `--save-run` set**
 
 | Step | Who | Does what |
 | --- | --- | --- |
-| 4b | `maybe_save_run` | Builds the request with `request_factory`, opens the database, checks that it is ready, and builds the durable profile cache. |
-| 4c | `maybe_save_run` | Calls `workspace.execute(request, capture)`. |
-| 4d | `workspace.execute()` | Calls `capture()` once. `capture()` calls the adapter with the profile cache, then normalizes the adapter's capture with `from_fcf_growth_capture()` into an `ExecutionCapture`. |
+| 4b | `analyze` | Builds the request, opens the database, checks that it is ready, and builds the durable profile cache. |
+| 4c | `analyze` | Calls `workspace.execute(request, capture)`. |
+| 4d | `workspace.execute()` | Calls `capture()` once. `capture()` calls the run function with the profile cache, which calls the adapter and normalizes the adapter's capture with `from_fcf_growth_capture()` into an `ExecutionCapture`. |
 | 13b | `workspace.execute()` | Inserts the `AnalysisRun` into the repository and returns it. |
-| 13c | `maybe_save_run` | Writes the saved run id to stderr. |
-| 13d | `maybe_save_run` | Returns the adapter's own `FCFGrowthCapture`, unchanged. |
+| 13c | `analyze` | Returns the saved run's ID in the outcome; the command writes it to stderr before the result. |
+| 13d | `analyze` | Keeps the run it made, with the means to present it. |
 
 `FCFEarningsGrowthAnalyzer` implements `BaseAnalyzer[FCFEarningsGrowthResult, FCFEarningsGrowthConfig]`; the steps above show the per-run interactions after composition. Presentation always renders the adapter's own capture — `--save-run` changes only whether that capture is also persisted, never what the user sees.
 
@@ -359,9 +361,9 @@ Before writing a private resolver, check whether a shared function already suppl
 | Pure shared metrics | Modules of `analysis/shared/`: `cash_flow`, `enterprise_value` (`compute_total_debt`, `compute_long_term_debt`, `compute_enterprise_value`), `invested_capital`, `market_cap` (`compute_market_cap`), `operating_metrics` (`compute_gross_profit`, `compute_ebit`, `compute_ebitda`), `split_adjustment` and `applicability` | The strategy needs a metric another strategy may share | Writing the formula again |
 | Assembly functions | [`analysis/shared/metric_inputs.py`](../investment_analysis_engine/analysis/shared/metric_inputs.py): `anchor_year_end_scope`, `resolve_market_cap_inputs`, `resolve_year_ends`, `resolve_balance_sheet_values` and `resolve_balance_sheet_values_at`, `resolve_annual_values` and `resolve_annual_values_at`, `resolve_share_count_series`, `resolve_industry_class` | The metric's inputs are needed at the anchor year-end or at several year-ends | A private resolver that fetches from the provider |
 | Scope-bound source protocol | `AsFiledSicSource` in `metric_inputs.py` | The input is tied to the analysis scope, such as the industry class from the as-filed SIC code. The SEC adapter implements the protocol | Passing the resolver, which reaches the adapter only through the production provider |
-| Adapter builder | `build_sec_edgar_adapter` in [`cli_composition.py`](../investment_analysis_engine/cli_composition.py) | Composition needs the SEC adapter itself. It checks the declared identity and applies the ticker overrides | Constructing `SecEdgarFinancialFactsAdapter` by hand |
+| Adapter builder | `build_sec_edgar_adapter` in [`application/providers.py`](../investment_analysis_engine/application/providers.py) | Composition needs the SEC adapter itself. It checks the declared identity and applies the ticker overrides | Constructing `SecEdgarFinancialFactsAdapter` by hand |
 
-- **Composition:** build the adapter once. `compose_piotroski` in `strategies/piotroski/cli.py` wraps it in a `ProductionFinancialFactsProvider` for the resolver and passes the same adapter as the analyzer's `AsFiledSicSource`, so the industry class and the inputs are read from the same analysis scope.
+- **Composition:** build the adapter once. `compose_piotroski` in `strategies/piotroski/application.py` wraps it in a `ProductionFinancialFactsProvider` for the resolver and passes the same adapter as the analyzer's `AsFiledSicSource`, so the industry class and the inputs are read from the same analysis scope.
 - **Failures:** the assembly functions never raise a provider failure. They return a `MetricInputsFailure` that carries the provider-failure record, and a strategy calls no metric after one. An input that is merely unavailable is returned as its reason, so the metric can report it.
 - **A new optional provider capability is still forwarded by hand.** `ProductionFinancialFactsProvider` in `data/financial/production.py` has one method per optional capability, answers with its own typed result when the adapter lacks the capability, and checks the capability's protocol, so a new request type needs an edit there. A conformance test (`tests/data/test_production_capability_forwarding.py`) finds every runtime-checkable capability protocol that a production adapter implements and fails, naming the protocol and the adapter, when the production provider does not implement it too. Extending the instant series avoided a new capability for the share counts, and the adapter as `AsFiledSicSource` avoids it for the SIC code; that protocol is not runtime-checkable, so the test does not cover it.
 
@@ -392,10 +394,11 @@ The helpers that the 3.5.3 repetition review extracted are functions, not a base
 | `decode_with_native_identifiers` | `analysis/run_models.py` | Codec: checks the identifiers and versions of a stored result against the declared ones, then validates (FCF-Growth, Piotroski) |
 | `decode_with_method_sections` | `analysis/run_models.py` | Codec: checks each method section of a stored analysis carries the declared method, then validates (the Graham strategies) |
 | `resolve_command_target` | `cli_support.py` | Command: resolves the ticker and the presentation mode and records each on the failure scope |
-| `render_execution` | `cli_support.py` | Command: exit code of the outcome, the provider check once and only after a failure, the strategy's render |
+| `analysis_output` | `cli_support.py` | Command: the exit code of the outcome and the text to write, the document in the `--json` mode and the outcome's rendering in the others |
+| `analyze_for_command` | `cli_support.py` | Command: calls the direct-analysis operation with the command's application context and reports the saved run's ID |
 | `emit_output` | `cli_support.py` | Command: writes the output (standard error for a failure in the concise and details modes) and exits with the code |
 | `AS_OF_OPTION`, `SAVE_RUN_OPTION`, `NO_PROVIDER_CHECK_OPTION` | `cli_support.py` | Command: the three option declarations that read the same in every command |
-| `analyze_and_maybe_save` | `cli_run_support.py` | Command: the save stage and `maybe_save_run`, with the normalizer marked |
+| `analyze` | `application/analysis.py` | Operation: runs the strategy's run function, saves the run when asked, runs the provider check after a failure and returns the outcome |
 | `tool_context` | `strategies/_shared/tool.py` | Tool handler: validates the clock, resolves the profile once, builds the `AnalysisContext` |
 | `run_analyzer_with_profile` | `strategies/_shared/invocation.py` | Execution: composes the profile, builds the context and runs the analyzer (the Graham strategies) |
 | `compose_production_profile` | `strategies/_shared/profile.py` | Execution: the instrument profile composition |
@@ -426,7 +429,7 @@ FCF growth is a useful end-to-end example of the configured form because its res
 | Strategy analyzer | `FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarningsGrowthConfig])` in [`analyzer.py`](../investment_analysis_engine/strategies/fcf_growth/analyzer.py) | `PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult])` in [`analyzer.py`](../investment_analysis_engine/strategies/piotroski/analyzer.py) |
 | Strategy result | `FCFEarningsGrowthResult` in [`models.py`](../investment_analysis_engine/strategies/fcf_growth/models.py) | `PiotroskiResult` in [`analyzer.py`](../investment_analysis_engine/strategies/piotroski/analyzer.py) |
 | Input resolution | `ProductionAnnualGrowthSeriesResolver` in [`input_resolver.py`](../investment_analysis_engine/strategies/fcf_growth/input_resolver.py) for the annual series, and the shared `anchor_year_end_scope` and `resolve_market_cap_inputs` for the market capitalization | The shared assembly functions of [`metric_inputs.py`](../investment_analysis_engine/analysis/shared/metric_inputs.py) over an `InputResolver`, with the SEC adapter as the `AsFiledSicSource`; no resolver of its own |
-| Execution adapter | `execute_fcf_growth` and `FCFGrowthCapture` in [`execution.py`](../investment_analysis_engine/strategies/fcf_growth/execution.py) | `execute_piotroski` and `PiotroskiCapture` in [`execution.py`](../investment_analysis_engine/strategies/piotroski/execution.py) |
+| Execution adapter | `execute_fcf_growth` and `FCFGrowthCapture` in [`workspace.py`](../investment_analysis_engine/strategies/fcf_growth/workspace.py) | `execute_piotroski` and `PiotroskiCapture` in [`workspace.py`](../investment_analysis_engine/strategies/piotroski/workspace.py) |
 | Common execution context | `AnalysisContext` from [`base_analyzer.py`](../investment_analysis_engine/analysis/base_analyzer.py), constructed by the adapter from the run boundary, cache choice, and profile | The same, built by `PiotroskiSelection.to_analysis_context` |
 | Common request boundary | `AnalysisRequest` in [`requests.py`](../investment_analysis_engine/workspace/requests.py); `FCFGrowthSelection` and `to_fcf_config()` | `AnalysisRequest`; `PiotroskiSelection` |
 | Common execution and persistence | [`workspace.execute()`](../investment_analysis_engine/workspace/execution.py), [`AnalysisRun`](../investment_analysis_engine/workspace/runs.py), and the Analysis Run repository | The same |

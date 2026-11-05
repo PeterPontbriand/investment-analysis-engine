@@ -13,8 +13,9 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.providers import production_financial_cache
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_support import production_financial_cache
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.trajectory_events import TrajectoryEventType
@@ -47,10 +48,10 @@ def test_typed_readiness_failure_preserves_envelope_and_closes_storage(
     error = DatabaseReadinessError(reason, path, "0001_persistence")
     error.__cause__ = RuntimeError("private SQL parameters and credentials")
     with (
-        patch("investment_analysis_engine.cli_support.SQLiteDatabase", return_value=database),
-        patch("investment_analysis_engine.cli_support.ensure_database_ready", side_effect=error),
+        patch("investment_analysis_engine.application.providers.SQLiteDatabase", return_value=database),
+        patch("investment_analysis_engine.application.providers.ensure_database_ready", side_effect=error),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
             side_effect=AssertionError("Provider must not run"),
         ) as facts,
         patch(
@@ -112,7 +113,7 @@ def test_real_rejected_storage_precedes_provider_calls(
     with (
         patch("investment_analysis_engine.cli_support.settings", selected),
         patch(
-            "investment_analysis_engine.strategies.fcf_growth.cli.build_sec_production_provider",
+            "investment_analysis_engine.strategies.fcf_growth.application.build_sec_production_provider",
             side_effect=AssertionError("Provider must not run"),
         ) as facts,
         patch(
@@ -140,7 +141,8 @@ def test_help_never_opens_storage(tmp_path: Path, command: list[str]) -> None:
         patch("investment_analysis_engine.cli_support.settings", selected),
         patch("investment_analysis_engine.cli_database_target.settings", selected),
         patch(
-            "investment_analysis_engine.cli_support.SQLiteDatabase", side_effect=AssertionError("Storage must not open")
+            "investment_analysis_engine.application.providers.SQLiteDatabase",
+            side_effect=AssertionError("Storage must not open"),
         ) as analysis_db,
         patch(
             "investment_analysis_engine.cli_database.SQLiteDatabase",
@@ -167,17 +169,17 @@ def test_optional_telemetry_failure_does_not_control_cache_readiness(tmp_path: P
         with patch.object(readiness, "ensure_database_ready", side_effect=AssertionError("Telemetry must not migrate")):
             assert recorder.record(TrajectoryRecord(TrajectoryEventType.RUN_START, "test")) is not None
         assert not Path(str(telemetry_path) + ".readiness.lock").exists()
-        with patch("investment_analysis_engine.cli_support.settings", selected):
-            if incompatible:
-                with (
-                    pytest.raises(DatabaseReadinessError) as caught,
-                    production_financial_cache(use_cache=True, clock=utc_now),
-                ):
-                    pytest.fail("Invalid storage was accepted.")
-                assert caught.value.reason is ReadinessReason.INVALID_FILE
-            else:
-                with production_financial_cache(use_cache=True, clock=utc_now):
-                    assert cache_path.exists()
+        context = ApplicationContext(settings=selected)
+        if incompatible:
+            with (
+                pytest.raises(DatabaseReadinessError) as caught,
+                production_financial_cache(context, use_cache=True, clock=utc_now),
+            ):
+                pytest.fail("Invalid storage was accepted.")
+            assert caught.value.reason is ReadinessReason.INVALID_FILE
+        else:
+            with production_financial_cache(context, use_cache=True, clock=utc_now):
+                assert cache_path.exists()
         with telemetry_database.read() as connection:
             assert connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").all() == []
     finally:

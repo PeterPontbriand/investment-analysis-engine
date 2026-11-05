@@ -38,7 +38,9 @@ pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identi
 runner = CliRunner()
 
 
-def _resolver_side_effect(*, resolver_type: type, cache: object = None, clock: object = None) -> object:
+def _resolver_side_effect(
+    _context: object, *, resolver_type: type, cache: object = None, clock: object = None
+) -> object:
     del cache, clock
     if resolver_type is GrahamNumberInputResolver:
         return sec_labeled_number_resolver()
@@ -69,7 +71,7 @@ def _mock_momentum_run(ticker: str) -> MomentumRun:
     )
 
 
-@patch("investment_analysis_engine.strategies.momentum.execution.MomentumAnalyzer.run_analysis")
+@patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
 def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(str(kwargs["ticker"]))
 
@@ -125,11 +127,11 @@ def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMoc
     # 4. Refresh the whole watchlist in one command.
     with (
         patch(
-            "investment_analysis_engine.strategies.graham_number.cli.build_graham_resolver",
+            "investment_analysis_engine.strategies.graham_number.application.build_graham_resolver",
             side_effect=_resolver_side_effect,
         ),
         patch(
-            "investment_analysis_engine.strategies.graham_growth.cli.build_graham_resolver",
+            "investment_analysis_engine.strategies.graham_growth.application.build_graham_resolver",
             side_effect=_resolver_side_effect,
         ),
     ):

@@ -28,7 +28,7 @@ def test_a_loader_error_prints_the_message_and_exits_with_code_2(
         patch("investment_analysis_engine.utils.logger_util.setup_global_logging"),
         patch("investment_analysis_engine.utils.logger_util.teardown_global_logging"),
         patch(
-            "investment_analysis_engine.cli_composition.load_component_settings",
+            "investment_analysis_engine.application.providers.load_component_settings",
             side_effect=ComponentSettingsError(_MESSAGE),
         ),
         pytest.raises(SystemExit) as exit_info,
