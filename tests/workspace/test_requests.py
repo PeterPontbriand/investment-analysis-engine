@@ -341,11 +341,10 @@ def test_fcf_native_enum_strings_round_trip(
                 "historical_horizon": horizon.value,
                 "classification_basis": basis.value,
                 "forward_policy": forward.value,
-                "include_fcf_yield": False,
             }
         }
     )
-    assert selection.to_fcf_policy() == FCFEarningsGrowthPolicy(horizon, basis, forward, False)
+    assert selection.to_fcf_policy() == FCFEarningsGrowthPolicy(horizon, basis, forward)
     assert FCFGrowthSelection.model_validate_json(selection.model_dump_json()) == selection
 
 
@@ -356,7 +355,6 @@ def test_fcf_native_enum_strings_round_trip(
         {"historical_horizon": 3},
         {"classification_basis": "momentum"},
         {"forward_policy": "automatic"},
-        {"include_fcf_yield": "false"},
     ],
 )
 def test_fcf_policy_rejects_invalid_nested_fields(policy: dict[str, object]) -> None:
@@ -393,7 +391,7 @@ def test_fcf_policy_copies_input_and_converts_independently() -> None:
     caller_policy["historical_horizon"] = "5"
     assert selection.policy.historical_horizon is HistoricalHorizon.THREE_YEARS
     with pytest.raises(ValidationError, match="frozen_instance"):
-        selection.policy.include_fcf_yield = False
+        selection.policy.historical_horizon = HistoricalHorizon.FIVE_YEARS
     policy = FCFEarningsGrowthPolicy(historical_horizon=HistoricalHorizon.FOUR_YEARS)
     snapshot = FCFPolicySnapshot.model_validate(policy)
     assert snapshot.to_policy() == policy

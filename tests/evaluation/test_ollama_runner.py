@@ -339,7 +339,7 @@ async def test_empirical_runner_records_model_failure_as_execution_failure() -> 
 # The prompt must not change for these four contracts when they are declared elsewhere; a strategy appended
 # after them adds its own schema and leaves this hash alone. LAY.7b made Momentum's window and RSI arguments
 # optional, and the hash was updated deliberately.
-_PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256 = "7aca37b8235097334663f1958dd5483a3f28b583c9d754dea1a28168385a210a"
+_PRE_DESCRIPTOR_TOOL_SCHEMAS_SHA256 = "0ab93b3c7f499afc0b6569c4a9693630d89c70e317d43ca7a2d63fb7de19e513"
 
 
 def test_tool_schemas_are_the_four_declared_contracts_in_declaration_order() -> None:

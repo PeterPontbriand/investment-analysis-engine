@@ -789,8 +789,8 @@
             "title": "As Of"
           },
           "config_schema_version": {
-            "const": 2,
-            "default": 2,
+            "const": 3,
+            "default": 3,
             "title": "Config Schema Version",
             "type": "integer"
           },
@@ -1174,17 +1174,12 @@
           },
           "historical_horizon": {
             "$ref": "#/components/schemas/HistoricalHorizon"
-          },
-          "include_fcf_yield": {
-            "title": "Include Fcf Yield",
-            "type": "boolean"
           }
         },
         "required": [
           "historical_horizon",
           "classification_basis",
-          "forward_policy",
-          "include_fcf_yield"
+          "forward_policy"
         ],
         "title": "FCFPolicyPart",
         "type": "object"
@@ -1204,11 +1199,6 @@
           "historical_horizon": {
             "$ref": "#/components/schemas/HistoricalHorizon",
             "default": "longest_available"
-          },
-          "include_fcf_yield": {
-            "default": true,
-            "title": "Include Fcf Yield",
-            "type": "boolean"
           }
         },
         "title": "FCFPolicySnapshot",
@@ -4089,7 +4079,6 @@
           "market_cap_unavailable",
           "provider_error",
           "invalid_request",
-          "not_requested",
           "instrument_kind_not_applicable",
           "industry_class_not_applicable",
           "industry_class_unknown",
@@ -4426,8 +4415,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },

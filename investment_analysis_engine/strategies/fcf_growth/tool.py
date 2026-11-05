@@ -28,7 +28,6 @@ class FCFEarningsGrowthToolArguments(AnalysisToolArguments):
     historical_horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE
     classification_basis: FCFClassificationBasis = FCFClassificationBasis.TOTAL_FCF
     forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
-    include_fcf_yield: bool = True
     currency: str = "USD"
 
     @field_validator("currency")
@@ -63,7 +62,6 @@ class FCFEarningsGrowthToolHandler:
             historical_horizon=arguments.historical_horizon,
             classification_basis=arguments.classification_basis,
             forward_policy=arguments.forward_policy,
-            include_fcf_yield=arguments.include_fcf_yield,
         )
         config = FCFEarningsGrowthConfig(
             policy=policy,

@@ -41,7 +41,7 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 10
+DOCUMENT_SCHEMA_VERSION: Final = 11
 
 
 class FCFResolvedInputPart(DocumentPart):
@@ -90,7 +90,6 @@ class FCFPolicyPart(DocumentPart):
     historical_horizon: HistoricalHorizon
     classification_basis: FCFClassificationBasis
     forward_policy: ForwardPolicy
-    include_fcf_yield: bool
 
 
 class FCFObservationPart(DocumentPart):

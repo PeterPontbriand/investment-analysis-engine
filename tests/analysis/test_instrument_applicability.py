@@ -146,7 +146,7 @@ def test_known_etf_short_circuits_company_fcf_before_annual_fact_resolution() ->
     assert result.fcf_cagr.status is MetricStatus.NOT_APPLICABLE
     assert result.fcf_per_share_cagr.status is MetricStatus.NOT_APPLICABLE
     assert result.eps_cagr.status is MetricStatus.NOT_APPLICABLE
-    assert result.schema_version == 6
+    assert result.schema_version == 7
     resolver.resolve.assert_not_called()
 
 
@@ -234,14 +234,13 @@ def test_fcf_profile_mismatch_precedes_applicability_and_resolution(known_etf: b
     resolver.resolve.assert_not_called()
 
 
-@pytest.mark.parametrize("include_yield", [False, True])
-def test_fcf_etf_result_retains_caller_owned_messages_and_boundaries(include_yield: bool) -> None:
+def test_fcf_etf_result_retains_caller_owned_messages_and_boundaries() -> None:
     resolver = MagicMock()
     profile = _profile(InstrumentKind.ETF, "ETF")
     result = FCFEarningsGrowthAnalyzer(resolver, fcf_market_data()).run_analysis(
         " flsw ",
         AnalysisContext(as_of=NOW, executed_at=NOW, use_cache=True, instrument_profile=profile),
-        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(include_fcf_yield=include_yield), currency="USD"),
+        FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD"),
     )
     reason = (
         "Reported company free-cash-flow and diluted-EPS growth analysis does not apply directly to an ETF. "
@@ -254,6 +253,6 @@ def test_fcf_etf_result_retains_caller_owned_messages_and_boundaries(include_yie
     assert result.market_capitalization is None
     assert result.warnings == ()
     assert result.forward_evidence.actual_to_fy1_growth.reason == reason
-    assert result.fcf_yield.reason == (reason if include_yield else "FCF yield was not requested.")
+    assert result.fcf_yield.reason == reason
     assert result.fcf_yield.status is MetricStatus.NOT_APPLICABLE
     resolver.resolve.assert_not_called()

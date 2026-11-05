@@ -143,22 +143,14 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
     def _fcf_yield(
         self,
         ticker: str,
-        policy: FCFEarningsGrowthPolicy,
         observations: tuple[AnnualGrowthObservation, ...],
         context: AnalysisContext,
     ) -> _YieldOutcome:
-        """Return the optional FCF yield at the anchor year-end, requesting market data only when it is wanted.
+        """Return the informational FCF yield at the anchor year-end.
 
-        No market-data request is made when the yield is not requested or when no fiscal year was resolved. A
+        No market-data request is made when no fiscal year was resolved. A
         market-data failure makes the yield unavailable and nothing else: the analysis is not affected.
         """
-        if not policy.include_fcf_yield:
-            return _YieldOutcome(
-                None,
-                MetricResult.failure(
-                    MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "FCF yield was not requested."
-                ),
-            )
         if not observations:
             reason = "No completed fiscal year of free cash flow was resolved."
             return _yield_outcome(None, _unavailable_metric(ReasonCode.MISSING_FACT, reason))
@@ -228,7 +220,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
         )
         latest_eps = assembly.observations[-1].diluted_eps if assembly.observations else None
         forward = _forward_evidence(latest_eps)
-        yield_outcome = self._fcf_yield(normalized_ticker, policy, assembly.observations, context)
+        yield_outcome = self._fcf_yield(normalized_ticker, assembly.observations, context)
 
         if assembly.status is CalculationStatus.OK:
             decision = classify_fcf_earnings_growth(
@@ -302,11 +294,6 @@ def _etf_not_applicable_result(
         ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
         reason,
     )
-    fcf_yield = (
-        metric
-        if policy.include_fcf_yield
-        else MetricResult.failure(MetricStatus.NOT_APPLICABLE, ReasonCode.NOT_REQUESTED, "FCF yield was not requested.")
-    )
     return FCFEarningsGrowthResult(
         ticker=ticker,
         requested_as_of=requested_as_of,
@@ -328,7 +315,7 @@ def _etf_not_applicable_result(
         eps_cagr=metric,
         trend_classification=TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH,
         market_capitalization=None,
-        fcf_yield=fcf_yield,
+        fcf_yield=metric,
         forward_evidence=_etf_not_applicable_forward(reason),
         warnings=(),
     )

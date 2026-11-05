@@ -40,7 +40,7 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
 # ---------------------------------------------------------------------------
 
 METHOD_VERSION = 2
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 # ---------------------------------------------------------------------------
@@ -63,13 +63,11 @@ class FCFEarningsGrowthPolicy:
     Attributes:
         historical_horizon: Requested elapsed-year horizon.
         forward_policy: How forward consensus evidence affects the headline.
-        include_fcf_yield: Whether the optional informational FCF yield is computed.
     """
 
     historical_horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE
     classification_basis: FCFClassificationBasis = FCFClassificationBasis.TOTAL_FCF
     forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
-    include_fcf_yield: bool = True
 
 
 @dataclass(frozen=True)
@@ -284,8 +282,6 @@ class FCFEarningsGrowthResult:
         - A successful PASS has ``execution_status = ok``, both historical
           metrics ok, non-null period fields, and no classification reason.
         - FAIL and INDETERMINATE carry both classification-reason fields.
-        - ``include_fcf_yield = false`` forces a not_applicable/not_requested
-          FCF yield metric.
 
     Attributes:
         schema_version: Machine-readable result schema version (``SCHEMA_VERSION``).
@@ -372,12 +368,6 @@ class FCFEarningsGrowthResult:
             if self.selected_horizon_years not in (3, 4):
                 msg = "used_horizon_fallback requires a selected horizon of exactly 3 or 4 years."
                 raise ValueError(msg)
-        if self.policy.include_fcf_yield is False and (
-            self.fcf_yield.status is not MetricStatus.NOT_APPLICABLE
-            or self.fcf_yield.reason_code is not ReasonCode.NOT_REQUESTED
-        ):
-            msg = "include_fcf_yield=false requires fcf_yield to be not_applicable/not_requested."
-            raise ValueError(msg)
         self._validate_market_capitalization()
 
         if self.instrument_profile is not None and self.instrument_profile.ticker != self.ticker.strip().upper():
@@ -420,9 +410,7 @@ class FCFEarningsGrowthResult:
             raise ValueError(msg)
 
     def _validate_market_capitalization(self) -> None:
-        """Require market-capitalization evidence only for a requested yield, and for every yield that is a number."""
-        if self.market_capitalization is not None and not self.policy.include_fcf_yield:
-            raise ValueError("market_capitalization requires include_fcf_yield=true.")
+        """Require market-capitalization evidence for every yield that is a number."""
         if self.fcf_yield.status is MetricStatus.OK and (
             self.market_capitalization is None or self.market_capitalization.result.status is not MetricStatus.OK
         ):

@@ -168,7 +168,7 @@ class RunsCompareDocument(_Document):
     ``schema_version`` is this document's own lineage and is independent of every other document's.
     """
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     refresh_id: UUID
     watchlist_id: UUID | None = Field(description="The watchlist the refresh ran; null if no readable run records it.")
     watchlist_name: str | None = Field(description="The watchlist's name when the refresh ran.")
