@@ -22,7 +22,7 @@ from investment_analysis_engine.application.provider_check import (
     provider_check_findings,
     with_provider_check,
 )
-from investment_analysis_engine.application.providers import production_instrument_profile_cache
+from investment_analysis_engine.application.providers import build_provider_probe, production_instrument_profile_cache
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.application.tier import analysis_runner_for
 from investment_analysis_engine.core.clock import utc_now
@@ -117,7 +117,7 @@ def analyze(
     """Analyze one ticker under one selection, saving the run when asked.
 
     Args:
-        context: What the operation needs from its caller, including its settings and its provider probe.
+        context: What the operation needs from its caller; the provider check is built from its settings.
         ticker: The normalized ticker.
         selection: The selection of the strategy to run; its ``as_of`` reaches the document unchanged.
         save: Whether to persist the run as an Analysis Run.
@@ -144,7 +144,7 @@ def analyze(
     failed = bool(exit_code_of(outcome))
     findings: ProviderCheckFindings = provider_check_findings(
         (run.execution.provider_failure,) if failed else (),
-        ProviderCheckChoice(context.provider_probe, requested=provider_check),
+        ProviderCheckChoice(build_provider_probe(context), requested=provider_check),
     )
     element = findings.element()
 

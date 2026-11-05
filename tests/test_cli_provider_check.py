@@ -18,7 +18,9 @@ import pytest
 from typer.main import get_command
 from typer.testing import CliRunner, Result
 
+from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.provider_check import ProviderCheckChoice, provider_check_findings
+from investment_analysis_engine.application.providers import build_provider_probe
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.failure_classification import provider_failure_of
@@ -33,6 +35,7 @@ from investment_analysis_engine.data.provider_checks import (
 )
 from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict, ProviderProbe
 from tests._cli_helpers import normalize_cli_output
+from tests._probe_injection import injected_probe
 from tests._strategy_document_output import CASES, _enter_providers
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
@@ -148,7 +151,10 @@ def _failing(
 
 
 def _invoke(arguments: list[str], probe: object | None, *extra: str) -> Result:
-    return runner.invoke(app, [*arguments, *extra], obj=probe)
+    if probe is None:
+        return runner.invoke(app, [*arguments, *extra])
+    with injected_probe(probe):
+        return runner.invoke(app, [*arguments, *extra])
 
 
 def _first_line_and_failure_stream(command: str, mode: str) -> str:
@@ -289,23 +295,20 @@ def test_json_output_prints_nothing_extra_and_carries_the_finding_in_the_documen
     assert fake.calls == [scenario.provider_id]
 
 
-def test_the_command_is_given_the_probe_built_from_the_settings_when_none_is_injected() -> None:
-    with patch("investment_analysis_engine.cli.build_provider_probe") as build:
+def test_the_operation_builds_its_probe_from_the_settings() -> None:
+    with patch("investment_analysis_engine.application.analysis.build_provider_probe") as build:
         build.return_value = _probe({"yfinance": CheckVerdict.NO_DATA}).probe
         with _failing("momentum") as arguments:
             result = runner.invoke(app, arguments)
 
     assert result.stderr.splitlines()[0] == _FINDING_LINES[CheckVerdict.NO_DATA]
-    build.assert_called_once_with()
+    build.assert_called_once()
 
 
 def test_the_probe_is_built_from_the_two_settings() -> None:
-    from investment_analysis_engine.cli import build_provider_probe  # noqa: PLC0415 - the root's own builder
+    context = ApplicationContext(settings=ProjectSettings(provider_check=False, provider_check_timeout_seconds=3.5))
 
-    with patch("investment_analysis_engine.cli.settings") as fake_settings:
-        fake_settings.provider_check = False
-        fake_settings.provider_check_timeout_seconds = 3.5
-        probe = build_provider_probe()
+    probe = build_provider_probe(context)
 
     assert isinstance(probe, ProviderProbe)
     assert probe.check("yfinance").switched_off is True
@@ -500,7 +503,10 @@ def _refresh_failing(
         "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data_with_context",
         side_effect=DataFetchError("library detail", kind=kind, provider_id="yfinance" if kind else None),
     ):
-        return runner.invoke(app, ["refresh", name, "--workers", "1", *extra], obj=probe)
+        if probe is None:
+            return runner.invoke(app, ["refresh", name, "--workers", "1", *extra])
+        with injected_probe(probe):
+            return runner.invoke(app, ["refresh", name, "--workers", "1", *extra])
 
 
 def test_refresh_prints_the_line_before_the_summary_on_the_summary_stream_and_probes_once(
@@ -536,10 +542,14 @@ def test_refresh_runs_the_check_after_the_batch_never_inside_the_job_loop(
         events.append("job")
         raise DataFetchError("detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="yfinance")
 
-    with patch(
-        "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data_with_context", side_effect=failing
+    with (
+        patch(
+            "investment_analysis_engine.data.yfinance.client.YFinanceClient.fetch_data_with_context",
+            side_effect=failing,
+        ),
+        injected_probe(probe),
     ):
-        result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"], obj=probe)
+        result = runner.invoke(app, ["refresh", "My Watch", "--workers", "1"])
 
     assert result.exit_code == 1
     assert events == ["job", "job", "probe"]

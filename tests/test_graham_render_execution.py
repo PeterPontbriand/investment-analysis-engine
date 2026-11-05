@@ -20,6 +20,7 @@ from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVe
 from investment_analysis_engine.strategies.graham_growth.calculation import GrowthValueInputAssembly
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputAssembly
 from investment_analysis_engine.workspace.capture import ExecutionCapture
+from tests._probe_injection import injected_probe
 from tests._strategy_document_output import CASES, Case, _arguments, _enter_providers, _with_ticker
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
@@ -154,7 +155,8 @@ def test_each_reachable_combination_renders_by_the_shared_rule(
         _enter_providers(stack, case)
         patcher = stack.enter_context(pytest.MonkeyPatch.context())
         patcher.setattr(command_module, name, recording)
-        result = runner.invoke(app, [*case.arguments, "--json"], obj=probe)
+        stack.enter_context(injected_probe(probe))
+        result = runner.invoke(app, [*case.arguments, "--json"])
 
     assert result.exit_code == expected_exit, result.output
     assert seen == [(assembly, execution, outcome)]
@@ -172,7 +174,8 @@ def test_a_failure_in_the_text_mode_is_preceded_by_the_provider_check_line(case:
 
     with ExitStack() as stack:
         _enter_providers(stack, case)
-        result = runner.invoke(app, list(case.arguments), obj=probe)
+        stack.enter_context(injected_probe(probe))
+        result = runner.invoke(app, list(case.arguments))
 
     assert result.exit_code == 1
     assert result.stderr.splitlines()[0] == _CHECK_LINE
@@ -189,7 +192,8 @@ def test_a_failed_optional_quote_does_not_run_the_provider_check(case: Case) -> 
 
     with ExitStack() as stack:
         _enter_providers(stack, case)
-        result = runner.invoke(app, list(case.arguments), obj=probe)
+        stack.enter_context(injected_probe(probe))
+        result = runner.invoke(app, list(case.arguments))
 
     assert result.exit_code == 0
     assert probe.asked == []

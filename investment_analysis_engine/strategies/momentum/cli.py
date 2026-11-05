@@ -8,7 +8,6 @@ import typer
 
 from investment_analysis_engine.analysis.base_analyzer import require_ticker
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.cli_provider_check import provider_check_choice
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
@@ -77,7 +76,6 @@ _MOMENTUM_CLI_DEFAULTS = momentum_settings(ApplicationContext(settings=settings)
 
 
 def command(  # noqa: PLR0913
-    context: typer.Context,
     ticker: str | None = typer.Argument(None, help="Target stock/asset ticker symbol (e.g., AAPL, BTC-USD)"),
     *,
     ticker_option: str | None = typer.Option(
@@ -112,7 +110,7 @@ def command(  # noqa: PLR0913
     no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
-    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
+    provider_check = not no_provider_check
     with execution_errors(
         json_output=json_output,
         selection_type=MomentumSelection,

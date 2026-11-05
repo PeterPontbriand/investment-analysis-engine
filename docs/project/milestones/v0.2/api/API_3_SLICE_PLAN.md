@@ -123,7 +123,7 @@ What changed, by area:
     `stored_configuration` and `require_job_ticker`, moved out of `cli_support.py` because the operation raises them;
   - `provider_check.py`: the check, its findings, the wording of its lines and `with_provider_check`, moved out of
     `cli_provider_check.py`;
-  - `context.py`: `ApplicationContext` gains an optional `provider_probe`.
+  - `providers.py` also holds `build_provider_clients` and `build_provider_probe` (review fix G1).
 - **CLI:** `cli_composition.py` and `cli_run_support.py` are deleted. `cli_support.py` gains `application_context`,
   `analyze_for_command` and `analysis_output`, which every direct command calls; it keeps the failure translation and
   `get_cli_run_context`. `cli_provider_check.py` keeps the Typer-context choice and `echo_provider_check`.
@@ -149,25 +149,38 @@ The decisions as implemented, with the points that differ from the wording of th
   strategies import a strategy's settings model but not its `application` file.
 - **C5a.** As approved, with two points the decision leaves open:
   - `render_text(mode)` returns what the command prints, which after a failure starts with the provider-check lines, so
-    a command writes it as it is; the lines are not added a second time;
+    a command writes it as it is, and API.4's text endpoint gets the same lines (an amendment approved on
+    2026-11-04); the lines are not added a second time;
   - the saved run's ID is reported by the command on standard error before the result, as before, from
     `analysis_run_id`.
 - **C6.** As approved: no field was added.
-- **C7.** As approved, with one addition: the probe reaches the operation through the optional `provider_probe` field of
-  `ApplicationContext`, because the operation's signature is fixed by C5a and the CLI builds the probe once at its
-  composition root. `provider_check: bool` is the choice of `--no-provider-check`, reported to the probe as `requested`.
-  `ian health` is unchanged and `refresh` calls the moved check.
+- **C7.** As amended on 2026-11-04 ([review fix G1](#review-fixes-2026-11-04)): the probe is built per operation from
+  the context's settings by `build_provider_probe(context)`, not passed on the context. `provider_check: bool` is the
+  choice of `--no-provider-check`, reported to the probe as `requested`. `ian health` and the refresh command call the
+  moved check.
 - **C8.** As approved. `cli_run_support.py` is deleted too: nothing remained in it.
 
-Differences in behavior, all in edge cases that no command can reach with valid options:
+Approved output change (2026-11-04): the save step's database check runs before a strategy composes its providers.
+With `--save-run`, no SEC identity and a database that needs an upgrade, a command that used to report
+`configuration_error` now reports the database's code (`database_upgrade_required`). Checked against `main` for each
+strategy, with and without `--no-cache`:
 
-- the Piotroski and FCF Growth analyzers are composed after the save database is checked for readiness, not before, so a
-  database that is not ready is reported before an unset SEC identity;
-- a Graham or FCF Growth selection that cannot convert to its configuration raises the defect error that refresh always
-  raised, where the direct command raised the validation error.
+| Strategy | On `main` | On this branch |
+| :--- | :--- | :--- |
+| Momentum | database code | database code (unchanged) |
+| Graham Number | database code; `configuration_error` with `--no-cache` | database code |
+| Graham Growth | database code; `configuration_error` with `--no-cache` | database code |
+| FCF Growth | database code; `configuration_error` with `--no-cache` | database code |
+| Piotroski | `configuration_error` | database code |
 
-User-visible changes: none. No CLI output, text, `--json`, help text, message or exit code changed, and no stored shape
-changed.
+The Graham and FCF Growth commands opened their cache, which checks the database, before building the SEC provider, so
+only the `--no-cache` form changed. Piotroski composed its analyzer before the save step in every form. This corrects the
+earlier statement that no command could reach the difference. One further difference remains in an edge case that no
+valid option reaches: a Graham or FCF Growth selection that cannot convert to its configuration raises the defect error
+that refresh always raised, where the direct command raised the validation error.
+
+User-visible changes: the output change above. No other CLI output, text, `--json`, help text, message or exit code
+changed, and no stored shape changed.
 
 Tests edited, and why (each is an import path, a patch target or the C4 context argument):
 
@@ -196,6 +209,13 @@ Tests edited, and why (each is an import path, a patch target or the C4 context 
   `tests/workspace_documents/test_workspace_documents.py` (the provider check; `test_provider_check_element.py` also
   looks for the probe call in its new module), `tests/test_startup_component_settings.py` and
   `tests/workspace_documents/test_analysis_run_replay.py` (the settings loader that must not be called).
+- Review fixes (G1): the probe is built per operation, so tests that handed a probe through the Typer context
+  (`obj=probe`) or patched `cli.build_provider_probe` use `tests/_probe_injection.py`, which patches the three builders the
+  commands reach: `tests/test_cli_provider_check.py`, `tests/test_provider_check_element.py` and
+  `tests/test_graham_render_execution.py`; `tests/test_cli_health.py` and `tests/live/test_provider_response_shape.py`
+  call the clients builder from `application/providers.py` with a context; `tests/utils/_logging_command_driver.py` makes
+  `execution_errors` raise where it made the removed `provider_check_choice` raise; `tests/application/test_context.py`
+  is back to one field; `tests/scripts/test_new_strategy.py` no longer expects `typer.Context` in the command.
 - Replaced with tests of the new homes: `tests/test_cli_composition_adapter.py` is `tests/application/test_providers.py`;
   `tests/test_cli_command_helpers.py` tests `analysis_output` where it tested `render_execution` and
   `analyze_and_maybe_save`, whose cases are now `tests/application/test_analysis.py`;
@@ -231,9 +251,32 @@ New tests:
     imports a presenter.
 - `tests/application/test_providers.py`: the builders, two contexts with different settings folders reading each
   folder's files, and no composition module importing the module-level settings object.
+- Review fixes: `tests/test_save_run_step_order.py` (over `STRATEGIES`, with and without `--no-cache`, `--json` and
+  text: the database's code, not the SEC configuration error); in `tests/application/test_analysis.py` two calls build two
+  probes, the settings switch the check off, and no `application` module holds a module-level probe; the existing refresh
+  test with several failing jobs on one provider shows one test request per refresh.
 - The package-dependency script and the layering test attribute `workspace.py` and `application.py` by name:
   `tests/scripts/test_check_package_dependencies.py` and `tests/test_strategy_import_layering.py`. The generator test
   produces a strategy whose files pass the conformance checks.
+
+#### Review fixes (2026-11-04)
+
+The project owner reviewed the branch and approved these fixes, all done:
+
+- **G1.** `ApplicationContext` is back to `settings` only. `build_provider_probe(context)` is in
+  `application/providers.py` and reads `provider_check` and `provider_check_timeout_seconds` from the context's settings.
+  `analyze` builds one probe per call, the refresh command one per refresh, and the CLI's failure translation one per
+  failure it reports; none lives in a module. The CLI root's `build_provider_probe` and the `context.obj` hand-off are
+  gone, the direct commands and `refresh` no longer take the Typer context, and `--no-provider-check` and
+  `IAN_PROVIDER_CHECK` behave as before. The clients builder moved from `cli_health.py` with it.
+- **G2.** The step order above is recorded as an approved output change, with a test over `STRATEGIES`.
+- **G3.** `tests/application/test_analysis.py` masks only the values on the `Analysis timestamp:` and
+  `Originally retrieved:` lines, the only text lines that hold the run's own reading of now. Every other time is compared
+  exactly, and no recorded file differed from the operation's text on any other line.
+
+Accepted deviations, as recorded above: the application tier is the only module in `application/` that names strategies;
+`exit_code_of` lives in `application/analysis.py`; `cli_workspace.py` loads Momentum's option defaults until API.3b
+removes them; an unconvertible Graham or FCF Growth selection raises the refresh's defect error.
 
 Noticed for later slices:
 
@@ -248,7 +291,9 @@ Noticed for later slices:
 ## 4. Scope limits and acceptance criteria
 
 - API.3a changes no CLI output, text, `--json`, help text, message or exit code, no stored shape, formula or
-  classification, and no dependency.
+  classification, and no dependency, except the approved step order of 2026-11-04: with `--save-run`, no SEC identity and
+  a database that needs an upgrade, Piotroski (and Graham Number, Graham Growth and FCF Growth with `--no-cache`) report
+  the database's code, not `configuration_error`.
 - Every direct command calls `analyze`; no command composes dependencies, builds a presentation or saves a run itself.
 - No module of `application` reads a module-level settings object, and none outside the tier names a strategy.
 - `cli_composition.py` and `cli_run_support.py` do not exist, and nothing forwards from them.
@@ -256,6 +301,7 @@ Noticed for later slices:
   test and the generator.
 - A strategy added through `scripts/new_strategy.py` has a `workspace.py`, an `application.py` and an entry in the
   application tier, and passes the conformance checks.
+- Each operation that reports a provider failure builds its own probe from the context's settings.
 - API.3b and API.3c carry out C9 to C17 and meet the criteria of the contract's section 5 that concern them.
 
 ## 5. Background

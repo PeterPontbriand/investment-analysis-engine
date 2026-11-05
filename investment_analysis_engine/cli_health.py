@@ -16,42 +16,20 @@ from typing import Annotated
 import typer
 
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.providers import build_sec_production_provider
+from investment_analysis_engine.application.providers import build_provider_clients
 from investment_analysis_engine.cli_support import parameter_failures
 from investment_analysis_engine.config import settings
-from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
-from investment_analysis_engine.data.http_json import fetch_json
+from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.data.provider_checks import (
     PROVIDER_CHECKS,
-    ConnectionStep,
     ProviderCheckEntry,
     ProviderCheckResult,
-    ProviderClients,
-    SecTransport,
-    SecUnavailable,
 )
-from investment_analysis_engine.data.yfinance.client import YFinanceClient
 from investment_analysis_engine.reporting.documents.health import (
     ProviderHealthDocument,
     ProviderHealthEntry,
     ProviderLibrary,
 )
-
-
-def build_provider_clients() -> ProviderClients:
-    """Compose the production adapters; a missing SEC identity becomes an unavailable SEC check, not a skipped one."""
-    sec: SecTransport | SecUnavailable
-    try:
-        build_sec_production_provider(ApplicationContext(settings=settings))
-    except AnalysisConfigurationError as exc:
-        sec = SecUnavailable(str(exc))
-    else:
-        sec = SecTransport(fetch_json, (settings.sec_user_agent or "").strip())
-    return ProviderClients(
-        yahoo=YFinanceClient(),
-        sec=sec,
-        connection=ConnectionStep(),
-    )
 
 
 def format_result(result: ProviderCheckResult) -> str:
@@ -124,7 +102,7 @@ def health(
     """Check that Yahoo and SEC EDGAR still answer in the shape the adapters read."""
     with parameter_failures(json_output=json_output):
         entries = _select(provider)
-    clients = build_provider_clients()
+    clients = build_provider_clients(ApplicationContext(settings=settings))
     results: list[ProviderCheckResult] = []
     for entry in entries:
         result = entry.run(clients)

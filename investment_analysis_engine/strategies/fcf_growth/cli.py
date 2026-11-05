@@ -6,7 +6,6 @@ registers itself. The command parses its options, builds the selection and calls
 
 import typer
 
-from investment_analysis_engine.cli_provider_check import provider_check_choice
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
@@ -91,7 +90,6 @@ def build_selection(flags: WatchlistFlags) -> FCFGrowthSelection:
 
 
 def command(  # noqa: PLR0913
-    context: typer.Context,
     ticker: str = typer.Argument(..., help="Target stock ticker symbol (e.g., AAPL, KO)"),
     *,
     growth_years: int | None = typer.Option(
@@ -119,7 +117,7 @@ def command(  # noqa: PLR0913
     no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
 ) -> None:
     """Execute the historical free-cash-flow and diluted-EPS growth screen."""
-    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
+    provider_check = not no_provider_check
 
     with execution_errors(
         json_output=json_output,

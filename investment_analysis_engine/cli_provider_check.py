@@ -7,17 +7,7 @@ it from there and pairs it with the command's ``--no-provider-check`` option.
 
 import typer
 
-from investment_analysis_engine.application.provider_check import (
-    ProviderCheck,
-    ProviderCheckChoice,
-    ProviderCheckFindings,
-)
-
-
-def provider_check_choice(context: typer.Context, *, no_provider_check: bool) -> ProviderCheckChoice:
-    """Read the probe the composition root put on the Typer context and pair it with the command's option."""
-    probe = context.obj if isinstance(context.obj, ProviderCheck) else None
-    return ProviderCheckChoice(probe=probe, requested=not no_provider_check)
+from investment_analysis_engine.application.provider_check import ProviderCheckFindings
 
 
 def echo_provider_check(findings: ProviderCheckFindings, *, err: bool) -> None:

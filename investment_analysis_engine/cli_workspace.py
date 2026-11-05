@@ -27,8 +27,15 @@ from pydantic import BaseModel
 from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
-from investment_analysis_engine.application.provider_check import ProviderCheckFindings, provider_check_findings
-from investment_analysis_engine.application.providers import production_instrument_profile_cache
+from investment_analysis_engine.application.provider_check import (
+    ProviderCheckChoice,
+    ProviderCheckFindings,
+    provider_check_findings,
+)
+from investment_analysis_engine.application.providers import (
+    build_provider_probe,
+    production_instrument_profile_cache,
+)
 from investment_analysis_engine.application.runs import (
     RunQueryNames,
     build_run_query,
@@ -44,7 +51,7 @@ from investment_analysis_engine.application.watchlists import (
     list_watchlists,
     watchlist_repository,
 )
-from investment_analysis_engine.cli_provider_check import echo_provider_check, provider_check_choice
+from investment_analysis_engine.cli_provider_check import echo_provider_check
 from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS, build_selection_for
 from investment_analysis_engine.cli_support import (
     AS_OF_HELP,
@@ -983,7 +990,6 @@ def _refresh_json(summary: RefreshSummary, findings: ProviderCheckFindings) -> s
 
 
 def refresh(  # noqa: PLR0913
-    context: typer.Context,
     name: Annotated[str, typer.Argument(help="Watchlist name to refresh.")],
     *,
     workers: Annotated[int, typer.Option("--workers", help="Concurrent job count, 1-4; defaults to 2.")] = 2,
@@ -1057,7 +1063,9 @@ def refresh(  # noqa: PLR0913
 
     findings = provider_check_findings(
         (result.provider_failure for result in summary.results),
-        provider_check_choice(context, no_provider_check=no_provider_check),
+        ProviderCheckChoice(
+            build_provider_probe(ApplicationContext(settings=settings)), requested=not no_provider_check
+        ),
     )
     if json_output:
         typer.echo(_refresh_json(summary, findings))

@@ -6,7 +6,6 @@ registers itself. The command parses its options, builds the selection and calls
 
 import typer
 
-from investment_analysis_engine.cli_provider_check import provider_check_choice
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
@@ -43,7 +42,6 @@ def build_selection(flags: WatchlistFlags) -> GrahamNumberSelection:
 
 
 def command(  # noqa: PLR0913
-    context: typer.Context,
     ticker: str | None = typer.Argument(None, help="Target stock ticker symbol (e.g., AAPL, KO)"),
     *,
     ticker_option: str | None = typer.Option(
@@ -72,7 +70,7 @@ def command(  # noqa: PLR0913
 ) -> None:
     """Execute the Graham Number earnings-and-book-value screen."""
     use_cache = not no_cache
-    provider_check = provider_check_choice(context, no_provider_check=no_provider_check)
+    provider_check = not no_provider_check
     with execution_errors(
         json_output=json_output,
         selection_type=GrahamNumberSelection,

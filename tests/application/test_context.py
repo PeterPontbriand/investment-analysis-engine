@@ -1,4 +1,4 @@
-"""The application context carries the caller's settings and, optionally, its provider probe."""
+"""The application context carries the caller's settings and nothing else."""
 
 import dataclasses
 
@@ -13,8 +13,8 @@ def test_the_context_holds_the_settings_it_was_built_with() -> None:
     assert ApplicationContext(settings=settings).settings is settings
 
 
-def test_the_context_is_frozen_and_has_its_two_fields() -> None:
+def test_the_context_is_frozen_and_has_one_field() -> None:
     context = ApplicationContext(settings=ProjectSettings(database_url="sqlite:///:memory:"))
-    assert [field.name for field in dataclasses.fields(context)] == ["settings", "provider_probe"]
+    assert [field.name for field in dataclasses.fields(context)] == ["settings"]
     with pytest.raises(dataclasses.FrozenInstanceError):
         context.settings = ProjectSettings(database_url="sqlite:///:memory:")  # type: ignore[misc]

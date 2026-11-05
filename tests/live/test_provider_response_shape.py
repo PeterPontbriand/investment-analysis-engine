@@ -12,7 +12,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from investment_analysis_engine.cli_health import build_provider_clients
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.providers import build_provider_clients
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.provider_checks import PROVIDER_CHECKS, ProviderCheckEntry
@@ -38,7 +39,7 @@ def _entry(provider_id: str) -> ProviderCheckEntry:
 
 
 def _assert_passes(provider_id: str) -> None:
-    result = _entry(provider_id).run(build_provider_clients())
+    result = _entry(provider_id).run(build_provider_clients(ApplicationContext(settings=settings)))
     assert result.passed, (
         f"{provider_id} check failed ({result.probe}, {result.elapsed_seconds:.2f} s): {result.detail}"
     )

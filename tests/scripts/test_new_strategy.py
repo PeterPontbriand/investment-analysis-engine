@@ -443,7 +443,7 @@ def test_the_workspace_and_command_templates_compose_the_profile_and_offer_every
     for flag in ('"--details"', '"--diagnostics"', '"--json"', '"--no-cache"'):
         assert flag in command
     assert "no_provider_check: bool = NO_PROVIDER_CHECK_OPTION" in command
-    assert "context: typer.Context" in command
+    assert "typer.Context" not in command
     assert "as_of: str | None = AS_OF_OPTION" in command
     assert "save_run: bool = SAVE_RUN_OPTION" in command
     assert "def to_analysis_context(" in _rendered("selection")
@@ -559,7 +559,6 @@ def test_the_generated_command_and_refresh_use_the_shared_helpers() -> None:
     cli = _rendered("cli")
     command = _called_names(_function(cli, "command"))
     assert {
-        "provider_check_choice",
         "execution_errors",
         "resolve_command_target",
         "parse_as_of",

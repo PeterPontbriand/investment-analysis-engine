@@ -16,8 +16,16 @@ from investment_analysis_engine.core.operator_errors import AnalysisConfiguratio
 from investment_analysis_engine.data.cached_client import CachedHistoricalDataClient
 from investment_analysis_engine.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.http_json import fetch_json
 from investment_analysis_engine.data.instrument_profile_cache import CachedInstrumentProfileResolver
 from investment_analysis_engine.data.market_data import SPLIT_ADJUSTED_PRICE
+from investment_analysis_engine.data.provider_checks import (
+    ConnectionStep,
+    ProviderClients,
+    SecTransport,
+    SecUnavailable,
+)
+from investment_analysis_engine.data.provider_probe import ProviderProbe
 from investment_analysis_engine.data.quality import HistoricalQualityPolicy
 from investment_analysis_engine.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
 from investment_analysis_engine.data.repositories.market_data import SQLiteMarketDataRepository
@@ -64,6 +72,32 @@ def sec_edgar_settings(context: ApplicationContext) -> SecEdgarSettings:
     """Return the SEC adapter's validated settings from the context's settings folder, loaded once per folder."""
     return load_component_settings(
         SEC_EDGAR_ALIAS, SecEdgarSettings, context.settings.config_dir, PROVIDER_SETTINGS_FOLDER
+    )
+
+
+def build_provider_clients(context: ApplicationContext) -> ProviderClients:
+    """Compose the production adapters; a missing SEC identity becomes an unavailable SEC check, not a skipped one."""
+    sec: SecTransport | SecUnavailable
+    try:
+        build_sec_production_provider(context)
+    except AnalysisConfigurationError as exc:
+        sec = SecUnavailable(str(exc))
+    else:
+        sec = SecTransport(fetch_json, (context.settings.sec_user_agent or "").strip())
+    return ProviderClients(yahoo=YFinanceClient(), sec=sec, connection=ConnectionStep())
+
+
+def build_provider_probe(context: ApplicationContext) -> ProviderProbe:
+    """Build the automatic provider check of one operation from the context's settings.
+
+    Each operation that reports a provider failure builds its own probe, which remembers its findings for that
+    operation only, so a provider is tested at most once within it and no finding carries over to the next. The probe
+    contacts no provider until a failure is reported.
+    """
+    return ProviderProbe(
+        enabled=context.settings.provider_check,
+        timeout_seconds=context.settings.provider_check_timeout_seconds,
+        clients=lambda: build_provider_clients(context),
     )
 
 
@@ -152,6 +186,8 @@ def production_instrument_profile_cache(
 
 
 __all__ = [
+    "build_provider_clients",
+    "build_provider_probe",
     "build_sec_edgar_adapter",
     "build_sec_production_provider",
     "load_all_component_settings",

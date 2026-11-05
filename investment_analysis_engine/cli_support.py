@@ -15,6 +15,7 @@ from investment_analysis_engine.application.analysis import AnalysisOutcome, ana
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.failures import SavingFailureError
 from investment_analysis_engine.application.provider_check import ProviderCheckChoice, provider_check_findings
+from investment_analysis_engine.application.providers import build_provider_probe
 from investment_analysis_engine.cli_provider_check import echo_provider_check
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.failure_classification import classify_failure
@@ -163,9 +164,9 @@ def production_database() -> SQLiteDatabase:
     return SQLiteDatabase(settings)
 
 
-def application_context(choice: ProviderCheckChoice | None = None) -> ApplicationContext:
-    """Return the application context for a command: this module's settings and the command's provider probe."""
-    return ApplicationContext(settings=settings, provider_probe=None if choice is None else choice.probe)
+def application_context() -> ApplicationContext:
+    """Return the application context for a command: this module's settings."""
+    return ApplicationContext(settings=settings)
 
 
 def parse_as_of(value: str | None) -> datetime | None:
@@ -247,7 +248,7 @@ def execution_errors(
     mode: PresentationMode | None = None,
     selection_type: type[FrozenSelection] | None = None,
     ticker: str | None = None,
-    provider_check: ProviderCheckChoice | None = None,
+    provider_check: bool | None = None,
 ) -> Iterator[FailureScope]:
     """Translate execution failures while preserving deliberate CLI exits.
 
@@ -277,7 +278,12 @@ def execution_errors(
         envelope = failure_envelope(
             description.code, description.message, cause=cause, analysis=analysis, method=method, ticker=scope.ticker
         )
-        findings = provider_check_findings((envelope.provider_failure,), provider_check)
+        choice = (
+            None
+            if provider_check is None
+            else ProviderCheckChoice(build_provider_probe(application_context()), requested=provider_check)
+        )
+        findings = provider_check_findings((envelope.provider_failure,), choice)
         if scope.mode is PresentationMode.JSON:
             typer.echo(failure_document_json(envelope.with_provider_check(findings.element())))
         else:
@@ -338,15 +344,13 @@ def analyze_for_command(  # noqa: PLR0913
     selection: SelectionMember,
     *,
     save_run: bool,
-    provider_check: ProviderCheckChoice,
+    provider_check: bool,
 ) -> AnalysisOutcome:
     """Run the analysis operation for a direct command and report the saved run's ID on standard error.
 
     The ID is written before the result, as it always has been, and only when the run was saved.
     """
-    outcome = analyze(
-        application_context(provider_check), ticker, selection, save=save_run, provider_check=provider_check.requested
-    )
+    outcome = analyze(application_context(), ticker, selection, save=save_run, provider_check=provider_check)
     if outcome.analysis_run_id is not None:
         typer.echo(f"Saved Analysis Run: {outcome.analysis_run_id}", err=True)
     return outcome

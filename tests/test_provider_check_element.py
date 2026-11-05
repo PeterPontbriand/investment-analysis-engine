@@ -44,6 +44,7 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from scripts.repository_root import REPOSITORY_ROOT
 from tests._direct_command_output import no_provider_check_flag
+from tests._probe_injection import injected_probe
 from tests._strategy_document_output import CASES, Case, _enter_providers
 from tests.test_cli_provider_check import (
     _SCENARIOS,
@@ -499,10 +500,14 @@ def test_the_refresh_summary_carries_one_entry_per_implicated_provider_in_the_ki
             raise DataFetchError("detail", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
         raise DataFetchError("detail", kind=ProviderFailureKind.NO_DATA, provider_id="yfinance")
 
-    with patch(
-        "investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis", side_effect=failing
+    with (
+        patch(
+            "investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis",
+            side_effect=failing,
+        ),
+        injected_probe(fake.probe),
     ):
-        result = runner.invoke(app, ["refresh", "Two Providers", "--workers", "1", "--json"], obj=fake.probe)
+        result = runner.invoke(app, ["refresh", "Two Providers", "--workers", "1", "--json"])
 
     assert result.exit_code == 1
     document = json.loads(result.stdout)

@@ -51,6 +51,7 @@ from investment_analysis_engine.workspace.runs import RunQuery
 from investment_analysis_engine.workspace.strategy_types import SelectionMember
 from scripts.repository_root import REPOSITORY_ROOT
 from tests._direct_command_output import _COMMANDS, enter_fixture_providers, normalize
+from tests._probe_injection import injected_probe
 from tests._strategy_document_output import CASES, Case, _enter_providers, without_excluded_keys
 from tests.workspace.test_execution import _momentum_native_evidence
 
@@ -118,7 +119,10 @@ def _run(
         return analyze(context, _ticker(alias), _SELECTIONS[alias], save=save, provider_check=provider_check)
 
 
-_WALL_CLOCK_TEXT = re.compile(rb"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?\+00:00")
+# The only text lines that hold the run's own reading of now: Momentum's details and diagnostics print the moment the
+# analysis ran and, with no cache, the moment the data was retrieved. Every other time in the text, the as-of and the
+# effective times among them, is compared exactly.
+_WALL_CLOCK_LINES = re.compile(rb"^(Analysis timestamp|Originally retrieved): .*$", re.MULTILINE)
 
 
 def _as_written(text: str) -> bytes:
@@ -127,8 +131,8 @@ def _as_written(text: str) -> bytes:
 
 
 def _without_wall_clock(written: bytes) -> bytes:
-    """Replace each reading of the wall clock in a text output with a marker; only the moment of the run is ignored."""
-    return _WALL_CLOCK_TEXT.sub(b"<wall-clock>", written)
+    """Replace the value on each labelled wall-clock line with a marker; nothing else is masked."""
+    return _WALL_CLOCK_LINES.sub(rb"\1: <wall-clock>", written)
 
 
 @pytest.mark.parametrize("alias", _strategy_ids())
@@ -225,13 +229,8 @@ def _analyze_failing(
     ticker = _failure_ticker(case, alias)
     with ExitStack() as stack:
         _enter_providers(stack, case)
-        return analyze(
-            dataclasses.replace(context, provider_probe=probe),
-            ticker,
-            selection,
-            save=False,
-            provider_check=provider_check,
-        )
+        stack.enter_context(injected_probe(probe))
+        return analyze(context, ticker, selection, save=False, provider_check=provider_check)
 
 
 def _failure_ticker(case: Case, alias: str) -> str:
@@ -269,17 +268,50 @@ def test_a_provider_failure_with_the_check_turned_off_says_it_was_not_checked(
     assert "(the provider check is turned off)" in outcome.render_text(PresentationMode.DETAILS).splitlines()[0]
 
 
-def test_a_failure_without_a_probe_adds_no_lines_and_no_element(
+def test_a_failure_with_the_check_switched_off_in_the_settings_says_so(
     failing: tuple[str, Case], context: ApplicationContext
 ) -> None:
+    """The probe the operation builds from the settings contacts no provider when the setting is off."""
     alias, case = failing
 
     with ExitStack() as stack:
         _enter_providers(stack, case)
         outcome = analyze(context, _failure_ticker(case, alias), _SELECTIONS[alias], save=False, provider_check=True)
 
-    assert json.loads(strategy_document_json(outcome.document))["provider_check"] is None
-    assert "test request" not in outcome.render_text(PresentationMode.CONCISE)
+    element = json.loads(strategy_document_json(outcome.document))["provider_check"]
+    assert [item["verdict"] for item in element] == [ProviderCheckVerdict.NOT_CHECKED.value]
+    assert "(the provider check is turned off)" in outcome.render_text(PresentationMode.CONCISE).splitlines()[0]
+
+
+def test_each_call_builds_its_own_probe_so_no_finding_carries_over(
+    failing: tuple[str, Case], context: ApplicationContext
+) -> None:
+    alias, case = failing
+    probes = [_Probe(), _Probe()]
+
+    with ExitStack() as stack:
+        _enter_providers(stack, case)
+        build = stack.enter_context(
+            patch("investment_analysis_engine.application.analysis.build_provider_probe", side_effect=probes)
+        )
+        for _ in range(2):
+            analyze(context, _failure_ticker(case, alias), _SELECTIONS[alias], save=False, provider_check=True)
+
+    assert build.call_count == 2
+    assert [len(probe.calls) for probe in probes] == [1, 1]
+
+
+def test_no_application_module_holds_a_module_level_probe() -> None:
+    """A probe remembers its findings, so one that lived in a module would carry them from one operation to the next."""
+    for path in sorted((PACKAGE_ROOT / "application").glob("*.py")):
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+            if isinstance(node, ast.Assign | ast.AnnAssign) and node.value is not None:
+                called = {
+                    call.func.id
+                    for call in ast.walk(node.value)
+                    if isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                }
+                assert not called & {"ProviderProbe", "build_provider_probe"}, (path.name, node.lineno)
 
 
 def test_a_completed_analysis_never_runs_the_check(context: ApplicationContext) -> None:
@@ -287,13 +319,8 @@ def test_a_completed_analysis_never_runs_the_check(context: ApplicationContext) 
 
     with ExitStack() as stack:
         enter_fixture_providers(stack, "momentum")
-        outcome = analyze(
-            dataclasses.replace(context, provider_probe=probe),
-            _ticker("momentum"),
-            _SELECTIONS["momentum"],
-            save=False,
-            provider_check=True,
-        )
+        stack.enter_context(injected_probe(probe))
+        outcome = analyze(context, _ticker("momentum"), _SELECTIONS["momentum"], save=False, provider_check=True)
 
     assert probe.calls == []
     assert json.loads(strategy_document_json(outcome.document))["provider_check"] is None
@@ -377,14 +404,11 @@ def test_the_check_runs_only_after_a_failure(
     def runner(*_arguments: object, **_keywords: object) -> StrategyRun:
         return _stand_in(status, elements)
 
-    with patch("investment_analysis_engine.application.analysis.analysis_runner_for", return_value=runner):
-        outcome = analyze(
-            dataclasses.replace(context, provider_probe=probe),
-            "KO",
-            _SELECTIONS["piotroski"],
-            save=False,
-            provider_check=True,
-        )
+    with (
+        patch("investment_analysis_engine.application.analysis.analysis_runner_for", return_value=runner),
+        injected_probe(probe),
+    ):
+        outcome = analyze(context, "KO", _SELECTIONS["piotroski"], save=False, provider_check=True)
 
     assert exit_code_of(outcome.outcome) == exit_code
     assert bool(probe.calls) is check_runs

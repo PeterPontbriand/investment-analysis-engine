@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 
-from investment_analysis_engine.application.provider_check import ProviderCheck
 from investment_analysis_engine.config import ProjectSettings
 
 
@@ -14,12 +13,9 @@ class ApplicationContext:
 
     Attributes:
         settings: The settings the operation reads, including its database and settings folder.
-        provider_probe: The probe an operation that reports a provider failure asks for one test request, or
-            ``None`` when the caller offers none, in which case no provider check runs.
     """
 
     settings: ProjectSettings
-    provider_probe: ProviderCheck | None = None
 
 
 __all__ = ["ApplicationContext"]

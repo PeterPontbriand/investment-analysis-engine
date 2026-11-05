@@ -16,6 +16,8 @@ import pytest
 from typer.testing import CliRunner
 
 from investment_analysis_engine import cli_health
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.providers import build_provider_clients
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
@@ -171,7 +173,7 @@ def test_unknown_provider_is_an_invalid_parameter_listing_the_valid_ids() -> Non
 
 def test_missing_sec_identity_is_reported_as_not_configured_and_exits_one() -> None:
     with patch.object(settings, "sec_user_agent", None):
-        clients = cli_health.build_provider_clients()
+        clients = build_provider_clients(ApplicationContext(settings=settings))
         with patch.object(cli_health, "build_provider_clients", return_value=clients):
             result = runner.invoke(app, ["health", "--provider", "sec_edgar"])
 
@@ -185,7 +187,7 @@ def test_missing_sec_identity_is_reported_as_not_configured_and_exits_one() -> N
 
 def test_configured_sec_identity_composes_a_transport_with_the_stripped_identity() -> None:
     with patch.object(settings, "sec_user_agent", f"  {_SEC_AGENT}  "):
-        clients = cli_health.build_provider_clients()
+        clients = build_provider_clients(ApplicationContext(settings=settings))
 
     assert isinstance(clients.sec, SecTransport)
     assert clients.sec.user_agent == _SEC_AGENT
@@ -413,7 +415,7 @@ _HUNG_ADAPTER_SCRIPT = textwrap.dedent(
         run=lambda clients: checks.check_yfinance(clients.yahoo, spec=spec, connection=clients.connection),
     )
     cli_health.PROVIDER_CHECKS = (entry,)
-    cli_health.build_provider_clients = lambda: checks.ProviderClients(
+    cli_health.build_provider_clients = lambda _context: checks.ProviderClients(
         yahoo=HungYahoo(), sec=checks.SecUnavailable("not used"), connection=checks.ConnectionStep(
             connect=lambda host, port, timeout: None, https_proxy=lambda host: None
         )
