@@ -29,10 +29,9 @@ replayed through ``execute``'s clock.
 
 A job's failure - whether the adapter itself raises, or the terminal insert
 fails - is isolated to that one job and recorded as an explicit result; it
-never aborts the remaining (ticker, selection) pairs. Deciding whether a
-*storage* failure specifically should stop admitting further work is
-explicitly not decided here; the per-job isolation is what such a decision
-would build on.
+never aborts the remaining (ticker, selection) pairs. A failure while saving
+a job, like any other job failure, is isolated to that job and recorded as its
+result, and the refresh continues admitting the remaining jobs.
 
 ``cancellation`` is an optional cooperative stop signal: a caller (the
 refresh CLI, on Ctrl+C) sets it from another thread. Once set, no *new* job

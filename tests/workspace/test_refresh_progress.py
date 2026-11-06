@@ -247,3 +247,40 @@ def test_a_watchlist_addressed_by_id_is_refreshed_and_a_missing_id_is_not_found(
             describe=failure_text,
             policy=RefreshPolicy(workers=1),
         )
+
+
+@pytest.mark.parametrize("workers", [1, 2])
+def test_a_replacement_job_submitted_before_the_event_is_set_still_runs_and_is_saved(workers: int) -> None:
+    """The cancellation arrives right after the first replacement is submitted, before its worker may have taken it."""
+    cancellation = threading.Event()
+    events: list[RefreshProgress] = []
+
+    def observe(event: RefreshProgress) -> None:
+        events.append(event)
+        if isinstance(event, RefreshJobStarted) and event.position == workers:
+            cancellation.set()
+
+    sink = _FakeSink()
+    summary = coordinate_refresh(
+        WatchlistName("My Watch"),
+        watchlists=_FakeWatchlists({"my watch": _watchlist(("AAPL", "MSFT", "KO", "IBM", "T"), (_MOMENTUM,))}),
+        repository=sink,
+        executor=_executor,
+        run_specs=RUN_SPECS_BY_KEY,
+        describe=failure_text,
+        policy=RefreshPolicy(workers=workers),
+        cancellation=cancellation,
+        on_progress=observe,
+    )
+
+    replacement = [event for event in events if isinstance(event, RefreshJobFinished) and event.position == workers]
+    assert len(replacement) == 1
+    saved = replacement[0].result.run
+    assert saved is not None
+    assert summary.results[workers].run == saved
+    assert saved in sink.inserted
+    assert all(event.position <= workers for event in events if isinstance(event, RefreshJobStarted))
+    last = events[-1].totals
+    assert last.admitted == last.finished == workers + 1
+    assert last.remaining == 5 - (workers + 1)
+    assert len(summary.results) == workers + 1

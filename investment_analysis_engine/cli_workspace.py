@@ -61,7 +61,7 @@ from investment_analysis_engine.core.strategy_errors import require
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategy_wiring import BY_ALIAS
-from investment_analysis_engine.workspace.refresh import DEFAULT_WORKERS
+from investment_analysis_engine.workspace.refresh import DEFAULT_WORKERS, MAX_WORKERS, MIN_WORKERS
 from investment_analysis_engine.workspace.repositories.watchlists import DeletedWatchlist, RemovedEntries
 from investment_analysis_engine.workspace.runs import (
     AnalysisRunSummary,
@@ -460,7 +460,11 @@ def refresh(  # noqa: PLR0913
     name: Annotated[str, typer.Argument(help="Watchlist name to refresh.")],
     *,
     workers: Annotated[
-        int, typer.Option("--workers", help="Concurrent job count, 1-4; defaults to 2.")
+        int,
+        typer.Option(
+            "--workers",
+            help=f"Concurrent job count, {MIN_WORKERS}-{MAX_WORKERS}; defaults to {DEFAULT_WORKERS}.",
+        ),
     ] = DEFAULT_WORKERS,
     no_save: Annotated[
         bool,
