@@ -64,7 +64,6 @@ def test_the_shipped_file_lists_every_section_17_row_and_the_two_commands_in_ord
         "strategy-documents",
         "help-snapshot",
         "guide",
-        "watchlist-options",
         "schema",
         "strategy-docs",
     ]

@@ -156,7 +156,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         add(
             _check(
                 "SUP-6",
-                ("watchlist", "create", "W", "AAPL", "-a", method, *extra, "--as-of", " "),
+                ("watchlist", "add-selection", method, "W", "AAPL", *extra, "--as-of", " "),
                 "--as-of must be non-empty when supplied.",
                 ("--as-of",),
                 json_flag=False,
@@ -165,7 +165,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         add(
             _check(
                 "SUP-7",
-                ("watchlist", "add-selection", "W", "AAPL", "-a", method, *extra, "--as-of", "bad"),
+                ("watchlist", "add-selection", method, "W", "AAPL", *extra, "--as-of", "bad"),
                 _AS_OF_FORMAT,
                 ("--as-of",),
                 json_flag=False,
@@ -174,7 +174,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         add(
             _check(
                 "SUP-8",
-                ("watchlist", "create", "W", "AAPL", "-a", method, *extra, "--as-of", "2024-01-01T00:00:00"),
+                ("watchlist", "add-selection", method, "W", "AAPL", *extra, "--as-of", "2024-01-01T00:00:00"),
                 "Timestamp --as-of values must include an explicit timezone offset.",
                 ("--as-of",),
                 json_flag=False,
@@ -240,7 +240,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
     add(
         _check(
             "SUP-9",
-            ("watchlist", "create", "W", "AAPL", "-a", "graham-growth", *_GROWTH, "--eps-basis", "ttm"),
+            ("watchlist", "add-selection", "graham-growth", "W", "AAPL", *_GROWTH, "--eps-basis", "ttm"),
             "Invalid --eps-basis: Input should be 'three_year_average' or 'fiscal_year'",
             ("--eps-basis",),
             json_flag=False,
@@ -251,7 +251,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         add(
             _check(
                 "SUP-9",
-                ("watchlist", "add-selection", "W", "AAPL", "-a", method, *extra, "--eps", "nan"),
+                ("watchlist", "add-selection", method, "W", "AAPL", *extra, "--eps", "nan"),
                 "Invalid --eps: Financial override must be a finite number.",
                 ("--eps",),
                 json_flag=False,
@@ -260,7 +260,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         add(
             _check(
                 "SUP-9",
-                ("watchlist", "create", "W", "AAPL", "-a", method, *extra, "--current-price", "nan"),
+                ("watchlist", "add-selection", method, "W", "AAPL", *extra, "--current-price", "nan"),
                 "Invalid --current-price: Financial override must be a finite number.",
                 ("--current-price",),
                 json_flag=False,
@@ -269,7 +269,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
     add(
         _check(
             "SUP-9",
-            ("watchlist", "create", "W", "AAPL", "-a", "graham-number", "--bvps", "nan"),
+            ("watchlist", "add-selection", "graham-number", "W", "AAPL", "--bvps", "nan"),
             "Invalid --bvps: Financial override must be a finite number.",
             ("--bvps",),
             json_flag=False,
@@ -278,7 +278,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
     add(
         _check(
             "SUP-9",
-            ("watchlist", "create", "W", "AAPL", "-a", "graham-growth", "-g", "nan", "-y", "4"),
+            ("watchlist", "add-selection", "graham-growth", "W", "AAPL", "-g", "nan", "-y", "4"),
             "Invalid --expected-growth: Financial override must be a finite number.",
             ("--expected-growth",),
             json_flag=False,
@@ -287,7 +287,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
     add(
         _check(
             "SUP-9",
-            ("watchlist", "create", "W", "AAPL", "-a", "graham-growth", "-g", "5", "-y", "nan"),
+            ("watchlist", "add-selection", "graham-growth", "W", "AAPL", "-g", "5", "-y", "nan"),
             "Invalid --aaa-yield: Financial override must be a finite number.",
             ("--aaa-yield",),
             json_flag=False,
@@ -325,7 +325,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         add(
             _check(
                 row,
-                ("watchlist", "create", "W", "AAPL", "-a", "momentum", *options),
+                ("watchlist", "add-selection", "momentum", "W", "AAPL", *options),
                 message,
                 parameters,
                 json_flag=False,
@@ -334,7 +334,7 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         add(
             _check(
                 row,
-                ("watchlist", "add-selection", "W", "AAPL", "-a", "momentum", *options),
+                ("watchlist", "add-selection", "momentum", "W", "AAPL", *options),
                 message,
                 parameters,
                 json_flag=False,
@@ -352,79 +352,21 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         add(
             _check(
                 row,
-                ("watchlist", "create", "W", "AAPL", "-a", "fcf-growth", *options),
+                ("watchlist", "add-selection", "fcf-growth", "W", "AAPL", *options),
                 message,
                 (options[0],),
                 json_flag=False,
             )
         )
-    # GGR
-    add(
-        _check(
-            "GGR-1",
-            ("watchlist", "create", "W", "AAPL", "-a", "graham-growth", "-y", "4"),
-            "--expected-growth is required when --analysis is graham-growth.",
-            ("--expected-growth",),
-            json_flag=False,
-        )
-    )
-    add(
-        _check(
-            "GGR-2",
-            ("watchlist", "add-selection", "W", "AAPL", "-a", "graham-growth", "-g", "5"),
-            "--aaa-yield is required when --analysis is graham-growth.",
-            ("--aaa-yield",),
-            json_flag=False,
-        )
-    )
     # WRK
     analysis = f"--analysis must be one of: {', '.join(item.alias for item in STRATEGIES)}."
-    add(
-        _check("WRK-1", ("watchlist", "create", "W", "AAPL", "-a", "bogus"), analysis, ("--analysis",), json_flag=False)
-    )
-    add(
-        _check(
-            "WRK-1",
-            ("watchlist", "add-selection", "W", "AAPL", "-a", "bogus"),
-            analysis,
-            ("--analysis",),
-            json_flag=False,
-        )
-    )
     add(_check("WRK-1", ("watchlist", "remove-method", "W", "-a", "bogus"), analysis, ("--analysis",), json_flag=False))
     add(_check("WRK-1", ("runs", "list", "--analysis", "bogus"), analysis, ("--analysis",), json_flag=True))
-    add(
-        _check(
-            "WRK-2",
-            ("watchlist", "create", "W", "AAPL"),
-            "--analysis is required to seed TICKER... at creation.",
-            ("--analysis", "TICKER"),
-            json_flag=False,
-        )
-    )
-    add(
-        _check(
-            "WRK-3",
-            ("watchlist", "create", "W", "--analysis", "momentum"),
-            "At least one TICKER is required with --analysis.",
-            ("TICKER", "--analysis"),
-            json_flag=False,
-        )
-    )
     add(_check("WRK-4", ("watchlist", "create", "   "), "NAME must not be blank.", ("NAME",), json_flag=False))
     add(
         _check(
             "WRK-5",
-            ("watchlist", "create", "W", "-a", "momentum", " "),
-            "TICKER must not be empty.",
-            ("TICKER",),
-            json_flag=False,
-        )
-    )
-    add(
-        _check(
-            "WRK-5",
-            ("watchlist", "add-selection", "W", "-a", "momentum", " "),
+            ("watchlist", "add-selection", "momentum", "W", " "),
             "TICKER must not be empty.",
             ("TICKER",),
             json_flag=False,
@@ -736,7 +678,12 @@ _PARSER_REJECTIONS = [
     ("fcf-growth",),
     ("fcf-growth", "AAPL", "--growth-years", "many"),
     ("watchlist", "create"),
-    ("watchlist", "add-selection", "W", "-a", "momentum"),
+    ("watchlist", "add-selection", "momentum", "W"),
+    ("watchlist", "add-selection"),
+    ("watchlist", "add-selection", "bogus", "W", "AAPL"),
+    ("watchlist", "add-selection", "graham-growth", "W", "AAPL", "-y", "4"),
+    ("watchlist", "add-selection", "graham-growth", "W", "AAPL", "-g", "5"),
+    ("watchlist", "add-selection", "graham-number", "W", "AAPL", "--eps-basis", "ttm"),
     ("watchlist", "remove-ticker", "W"),
     ("watchlist", "remove-entry", "W", "first"),
     ("watchlist", "rename", "W"),
@@ -764,21 +711,22 @@ def test_a_parser_rejection_still_exits_2_as_text(arguments: tuple[str, ...]) ->
 
 # --- which check fires first ----------------------------------------------------------------------------------
 
+# A converter of the option table rejects its value while the options are read, in the order of the table, before the
+# selection's own rules run, so with several bad options at once the one reported can differ from the direct command's
+# old order (an accepted deviation: only the first error is reported). Every single failure keeps its message.
 _ORDER = [
     (("momentum", "AAPL", "--ticker", "MSFT", "--details", "--json"), ("TICKER", "--ticker")),
     (("momentum", " ", "--short-window", "0"), ("TICKER",)),
     (("momentum", "AAPL", "--details", "--json", "--short-window", "0"), ("--details", "--json")),
-    (("momentum", "AAPL", "--short-window", "0", "--as-of", "bad"), ("--short-window",)),
+    (("momentum", "AAPL", "--short-window", "0", "--as-of", "bad"), ("--as-of",)),
     (("momentum", "AAPL", "--as-of", "bad", "--save-run"), ("--as-of",)),
     (("graham-number", "AAPL", "--ticker", "MSFT"), ("TICKER", "--ticker")),
     (("fcf-growth", "AAPL", "--growth-years", "9", "--as-of", "bad"), ("--growth-years",)),
     (("fcf-growth", "AAPL", "--as-of", "bad", "--currency", "XX"), ("--as-of",)),
-    (("fcf-growth", "AAPL", "--currency", "XX", "--classification-basis", "nope"), ("--currency",)),
-    (("fcf-growth", "AAPL", "--classification-basis", "nope", "--forward-policy", "nope"), ("--classification-basis",)),
-    (("watchlist", "create", "W", "AAPL", "-a", "bogus", "--short-window", "0"), ("--analysis",)),
-    (("watchlist", "create", " ", "-a", "momentum", " "), ("NAME",)),
-    (("watchlist", "add-selection", "Nope", " ", "-a", "bogus"), ("--analysis",)),
-    (("watchlist", "add-selection", "Nope", " ", "-a", "momentum"), ("TICKER",)),
+    (("fcf-growth", "AAPL", "--currency", "XX", "--classification-basis", "nope"), ("--classification-basis",)),
+    (("fcf-growth", "AAPL", "--classification-basis", "nope", "--forward-policy", "nope"), ("--forward-policy",)),
+    (("watchlist", "create", " "), ("NAME",)),
+    (("watchlist", "add-selection", "momentum", "Nope", " "), ("TICKER",)),
     (("watchlist", "rename", "Nope", " "), ("NEW_NAME",)),
     (("runs", "list", "--ticker", " ", "--analysis", "bogus"), ("--ticker",)),
     (("runs", "list", "--analysis", "bogus", "--status", "bogus"), ("--analysis",)),
@@ -813,23 +761,24 @@ def _watchlist_names() -> str:
     return runner.invoke(app, ["watchlist", "list"]).stdout
 
 
-def test_a_blank_seed_ticker_leaves_no_watchlist_behind() -> None:
-    result = runner.invoke(app, ["watchlist", "create", "Gone", "-a", "momentum", "AAPL", " "])
+def test_a_blank_ticker_for_a_missing_watchlist_reports_the_blank_ticker() -> None:
+    result = runner.invoke(app, ["watchlist", "add-selection", "momentum", "Gone", "AAPL", " "])
     assert result.exit_code == 1
     assert result.stderr.strip() == "TICKER must not be empty."
     assert "Gone" not in _watchlist_names()
 
 
-def test_an_existing_name_with_a_blank_seed_ticker_reports_the_blank_ticker() -> None:
+def test_an_existing_name_with_a_blank_ticker_reports_the_blank_ticker() -> None:
     assert runner.invoke(app, ["watchlist", "create", "Taken"]).exit_code == 0
-    result = runner.invoke(app, ["watchlist", "create", "Taken", "-a", "momentum", " "])
+    result = runner.invoke(app, ["watchlist", "add-selection", "momentum", "Taken", " "])
     assert result.exit_code == 1
     assert result.stderr.strip() == "TICKER must not be empty."
 
 
 def test_a_blank_ticker_leaves_the_watchlist_unchanged() -> None:
-    assert runner.invoke(app, ["watchlist", "create", "Keep", "-a", "momentum", "AAPL"]).exit_code == 0
-    runner.invoke(app, ["watchlist", "add-selection", "Keep", "-a", "momentum", "MSFT", " "])
+    assert runner.invoke(app, ["watchlist", "create", "Keep"]).exit_code == 0
+    assert runner.invoke(app, ["watchlist", "add-selection", "momentum", "Keep", "AAPL"]).exit_code == 0
+    runner.invoke(app, ["watchlist", "add-selection", "momentum", "Keep", "MSFT", " "])
     assert "Entries (1):" in runner.invoke(app, ["watchlist", "show", "Keep"]).stdout
 
 
@@ -844,9 +793,10 @@ def _corrupt_the_stored_selection(settings: ProjectSettings) -> None:
 def test_add_selection_on_a_watchlist_with_an_unreadable_entry_reports_the_stored_selection(
     isolated_cli_settings: ProjectSettings,
 ) -> None:
-    assert runner.invoke(app, ["watchlist", "create", "Old", "-a", "momentum", "AAPL"]).exit_code == 0
+    assert runner.invoke(app, ["watchlist", "create", "Old"]).exit_code == 0
+    assert runner.invoke(app, ["watchlist", "add-selection", "momentum", "Old", "AAPL"]).exit_code == 0
     _corrupt_the_stored_selection(isolated_cli_settings)
-    result = runner.invoke(app, ["watchlist", "add-selection", "Old", "-a", "momentum", "MSFT"])
+    result = runner.invoke(app, ["watchlist", "add-selection", "momentum", "Old", "MSFT"])
     assert result.exit_code == 1
     assert "its stored selection is not in a shape this version can read" in result.stderr
     assert "Usage:" not in result.stderr
@@ -862,7 +812,7 @@ def test_a_corrupt_stored_row_is_an_unexpected_failure_that_shows_none_of_the_li
         "investment_analysis_engine.workspace.repositories.watchlists.SQLiteWatchlistRepository.add_entries",
         side_effect=corrupt,
     ):
-        result = runner.invoke(app, ["watchlist", "add-selection", "Odd", "-a", "momentum", "AAPL"])
+        result = runner.invoke(app, ["watchlist", "add-selection", "momentum", "Odd", "AAPL"])
     assert result.exit_code == 1
     assert result.stderr.strip() == "watchlist add-selection failed unexpectedly."
     assert not any(token in result.stderr for token in _FORBIDDEN)
@@ -887,11 +837,7 @@ def test_exit_code_1_is_not_the_parser_for_any_command_check() -> None:
         "FCF-2",
         "FCF-3",
         "FCF-4",
-        "GGR-1",
-        "GGR-2",
         "WRK-1",
-        "WRK-2",
-        "WRK-3",
         "WRK-4",
         "WRK-5",
         "WRK-6",
@@ -950,18 +896,10 @@ def test_the_direct_command_and_watchlist_create_accept_and_reject_the_same_valu
     )
     with patch.object(module, "analyze_for_command", return_value=outcome):
         direct = runner.invoke(app, [command, "AAPL", *options])
-    watchlist = runner.invoke(app, ["watchlist", "create", "W", "AAPL", "-a", command, *options])
+    runner.invoke(app, ["watchlist", "create", "W"])
+    watchlist = runner.invoke(app, ["watchlist", "add-selection", command, "W", "AAPL", *options])
 
     assert direct.exit_code == watchlist.exit_code
     if direct.exit_code:
         assert direct.stderr.strip() == watchlist.stderr.strip()
         assert direct.stderr.strip() != ""
-
-
-@pytest.mark.parametrize("basis", ["three_year_average", "ttm"])
-def test_watchlist_create_ignores_an_eps_basis_for_graham_number(basis: str) -> None:
-    """Graham Number has no EPS basis option; a watchlist entry ignores the flag, as it ignores --bvps for Growth."""
-    watchlist = runner.invoke(app, ["watchlist", "create", "W", "AAPL", "-a", "graham-number", "--eps-basis", basis])
-
-    assert watchlist.exit_code == 0, watchlist.output
-    assert "eps_basis" not in watchlist.output

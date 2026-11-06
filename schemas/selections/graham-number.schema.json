@@ -1,0 +1,71 @@
+{
+  "additionalProperties": false,
+  "description": "Immutable Graham Number selection with an optional book-value override.",
+  "properties": {
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+      "title": "As Of"
+    },
+    "bvps_override": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Book value per share to use instead of the reported figure; leave empty to use it.",
+      "title": "Bvps Override"
+    },
+    "eps_override": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
+      "title": "Eps Override"
+    },
+    "quote_override": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Share price to use instead of the current quote; leave empty to use the quote.",
+      "title": "Quote Override"
+    },
+    "use_cache": {
+      "default": true,
+      "description": "Whether the analysis may read and write the local cache of fetched data.",
+      "title": "Use Cache",
+      "type": "boolean"
+    }
+  },
+  "title": "GrahamNumberSelection",
+  "type": "object"
+}

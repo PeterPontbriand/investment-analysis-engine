@@ -12,6 +12,6 @@ uv run ian ci-probe AAPL
 
 ## Watchlist options
 
-`watchlist create --analysis ci-probe` and `watchlist add-selection --analysis ci-probe` accept `--as-of` and
+`watchlist add-selection ci-probe` accepts `--as-of` and
 `--no-cache`. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the
-watchlist commands that take them.
+command that takes them.

@@ -1,0 +1,82 @@
+{
+  "additionalProperties": false,
+  "description": "Graham growth-value selection requiring explicit growth and AAA yield percentages.",
+  "properties": {
+    "aaa_yield_override": {
+      "description": "Current AAA corporate-bond yield, in percentage points.",
+      "title": "Aaa Yield Override",
+      "type": "number"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+      "title": "As Of"
+    },
+    "eps_basis": {
+      "default": "three_year_average",
+      "description": "Which earnings figure to use: the three-year average, or one completed fiscal year.",
+      "enum": [
+        "three_year_average",
+        "fiscal_year"
+      ],
+      "title": "Eps Basis",
+      "type": "string"
+    },
+    "eps_override": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
+      "title": "Eps Override"
+    },
+    "expected_growth": {
+      "description": "Expected annual earnings growth, in percentage points.",
+      "title": "Expected Growth",
+      "type": "number"
+    },
+    "quote_override": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Share price to use instead of the current quote; leave empty to use the quote.",
+      "title": "Quote Override"
+    },
+    "use_cache": {
+      "default": true,
+      "description": "Whether the analysis may read and write the local cache of fetched data.",
+      "title": "Use Cache",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "expected_growth",
+    "aaa_yield_override"
+  ],
+  "title": "GrahamGrowthSelection",
+  "type": "object"
+}

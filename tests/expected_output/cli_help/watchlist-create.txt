@@ -1,0 +1,8 @@
+Usage: root watchlist create [OPTIONS] {name}
+Create an empty watchlist.
+Add entries to it with 'ian watchlist add-selection METHOD NAME TICKER...'.
+Arguments
+* name <str> Display name for the new watchlist. [required]
+Options
+--json Emit the created watchlist document.
+--help Show this message and exit.

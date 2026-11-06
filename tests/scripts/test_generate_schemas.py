@@ -5,9 +5,22 @@ from pathlib import Path
 
 import pytest
 
+from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.selections import build_selection
+from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from scripts import generate_schemas
-from scripts.generate_schemas import DOCUMENTS, SCHEMA_DIRECTORY, expected_schemas, schema_gaps, write_schemas
+from scripts.generate_schemas import (
+    DOCUMENTS,
+    FIXED_SELECTION_FIELDS,
+    SCHEMA_DIRECTORY,
+    expected_schemas,
+    schema_gaps,
+    selection_schema,
+    selection_schema_file,
+    write_schemas,
+)
 
 
 def test_published_schemas_are_current() -> None:
@@ -19,6 +32,8 @@ def test_every_document_has_a_schema_file_and_no_other_file_is_published() -> No
     names = {name for name, _model in DOCUMENTS}
     # ``openapi.json`` is the API description, generated and checked by scripts/generate_openapi.py.
     assert {path.name for path in SCHEMA_DIRECTORY.glob("*.json")} - {"openapi.json"} == names
+    selections = {selection_schema_file(item).split("/")[-1] for item in STRATEGIES}
+    assert {path.name for path in (SCHEMA_DIRECTORY / "selections").glob("*.json")} == selections
 
 
 def test_schema_text_uses_sorted_keys_two_space_indent_and_a_trailing_line_feed() -> None:
@@ -40,7 +55,7 @@ def test_a_missing_schema_fails_naming_the_file(tmp_path: Path) -> None:
     gaps = schema_gaps(tmp_path)
     assert gaps == [
         f"schema schemas/{name} is missing or out of date; run uv run python -m scripts.generate_schemas"
-        for name, _model in DOCUMENTS
+        for name in expected_schemas()
     ]
 
 
@@ -77,3 +92,46 @@ def test_check_mode_reports_drift_and_writes_nothing(
     assert generate_schemas.main(["--check"]) == 0
     assert generate_schemas.main([]) == 0
     assert "schemas are current" in capsys.readouterr().out
+
+
+_SAMPLE_VALUES = {
+    "expected_growth": 5.0,
+    "aaa_yield_override": 4.5,
+    "short_window": 5,
+    "long_window": 20,
+    "rsi_period": 14,
+}
+
+
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.alias)
+def test_a_selection_schema_describes_exactly_the_fields_build_selection_accepts(
+    descriptor: StrategyDescriptor,
+) -> None:
+    """Each property is accepted by the builder, and what the schema leaves out is rejected."""
+    model = descriptor.behavior.selection_type
+    schema = selection_schema(descriptor)
+    properties = set(schema["properties"])
+    assert properties == set(model.model_fields) - set(FIXED_SELECTION_FIELDS)
+    context = ApplicationContext(settings=ProjectSettings())
+    required = {
+        name: _SAMPLE_VALUES[name] for name in (*schema.get("required", []), *descriptor.selection_settings_fields)
+    }
+    for name in sorted(properties):
+        field = model.model_fields[name]
+        value = _SAMPLE_VALUES[name] if field.is_required() else field.get_default(call_default_factory=True)
+        if name == "policy":
+            value = {}
+        build_selection(context, descriptor.method_id, {**required, name: value})
+    for name in FIXED_SELECTION_FIELDS:
+        with pytest.raises(ValueError, match=name):
+            build_selection(context, descriptor.method_id, {**required, name: "x"})
+
+
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.alias)
+def test_a_selection_schema_states_no_default_for_a_field_the_settings_fill(descriptor: StrategyDescriptor) -> None:
+    schema = selection_schema(descriptor)
+    for name in descriptor.selection_settings_fields:
+        assert "default" not in schema["properties"][name]
+        assert name not in schema.get("required", [])
+    assert set(schema["properties"]["as_of"]["anyOf"][0]) == {"type", "format"}
+    assert [part.get("format") for part in schema["properties"]["as_of"]["anyOf"]] == ["date", "date-time", None]

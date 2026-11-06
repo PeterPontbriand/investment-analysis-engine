@@ -17,7 +17,7 @@ pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
 
 runner = CliRunner()
 
-_GRAHAM = ["-a", "graham-number"]
+_GRAHAM = "graham-number"
 
 
 def _run(*arguments: str) -> tuple[int, str, str]:
@@ -27,8 +27,9 @@ def _run(*arguments: str) -> tuple[int, str, str]:
 
 def _seed_core() -> None:
     """Create ``Core`` holding KO and MSFT for graham-number and AAPL for fcf-growth."""
-    assert _run("watchlist", "create", "Core", "KO", "MSFT", *_GRAHAM)[0] == 0
-    assert _run("watchlist", "add-selection", "Core", "AAPL", "-a", "fcf-growth")[0] == 0
+    assert _run("watchlist", "create", "Core")[0] == 0
+    assert _run("watchlist", "add-selection", _GRAHAM, "Core", "KO", "MSFT")[0] == 0
+    assert _run("watchlist", "add-selection", "fcf-growth", "Core", "AAPL")[0] == 0
 
 
 def _retire(settings: ProjectSettings, ticker: str) -> None:
@@ -55,8 +56,9 @@ def test_create_json_writes_only_the_created_watchlist_document() -> None:
     assert list(document) == ["watchlist_id", "display_name", "created_at", "updated_at", "entries"]
 
 
-def test_create_json_with_seed_tickers_writes_the_seeded_document() -> None:
-    code, stdout, stderr = _run("watchlist", "create", "Core", "KO", "MSFT", *_GRAHAM, "--json")
+def test_add_selection_json_with_several_tickers_writes_the_document_with_all_of_them() -> None:
+    _run("watchlist", "create", "Core")
+    code, stdout, stderr = _run("watchlist", "add-selection", _GRAHAM, "Core", "KO", "MSFT", "--json")
 
     document = json.loads(stdout)
     assert (code, stderr) == (0, "")
@@ -70,8 +72,6 @@ def test_create_json_failures_write_the_failure_document_and_nothing_to_standard
     cases = [
         (["watchlist", "create", "Core", "--json"], "watchlist_name_conflict", None),
         (["watchlist", "create", " ", "--json"], "invalid_parameter", ["NAME"]),
-        (["watchlist", "create", "Other", "KO", "--json"], "invalid_parameter", ["--analysis", "TICKER"]),
-        (["watchlist", "create", "Other", "KO", " ", *_GRAHAM, "--json"], "invalid_parameter", ["TICKER"]),
     ]
     for arguments, reason_code, parameters in cases:
         code, stdout, stderr = _run(*arguments)
@@ -84,7 +84,7 @@ def test_create_json_failures_write_the_failure_document_and_nothing_to_standard
 def test_add_selection_json_writes_the_updated_watchlist_document() -> None:
     _run("watchlist", "create", "Core")
 
-    code, stdout, stderr = _run("watchlist", "add-selection", "core", "KO", *_GRAHAM, "--json")
+    code, stdout, stderr = _run("watchlist", "add-selection", _GRAHAM, "core", "KO", "--json")
 
     document = json.loads(stdout)
     assert (code, stderr) == (0, "")
@@ -96,10 +96,10 @@ def test_add_selection_json_failures_write_the_failure_document(isolated_cli_set
     _seed_core()
     _retire(isolated_cli_settings, "MSFT")
     cases = [
-        (["watchlist", "add-selection", "Nowhere", "KO", *_GRAHAM, "--json"], "watchlist_not_found"),
-        (["watchlist", "add-selection", "Core", " ", *_GRAHAM, "--json"], "invalid_parameter"),
-        (["watchlist", "add-selection", "Core", "KO", "-a", "nope", "--json"], "invalid_parameter"),
-        (["watchlist", "add-selection", "Core", "NVDA", *_GRAHAM, "--json"], "stored_selection_unreadable"),
+        (["watchlist", "add-selection", _GRAHAM, "Nowhere", "KO", "--json"], "watchlist_not_found"),
+        (["watchlist", "add-selection", _GRAHAM, "Core", " ", "--json"], "invalid_parameter"),
+        (["watchlist", "add-selection", _GRAHAM, "Core", "KO", "--as-of", "nope", "--json"], "invalid_parameter"),
+        (["watchlist", "add-selection", _GRAHAM, "Core", "NVDA", "--json"], "stored_selection_unreadable"),
     ]
     for arguments, reason_code in cases:
         code, stdout, stderr = _run(*arguments)
@@ -160,8 +160,9 @@ def test_a_removal_without_json_still_confirms_on_standard_output_before_the_wat
 def test_a_removal_with_json_and_another_unreadable_entry_commits_and_writes_the_failure_document(
     arguments: list[str], confirmation: str, isolated_cli_settings: ProjectSettings
 ) -> None:
-    assert _run("watchlist", "create", "Core", "KO", *_GRAHAM)[0] == 0
-    assert _run("watchlist", "add-selection", "Core", "MSFT", "-a", "fcf-growth")[0] == 0
+    assert _run("watchlist", "create", "Core")[0] == 0
+    assert _run("watchlist", "add-selection", _GRAHAM, "Core", "KO")[0] == 0
+    assert _run("watchlist", "add-selection", "fcf-growth", "Core", "MSFT")[0] == 0
     _retire(isolated_cli_settings, "MSFT")
 
     code, stdout, stderr = _run("watchlist", *arguments, "--json")
@@ -199,19 +200,19 @@ def test_a_removal_with_json_that_fails_before_the_write_writes_the_failure_docu
     ("arguments", "message"),
     [
         (["watchlist", "create", " "], "NAME must not be blank."),
-        (["watchlist", "create", "Other", "KO", " ", *_GRAHAM], "TICKER must not be empty."),
-        (["watchlist", "add-selection", "Core", " ", *_GRAHAM], "TICKER must not be empty."),
+        (["watchlist", "add-selection", _GRAHAM, "Core", " "], "TICKER must not be empty."),
         (["watchlist", "remove-entry", "Core", "0"], "INDEX must be 1 or greater."),
         (["watchlist", "remove-ticker", "Core", " "], "TICKER must not be empty."),
         (["watchlist", "rename", "Core", " "], "NEW_NAME must not be blank."),
     ],
-    ids=["create-name", "create-ticker", "add-selection", "remove-entry", "remove-ticker", "rename"],
+    ids=["create-name", "add-selection", "remove-entry", "remove-ticker", "rename"],
 )
 def test_a_rejected_argument_is_reported_even_when_the_database_is_not_ready(
     arguments: list[str], message: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     unready = ProjectSettings(database_url=unready_database_url(tmp_path))
     monkeypatch.setattr("investment_analysis_engine.cli_workspace.settings", unready)
+    monkeypatch.setattr("investment_analysis_engine.cli_support.settings", unready)
 
     code, stdout, stderr = _run(*arguments)
 

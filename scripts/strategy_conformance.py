@@ -11,6 +11,7 @@ from __future__ import annotations
 import ast
 import asyncio
 import dataclasses
+import enum
 import functools
 import importlib
 import inspect
@@ -18,14 +19,15 @@ import pkgutil
 import re
 import sys
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from functools import partial
 from pathlib import Path
-from types import MappingProxyType
-from typing import Protocol, cast, get_args, get_origin
+from types import MappingProxyType, UnionType
+from typing import Annotated, Literal, Protocol, Union, cast, get_args, get_origin
 
 import typer
-from pydantic import BaseModel, ValidationError
+from pydantic import AwareDatetime, BaseModel, ValidationError
+from pydantic.fields import FieldInfo
 from typer.core import TyperGroup
 
 from investment_analysis_engine.analysis.base_analyzer import (
@@ -48,12 +50,8 @@ from investment_analysis_engine.cli_strategy_wiring import (
     CLI_STRATEGIES,
     CliComposition,
     CliStrategy,
-    build_selection_for,
-    builders_by_alias,
-    pair_cli,
+    cli_entries,
 )
-from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
-from investment_analysis_engine.cli_workspace import watchlist_app
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
@@ -140,6 +138,7 @@ DESCRIPTOR_FIELDS: dict[str, object] = {
     "evidence_codec_version": int,
     "json_envelope": type[BaseModel],
     "settings_type": type[BaseModel] | None,
+    "selection_settings_fields": tuple[str, ...],
 }
 """The documented descriptor fields and their types; a change here is a reviewed change to the contract."""
 
@@ -168,7 +167,7 @@ EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset(
 )
 """The documented fields of an evaluation-tier entry: the paired core bundle and the erased composition."""
 
-CLI_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"build", "command"})
+CLI_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"command", "add_selection", "selection_options"})
 """The documented members of a strategy's CLI-tier composition."""
 
 APPLICATION_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"run", "refresh"})
@@ -177,7 +176,7 @@ APPLICATION_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"run", "refresh"})
 NON_STRATEGY_COMMANDS: frozenset[str] = frozenset({"evaluate", "health", "refresh", "serve"})
 """The top-level commands that are not a strategy's direct command; command groups are recognized by type."""
 
-CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "build", "command"})
+CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "command", "add_selection", "selection_options"})
 """The documented fields of a CLI-tier entry: the paired core bundle and the erased composition."""
 
 APPLICATION_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "run", "refresh"})
@@ -885,8 +884,13 @@ def json_command_gaps(
     by_alias = {item.alias: item for item in descriptors}
     for command in json_command_paths(app):
         models: list[tuple[str, type[BaseModel]]]
-        if command in JSON_DOCUMENTS:
-            document = JSON_DOCUMENTS[command]
+        add_selection_group = "watchlist add-selection"
+        if command in JSON_DOCUMENTS or (
+            command.startswith(f"{add_selection_group} ")
+            and command.removeprefix(f"{add_selection_group} ") in by_alias
+        ):
+            # Each strategy's add-selection subcommand writes the watchlist document, as the group's entry says.
+            document = JSON_DOCUMENTS[command if command in JSON_DOCUMENTS else add_selection_group]
             models = [(document.schema_file, document.model)]
         elif command in by_alias:
             models = [(strategy_schema_file(by_alias[command]), by_alias[command].json_envelope)]
@@ -1137,68 +1141,17 @@ class _NoProfileCache:
 def _cli_tier_probes(
     gaps: list[str],
     descriptors: tuple[StrategyDescriptor, ...],
-    tier: tuple[EvaluationStrategy, ...],
     cli_tier: tuple[CliStrategy, ...],
-    local_runs: Sequence[StoredRun],
 ) -> None:
-    """Record a gap unless a missing CLI-tier entry, key or another strategy's selection fails closed."""
-    flags = WatchlistFlags(
-        short_window=5,
-        long_window=20,
-        rsi_period=14,
-        as_of=None,
-        no_cache=True,
-        eps=None,
-        eps_basis=None,
-        bvps=None,
-        current_price=None,
-        expected_growth=None,
-        aaa_yield=None,
-        growth_years=None,
-        forward_policy="display-only",
-        classification_basis="total-fcf",
-        currency="USD",
-    )
-    _expect_undeclared(
-        gaps,
-        "build_selection_for(undeclared alias)",
-        partial(build_selection_for, "undeclared-alias", flags, builders_by_alias(descriptors, cli_tier)),
-        names="undeclared-alias",
-    )
-    stored = stored_runs(descriptors, tier, local_runs)
+    """Record a gap unless a missing CLI-tier entry fails closed."""
     for item in descriptors:
         without = tuple(entry for entry in cli_tier if entry.behavior is not item.behavior)
         _expect_undeclared(
             gaps,
-            f"builders_by_alias without the {label(item)} CLI tier entry",
-            partial(builders_by_alias, descriptors, without),
+            f"cli_entries without the {label(item)} CLI tier entry",
+            partial(cli_entries, descriptors, without),
             names=item.method_id,
         )
-        builders = builders_by_alias(descriptors, cli_tier)
-        _expect_undeclared(
-            gaps,
-            f"build_selection_for without the {item.alias} builder",
-            partial(
-                build_selection_for,
-                item.alias,
-                flags,
-                {alias: builder for alias, builder in builders.items() if alias != item.alias},
-            ),
-            names=item.alias,
-        )
-    if len(stored) > 1:
-        second = stored[1]
-        behavior = stored[0].descriptor.behavior
-        if isinstance(behavior, StrategyBehavior):
-            wrong = pair_cli(
-                behavior,
-                CliComposition(build=lambda _flags: second.selection, command=lambda: None),
-            )
-            _expect_undeclared(
-                gaps,
-                "selection builder that returns another strategy's selection",
-                partial(wrong.build, flags),
-            )
 
 
 def _application_tier_probes(
@@ -1270,7 +1223,7 @@ def undeclared_input_gaps(  # noqa: PLR0913, PLR0917
     gaps: list[str] = []
     indexes = build_indexes(descriptors)
     _evaluation_tier_probes(gaps, descriptors, tier)
-    _cli_tier_probes(gaps, descriptors, tier, cli_tier, local_runs)
+    _cli_tier_probes(gaps, descriptors, cli_tier)
     _application_tier_probes(gaps, descriptors, tier, application_tier, local_runs)
     _workspace_probes(gaps, descriptors, tier, local_runs)
     fixtures = compose_fixture_dependencies(
@@ -1572,9 +1525,151 @@ def cli_tier_is_closed_gaps(tier: Sequence[CliStrategy] = CLI_STRATEGIES) -> lis
         entry = tier[0]
         if not _is_frozen(entry, "behavior"):
             gaps.append("CliStrategy is not frozen")
-        composition = CliComposition(build=entry.build, command=entry.command)
-        if not _is_frozen(composition, "build"):
+        composition: CliComposition[SelectionMember] = CliComposition(
+            command=entry.command, add_selection=entry.add_selection, selection_options=entry.selection_options
+        )
+        if not _is_frozen(composition, "command"):
             gaps.append("CliComposition is not frozen")
+    return gaps
+
+
+_NOT_SELECTION_PARAMETERS = frozenset(
+    {"ticker", "ticker_option", "details", "diagnostics", "json_output", "save_run", "no_provider_check"}
+)
+"""The parameters of a direct command that are not selection options: the ticker, the modes, saving and the check."""
+
+_ADD_SELECTION_ONLY_PARAMETERS = frozenset({"name", "tickers", "json_output"})
+"""The parameters of an ``add-selection`` command that are not selection options."""
+
+_FIXED_SELECTION_FIELDS = frozenset({"analysis_id", "method_id", "config_schema_version"})
+"""The fields every selection fixes by its class; a form never offers them and the builder rejects them."""
+
+
+def _selection_field_infos(model: type[BaseModel], prefix: str = "") -> dict[str, FieldInfo]:
+    """Return the form fields of ``model`` by dotted name, a nested model's fields included and the model itself too."""
+    found: dict[str, FieldInfo] = {}
+    for name, info in model.model_fields.items():
+        if not prefix and name in _FIXED_SELECTION_FIELDS:
+            continue
+        found[f"{prefix}{name}"] = info
+        nested = _nested_model(info.annotation)
+        if nested is not None:
+            found.update(_selection_field_infos(nested, f"{prefix}{name}."))
+    return found
+
+
+def _nested_model(annotation: object) -> type[BaseModel] | None:
+    """Return the model class an annotation is, or ``None`` when it is not a model."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation
+    return None
+
+
+def _is_form_type(annotation: object) -> bool:
+    """Report whether an annotation is a form type: a scalar, a closed set, a date, a nested model or an optional."""
+    if annotation in (bool, int, float, str, date, datetime, AwareDatetime):
+        return True
+    if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
+        return True
+    origin = get_origin(annotation)
+    if origin is Literal:
+        return True
+    if origin in (Union, UnionType) or origin is Annotated:
+        arguments = get_args(annotation)
+        if origin is Annotated:
+            return _is_form_type(arguments[0])
+        return all(argument is type(None) or _is_form_type(argument) for argument in arguments)
+    return _nested_model(annotation) is not None
+
+
+def _signature_defaults(function: Callable[..., object]) -> dict[str, object]:
+    """Return the default of each parameter of a command, with ``inspect.Parameter.empty`` for a required one."""
+    return {name: parameter.default for name, parameter in inspect.signature(function).parameters.items()}
+
+
+def selection_options_gaps(
+    descriptors: tuple[StrategyDescriptor, ...],
+    cli_tier: tuple[CliStrategy, ...] = CLI_STRATEGIES,
+) -> list[str]:
+    """T27 (selection options): each strategy's selection is described by its model and its option table agrees.
+
+    For each strategy:
+
+    - its ``add-selection`` options are exactly its direct command's selection options, declared identically;
+    - its option table covers every selection field except the fixed ones, once, and names real parameters;
+    - each selection field is a form type and has a description;
+    - each name in ``selection_settings_fields`` is a required field of the selection and a field of the settings model;
+    - an option whose literal default duplicates a model default gives that default through its converter.
+    """
+    gaps: list[str] = []
+    for item, entry in cli_entries(descriptors, cli_tier):
+        key = label(item)
+        model = item.behavior.selection_type
+        fields = _selection_field_infos(model)
+        direct = inspect.signature(entry.command).parameters
+        added = inspect.signature(entry.add_selection).parameters
+        direct_options = {name: p for name, p in direct.items() if name not in _NOT_SELECTION_PARAMETERS}
+        added_options = {name: p for name, p in added.items() if name not in _ADD_SELECTION_ONLY_PARAMETERS}
+        if set(direct_options) != set(added_options):
+            gaps.append(
+                f"strategy {key}: add-selection options {sorted(added_options)} differ from the direct command's "
+                f"selection options {sorted(direct_options)}"
+            )
+        gaps.extend(
+            f"strategy {key}: option {name} is declared differently in the direct command and in add-selection"
+            for name in sorted(set(direct_options) & set(added_options))
+            if (direct_options[name].annotation, direct_options[name].default)
+            != (added_options[name].annotation, added_options[name].default)
+        )
+        rows = {row.field: row for row in entry.selection_options}
+        if len(rows) != len(entry.selection_options):
+            gaps.append(f"strategy {key}: the option table names a field twice")
+        leaf_fields = {name for name, info in fields.items() if _nested_model(info.annotation) is None}
+        gaps.extend(
+            f"strategy {key}: the option table does not cover the selection field {name}"
+            for name in sorted(leaf_fields - set(rows))
+        )
+        gaps.extend(
+            f"strategy {key}: the option table names {name}, which is not a selection field"
+            for name in sorted(set(rows) - leaf_fields)
+        )
+        gaps.extend(
+            f"strategy {key}: the option table row for {row.field} names the parameter {row.parameter}, "
+            "which the command lacks"
+            for row in entry.selection_options
+            if row.parameter not in direct_options
+        )
+        for name, info in fields.items():
+            if not _is_form_type(info.annotation):
+                gaps.append(f"strategy {key}: the selection field {name} is not a form-supported type")
+            if not (info.description or "").strip():
+                gaps.append(f"strategy {key}: the selection field {name} has no description")
+        gaps.extend(_settings_field_gaps(item, key))
+        defaults = _signature_defaults(entry.command)
+        for row in entry.selection_options:
+            literal = defaults.get(row.parameter, inspect.Parameter.empty)
+            field = fields.get(row.field)
+            if row.convert is None or literal in (None, inspect.Parameter.empty) or field is None:
+                continue
+            if field.is_required():
+                continue
+            if row.convert(literal) != field.get_default(call_default_factory=True):
+                gaps.append(
+                    f"strategy {key}: the default of {row.option} does not convert to the default of {row.field}"
+                )
+    return gaps
+
+
+def _settings_field_gaps(item: StrategyDescriptor, key: str) -> list[str]:
+    """Return the gaps in the descriptor's ``selection_settings_fields`` (T27)."""
+    gaps: list[str] = []
+    fields = item.behavior.selection_type.model_fields
+    settings_fields = item.settings_type.model_fields if item.settings_type is not None else {}
+    for name in item.selection_settings_fields:
+        if name not in fields or not fields[name].is_required():
+            gaps.append(f"strategy {key}: {name} in selection_settings_fields is not a required selection field")
+        if name not in settings_fields:
+            gaps.append(f"strategy {key}: {name} in selection_settings_fields is not a field of the settings model")
     return gaps
 
 
@@ -1931,7 +2026,6 @@ def source_files() -> list[Path]:
 
 _STRATEGIES_PACKAGE = "investment_analysis_engine.strategies"
 _CATALOG_TEST = REPOSITORY_ROOT / "tests" / "evaluation" / "test_catalog.py"
-_WATCHLIST_COMMANDS = ("create", "add-selection")
 _GUIDE_LINKS = ("FINANCE_MATH.md#", "GLOSSARY.md")
 SETTINGS_FILE_NAME = "settings.toml"
 SETTINGS_MODEL_FILE_NAME = "settings.py"
@@ -2587,7 +2681,7 @@ _HELP_COMMAND = "uv run python -m tests._cli_help_output"
 
 
 def site_help_snapshot(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
-    """The stored application help has a command row for the alias, and the command's own help is stored."""
+    """The stored application help has a command row for the alias, and the help of its two commands is stored."""
     site_id = "help-snapshot"
     where = site_path(site_id, names, context)
     path = _root(context) / where
@@ -2598,7 +2692,11 @@ def site_help_snapshot(names: StrategyNames, context: SiteContext = PRODUCTION) 
         gaps.append(
             Gap(site_id, where, f"{where} has no command row for {names.alias!r}; write it with {_HELP_COMMAND}")
         )
-    gaps.extend(_missing_files(site_id, where, context, [f"{names.alias}.txt"], _HELP_COMMAND))
+    gaps.extend(
+        _missing_files(
+            site_id, where, context, [f"{names.alias}.txt", f"watchlist-add-selection-{names.alias}.txt"], _HELP_COMMAND
+        )
+    )
     return gaps
 
 
@@ -2611,51 +2709,6 @@ def site_guide(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[
         return [Gap(site_id, where, f"no guide for alias {names.alias!r}: {where} does not exist")]
     text = path.read_text(encoding="utf-8")
     return [Gap(site_id, where, f"{where} has no link to {link}") for link in _GUIDE_LINKS if link not in text]
-
-
-def site_watchlist_options(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
-    """Row 19: every flag the strategy's selection builder reads is a ``WatchlistFlags`` field and a watchlist option.
-
-    A strategy that reads only the shared flags is done by having nothing to add; one that reads a flag of its own
-    needs the typed field and the option on both watchlist commands.
-    """
-    site_id = "watchlist-options"
-    where = site_path(site_id, names, context)
-    cli_where = site_path("cli", names, context)
-    cli_path = _root(context) / cli_where
-    if not cli_path.is_file():
-        return [
-            Gap(site_id, where, f"{cli_where} does not exist, so the flags its selection builder reads are unknown")
-        ]
-    tree = ast.parse(cli_path.read_text(encoding="utf-8"), filename=cli_where)
-    builder = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "build_selection"), None)
-    if builder is None or not builder.args.args:
-        return [Gap(site_id, where, f"{cli_where} defines no build_selection(flags) function")]
-    parameter = builder.args.args[0].arg
-    read = sorted(
-        {
-            node.attr
-            for node in ast.walk(builder)
-            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == parameter
-        }
-    )
-    fields = {field.name for field in dataclasses.fields(WatchlistFlags)}
-    root = typer.main.get_command(watchlist_app)
-    commands = root.commands if isinstance(root, TyperGroup) else {}
-    gaps = []
-    for flag in read:
-        if flag not in fields:
-            gaps.append(
-                Gap(site_id, where, f"the selection builder reads {flag}, which WatchlistFlags does not define")
-            )
-            continue
-        for command_name in _WATCHLIST_COMMANDS:
-            command = commands.get(command_name)
-            if command is None or flag not in {option.name for option in command.params}:
-                gaps.append(
-                    Gap(site_id, where, f"the selection builder reads {flag}, which 'watchlist {command_name}' lacks")
-                )
-    return gaps
 
 
 def site_schema(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:

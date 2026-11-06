@@ -99,20 +99,21 @@ def test_direct_momentum_window_failure_in_text_mode_is_the_message_on_standard_
 
 
 @pytest.mark.parametrize(("flags", "message"), _MOMENTUM_WINDOW_CASES)
-def test_watchlist_commands_report_the_same_momentum_window_failure(flags: list[str], message: str) -> None:
-    created = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "momentum", *flags, "AAPL"])
+def test_the_watchlist_command_reports_the_same_momentum_window_failure(flags: list[str], message: str) -> None:
     _create("Good")
-    added = runner.invoke(app, ["watchlist", "add-selection", "Good", "--analysis", "momentum", *flags, "AAPL"])
+    added = runner.invoke(app, ["watchlist", "add-selection", "momentum", "Good", "AAPL", *flags])
 
-    for result in (created, added):
-        assert result.exit_code == 1
-        assert result.stdout == ""
-        assert normalize_cli_output(result.stderr) == message
+    assert added.exit_code == 1
+    assert added.stdout == ""
+    assert normalize_cli_output(added.stderr) == message
     assert runner.invoke(app, ["watchlist", "show", "Good", "--json"]).exit_code == 0
 
 
-def test_momentum_window_failure_is_reported_before_an_invalid_as_of() -> None:
-    """The window check keeps its place ahead of the boundary check."""
+def test_momentum_window_and_as_of_failures_give_one_invalid_parameter_envelope() -> None:
+    """With both bad, one failure is reported; the boundary's syntax is read first, as the option table is.
+
+    The code and the shape of the envelope do not depend on which of the two is named.
+    """
     result = runner.invoke(app, ["momentum", "ACME", "--short-window", "0", "--as-of", "not-a-date", "--json"])
 
     assert result.exit_code == 1
@@ -264,15 +265,13 @@ def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(
     ("flag", "value"),
     [("--short-window", "0"), ("--long-window", "0"), ("--rsi-period", "0")],
 )
-def test_the_window_failure_names_the_offending_option_on_all_three_commands(flag: str, value: str) -> None:
+def test_the_window_failure_names_the_offending_option_on_both_commands(flag: str, value: str) -> None:
     arguments = [flag, value] if flag != "--long-window" else [flag, value, "--short-window", "1"]
     direct = runner.invoke(app, ["momentum", "ACME", *arguments, "--json"])
     _create("Both")
-    created = runner.invoke(app, ["watchlist", "create", "Bad", "--analysis", "momentum", *arguments, "AAPL"])
-    added = runner.invoke(app, ["watchlist", "add-selection", "Both", "--analysis", "momentum", *arguments, "AAPL"])
+    added = runner.invoke(app, ["watchlist", "add-selection", "momentum", "Both", "AAPL", *arguments])
 
     assert flag in str(_envelope(direct.stdout)["reason"])
-    assert flag in normalize_cli_output(created.stderr)
     assert flag in normalize_cli_output(added.stderr)
 
 

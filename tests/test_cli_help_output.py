@@ -30,6 +30,14 @@ def test_every_declared_strategy_has_a_stored_command_help_snapshot() -> None:
     assert [alias for alias in aliases if not expected_path(alias).is_file()] == []
 
 
+def test_every_declared_strategy_has_a_stored_add_selection_help_snapshot() -> None:
+    """The ``add-selection`` subcommand of each strategy is checked, and so is ``create``."""
+    targets = ["watchlist create"]
+    targets += [f"watchlist add-selection {descriptor.alias}" for descriptor in STRATEGIES]
+    assert [target for target in targets if target not in HELP_TARGETS] == []
+    assert [target for target in targets if not expected_path(target).is_file()] == []
+
+
 def test_application_help_lists_the_commands_in_the_documented_order() -> None:
     """The strategy commands follow ``refresh`` and ``health``, in declaration order, before ``evaluate``."""
     expected = ["refresh", "health", "serve", "momentum", "graham-number", "graham-growth", "fcf-growth", "evaluate"]

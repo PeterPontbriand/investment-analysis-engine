@@ -1,0 +1,50 @@
+{
+  "additionalProperties": false,
+  "description": "Immutable snapshot of the effective Momentum configuration.\n\nThe canonical analysis/method identifiers are fixed to the contract matrix values\n(``momentum`` / ``sma_crossover``) and cannot be overridden or made to disagree\nwith one another. Window and RSI values are materialized from explicit inputs or\nthe current configured policy at creation time; later settings changes do not\naffect an existing selection. ``as_of`` and ``use_cache`` are persisted with the\nselection, so a saved or refreshed run reuses the boundary and cache choice it was\ncreated with.",
+  "properties": {
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+      "title": "As Of"
+    },
+    "long_window": {
+      "description": "Number of trading days in the long moving average; it must be larger than the short one.",
+      "exclusiveMinimum": 0,
+      "title": "Long Window",
+      "type": "integer"
+    },
+    "rsi_period": {
+      "description": "Number of trading days the relative strength index looks back over.",
+      "exclusiveMinimum": 0,
+      "title": "Rsi Period",
+      "type": "integer"
+    },
+    "short_window": {
+      "description": "Number of trading days in the short moving average.",
+      "exclusiveMinimum": 0,
+      "title": "Short Window",
+      "type": "integer"
+    },
+    "use_cache": {
+      "default": true,
+      "description": "Whether the analysis may read and write the local cache of fetched data.",
+      "title": "Use Cache",
+      "type": "boolean"
+    }
+  },
+  "title": "MomentumSelection",
+  "type": "object"
+}

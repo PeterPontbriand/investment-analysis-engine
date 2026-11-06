@@ -1007,7 +1007,6 @@ dataclass is built at run time.
 | 16 | Fixtures with their fixture ids, and cases with their reviewed arguments table | `investment_analysis_engine/evaluation/fixtures/<s>.py`, `investment_analysis_engine/evaluation/cases/<s>.py` (new) | G | reviewed | T5, T6. |
 | 17 | Catalog: the case-module imports, the arguments-table merge, the case tuple entries and the suite version bump; the pinned id list and count in the catalog test | `investment_analysis_engine/evaluation/catalog.py`, `tests/evaluation/test_catalog.py` | G | reviewed | T6: `tool X is required by no golden case`; the catalog test. |
 | 18 | User guide with `FINANCE_MATH.md` and `GLOSSARY.md` links | `docs/user/strategies/<ALIAS>.md` (new) | G | reviewed | T23: `no guide for alias X`; the doc link check for a missing anchor. |
-| 19 | Watchlist options of the strategy, only when it has any beyond the shared ones: the typed field in `WatchlistFlags`, the option in the `watchlist create` and `watchlist add-selection` commands, and the `_build_selection` parameter ([H.10](#h10-the-watchlist-flag-bundle-an-approved-exception-to-the-no-growing-shared-class-rule)) | `investment_analysis_engine/cli_watchlist_flags.py`, `investment_analysis_engine/cli_workspace.py` | G | reviewed | **type** (the builder reads the field; the command constructs the bundle); the watchlist command tests. |
 
 Two commands, not edits: `scripts/generate_schemas.py` (a stale schema fails T20 with `schema
 schemas/<alias>.schema.json is missing or out of date; run scripts/generate_schemas.py`) and
@@ -1969,6 +1968,8 @@ typed and each is read by one builder. The option rows move into the strategy gu
 Confirmed by the project owner at the SWC.3b review as an exception to the plan's §3.2 rule.
 
 It was weighed at Step 3.5's repetition checkpoint ([B.3 of the Step 3.5 slice 3.5.3 plan](../step-3.5/STEP_3_5_3_SLICE_PLAN.md#b3-decisions-of-353b-to-353e)) and is decided with API.3.
+
+Site 19 was settled by API.3b2 ([C12 in the API.3 plan](../api/API_3_SLICE_PLAN.md#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04)): `WatchlistFlags` and the row are gone, and each strategy declares its selection options once in its `cli.py`, for its direct command and its `watchlist add-selection` subcommand.
 
 ### H.11 The CLI-tier importer lists
 

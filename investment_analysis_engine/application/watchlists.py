@@ -10,7 +10,7 @@ from uuid import UUID
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
 from investment_analysis_engine.application.parameters import ActionParameterError
-from investment_analysis_engine.core.strategy_errors import find
+from investment_analysis_engine.core.strategy_errors import find, require
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategy_wiring import BY_METHOD_ID
 from investment_analysis_engine.workspace.repositories.watchlists import (
@@ -32,6 +32,11 @@ def _stored_method_alias(method_id: str) -> str | None:
     """Return the alias of a stored method identifier, or ``None`` if this version declares no such method."""
     descriptor = find(BY_METHOD_ID, method_id)
     return None if descriptor is None else descriptor.alias
+
+
+def alias_for_method_id(method_id: str) -> str:
+    """Return the CLI alias of a declared method; an undeclared one is a programming error, not a fallback."""
+    return require(BY_METHOD_ID, method_id, what="method id").alias
 
 
 def watchlist_repository(database: SQLiteDatabase) -> SQLiteWatchlistRepository:
@@ -71,24 +76,28 @@ def get_watchlist_by_id(context: ApplicationContext, watchlist_id: UUID) -> Watc
     return watchlist
 
 
-def check_watchlist_name(name: str, *, parameter: str = "name") -> None:
+def _check_watchlist_name(name: str, *, parameter: str = "name") -> None:
     """Reject a blank watchlist name.
 
     Raises:
         ActionParameterError: If ``name`` is blank after trimming; ``parameter`` is the action's name for it.
     """
     if not name.strip():
-        raise ActionParameterError(f"{{{parameter}}} must not be blank.", parameters=(parameter,))
+        raise ActionParameterError(
+            f"{{{parameter}}} must not be blank.", parameters=(parameter,), rule="watchlist.blank_name"
+        )
 
 
-def check_tickers(tickers: Sequence[str]) -> None:
+def _check_tickers(tickers: Sequence[str]) -> None:
     """Reject a blank ticker.
 
     Raises:
         ActionParameterError: If any ticker is blank after trimming; the parameter is ``tickers``.
     """
     if any(not ticker.strip() for ticker in tickers):
-        raise ActionParameterError("{tickers} must not be empty.", parameters=("tickers",))
+        raise ActionParameterError(
+            "{tickers} must not be empty.", parameters=("tickers",), rule="watchlist.blank_ticker"
+        )
 
 
 def create_watchlist(context: ApplicationContext, name: str) -> Watchlist:
@@ -98,7 +107,7 @@ def create_watchlist(context: ApplicationContext, name: str) -> Watchlist:
         ActionParameterError: If ``name`` is blank (parameter ``name``); nothing is opened or written.
         WatchlistConflictError: If a watchlist with the same normalized name exists.
     """
-    check_watchlist_name(name)
+    _check_watchlist_name(name)
     with open_database(context) as database:
         return watchlist_repository(database).create(WatchlistSpec(display_name=name))
 
@@ -114,7 +123,7 @@ def rename_watchlist(context: ApplicationContext, ref: WatchlistRef, new_name: s
         WatchlistNotFoundError: If no watchlist matches ``ref``.
         WatchlistConflictError: If the new name belongs to a different watchlist.
     """
-    check_watchlist_name(new_name, parameter="new_name")
+    _check_watchlist_name(new_name, parameter="new_name")
     with open_database(context) as database:
         return watchlist_repository(database).rename(ref, new_name)
 
@@ -153,8 +162,10 @@ def add_watchlist_entries(
         StoredSelectionError: If an entry of the watchlist cannot be read.
     """
     if not entries:
-        raise ActionParameterError("{entries} must hold at least one entry.", parameters=("entries",))
-    check_tickers([ticker for ticker, _ in entries])
+        raise ActionParameterError(
+            "{entries} must hold at least one entry.", parameters=("entries",), rule="watchlist.no_entries"
+        )
+    _check_tickers([ticker for ticker, _ in entries])
     with open_database(context) as database:
         return watchlist_repository(database).add_entries(ref, entries)
 
@@ -168,7 +179,11 @@ def remove_watchlist_entry(context: ApplicationContext, ref: WatchlistRef, entry
         WatchlistEntryNotFoundError: If the watchlist has no entry with that number.
     """
     if entry_number < 1:
-        raise ActionParameterError("{entry_number} must be 1 or greater.", parameters=("entry_number",))
+        raise ActionParameterError(
+            "{entry_number} must be 1 or greater.",
+            parameters=("entry_number",),
+            rule="watchlist.entry_number_below_one",
+        )
     with open_database(context) as database:
         return watchlist_repository(database).remove_entry(ref, entry_number - 1)
 
@@ -182,8 +197,10 @@ def remove_watchlist_tickers(context: ApplicationContext, ref: WatchlistRef, tic
         WatchlistNotFoundError: If no watchlist matches ``ref``.
     """
     if not tickers:
-        raise ActionParameterError("{tickers} must name at least one ticker.", parameters=("tickers",))
-    check_tickers(tickers)
+        raise ActionParameterError(
+            "{tickers} must name at least one ticker.", parameters=("tickers",), rule="watchlist.no_tickers"
+        )
+    _check_tickers(tickers)
     with open_database(context) as database:
         return watchlist_repository(database).remove_entries_for_ticker(ref, tickers)
 
@@ -196,15 +213,16 @@ def remove_watchlist_method(context: ApplicationContext, ref: WatchlistRef, meth
         WatchlistNotFoundError: If no watchlist matches ``ref``.
     """
     if find(BY_METHOD_ID, method_id) is None:
-        raise ActionParameterError("{method_id} is not a declared method.", parameters=("method_id",))
+        raise ActionParameterError(
+            "{method_id} is not a declared method.", parameters=("method_id",), rule="watchlist.undeclared_method"
+        )
     with open_database(context) as database:
         return watchlist_repository(database).remove_entries_for_method(ref, method_id)
 
 
 __all__ = [
+    "alias_for_method_id",
     "add_watchlist_entries",
-    "check_tickers",
-    "check_watchlist_name",
     "create_watchlist",
     "delete_watchlist",
     "get_watchlist_by_id",

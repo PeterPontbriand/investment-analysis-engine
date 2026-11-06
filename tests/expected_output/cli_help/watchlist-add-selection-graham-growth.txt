@@ -1,0 +1,32 @@
+Usage: root watchlist add-selection graham-growth [OPTIONS] {name}
+{tickers}...
+Add one Graham Growth entry per ticker to an existing watchlist.
+Arguments
+* name <str> Watchlist name. [required]
+* tickers <str> Tickers to add this selection for. [required]
+Options
+--as-of <str> Point-in-time boundary as
+YYYY-MM-DD or timezone-aware
+ISO-8601 timestamp
+--no-cache Bypass resolved-input cache
+reads and writes
+--eps -e <float> Explicit EPS override
+--eps-basis <str> EPS basis; defaults to
+three_year_average (also
+accepts an explicit
+fiscal_year basis for
+reviewed workflows)
+* --expected-growth,--expec… -g <float> Expected annual growth in
+percentage points (growth
+method; explicit user
+assumption)
+[required]
+* --aaa-yield,--current-aaa… -y <float> Current AAA corporate-bond
+yield in percentage points
+(growth method override)
+[required]
+--current-price -p <float> Optional explicit
+current-price override
+--json Emit the updated watchlist
+document.
+--help Show this message and exit.

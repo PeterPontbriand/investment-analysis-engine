@@ -1,29 +1,31 @@
 """Shared CLI parsing and exception boundaries preserve public exit semantics."""
 
 import json
-from datetime import UTC, datetime, time
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 import pytest
 import typer
-from pydantic import BaseModel, field_validator
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.cli_support import (
-    config_usage_errors,
     execution_errors,
     parameter_failures,
-    parse_as_of,
+    parse_as_of_option,
     presentation_mode,
     provider_failure_message,
     resolve_ticker,
+    selection_from_options,
 )
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.strategies.graham_number import cli as graham_number_cli
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategy_wiring import GRAHAM_NUMBER
 
 
 @pytest.mark.parametrize("error", [typer.Exit(2), typer.Exit(0)])
@@ -68,20 +70,27 @@ def test_execution_errors_classify_without_exposing_exception(error: Exception, 
     echo.assert_called_once_with(message, err=True)
 
 
-def test_date_and_timestamp_boundaries_retain_timezone_semantics() -> None:
-    assert parse_as_of(None) is None
-    assert parse_as_of(" 2025-12-31 ") == datetime(2025, 12, 31, tzinfo=UTC).replace(
-        hour=time.max.hour, minute=time.max.minute, second=time.max.second, microsecond=time.max.microsecond
-    )
-    assert parse_as_of("2025-12-31T12:00:00Z") == datetime(2025, 12, 31, 12, tzinfo=UTC)
-    assert parse_as_of("2025-12-31T07:00:00-05:00") == datetime(2025, 12, 31, 12, tzinfo=UTC)
+def test_the_as_of_option_parses_by_syntax_only() -> None:
+    """The option returns a date or a timestamp as written; the end-of-day and offset rules are the builder's."""
+    assert parse_as_of_option(None) is None
+    assert parse_as_of_option(" 2025-12-31 ") == date(2025, 12, 31)
+    assert parse_as_of_option("2025-12-31T12:00:00Z") == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert parse_as_of_option("2025-12-31T12:00:00") == datetime(2025, 12, 31, 12)  # noqa: DTZ001 - a naive value parses
 
 
-@pytest.mark.parametrize("value", ["", "bad", "2025-02-30", "2025-12-31T12:00:00"])
-def test_invalid_boundaries_are_invalid_parameters(value: str) -> None:
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("", "--as-of must be non-empty when supplied."),
+        ("  ", "--as-of must be non-empty when supplied."),
+        ("bad", "--as-of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp."),
+        ("2025-02-30", "--as-of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp."),
+    ],
+)
+def test_invalid_boundaries_are_invalid_parameters_named_by_the_option(value: str, message: str) -> None:
     with pytest.raises(InvalidParameterError) as caught:
-        parse_as_of(value)
-    assert caught.value.parameters == ("--as-of",)
+        parse_as_of_option(value)
+    assert (str(caught.value), caught.value.parameters) == (message, ("--as-of",))
 
 
 def test_ticker_provider_and_presentation_normalization() -> None:
@@ -219,28 +228,19 @@ def test_parameter_failures_reports_only_an_invalid_parameter(json_output: bool)
         raise RuntimeError("not a parameter")
 
 
-def test_config_usage_errors_fails_loudly_for_a_field_it_does_not_map() -> None:
-    class Model(BaseModel):
-        mystery: int
-
-    with pytest.raises(KeyError), config_usage_errors():
-        Model.model_validate({"mystery": "x"})
-
-
-def test_config_usage_errors_names_the_option_and_strips_the_library_prefix() -> None:
-    class Model(BaseModel):
-        eps_override: float
-
-        @field_validator("eps_override")
-        @classmethod
-        def _positive(cls, value: float) -> float:
-            del value
-            raise ValueError("Financial override must be a finite number.")
-
-    with pytest.raises(InvalidParameterError) as caught, config_usage_errors():
-        Model.model_validate({"eps_override": 1.0})
+def test_a_selection_error_is_spelled_with_the_options_of_the_command() -> None:
+    values = {"as_of": None, "no_cache": False, "eps": float("inf"), "bvps": None, "current_price": None}
+    with pytest.raises(InvalidParameterError) as caught:
+        selection_from_options(GRAHAM_NUMBER.method_id, graham_number_cli.SELECTION_OPTIONS, values)
     assert str(caught.value) == "Invalid --eps: Financial override must be a finite number."
     assert caught.value.parameters == ("--eps",)
+
+
+def test_an_option_left_out_leaves_its_field_to_the_default() -> None:
+    values = {"as_of": None, "no_cache": True, "eps": None, "bvps": None, "current_price": None}
+    built = selection_from_options(GRAHAM_NUMBER.method_id, graham_number_cli.SELECTION_OPTIONS, values)
+    assert isinstance(built, GrahamNumberSelection)
+    assert (built.eps_override, built.use_cache) == (None, False)
 
 
 @pytest.mark.parametrize(

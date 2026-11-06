@@ -100,14 +100,14 @@ def test_momentum_rejects_foreign_fields() -> None:
 
 def test_momentum_rejects_invalid_windows() -> None:
     for value in (0, -1):
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError, match="must be positive"):
             MomentumSelection(short_window=value, long_window=5, rsi_period=14)
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValidationError, match="must be positive"):
             MomentumSelection(short_window=2, long_window=5, rsi_period=value)
 
-    with pytest.raises(ValidationError, match="smaller than long_window"):
+    with pytest.raises(ValidationError, match="must be smaller than"):
         MomentumSelection(short_window=5, long_window=5, rsi_period=14)
-    with pytest.raises(ValidationError, match="smaller than long_window"):
+    with pytest.raises(ValidationError, match="must be smaller than"):
         MomentumSelection(short_window=10, long_window=2, rsi_period=14)
 
 
@@ -208,7 +208,12 @@ def test_identity_overrides_rejected(
     values[field] = value
     with pytest.raises(ValidationError) as error:
         model.model_validate(values)
-    assert [item["loc"] for item in error.value.errors()] == [(field,)]
+    (item,) = error.value.errors()
+    if value in (0, -1) and type(value) is int:
+        # A non-positive value is rejected by the selection's templated rule, which names the field it concerns.
+        assert item["ctx"]["error"].fields == (field,)
+    else:
+        assert item["loc"] == (field,)
 
 
 @pytest.mark.parametrize("field", ["eps_override", "bvps_override", "quote_override"])
@@ -233,7 +238,12 @@ def test_invalid_window_reports_target_field(field: str, value: object) -> None:
     values[field] = value
     with pytest.raises(ValidationError) as error:
         MomentumSelection.model_validate(values)
-    assert [item["loc"] for item in error.value.errors()] == [(field,)]
+    (item,) = error.value.errors()
+    if value in (0, -1) and type(value) is int:
+        # A non-positive value is rejected by the selection's templated rule, which names the field it concerns.
+        assert item["ctx"]["error"].fields == (field,)
+    else:
+        assert item["loc"] == (field,)
 
 
 def test_rsi_period_one_preserves_existing_config_semantics() -> None:

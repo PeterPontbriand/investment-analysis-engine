@@ -21,7 +21,6 @@ class GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthAnalysis, GrahamGrowthConfig
 
     def run_analysis(self, ticker: str, context: AnalysisContext, config: GrahamGrowthConfig) -> GrahamGrowthAnalysis:
         """Return complete service evidence, retaining the supplied policy."""
-        assert config.eps_basis is not None
         return run_graham_growth_analysis(
             resolver=self._resolver,
             ticker=require_ticker(ticker),

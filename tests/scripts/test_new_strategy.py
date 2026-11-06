@@ -442,10 +442,12 @@ def test_the_workspace_and_command_templates_compose_the_profile_and_offer_every
     command = _rendered("cli")
     for flag in ('"--details"', '"--diagnostics"', '"--json"', '"--no-cache"'):
         assert flag in command
-    assert "no_provider_check: bool = NO_PROVIDER_CHECK_OPTION" in command
+    assert "no_provider_check: NO_PROVIDER_CHECK_OPTION = False" in command
     assert "typer.Context" not in command
-    assert "as_of: str | None = AS_OF_OPTION" in command
-    assert "save_run: bool = SAVE_RUN_OPTION" in command
+    assert "as_of: AS_OF_OPTION = None" in command
+    assert "save_run: SAVE_RUN_OPTION = False" in command
+    assert "SELECTION_OPTIONS" in command
+    assert "def add_selection(" in command
     assert "def to_analysis_context(" in _rendered("selection")
 
 
@@ -561,7 +563,7 @@ def test_the_generated_command_and_refresh_use_the_shared_helpers() -> None:
     assert {
         "execution_errors",
         "resolve_command_target",
-        "parse_as_of",
+        "_selection",
         "analyze_for_command",
         "analysis_output",
         "emit_output",
@@ -570,7 +572,8 @@ def test_the_generated_command_and_refresh_use_the_shared_helpers() -> None:
     assert "presenter" not in cli
     application = _rendered("application")
     assert {"require_job_ticker", "run", "utc_now"} <= _called_names(_function(application, "refresh"))
-    assert "parse_as_of" in _called_names(_function(cli, "build_selection"))
+    assert "selection_from_options" in _called_names(_function(cli, "_selection"))
+    assert {"_selection", "add_selection_entries"} <= _called_names(_function(cli, "add_selection"))
     assert 'command="fresh-probe"' in cli
 
 

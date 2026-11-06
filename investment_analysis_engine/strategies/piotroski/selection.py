@@ -23,8 +23,18 @@ class PiotroskiSelection(FrozenSelection):
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
-    as_of: AwareDatetime | None = None
-    use_cache: bool = Field(default=True, strict=True)
+    as_of: AwareDatetime | None = Field(
+        default=None,
+        description=(
+            "Run the analysis as of this date (the end of that day, UTC) or this moment, "
+            "which needs a timezone offset; leave empty for the latest data."
+        ),
+    )
+    use_cache: bool = Field(
+        default=True,
+        strict=True,
+        description="Whether the analysis may read and write the local cache of fetched data.",
+    )
 
     def to_analysis_context(
         self, executed_at: datetime, instrument_profile: InstrumentProfile | None = None

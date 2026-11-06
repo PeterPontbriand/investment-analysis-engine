@@ -3,10 +3,10 @@
 import math
 from datetime import datetime
 
-from pydantic import AwareDatetime, Field, StrictFloat, field_validator
+from pydantic import AwareDatetime, Field, StrictFloat, ValidationInfo, field_validator
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
-from investment_analysis_engine.analysis.selection_base import FrozenSelection
+from investment_analysis_engine.analysis.selection_base import FrozenSelection, SelectionRuleError
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 from investment_analysis_engine.strategies.graham_number.vocabulary import (
@@ -25,18 +25,39 @@ class GrahamNumberSelection(FrozenSelection):
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
-    eps_override: StrictFloat | None = None
-    quote_override: StrictFloat | None = None
-    bvps_override: StrictFloat | None = None
-    as_of: AwareDatetime | None = None
-    use_cache: bool = Field(default=True, strict=True)
+    eps_override: StrictFloat | None = Field(
+        default=None, description="Earnings per share to use instead of the reported figure; leave empty to use it."
+    )
+    quote_override: StrictFloat | None = Field(
+        default=None, description="Share price to use instead of the current quote; leave empty to use the quote."
+    )
+    bvps_override: StrictFloat | None = Field(
+        default=None,
+        description="Book value per share to use instead of the reported figure; leave empty to use it.",
+    )
+    as_of: AwareDatetime | None = Field(
+        default=None,
+        description=(
+            "Run the analysis as of this date (the end of that day, UTC) or this moment, "
+            "which needs a timezone offset; leave empty for the latest data."
+        ),
+    )
+    use_cache: bool = Field(
+        default=True,
+        strict=True,
+        description="Whether the analysis may read and write the local cache of fetched data.",
+    )
 
     @field_validator("eps_override", "quote_override", "bvps_override")
     @classmethod
-    def _require_finite_overrides(cls, value: float | None) -> float | None:
+    def _require_finite_overrides(cls, value: float | None, info: ValidationInfo) -> float | None:
         """Reject NaN/Inf financial overrides at the workspace boundary."""
         if value is not None and not math.isfinite(value):
-            raise ValueError("Financial override must be a finite number.")
+            raise SelectionRuleError(
+                f"Invalid {{{info.field_name}}}: Financial override must be a finite number.",
+                fields=(str(info.field_name),),
+                rule="graham-number.override_not_finite",
+            )
         return value
 
     def to_graham_number_config(self) -> GrahamNumberConfig:

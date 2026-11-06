@@ -40,6 +40,7 @@ SPECIMEN: Final = StrategyDescriptor(
     evidence_codec_version=EVIDENCE_CODEC_VERSION,
     json_envelope=SpecimenDocument,
     settings_type=SpecimenSettings,
+    selection_settings_fields=(),
 )
 
 SPECIMEN_STRATEGIES: Final = (*STRATEGIES, SPECIMEN)

@@ -7,13 +7,13 @@ Options
 positional TICKER argument
 --short-window -s <int> Short SMA window in daily market
 observations
-[default: 50]
+[default: (from settings: 50)]
 --long-window -l <int> Long SMA window in daily market
 observations
-[default: 200]
+[default: (from settings: 200)]
 --rsi-period <int> RSI lookback period in daily market
 observations
-[default: 14]
+[default: (from settings: 14)]
 --as-of <str> Point-in-time boundary as YYYY-MM-DD or
 timezone-aware ISO-8601 timestamp
 --no-cache Bypass historical price cache reads and

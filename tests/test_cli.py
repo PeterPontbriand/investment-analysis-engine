@@ -459,8 +459,8 @@ def test_cli_momentum_help_explains_daily_windows_and_defaults() -> None:
     normalized_output = normalize_cli_output(result.output)
     assert "Short SMA window in daily market observations" in normalized_output
     assert "Long SMA window in daily market observations" in normalized_output
-    assert "[default: 50]" in normalized_output
-    assert "[default: 200]" in normalized_output
+    assert "[default: (from settings: 50)]" in normalized_output
+    assert "[default: (from settings: 200)]" in normalized_output
 
 
 def test_cli_presentation_modes_are_mutually_exclusive() -> None:

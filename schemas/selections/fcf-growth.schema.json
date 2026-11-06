@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "FCFClassificationBasis": {
+      "description": "Free-cash-flow measure controlling classification.",
+      "enum": [
+        "total_fcf",
+        "fcf_per_share"
+      ],
+      "title": "FCFClassificationBasis",
+      "type": "string"
+    },
+    "FCFPolicySnapshot": {
+      "additionalProperties": false,
+      "description": "Validated immutable copy of the existing FCF policy and its native enums.",
+      "properties": {
+        "classification_basis": {
+          "$ref": "#/$defs/FCFClassificationBasis",
+          "default": "total_fcf",
+          "description": "Whether growth is classified on total free cash flow or on free cash flow per share."
+        },
+        "forward_policy": {
+          "$ref": "#/$defs/ForwardPolicy",
+          "default": "display_only",
+          "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate."
+        },
+        "historical_horizon": {
+          "$ref": "#/$defs/HistoricalHorizon",
+          "default": "longest_available",
+          "description": "How many elapsed years of history to require; the default picks the longest available up to five."
+        }
+      },
+      "title": "FCFPolicySnapshot",
+      "type": "object"
+    },
+    "ForwardPolicy": {
+      "description": "How forward consensus evidence affects the headline result.",
+      "enum": [
+        "display_only",
+        "confirmation",
+        "hard_gate"
+      ],
+      "title": "ForwardPolicy",
+      "type": "string"
+    },
+    "HistoricalHorizon": {
+      "description": "Requested historical elapsed-year horizon for classification.",
+      "enum": [
+        "longest_available",
+        "3",
+        "4",
+        "5"
+      ],
+      "title": "HistoricalHorizon",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Historical FCF/Earnings Growth request options, independent of Graham configs.",
+  "properties": {
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+      "title": "As Of"
+    },
+    "currency": {
+      "default": "USD",
+      "description": "Three-letter ISO 4217 code of the reporting currency the annual facts must use.",
+      "title": "Currency",
+      "type": "string"
+    },
+    "policy": {
+      "$ref": "#/$defs/FCFPolicySnapshot",
+      "description": "The growth horizon, classification and forward-evidence rules."
+    },
+    "use_cache": {
+      "default": true,
+      "description": "Whether the analysis may read and write the local cache of fetched data.",
+      "title": "Use Cache",
+      "type": "boolean"
+    }
+  },
+  "title": "FCFGrowthSelection",
+  "type": "object"
+}

@@ -382,6 +382,7 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
         "    evidence_codec_version=1,\n"
         f"    json_envelope={cls}Document,\n"
         "    settings_type=None,\n"
+        "    selection_settings_fields=(),\n"
         ")"
     )
     introduced = (
@@ -415,16 +416,18 @@ def _types_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, ..
 def _cli_tier_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, ...]]:
     module, upper = spec.module, spec.upper
     imports = [
-        _strategy_import(spec, "cli", [f"build_selection as build_{module}_selection"]),
+        _strategy_import(spec, "cli", [f"SELECTION_OPTIONS as {upper}_OPTIONS"]),
+        _strategy_import(spec, "cli", [f"add_selection as {module}_add_selection"]),
         _strategy_import(spec, "cli", [f"command as {module}_command"]),
     ]
     entry = (
         f"pair_cli(\n    {upper}_BEHAVIOR,\n"
-        f"    CliComposition(build=build_{module}_selection, command={module}_command),\n)"
+        f"    CliComposition(\n        command={module}_command,\n        add_selection={module}_add_selection,\n"
+        f"        selection_options={upper}_OPTIONS,\n    ),\n)"
     )
     edited = append_imports(source, imports, where)
     edited = add_import_name(edited, f"{PACKAGE}.strategy_wiring", f"{upper}_BEHAVIOR", where)
-    introduced = (f"build_{module}_selection", f"{module}_command")
+    introduced = (f"{upper}_OPTIONS", f"{module}_add_selection", f"{module}_command")
     return append_tuple_entry(edited, "CLI_STRATEGIES", entry, where), introduced
 
 

@@ -12,8 +12,9 @@ from typer.testing import CliRunner
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.selections import build_selection
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
+from investment_analysis_engine.cli_support import application_context, selection_from_options
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
@@ -27,27 +28,10 @@ from investment_analysis_engine.strategies.piotroski import application as piotr
 from investment_analysis_engine.strategies.piotroski import cli as piotroski_cli
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
+from investment_analysis_engine.strategies.piotroski.vocabulary import METHOD_ID
 from tests._cli_helpers import normalize_cli_output
 from tests._direct_command_output import _FixtureYahoo
 from tests.analysis.piotroski._statements_rig import adapter_of
-
-FLAGS = WatchlistFlags(
-    short_window=20,
-    long_window=50,
-    rsi_period=14,
-    as_of=None,
-    no_cache=False,
-    eps=None,
-    eps_basis=None,
-    bvps=None,
-    current_price=None,
-    expected_growth=None,
-    aaa_yield=None,
-    growth_years=None,
-    forward_policy="display-only",
-    classification_basis="total-fcf",
-    currency="USD",
-)
 
 
 def _provider_without_live_yahoo(*, sec_edgar: SecEdgarFinancialFactsAdapter) -> ProductionFinancialFactsProvider:
@@ -153,11 +137,13 @@ def test_the_command_without_a_declared_sec_identity_stops_before_any_request(
     assert "SEC EDGAR access is not configured" in normalize_cli_output(result.output)
 
 
-def test_the_selection_builder_reads_only_the_boundary_and_the_cache_flag() -> None:
-    assert piotroski_cli.build_selection(FLAGS) == PiotroskiSelection()
-    built = piotroski_cli.build_selection(
-        WatchlistFlags(**{**FLAGS.__dict__, "as_of": "2025-01-15", "no_cache": True, "short_window": 3})
+def test_the_selection_options_are_the_boundary_and_the_cache_flag() -> None:
+    context = application_context()
+    assert build_selection(context, METHOD_ID, {}) == PiotroskiSelection()
+    built = selection_from_options(
+        METHOD_ID, piotroski_cli.SELECTION_OPTIONS, {"as_of": "2025-01-15", "no_cache": True}
     )
+    assert isinstance(built, PiotroskiSelection)
     assert built.use_cache is False
     assert built.as_of == datetime(2025, 1, 15, 23, 59, 59, 999999, tzinfo=UTC)
 

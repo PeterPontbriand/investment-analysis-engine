@@ -1,0 +1,24 @@
+Usage: root watchlist add-selection fcf-growth [OPTIONS] {name} {tickers}...
+Add one FCF Growth entry per ticker to an existing watchlist.
+Arguments
+* name <str> Watchlist name. [required]
+* tickers <str> Tickers to add this selection for. [required]
+Options
+--growth-years <int> Strict elapsed-year horizon (3, 4, or
+5); omit for automatic 5 → 4 → 3
+selection
+--forward-policy <str> Forward evidence policy: display-only,
+confirmation, or hard-gate
+[default: display-only]
+--classification-basis <str> Classification basis: total-fcf or
+fcf-per-share
+[default: total-fcf]
+--as-of <str> Point-in-time boundary as YYYY-MM-DD or
+timezone-aware ISO-8601 timestamp
+--currency <str> ISO 4217 reporting currency for
+compatible annual facts
+[default: USD]
+--no-cache Bypass resolved-input cache reads and
+writes
+--json Emit the updated watchlist document.
+--help Show this message and exit.

@@ -11,7 +11,7 @@ existing focused test suites already do.
 
 Amendment A1's I2 checkpoint (docs/project/milestones/v0.2/step-3.4/
 STEP_3_4_CONTRACT_AND_SLICE_PLAN.md, section 12) restored watchlist entry
-creation under new command names (`create --analysis`, `add-selection`).
+creation under new command names (`create`, `add-selection`).
 This test drives every entry through those real CLI commands rather than
 seeding the repository directly, so the scenario exercises the same surface
 a user actually types.
@@ -75,20 +75,21 @@ def _mock_momentum_run(ticker: str) -> MomentumRun:
 def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMock) -> None:
     mock_run.side_effect = lambda **kwargs: _mock_momentum_run(str(kwargs["ticker"]))
 
-    # 1. Create a watchlist seeded with one Momentum entry for one ticker.
+    # 1. Create an empty watchlist, then add one Momentum entry for one ticker.
+    result = runner.invoke(app, ["watchlist", "create", "Core Holdings"])
+    assert result.exit_code == 0, result.output
     result = runner.invoke(
         app,
         [
             "watchlist",
-            "create",
-            "Core Holdings",
-            "--analysis",
+            "add-selection",
             "momentum",
+            "Core Holdings",
+            "SYNTH",
             "--short-window",
             "2",
             "--long-window",
             "3",
-            "SYNTH",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -96,17 +97,16 @@ def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMoc
     # 2. Add two more entries for the same ticker: Graham Number, and Graham
     #    Growth Value with explicit assumptions — the fan-out `add-selection`
     #    command, one method at a time.
-    result = runner.invoke(app, ["watchlist", "add-selection", "Core Holdings", "SYNTH", "--analysis", "graham-number"])
+    result = runner.invoke(app, ["watchlist", "add-selection", "graham-number", "Core Holdings", "SYNTH"])
     assert result.exit_code == 0, result.output
     result = runner.invoke(
         app,
         [
             "watchlist",
             "add-selection",
+            "graham-growth",
             "Core Holdings",
             "SYNTH",
-            "--analysis",
-            "graham-growth",
             "--expected-growth",
             "6.0",
             "--aaa-yield",

@@ -11,23 +11,20 @@ to dispatch one refresh job per stored selection.
 """
 
 import ctypes
-import json
 import logging
 import signal
 import sys
 import threading
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Annotated, NoReturn
+from typing import Annotated
 from uuid import UUID
 
 import typer
-from pydantic import BaseModel
 
 from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
-from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.application.provider_check import (
     ProviderCheckChoice,
     ProviderCheckFindings,
@@ -48,9 +45,7 @@ from investment_analysis_engine.application.runs import (
 )
 from investment_analysis_engine.application.tier import refresh_executor_for
 from investment_analysis_engine.application.watchlists import (
-    add_watchlist_entries,
-    check_tickers,
-    check_watchlist_name,
+    alias_for_method_id,
     create_watchlist,
     delete_watchlist,
     get_watchlist_by_name,
@@ -63,30 +58,29 @@ from investment_analysis_engine.application.watchlists import (
     watchlist_repository,
 )
 from investment_analysis_engine.cli_provider_check import echo_provider_check
-from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS, build_selection_for
+from investment_analysis_engine.cli_strategy_wiring import add_selection_commands
 from investment_analysis_engine.cli_support import (
-    AS_OF_HELP,
     describe_failure,
+    document_json,
+    fail_with,
     parameter_failures,
     presentation_mode,
-    report_failure,
+    watchlist_action,
+    watchlist_json,
+    watchlist_text,
+    workspace_failures,
 )
-from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import settings
-from investment_analysis_engine.config.component_settings import load_component_settings
 from investment_analysis_engine.config.paths import is_windows
 from investment_analysis_engine.core.clock import utc_now
-from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.strategy_errors import require
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
-from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.reporting.presentation import PresentationMode
-from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
-from investment_analysis_engine.strategy_wiring import BY_ALIAS, BY_METHOD_ID, MOMENTUM, RUN_SPECS_BY_KEY
+from investment_analysis_engine.strategy_wiring import BY_ALIAS, RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.refresh import (
     MAX_WORKERS,
@@ -102,13 +96,10 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import SQLi
 from investment_analysis_engine.workspace.repositories.watchlists import DeletedWatchlist, RemovedEntries
 from investment_analysis_engine.workspace.runs import (
     AnalysisRunSummary,
-    Watchlist,
-    WatchlistEntry,
     WatchlistSummary,
 )
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import (
-    StoredSelectionError,
     WatchlistId,
     WatchlistName,
     WatchlistNotFoundError,
@@ -127,13 +118,14 @@ logger = logging.getLogger(__name__)
 
 watchlist_app = typer.Typer(help="Manage named watchlists of tickers and their analysis selections.")
 runs_app = typer.Typer(help="Browse persisted Analysis Run history.")
-
-_MOMENTUM_CLI_DEFAULTS = load_component_settings(MOMENTUM.alias, MomentumSettings, settings.config_dir)
+add_selection_app = typer.Typer(help="Add entries for one method to an existing watchlist, one per ticker.")
+add_selection_commands(add_selection_app)
+watchlist_app.add_typer(add_selection_app, name="add-selection")
 
 
 def _alias_choices() -> str:
     """Return the CLI tier's alias vocabulary as help text: ``a, b, or c``."""
-    aliases = list(CLI_BUILDERS)
+    aliases = list(BY_ALIAS)
     return f"{', '.join(aliases[:-1])}, or {aliases[-1]}"
 
 
@@ -151,155 +143,28 @@ _RUN_QUERY_NAMES = RunQueryNames(
 
 
 @contextmanager
-def _workspace_failures(command: str, *, json_output: bool = False) -> Iterator[None]:
-    """Report a failure raised inside the block as a sanitized message and exit 1.
-
-    ``command`` is the command as the user types it after ``ian``. A readiness error, or an exception raised inside
-    the block that declares its own ``reason_code`` (a rejected parameter, an unreadable stored selection, a missing
-    watchlist), keeps its own message; any other exception is an ``execution_error`` with one fixed message naming
-    the command, and its detail goes to the log with its traceback, so no library text reaches the user.
-    ``json_output`` selects the failure envelope on standard output instead of text on standard error.
-    """
-    try:
-        yield
-    except (typer.Exit, typer.Abort):
-        raise
-    except Exception as exc:
-        if isinstance(getattr(exc, "reason_code", None), FailureReasonCode):
-            _fail_with(exc, json_output=json_output)
-        logger.exception("Unexpected failure in 'ian %s'.", command)
-        _fail(FailureReasonCode.EXECUTION_ERROR, f"{command} failed unexpectedly.", json_output=json_output)
-
-
-@contextmanager
 def _workspace_database(command: str, *, json_output: bool = False) -> Iterator[SQLiteDatabase]:
     """Own one invocation's readiness-checked database connection and report its failures.
 
     The action commands use it; the read commands call an application operation inside
-    :func:`_workspace_failures`.
+    :func:`workspace_failures`.
     """
     with (
-        _workspace_failures(command, json_output=json_output),
+        workspace_failures(command, json_output=json_output),
         open_database(ApplicationContext(settings=settings)) as database,
     ):
         yield database
 
 
-def _fail(reason_code: FailureReasonCode, message: str, *, json_output: bool = False) -> NoReturn:
-    """Report a sanitized lookup or storage failure under ``reason_code`` and exit 1.
-
-    With ``json_output`` the failure envelope is written to standard output and nothing to standard
-    error, as the direct commands do; otherwise the message goes to standard error.
-    """
-    report_failure(failure_envelope(reason_code, message), json_output=json_output)
-
-
-def _operator_message(exception: Exception) -> str:
-    """Return the exception's own message, with the command that removes an unreadable watchlist entry.
-
-    The stored-selection error names the entry and its state; the command that removes it is the CLI's to offer.
-    """
-    message = str(exception)
-    if isinstance(exception, StoredSelectionError) and exception.watchlist_name is not None:
-        message += f' Remove it with: ian watchlist remove-entry "{exception.watchlist_name}" {exception.entry_number}'
-    return message
-
-
-def _fail_with(exception: Exception, *, json_output: bool = False) -> NoReturn:
-    """Report a classified failure with the exception's own sanitized message and exit 1."""
-    classification = classify_failure(exception)
-    envelope = failure_envelope(classification.reason_code, _operator_message(exception), cause=exception)
-    report_failure(envelope, json_output=json_output)
-
-
-_CREATE_PARAMETERS = {"name": "NAME", "tickers": "TICKER"}
-_ADD_SELECTION_PARAMETERS = {"tickers": "TICKER"}
+_CREATE_PARAMETERS = {"name": "NAME"}
 _REMOVE_ENTRY_PARAMETERS = {"entry_number": "INDEX"}
 _REMOVE_TICKER_PARAMETERS = {"tickers": "TICKER"}
 _RENAME_PARAMETERS = {"new_name": "NEW_NAME"}
 
 
-@contextmanager
-def _watchlist_action(command: str, parameters: Mapping[str, str], *, json_output: bool = False) -> Iterator[None]:
-    """Report a failure of a watchlist action as :func:`_workspace_failures` does, in the command's own spelling.
-
-    ``parameters`` maps each parameter name the action rejects under to the argument or option of ``command``,
-    so an action's parameter error is reported as the command has always spelled it.
-    """
-    with _workspace_failures(command, json_output=json_output):
-        try:
-            yield
-        except ActionParameterError as exc:
-            raise exc.named(parameters) from None
-
-
-def _alias_for_method_id(method_id: str) -> str:
-    """Return the CLI alias of a declared method; an undeclared one is a programming error, not a fallback."""
-    return require(BY_METHOD_ID, method_id, what="method id").alias
-
-
 def _method_id_for_alias(alias: str) -> str:
     """Return the canonical method identifier of a validated CLI alias."""
     return require(BY_ALIAS, alias, what="alias").method_id
-
-
-def _selection_detail_text(selection: AnalysisSelection) -> str:
-    """Render a selection's distinguishing fields, excluding its own identifiers."""
-    payload = selection.model_dump(mode="json")
-    payload.pop("method_id", None)
-    payload.pop("analysis_id", None)
-    payload.pop("config_schema_version", None)
-    return ", ".join(f"{key}={value}" for key, value in sorted(payload.items()))
-
-
-def _selection_summary(selection: AnalysisSelection) -> str:
-    """Render one selection's method alias and distinguishing fields, compactly."""
-    detail = _selection_detail_text(selection)
-    alias = _alias_for_method_id(selection.method_id)
-    return f"{alias}: {detail}" if detail else alias
-
-
-def _entry_line(entry: WatchlistEntry, *, group_by: str) -> str:
-    """Render one entry's line, showing whichever axis isn't already the group heading."""
-    if group_by == "method":
-        detail = _selection_detail_text(entry.selection)
-        return f"{entry.ticker}: {detail}" if detail else entry.ticker
-    return _selection_summary(entry.selection)
-
-
-def _watchlist_text(watchlist: Watchlist, *, group_by: str = "ticker") -> str:
-    """Render a watchlist's entries, numbered from 1 and grouped by ticker or method."""
-    lines = [
-        f"Watchlist: {watchlist.display_name}",
-        f"ID: {watchlist.watchlist_id}",
-        f"Entries ({len(watchlist.entries)}):",
-    ]
-    if not watchlist.entries:
-        lines.append("  (none)")
-        return "\n".join(lines)
-
-    key_of: Callable[[WatchlistEntry], str] = (
-        (lambda entry: _alias_for_method_id(entry.selection.method_id))
-        if group_by == "method"
-        else (lambda entry: entry.ticker)
-    )
-    groups: dict[str, list[tuple[int, WatchlistEntry]]] = {}
-    for index, entry in enumerate(watchlist.entries, start=1):
-        groups.setdefault(key_of(entry), []).append((index, entry))
-    for key, members in groups.items():
-        lines.append(f"  {key}:")
-        lines.extend(f"    [{index}] {_entry_line(entry, group_by=group_by)}" for index, entry in members)
-    return "\n".join(lines)
-
-
-def _document_json(document: BaseModel) -> str:
-    """Serialize a typed document as the one line of JSON a command writes."""
-    return json.dumps(document.model_dump(mode="json"), ensure_ascii=False, allow_nan=False)
-
-
-def _watchlist_json(watchlist: Watchlist) -> str:
-    """Emit the complete watchlist document."""
-    return _document_json(build_watchlist_document(watchlist))
 
 
 def _summary_line(summary: WatchlistSummary) -> str:
@@ -310,302 +175,25 @@ def _summary_line(summary: WatchlistSummary) -> str:
 def _parse_analysis(value: str) -> str:
     """Normalize and validate a watchlist ``--analysis`` alias."""
     normalized = value.strip().lower()
-    if normalized not in CLI_BUILDERS:
-        allowed = ", ".join(CLI_BUILDERS)
+    if normalized not in BY_ALIAS:
+        allowed = ", ".join(BY_ALIAS)
         raise InvalidParameterError(f"--analysis must be one of: {allowed}.", parameters=("--analysis",))
     return normalized
 
 
-def _build_selection(  # noqa: PLR0913
-    method: str,
-    *,
-    short_window: int,
-    long_window: int,
-    rsi_period: int,
-    as_of: str | None,
-    no_cache: bool,
-    eps: float | None,
-    eps_basis: str | None,
-    bvps: float | None,
-    current_price: float | None,
-    expected_growth: float | None,
-    aaa_yield: float | None,
-    growth_years: int | None,
-    forward_policy: str,
-    classification_basis: str,
-    currency: str,
-) -> AnalysisSelection:
-    """Build one validated selection from watchlist CLI flags with the selection builder of ``method``.
-
-    The builder belongs to the strategy and mirrors its direct command's own flags and validation exactly
-    (Amendment A1, §12's "Creation"/"Editing" sections), so a watchlist entry behaves identically to running
-    that method directly. Only the flags relevant to ``method`` are consulted; the rest are ignored.
-    """
-    flags = WatchlistFlags(
-        short_window=short_window,
-        long_window=long_window,
-        rsi_period=rsi_period,
-        as_of=as_of,
-        no_cache=no_cache,
-        eps=eps,
-        eps_basis=eps_basis,
-        bvps=bvps,
-        current_price=current_price,
-        expected_growth=expected_growth,
-        aaa_yield=aaa_yield,
-        growth_years=growth_years,
-        forward_policy=forward_policy,
-        classification_basis=classification_basis,
-        currency=currency,
-    )
-    return build_selection_for(method, flags)
-
-
 @watchlist_app.command("create")
-def watchlist_create(  # noqa: PLR0913
+def watchlist_create(
     name: Annotated[str, typer.Argument(help="Display name for the new watchlist.")],
-    tickers: Annotated[
-        list[str] | None,
-        typer.Argument(help="Tickers to seed with --analysis; omit to create an empty watchlist."),
-    ] = None,
     *,
-    analysis: Annotated[
-        str | None,
-        typer.Option("--analysis", "-a", help=f"Method to seed: {_ANALYSIS_CHOICES}."),
-    ] = None,
-    short_window: Annotated[
-        int, typer.Option("--short-window", "-s", help="Short SMA window in daily observations (momentum).")
-    ] = _MOMENTUM_CLI_DEFAULTS.short_window,
-    long_window: Annotated[
-        int, typer.Option("--long-window", "-l", help="Long SMA window in daily observations (momentum).")
-    ] = _MOMENTUM_CLI_DEFAULTS.long_window,
-    rsi_period: Annotated[
-        int, typer.Option("--rsi-period", help="RSI lookback period in daily observations (momentum).")
-    ] = _MOMENTUM_CLI_DEFAULTS.rsi_period,
-    as_of: Annotated[
-        str | None,
-        typer.Option("--as-of", help=AS_OF_HELP),
-    ] = None,
-    no_cache: Annotated[
-        bool,
-        typer.Option(
-            "--no-cache",
-            help=(
-                "Bypass cache reads/writes: resolved inputs for graham-number/graham-growth/fcf-growth; "
-                "for momentum, the historical price cache."
-            ),
-        ),
-    ] = False,
-    eps: Annotated[
-        float | None, typer.Option("--eps", "-e", help="Explicit EPS override (graham-number/graham-growth).")
-    ] = None,
-    eps_basis: Annotated[
-        str | None, typer.Option("--eps-basis", help="EPS basis override (graham-growth only).")
-    ] = None,
-    bvps: Annotated[
-        float | None,
-        typer.Option("--bvps", help="Explicit book value per common share override (graham-number only)."),
-    ] = None,
-    current_price: Annotated[
-        float | None,
-        typer.Option("--current-price", "-p", help="Explicit current-price override (graham-number/graham-growth)."),
-    ] = None,
-    expected_growth: Annotated[
-        float | None,
-        typer.Option(
-            "--expected-growth",
-            "--expected-growth-rate",
-            "-g",
-            help="Expected annual growth in percentage points (graham-growth; required).",
-        ),
-    ] = None,
-    aaa_yield: Annotated[
-        float | None,
-        typer.Option(
-            "--aaa-yield",
-            "--current-aaa-yield",
-            "-y",
-            help="Current AAA corporate-bond yield in percentage points (graham-growth; required).",
-        ),
-    ] = None,
-    growth_years: Annotated[
-        int | None,
-        typer.Option("--growth-years", help="Strict elapsed-year horizon 3, 4, or 5 (fcf-growth)."),
-    ] = None,
-    forward_policy: Annotated[
-        str, typer.Option("--forward-policy", help="Forward evidence policy (fcf-growth).")
-    ] = "display-only",
-    classification_basis: Annotated[
-        str, typer.Option("--classification-basis", help="Classification basis (fcf-growth).")
-    ] = "total-fcf",
-    currency: Annotated[
-        str, typer.Option("--currency", help="ISO 4217 reporting currency for compatible annual facts (fcf-growth).")
-    ] = "USD",
     json_output: Annotated[bool, typer.Option("--json", help="Emit the created watchlist document.")] = False,
 ) -> None:
-    """Create a watchlist, optionally seeded with one method across the given tickers.
+    """Create an empty watchlist.
 
-    With --analysis METHOD and one or more tickers, the watchlist starts with
-    one entry per ticker for that method, so a watchlist can be created and
-    filled in a single command. The method's flags are the same as those of
-    its own command, including which are required; a method missing a
-    required flag (for example, graham-growth without
-    --expected-growth/--aaa-yield) is a usage error, as it is for that
-    command. Leave out --analysis to create an empty watchlist.
+    Add entries to it with 'ian watchlist add-selection METHOD NAME TICKER...'.
     """
-    seed_tickers = tickers or []
-    entries: list[tuple[str, AnalysisSelection]] = []
-    with parameter_failures(json_output=json_output):
-        if analysis is None and seed_tickers:
-            raise InvalidParameterError(
-                "--analysis is required to seed TICKER... at creation.", parameters=("--analysis", "TICKER")
-            )
-        if analysis is not None and not seed_tickers:
-            raise InvalidParameterError(
-                "At least one TICKER is required with --analysis.", parameters=("TICKER", "--analysis")
-            )
-        if analysis is not None:
-            method = _parse_analysis(analysis)
-            selection = _build_selection(
-                method,
-                short_window=short_window,
-                long_window=long_window,
-                rsi_period=rsi_period,
-                as_of=as_of,
-                no_cache=no_cache,
-                eps=eps,
-                eps_basis=eps_basis,
-                bvps=bvps,
-                current_price=current_price,
-                expected_growth=expected_growth,
-                aaa_yield=aaa_yield,
-                growth_years=growth_years,
-                forward_policy=forward_policy,
-                classification_basis=classification_basis,
-                currency=currency,
-            )
-            entries = [(ticker, selection) for ticker in seed_tickers]
-
-    with _watchlist_action("watchlist create", _CREATE_PARAMETERS, json_output=json_output):
-        # Every argument is checked before the watchlist is created, so a rejected one leaves nothing behind.
-        check_watchlist_name(name)
-        check_tickers(seed_tickers)
-        context = ApplicationContext(settings=settings)
-        watchlist = create_watchlist(context, name)
-        if entries:
-            watchlist = add_watchlist_entries(context, WatchlistName(watchlist.display_name), entries)
-    typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist))
-
-
-@watchlist_app.command("add-selection")
-def watchlist_add_selection(  # noqa: PLR0913
-    name: Annotated[str, typer.Argument(help="Watchlist name.")],
-    tickers: Annotated[list[str], typer.Argument(help="Tickers to add this selection for.")],
-    *,
-    analysis: Annotated[
-        str,
-        typer.Option("--analysis", "-a", help=f"Method: {_ANALYSIS_CHOICES}."),
-    ],
-    short_window: Annotated[
-        int, typer.Option("--short-window", "-s", help="Short SMA window in daily observations (momentum).")
-    ] = _MOMENTUM_CLI_DEFAULTS.short_window,
-    long_window: Annotated[
-        int, typer.Option("--long-window", "-l", help="Long SMA window in daily observations (momentum).")
-    ] = _MOMENTUM_CLI_DEFAULTS.long_window,
-    rsi_period: Annotated[
-        int, typer.Option("--rsi-period", help="RSI lookback period in daily observations (momentum).")
-    ] = _MOMENTUM_CLI_DEFAULTS.rsi_period,
-    as_of: Annotated[
-        str | None,
-        typer.Option("--as-of", help=AS_OF_HELP),
-    ] = None,
-    no_cache: Annotated[
-        bool,
-        typer.Option(
-            "--no-cache",
-            help=(
-                "Bypass cache reads/writes: resolved inputs for graham-number/graham-growth/fcf-growth; "
-                "for momentum, the historical price cache."
-            ),
-        ),
-    ] = False,
-    eps: Annotated[
-        float | None, typer.Option("--eps", "-e", help="Explicit EPS override (graham-number/graham-growth).")
-    ] = None,
-    eps_basis: Annotated[
-        str | None, typer.Option("--eps-basis", help="EPS basis override (graham-growth only).")
-    ] = None,
-    bvps: Annotated[
-        float | None,
-        typer.Option("--bvps", help="Explicit book value per common share override (graham-number only)."),
-    ] = None,
-    current_price: Annotated[
-        float | None,
-        typer.Option("--current-price", "-p", help="Explicit current-price override (graham-number/graham-growth)."),
-    ] = None,
-    expected_growth: Annotated[
-        float | None,
-        typer.Option(
-            "--expected-growth",
-            "--expected-growth-rate",
-            "-g",
-            help="Expected annual growth in percentage points (graham-growth; required).",
-        ),
-    ] = None,
-    aaa_yield: Annotated[
-        float | None,
-        typer.Option(
-            "--aaa-yield",
-            "--current-aaa-yield",
-            "-y",
-            help="Current AAA corporate-bond yield in percentage points (graham-growth; required).",
-        ),
-    ] = None,
-    growth_years: Annotated[
-        int | None,
-        typer.Option("--growth-years", help="Strict elapsed-year horizon 3, 4, or 5 (fcf-growth)."),
-    ] = None,
-    forward_policy: Annotated[
-        str, typer.Option("--forward-policy", help="Forward evidence policy (fcf-growth).")
-    ] = "display-only",
-    classification_basis: Annotated[
-        str, typer.Option("--classification-basis", help="Classification basis (fcf-growth).")
-    ] = "total-fcf",
-    currency: Annotated[
-        str, typer.Option("--currency", help="ISO 4217 reporting currency for compatible annual facts (fcf-growth).")
-    ] = "USD",
-    json_output: Annotated[bool, typer.Option("--json", help="Emit the updated watchlist document.")] = False,
-) -> None:
-    """Append one entry per given ticker for one method to an existing watchlist.
-
-    This does for a watchlist that already exists what seeding with
-    --analysis does in 'watchlist create'. The method's flags are the same as
-    those of its own command, including which are required.
-    """
-    with parameter_failures(json_output=json_output):
-        method = _parse_analysis(analysis)
-        selection = _build_selection(
-            method,
-            short_window=short_window,
-            long_window=long_window,
-            rsi_period=rsi_period,
-            as_of=as_of,
-            no_cache=no_cache,
-            eps=eps,
-            eps_basis=eps_basis,
-            bvps=bvps,
-            current_price=current_price,
-            expected_growth=expected_growth,
-            aaa_yield=aaa_yield,
-            growth_years=growth_years,
-            forward_policy=forward_policy,
-            classification_basis=classification_basis,
-            currency=currency,
-        )
-    entries = [(ticker, selection) for ticker in tickers]
-    with _watchlist_action("watchlist add-selection", _ADD_SELECTION_PARAMETERS, json_output=json_output):
-        watchlist = add_watchlist_entries(ApplicationContext(settings=settings), WatchlistName(name), entries)
-    typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist))
+    with watchlist_action("watchlist create", _CREATE_PARAMETERS, json_output=json_output):
+        watchlist = create_watchlist(ApplicationContext(settings=settings), name)
+    typer.echo(watchlist_json(watchlist) if json_output else watchlist_text(watchlist))
 
 
 def _plural_entries(count: int) -> str:
@@ -631,8 +219,8 @@ def _report_removal(removed: RemovedEntries, confirmation: str, *, json_output: 
     typer.echo(confirmation, err=json_output)
     if removed.watchlist is None:
         assert removed.unreadable is not None  # exactly one of watchlist and unreadable is set
-        _fail_with(removed.unreadable, json_output=json_output)
-    typer.echo(_watchlist_json(removed.watchlist) if json_output else _watchlist_text(removed.watchlist))
+        fail_with(removed.unreadable, json_output=json_output)
+    typer.echo(watchlist_json(removed.watchlist) if json_output else watchlist_text(removed.watchlist))
 
 
 @watchlist_app.command("remove-entry")
@@ -643,7 +231,7 @@ def watchlist_remove_entry(
     json_output: Annotated[bool, typer.Option("--json", help="Emit the updated watchlist document.")] = False,
 ) -> None:
     """Remove exactly one entry by its displayed 1-based index."""
-    with _watchlist_action("watchlist remove-entry", _REMOVE_ENTRY_PARAMETERS, json_output=json_output):
+    with watchlist_action("watchlist remove-entry", _REMOVE_ENTRY_PARAMETERS, json_output=json_output):
         removed = remove_watchlist_entry(ApplicationContext(settings=settings), WatchlistName(name), index)
     _report_removal(removed, _removal_confirmation(removed.removed, name, None), json_output=json_output)
 
@@ -656,7 +244,7 @@ def watchlist_remove_ticker(
     json_output: Annotated[bool, typer.Option("--json", help="Emit the updated watchlist document.")] = False,
 ) -> None:
     """Remove every entry for the given ticker(s), across every method (bulk, idempotent)."""
-    with _watchlist_action("watchlist remove-ticker", _REMOVE_TICKER_PARAMETERS, json_output=json_output):
+    with watchlist_action("watchlist remove-ticker", _REMOVE_TICKER_PARAMETERS, json_output=json_output):
         removed = remove_watchlist_tickers(ApplicationContext(settings=settings), WatchlistName(name), tickers)
     _report_removal(removed, _removal_confirmation(removed.removed, name, ", ".join(tickers)), json_output=json_output)
 
@@ -673,7 +261,7 @@ def watchlist_remove_method(
     """Remove every entry for the given method, across every ticker (bulk, idempotent)."""
     with parameter_failures(json_output=json_output):
         method = _parse_analysis(analysis)
-    with _workspace_failures("watchlist remove-method", json_output=json_output):
+    with workspace_failures("watchlist remove-method", json_output=json_output):
         removed = remove_watchlist_method(
             ApplicationContext(settings=settings), WatchlistName(name), _method_id_for_alias(method)
         )
@@ -719,7 +307,7 @@ def watchlist_delete(
             raise InvalidParameterError("--yes is required when input is not interactive.", parameters=("--yes",))
     deleted: DeletedWatchlist | None = None
     context = ApplicationContext(settings=settings)
-    with _workspace_failures("watchlist delete", json_output=json_output):
+    with workspace_failures("watchlist delete", json_output=json_output):
         try:
             ref: WatchlistRef = WatchlistName(name)
             if not yes:
@@ -736,10 +324,10 @@ def watchlist_delete(
             deleted = delete_watchlist(context, ref)
         except WatchlistNotFoundError as exc:
             if not missing_ok:
-                _fail_with(exc, json_output=json_output)
+                fail_with(exc, json_output=json_output)
     if deleted is None:
         if json_output:
-            typer.echo(_document_json(WatchlistDeleteDocument(requested_name=name, deleted=False, watchlist=None)))
+            typer.echo(document_json(WatchlistDeleteDocument(requested_name=name, deleted=False, watchlist=None)))
         else:
             typer.echo(f"No watchlist named {name!r} exists. Nothing was deleted.")
         return
@@ -753,11 +341,11 @@ def watchlist_delete(
     if deleted.watchlist is None:
         typer.echo(confirmation, err=True)
         assert deleted.unreadable is not None  # exactly one of watchlist and unreadable is set
-        _fail_with(deleted.unreadable, json_output=json_output)
+        fail_with(deleted.unreadable, json_output=json_output)
     document = WatchlistDeleteDocument(
         requested_name=name, deleted=True, watchlist=build_watchlist_document(deleted.watchlist)
     )
-    typer.echo(_document_json(document))
+    typer.echo(document_json(document))
 
 
 @watchlist_app.command("rename")
@@ -768,7 +356,7 @@ def watchlist_rename(
     json_output: Annotated[bool, typer.Option("--json", help="Emit the renamed watchlist document.")] = False,
 ) -> None:
     """Rename a watchlist. Saved Analysis Runs keep the name it had when they ran."""
-    with _watchlist_action("watchlist rename", _RENAME_PARAMETERS, json_output=json_output):
+    with watchlist_action("watchlist rename", _RENAME_PARAMETERS, json_output=json_output):
         renamed = rename_watchlist(ApplicationContext(settings=settings), WatchlistName(name), new_name)
     confirmation = f"Renamed watchlist {name!r} to {new_name.strip()!r}."
     if not json_output:
@@ -777,8 +365,8 @@ def watchlist_rename(
         if json_output:
             typer.echo(confirmation, err=True)
         assert renamed.unreadable is not None  # exactly one of watchlist and unreadable is set
-        _fail_with(renamed.unreadable, json_output=json_output)
-    typer.echo(_watchlist_json(renamed.watchlist) if json_output else _watchlist_text(renamed.watchlist))
+        fail_with(renamed.unreadable, json_output=json_output)
+    typer.echo(watchlist_json(renamed.watchlist) if json_output else watchlist_text(renamed.watchlist))
 
 
 @watchlist_app.command("list")
@@ -789,10 +377,10 @@ def watchlist_list(
     ] = False,
 ) -> None:
     """List every watchlist with its entry count."""
-    with _workspace_failures("watchlist list", json_output=json_output):
+    with workspace_failures("watchlist list", json_output=json_output):
         summaries = list_watchlists(ApplicationContext(settings=settings))
     if json_output:
-        typer.echo(_document_json(build_watchlist_list_document(summaries)))
+        typer.echo(document_json(build_watchlist_list_document(summaries)))
         return
     if not summaries:
         typer.echo("No watchlists exist yet.")
@@ -815,9 +403,9 @@ def watchlist_show(
     with parameter_failures(json_output=json_output):
         if normalized_group_by not in ("ticker", "method"):
             raise InvalidParameterError("--group-by must be 'ticker' or 'method'.", parameters=("--group-by",))
-    with _workspace_failures("watchlist show", json_output=json_output):
+    with workspace_failures("watchlist show", json_output=json_output):
         watchlist = get_watchlist_by_name(ApplicationContext(settings=settings), name)
-    typer.echo(_watchlist_json(watchlist) if json_output else _watchlist_text(watchlist, group_by=normalized_group_by))
+    typer.echo(watchlist_json(watchlist) if json_output else watchlist_text(watchlist, group_by=normalized_group_by))
 
 
 @runs_app.command("list")
@@ -850,11 +438,11 @@ def runs_list(  # noqa: PLR0913
             limit=limit,
             offset=offset,
         )
-    with _workspace_failures("runs list", json_output=json_output):
+    with workspace_failures("runs list", json_output=json_output):
         page = list_runs(ApplicationContext(settings=settings), query)
     summaries = page.summaries
     if json_output:
-        typer.echo(_document_json(build_runs_list_document(summaries, has_more=page.has_more)))
+        typer.echo(document_json(build_runs_list_document(summaries, has_more=page.has_more)))
         return
     if not summaries:
         typer.echo("No matching runs.")
@@ -875,7 +463,7 @@ def runs_show(
         mode = presentation_mode(details=details, diagnostics=diagnostics, json_output=json_output)
         parsed_id = _parse_run_id(run_id, field="RUN_ID")
     context = ApplicationContext(settings=settings)
-    with _workspace_failures("runs show", json_output=json_output):
+    with workspace_failures("runs show", json_output=json_output):
         if mode is PresentationMode.JSON:
             rendered = strategy_document_json(replay_run_document(context, parsed_id))
         else:
@@ -891,9 +479,9 @@ def runs_compare(
     """Show the runs of one refresh side by side: one row per ticker, one column group per strategy."""
     with parameter_failures(json_output=json_output):
         parsed_id = parse_refresh_id(refresh_id, name="REFRESH_ID")
-    with _workspace_failures("runs compare", json_output=json_output):
+    with workspace_failures("runs compare", json_output=json_output):
         document = compare_refresh_runs(ApplicationContext(settings=settings), parsed_id)
-    typer.echo(_document_json(document) if json_output else render_runs_compare_text(document))
+    typer.echo(document_json(document) if json_output else render_runs_compare_text(document))
 
 
 def _parse_run_id(value: str, *, field: str) -> UUID:
@@ -909,7 +497,7 @@ def _parse_run_id(value: str, *, field: str) -> UUID:
 
 def _run_summary_line(summary: AnalysisRunSummary) -> str:
     return (
-        f"{summary.analysis_run_id}  {summary.ticker:<10} {_alias_for_method_id(summary.method_id):<24} "
+        f"{summary.analysis_run_id}  {summary.ticker:<10} {alias_for_method_id(summary.method_id):<24} "
         f"{summary.status.value:<14} {summary.completed_at.isoformat()}"
     )
 
@@ -953,7 +541,7 @@ def _refresh_has_failure(summary: RefreshSummary) -> bool:
 def _refresh_text(summary: RefreshSummary) -> str:
     lines = [f"Refresh {summary.refresh_id} for {summary.watchlist_name!r}:"]
     for result in summary.results:
-        method = _alias_for_method_id(result.method_id)
+        method = alias_for_method_id(result.method_id)
         if result.run is not None:
             lines.append(f"  {result.run.analysis_run_id}  {result.ticker:<10} {method:<24} {result.run.status.value}")
         elif result.outcome is not None:
@@ -981,7 +569,7 @@ def _refresh_result_document(result: RefreshJobResult) -> RefreshResultDocument:
 
 def _refresh_json(summary: RefreshSummary, findings: ProviderCheckFindings) -> str:
     """Emit the refresh summary document, carrying what the provider check found."""
-    return _document_json(
+    return document_json(
         RefreshSummaryDocument(
             refresh_id=summary.refresh_id,
             watchlist_id=summary.watchlist_id,
@@ -1059,9 +647,9 @@ def refresh(  # noqa: PLR0913
                     cancellation=cancellation,
                 )
             except WatchlistNotFoundError as exc:
-                _fail_with(exc, json_output=json_output)
+                fail_with(exc, json_output=json_output)
             except EmptyRefreshTargetError as exc:
-                _fail_with(exc, json_output=json_output)
+                fail_with(exc, json_output=json_output)
     finally:
         signal.signal(signal.SIGINT, previous_handler)
 
