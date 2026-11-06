@@ -20,7 +20,7 @@ from investment_analysis_engine.strategies.momentum.selection import MomentumSel
 from investment_analysis_engine.strategies.momentum.workspace import run_momentum
 from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.refresh import refresh_watchlist
+from investment_analysis_engine.workspace.refresh import RefreshPolicy, coordinate_refresh
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.repositories.watchlists import (
     DeletedWatchlist,
@@ -489,13 +489,14 @@ def test_delete_keeps_saved_runs_loadable_and_the_name_is_reusable(
 ) -> None:
     watchlist = _seed_momentum(repository, "Doomed", ["AAPL"])
     runs = SQLiteAnalysisRunRepository(migrated_database)
-    summary = refresh_watchlist(
-        "Doomed",
+    summary = coordinate_refresh(
+        WatchlistName("Doomed"),
         watchlists=repository,
         repository=runs,
         executor=_momentum_executor,
         run_specs=RUN_SPECS_BY_KEY,
         describe=failure_text,
+        policy=RefreshPolicy(workers=1),
     )
     saved = summary.results[0].run
     assert saved is not None
@@ -648,13 +649,14 @@ def test_rename_keeps_a_saved_runs_snapshot_name(
 ) -> None:
     _seed_momentum(repository, "Before", ["AAPL"])
     runs = SQLiteAnalysisRunRepository(migrated_database)
-    summary = refresh_watchlist(
-        "Before",
+    summary = coordinate_refresh(
+        WatchlistName("Before"),
         watchlists=repository,
         repository=runs,
         executor=_momentum_executor,
         run_specs=RUN_SPECS_BY_KEY,
         describe=failure_text,
+        policy=RefreshPolicy(workers=1),
     )
     saved = summary.results[0].run
     assert saved is not None

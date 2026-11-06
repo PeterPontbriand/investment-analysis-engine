@@ -165,12 +165,12 @@ def test_the_check_finds_an_import_of_the_module_level_settings_object(tmp_path:
 
 
 _PROBE_BUILDERS = frozenset({"build_provider_probe", "ProviderProbe"})
-_MAY_BUILD_A_PROBE = frozenset({"application", "cli_workspace.py"})
-"""The unit that builds a probe, and the one command that does until its refresh operation moves into it."""
+_MAY_BUILD_A_PROBE = frozenset({"application"})
+"""The one unit that builds a probe."""
 
 
-def test_only_the_application_and_the_refresh_command_build_a_probe() -> None:
-    """A direct command, the CLI's failure translation and the API never build one; the operation does."""
+def test_no_module_outside_the_application_builds_a_probe() -> None:
+    """No command, no failure translation and no API handler builds one; the application's operations do."""
     offenders = []
     for path in sorted(PACKAGE_ROOT.rglob("*.py")):
         relative = path.relative_to(PACKAGE_ROOT)

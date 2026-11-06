@@ -43,10 +43,11 @@ from investment_analysis_engine.strategies.momentum.selection import MomentumSel
 from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY, run_spec_for
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.execution import execute
-from investment_analysis_engine.workspace.refresh import RefreshJobResult, refresh_watchlist
+from investment_analysis_engine.workspace.refresh import RefreshJobResult, RefreshPolicy, coordinate_refresh
 from investment_analysis_engine.workspace.repositories.analysis_runs import (
     AnalysisRunConflictError,  # noqa: F401 - keeps the import graph warm
 )
+from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._native_status import NATIVE_STATUS_OF_OUTCOME
 from tests._wiring import failure_text
 from tests.workspace.test_execution import _FakeSink as _ExecutionSink
@@ -323,14 +324,15 @@ def _refresh(
             provider_failure=provider_failure_of((recorded,)) if outcome is RunOutcome.FAILED else None,
         )
 
-    summary = refresh_watchlist(
-        "My Watch",
+    summary = coordinate_refresh(
+        WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": _watchlist(("KO",), (selection,))}),
         repository=_FakeSink(),
         executor=executor,
         run_specs=RUN_SPECS_BY_KEY,
         describe=failure_text,
         save=save,
+        policy=RefreshPolicy(workers=1),
     )
     return summary.results[0]
 
@@ -373,14 +375,15 @@ def test_the_saved_run_and_the_unsaved_job_report_the_same_code(save: bool) -> N
     selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     capture = replace(capture, native_evidence=_momentum_native_evidence())
 
-    summary = refresh_watchlist(
-        "My Watch",
+    summary = coordinate_refresh(
+        WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": _watchlist(("KO",), (selection,))}),
         repository=_FakeSink(),
         executor=lambda _ticker, _selection: capture,
         run_specs=RUN_SPECS_BY_KEY,
         describe=failure_text,
         save=save,
+        policy=RefreshPolicy(workers=1),
     )
 
     assert summary.results[0].reason_code == "provider_unexpected_response"

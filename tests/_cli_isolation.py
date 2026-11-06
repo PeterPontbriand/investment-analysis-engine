@@ -7,10 +7,11 @@ argument. Both fixtures are registered in ``tests/conftest.py``, so no module im
 ``isolated_cli_settings`` points ``investment_analysis_engine.cli_support``'s and
 ``investment_analysis_engine.cli_workspace``'s database access at a disposable, already-migrated SQLite file instead of
 the real local database at the default ``database_url``. The direct commands build their application context from
-``investment_analysis_engine.cli_support``'s settings, and the watchlist/runs commands open their database through their
-own ``_workspace_database``; all of them call ``ensure_database_ready`` before doing any work. Without this isolation,
-tests that invoke those commands implicitly depend on the developer machine's real local database already being
-upgraded to the current schema head, which breaks after every migration until someone runs that upgrade by hand.
+``investment_analysis_engine.cli_support``'s settings, and the watchlist/runs commands call application
+operations that open their own database; all of them call ``ensure_database_ready`` before doing any work.
+Without this isolation, tests that invoke those commands implicitly depend on the developer machine's real local
+database already being upgraded to the current schema head, which breaks after every migration until someone
+runs that upgrade by hand.
 
 Deliberately not extended to ``investment_analysis_engine.cli``'s own ``settings`` binding: that
 name is shared for configuration well beyond database access (for example

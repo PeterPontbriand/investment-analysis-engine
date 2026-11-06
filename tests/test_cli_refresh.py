@@ -1,9 +1,9 @@
 """Refresh CLI (G3) tests: multi-ticker execution, exit codes, and graceful interruption.
 
 Every test here that actually executes a job passes `--workers 1`, keeping
-`refresh_watchlist` on its sequential path. Real bounded-concurrent
+`coordinate_refresh` on its sequential path. Real bounded-concurrent
 execution (`workers>1`, a genuine `ThreadPoolExecutor`) is already
-exhaustively proven directly against `refresh_watchlist` in
+exhaustively proven directly against `coordinate_refresh` in
 `tests/workspace/test_refresh.py` (G2/G3). Exercising it a second time
 *through* Click's `CliRunner` was found to trigger a rare ("I/O operation on
 closed file", roughly 1 in 8 runs), Windows-specific race in the test

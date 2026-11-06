@@ -17,9 +17,10 @@ from investment_analysis_engine.workspace.refresh import (
     RefreshJobResult,
     RefreshPolicy,
     RefreshSummary,
-    refresh_watchlist,
+    coordinate_refresh,
 )
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._wiring import failure_text
 from tests.workspace.test_refresh import (
     NOW,
@@ -47,8 +48,8 @@ def _refresh(
     executor: Callable[[str, AnalysisSelection], ExecutionCapture], *, save: bool = True, workers: int = 1
 ) -> RefreshSummary:
     watchlist = _watchlist(("AAPL", "BROKEN", "MSFT"), (_SELECTION,))
-    return refresh_watchlist(
-        "My Watch",
+    return coordinate_refresh(
+        WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(),
         executor=executor,

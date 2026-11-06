@@ -40,7 +40,7 @@ watchlist actions and builds a selection from its model's fields, in two slices
 | API.3a | [Execution composition and direct analysis](#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-05 |
 | API.3b1 | [Watchlist actions](#api3b1--watchlist-actions) | Complete | 2026-11-05 |
 | API.3b2 | [Selections and Site 19](#api3b2--selections-and-site-19) | Complete | 2026-11-06 |
-| API.3c | [Refresh with progress](#api3c--refresh-with-progress) | Next | |
+| API.3c | [Refresh with progress](#api3c--refresh-with-progress) | Complete | 2026-11-06 |
 
 ## 3. The slices
 
@@ -114,10 +114,10 @@ watchlist actions and builds a selection from its model's fields, in two slices
   thread ([C15](#c15-progress-events-2026-11-04)); a failing callback never fails the refresh
   ([C16](#c16-a-failing-progress-callback-2026-11-04)); `ian refresh` shows no progress and its output does not change
   ([C17](#c17-ian-refresh-shows-no-progress-2026-11-04)).
-- **Scope:** the refresh operation, which builds its own probe as `analyze` does (today `cli_workspace.py`'s refresh command is the one module outside `application/` that builds one), the progress event types, the cancellation event the CLI already uses, and the CLI
+- **Scope:** the refresh operation, which builds its own probe as `analyze` does, the progress event types, the cancellation event the CLI already uses, and the CLI
   switched to the operation.
 - **Branch:** `feat/api-refresh-progress`.
-- **Detail:** ⚠ no slice plan yet. Decisions C15 to C17 are in [Appendix A](#appendix-a-decision-records).
+- **Detail:** [Implementation record](#34-api3c-implementation-record). Decisions C15 to C17 and W47 to W58 are in [Appendix A](#appendix-a-decision-records).
 
 ### 3.1 API.3a implementation record
 
@@ -503,6 +503,44 @@ Noticed for later slices:
 - API.4: serve a form client each strategy's current configured defaults (C13), every field's error at once and each error's rule identifier and values; the contract's API.4 entry records them.
 - API.4: `build_selection` accepts `as_of` as a date or a datetime only; a client that sends text parses it first, with the same end-of-day rule through `as_of_boundary`.
 - A strategy's `ian watchlist add-selection` subcommand takes its options from the same aliases as its direct command, so a new option is declared once.
+
+### 3.4 API.3c implementation record
+
+What changed, by area:
+
+- **`workspace/refresh.py` (the coordinator):**
+  - `refresh_watchlist` is renamed `coordinate_refresh` and takes a `WatchlistRef` ([W47](#w47-the-refresh-operation-2026-11-06), [W48](#w48-the-coordinator-is-renamed-coordinate_refresh-2026-11-06)). `WatchlistLookup` has `get(name)` and `get_by_id(id)`, the repository's existing reads, and the coordinator chooses by the reference, so no adapter and no stored shape is added. A missing watchlist raises `WatchlistNotFoundError` with `not_found_message(ref)`;
+  - one admission path serves every worker count: the sequential branch, `_SEQUENTIAL_POLICY` and the default policy are deleted, and `policy` is a required argument ([W49](#w49-one-admission-path-2026-11-06)). An admitted job always runs and is settled; the cancellation of a submitted but unstarted future is deleted ([W50](#w50-an-admitted-job-always-runs-2026-11-06));
+  - `RefreshTotals`, `RefreshJobStarted`, `RefreshJobFinished` and `RefreshProgress`, sent from the coordinating thread by a private reporter that counts and guards the callback ([W51](#w51-the-progress-event-types-2026-11-06), [W52](#w52-emission-and-the-failing-callback-guard-2026-11-06));
+  - `DEFAULT_WORKERS` is declared beside `MIN_WORKERS` and `MAX_WORKERS` and used by `RefreshPolicy` ([W54](#w54-the-worker-count-check-2026-11-06)).
+- **`application`:**
+  - `refresh.py` is new: `refresh_watchlist(context, ref, *, workers, save, provider_check, cancellation, on_progress) -> RefreshOutcome`, with `RefreshOutcome` (`document`, `failed`, `render_text()`) and `build_refresh_document`. `_refresh_executor`, `_describe_job_failure`, `_refresh_has_failure` and the text builder moved here from `cli_workspace.py` ([W53](#w53-what-moves-into-applicationrefreshpy-and-the-outcome-2026-11-06)). The worker-count check runs before the database opens and raises `ActionParameterError` (rule `refresh.workers_range`);
+  - `failures.py` gains `describe_failure`, `FailureDescription`, `provider_failure_message` and the message tables they use, moved unchanged from `cli_support.py` ([W58](#w58-the-failure-description-rule-moves-to-applicationfailurespy-2026-11-06)). They keep their text and behavior; the logger is now `investment_analysis_engine.application.failures`, which carries a null handler as the CLI's did.
+- **CLI:** `cli_workspace.py` calls the operation inside `watchlist_action` and prints `document` with `--json` or `render_text()` otherwise; it exits 130 from its own cancellation event and 1 from `failed`. `_workspace_database`, `_refresh_executor`, `_describe_job_failure`, `_refresh_has_failure`, `_refresh_text`, `_refresh_result_document` and `_refresh_json` are deleted, and the command's `--workers` default is `DEFAULT_WORKERS`. `cli_support.py` imports `describe_failure` from `application/failures.py`; nothing forwards from it.
+- **Documents:** `ARCHITECTURE.md` (the composition roots, the operations in `application` and the package table); this plan; the contract's API.4 entry ([W56](#w56-serving-refresh-progress-over-http-2026-11-06)).
+
+User-visible changes:
+
+- None to `ian refresh` or any other command: text, `--json`, help, messages and exit codes are unchanged, and every file under `tests/expected_output/` is byte for byte what it was ([C17](#c17-ian-refresh-shows-no-progress-2026-11-04)).
+- A refresh addressed by watchlist ID reports an empty watchlist as `Watchlist '<display name>' has no entries; there is nothing to refresh.`, using the display name where a name-addressed refresh uses the name as typed. No current caller addresses a refresh by ID.
+- The log line `Failure reported to the user as: ...` is now written by the logger `investment_analysis_engine.application.failures` instead of `investment_analysis_engine.cli_support`; its text and traceback are the same.
+- No stored shape, `config_schema_version`, schema file, formula, classification or dependency changed.
+
+Tests edited, and why:
+
+- Renamed coordinator ([W48](#w48-the-coordinator-is-renamed-coordinate_refresh-2026-11-06)), a `WatchlistName` reference and a required policy ([W49](#w49-one-admission-path-2026-11-06)): `tests/workspace/test_refresh.py` (its test names follow; its fake lookup gains `get_by_id`), `test_refresh_provider_failure.py`, `test_failure_reason_codes.py`, `test_not_applicable_calculation.py`, `test_workspace_fail_closed.py`, `tests/workspace/repositories/test_watchlist_repository.py`, `tests/test_cli_refresh.py` (docstring) and `tests/_wiring.py` (docstring). Each call that passed no policy passes `RefreshPolicy(workers=1)`, the old default.
+- Moved functions ([W53](#w53-what-moves-into-applicationrefreshpy-and-the-outcome-2026-11-06), [W58](#w58-the-failure-description-rule-moves-to-applicationfailurespy-2026-11-06)): `tests/test_failure_messages.py` and `tests/test_cli_support.py` import `describe_failure` and `provider_failure_message` from `application/failures.py` (their tests stay where they are, since each also exercises the CLI); `tests/test_failure_messages.py` and `tests/test_cli_failure_envelope.py` patch `application.refresh` for the executor, the tier lookup and `RUN_SPECS_BY_KEY`, and call `_refresh_executor` with a context; the failing executor in the latter takes the context first; `tests/test_cli_runs_compare.py` patches `application.refresh.utc_now`; `tests/workspace_documents/test_workspace_documents.py` builds the summary through `build_refresh_document` and `document_json`; `tests/_probe_injection.py` patches the probe builder in `application.refresh`.
+- `tests/application/test_providers.py`: `test_only_the_application_and_the_refresh_command_build_a_probe` is renamed `test_no_module_outside_the_application_builds_a_probe`, and only `application/` may build a probe.
+- `tests/test_strategy_import_layering.py`: `application/refresh.py` is a composition-root importer and an application-tier importer; `cli_workspace.py` no longer imports the application tier.
+
+Tests added: `tests/workspace/test_refresh_progress.py` (events only on the calling thread with one and four workers; one started and one finished event per job, in order, with matching position and refresh ID, non-decreasing totals, `admitted + remaining` equal to the job count and `finished == admitted` on the last event; a ticker under two methods; every admitted job finished and `remaining` counting the jobs never admitted after a cancellation; a callback that raises on its first and on a later event, logged once with its traceback, never called again, with a result equal to a refresh without one; an ID-addressed refresh and a missing ID); `tests/application/test_refresh.py` (a watchlist by name and by ID; the missing and empty messages; the worker-count error with its rule, values and CLI rendering; the check before the database opens; `failed`, `document` and `render_text()` with and without a provider failure; the switched-off check; progress through the operation).
+
+Accepted deviations: the coordinator's lookup keeps the repository's `get` and `get_by_id` and chooses by reference, in place of one `get(ref)` that would need an adapter ([W47](#w47-the-refresh-operation-2026-11-06)); the failure description rule moved too ([W58](#w58-the-failure-description-rule-moves-to-applicationfailurespy-2026-11-06)), because `application` cannot import `cli_support`.
+
+Noticed for later slices:
+
+- API.4: serving refresh progress needs an event document, a transport and a way for the client to set cancellation ([W56](#w56-serving-refresh-progress-over-http-2026-11-06)).
+- With cancellation set before the first admission, a refresh admits no job and returns an empty summary; the CLI exits 130 as before.
 
 ## 4. Scope limits and acceptance criteria
 
@@ -895,3 +933,51 @@ Amends [W30](#w30-what-a-converter-may-reject-2026-11-05). `parse_as_of_text(val
 ### W46 The add-selection group's help is tested without a snapshot (2026-11-06)
 
 A test checks that `ian watchlist add-selection --help` exits 0 and lists exactly the declared strategies' aliases, each with the summary "Add one <label> entry per ticker to an existing watchlist.", the expected text built from the declared strategies. The group has no stored snapshot, because it would change with every strategy added.
+
+### W47 The refresh operation (2026-11-06)
+
+`application/refresh.py` holds `refresh_watchlist(context: ApplicationContext, ref: WatchlistRef, *, workers: int = DEFAULT_WORKERS, save: bool, provider_check: bool, cancellation: threading.Event | None = None, on_progress: Callable[[RefreshProgress], None] | None = None) -> RefreshOutcome`. It opens, checks and closes its own database as `analyze` does, and builds its own provider probe from the context's settings. It takes a `WatchlistRef` ([W19](#w19-watchlistref-is-a-name-or-an-id-2026-11-05)); the CLI passes `WatchlistName`. The coordinator's snapshot lookup accepts a `WatchlistRef` instead of a name, and a missing watchlist raises `WatchlistNotFoundError` with `not_found_message(ref)`, which for a name is byte-identical to today's message. The lookup keeps the repository's `get(name)` and `get_by_id(id)` and the coordinator chooses between them by the reference; no adapter is added. An empty watchlist addressed by ID is reported under its display name.
+
+### W48 The coordinator is renamed coordinate_refresh (2026-11-06)
+
+The workspace coordinator `workspace.refresh.refresh_watchlist` is renamed `coordinate_refresh`, so the two layers do not share a function name (as `analyze` and `execute` do not). Every reference follows, tests included.
+
+### W49 One admission path (2026-11-06)
+
+The coordinator's sequential branch (`workers == 1`) is deleted; one worker runs through the same bounded-admission path as several. `_SEQUENTIAL_POLICY` and the coordinator's default policy are deleted: `policy` is a required argument. The module docstring is rewritten to describe one path. With one worker the executor runs on a worker thread and a saved run's times come from the replay clock, which holds the measured instants.
+
+### W50 An admitted job always runs (2026-11-06)
+
+After the cancellation event is set, no new job is admitted, but the coordinator no longer cancels a submitted future that has not started: every admitted job runs to completion and is settled (saved when saving) normally.
+
+### W51 The progress event types (2026-11-06)
+
+Defined in `workspace/refresh.py`: `RefreshTotals(admitted, finished, remaining)`, where `remaining` counts the jobs not yet admitted and stays above 0 after a cancellation; `RefreshJobStarted(refresh_id, position, ticker, selection, totals)`; `RefreshJobFinished(refresh_id, position, result, totals)`; and `type RefreshProgress = RefreshJobStarted | RefreshJobFinished`, all frozen dataclasses. "Started" is sent when the coordinator admits the job to a free worker slot (totals already counting it as admitted). "Finished" is sent after the coordinator has settled the job, so a saved run is already persisted (totals already counting it as finished). Both are sent only from the coordinating thread ([C15](#c15-progress-events-2026-11-04)). `position` pairs a job's two events when one ticker appears under two methods; `refresh_id` lets a client link a refresh before the summary.
+
+### W52 Emission and the failing-callback guard (2026-11-06)
+
+Emission and the failing-callback guard ([C16](#c16-a-failing-progress-callback-2026-11-04)) are both in `workspace/refresh.py`, beside the coordinator. The guard catches `Exception` (never `BaseException`); the first exception is logged once with its traceback through the module's logger (`logging.getLogger(__name__)`), every later event is dropped, and the refresh completes normally with a result identical to a refresh with no callback.
+
+### W53 What moves into application/refresh.py, and the outcome (2026-11-06)
+
+From `cli_workspace.py`: `_refresh_executor` (the durable instrument-profile cache is built once per refresh over the operation's database, as now), `_describe_job_failure`, `_refresh_has_failure`, the provider check after the batch, the summary document builder renamed `build_refresh_document`, and `_refresh_text`. `RefreshOutcome` mirrors `AnalysisOutcome`: `document` (the `RefreshSummaryDocument`, `provider_check` element included), `failed: bool` (today's `_refresh_has_failure` rule), and `render_text()` returning the text mode's complete output, provider-check lines first, exactly as the CLI prints it today. The CLI prints `document` with `--json` or `render_text()` otherwise, and sets exit 1 from `failed`. The refresh executor's context is the operation's `context`. `_workspace_database` is deleted.
+
+### W54 The worker-count check (2026-11-06)
+
+The worker-count check is in the operation and runs before the database opens ([W18](#w18-arguments-are-checked-before-the-database-opens-2026-11-05)). It raises `ActionParameterError` ([W17](#w17-an-actions-parameter-error-is-a-template-2026-11-05), [W42](#w42-errors-keep-what-a-translation-needs-2026-11-05)) with rule identifier `refresh.workers_range`, a `{workers}` placeholder and the value, minimum and maximum as named arguments (`value`, `minimum`, `maximum`). The CLI renders it as "--workers must be between 1 and 4." with the same `parameters` value and exit code as today. `DEFAULT_WORKERS = 2` is declared once (beside `MIN_WORKERS` and `MAX_WORKERS`) and used by the operation, `RefreshPolicy` and the CLI option default; the `--workers` help text does not change.
+
+### W55 Cancellation stays an event (2026-11-06)
+
+Cancellation stays a `threading.Event` passed by the caller. SIGINT handling stays in the CLI. `RefreshOutcome` has no `cancelled` field; the CLI exits 130 from its own event, as now.
+
+### W56 Serving refresh progress over HTTP (2026-11-06)
+
+The contract's API.4 entry ("Action endpoints and refresh jobs") records that serving refresh progress over HTTP needs an event document, a transport (server-sent events, WebSocket or polling, not chosen) and a way for the client to set cancellation.
+
+### W57 The tests (2026-11-06)
+
+The tests are those of the implementation record's "Tests added" paragraph: events on the calling thread with one and four workers; one started and one finished event per job with matching position and refresh ID and consistent totals; two pairs for a ticker under two methods; the behavior after a cancellation; a failing callback on its first and on a later event; the operation by ID and by name, the worker-count error, the check before the database opens, and `failed`, `document` and `render_text()` with and without a provider failure; and the recorded `ian refresh` outputs, unchanged.
+
+### W58 The failure description rule moves to application/failures.py (2026-11-06)
+
+Amends [W53](#w53-what-moves-into-applicationrefreshpy-and-the-outcome-2026-11-06). `describe_failure`, `FailureDescription`, `provider_failure_message` and the private constant sets and message tables they use move from `cli_support.py` to `application/failures.py`, unchanged in behavior and message text, because the refresh operation needs the rule and `application` cannot import the CLI. `cli_support.py` (the direct commands' failure reporting) and `application/refresh.py` import them from there; nothing forwards from `cli_support.py`. The tests of these functions keep their files and follow the move by their imports.

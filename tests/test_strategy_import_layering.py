@@ -42,6 +42,7 @@ _ROOT_IMPORTERS = frozenset(
         "investment_analysis_engine.strategies.graham_growth.application",
         "investment_analysis_engine.strategies.momentum.application",
         "investment_analysis_engine.cli_workspace",
+        "investment_analysis_engine.application.refresh",
         "investment_analysis_engine.application.runs",
         "investment_analysis_engine.application.watchlists",
         "investment_analysis_engine.application.selections",
@@ -69,7 +70,7 @@ _CLI_TIER_IMPORTERS = frozenset({"investment_analysis_engine.cli", "investment_a
 # the root, an entry must exist and import the tier.
 _APPLICATION_TIER = "investment_analysis_engine.application.tier"
 _APPLICATION_TIER_IMPORTERS = frozenset(
-    {"investment_analysis_engine.application.analysis", "investment_analysis_engine.cli_workspace"}
+    {"investment_analysis_engine.application.analysis", "investment_analysis_engine.application.refresh"}
 )
 # The modules only listed importers may import: the root and the three tiers, with the name each is reported by.
 _IMPORTERS = MappingProxyType(

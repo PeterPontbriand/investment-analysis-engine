@@ -1,6 +1,6 @@
-"""Multi-ticker refresh service for one watchlist snapshot (G1 sequential, G2 concurrent).
+"""Multi-ticker refresh coordination for one watchlist snapshot.
 
-``refresh_watchlist`` freezes one watchlist's ordered entries in a single
+``coordinate_refresh`` freezes one watchlist's ordered entries in a single
 read (the contract's "one read snapshot" requirement: edits made to the
 watchlist afterward apply only to the *next* refresh, never to this one),
 then executes every (ticker, selection) entry against an injected
@@ -16,39 +16,42 @@ adapters' own "borrow dependencies, don't construct them" convention), and
 this service never invokes a Typer command or parses rendered/terminal
 output back into a canonical result.
 
-``policy.workers`` selects between two admission strategies over the exact
-same per-job contract:
-
-- ``workers == 1`` (the default): strictly sequential, one job at a time -
-  byte-identical to G1's original behavior, so every existing caller that
-  never passes ``policy`` is unaffected by G2's addition.
-- ``workers > 1``: bounded concurrent admission (G2). At most ``workers``
-  jobs run at once; a worker only calls the injected ``executor`` (job-scoped
-  dependencies are the caller's responsibility, exactly as documented on
-  ``executor`` below); the coordinator - this function's own calling thread,
-  never a worker thread - is the only thread that ever calls :func:`execute`
-  (and therefore the only thread that ever calls ``repository.insert``), and
-  it persists one finished job before admitting its replacement, never
-  eagerly submitting the whole remaining queue.
+One admission path serves every worker count. At most ``policy.workers`` jobs
+run at once, each on a worker thread; a worker only calls the injected
+``executor`` (job-scoped dependencies are the caller's responsibility, exactly
+as documented on ``executor`` below). The coordinator - this function's own
+calling thread, never a worker thread - is the only thread that ever calls
+:func:`execute` (and therefore the only thread that ever calls
+``repository.insert``), and it settles one finished job before admitting its
+replacement, never eagerly submitting the whole remaining queue. A saved run's
+times are the instants a worker measured around its own call to ``executor``,
+replayed through ``execute``'s clock.
 
 A job's failure - whether the adapter itself raises, or the terminal insert
 fails - is isolated to that one job and recorded as an explicit result; it
-never aborts the remaining (ticker, selection) pairs, under either admission
-strategy. Deciding whether a *storage* failure specifically should stop
-admitting further work is explicitly a G3 concern (interruption/stop
-semantics), not this slice's; both strategies provide the uniform per-job
-isolation that behavior is built on.
+never aborts the remaining (ticker, selection) pairs. Deciding whether a
+*storage* failure specifically should stop admitting further work is
+explicitly not decided here; the per-job isolation is what such a decision
+would build on.
 
-``cancellation`` (G3) is an optional cooperative stop signal: a caller (the
+``cancellation`` is an optional cooperative stop signal: a caller (the
 refresh CLI, on Ctrl+C) sets it from another thread. Once set, no *new* job
 is admitted - remaining, never-started (ticker, selection) pairs simply do
 not appear in the returned summary, never as a fabricated "cancelled" row -
-while any job already admitted is left to run to completion and its outcome
-is still persisted normally. Nothing here ever raises `KeyboardInterrupt` or
-attempts to kill a running thread; "graceful" means cooperative admission
-control only.
+while every job already admitted runs to completion and its outcome is
+settled (saved when saving) normally. Nothing here ever raises
+`KeyboardInterrupt` or attempts to kill a running thread; "graceful" means
+cooperative admission control only.
+
+``on_progress`` is an optional observer. It receives a :class:`RefreshJobStarted`
+when the coordinator admits a job and a :class:`RefreshJobFinished` after the
+coordinator has settled it, only ever on the coordinating thread. It observes
+and never steers: the first exception it raises is logged once with its
+traceback, every later event is dropped, and the refresh completes with the
+result it would have had without a callback.
 """
 
+import logging
 import threading
 from collections.abc import Callable, Mapping
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
@@ -68,7 +71,15 @@ from investment_analysis_engine.workspace.execution import AnalysisRunSink, Batc
 from investment_analysis_engine.workspace.requests import AnalysisRequest
 from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
-from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundError
+from investment_analysis_engine.workspace.watchlists import (
+    WatchlistId,
+    WatchlistName,
+    WatchlistNotFoundError,
+    WatchlistRef,
+    not_found_message,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class EmptyRefreshTargetError(ValueError):
@@ -82,41 +93,39 @@ class EmptyRefreshTargetError(ValueError):
 
 
 class WatchlistLookup(Protocol):
-    """The one read capability refresh needs: a frozen-snapshot lookup by name."""
+    """The read capability refresh needs: a frozen-snapshot lookup by name or by ID."""
 
     def get(self, name: str) -> Watchlist | None:
         """Return the watchlist matching ``name``, or None if it does not exist."""
         ...
 
+    def get_by_id(self, watchlist_id: UUID) -> Watchlist | None:
+        """Return the watchlist with ID ``watchlist_id``, or None if it does not exist."""
+        ...
+
 
 MIN_WORKERS = 1
 MAX_WORKERS = 4
-"""The bounds of a refresh's worker count, shared by the policy and the command's own check."""
+DEFAULT_WORKERS = 2
+"""The bounds and the default of a refresh's worker count, shared by the policy, the operation and the command."""
 
 
 @dataclass(frozen=True)
 class RefreshPolicy:
     """Bounded worker count for a refresh.
 
-    ``workers`` is a small local-workspace concurrency knob (default 2,
-    range 1-4), not a financial assumption. This is the class's own default
-    for a caller that wants concurrency without picking a specific count;
-    :func:`refresh_watchlist` itself defaults to a *different*,
-    strictly-sequential policy (``workers=1``) so that no existing caller's
-    behavior changes merely because this parameter was added - a caller
-    must explicitly opt into concurrent admission by passing
-    ``RefreshPolicy()`` or an explicit worker count.
+    ``workers`` is a small local-workspace concurrency knob (default
+    :data:`DEFAULT_WORKERS`, range :data:`MIN_WORKERS` to :data:`MAX_WORKERS`),
+    not a financial assumption. :func:`coordinate_refresh` requires a policy:
+    the caller always states how many workers to use.
     """
 
-    workers: int = 2
+    workers: int = DEFAULT_WORKERS
 
     def __post_init__(self) -> None:
         """Reject an out-of-range worker count."""
         if not MIN_WORKERS <= self.workers <= MAX_WORKERS:
             raise ValueError(f"workers must be between {MIN_WORKERS} and {MAX_WORKERS}.")
-
-
-_SEQUENTIAL_POLICY = RefreshPolicy(workers=1)
 
 
 @dataclass(frozen=True)
@@ -136,7 +145,7 @@ class RefreshJobResult:
     (regardless of its own financial outcome — completed, unavailable,
     not_applicable and failed are all still a *produced* run); ``outcome``
     for an attempt that executed successfully but was not persisted
-    (``refresh_watchlist(..., save=False)``) — the attempt has a real
+    (``coordinate_refresh(..., save=False)``) — the attempt has a real
     financial outcome but no addressable run, so it is never given a
     fabricated ``analysis_run_id``; ``error`` for an attempt whose adapter
     or persistence step raised before a result could be assembled. ``error``
@@ -200,140 +209,176 @@ class RefreshSummary:
         return counts
 
 
-def refresh_watchlist(  # noqa: PLR0913
-    name: str,
+@dataclass(frozen=True)
+class RefreshTotals:
+    """How far a refresh has come: jobs admitted, jobs finished and jobs not yet admitted.
+
+    ``remaining`` counts the jobs not yet admitted, so it stays above zero after a cancellation.
+    """
+
+    admitted: int
+    finished: int
+    remaining: int
+
+
+@dataclass(frozen=True)
+class RefreshJobStarted:
+    """The coordinator admitted a job to a free worker slot; ``totals`` already counts it as admitted.
+
+    ``position`` is the entry's place in the watchlist snapshot; it pairs a job's two events when one ticker appears
+    under two methods. ``refresh_id`` lets a client link the refresh before its summary exists.
+    """
+
+    refresh_id: UUID
+    position: int
+    ticker: str
+    selection: AnalysisSelection
+    totals: RefreshTotals
+
+
+@dataclass(frozen=True)
+class RefreshJobFinished:
+    """The coordinator settled a job, so a saved run is already persisted; ``totals`` already counts it as finished."""
+
+    refresh_id: UUID
+    position: int
+    result: RefreshJobResult
+    totals: RefreshTotals
+
+
+type RefreshProgress = RefreshJobStarted | RefreshJobFinished
+"""One progress event of a refresh."""
+
+
+class _ProgressReporter:
+    """Counts a refresh's jobs and sends its events, failing open when the observer raises.
+
+    Used only from the coordinating thread. The first exception the observer raises is logged once with its
+    traceback and every later event is dropped; counting continues, so a refresh is unaffected by its observer.
+    """
+
+    def __init__(self, refresh_id: UUID, job_count: int, on_progress: Callable[[RefreshProgress], None] | None) -> None:
+        self._refresh_id = refresh_id
+        self._job_count = job_count
+        self._on_progress = on_progress
+        self._admitted = 0
+        self._finished = 0
+        self._dropping = False
+
+    def started(self, position: int, ticker: str, selection: AnalysisSelection) -> None:
+        """Count a job as admitted and send its started event."""
+        self._admitted += 1
+        self._send(
+            RefreshJobStarted(
+                refresh_id=self._refresh_id,
+                position=position,
+                ticker=ticker,
+                selection=selection,
+                totals=self._totals(),
+            )
+        )
+
+    def finished(self, position: int, result: RefreshJobResult) -> None:
+        """Count a job as finished and send its finished event."""
+        self._finished += 1
+        self._send(
+            RefreshJobFinished(refresh_id=self._refresh_id, position=position, result=result, totals=self._totals())
+        )
+
+    def _totals(self) -> RefreshTotals:
+        return RefreshTotals(
+            admitted=self._admitted, finished=self._finished, remaining=self._job_count - self._admitted
+        )
+
+    def _send(self, event: RefreshProgress) -> None:
+        if self._on_progress is None or self._dropping:
+            return
+        try:
+            self._on_progress(event)
+        except Exception:
+            self._dropping = True
+            logger.exception("The refresh progress callback raised; this and every later event is dropped.")
+
+
+def coordinate_refresh(  # noqa: PLR0913
+    ref: WatchlistRef,
     *,
     watchlists: WatchlistLookup,
     repository: AnalysisRunSink,
     executor: Callable[[str, AnalysisSelection], ExecutionCapture],
     run_specs: Mapping[tuple[str, str], RunSpec],
     describe: Callable[[BaseException, str, bool], JobFailure],
+    policy: RefreshPolicy,
     save: bool = True,
-    policy: RefreshPolicy = _SEQUENTIAL_POLICY,
     refresh_id_factory: Callable[[], UUID] = uuid4,
     id_factory: Callable[[], UUID] = uuid4,
     clock: Callable[[], datetime] | None = None,
     cancellation: threading.Event | None = None,
+    on_progress: Callable[[RefreshProgress], None] | None = None,
 ) -> RefreshSummary:
     """Execute every (member, selection) pair in one watchlist's frozen snapshot.
 
     Args:
-        name: The watchlist to refresh, matched case-insensitively by ``watchlists``.
-        watchlists: A read-only lookup for the frozen snapshot; only ``get`` is used.
-        repository: An already-composed, ready sink for each terminal run.
-            Under ``policy.workers > 1`` it is still only ever called from
-            this function's own calling thread, never from a worker thread.
+        ref: The watchlist to refresh, by name (matched case-insensitively by ``watchlists``) or by ID.
+        watchlists: A read-only lookup for the frozen snapshot; only ``get`` and ``get_by_id`` are used.
+        repository: An already-composed, ready sink for each terminal run. It is only ever called from this
+            function's own calling thread, never from a worker thread.
         executor: Runs one method adapter for one (ticker, selection) pair and
-            returns its normalized capture — fully bound with whatever
+            returns its normalized capture - fully bound with whatever
             provider/resolver/cache dependencies it needs, exactly as a
             direct command's own adapter call is bound. Job-scoped: called
             once per (ticker, selection) pair, never shared/reused state
-            across calls unless the caller has proven that is safe. Under
-            ``policy.workers > 1`` it may be called concurrently from
-            multiple worker threads, so this job-scoping requirement is load
-            -bearing, not merely a style preference.
+            across calls unless the caller has proven that is safe. It may be
+            called concurrently from multiple worker threads, so this
+            job-scoping requirement is load-bearing, not merely a style preference.
         run_specs: The versions and evidence encoder of each declared strategy, keyed by
             ``(analysis_id, method_id)``; a job whose selection has no entry fails closed as that job's error.
         describe: Maps the exception of a failed job, the job's ticker and whether the analysis had finished and
             its result was being saved to the job's stable reason code and its message. The caller supplies it, so
             this module imports nothing from the command or reporting layers.
+        policy: The bounded worker count; see the module docstring.
         save: When ``True`` (the default), every finished job is persisted
             exactly as before. When ``False``, every entry still executes
             but no job is persisted and no :class:`AnalysisRun` is ever
-            constructed — a preview refresh; each result's outcome is
+            constructed - a preview refresh; each result's outcome is
             available on :attr:`RefreshJobResult.outcome` instead of
             :attr:`RefreshJobResult.run`.
-        policy: Selects sequential (``workers=1``, the default) or bounded
-            concurrent (``workers>1``) admission; see the module docstring.
         refresh_id_factory: Produces the one refresh identity shared by
             every job in this call; defaults to `uuid4`.
         id_factory: Produces each individual run's identity; defaults to `uuid4`.
         clock: Produces aware UTC instants for each job's timing; defaults
-            to the wall clock. Under concurrent admission this is called
-            from worker threads and must itself be safe to call that way;
-            the default wall clock is.
+            to the wall clock. It is called from worker threads and must
+            itself be safe to call that way; the default wall clock is.
         cancellation: An optional cooperative stop signal a caller sets from
             another thread (typically a Ctrl+C handler); see the module
             docstring. ``None`` (the default) means refresh always runs
             every job to completion.
+        on_progress: An optional observer of the refresh's progress, called only on this function's calling thread;
+            see the module docstring.
 
     Returns:
         The ordered outcome of every job that was admitted, in the
         watchlist's own entry order, whether it succeeded, produced a
         non-completed financial outcome, or failed to produce a run at all.
         Order is the watchlist's own snapshot order regardless of actual
-        completion order under concurrent admission. A job never admitted
-        because ``cancellation`` was already set does not appear at all.
+        completion order. A job never admitted because ``cancellation`` was
+        already set does not appear at all.
 
     Raises:
-        WatchlistNotFoundError: If no watchlist matches ``name``.
+        WatchlistNotFoundError: If no watchlist matches ``ref``.
         EmptyRefreshTargetError: If the watchlist has no entries. Not raised
             mid-refresh; checked before any job runs.
     """
-    watchlist = watchlists.get(name)
+    watchlist = _snapshot(watchlists, ref)
     if watchlist is None:
-        raise WatchlistNotFoundError(f"No watchlist named {name!r} exists.")
+        raise WatchlistNotFoundError(not_found_message(ref))
     if not watchlist.entries:
-        raise EmptyRefreshTargetError(f"Watchlist {name!r} has no entries; there is nothing to refresh.")
+        label = ref.name if isinstance(ref, WatchlistName) else watchlist.display_name
+        raise EmptyRefreshTargetError(f"Watchlist {label!r} has no entries; there is nothing to refresh.")
 
     refresh_id = refresh_id_factory()
-    resolved_clock = clock if clock is not None else utc_now
-    jobs = [(entry.ticker, entry.selection) for entry in watchlist.entries]
-
-    if policy.workers == 1:
-        results: list[RefreshJobResult] = []
-        for position, (ticker, selection) in enumerate(jobs):
-            if cancellation is not None and cancellation.is_set():
-                break
-
-            captured: list[ExecutionCapture] = []
-
-            def capture(
-                captured_ticker: str = ticker,
-                captured_selection: AnalysisSelection = selection,
-                held: list[ExecutionCapture] = captured,
-            ) -> ExecutionCapture:
-                result = executor(captured_ticker, captured_selection)
-                held.append(result)
-                return result
-
-            if not save:
-                try:
-                    result = capture()
-                    results.append(_unsaved(ticker, selection, result))
-                except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
-                    results.append(_failed(ticker, selection, exc, describe, saving=False))
-                continue
-
-            batch = BatchContext(
-                refresh_id=refresh_id,
-                batch_position=position,
-                watchlist_id=watchlist.watchlist_id,
-                watchlist_name=watchlist.display_name,
-            )
-            try:
-                run = execute(
-                    AnalysisRequest(ticker=ticker, selection=selection),
-                    spec=_spec_for(run_specs, selection),
-                    capture=capture,
-                    repository=repository,
-                    id_factory=id_factory,
-                    clock=resolved_clock,
-                    batch=batch,
-                )
-                results.append(_saved(ticker, selection, run, captured[0]))
-            except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
-                results.append(_failed(ticker, selection, exc, describe, saving=bool(captured)))
-
-        return RefreshSummary(
-            refresh_id=refresh_id,
-            watchlist_id=watchlist.watchlist_id,
-            watchlist_name=watchlist.display_name,
-            results=tuple(results),
-        )
-
     return _refresh_concurrently(
-        jobs,
+        [(entry.ticker, entry.selection) for entry in watchlist.entries],
         watchlist=watchlist,
         refresh_id=refresh_id,
         workers=policy.workers,
@@ -343,9 +388,17 @@ def refresh_watchlist(  # noqa: PLR0913
         describe=describe,
         save=save,
         id_factory=id_factory,
-        clock=resolved_clock,
+        clock=clock if clock is not None else utc_now,
         cancellation=cancellation,
+        progress=_ProgressReporter(refresh_id, len(watchlist.entries), on_progress),
     )
+
+
+def _snapshot(watchlists: WatchlistLookup, ref: WatchlistRef) -> Watchlist | None:
+    """Read the watchlist ``ref`` addresses in one lookup, or return ``None`` if there is none."""
+    if isinstance(ref, WatchlistId):
+        return watchlists.get_by_id(ref.watchlist_id)
+    return watchlists.get(ref.name)
 
 
 def _failed(
@@ -442,21 +495,20 @@ def _refresh_concurrently(  # noqa: PLR0913
     id_factory: Callable[[], UUID],
     clock: Callable[[], datetime],
     cancellation: threading.Event | None,
+    progress: _ProgressReporter,
 ) -> RefreshSummary:
-    """Bounded concurrent admission (G2/G3) over the same per-job contract as the sequential path.
+    """Bounded admission over the per-job contract, for any worker count.
 
     At most ``workers`` jobs are ever in flight. A worker's only
     responsibility is calling ``executor`` and reporting back what happened;
-    this function's own calling thread — the coordinator — is the only
+    this function's own calling thread - the coordinator - is the only
     thread that ever calls :func:`execute` (and therefore the only thread
     that ever calls ``repository.insert``) when ``save`` is true, and it
     admits one replacement job only after settling (persisting, or recording
     the outcome/failure of) the job whose completion freed that slot.
 
-    Once ``cancellation`` is set, no further job is admitted; any future
-    still pending but not yet started is cancelled (a narrow window that can
-    occur even under bounded admission), while an already-running job is
-    left to finish naturally and its outcome is still persisted.
+    Once ``cancellation`` is set, no further job is admitted. Every job
+    already admitted runs to completion and is settled normally.
     """
 
     def run_one(ticker: str, selection: AnalysisSelection) -> _JobOutcome:
@@ -481,6 +533,7 @@ def _refresh_concurrently(  # noqa: PLR0913
                 return
             position, (ticker, selection) = item
             pending[pool.submit(run_one, ticker, selection)] = (position, ticker, selection)
+            progress.started(position, ticker, selection)
 
         for _ in range(min(workers, len(jobs))):
             admit_next()
@@ -507,11 +560,8 @@ def _refresh_concurrently(  # noqa: PLR0913
                     save=save,
                     id_factory=id_factory,
                 )
+                progress.finished(position, results[position])
                 admit_next()
-            if cancellation is not None and cancellation.is_set():
-                for leftover in list(pending):
-                    if leftover.cancel():
-                        pending.pop(leftover)
 
     return RefreshSummary(
         refresh_id=refresh_id,
@@ -565,11 +615,18 @@ def _settle(  # noqa: PLR0913
 
 
 __all__ = [
+    "DEFAULT_WORKERS",
+    "MAX_WORKERS",
+    "MIN_WORKERS",
     "EmptyRefreshTargetError",
     "JobFailure",
+    "RefreshJobFinished",
     "RefreshJobResult",
+    "RefreshJobStarted",
     "RefreshPolicy",
+    "RefreshProgress",
     "RefreshSummary",
+    "RefreshTotals",
     "WatchlistLookup",
-    "refresh_watchlist",
+    "coordinate_refresh",
 ]

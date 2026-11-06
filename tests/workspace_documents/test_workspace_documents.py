@@ -13,8 +13,8 @@ from pydantic.types import AwareDatetime, FutureDatetime, NaiveDatetime, PastDat
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.provider_check import ProviderCheckFindings
-from investment_analysis_engine.cli_support import watchlist_json
-from investment_analysis_engine.cli_workspace import _refresh_json
+from investment_analysis_engine.application.refresh import build_refresh_document
+from investment_analysis_engine.cli_support import document_json, watchlist_json
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
@@ -303,7 +303,7 @@ def test_the_refresh_summary_reports_an_unsaved_outcome_and_a_failed_job() -> No
             RefreshJobResult(ticker="BAD", method_id="sma_crossover", error="boom", reason_code="provider_error"),
         ),
     )
-    document = json.loads(_refresh_json(summary, ProviderCheckFindings()))
+    document = json.loads(document_json(build_refresh_document(summary, ProviderCheckFindings())))
     assert list(document) == [
         "schema_version",
         "refresh_id",
@@ -346,7 +346,7 @@ def test_a_refresh_job_with_an_unknown_reason_code_is_rejected() -> None:
         results=(RefreshJobResult(ticker="X", method_id="m", error="boom", reason_code="not_a_code"),),
     )
     with pytest.raises(ValueError, match="not_a_code"):
-        _refresh_json(summary, ProviderCheckFindings())
+        document_json(build_refresh_document(summary, ProviderCheckFindings()))
 
 
 def test_a_refresh_result_document_enforces_its_consistency_rules() -> None:

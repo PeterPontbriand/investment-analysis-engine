@@ -149,7 +149,7 @@ def test_the_table_is_built_from_storage_alone(isolated_cli_settings: ProjectSet
     with (
         patch(_FETCH, side_effect=refuse),
         patch("investment_analysis_engine.core.clock.utc_now", side_effect=refuse),
-        patch("investment_analysis_engine.cli_workspace.utc_now", side_effect=refuse),
+        patch("investment_analysis_engine.application.refresh.utc_now", side_effect=refuse),
     ):
         assert _compare(refresh_id) == before
 

@@ -1102,7 +1102,7 @@ def test_on_windows_a_terminal_report_must_be_confirmed_as_a_real_console(consol
         assert investment_analysis_engine.cli_workspace._stdin_is_interactive() is console_attached
 
 
-# --- the catch-all in _workspace_database ---------------------------------------------------------------------
+# --- the catch-all in workspace_failures -----------------------------------------------------------------------
 
 
 def _a_real_validation_error() -> ValidationError:

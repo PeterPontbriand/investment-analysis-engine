@@ -9,12 +9,12 @@ import typer
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.analysis import exit_code_of
+from investment_analysis_engine.application.failures import provider_failure_message
 from investment_analysis_engine.cli_support import (
     execution_errors,
     parameter_failures,
     parse_as_of_option,
     presentation_mode,
-    provider_failure_message,
     resolve_ticker,
     selection_from_options,
 )

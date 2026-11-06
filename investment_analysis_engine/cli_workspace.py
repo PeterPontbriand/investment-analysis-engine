@@ -15,25 +15,13 @@ import logging
 import signal
 import sys
 import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
 from typing import Annotated
 from uuid import UUID
 
 import typer
 
-from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.database import open_database
-from investment_analysis_engine.application.provider_check import (
-    ProviderCheckChoice,
-    ProviderCheckFindings,
-    provider_check_findings,
-)
-from investment_analysis_engine.application.providers import (
-    build_provider_probe,
-    production_instrument_profile_cache,
-)
+from investment_analysis_engine.application.refresh import refresh_watchlist
 from investment_analysis_engine.application.runs import (
     RunQueryNames,
     build_run_query,
@@ -43,7 +31,6 @@ from investment_analysis_engine.application.runs import (
     replay_run_document,
     replay_run_text,
 )
-from investment_analysis_engine.application.tier import refresh_executor_for
 from investment_analysis_engine.application.watchlists import (
     alias_for_method_id,
     create_watchlist,
@@ -55,12 +42,9 @@ from investment_analysis_engine.application.watchlists import (
     remove_watchlist_method,
     remove_watchlist_tickers,
     rename_watchlist,
-    watchlist_repository,
 )
-from investment_analysis_engine.cli_provider_check import echo_provider_check
 from investment_analysis_engine.cli_strategy_wiring import add_selection_commands
 from investment_analysis_engine.cli_support import (
-    describe_failure,
     document_json,
     fail_with,
     parameter_failures,
@@ -72,40 +56,23 @@ from investment_analysis_engine.cli_support import (
 )
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.config.paths import is_windows
-from investment_analysis_engine.core.clock import utc_now
-from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.strategy_errors import require
-from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.presentation import PresentationMode
-from investment_analysis_engine.strategy_wiring import BY_ALIAS, RUN_SPECS_BY_KEY
-from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.refresh import (
-    MAX_WORKERS,
-    MIN_WORKERS,
-    EmptyRefreshTargetError,
-    JobFailure,
-    RefreshJobResult,
-    RefreshPolicy,
-    RefreshSummary,
-    refresh_watchlist,
-)
-from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
+from investment_analysis_engine.strategy_wiring import BY_ALIAS
+from investment_analysis_engine.workspace.refresh import DEFAULT_WORKERS
 from investment_analysis_engine.workspace.repositories.watchlists import DeletedWatchlist, RemovedEntries
 from investment_analysis_engine.workspace.runs import (
     AnalysisRunSummary,
     WatchlistSummary,
 )
-from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import (
     WatchlistId,
     WatchlistName,
     WatchlistNotFoundError,
     WatchlistRef,
 )
-from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.runs import build_runs_list_document
 from investment_analysis_engine.workspace_documents.runs_compare import render_runs_compare_text
 from investment_analysis_engine.workspace_documents.watchlist import (
@@ -142,21 +109,8 @@ _RUN_QUERY_NAMES = RunQueryNames(
 """The runs-list options, spelled as the command declares them."""
 
 
-@contextmanager
-def _workspace_database(command: str, *, json_output: bool = False) -> Iterator[SQLiteDatabase]:
-    """Own one invocation's readiness-checked database connection and report its failures.
-
-    The action commands use it; the read commands call an application operation inside
-    :func:`workspace_failures`.
-    """
-    with (
-        workspace_failures(command, json_output=json_output),
-        open_database(ApplicationContext(settings=settings)) as database,
-    ):
-        yield database
-
-
 _CREATE_PARAMETERS = {"name": "NAME"}
+_REFRESH_PARAMETERS = {"workers": "--workers"}
 _REMOVE_ENTRY_PARAMETERS = {"entry_number": "INDEX"}
 _REMOVE_TICKER_PARAMETERS = {"tickers": "TICKER"}
 _RENAME_PARAMETERS = {"new_name": "NEW_NAME"}
@@ -502,89 +456,12 @@ def _run_summary_line(summary: AnalysisRunSummary) -> str:
     )
 
 
-def _refresh_executor(
-    ticker: str, selection: AnalysisSelection, *, profile_cache: InstrumentProfileResolver
-) -> ExecutionCapture:
-    """Dispatch one (ticker, selection) job to its strategy's refresh executor.
-
-    Each executor composes entirely fresh provider/resolver/cache dependencies per call — job-scoped, exactly as
-    ``refresh_watchlist``'s own contract requires for safe concurrent use — mirroring precisely how each strategy's
-    direct command (``investment_analysis_engine.strategies.<strategy>.cli``) composes the same dependencies for one
-    invocation. The durable instrument-profile cache is the one exception: it is built once per refresh (over the
-    refresh command's own database) and shared across concurrent jobs, exactly like the Analysis Run repository already
-    is. ``CachedInstrumentProfileResolver`` serializes its own per-ticker critical section (P2-Profiles contract §13.6),
-    so sharing it across worker threads is safe by the resolver's own contract, not by accident. A selection of a
-    strategy with no CLI-tier entry raises ``UndeclaredStrategyError``; no strategy is a default.
-    """
-    return refresh_executor_for(selection)(
-        ApplicationContext(settings=settings), ticker, selection, profile_cache=profile_cache
-    )
-
-
-def _describe_job_failure(exception: BaseException, ticker: str, saving: bool) -> JobFailure:
-    """Choose a failed refresh job's code and message with the rule the direct commands use."""
-    description = describe_failure(exception, ticker, saving=saving)
-    return JobFailure(reason_code=description.code.value, error=description.message)
-
-
-def _refresh_has_failure(summary: RefreshSummary) -> bool:
-    """True if any job raised, or produced an outcome for which ``exit_code_of`` is non-zero."""
-    for result in summary.results:
-        if result.error is not None:
-            return True
-        status = result.run.status if result.run is not None else result.outcome
-        if status is not None and exit_code_of(status):
-            return True
-    return False
-
-
-def _refresh_text(summary: RefreshSummary) -> str:
-    lines = [f"Refresh {summary.refresh_id} for {summary.watchlist_name!r}:"]
-    for result in summary.results:
-        method = alias_for_method_id(result.method_id)
-        if result.run is not None:
-            lines.append(f"  {result.run.analysis_run_id}  {result.ticker:<10} {method:<24} {result.run.status.value}")
-        elif result.outcome is not None:
-            lines.append(f"  {'(not saved)':<38}{result.ticker:<10} {method:<24} {result.outcome.value}")
-        else:
-            lines.append(f"  {'':<38}{result.ticker:<10} {method:<24} error: {result.error}")
-    counts = ", ".join(f"{key}={value}" for key, value in sorted(summary.counts.items()))
-    lines.append(f"Counts: {counts}" if counts else "Counts: (none)")
-    return "\n".join(lines)
-
-
-def _refresh_result_document(result: RefreshJobResult) -> RefreshResultDocument:
-    """Build one job's entry; its status is the saved run's, else the unsaved outcome's, else null."""
-    status = result.run.status if result.run is not None else result.outcome
-    return RefreshResultDocument(
-        ticker=result.ticker,
-        method_id=result.method_id,
-        analysis_run_id=None if result.run is None else result.run.analysis_run_id,
-        saved=result.run is not None,
-        status=status,
-        error=result.error,
-        reason_code=None if result.reason_code is None else FailureReasonCode(result.reason_code),
-    )
-
-
-def _refresh_json(summary: RefreshSummary, findings: ProviderCheckFindings) -> str:
-    """Emit the refresh summary document, carrying what the provider check found."""
-    return document_json(
-        RefreshSummaryDocument(
-            refresh_id=summary.refresh_id,
-            watchlist_id=summary.watchlist_id,
-            watchlist_name=summary.watchlist_name,
-            results=tuple(_refresh_result_document(result) for result in summary.results),
-            counts=summary.counts,
-            provider_check=findings.element(),
-        )
-    )
-
-
 def refresh(  # noqa: PLR0913
     name: Annotated[str, typer.Argument(help="Watchlist name to refresh.")],
     *,
-    workers: Annotated[int, typer.Option("--workers", help="Concurrent job count, 1-4; defaults to 2.")] = 2,
+    workers: Annotated[
+        int, typer.Option("--workers", help="Concurrent job count, 1-4; defaults to 2.")
+    ] = DEFAULT_WORKERS,
     no_save: Annotated[
         bool,
         typer.Option("--no-save", help="Preview current numbers across the watchlist without saving any Analysis Run."),
@@ -612,13 +489,6 @@ def refresh(  # noqa: PLR0913
     summary, or carried in the summary document as provider_check with
     --json. --no-provider-check turns it off.
     """
-    with parameter_failures(json_output=json_output):
-        if not MIN_WORKERS <= workers <= MAX_WORKERS:
-            raise InvalidParameterError(
-                f"--workers must be between {MIN_WORKERS} and {MAX_WORKERS}.", parameters=("--workers",)
-            )
-        policy = RefreshPolicy(workers=workers)
-
     cancellation = threading.Event()
     previous_handler = signal.getsignal(signal.SIGINT)
 
@@ -628,46 +498,23 @@ def refresh(  # noqa: PLR0913
 
     signal.signal(signal.SIGINT, _handle_sigint)
     try:
-        with _workspace_database("refresh", json_output=json_output) as database:
-            try:
-                profile_cache = production_instrument_profile_cache(
-                    ApplicationContext(settings=settings), database, clock=utc_now
-                )
-                summary = refresh_watchlist(
-                    name,
-                    watchlists=watchlist_repository(database),
-                    repository=SQLiteAnalysisRunRepository(database),
-                    executor=lambda ticker, selection: _refresh_executor(
-                        ticker, selection, profile_cache=profile_cache
-                    ),
-                    run_specs=RUN_SPECS_BY_KEY,
-                    describe=_describe_job_failure,
-                    save=not no_save,
-                    policy=policy,
-                    cancellation=cancellation,
-                )
-            except WatchlistNotFoundError as exc:
-                fail_with(exc, json_output=json_output)
-            except EmptyRefreshTargetError as exc:
-                fail_with(exc, json_output=json_output)
+        with watchlist_action("refresh", _REFRESH_PARAMETERS, json_output=json_output):
+            outcome = refresh_watchlist(
+                ApplicationContext(settings=settings),
+                WatchlistName(name),
+                workers=workers,
+                save=not no_save,
+                provider_check=not no_provider_check,
+                cancellation=cancellation,
+            )
     finally:
         signal.signal(signal.SIGINT, previous_handler)
 
-    findings = provider_check_findings(
-        (result.provider_failure for result in summary.results),
-        ProviderCheckChoice(
-            build_provider_probe(ApplicationContext(settings=settings)), requested=not no_provider_check
-        ),
-    )
-    if json_output:
-        typer.echo(_refresh_json(summary, findings))
-    else:
-        echo_provider_check(findings, err=False)
-        typer.echo(_refresh_text(summary))
+    typer.echo(document_json(outcome.document) if json_output else outcome.render_text())
 
     if cancellation.is_set():
         raise typer.Exit(code=130)
-    if _refresh_has_failure(summary):
+    if outcome.failed:
         raise typer.Exit(code=1)
 
 
