@@ -32,7 +32,7 @@ def codecs_with_decode(
 
 
 def failure_code(exception: BaseException) -> str:
-    """Return the stable reason code the command line assigns to ``exception``, as ``refresh_watchlist`` receives it."""
+    """Return the stable reason code the command line assigns to ``exception``, as the coordinator receives it."""
     return classify_failure(exception).reason_code.value
 
 

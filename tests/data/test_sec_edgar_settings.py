@@ -84,18 +84,26 @@ def test_a_user_file_overrides_the_shipped_file_per_key(tmp_path: Path, monkeypa
 
 
 @pytest.mark.parametrize(
-    "text",
-    ["[ticker_overrides]\nXOM = 0\n", '[ticker_overrides]\nXOM = "abc"\n', "[ticker_overrides]\nXOM = 12345678901\n"],
+    ("text", "value"),
+    [
+        ("[ticker_overrides]\nXOM = 0\n", "0"),
+        ('[ticker_overrides]\nXOM = "abc"\n', "abc"),
+        ("[ticker_overrides]\nXOM = 12345678901\n", "12345678901"),
+    ],
 )
-def test_an_invalid_cik_is_refused_naming_the_file_and_the_key_but_not_the_value(tmp_path: Path, text: str) -> None:
+def test_an_invalid_cik_is_refused_naming_the_file_and_the_key_but_not_the_value(
+    tmp_path: Path, text: str, value: str
+) -> None:
     path = _write_user(tmp_path, text)
 
     with pytest.raises(ComponentSettingsError) as error:
         _load(tmp_path)
 
-    assert str(error.value).startswith(f"Settings file {path} is invalid: ticker_overrides")
-    assert "XOM" in str(error.value)
-    assert "abc" not in str(error.value)
+    prefix = f"Settings file {path} is invalid: "
+    assert str(error.value).startswith(f"{prefix}ticker_overrides")
+    detail = str(error.value).removeprefix(prefix)
+    assert "XOM" in detail
+    assert value not in detail
 
 
 def test_a_repeated_ticker_and_an_unknown_key_are_refused(tmp_path: Path) -> None:

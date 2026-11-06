@@ -21,16 +21,16 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import OperationalError
 from typer.testing import CliRunner, Result
 
-import investment_analysis_engine.cli_workspace
+import investment_analysis_engine.application.refresh
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.failures import (
     InternalDefectError,
+    describe_failure,
     require_job_ticker,
     stored_configuration,
 )
 from investment_analysis_engine.application.selections import build_selection
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_support import describe_failure
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.failure_classification import classify_failure
@@ -224,11 +224,11 @@ def _refresh(settings: ProjectSettings, row: Row, flags: list[str]) -> tuple[Bas
     with ExitStack() as stack:
         if row.step == "executor" and row.number == "13":
             stack.enter_context(
-                patch("investment_analysis_engine.cli_workspace.refresh_executor_for", side_effect=exception)
+                patch("investment_analysis_engine.application.refresh.refresh_executor_for", side_effect=exception)
             )
         elif row.step == "executor":
             stack.enter_context(
-                patch("investment_analysis_engine.cli_workspace._refresh_executor", side_effect=exception)
+                patch("investment_analysis_engine.application.refresh._refresh_executor", side_effect=exception)
             )
         else:
             run = stack.enter_context(
@@ -236,7 +236,9 @@ def _refresh(settings: ProjectSettings, row: Row, flags: list[str]) -> tuple[Bas
             )
             run.side_effect = lambda **kw: _mock_momentum_run(kw["ticker"])
             if row.step == "spec":
-                stack.enter_context(patch.object(investment_analysis_engine.cli_workspace, "RUN_SPECS_BY_KEY", {}))
+                stack.enter_context(
+                    patch.object(investment_analysis_engine.application.refresh, "RUN_SPECS_BY_KEY", {})
+                )
             else:
                 stack.enter_context(patch.object(SQLiteAnalysisRunRepository, "insert", side_effect=exception))
         result = runner.invoke(app, ["refresh", "W", *flags, "--json", "--no-provider-check"])
@@ -471,5 +473,7 @@ def test_a_stored_selection_that_does_not_convert_is_an_execution_error_from_the
         fields |= {"expected_growth": 5.0, "aaa_yield_override": 4.5}
     selection = build_selection(ApplicationContext(settings=ProjectSettings()), BY_ALIAS[alias].method_id, fields)
     with patch_conversion(_validation_error()), pytest.raises(InternalDefectError) as caught:
-        investment_analysis_engine.cli_workspace._refresh_executor("KO", selection, profile_cache=MagicMock())
+        investment_analysis_engine.application.refresh._refresh_executor(  # noqa: SLF001 - the dispatch under test
+            ApplicationContext(settings=ProjectSettings()), "KO", selection, profile_cache=MagicMock()
+        )
     assert classify_failure(caught.value).reason_code is FailureReasonCode.EXECUTION_ERROR

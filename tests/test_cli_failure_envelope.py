@@ -232,10 +232,12 @@ def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(
         "IBM": DatabaseReadinessError(ReadinessReason.BUSY, None),
     }
 
-    def failing_executor(ticker: str, _selection: AnalysisSelection, **_kwargs: object) -> ExecutionCapture:
+    def failing_executor(
+        _context: object, ticker: str, _selection: AnalysisSelection, **_kwargs: object
+    ) -> ExecutionCapture:
         raise failures[ticker]
 
-    with patch("investment_analysis_engine.cli_workspace._refresh_executor", side_effect=failing_executor):
+    with patch("investment_analysis_engine.application.refresh._refresh_executor", side_effect=failing_executor):
         result = runner.invoke(app, ["refresh", "Core", "--workers", "1", "--json"])
         text = runner.invoke(app, ["refresh", "Core", "--workers", "1"])
 

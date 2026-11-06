@@ -23,9 +23,10 @@ from investment_analysis_engine.workspace.codecs import (
     UnsupportedRunVersionError,
     decode_evidence,
 )
-from investment_analysis_engine.workspace.refresh import refresh_watchlist
+from investment_analysis_engine.workspace.refresh import RefreshPolicy, coordinate_refresh
 from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
+from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._wiring import failure_text
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
@@ -140,6 +141,10 @@ class _Lookup:
         del name
         return self._watchlist
 
+    def get_by_id(self, watchlist_id: UUID) -> Watchlist | None:
+        del watchlist_id
+        return self._watchlist
+
 
 class _Sink:
     def insert(self, run: AnalysisRun) -> None:
@@ -163,8 +168,14 @@ def test_a_refresh_job_whose_strategy_has_no_run_spec_fails_as_that_jobs_error()
             native_evidence=object.__new__(MomentumRun), profile=None, native_status=CalculationStatus.OK
         )
 
-    summary = refresh_watchlist(
-        "W", watchlists=_Lookup(watchlist), repository=_Sink(), executor=executor, run_specs={}, describe=failure_text
+    summary = coordinate_refresh(
+        WatchlistName("W"),
+        watchlists=_Lookup(watchlist),
+        repository=_Sink(),
+        executor=executor,
+        run_specs={},
+        describe=failure_text,
+        policy=RefreshPolicy(workers=1),
     )
     assert [result.error for result in summary.results] == [
         "No declared strategy for run spec ('momentum', 'sma_crossover')."
