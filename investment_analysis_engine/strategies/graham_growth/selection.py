@@ -4,10 +4,10 @@ import math
 from datetime import datetime
 from typing import Literal
 
-from pydantic import AwareDatetime, Field, StrictFloat, field_validator, model_validator
+from pydantic import AwareDatetime, Field, StrictFloat, ValidationInfo, field_validator
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
-from investment_analysis_engine.analysis.selection_base import FrozenSelection
+from investment_analysis_engine.analysis.selection_base import FrozenSelection, SelectionRuleError
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.strategies.graham_growth.config import GrahamGrowthConfig
 from investment_analysis_engine.strategies.graham_growth.vocabulary import (
@@ -29,20 +29,41 @@ class GrahamGrowthSelection(FrozenSelection):
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
-    eps_basis: GrahamGrowthSelectionEPSBasis | None = None
-    eps_override: StrictFloat | None = None
-    quote_override: StrictFloat | None = None
-    expected_growth: StrictFloat
-    aaa_yield_override: StrictFloat
-    as_of: AwareDatetime | None = None
-    use_cache: bool = Field(default=True, strict=True)
+    eps_basis: GrahamGrowthSelectionEPSBasis = Field(
+        default="three_year_average",
+        description="Which earnings figure to use: the three-year average, or one completed fiscal year.",
+    )
+    eps_override: StrictFloat | None = Field(
+        default=None, description="Earnings per share to use instead of the reported figure; leave empty to use it."
+    )
+    quote_override: StrictFloat | None = Field(
+        default=None, description="Share price to use instead of the current quote; leave empty to use the quote."
+    )
+    expected_growth: StrictFloat = Field(description="Expected annual earnings growth, in percentage points.")
+    aaa_yield_override: StrictFloat = Field(description="Current AAA corporate-bond yield, in percentage points.")
+    as_of: AwareDatetime | None = Field(
+        default=None,
+        description=(
+            "Run the analysis as of this date (the end of that day, UTC) or this moment, "
+            "which needs a timezone offset; leave empty for the latest data."
+        ),
+    )
+    use_cache: bool = Field(
+        default=True,
+        strict=True,
+        description="Whether the analysis may read and write the local cache of fetched data.",
+    )
 
     @field_validator("eps_override", "quote_override", "expected_growth", "aaa_yield_override")
     @classmethod
-    def _require_finite_overrides(cls, value: float | None) -> float | None:
+    def _require_finite_overrides(cls, value: float | None, info: ValidationInfo) -> float | None:
         """Reject NaN/Inf financial overrides at the workspace boundary."""
         if value is not None and not math.isfinite(value):
-            raise ValueError("Financial override must be a finite number.")
+            raise SelectionRuleError(
+                f"Invalid {{{info.field_name}}}: Financial override must be a finite number.",
+                fields=(str(info.field_name),),
+                rule="graham-growth.override_not_finite",
+            )
         return value
 
     @field_validator("eps_basis", mode="before")
@@ -50,19 +71,6 @@ class GrahamGrowthSelection(FrozenSelection):
     def _normalize_basis(cls, value: object) -> object:
         """Normalize explicit basis strings before validating supported literals."""
         return value.strip().lower() if isinstance(value, str) else value
-
-    @model_validator(mode="after")
-    def _resolve_configuration(self) -> "GrahamGrowthSelection":
-        """Resolve the effective EPS basis by constructing this method's own config.
-
-        ``GrahamGrowthConfig.validate_method`` is the single definition of Graham Growth's
-        entire accept/default rule; this Selection validates by delegating to it rather than
-        reimplementing the rule, so the CLI-direct and ``--save-run``/workspace entry points
-        cannot silently diverge.
-        """
-        config = self.to_graham_growth_config()
-        object.__setattr__(self, "eps_basis", config.eps_basis)
-        return self
 
     def to_graham_growth_config(self) -> GrahamGrowthConfig:
         """Return the existing config without deriving assumptions or calculation policy."""

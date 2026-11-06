@@ -131,7 +131,7 @@ All inputs come from SEC EDGAR structured filings: balance-sheet values at three
 
 ## Watchlist options
 
-`watchlist create --analysis piotroski` and `watchlist add-selection --analysis piotroski` accept only the options every strategy takes, `--as-of` and `--no-cache`: the method has no tunable choice. It always uses SEC EDGAR data, matching the direct `piotroski` command. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the watchlist commands that take them.
+`watchlist add-selection piotroski` accepts only the options every strategy takes, `--as-of` and `--no-cache`: the method has no tunable choice. It always uses SEC EDGAR data, matching the direct `piotroski` command. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the command that takes them.
 
 ## Related documentation
 

@@ -23,8 +23,18 @@ from tests._cli_helpers import normalize_cli_output
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "cli_help"
 
 # The application itself, then ``health``, the direct command of each declared strategy in declaration order,
-# ``refresh`` and ``serve``; "" is the application's own help.
-HELP_TARGETS: tuple[str, ...] = ("", "health", *(descriptor.alias for descriptor in STRATEGIES), "refresh", "serve")
+# ``refresh`` and ``serve``; "" is the application's own help. The last targets are ``watchlist create``, the
+# ``watchlist add-selection`` group and the ``add-selection`` subcommand of each declared strategy; a target is the
+# words after ``ian``.
+HELP_TARGETS: tuple[str, ...] = (
+    "",
+    "health",
+    *(descriptor.alias for descriptor in STRATEGIES),
+    "refresh",
+    "serve",
+    "watchlist create",
+    *(f"watchlist add-selection {descriptor.alias}" for descriptor in STRATEGIES),
+)
 
 # Typer reads TERMINAL_WIDTH once, when ``typer.rich_utils`` is imported, and Rich otherwise takes the width from
 # the runner's terminal, so the width is fixed on the module value Typer passes to every Rich console it builds.
@@ -38,7 +48,7 @@ def render_help(target: str) -> bytes:
     a Windows console and other platforms, and collapses spacing; the line structure, wrapping at the fixed
     width, the text and the order of the lines are kept.
     """
-    arguments = [target, "--help"] if target else ["--help"]
+    arguments = [*target.split(), "--help"]
     with patch.object(typer.rich_utils, "MAX_WIDTH", TERMINAL_COLUMNS):
         result = CliRunner().invoke(app, arguments)
     if result.exit_code != 0:
@@ -49,7 +59,7 @@ def render_help(target: str) -> bytes:
 
 def expected_path(target: str) -> Path:
     """Return the stored help file of one target."""
-    return EXPECTED_DIRECTORY / f"{target or 'application'}.txt"
+    return EXPECTED_DIRECTORY / f"{target.replace(' ', '-') or 'application'}.txt"
 
 
 def regenerate() -> None:

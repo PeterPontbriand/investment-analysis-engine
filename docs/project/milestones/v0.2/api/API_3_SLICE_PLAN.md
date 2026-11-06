@@ -39,8 +39,8 @@ watchlist actions and builds a selection from its model's fields, in two slices
 | :--- | :--- | :--- | :--- |
 | API.3a | [Execution composition and direct analysis](#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-05 |
 | API.3b1 | [Watchlist actions](#api3b1--watchlist-actions) | Complete | 2026-11-05 |
-| API.3b2 | [Selections and Site 19](#api3b2--selections-and-site-19) | Next | |
-| API.3c | [Refresh with progress](#api3c--refresh-with-progress) | Planned | |
+| API.3b2 | [Selections and Site 19](#api3b2--selections-and-site-19) | Complete | 2026-11-05 |
+| API.3c | [Refresh with progress](#api3c--refresh-with-progress) | Next | |
 
 ## 3. The slices
 
@@ -100,12 +100,12 @@ watchlist actions and builds a selection from its model's fields, in two slices
     ([C12](#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04));
   - one schema per strategy, compared in the gate ([C13](#c13-one-selection-schema-per-strategy-2026-11-04)), with the
     form-supported field types of [C14](#c14-form-supported-field-types-2026-11-04);
-  - the implementation decisions W1, W3 to W7, W12 and W13 ([Appendix A](#appendix-a-decision-records)); W2 was done
-    before API.3b, in its own pull request.
+  - the implementation decisions W1, W3 to W7, W12, W13 and W27 to W42 ([Appendix A](#appendix-a-decision-records));
+    W2 was done before API.3b, in its own pull request.
 - **Scope:** `build_selection`; the selection schemas and their generator and conformance check; the CLI change of C12
   with the documents it touches; the closure of Site 19 in the documents named in C12.
 - **Branch:** `feat/api-selections`.
-- **Detail:** ⚠ no implementation record yet. Decisions C10 to C14 are in [Appendix A](#appendix-a-decision-records).
+- **Detail:** [Implementation record](#33-api3b2-implementation-record).
 
 ### API.3c — Refresh with progress
 
@@ -440,6 +440,62 @@ Noticed for later slices:
   checks its tickers before it creates and seeds; when API.3b2 removes the seeding (C12), make them private again.
 - API.3c: `_workspace_database` is used only by the refresh command and goes when refresh moves into `application`.
 
+### 3.3 API.3b2 implementation record
+
+What changed, by area:
+
+- **`application`:**
+  - `selections.py`: `build_selection(context, method_id, fields)` and `as_of_boundary` ([W27](#w27-build_selections-place-and-input-2026-11-05), [W4](#w4-the-as-of-date-rule-is-shared-2026-11-05)). It rejects an undeclared method under `method_id`, rejects the three fixed fields as unknown, converts `as_of`, fills the descriptor's `selection_settings_fields` from the strategy's settings, lets the selection model validate and reports the first error;
+  - `parameters.py`: `ActionParameterError` substitutes only the placeholders it declares, carries a `rule` and named `arguments` ([W31](#w31-rule-templates-2026-11-05), [W42](#w42-errors-keep-what-a-translation-needs-2026-11-05)); every watchlist action error carries a `watchlist.<rule>` identifier;
+  - `watchlists.py`: `check_watchlist_name` and `check_tickers` are private again ([W40](#w40-the-argument-checks-are-private-again-2026-11-05)); `alias_for_method_id` moved here from the CLI.
+- **Core and strategies:**
+  - `analysis/selection_base.py`: `SelectionRuleError`; `StrategyDescriptor.selection_settings_fields` (all five descriptors; Momentum names its three); `BehaviorView.selection_type`;
+  - every selection model has a description on every field, including FCF Growth's `policy` ([W33](#w33-field-descriptions-2026-11-05)); Momentum's positivity and window-order rules, the non-finite override rule and the currency rule raise templated `SelectionRuleError`s; `GrahamGrowthSelection.eps_basis` and `GrahamGrowthConfig.eps_basis` default to `"three_year_average"` ([W34](#w34-graham-growths-eps_basis-2026-11-05)).
+- **CLI:**
+  - `cli_support.py`: `SelectionOption`, `selection_from_options`, `cache_enabled`, `parse_as_of` (syntax only, returns a date or a datetime), the shared options as `Annotated` aliases ([W36](#w36-one-option-style-2026-11-05)), and the failure reporting and watchlist rendering the watchlist commands share, which `cli_workspace.py` held (`workspace_failures`, `fail`, `fail_with`, `watchlist_action`, `watchlist_text`, `watchlist_json`, `document_json`, `add_selection_entries`). `config_usage_errors` is deleted;
+  - each strategy's `cli.py` declares its selection options once as `Annotated` aliases, a `SELECTION_OPTIONS` table, its direct command and `add_selection`; Momentum's three window options default to omitted ([W29](#w29-momentums-window-options-default-to-the-settings-2026-11-05));
+  - `cli_strategy_wiring.py`: `CliComposition` and `CliStrategy` hold `command`, `add_selection` and `selection_options` and lose `build`; `add_selection_commands` registers each strategy's subcommand with a summary generated from its label ([W38](#w38-help-for-the-new-and-changed-commands-2026-11-05)); the builder lookups are deleted. `cli_watchlist_flags.py` is deleted;
+  - `cli_workspace.py`: `create` takes a name and `--json` only; `add-selection` is a group holding the subcommands.
+- **Scripts and data:** `scripts/generate_schemas.py` writes `schemas/selections/<alias>.schema.json` ([W35](#w35-how-the-selection-schemas-are-produced-2026-11-05)); `scripts/strategy_conformance.py` loses the Site 19 check and gains `selection_options_gaps` (T27: the two commands' options agree, the table covers every field, form types, descriptions, `selection_settings_fields`, duplicated defaults); `scripts/strategy_sites.toml` loses row 19 and `cli` defines `SELECTION_OPTIONS`, `add_selection` and `command`; the generator emits the new descriptor field, tier entry and `cli.py`/`selection.py` templates.
+- **Documents:** the Site 19 closures in SWC.1 H.10 and Step 3.5.3 B.3 and the removal of row 19; the exit-code sentence in `docs/user/USAGE.md`; `docs/user/WORKSPACE.md`, the five strategy guides and `docs/TOOL_DEVELOPMENT.md` for the new commands; the API.4 entry of the contract gains two requirements.
+
+User-visible changes:
+
+- `ian watchlist create NAME [--json]` creates an empty watchlist. Before: `create NAME [TICKER...] [--analysis METHOD] [strategy options]`. After: `watchlist create "Core Holdings"` then `watchlist add-selection momentum "Core Holdings" AAPL MSFT KO`. Passing a ticker or a strategy option to `create` is a parser error (exit 2).
+- `ian watchlist add-selection <alias> NAME TICKERS... [options]`, one subcommand per strategy, replaces `add-selection NAME TICKERS... --analysis METHOD [options]`. Its options are its direct command's selection options with their help, plus `--json`. Before: `add-selection "Core" AAPL --analysis graham-number --bvps 12.5`. After: `add-selection graham-number "Core" AAPL --bvps 12.5`.
+- A missing required option is a parser error (exit 2), as on the direct command. Before: `--expected-growth is required when --analysis is graham-growth.` with exit 1. After: usage text naming the option, exit 2.
+- A missing or unknown method is a parser error. `add-selection` alone: "Missing command." exit 2; `add-selection foo ...`: "No such command 'foo'." exit 2. Before: `--analysis must be one of: ...`, exit 1 ([W39](#w39-a-missing-or-unknown-method-is-a-parser-error-2026-11-05)).
+- `momentum --help` and `watchlist add-selection momentum --help` show the window defaults as `[default: (from settings: 50)]`, `(from settings: 200)` and `(from settings: 14)`. Before: `[default: 50]`, `[default: 200]`, `[default: 14]`.
+- `ian watchlist --help` lists `add-selection` after the other commands, because it is now a command group (Typer lists groups after commands). Before: `create`, `add-selection`, `remove-entry`, ... After: `create`, `remove-entry`, `remove-ticker`, `remove-method`, `delete`, `rename`, `list`, `show`, `add-selection`; its summary is "Add entries for one method to an existing watchlist, one per ticker."
+- With several bad options at once, which error is reported may change ([W32](#w32-first-error-only-2026-11-05)): a value a converter rejects (`--as-of` syntax, `--growth-years`, `--forward-policy`, `--classification-basis`) is reported before a rule of the selection model. Every single-failure message is unchanged.
+- Published schemas: `schemas/watchlist.schema.json`, `schemas/watchlist-delete.schema.json` and `schemas/openapi.json` carry the field descriptions of [W33](#w33-field-descriptions-2026-11-05) and describe `eps_basis` as the plain enumeration `three_year_average` | `fiscal_year` with default `three_year_average`. Before: `"anyOf": [{"enum": ["three_year_average", "fiscal_year"], "type": "string"}, {"type": "null"}]` with default `null`. No key was added or removed, and no stored or served document ever held a null `eps_basis`, because the selection resolved it on construction. `schemas/selections/<alias>.schema.json` are new.
+- Help for `watchlist create`, the `add-selection` group and each subcommand is new (snapshots below).
+- No stored shape or `config_schema_version` changed; no dependency changed.
+
+Tests edited, and why:
+
+- Moved or removed names ([W6](#w6-each-strategy-declares-its-selection-options-once-2026-11-05), [W31](#w31-rule-templates-2026-11-05)): `tests/workspace_documents/test_workspace_documents.py` (`watchlist_json` moved to `cli_support.py`), `tests/test_cli_piotroski.py` (the selection builder is the option table), `tests/test_failure_messages.py` (a selection is built with `build_selection`), `tests/test_cli_support.py` (`parse_as_of` returns a date or a datetime and leaves the end-of-day and offset rules to `build_selection`; the `config_usage_errors` tests became tests of the option table's error spelling), `tests/test_cli_workspace.py::test_the_alias_choices_are_formatted_as_a_comma_list_with_a_final_or` (the alias vocabulary is `BY_ALIAS`).
+- `tests/test_cli_strategy_wiring.py` is rewritten for the new tier (option tables build each strategy's selection, fail-closed lookups, the add-selection group, the Momentum defaults); the Site 19 conformance test in `tests/test_strategy_wiring_conformance.py` is deleted, its probes name `cli_entries`, and the descriptor and CLI-tier member sets and the `--json` command list follow the new fields and per-strategy subcommands.
+- The `create --analysis` setups are `create` followed by `add-selection <alias>` ([W41](#w41-re-recorded-outputs-and-the-specimen-2026-11-05)): `tests/test_command_validation_failures.py` (the rows that only existed for `create --analysis`, the missing-required and unknown-method rows, and the Graham Number `--eps-basis` test move to the parser rejections; three first-error-order rows follow [W32](#w32-first-error-only-2026-11-05)), `tests/test_cli_workspace.py` (the seeding tests became `add-selection` tests; the `create` and `add-selection` entries of the `--analysis` help and unknown-alias tests are removed), `tests/test_cli_watchlist_json.py`, `tests/test_cli_failure_envelope.py`, `tests/test_workspace_integration.py`, `tests/test_documented_conventions.py` and `tests/_workspace_command_output.py`.
+- Output and help: `tests/test_cli.py` (Momentum help defaults), `tests/_cli_help_output.py` and `tests/test_cli_help_output.py` (new targets).
+- Selection rules ([W31](#w31-rule-templates-2026-11-05)): `tests/workspace/test_requests.py` (a non-positive window is rejected by the templated rule, whose error names the field in its context and not in the location; the order rule's message is the template's).
+- `GrahamGrowthConfig` ([W34](#w34-graham-growths-eps_basis-2026-11-05)): `tests/analysis/graham_value/test_analyzer_config.py::test_growth_basis_default` became a test that the basis is kept and that the default is the three-year average and never `None`. `tests/workspace/test_graham_growth_execution.py` needed no edit: it builds the config without a basis and gets the same default.
+- Layering and generator: `tests/test_strategy_import_layering.py` lists `application/selections.py` as a composition-root importer, because it looks the strategy up by method identifier as `application/watchlists.py` does; `cli_support.py` does not import the root (`alias_for_method_id` lives in `application/watchlists.py`). `tests/test_specimen_strategy.py` counts one more crossing in `closed_types.py` (`selection_member_type`, for `BehaviorView.selection_type`); `tests/scripts/test_new_strategy.py` follows the template (`Annotated` aliases, `SELECTION_OPTIONS`, `add_selection`); `tests/scripts/test_strategy_sites.py` loses `watchlist-options`; `tests/scripts/test_generate_schemas.py` covers the selection schemas; `tests/scripts/generator_fills/guide.md.fill` follows the guide text.
+- `tests/application/test_parameters.py` passes a `rule` to each error.
+- The help-snapshot site also requires `watchlist-add-selection-<alias>.txt` (a strategy added later needs that snapshot): `tests/test_strategy_wiring_conformance.py::test_the_help_snapshot_site_requires_the_command_snapshot_and_names_the_file` expects both gaps, and the generator's end-to-end test (`tests/scripts/test_new_strategy_end_to_end.py`) takes a reviewed fill `generator_fills/expected/help.add-selection.txt`. `tests/test_cli_strategy_wiring.py` skips a strategy it has no option values for, since the end-to-end copy adds one.
+
+Re-recorded files: `tests/expected_output/cli_help/momentum.txt` (W29: the window defaults); new help snapshots `watchlist-create.txt` and `watchlist-add-selection-<alias>.txt` for each strategy; five new workspace-command steps, `watchlist-create-seeded-setup.txt`, `watchlist-create-single-entry-setup.txt`, `watchlist-create-failing-setup.txt`, `watchlist-create-as-of-setup.txt` and `watchlist-create-seeded-json-setup.txt`. Every existing file of `tests/expected_output/workspace_commands/` is byte for byte what it was, and every other help snapshot is unchanged. `schemas/watchlist.schema.json`, `schemas/watchlist-delete.schema.json` and `schemas/openapi.json` are regenerated as above.
+
+Tests added: `tests/application/test_selections.py` (declared method, fixed and unknown fields, the as-of rule and its message, the settings fill and given values, every Momentum rule with its identifier and values, missing and built-in errors with their type, nested names, first error only); `tests/application/test_parameters.py` (rule and values, a dotted nested name as a template placeholder); `tests/test_selection_conformance.py` (T27, production and specimen, and each way it can fail); selection-schema tests in `tests/scripts/test_generate_schemas.py` (the properties are exactly what `build_selection` accepts, no default or requirement for a settings-filled field); the help snapshot checks.
+
+Accepted deviations: the first error follows the order the options are read, then the field order ([W32](#w32-first-error-only-2026-11-05)); the V3 test of the original prompt (an invalid Momentum file no longer stops a command that does not use Momentum) is not added, because the startup check stops every command by design ([W29](#w29-momentums-window-options-default-to-the-settings-2026-11-05)).
+
+Noticed for later slices:
+
+- API.4: serve a form client each strategy's current configured defaults (C13), every field's error at once and each error's rule identifier and values; the contract's API.4 entry records them.
+- API.4: `build_selection` accepts `as_of` as a date or a datetime only; a client that sends text parses it first, with the same end-of-day rule through `as_of_boundary`.
+- A strategy's `ian watchlist add-selection` subcommand takes its options from the same aliases as its direct command, so a new option is declared once.
+
 ## 4. Scope limits and acceptance criteria
 
 - API.3a changes no CLI output, text, `--json`, help text, message or exit code, no stored shape, formula or
@@ -470,7 +526,7 @@ expected text of every mode was recorded from `main` before the change and the o
 
 ## Appendix A: Decision records
 
-C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05, and W14 to W26 on 2026-11-05.
+C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05, and W14 to W26 and W27 to W42 on 2026-11-05.
 
 ### C1 API.3 is three slices (2026-11-04)
 
@@ -480,7 +536,7 @@ API.3 is three slices:
 | :--- | :--- | :--- |
 | API.3a | C2 to C8 and this plan | `feat/api-execution-composition` |
 | API.3b1 | C9, W8 to W11, W15 to W26: the watchlist actions, with the CLI switched to them | `feat/api-watchlist-actions` |
-| API.3b2 | C10 to C14, W1, W3 to W7, W12, W13: selection from model fields, the selection schemas and their conformance check, Site 19 | `feat/api-selections` |
+| API.3b2 | C10 to C14, W1, W3 to W7, W12, W13, W27 to W42: selection from model fields, the selection schemas and their conformance check, Site 19 | `feat/api-selections` |
 | API.3c | C15 to C17: refresh with progress | `feat/api-refresh-progress` |
 
 These branches replace the contract's single `feat/api-application-actions`. Each slice switches the CLI to its
@@ -751,3 +807,67 @@ In API.3b1 `ian watchlist create` with `--analysis` calls the create action and 
 ### W26 An empty ticker or entry list is rejected (2026-11-05)
 
 `remove_watchlist_tickers` rejects an empty `tickers` and `add_watchlist_entries` an empty `entries`, instead of doing nothing. The CLI cannot send either.
+
+### W27 build_selection's place and input (2026-11-05)
+
+`build_selection(context, method_id, fields: Mapping[str, object]) -> SelectionMember` lives in `application/selections.py`. `fields` is keyed by model field names, and a nested model (FCF Growth's `policy`) is a nested mapping. `analysis_id`, `method_id` and `config_schema_version` in `fields` are rejected as unknown fields. A `method_id` this version does not declare is rejected under the parameter `method_id`, as [W25](#w25-removing-by-method-needs-a-declared-method-2026-11-05) does for removals.
+
+### W28 Configured defaults are declared on the descriptor (2026-11-05)
+
+`StrategyDescriptor` gains `selection_settings_fields: tuple[str, ...]`, empty for a strategy with none. `build_selection` fills each named field the caller omitted from the strategy's `settings_type`, loaded through the context and read by the same attribute name. A conformance check requires each named field to be a required field of the strategy's selection model and a field of its `settings_type`. The schema generator reads the same declaration ([W35](#w35-how-the-selection-schemas-are-produced-2026-11-05)).
+
+### W29 Momentum's window options default to the settings (2026-11-05)
+
+As amended on review. Momentum's `--short-window`, `--long-window` and `--rsi-period` default to omitted, in its direct command and its `add-selection` subcommand, and `build_selection` fills them from the strategy's settings, so the command line and the API share one defaulting path. Their help shows the value in effect, read through the cached loader the startup check also uses (which has already validated every settings file), as Click's string default: `[default: (from settings: 50)]`. `_MOMENTUM_CLI_DEFAULTS` is removed from `cli_workspace.py` and `strategies/momentum/cli.py`. `load_all_component_settings` stays in `cli.py` by design, so an invalid settings file stops every command with one message; that is the startup check's doing and not an effect of the CLI modules' imports.
+
+### W30 What a converter may reject (2026-11-05)
+
+A converter ([W3](#w3-the-field-to-option-table-carries-converters-2026-11-05)) translates the command-line spelling of a value and may reject a value that has no field spelling, keeping its current message: the `--as-of` syntax messages, `--growth-years must be 3, 4, or 5.`, and the two FCF Growth messages that list hyphenated values. Every rule about a field's value (positivity, window order, finiteness, currency format, membership of an enum or `Literal`, presence of a required field, a timestamp's timezone offset) is in the model and is enforced only through `build_selection`. The CLI's `--as-of` parser returns a date or a datetime and leaves the end-of-day rule ([W4](#w4-the-as-of-date-rule-is-shared-2026-11-05)) and the timezone rule to `build_selection`; the timezone message is the template "Timestamp {as_of} values must include an explicit timezone offset." so the CLI's message is unchanged.
+
+### W31 Rule templates (2026-11-05)
+
+Validators raise a `SelectionRuleError(ValueError)` that carries a template and the fields it names. A built-in pydantic field error renders as "Invalid {field}: <pydantic text>", which is today's form; a missing required field renders as "{field} is required." and only the API can reach it, since the command line's parser rejects a missing required option first. Momentum keeps `Field(gt=0)`, so its schema keeps `exclusiveMinimum`, and a before-validator raises the templated positivity rule first, so the CLI's message is unchanged. `config_usage_errors` and its substring heuristic are deleted. `ActionParameterError` substitutes exactly the placeholders it declares, by explicit replacement and not by `str.format`, because a dotted nested name such as `{policy.historical_horizon}` is attribute access in a format string.
+
+### W32 First error only (2026-11-05)
+
+`build_selection` reports the first error, as the command line does. When several options are bad at once, the one reported may change, because it follows field order: an accepted deviation. Every single-failure CLI message stays byte-identical.
+
+### W33 Field descriptions (2026-11-05)
+
+Every selection field, including the fields of FCF Growth's `policy`, has a `Field(description=...)` written in plain English for a person filling in a form, describing what the field means and not its command-line spelling. The command line's help text is unchanged and stays separate. A conformance check requires a non-empty description on every form field.
+
+### W34 Graham Growth's eps_basis (2026-11-05)
+
+As amended on review. The selection field's default is `"three_year_average"` in place of `None` resolved by a validator, and `GrahamGrowthConfig`'s `eps_basis` defaults to `"three_year_average"` with its defaulting validator removed. No stored shape changes, because stored rows already hold the resolved value. The config's only production callers are the selection, which passes the resolved value, and the tool, whose argument defaults to `"three_year_average"`; none passes `None`.
+
+### W35 How the selection schemas are produced (2026-11-05)
+
+`scripts/generate_schemas.py` transforms each selection model's own JSON schema: it drops `analysis_id`, `method_id` and `config_schema_version`, describes `as_of` as a date or a date-time with an offset ([W4](#w4-the-as-of-date-rule-is-shared-2026-11-05)), and removes `default` and `required` for the fields of [W28](#w28-configured-defaults-are-declared-on-the-descriptor-2026-11-05). A test checks that each schema's properties are exactly the fields `build_selection` accepts. There is no separate input model.
+
+### W36 One option style (2026-11-05)
+
+Every direct-command option is an `Annotated` alias, including the shared ones in `cli_support.py` (`AS_OF_OPTION`, `SAVE_RUN_OPTION` and `NO_PROVIDER_CHECK_OPTION`), not only the selection options [W6](#w6-each-strategy-declares-its-selection-options-once-2026-11-05) requires. Help output is unchanged.
+
+### W37 Duplicated defaults are checked (2026-11-05)
+
+Where a CLI option's literal default duplicates a model field default (FCF Growth's `--forward-policy`, `--classification-basis` and `--currency`), the literal stays, so the help is unchanged, and a conformance check requires each such option's default, run through its converter, to equal the model's field default.
+
+### W38 Help for the new and changed commands (2026-11-05)
+
+The CLI tier generates each `add-selection` subcommand's summary from the descriptor's `label`: "Add one <label> entry per ticker to an existing watchlist." The `add-selection` group's help is "Add entries for one method to an existing watchlist, one per ticker." `watchlist create`'s help is "Create an empty watchlist." followed by the paragraph "Add entries to it with 'ian watchlist add-selection METHOD NAME TICKER...'." The subcommand's arguments are `NAME` ("Watchlist name.") and `TICKERS...` ("Tickers to add this selection for."), and its options are its direct command's selection options with their direct-command help, plus `--json` ("Emit the updated watchlist document."). Help snapshots for `watchlist create` and each `watchlist add-selection <alias>` are generated from the declared strategies.
+
+### W39 A missing or unknown method is a parser error (2026-11-05)
+
+`ian watchlist add-selection` alone exits 2 with "Missing command."; `ian watchlist add-selection foo ...` exits 2 with "No such command 'foo'." in place of "--analysis must be one of: ..." with exit 1. `_parse_analysis` stays for `remove-method` and `runs list --analysis`.
+
+### W40 The argument checks are private again (2026-11-05)
+
+`check_watchlist_name` and `check_tickers` are private in `application/watchlists.py` again, since `create` no longer seeds.
+
+### W41 Re-recorded outputs and the specimen (2026-11-05)
+
+Every recorded workspace-command output and test that used `create --analysis` as setup is rewritten as `create` followed by `add-selection <alias>`, and each re-recorded file is listed in the implementation record. `tests/specimen/` and the `scripts/new_strategy.py` templates follow W28, W31, W33, W36 and W42, so a generated strategy passes every new check.
+
+### W42 Errors keep what a translation needs (2026-11-05)
+
+A `SelectionRuleError` carries a stable rule identifier (form `<alias>.<rule>`, for example `momentum.window_order`), the fields it names, and its values as named arguments. Templates use placeholders for both field names and values ("Invalid momentum windows: {short_window} ({short_window_value}) must be smaller than {long_window} ({long_window_value})."), and the CLI renders every message byte-identically. A built-in pydantic error keeps its error `type` and its plain context values beside its rendered text, with the rule identifier `pydantic.<type>`. `ActionParameterError` gains the same, a rule identifier (form `watchlist.<rule>` for the watchlist actions) and value arguments, so [W17](#w17-an-actions-parameter-error-is-a-template-2026-11-05)'s errors follow one rule with the selection errors. The failure document does not change in this slice.

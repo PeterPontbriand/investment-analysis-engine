@@ -271,14 +271,12 @@ def test_t11_reports_an_evaluation_tier_that_accepts_a_missing_entry(monkeypatch
 
 def test_t11_reports_a_cli_tier_whose_lookups_ignore_a_missing_entry(monkeypatch: pytest.MonkeyPatch) -> None:
     """The CLI-tier probes can fail: lookups that accept every key and entry are reported."""
-    monkeypatch.setattr(conformance, "builders_by_alias", lambda *_: {})
+    monkeypatch.setattr(conformance, "cli_entries", lambda *_: ())
     monkeypatch.setattr(conformance, "refreshers_by_key", lambda *_: {})
-    monkeypatch.setattr(conformance, "build_selection_for", lambda *_: object())
     monkeypatch.setattr(conformance, "refresh_executor_for", lambda *_: object())
     gaps = conformance.undeclared_input_gaps(STRATEGIES)
-    assert any("build_selection_for(undeclared alias): accepted an undeclared input" in gap for gap in gaps)
     assert any("refresh_executor_for without" in gap and "accepted an undeclared input" in gap for gap in gaps)
-    assert any("builders_by_alias without" in gap and "accepted an undeclared input" in gap for gap in gaps)
+    assert any("cli_entries without" in gap and "accepted an undeclared input" in gap for gap in gaps)
     assert any("refreshers_by_key without" in gap and "accepted an undeclared input" in gap for gap in gaps)
 
 
@@ -718,7 +716,11 @@ def test_a_stale_schema_is_reported_by_the_schema_site_with_the_command(tmp_path
 def test_t21_every_json_command_has_a_typed_document_and_a_current_schema() -> None:
     """The commands come from the real command tree; none is exempt."""
     paths = conformance.json_command_paths(app)
-    assert sorted(paths) == sorted([*JSON_DOCUMENTS, *STRATEGY_REPLAY_COMMANDS, *(item.alias for item in STRATEGIES)])
+    add_selection = [f"watchlist add-selection {item.alias}" for item in STRATEGIES]
+    documents = [path for path in JSON_DOCUMENTS if path != "watchlist add-selection"]
+    assert sorted(paths) == sorted(
+        [*documents, *add_selection, *STRATEGY_REPLAY_COMMANDS, *(item.alias for item in STRATEGIES)]
+    )
     assert conformance.json_command_gaps(STRATEGIES, app) == []
 
 
@@ -857,24 +859,6 @@ def test_t25_a_vocabulary_that_imports_its_package_or_lacks_a_constant_is_report
     assert sum("imports from its own package" in message for message in messages) == 2
 
 
-def test_t25_a_builder_that_reads_a_flag_no_watchlist_command_has_is_reported(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A flag the selection builder reads needs a ``WatchlistFlags`` field and an option on both commands."""
-    cli = tmp_path / "investment_analysis_engine" / "strategies" / "zed" / "cli.py"
-    cli.parent.mkdir(parents=True)
-    cli.write_text(
-        "def build_selection(flags):\n    return flags.short_window, flags.zed_flag, flags.as_of\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(conformance, "REPOSITORY_ROOT", tmp_path)
-    messages = [gap.message for gap in conformance.site_watchlist_options(strategy_names("zed"))]
-    assert messages == ["the selection builder reads zed_flag, which WatchlistFlags does not define"]
-    cli.write_text("def other(flags):\n    return flags\n", encoding="utf-8")
-    (message,) = [gap.message for gap in conformance.site_watchlist_options(strategy_names("zed"))]
-    assert "defines no build_selection(flags) function" in message
-
-
 # ---------------------------------------------------------------------------
 # SWC.5b: T26, the generated strategy lists of the user documents
 # ---------------------------------------------------------------------------
@@ -1006,10 +990,15 @@ def test_the_help_snapshot_site_requires_the_command_snapshot_and_names_the_file
 
     gaps = conformance.site_help_snapshot(names, context)
 
-    assert [gap.site_id for gap in gaps] == ["help-snapshot"]
+    assert [gap.site_id for gap in gaps] == ["help-snapshot", "help-snapshot"]
     assert gaps[0].message == (
         "tests/expected_output/cli_help/fresh-probe.txt does not exist; "
         "write it with uv run python -m tests._cli_help_output"
     )
+    assert gaps[1].message == (
+        "tests/expected_output/cli_help/watchlist-add-selection-fresh-probe.txt does not exist; "
+        "write it with uv run python -m tests._cli_help_output"
+    )
     (folder / "fresh-probe.txt").write_text("Usage: root fresh-probe\n", encoding="utf-8")
+    (folder / "watchlist-add-selection-fresh-probe.txt").write_text("Usage: root fresh-probe\n", encoding="utf-8")
     assert conformance.site_help_snapshot(names, context) == []

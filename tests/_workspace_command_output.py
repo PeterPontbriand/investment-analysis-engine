@@ -47,10 +47,10 @@ _TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[
 _TIMESTAMP_DIGITS = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?=Z|[+-]\d{2}:\d{2})")
 
 _FAILING_TICKER = "BAD"
-_ADD_DATED = ["watchlist", "add-selection", "Dated", "KO", "--as-of", "2026-08-01"]
+_ADD_DATED = ["Dated", "KO", "--as-of", "2026-08-01"]
 
-_MOMENTUM = ["--analysis", "momentum", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--no-cache"]
-_GRAHAM_GROWTH = ["--analysis", "graham-growth", "--expected-growth", "5", "--aaa-yield", "4.5"]
+_MOMENTUM = ["--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--no-cache"]
+_GRAHAM_GROWTH = ["--expected-growth", "5", "--aaa-yield", "4.5"]
 
 # Each step is one command line, run in order; later steps depend on the state earlier ones leave.
 _STEPS: tuple[tuple[str, list[str]], ...] = (
@@ -61,11 +61,15 @@ _STEPS: tuple[tuple[str, list[str]], ...] = (
     ("watchlist-list-empty", ["watchlist", "list"]),
     ("watchlist-list-empty-json", ["watchlist", "list", "--json"]),
     ("watchlist-create-empty", ["watchlist", "create", "Core"]),
-    ("watchlist-create-seeded", ["watchlist", "create", "Seeded", "AAPL", "MSFT", *_MOMENTUM]),
-    ("watchlist-add-selection-graham-number", ["watchlist", "add-selection", "Core", "KO", "-a", "graham-number"]),
-    ("watchlist-add-selection-graham-growth", ["watchlist", "add-selection", "Core", "KO", *_GRAHAM_GROWTH]),
-    ("watchlist-add-selection-fcf-growth", ["watchlist", "add-selection", "Core", "MSFT", "-a", "fcf-growth"]),
-    ("watchlist-add-selection-momentum", ["watchlist", "add-selection", "Core", "AAPL", *_MOMENTUM]),
+    ("watchlist-create-seeded-setup", ["watchlist", "create", "Seeded"]),
+    ("watchlist-create-seeded", ["watchlist", "add-selection", "momentum", "Seeded", "AAPL", "MSFT", *_MOMENTUM]),
+    ("watchlist-add-selection-graham-number", ["watchlist", "add-selection", "graham-number", "Core", "KO"]),
+    (
+        "watchlist-add-selection-graham-growth",
+        ["watchlist", "add-selection", "graham-growth", "Core", "KO", *_GRAHAM_GROWTH],
+    ),
+    ("watchlist-add-selection-fcf-growth", ["watchlist", "add-selection", "fcf-growth", "Core", "MSFT"]),
+    ("watchlist-add-selection-momentum", ["watchlist", "add-selection", "momentum", "Core", "AAPL", *_MOMENTUM]),
     ("watchlist-list", ["watchlist", "list"]),
     ("watchlist-list-json", ["watchlist", "list", "--json"]),
     ("watchlist-show", ["watchlist", "show", "Core"]),
@@ -102,32 +106,45 @@ _STEPS: tuple[tuple[str, list[str]], ...] = (
     ("db-status-new", ["db", "status", "--database-url", "<new>"]),
     # Steps below pin what the masked steps above cannot: the spelling of each timestamp (the offset is kept in the
     # stored text), a watchlist with no entries (so a null `updated_at`), and a refresh in which one job raises.
-    ("watchlist-create-single-entry", ["watchlist", "create", "Fresh", "AAPL", *_MOMENTUM]),
+    ("watchlist-create-single-entry-setup", ["watchlist", "create", "Fresh"]),
+    ("watchlist-create-single-entry", ["watchlist", "add-selection", "momentum", "Fresh", "AAPL", *_MOMENTUM]),
     ("watchlist-create-empty-second", ["watchlist", "create", "Vacant"]),
     ("watchlist-show-json-timestamps", ["watchlist", "show", "Fresh", "--json"]),
     ("watchlist-show-json-empty", ["watchlist", "show", "Vacant", "--json"]),
     ("watchlist-list-json-timestamps", ["watchlist", "list", "--json"]),
-    ("watchlist-create-failing", ["watchlist", "create", "Failing", "AAPL", _FAILING_TICKER, *_MOMENTUM]),
+    ("watchlist-create-failing-setup", ["watchlist", "create", "Failing"]),
+    (
+        "watchlist-create-failing",
+        ["watchlist", "add-selection", "momentum", "Failing", "AAPL", _FAILING_TICKER, *_MOMENTUM],
+    ),
     ("refresh-failed-job-json", ["refresh", "Failing", "--workers", "1", "--json"]),
     ("refresh-failed-job", ["refresh", "Failing", "--workers", "1"]),
     ("runs-list-json-timestamps", ["runs", "list", "--ticker", "AAPL", "--limit", "1", "--json"]),
-    ("watchlist-create-as-of", ["watchlist", "create", "Dated", "AAPL", *_MOMENTUM, "--as-of", "2026-08-01"]),
-    ("watchlist-add-selection-as-of-graham-number", [*_ADD_DATED, "-a", "graham-number"]),
-    ("watchlist-add-selection-as-of-graham-growth", [*_ADD_DATED, *_GRAHAM_GROWTH]),
-    ("watchlist-add-selection-as-of-fcf-growth", [*_ADD_DATED, "-a", "fcf-growth"]),
+    ("watchlist-create-as-of-setup", ["watchlist", "create", "Dated"]),
+    (
+        "watchlist-create-as-of",
+        ["watchlist", "add-selection", "momentum", "Dated", "AAPL", *_MOMENTUM, "--as-of", "2026-08-01"],
+    ),
+    ("watchlist-add-selection-as-of-graham-number", ["watchlist", "add-selection", "graham-number", *_ADD_DATED]),
+    (
+        "watchlist-add-selection-as-of-graham-growth",
+        ["watchlist", "add-selection", "graham-growth", *_ADD_DATED, *_GRAHAM_GROWTH],
+    ),
+    ("watchlist-add-selection-as-of-fcf-growth", ["watchlist", "add-selection", "fcf-growth", *_ADD_DATED]),
     ("watchlist-show-json-as-of-timestamps", ["watchlist", "show", "Dated", "--json"]),
     ("watchlist-rename-json-timestamps", ["watchlist", "rename", "Fresh", "Fresh Renamed", "--json"]),
     ("watchlist-delete-json-timestamps", ["watchlist", "delete", "Fresh Renamed", "--yes", "--json"]),
     # The watchlist writing commands with --json: the document on standard output, a removal's confirmation on
     # standard error.
     ("watchlist-create-json", ["watchlist", "create", "Json Empty", "--json"]),
+    ("watchlist-create-seeded-json-setup", ["watchlist", "create", "Json Seeded"]),
     (
         "watchlist-create-seeded-json",
-        ["watchlist", "create", "Json Seeded", "KO", "MSFT", "-a", "graham-number", "--json"],
+        ["watchlist", "add-selection", "graham-number", "Json Seeded", "KO", "MSFT", "--json"],
     ),
     (
         "watchlist-add-selection-json",
-        ["watchlist", "add-selection", "Json Seeded", "AAPL", "-a", "fcf-growth", "--json"],
+        ["watchlist", "add-selection", "fcf-growth", "Json Seeded", "AAPL", "--json"],
     ),
     ("watchlist-remove-entry-json", ["watchlist", "remove-entry", "Json Seeded", "1", "--json"]),
     ("watchlist-remove-ticker-json", ["watchlist", "remove-ticker", "Json Seeded", "MSFT", "--json"]),

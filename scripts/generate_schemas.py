@@ -18,6 +18,7 @@ import json
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -31,6 +32,65 @@ SCHEMA_DIRECTORY = REPOSITORY_ROOT / "schemas"
 def strategy_schema_file(descriptor: StrategyDescriptor) -> str:
     """Return the schema file of a strategy's document, named for the strategy's command alias."""
     return f"{descriptor.alias}.schema.json"
+
+
+SELECTION_SCHEMA_DIRECTORY_NAME = "selections"
+"""The folder of ``schemas/`` that holds one selection schema per strategy."""
+
+FIXED_SELECTION_FIELDS = ("analysis_id", "method_id", "config_schema_version")
+"""The fields a selection's class fixes; a client does not supply them and the schemas leave them out."""
+
+
+def selection_schema_file(descriptor: StrategyDescriptor) -> str:
+    """Return the schema file of a strategy's selection, under ``selections/`` and named for its command alias."""
+    return f"{SELECTION_SCHEMA_DIRECTORY_NAME}/{descriptor.alias}.schema.json"
+
+
+def selection_schema(descriptor: StrategyDescriptor) -> dict[str, Any]:
+    """Return the schema of the fields ``build_selection`` accepts for a strategy.
+
+    It is the selection model's own schema with the fixed fields removed, ``as_of`` described as a date or a
+    date-time with a timezone offset, and the fields the settings fill carrying neither a ``default`` nor a place in
+    ``required``: the configured value is the caller's to ask for, not the schema's to state.
+    """
+    schema: dict[str, Any] = descriptor.behavior.selection_type.model_json_schema(mode="validation")
+    properties: dict[str, Any] = schema["properties"]
+    for name in FIXED_SELECTION_FIELDS:
+        properties.pop(name, None)
+    as_of = properties["as_of"]
+    properties["as_of"] = {
+        key: value
+        for key, value in {
+            "anyOf": [
+                {"type": "string", "format": "date"},
+                {"type": "string", "format": "date-time"},
+                {"type": "null"},
+            ],
+            "default": as_of.get("default"),
+            "description": as_of.get("description"),
+            "title": as_of.get("title"),
+        }.items()
+        if value is not None or key == "default"
+    }
+    for name in descriptor.selection_settings_fields:
+        properties[name].pop("default", None)
+    required = [
+        name
+        for name in schema.get("required", [])
+        if name not in FIXED_SELECTION_FIELDS and name not in descriptor.selection_settings_fields
+    ]
+    if required:
+        schema["required"] = required
+    else:
+        schema.pop("required", None)
+    return schema
+
+
+def selection_schema_text(descriptor: StrategyDescriptor) -> str:
+    """Return the canonical text of a strategy's selection schema."""
+    return (
+        json.dumps(selection_schema(descriptor), indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n"
+    )
 
 
 # One entry per document: the file name and the typed model it describes. The failure, workspace and database documents
@@ -50,7 +110,9 @@ def schema_text(model: type[BaseModel]) -> str:
 
 def expected_schemas() -> dict[str, str]:
     """Return the schema text of every document, keyed by file name."""
-    return {name: schema_text(model) for name, model in DOCUMENTS}
+    texts = {name: schema_text(model) for name, model in DOCUMENTS}
+    texts.update({selection_schema_file(item): selection_schema_text(item) for item in STRATEGIES})
+    return texts
 
 
 def schema_gaps(directory: Path = SCHEMA_DIRECTORY) -> list[str]:
@@ -74,6 +136,7 @@ def write_schemas(directory: Path = SCHEMA_DIRECTORY) -> list[Path]:
     changed: list[Path] = []
     for name, text in expected_schemas().items():
         path = directory / name
+        path.parent.mkdir(exist_ok=True)
         data = text.encode("utf-8")
         if not path.is_file() or path.read_bytes() != data:
             path.write_bytes(data)

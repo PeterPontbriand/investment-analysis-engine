@@ -141,13 +141,13 @@ fails = ""
 
 [[site]]
 id = "cli"
-title = "CLI file: direct command, selection builder"
+title = "CLI file: direct command, add-selection command and the table of selection options"
 why = "The strategy's command-line behavior lives in its own package, and the command takes its exit code from `exit_code_of` in `application/analysis.py`."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/cli.py"
 generated = true
 check = "site_cli"
-defines = ["build_selection", "command"]
+defines = ["SELECTION_OPTIONS", "add_selection", "command"]
 fails = ""
 
 [[site]]
@@ -267,13 +267,13 @@ fails = "tests/_strategy_document_output.py has no case named <alias>-success, o
 
 [[site]]
 id = "help-snapshot"
-title = "Help snapshots: the strategy's row in the application help and the help of its own command"
+title = "Help snapshots: the strategy's row in the application help and the help of its direct and add-selection commands"
 why = "The application's help is compared byte for byte with a reviewed snapshot that lists every command in the order it is added, and each strategy command's help with a snapshot of its own."
 kind = "reviewed"
 path = "tests/expected_output/cli_help/application.txt"
 generated = false
 check = "site_help_snapshot"
-fails = "the application snapshot has no command row for the alias, or tests/expected_output/cli_help/<alias>.txt does not exist"
+fails = "the application snapshot has no command row for the alias, or tests/expected_output/cli_help/<alias>.txt or watchlist-add-selection-<alias>.txt does not exist"
 
 [[site]]
 id = "guide"
@@ -284,16 +284,6 @@ path = "docs/user/strategies/{guide}.md"
 generated = false
 check = "site_guide"
 fails = "no guide for alias X"
-
-[[site]]
-id = "watchlist-options"
-title = "Watchlist options of the strategy, only when it has any beyond the shared ones"
-why = "A flag the selection builder reads needs a typed field in WatchlistFlags and an option on both watchlist commands."
-kind = "reviewed"
-path = "investment_analysis_engine/cli_watchlist_flags.py"
-generated = false
-check = "site_watchlist_options"
-fails = "the selection builder reads a flag that WatchlistFlags or a watchlist command lacks"
 
 [[site]]
 id = "schema"

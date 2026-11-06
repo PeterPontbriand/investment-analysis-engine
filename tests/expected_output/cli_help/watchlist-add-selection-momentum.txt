@@ -1,0 +1,19 @@
+Usage: root watchlist add-selection momentum [OPTIONS] {name} {tickers}...
+Add one Momentum entry per ticker to an existing watchlist.
+Arguments
+* name <str> Watchlist name. [required]
+* tickers <str> Tickers to add this selection for. [required]
+Options
+--short-window -s <int> Short SMA window in daily market observations
+[default: (from settings: 50)]
+--long-window -l <int> Long SMA window in daily market observations
+[default: (from settings: 200)]
+--rsi-period <int> RSI lookback period in daily market
+observations
+[default: (from settings: 14)]
+--as-of <str> Point-in-time boundary as YYYY-MM-DD or
+timezone-aware ISO-8601 timestamp
+--no-cache Bypass historical price cache reads and
+writes
+--json Emit the updated watchlist document.
+--help Show this message and exit.

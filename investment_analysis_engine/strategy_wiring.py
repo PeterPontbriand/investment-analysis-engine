@@ -166,6 +166,11 @@ class BehaviorView(Protocol):
     """
 
     @property
+    def selection_type(self) -> type[SelectionMember]:
+        """Return the strategy's selection class."""
+        ...
+
+    @property
     def result_type(self) -> type[NativeEvidence]:
         """Return the strategy's native result type."""
         ...
@@ -286,6 +291,7 @@ class StrategyDescriptor:
     evidence_codec_version: int
     json_envelope: type[BaseModel]
     settings_type: type[BaseModel] | None
+    selection_settings_fields: tuple[str, ...]
 
 
 MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, MomentumToolDependencies](
@@ -362,6 +368,7 @@ MOMENTUM: Final = StrategyDescriptor(
     evidence_codec_version=4,
     json_envelope=MomentumDocument,
     settings_type=MomentumSettings,
+    selection_settings_fields=("short_window", "long_window", "rsi_period"),
 )
 GRAHAM_NUMBER: Final = StrategyDescriptor(
     analysis_id=GRAHAM_NUMBER_ANALYSIS_ID,
@@ -378,6 +385,7 @@ GRAHAM_NUMBER: Final = StrategyDescriptor(
     evidence_codec_version=4,
     json_envelope=GrahamNumberDocument,
     settings_type=None,
+    selection_settings_fields=(),
 )
 GRAHAM_GROWTH: Final = StrategyDescriptor(
     analysis_id=GRAHAM_GROWTH_ANALYSIS_ID,
@@ -394,6 +402,7 @@ GRAHAM_GROWTH: Final = StrategyDescriptor(
     evidence_codec_version=4,
     json_envelope=GrahamGrowthDocument,
     settings_type=GrahamGrowthSettings,
+    selection_settings_fields=(),
 )
 FCF_GROWTH: Final = StrategyDescriptor(
     analysis_id=FCF_GROWTH_ANALYSIS_ID,
@@ -410,6 +419,7 @@ FCF_GROWTH: Final = StrategyDescriptor(
     evidence_codec_version=4,
     json_envelope=FCFDocument,
     settings_type=None,
+    selection_settings_fields=(),
 )
 
 PIOTROSKI_BEHAVIOR: Final = StrategyBehavior[PiotroskiSelection, PiotroskiResult, PiotroskiToolDependencies](
@@ -440,6 +450,7 @@ PIOTROSKI: Final = StrategyDescriptor(
     evidence_codec_version=1,
     json_envelope=PiotroskiDocument,
     settings_type=None,
+    selection_settings_fields=(),
 )
 
 STRATEGIES: Final = (MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH, PIOTROSKI)

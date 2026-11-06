@@ -1,0 +1,11 @@
+Usage: root watchlist add-selection ci-probe [OPTIONS] {name} {tickers}...
+Add one CI Probe entry per ticker to an existing watchlist.
+Arguments
+* name <str> Watchlist name. [required]
+* tickers <str> Tickers to add this selection for. [required]
+Options
+--as-of <str> Point-in-time boundary as YYYY-MM-DD or
+timezone-aware ISO-8601 timestamp
+--no-cache Bypass the cache
+--json Emit the updated watchlist document.
+--help Show this message and exit.

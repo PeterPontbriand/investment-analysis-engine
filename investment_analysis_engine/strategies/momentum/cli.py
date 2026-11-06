@@ -1,113 +1,127 @@
-"""Momentum's CLI-layer functions: the direct command and the watchlist selection builder.
+"""Momentum's CLI-layer functions: the direct command and the watchlist ``add-selection`` command.
 
-The CLI tier pairs these with the Momentum core bundle and adds the command to the application; nothing here
-registers itself. The command parses its options, builds the selection and calls the direct-analysis operation.
+The CLI tier pairs these with the Momentum core bundle and adds both commands to the application; nothing here
+registers itself. Both commands declare the same selection options, build their selection through the same option
+table, and the direct command then calls the direct-analysis operation.
+
+The three window and period options default to the strategy's settings: when one is left out, the selection's builder
+fills it in from the user's settings file, or from the shipped one.
 """
+
+from typing import Annotated
 
 import typer
 
 from investment_analysis_engine.analysis.base_analyzer import require_ticker
-from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
     SAVE_RUN_OPTION,
+    SelectionOption,
+    add_selection_entries,
     analysis_output,
     analyze_for_command,
+    cache_enabled,
     emit_output,
     execution_errors,
+    parameter_failures,
     parse_as_of,
     resolve_command_target,
+    selection_from_options,
 )
-from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import settings
-from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.strategies.momentum.application import momentum_settings
+from investment_analysis_engine.config.component_settings import load_component_settings
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
+from investment_analysis_engine.strategies.momentum.vocabulary import METHOD_ID
+from investment_analysis_engine.workspace.strategy_types import SelectionMember
+
+_CONFIGURED = load_component_settings("momentum", MomentumSettings, settings.config_dir)
+"""The settings in effect, which the help shows; the cached loader the startup check also uses."""
 
 
-def _validate_momentum_windows(short_window: int, long_window: int, rsi_period: int) -> None:
-    """Reject invalid SMA/RSI periods with investor-readable domain language.
-
-    The direct command and the watchlist builder share this check, so both report the same
-    ``invalid_parameter`` failure with the same message, which names the offending option. The option
-    names are the ones both commands declare; this function, not generic tooling, supplies them.
-    """
-    if short_window <= 0:
-        raise InvalidParameterError(
-            f"Invalid momentum window: --short-window must be positive (received {short_window}).",
-            parameters=("--short-window",),
-        )
-    if long_window <= 0:
-        raise InvalidParameterError(
-            f"Invalid momentum window: --long-window must be positive (received {long_window}).",
-            parameters=("--long-window",),
-        )
-    if rsi_period <= 0:
-        raise InvalidParameterError(
-            f"Invalid momentum period: --rsi-period must be positive (received {rsi_period}).",
-            parameters=("--rsi-period",),
-        )
-    if short_window >= long_window:
-        raise InvalidParameterError(
-            f"Invalid momentum windows: --short-window ({short_window}) "
-            f"must be smaller than --long-window ({long_window}).",
-            parameters=("--short-window", "--long-window"),
-        )
+def _from_settings(value: int) -> str:
+    """Return the text of the default shown in help for an option that the settings supply."""
+    return f"from settings: {value}"
 
 
-def build_selection(flags: WatchlistFlags) -> MomentumSelection:
-    """Build one validated Momentum selection from watchlist CLI flags.
-
-    Mirrors the direct ``momentum`` command's own flags and validation exactly, so a watchlist entry behaves
-    identically to running the method directly.
-    """
-    _validate_momentum_windows(flags.short_window, flags.long_window, flags.rsi_period)
-    return MomentumSelection(
-        short_window=flags.short_window,
-        long_window=flags.long_window,
-        rsi_period=flags.rsi_period,
-        as_of=parse_as_of(flags.as_of),
-        use_cache=not flags.no_cache,
-    )
-
-
-_MOMENTUM_CLI_DEFAULTS = momentum_settings(ApplicationContext(settings=settings))
-
-
-def command(  # noqa: PLR0913
-    ticker: str | None = typer.Argument(None, help="Target stock/asset ticker symbol (e.g., AAPL, BTC-USD)"),
-    *,
-    ticker_option: str | None = typer.Option(
-        None,
-        "--ticker",
-        "-t",
-        help="Legacy ticker option; prefer the positional TICKER argument",
-    ),
-    short_window: int = typer.Option(
-        _MOMENTUM_CLI_DEFAULTS.short_window,
+SHORT_WINDOW_OPTION = Annotated[
+    int | None,
+    typer.Option(
         "--short-window",
         "-s",
         help="Short SMA window in daily market observations",
+        show_default=_from_settings(_CONFIGURED.short_window),
     ),
-    long_window: int = typer.Option(
-        _MOMENTUM_CLI_DEFAULTS.long_window,
+]
+LONG_WINDOW_OPTION = Annotated[
+    int | None,
+    typer.Option(
         "--long-window",
         "-l",
         help="Long SMA window in daily market observations",
+        show_default=_from_settings(_CONFIGURED.long_window),
     ),
-    rsi_period: int = typer.Option(
-        _MOMENTUM_CLI_DEFAULTS.rsi_period,
+]
+RSI_PERIOD_OPTION = Annotated[
+    int | None,
+    typer.Option(
         "--rsi-period",
         help="RSI lookback period in daily market observations",
+        show_default=_from_settings(_CONFIGURED.rsi_period),
     ),
-    as_of: str | None = AS_OF_OPTION,
-    no_cache: bool = typer.Option(False, "--no-cache", help="Bypass historical price cache reads and writes"),
-    details: bool = typer.Option(False, "--details", help="Show calculation and data-context details"),
-    diagnostics: bool = typer.Option(False, "--diagnostics", help="Show retained execution diagnostics"),
-    json_output: bool = typer.Option(False, "--json", help="Emit stable machine-readable JSON"),
-    save_run: bool = SAVE_RUN_OPTION,
-    no_provider_check: bool = NO_PROVIDER_CHECK_OPTION,
+]
+NO_CACHE_OPTION = Annotated[bool, typer.Option("--no-cache", help="Bypass historical price cache reads and writes")]
+
+SELECTION_OPTIONS = (
+    SelectionOption("short_window", "short_window", "--short-window"),
+    SelectionOption("long_window", "long_window", "--long-window"),
+    SelectionOption("rsi_period", "rsi_period", "--rsi-period"),
+    SelectionOption("as_of", "as_of", "--as-of", parse_as_of),
+    SelectionOption("no_cache", "use_cache", "--no-cache", cache_enabled),
+)
+"""The selection field each selection option sets: this strategy's one table of options and fields."""
+
+
+def _selection(
+    *,
+    short_window: int | None,
+    long_window: int | None,
+    rsi_period: int | None,
+    as_of: str | None,
+    no_cache: bool,
+) -> SelectionMember:
+    """Build the Momentum selection from the selection options of either command."""
+    return selection_from_options(
+        METHOD_ID,
+        SELECTION_OPTIONS,
+        {
+            "short_window": short_window,
+            "long_window": long_window,
+            "rsi_period": rsi_period,
+            "as_of": as_of,
+            "no_cache": no_cache,
+        },
+    )
+
+
+def command(  # noqa: PLR0913
+    ticker: Annotated[str | None, typer.Argument(help="Target stock/asset ticker symbol (e.g., AAPL, BTC-USD)")] = None,
+    *,
+    ticker_option: Annotated[
+        str | None,
+        typer.Option("--ticker", "-t", help="Legacy ticker option; prefer the positional TICKER argument"),
+    ] = None,
+    short_window: SHORT_WINDOW_OPTION = None,
+    long_window: LONG_WINDOW_OPTION = None,
+    rsi_period: RSI_PERIOD_OPTION = None,
+    as_of: AS_OF_OPTION = None,
+    no_cache: NO_CACHE_OPTION = False,
+    details: Annotated[bool, typer.Option("--details", help="Show calculation and data-context details")] = False,
+    diagnostics: Annotated[bool, typer.Option("--diagnostics", help="Show retained execution diagnostics")] = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit stable machine-readable JSON")] = False,
+    save_run: SAVE_RUN_OPTION = False,
+    no_provider_check: NO_PROVIDER_CHECK_OPTION = False,
 ) -> None:
     """Execute SMA crossover momentum analysis over daily historical market prices."""
     provider_check = not no_provider_check
@@ -124,16 +138,37 @@ def command(  # noqa: PLR0913
             diagnostics=diagnostics,
             json_output=json_output,
         )
-        _validate_momentum_windows(short_window, long_window, rsi_period)
-        boundary = parse_as_of(as_of)
         target_ticker = require_ticker(requested_ticker)
-        selection = MomentumSelection(
+        selection = _selection(
             short_window=short_window,
             long_window=long_window,
             rsi_period=rsi_period,
-            as_of=boundary,
-            use_cache=not no_cache,
+            as_of=as_of,
+            no_cache=no_cache,
         )
         outcome = analyze_for_command(target_ticker, selection, save_run=save_run, provider_check=provider_check)
         output, exit_code = analysis_output(outcome, mode)
         emit_output(output, exit_code, mode)
+
+
+def add_selection(  # noqa: PLR0913
+    name: Annotated[str, typer.Argument(help="Watchlist name.")],
+    tickers: Annotated[list[str], typer.Argument(help="Tickers to add this selection for.")],
+    *,
+    short_window: SHORT_WINDOW_OPTION = None,
+    long_window: LONG_WINDOW_OPTION = None,
+    rsi_period: RSI_PERIOD_OPTION = None,
+    as_of: AS_OF_OPTION = None,
+    no_cache: NO_CACHE_OPTION = False,
+    json_output: Annotated[bool, typer.Option("--json", help="Emit the updated watchlist document.")] = False,
+) -> None:
+    """Add one Momentum entry per ticker to an existing watchlist."""
+    with parameter_failures(json_output=json_output):
+        selection = _selection(
+            short_window=short_window,
+            long_window=long_window,
+            rsi_period=rsi_period,
+            as_of=as_of,
+            no_cache=no_cache,
+        )
+    add_selection_entries(name, tickers, selection, json_output=json_output)

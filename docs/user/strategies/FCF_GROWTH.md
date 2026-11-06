@@ -230,7 +230,7 @@ FCF yield may appear as optional context when market capitalization at the bound
 
 ## Watchlist options
 
-`watchlist create --analysis fcf-growth` and `watchlist add-selection --analysis fcf-growth` accept `--growth-years`, `--forward-policy`, `--classification-basis` and `--currency`. It always uses SEC EDGAR data, matching the direct `fcf-growth` command. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the watchlist commands that take them.
+`watchlist add-selection fcf-growth` accepts `--growth-years`, `--forward-policy`, `--classification-basis` and `--currency`. It always uses SEC EDGAR data, matching the direct `fcf-growth` command. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the command that takes them.
 
 ## Related documentation
 

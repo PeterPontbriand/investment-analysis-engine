@@ -120,7 +120,7 @@ _REMOVED_OPTION_COMMANDS: Final = (
         if descriptor.behavior is entry.behavior
     ),
     (["watchlist", "create", "Core"], "watchlist create"),
-    (["watchlist", "add-selection", "Core"], "watchlist add-selection"),
+    (["watchlist", "add-selection", "momentum", "Core"], "watchlist add-selection"),
 )
 
 
@@ -137,8 +137,6 @@ def _field_names(model: type) -> list[str]:
 )
 def test_data_provider_option_is_rejected_with_exit_2(prefix: list[str], label: str) -> None:
     arguments = [*prefix, "AAPL", "--data-provider", "sec_edgar"]
-    if prefix[0] == "watchlist":
-        arguments += ["-a", "momentum"]
     result = CliRunner().invoke(app, arguments)
     assert result.exit_code == 2, (
         f"{label} must reject --data-provider as an unknown option (exit 2); it exited {result.exit_code}. "

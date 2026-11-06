@@ -46,8 +46,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.2b | [`ian serve` and the read endpoints](#api2--ian-serve-and-the-read-endpoints) | Complete | 2026-11-04 |
 | API.3a | [Execution composition and direct analysis](API_3_SLICE_PLAN.md#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-05 |
 | API.3b1 | [Watchlist actions](API_3_SLICE_PLAN.md#api3b1--watchlist-actions) | Complete | 2026-11-05 |
-| API.3b2 | [Selections and Site 19](API_3_SLICE_PLAN.md#api3b2--selections-and-site-19) | Next | |
-| API.3c | [Refresh with progress](API_3_SLICE_PLAN.md#api3c--refresh-with-progress) | Planned | |
+| API.3b2 | [Selections and Site 19](API_3_SLICE_PLAN.md#api3b2--selections-and-site-19) | Complete | 2026-11-05 |
+| API.3c | [Refresh with progress](API_3_SLICE_PLAN.md#api3c--refresh-with-progress) | Next | |
 | API.4 | [Action endpoints and refresh jobs](#api4--action-endpoints-and-refresh-jobs) | Planned | |
 | API.5 | [Help content](#api5--help-content) | Planned | |
 | API.6 | [Term references and help endpoints](#api6--term-references-and-help-endpoints) | Planned | |
@@ -167,7 +167,10 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   - clients need an endpoint that gives each strategy's current configured selection defaults, because the selection
     schemas carry none ([C13](API_3_SLICE_PLAN.md#c13-one-selection-schema-per-strategy-2026-11-04));
   - the direct-analysis endpoint can serve a run's text in a mode through the outcome's `render_text`, as S17 does for
-    saved runs ([C5a](API_3_SLICE_PLAN.md#c5a-direct-analysis-is-an-operation-that-returns-an-outcome-2026-11-04)).
+    saved runs ([C5a](API_3_SLICE_PLAN.md#c5a-direct-analysis-is-an-operation-that-returns-an-outcome-2026-11-04));
+  - a form client is likely to want every field's error at once, and `build_selection` reports the first only
+    ([W32](API_3_SLICE_PLAN.md#w32-first-error-only-2026-11-05)); the error can gain a list of every error additively;
+  - a client may need each error's rule identifier and value arguments served, to translate a message or place it on a form field ([W42](API_3_SLICE_PLAN.md#w42-errors-keep-what-a-translation-needs-2026-11-05)).
 - **Open question for API.4's slice plan:** whether two `ian serve` processes may run refresh jobs and writes against
   the same database, and what the second one does. It is not decided here.
 - **Branch:** `feat/api-actions`.

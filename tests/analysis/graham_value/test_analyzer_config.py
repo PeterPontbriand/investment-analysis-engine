@@ -9,10 +9,16 @@ from investment_analysis_engine.strategies.graham_growth.config import GrahamGro
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 
 
-@pytest.mark.parametrize("basis", [None, "three_year_average", "fiscal_year"])
-def test_growth_basis_default(basis: str | None) -> None:
+@pytest.mark.parametrize("basis", ["three_year_average", "fiscal_year"])
+def test_growth_basis_is_kept(basis: str) -> None:
     config = GrahamGrowthConfig.model_validate({"eps_basis": basis, "expected_growth": 5.0, "aaa_yield_override": 4.5})
-    assert config.eps_basis == (basis or "three_year_average")
+    assert config.eps_basis == basis
+
+
+def test_growth_basis_defaults_to_the_three_year_average_and_is_never_none() -> None:
+    assert GrahamGrowthConfig(expected_growth=5.0, aaa_yield_override=4.5).eps_basis == "three_year_average"
+    with pytest.raises(ValidationError, match="eps_basis"):
+        GrahamGrowthConfig.model_validate({"eps_basis": None, "expected_growth": 5.0, "aaa_yield_override": 4.5})
 
 
 @pytest.mark.parametrize("basis", [None, "three_year_average", "fiscal_year"])

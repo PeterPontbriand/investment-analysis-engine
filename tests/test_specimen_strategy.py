@@ -129,7 +129,7 @@ def test_only_the_closed_types_module_of_the_specimen_calls_cast() -> None:
     for path in sorted(SPECIMEN_FOLDER.glob("*.py")):
         text = path.read_text(encoding="utf-8")
         if path.name == "closed_types.py":
-            assert text.count("cast(") == 5
+            assert text.count("cast(") == 6
         else:
             assert "cast(" not in text, path.name
             assert "import cast" not in text, path.name

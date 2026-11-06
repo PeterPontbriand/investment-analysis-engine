@@ -40,6 +40,14 @@ def as_selection_member(selection: SpecimenSelection) -> SelectionMember:
     return cast("SelectionMember", selection)
 
 
+def selection_member_type() -> type[SelectionMember]:
+    """Return the specimen's selection class where ``BehaviorView.selection_type`` wants a ``SelectionMember`` type.
+
+    The same union as :func:`as_selection_member`, crossed for the class rather than an instance.
+    """
+    return cast("type[SelectionMember]", SpecimenSelection)
+
+
 def as_native_evidence(result: SpecimenResult) -> NativeEvidence:
     """Return the specimen's result where a generic consumer wants a ``NativeEvidence``.
 

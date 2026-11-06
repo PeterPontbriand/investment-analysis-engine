@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
-from investment_analysis_engine.analysis.selection_base import FrozenSelection
+from investment_analysis_engine.analysis.selection_base import FrozenSelection, SelectionRuleError
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
@@ -24,9 +24,18 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
 class FCFPolicySnapshot(FrozenSelection):
     """Validated immutable copy of the existing FCF policy and its native enums."""
 
-    historical_horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE
-    classification_basis: FCFClassificationBasis = FCFClassificationBasis.TOTAL_FCF
-    forward_policy: ForwardPolicy = ForwardPolicy.DISPLAY_ONLY
+    historical_horizon: HistoricalHorizon = Field(
+        default=HistoricalHorizon.LONGEST_AVAILABLE,
+        description="How many elapsed years of history to require; the default picks the longest available up to five.",
+    )
+    classification_basis: FCFClassificationBasis = Field(
+        default=FCFClassificationBasis.TOTAL_FCF,
+        description="Whether growth is classified on total free cash flow or on free cash flow per share.",
+    )
+    forward_policy: ForwardPolicy = Field(
+        default=ForwardPolicy.DISPLAY_ONLY,
+        description="How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -54,17 +63,35 @@ class FCFGrowthSelection(FrozenSelection):
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
-    policy: FCFPolicySnapshot = Field(default_factory=FCFPolicySnapshot)
-    currency: str = "USD"
-    as_of: AwareDatetime | None = None
-    use_cache: bool = Field(default=True, strict=True)
+    policy: FCFPolicySnapshot = Field(
+        default_factory=FCFPolicySnapshot, description="The growth horizon, classification and forward-evidence rules."
+    )
+    currency: str = Field(
+        default="USD", description="Three-letter ISO 4217 code of the reporting currency the annual facts must use."
+    )
+    as_of: AwareDatetime | None = Field(
+        default=None,
+        description=(
+            "Run the analysis as of this date (the end of that day, UTC) or this moment, "
+            "which needs a timezone offset; leave empty for the latest data."
+        ),
+    )
+    use_cache: bool = Field(
+        default=True,
+        strict=True,
+        description="Whether the analysis may read and write the local cache of fetched data.",
+    )
 
     @field_validator("currency")
     @classmethod
     def _normalize_currency(cls, value: str) -> str:
         normalized = value.strip().upper()
         if len(normalized) != 3 or not normalized.isalpha():
-            raise ValueError("currency must be a three-letter ISO 4217 code.")
+            raise SelectionRuleError(
+                "{currency} must be a three-letter ISO 4217 code.",
+                fields=("currency",),
+                rule="fcf-growth.currency_format",
+            )
         return normalized
 
     def to_fcf_policy(self) -> FCFEarningsGrowthPolicy:

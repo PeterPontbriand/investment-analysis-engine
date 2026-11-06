@@ -1,0 +1,32 @@
+{
+  "additionalProperties": false,
+  "description": "The Piotroski F-Score selection: the shared point-in-time and cache fields.",
+  "properties": {
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+      "title": "As Of"
+    },
+    "use_cache": {
+      "default": true,
+      "description": "Whether the analysis may read and write the local cache of fetched data.",
+      "title": "Use Cache",
+      "type": "boolean"
+    }
+  },
+  "title": "PiotroskiSelection",
+  "type": "object"
+}

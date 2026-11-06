@@ -13,7 +13,8 @@ from pydantic.types import AwareDatetime, FutureDatetime, NaiveDatetime, PastDat
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.provider_check import ProviderCheckFindings
-from investment_analysis_engine.cli_workspace import _refresh_json, _watchlist_json
+from investment_analysis_engine.cli_support import watchlist_json
+from investment_analysis_engine.cli_workspace import _refresh_json
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
@@ -190,7 +191,7 @@ def test_as_of_is_the_only_instant_in_any_selection_model() -> None:
 
 
 def _document_selections(watchlist: Watchlist) -> list[dict[str, Any]]:
-    document = json.loads(_watchlist_json(watchlist))
+    document = json.loads(watchlist_json(watchlist))
     selections: list[dict[str, Any]] = [entry["selection"] for entry in document["entries"]]
     return selections
 
@@ -217,7 +218,7 @@ def test_the_watchlist_document_matches_what_the_hand_built_dictionary_wrote() -
             )
         ],
     }
-    assert _watchlist_json(watchlist) == json.dumps(expected, ensure_ascii=False, allow_nan=False)
+    assert watchlist_json(watchlist) == json.dumps(expected, ensure_ascii=False, allow_nan=False)
 
 
 @pytest.mark.parametrize("offset", [UTC, timezone(timedelta(hours=5, minutes=30))])
@@ -250,11 +251,11 @@ def test_an_absent_as_of_stays_null() -> None:
 
 
 def test_a_watchlist_never_changed_has_a_null_updated_at() -> None:
-    assert json.loads(_watchlist_json(_watchlist(updated_at=None)))["updated_at"] is None
+    assert json.loads(watchlist_json(_watchlist(updated_at=None)))["updated_at"] is None
 
 
 def test_the_delete_document_requires_the_watchlist_if_and_only_if_it_was_deleted() -> None:
-    document = WatchlistDocument.model_validate(json.loads(_watchlist_json(_watchlist(updated_at=None))))
+    document = WatchlistDocument.model_validate(json.loads(watchlist_json(_watchlist(updated_at=None))))
     WatchlistDeleteDocument(requested_name="Core", deleted=True, watchlist=document)
     WatchlistDeleteDocument(requested_name="Nowhere", deleted=False, watchlist=None)
     with pytest.raises(ValidationError, match="if and only if deleted"):

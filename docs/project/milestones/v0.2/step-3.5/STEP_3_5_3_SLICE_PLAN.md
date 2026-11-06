@@ -607,6 +607,7 @@ weighed at the repetition checkpoint (Q16, [F6](#a10-decisions-f1-to-f11-2026-11
 
 - **No change to the watchlist command syntax in Step 3.5.** Piotroski has no watchlist options of its own: its `build_selection` reads `as_of` and `no_cache`, which every strategy shares, so the bundle did not grow and the three places H.10 names did not change.
 - **Relation to API.3.** [API.3](../api/API_CONTRACT_AND_SLICE_PLAN.md#api3--application-layer-actions) builds a selection from its model's fields, not from the CLI's flag set, so the flag bundle is no longer the only way to reach a selection. Site 19 is decided when the API.3 slice plan is written, not before; the API plan's Detail line carries the item.
+- **Settled by API.3b2.** Site 19 was settled by [API.3b2](../api/API_3_SLICE_PLAN.md#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04): a per-strategy `add-selection` subcommand with the strategy's options declared once in its `cli.py` replaced `WatchlistFlags`, which the first alternative above describes.
 
 ### B.4 Repetition review (3.5.3e1)
 

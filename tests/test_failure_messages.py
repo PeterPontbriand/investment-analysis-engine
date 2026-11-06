@@ -22,15 +22,15 @@ from sqlalchemy.exc import OperationalError
 from typer.testing import CliRunner, Result
 
 import investment_analysis_engine.cli_workspace
+from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.failures import (
     InternalDefectError,
     require_job_ticker,
     stored_configuration,
 )
+from investment_analysis_engine.application.selections import build_selection
 from investment_analysis_engine.cli import app
-from investment_analysis_engine.cli_strategy_wiring import CLI_BUILDERS
 from investment_analysis_engine.cli_support import describe_failure
-from investment_analysis_engine.cli_watchlist_flags import WatchlistFlags
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.failure_classification import classify_failure
@@ -466,24 +466,10 @@ def _raise_validation_error() -> int:
 def test_a_stored_selection_that_does_not_convert_is_an_execution_error_from_the_real_executor(
     alias: str, patch_conversion: Callable[[BaseException], AbstractContextManager[MagicMock]]
 ) -> None:
-    flags = WatchlistFlags(
-        short_window=20,
-        long_window=50,
-        rsi_period=14,
-        as_of=None,
-        no_cache=True,
-        eps=None,
-        eps_basis=None,
-        bvps=None,
-        current_price=None,
-        expected_growth=5.0,
-        aaa_yield=4.5,
-        growth_years=None,
-        forward_policy="display-only",
-        classification_basis="total-fcf",
-        currency="USD",
-    )
-    selection = CLI_BUILDERS[alias](flags)
+    fields: dict[str, object] = {"use_cache": False}
+    if alias == "graham-growth":
+        fields |= {"expected_growth": 5.0, "aaa_yield_override": 4.5}
+    selection = build_selection(ApplicationContext(settings=ProjectSettings()), BY_ALIAS[alias].method_id, fields)
     with patch_conversion(_validation_error()), pytest.raises(InternalDefectError) as caught:
         investment_analysis_engine.cli_workspace._refresh_executor("KO", selection, profile_cache=MagicMock())
     assert classify_failure(caught.value).reason_code is FailureReasonCode.EXECUTION_ERROR

@@ -32,18 +32,18 @@ A watchlist is a named, ordered list of [entries](GLOSSARY.md#entry) — each on
 uv run ian watchlist create "Core Holdings"
 ```
 
-An empty watchlist like this one has nothing to refresh yet. The common case — one method across several tickers — is one command, using `--analysis` and that method's own flags:
+An empty watchlist like this one has nothing to refresh yet. Add entries with `add-selection`, one method at a time across one or more tickers; the method is a subcommand of `add-selection`, named by the same alias as its direct command, and takes that command's own selection options:
 
 ```bash
-uv run ian watchlist create "Core Holdings" --analysis momentum AAPL MSFT KO
+uv run ian watchlist add-selection momentum "Core Holdings" AAPL MSFT KO
 ```
 
-Add `--json` to `create` to print only the created watchlist as the `watchlist show --json` document (with the seeded entries, if any); a failure writes the failure document described in [USAGE](USAGE.md#--json--machine-readable-output) to standard output, and nothing is written to standard error.
+Add `--json` to `create` to print only the created watchlist as the `watchlist show --json` document; a failure writes the failure document described in [USAGE](USAGE.md#--json--machine-readable-output) to standard output, and nothing is written to standard error.
 
-`--analysis` accepts any strategy alias in the [strategy table](#strategies-and-their-watchlist-options) — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags. Each strategy's flags are in the Watchlist options section of its guide, linked from the table below. A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is an `invalid_parameter` failure (exit `1`), not a silently-unselected method:
+Each strategy's options are in the Watchlist options section of its guide, linked from the table below. A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or add it to a watchlist, and omitting either is a usage error from the command line (exit `2`), not a silently-unselected method:
 
 ```bash
-uv run ian watchlist create "Value Watch" --analysis graham-growth --expected-growth 6.0 --aaa-yield 4.4 AAPL
+uv run ian watchlist add-selection graham-growth "Value Watch" AAPL --expected-growth 6.0 --aaa-yield 4.4
 ```
 
 ### Showing a watchlist
@@ -91,16 +91,16 @@ An empty store prints `{"schema_version": 1, "items": []}`. Before this object e
 
 ### Adding, removing, and comparing entries
 
-Add one method across one or more tickers to an existing watchlist the same way — `add-selection` is `create`'s seeding form, minus the creation:
+Add one method across one or more tickers to an existing watchlist with `add-selection`:
 
 ```bash
-uv run ian watchlist add-selection "Core Holdings" AAPL MSFT --analysis graham-number
+uv run ian watchlist add-selection graham-number "Core Holdings" AAPL MSFT
 ```
 
 Adding the same method again for a ticker that already has it does not replace anything — it appends a second entry, so you can compare configurations side by side:
 
 ```bash
-uv run ian watchlist add-selection "Core Holdings" AAPL --analysis graham-number --bvps 12.5
+uv run ian watchlist add-selection graham-number "Core Holdings" AAPL --bvps 12.5
 ```
 
 Remove one entry by the number `watchlist show` gives it:
@@ -165,7 +165,7 @@ A watchlist holding an entry saved by an earlier version, which this version can
 
 ### Strategies and their watchlist options
 
-These are the flags `watchlist create --analysis METHOD` and `watchlist add-selection --analysis METHOD` accept, one method at a time. They mirror that method's direct command exactly — same names, same defaults, same required fields.
+These are the options `watchlist add-selection METHOD` accepts, one method at a time. They mirror that method's direct command's selection options exactly — same names, same defaults, same required fields.
 
 Each strategy's flags and notes are in the Watchlist options section of its guide, linked from this table:
 

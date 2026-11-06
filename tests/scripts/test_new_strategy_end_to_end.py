@@ -99,6 +99,7 @@ EXPECTED_FILLS: Final = {
     "document.direct.json": "tests/expected_output/strategy_documents/ci-probe-success.direct.json",
     "document.replay.json": "tests/expected_output/strategy_documents/ci-probe-success.replay.json",
     "help.txt": "tests/expected_output/cli_help/ci-probe.txt",
+    "help.add-selection.txt": "tests/expected_output/cli_help/watchlist-add-selection-ci-probe.txt",
 }
 """The reviewed expected-output files of the strategy, by fill name in ``generator_fills/expected/``."""
 

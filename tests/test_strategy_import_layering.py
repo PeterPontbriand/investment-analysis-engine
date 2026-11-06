@@ -44,6 +44,7 @@ _ROOT_IMPORTERS = frozenset(
         "investment_analysis_engine.cli_workspace",
         "investment_analysis_engine.application.runs",
         "investment_analysis_engine.application.watchlists",
+        "investment_analysis_engine.application.selections",
         "investment_analysis_engine.api.documents",
         "investment_analysis_engine.api.routes",
     }
