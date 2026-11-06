@@ -53,6 +53,7 @@ from investment_analysis_engine.workspace.repositories.analysis_runs import (
 )
 from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._cli_helpers import normalize_cli_output
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 from tests._wiring import alias_for
@@ -80,7 +81,7 @@ def _seed(settings: ProjectSettings, name: str, entries: list[tuple[str, Analysi
     if entries:
         database = SQLiteDatabase(settings)
         try:
-            SQLiteWatchlistRepository(database, alias_for=alias_for).add_entries(name, entries)
+            SQLiteWatchlistRepository(database, alias_for=alias_for).add_entries(WatchlistName(name), entries)
         finally:
             database.close()
 

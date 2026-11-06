@@ -46,6 +46,7 @@ from investment_analysis_engine.strategies.momentum.analyzer import MomentumAnal
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
+from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_number_resolver
 from tests._wiring import alias_for
 
@@ -128,7 +129,7 @@ def seed(settings: ProjectSettings, name: str, entries: list[tuple[str, Analysis
     assert created.exit_code == 0, created.output
     database = SQLiteDatabase(settings)
     try:
-        SQLiteWatchlistRepository(database, alias_for=alias_for).add_entries(name, entries)
+        SQLiteWatchlistRepository(database, alias_for=alias_for).add_entries(WatchlistName(name), entries)
     finally:
         database.close()
 

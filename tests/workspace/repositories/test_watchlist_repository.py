@@ -24,13 +24,21 @@ from investment_analysis_engine.workspace.refresh import refresh_watchlist
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.repositories.watchlists import (
     DeletedWatchlist,
+    RemovedEntries,
+    RenamedWatchlist,
     SQLiteWatchlistRepository,
     WatchlistConflictError,
     WatchlistEntryNotFoundError,
 )
 from investment_analysis_engine.workspace.runs import Watchlist
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
-from investment_analysis_engine.workspace.watchlists import StoredSelectionError, WatchlistNotFoundError, WatchlistSpec
+from investment_analysis_engine.workspace.watchlists import (
+    StoredSelectionError,
+    WatchlistId,
+    WatchlistName,
+    WatchlistNotFoundError,
+    WatchlistSpec,
+)
 from tests._migrated_database import migrated_database_url
 from tests._wiring import alias_for, failure_text
 
@@ -71,14 +79,14 @@ def test_touch_rejects_a_naive_clock(migrated_database: SQLiteDatabase) -> None:
     naive_clock = lambda: datetime(2026, 9, 18, 12, 5, 0)  # noqa: E731
     naive_repository = SQLiteWatchlistRepository(migrated_database, clock=naive_clock, alias_for=alias_for)
     with pytest.raises(ValueError, match="timezone-aware"):
-        naive_repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
+        naive_repository.add_entries(WatchlistName(watchlist.display_name), [("KO", GrahamNumberSelection())])
 
 
 def test_create_duplicate_name_is_a_conflict_and_leaves_storage_unchanged(
     migrated_database: SQLiteDatabase, repository: SQLiteWatchlistRepository
 ) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Dividend Growth"))
-    repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
+    repository.add_entries(WatchlistName(watchlist.display_name), [("KO", GrahamNumberSelection())])
     with pytest.raises(WatchlistConflictError, match="already exists"):
         repository.create(WatchlistSpec(display_name="  dividend growth  "))
     with migrated_database.read() as connection:
@@ -97,7 +105,7 @@ def test_get_is_case_and_whitespace_insensitive(repository: SQLiteWatchlistRepos
 def test_get_by_id_returns_the_watchlist_with_its_entries(repository: SQLiteWatchlistRepository) -> None:
     repository.create(WatchlistSpec(display_name="Other"))
     created = repository.create(WatchlistSpec(display_name="Dividend Growth"))
-    repository.add_entries(created.display_name, [("KO", GrahamNumberSelection())])
+    repository.add_entries(WatchlistName(created.display_name), [("KO", GrahamNumberSelection())])
     found = repository.get_by_id(SECOND_ID)
     assert found is not None
     assert found.watchlist_id == SECOND_ID
@@ -113,7 +121,9 @@ def test_get_by_id_is_none_when_no_watchlist_has_that_id(repository: SQLiteWatch
 def test_list_orders_by_creation_and_reports_entry_count(repository: SQLiteWatchlistRepository) -> None:
     repository.create(WatchlistSpec(display_name="Second"))
     first = repository.create(WatchlistSpec(display_name="First"))
-    repository.add_entries(first.display_name, [("KO", GrahamNumberSelection()), ("PFE", GrahamNumberSelection())])
+    repository.add_entries(
+        WatchlistName(first.display_name), [("KO", GrahamNumberSelection()), ("PFE", GrahamNumberSelection())]
+    )
     summaries = repository.list()
     assert [summary.display_name for summary in summaries] == ["Second", "First"]
     assert summaries[1].entry_count == 2
@@ -122,12 +132,12 @@ def test_list_orders_by_creation_and_reports_entry_count(repository: SQLiteWatch
 def test_add_entries_preserves_order_and_appends_after_current_max(repository: SQLiteWatchlistRepository) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     momentum = GrahamNumberSelection()
-    updated = repository.add_entries(watchlist.display_name, [(" ko ", momentum), ("pfe", momentum)])
+    updated = repository.add_entries(WatchlistName(watchlist.display_name), [(" ko ", momentum), ("pfe", momentum)])
     assert [(entry.ticker, entry.selection.method_id) for entry in updated.entries] == [
         ("KO", "graham_number"),
         ("PFE", "graham_number"),
     ]
-    again = repository.add_entries(updated.display_name, [("AAPL", momentum)])
+    again = repository.add_entries(WatchlistName(updated.display_name), [("AAPL", momentum)])
     assert [entry.ticker for entry in again.entries] == ["KO", "PFE", "AAPL"]
 
 
@@ -138,7 +148,7 @@ def test_add_entries_allows_the_same_method_twice_for_one_ticker_with_different_
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     plain = GrahamNumberSelection()
     with_override = GrahamNumberSelection(bvps_override=12.5)
-    updated = repository.add_entries(watchlist.display_name, [("AAPL", plain), ("AAPL", with_override)])
+    updated = repository.add_entries(WatchlistName(watchlist.display_name), [("AAPL", plain), ("AAPL", with_override)])
     assert len(updated.entries) == 2
     assert all(entry.ticker == "AAPL" for entry in updated.entries)
     assert all(entry.selection.method_id == "graham_number" for entry in updated.entries)
@@ -155,7 +165,7 @@ def test_add_entries_validates_before_writing_anything(
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     with pytest.raises(ValueError, match="must not be empty"):
         repository.add_entries(
-            watchlist.display_name, [("KO", GrahamNumberSelection()), ("   ", GrahamNumberSelection())]
+            WatchlistName(watchlist.display_name), [("KO", GrahamNumberSelection()), ("   ", GrahamNumberSelection())]
         )
     with migrated_database.read() as connection:
         assert connection.execute(select(watchlist_entries)).all() == []
@@ -163,12 +173,12 @@ def test_add_entries_validates_before_writing_anything(
 
 def test_add_entries_missing_watchlist_raises(repository: SQLiteWatchlistRepository) -> None:
     with pytest.raises(WatchlistNotFoundError):
-        repository.add_entries("nonexistent", [("KO", GrahamNumberSelection())])
+        repository.add_entries(WatchlistName("nonexistent"), [("KO", GrahamNumberSelection())])
 
 
 def test_add_entries_with_empty_sequence_is_a_no_op(repository: SQLiteWatchlistRepository) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
-    unchanged = repository.add_entries(watchlist.display_name, [])
+    unchanged = repository.add_entries(WatchlistName(watchlist.display_name), [])
     assert unchanged.entries == ()
     assert unchanged.updated_at is None
 
@@ -184,16 +194,16 @@ def test_remove_entry_removes_by_position_and_renumbers_survivors(repository: SQ
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     selection = GrahamNumberSelection()
     watchlist = repository.add_entries(
-        watchlist.display_name, [("KO", selection), ("PFE", selection), ("AAPL", selection)]
+        WatchlistName(watchlist.display_name), [("KO", selection), ("PFE", selection), ("AAPL", selection)]
     )
-    assert repository.remove_entry(watchlist.display_name, 1) == 1
+    assert repository.remove_entry(WatchlistName(watchlist.display_name), 1).removed == 1
     updated = _read(repository, watchlist.display_name)
     assert [entry.ticker for entry in updated.entries] == ["KO", "AAPL"]
     # The survivor that used to be at position 2 is now at position 1 (renumbered, no gap).
-    repository.remove_entry(updated.display_name, 0)
+    repository.remove_entry(WatchlistName(updated.display_name), 0)
     with_ko_removed = _read(repository, updated.display_name)
     assert [entry.ticker for entry in with_ko_removed.entries] == ["AAPL"]
-    repository.remove_entry(with_ko_removed.display_name, 0)
+    repository.remove_entry(WatchlistName(with_ko_removed.display_name), 0)
     assert _read(repository, with_ko_removed.display_name).entries == ()
 
 
@@ -201,28 +211,28 @@ def test_remove_entry_out_of_range_raises_and_leaves_storage_unchanged(
     migrated_database: SQLiteDatabase, repository: SQLiteWatchlistRepository
 ) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
-    watchlist = repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
+    watchlist = repository.add_entries(WatchlistName(watchlist.display_name), [("KO", GrahamNumberSelection())])
     with pytest.raises(WatchlistEntryNotFoundError):
-        repository.remove_entry(watchlist.display_name, 5)
+        repository.remove_entry(WatchlistName(watchlist.display_name), 5)
     with migrated_database.read() as connection:
         assert len(connection.execute(select(watchlist_entries)).all()) == 1
 
 
 def test_remove_entry_missing_watchlist_raises(repository: SQLiteWatchlistRepository) -> None:
     with pytest.raises(WatchlistNotFoundError):
-        repository.remove_entry("nonexistent", 0)
+        repository.remove_entry(WatchlistName("nonexistent"), 0)
 
 
 def test_remove_entries_for_ticker_is_idempotent_for_absent_tickers(repository: SQLiteWatchlistRepository) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     selection = GrahamNumberSelection()
     watchlist = repository.add_entries(
-        watchlist.display_name, [("KO", selection), ("PFE", selection), ("AAPL", selection)]
+        WatchlistName(watchlist.display_name), [("KO", selection), ("PFE", selection), ("AAPL", selection)]
     )
-    assert repository.remove_entries_for_ticker(watchlist.display_name, ["PFE", "NOTHERE"]) == 1
+    assert repository.remove_entries_for_ticker(WatchlistName(watchlist.display_name), ["PFE", "NOTHERE"]).removed == 1
     updated = _read(repository, watchlist.display_name)
     assert [entry.ticker for entry in updated.entries] == ["KO", "AAPL"]
-    assert repository.remove_entries_for_ticker(updated.display_name, ["PFE"]) == 0
+    assert repository.remove_entries_for_ticker(WatchlistName(updated.display_name), ["PFE"]).removed == 0
     again = _read(repository, updated.display_name)
     assert [entry.ticker for entry in again.entries] == ["KO", "AAPL"]
 
@@ -232,52 +242,52 @@ def test_remove_entries_for_ticker_removes_every_entry_for_that_ticker(
 ) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     watchlist = repository.add_entries(
-        watchlist.display_name,
+        WatchlistName(watchlist.display_name),
         [
             ("AAPL", GrahamNumberSelection()),
             ("AAPL", GrahamNumberSelection(bvps_override=1.0)),
             ("KO", GrahamNumberSelection()),
         ],
     )
-    assert repository.remove_entries_for_ticker(watchlist.display_name, ["AAPL"]) == 2
+    assert repository.remove_entries_for_ticker(WatchlistName(watchlist.display_name), ["AAPL"]).removed == 2
     assert [entry.ticker for entry in _read(repository, watchlist.display_name).entries] == ["KO"]
 
 
 def test_remove_entries_for_ticker_missing_watchlist_raises(repository: SQLiteWatchlistRepository) -> None:
     with pytest.raises(WatchlistNotFoundError):
-        repository.remove_entries_for_ticker("nonexistent", ["KO"])
+        repository.remove_entries_for_ticker(WatchlistName("nonexistent"), ["KO"])
 
 
 def test_remove_entries_for_ticker_with_empty_sequence_is_a_no_op(repository: SQLiteWatchlistRepository) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
-    watchlist = repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
-    assert repository.remove_entries_for_ticker(watchlist.display_name, []) == 0
+    watchlist = repository.add_entries(WatchlistName(watchlist.display_name), [("KO", GrahamNumberSelection())])
+    assert repository.remove_entries_for_ticker(WatchlistName(watchlist.display_name), []).removed == 0
     assert [entry.ticker for entry in _read(repository, watchlist.display_name).entries] == ["KO"]
 
 
 def test_remove_entries_for_method_is_idempotent_for_absent_method(repository: SQLiteWatchlistRepository) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Watch"))
     watchlist = repository.add_entries(
-        watchlist.display_name,
+        WatchlistName(watchlist.display_name),
         [
             ("KO", GrahamNumberSelection()),
             ("KO", GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5)),
         ],
     )
-    assert repository.remove_entries_for_method(watchlist.display_name, "sma_crossover") == 0
+    assert repository.remove_entries_for_method(WatchlistName(watchlist.display_name), "sma_crossover").removed == 0
     unchanged = _read(repository, watchlist.display_name)
     assert [entry.selection.method_id for entry in unchanged.entries] == ["graham_number", "graham_growth_value"]
-    assert repository.remove_entries_for_method(unchanged.display_name, "graham_number") == 1
+    assert repository.remove_entries_for_method(WatchlistName(unchanged.display_name), "graham_number").removed == 1
     reduced = _read(repository, unchanged.display_name)
     assert [entry.selection.method_id for entry in reduced.entries] == ["graham_growth_value"]
-    assert repository.remove_entries_for_method(reduced.display_name, "graham_number") == 0
+    assert repository.remove_entries_for_method(WatchlistName(reduced.display_name), "graham_number").removed == 0
     again = _read(repository, reduced.display_name)
     assert [entry.selection.method_id for entry in again.entries] == ["graham_growth_value"]
 
 
 def test_remove_entries_for_method_missing_watchlist_raises(repository: SQLiteWatchlistRepository) -> None:
     with pytest.raises(WatchlistNotFoundError):
-        repository.remove_entries_for_method("nonexistent", "graham_number")
+        repository.remove_entries_for_method(WatchlistName("nonexistent"), "graham_number")
 
 
 def test_mutations_bump_updated_at_only_when_something_changes(
@@ -288,9 +298,9 @@ def test_mutations_bump_updated_at_only_when_something_changes(
     clocked = SQLiteWatchlistRepository(
         migrated_database, clock=lambda: LATER, id_factory=lambda: SECOND_ID, alias_for=alias_for
     )
-    clocked.remove_entries_for_ticker(watchlist.display_name, ["NOTHERE"])
+    clocked.remove_entries_for_ticker(WatchlistName(watchlist.display_name), ["NOTHERE"])
     assert _read(clocked, watchlist.display_name).updated_at is None
-    changed = clocked.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
+    changed = clocked.add_entries(WatchlistName(watchlist.display_name), [("KO", GrahamNumberSelection())])
     assert changed.updated_at == LATER
 
 
@@ -304,7 +314,7 @@ def test_reopen_preserves_full_watchlist_state(tmp_path: Path) -> None:
         )
         created = repository.create(WatchlistSpec(display_name="Persisted"))
         repository.add_entries(
-            created.display_name,
+            WatchlistName(created.display_name),
             [("KO", GrahamNumberSelection()), ("PFE", GrahamNumberSelection(bvps_override=9.0))],
         )
     finally:
@@ -336,7 +346,7 @@ def test_no_network_access(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             database, clock=lambda: NOW, id_factory=lambda: FIRST_ID, alias_for=alias_for
         )
         watchlist = repository.create(WatchlistSpec(display_name="Offline"))
-        repository.add_entries(watchlist.display_name, [("KO", GrahamNumberSelection())])
+        repository.add_entries(WatchlistName(watchlist.display_name), [("KO", GrahamNumberSelection())])
         repository.list()
         assert repository.get("offline") is not None
     finally:
@@ -416,7 +426,7 @@ def _retire_entry(database: SQLiteDatabase, *, position: int) -> None:
 def _seed_momentum(repository: SQLiteWatchlistRepository, name: str, tickers: list[str]) -> Watchlist:
     watchlist = repository.create(WatchlistSpec(display_name=name))
     momentum = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
-    return repository.add_entries(watchlist.display_name, [(ticker, momentum) for ticker in tickers])
+    return repository.add_entries(WatchlistName(watchlist.display_name), [(ticker, momentum) for ticker in tickers])
 
 
 def _row_counts(database: SQLiteDatabase) -> tuple[int, int, int]:
@@ -433,11 +443,11 @@ def test_delete_returns_the_pre_delete_aggregate_and_removes_everything(
 ) -> None:
     watchlist = repository.create(WatchlistSpec(display_name="Doomed"))
     watchlist = repository.add_entries(
-        watchlist.display_name, [("KO", GrahamNumberSelection()), ("PFE", GrahamNumberSelection())]
+        WatchlistName(watchlist.display_name), [("KO", GrahamNumberSelection()), ("PFE", GrahamNumberSelection())]
     )
     repository.create(WatchlistSpec(display_name="Survivor"))
 
-    deleted = repository.delete("  DOOMED ")
+    deleted = repository.delete(WatchlistName("  DOOMED "))
 
     assert deleted.watchlist_id == watchlist.watchlist_id
     assert deleted.display_name == "Doomed"
@@ -451,11 +461,11 @@ def test_delete_returns_the_pre_delete_aggregate_and_removes_everything(
 
 def test_delete_leaves_other_watchlists_and_their_entries_untouched(repository: SQLiteWatchlistRepository) -> None:
     first = repository.create(WatchlistSpec(display_name="A"))
-    repository.add_entries(first.display_name, [("KO", GrahamNumberSelection())])
+    repository.add_entries(WatchlistName(first.display_name), [("KO", GrahamNumberSelection())])
     second = repository.create(WatchlistSpec(display_name="B"))
-    repository.add_entries(second.display_name, [("PFE", GrahamNumberSelection())])
+    repository.add_entries(WatchlistName(second.display_name), [("PFE", GrahamNumberSelection())])
 
-    repository.delete("A")
+    repository.delete(WatchlistName("A"))
 
     remaining = repository.get("B")
     assert remaining is not None
@@ -469,7 +479,7 @@ def test_delete_of_an_unknown_name_raises_and_changes_nothing(
     before = _row_counts(migrated_database)
 
     with pytest.raises(WatchlistNotFoundError):
-        repository.delete("Nonexistent")
+        repository.delete(WatchlistName("Nonexistent"))
 
     assert _row_counts(migrated_database) == before
 
@@ -491,7 +501,7 @@ def test_delete_keeps_saved_runs_loadable_and_the_name_is_reusable(
     assert saved is not None
     assert _row_counts(migrated_database)[2] == 1
 
-    repository.delete("Doomed")
+    repository.delete(WatchlistName("Doomed"))
 
     assert _row_counts(migrated_database)[2] == 1
     stored = runs.get(saved.analysis_run_id)
@@ -523,7 +533,7 @@ def test_delete_commits_when_entries_were_stored_by_an_earlier_version(
     _retire_entry(migrated_database, position=1)
     _retire_entry(migrated_database, position=2)
 
-    deleted = repository.delete("Old")
+    deleted = repository.delete(WatchlistName("Old"))
 
     assert deleted.watchlist_id == watchlist.watchlist_id
     assert deleted.entry_count == 3
@@ -540,13 +550,13 @@ def test_summary_counts_stored_entries_without_decoding_them(
     watchlist = _seed_momentum(repository, "Old", ["AAPL", "MSFT"])
     _retire_entry(migrated_database, position=0)
 
-    summary = repository.summary("old")
+    summary = repository.summary(WatchlistName("old"))
 
     assert summary.watchlist_id == watchlist.watchlist_id
     assert summary.display_name == "Old"
     assert summary.entry_count == 2
     with pytest.raises(WatchlistNotFoundError):
-        repository.summary("Nonexistent")
+        repository.summary(WatchlistName("Nonexistent"))
 
 
 def test_deleted_watchlist_holds_exactly_one_of_the_aggregate_or_the_error() -> None:
@@ -560,7 +570,7 @@ def test_rename_changes_the_name_keeps_the_id_and_entries_and_bumps_updated_at(
     watchlist = _seed_momentum(repository, "Old Name", ["AAPL", "MSFT"])
     clocked = SQLiteWatchlistRepository(migrated_database, clock=lambda: LATER, alias_for=alias_for)
 
-    clocked.rename("  old name ", "  New Name ")
+    clocked.rename(WatchlistName("  old name "), "  New Name ")
 
     assert repository.get("Old Name") is None
     renamed = repository.get("new name")
@@ -579,7 +589,7 @@ def test_rename_to_a_different_casing_of_its_own_name_changes_only_the_display_n
     watchlist = repository.create(WatchlistSpec(display_name="core holdings"))
     clocked = SQLiteWatchlistRepository(migrated_database, clock=lambda: LATER, alias_for=alias_for)
 
-    clocked.rename("core holdings", "Core Holdings")
+    clocked.rename(WatchlistName("core holdings"), "Core Holdings")
 
     renamed = repository.get("core holdings")
     assert renamed is not None
@@ -594,7 +604,7 @@ def test_rename_to_the_identical_display_name_is_a_no_op_that_does_not_bump_upda
     repository.create(WatchlistSpec(display_name="Same"))
     clocked = SQLiteWatchlistRepository(migrated_database, clock=lambda: LATER, alias_for=alias_for)
 
-    clocked.rename("same", " Same ")
+    clocked.rename(WatchlistName("same"), " Same ")
 
     unchanged = repository.get("Same")
     assert unchanged is not None
@@ -610,7 +620,7 @@ def test_rename_to_another_watchlists_name_is_a_conflict_and_changes_nothing(
     before = _row_counts(migrated_database)
 
     with pytest.raises(WatchlistConflictError):
-        repository.rename("First", "  SECOND ")
+        repository.rename(WatchlistName("First"), "  SECOND ")
 
     assert _row_counts(migrated_database) == before
     unchanged = repository.get("First")
@@ -623,14 +633,14 @@ def test_rename_rejects_a_blank_new_name(repository: SQLiteWatchlistRepository) 
     repository.create(WatchlistSpec(display_name="Keep"))
 
     with pytest.raises(ValueError, match="blank"):
-        repository.rename("Keep", "   ")
+        repository.rename(WatchlistName("Keep"), "   ")
 
     assert repository.get("Keep") is not None
 
 
 def test_rename_of_an_unknown_name_raises(repository: SQLiteWatchlistRepository) -> None:
     with pytest.raises(WatchlistNotFoundError):
-        repository.rename("Nonexistent", "Anything")
+        repository.rename(WatchlistName("Nonexistent"), "Anything")
 
 
 def test_rename_keeps_a_saved_runs_snapshot_name(
@@ -649,7 +659,7 @@ def test_rename_keeps_a_saved_runs_snapshot_name(
     saved = summary.results[0].run
     assert saved is not None
 
-    repository.rename("Before", "After")
+    repository.rename(WatchlistName("Before"), "After")
 
     stored = runs.get(saved.analysis_run_id)
     assert stored is not None
@@ -663,7 +673,7 @@ def test_rename_commits_when_entries_were_stored_by_an_earlier_version(
     watchlist = _seed_momentum(repository, "Old", ["AAPL", "MSFT"])
     _retire_entry(migrated_database, position=1)
 
-    repository.rename("Old", "Renamed")
+    repository.rename(WatchlistName("Old"), "Renamed")
 
     with migrated_database.read() as connection:
         row = connection.execute(select(watchlists)).mappings().one()
@@ -672,3 +682,78 @@ def test_rename_commits_when_entries_were_stored_by_an_earlier_version(
     assert _row_counts(migrated_database)[1] == 2
     with pytest.raises(StoredSelectionError, match=r"entry 2 \(MSFT, momentum\)"):
         repository.get("Renamed")
+
+
+def test_an_unreadable_entry_error_carries_the_entry_as_fields_and_no_remedy(
+    repository: SQLiteWatchlistRepository, migrated_database: SQLiteDatabase
+) -> None:
+    watchlist = repository.create(WatchlistSpec(display_name="Old"))
+    _store_raw_entry(migrated_database, watchlist.watchlist_id, method_id="graham_number")
+
+    with pytest.raises(StoredSelectionError) as caught:
+        repository.get("Old")
+
+    error = caught.value
+    assert (error.watchlist_name, error.entry_number, error.ticker, error.method) == ("Old", 1, "KO", "graham-number")
+    assert str(error).startswith("Watchlist 'Old', entry 1 (KO, graham-number): ")
+    assert str(error).endswith(".")
+    assert "ian " not in str(error)
+
+
+def test_every_write_resolves_a_watchlist_id_as_it_resolves_its_name(repository: SQLiteWatchlistRepository) -> None:
+    watchlist = repository.create(WatchlistSpec(display_name="Core"))
+    by_id = WatchlistId(watchlist.watchlist_id)
+    repository.add_entries(by_id, [("KO", GrahamNumberSelection()), ("PFE", GrahamNumberSelection())])
+
+    assert repository.summary(by_id).entry_count == 2
+    renamed = repository.rename(by_id, "Renamed")
+    assert renamed.watchlist is not None
+    assert renamed.watchlist.display_name == "Renamed"
+    assert repository.remove_entry(by_id, 0).removed == 1
+    assert repository.remove_entries_for_ticker(by_id, ["PFE"]).removed == 1
+    assert repository.remove_entries_for_method(by_id, "graham_number").removed == 0
+    assert repository.delete(by_id).display_name == "Renamed"
+    assert repository.get_by_id(watchlist.watchlist_id) is None
+
+
+def test_a_write_to_an_unknown_id_reports_the_id(repository: SQLiteWatchlistRepository) -> None:
+    missing = WatchlistId(UUID(int=7))
+
+    for write in (
+        lambda: repository.summary(missing),
+        lambda: repository.delete(missing),
+        lambda: repository.rename(missing, "New"),
+        lambda: repository.add_entries(missing, []),
+        lambda: repository.remove_entry(missing, 0),
+        lambda: repository.remove_entries_for_ticker(missing, ["KO"]),
+        lambda: repository.remove_entries_for_method(missing, "graham_number"),
+    ):
+        with pytest.raises(WatchlistNotFoundError) as caught:
+            write()
+        assert str(caught.value) == f"No watchlist with ID {missing.watchlist_id} exists."
+
+
+def test_a_rename_or_removal_commits_and_returns_the_unreadable_entry_instead_of_raising(
+    repository: SQLiteWatchlistRepository, migrated_database: SQLiteDatabase
+) -> None:
+    watchlist = repository.create(WatchlistSpec(display_name="Old"))
+    _store_raw_entry(migrated_database, watchlist.watchlist_id, method_id="graham_number")
+
+    renamed = repository.rename(WatchlistName("Old"), "New")
+    removed = repository.remove_entries_for_ticker(WatchlistName("New"), ["NOTHERE"])
+
+    assert renamed.watchlist is None
+    assert renamed.unreadable is not None
+    assert (renamed.unreadable.watchlist_name, renamed.unreadable.entry_number) == ("New", 1)
+    assert (removed.removed, removed.watchlist) == (0, None)
+    assert repository.summary(WatchlistName("new")).display_name == "New"
+
+
+def test_a_result_holds_exactly_one_of_the_watchlist_and_the_error() -> None:
+    error = StoredSelectionError("its stored selection is not valid JSON")
+
+    with pytest.raises(ValueError, match="exactly one"):
+        RenamedWatchlist(watchlist=None, unreadable=None)
+    with pytest.raises(ValueError, match="exactly one"):
+        RemovedEntries(removed=1, watchlist=None, unreadable=None)
+    assert RemovedEntries(removed=1, watchlist=None, unreadable=error).unreadable is error

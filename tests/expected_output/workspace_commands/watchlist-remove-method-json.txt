@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+{"watchlist_id": "<uuid>", "display_name": "Json Seeded", "created_at": "<time>", "updated_at": "<time>", "entries": []}
+--- stderr
+Removed 1 entry for fcf-growth from watchlist 'Json Seeded'.

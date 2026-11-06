@@ -332,7 +332,7 @@ def test_watchlist_remove_entry_out_of_range_exits_1() -> None:
     runner.invoke(app, ["watchlist", "add-selection", "Short List", "AAPL", "--analysis", "momentum"])
     result = runner.invoke(app, ["watchlist", "remove-entry", "Short List", "5"])
     assert result.exit_code == 1
-    assert "No entry at position" in normalize_cli_output(result.output)
+    assert normalize_cli_output(result.output).strip() == "Watchlist 'Short List' has no entry 5."
 
 
 def test_watchlist_remove_entry_rejects_an_index_below_1() -> None:
@@ -1196,7 +1196,7 @@ def test_an_exception_without_its_own_code_is_an_unexpected_failure_with_one_fix
 def test_an_exception_that_declares_its_own_code_keeps_its_own_message() -> None:
     _create("Core")
     with patch(
-        "investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.get",
+        "investment_analysis_engine.workspace.repositories.watchlists.SQLiteWatchlistRepository.get",
         side_effect=WatchlistNotFoundError("own message"),
     ):
         result = runner.invoke(app, ["watchlist", "show", "Core", "--json"])
@@ -1207,6 +1207,9 @@ def test_an_exception_that_declares_its_own_code_keeps_its_own_message() -> None
 
 def test_a_deliberate_exit_passes_through_the_catch_all() -> None:
     _create("Core")
-    with patch("investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.get", side_effect=typer.Exit(7)):
+    with patch(
+        "investment_analysis_engine.workspace.repositories.watchlists.SQLiteWatchlistRepository.get",
+        side_effect=typer.Exit(7),
+    ):
         result = runner.invoke(app, ["watchlist", "show", "Core"])
     assert result.exit_code == 7

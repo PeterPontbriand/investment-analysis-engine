@@ -8,7 +8,9 @@ live in :mod:`investment_analysis_engine.workspace.runs`.
 """
 
 import json
+from dataclasses import dataclass
 from typing import ClassVar
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
@@ -21,18 +23,69 @@ _SELECTION_ADAPTER: TypeAdapter[AnalysisSelection] = TypeAdapter(AnalysisSelecti
 class StoredSelectionError(ValueError):
     """A stored watchlist selection cannot be read by this version of the application.
 
-    The message is a self-contained clause describing the entry's state (for example
-    "saved by an earlier version (selection version 1) and can no longer be read"); a caller
-    that knows which entry it was decoding adds the watchlist, position and remedy.
+    A decoder raises it with a self-contained clause describing the entry's state (for example
+    "saved by an earlier version (selection version 1) and can no longer be read"), before it
+    knows which entry it was decoding. The repository, which does know, raises it again naming the
+    entry: the message is then ``Watchlist 'Core', entry 2 (MSFT, momentum): <clause>.`` and the
+    watchlist name, the 1-based entry number, the ticker and the method name are fields. The message
+    never names a command that removes the entry; a caller that offers one builds it from the fields.
     """
 
     reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.STORED_SELECTION_UNREADABLE
+
+    def __init__(
+        self,
+        clause: str,
+        *,
+        watchlist_name: str | None = None,
+        entry_number: int | None = None,
+        ticker: str | None = None,
+        method: str | None = None,
+    ) -> None:
+        """Keep the clause, or name the entry when all four of its fields are given."""
+        named = (watchlist_name, entry_number, ticker, method)
+        if any(field is not None for field in named) and any(field is None for field in named):
+            raise ValueError("StoredSelectionError names an entry by all of its four fields or by none.")
+        if watchlist_name is None:
+            message = clause
+        else:
+            message = f"Watchlist {watchlist_name!r}, entry {entry_number} ({ticker}, {method}): {clause}."
+        super().__init__(message)
+        self.watchlist_name = watchlist_name
+        self.entry_number = entry_number
+        self.ticker = ticker
+        self.method = method
 
 
 class WatchlistNotFoundError(ValueError):
     """No watchlist exists with the requested name."""
 
     reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.WATCHLIST_NOT_FOUND
+
+
+@dataclass(frozen=True)
+class WatchlistName:
+    """A watchlist addressed by its name, compared after trimming and case folding."""
+
+    name: str
+
+
+@dataclass(frozen=True)
+class WatchlistId:
+    """A watchlist addressed by its permanent ID."""
+
+    watchlist_id: UUID
+
+
+type WatchlistRef = WatchlistName | WatchlistId
+"""How an operation addresses one watchlist: by name or by ID."""
+
+
+def not_found_message(ref: WatchlistRef) -> str:
+    """Return the message that reports no watchlist matches ``ref``."""
+    if isinstance(ref, WatchlistName):
+        return f"No watchlist named {ref.name!r} exists."
+    return f"No watchlist with ID {ref.watchlist_id} exists."
 
 
 class WatchlistSpec(BaseModel):
@@ -112,8 +165,13 @@ def decode_selection(method_id: str, config_schema_version: int, selection_json:
 
 __all__ = [
     "StoredSelectionError",
+    "WatchlistId",
+    "WatchlistName",
+    "WatchlistNotFoundError",
+    "WatchlistRef",
     "WatchlistSpec",
     "decode_selection",
     "encode_selection",
     "normalize_ticker",
+    "not_found_message",
 ]

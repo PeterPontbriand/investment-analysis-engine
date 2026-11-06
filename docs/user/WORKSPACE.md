@@ -38,6 +38,8 @@ An empty watchlist like this one has nothing to refresh yet. The common case —
 uv run ian watchlist create "Core Holdings" --analysis momentum AAPL MSFT KO
 ```
 
+Add `--json` to `create` to print only the created watchlist as the `watchlist show --json` document (with the seeded entries, if any); a failure writes the failure document described in [USAGE](USAGE.md#--json--machine-readable-output) to standard output, and nothing is written to standard error.
+
 `--analysis` accepts any strategy alias in the [strategy table](#strategies-and-their-watchlist-options) — the same names used everywhere else in this guide — and each one's flags are exactly its direct command's own flags. Each strategy's flags are in the Watchlist options section of its guide, linked from the table below. A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or seed it into a watchlist, and omitting either is an `invalid_parameter` failure (exit `1`), not a silently-unselected method:
 
 ```bash
@@ -113,6 +115,8 @@ Remove every entry for a ticker (across every method) or every entry for a metho
 uv run ian watchlist remove-ticker "Core Holdings" KO
 uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
+
+Add `--json` to `add-selection`, `remove-entry`, `remove-ticker` or `remove-method` to print only the updated watchlist, as the `watchlist show --json` document, on standard output. After a removal the confirmation (`Removed 1 entry for KO from watchlist 'Core Holdings'.`, or `No entries for ZZZ in watchlist 'Core Holdings'.` when there was nothing to remove) goes to standard error, so standard output holds only the document. If the watchlist holds an entry saved by an earlier version that this version can no longer read, a removal still happens: its confirmation goes to standard error and standard output holds the failure document (`reason_code` `stored_selection_unreadable`, its `reason` naming the entry and the `remove-entry` command that removes it), with exit `1`. `add-selection` writes nothing to such a watchlist and reports the same failure. A rejected argument or a missing watchlist writes the failure document in every case.
 
 Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (the `--analysis` values in the [strategy table](#strategies-and-their-watchlist-options)). `--json` output keeps the stored method identifiers, listed in the same table, which never change.
 

@@ -2,18 +2,22 @@
 
 Splits [API.3](API_CONTRACT_AND_SLICE_PLAN.md#api3--application-layer-actions) into three slices. The first moves
 strategy execution out of the CLI, adds direct analysis as an operation and writes this plan. The second adds the
-watchlist actions and builds a selection from its model's fields. The third adds refresh with progress.
+watchlist actions and builds a selection from its model's fields, in two slices
+([W14](#w14-api3b-is-two-slices-2026-11-05)). The third adds refresh with progress.
 
 ## 1. At a glance
 
 - **What this plan does:**
   - API.3a moves production composition and every strategy's execution into `application` and adds direct analysis of
     one ticker as an operation, which the direct commands call;
-  - API.3b adds the watchlist actions, selection from model fields, the selection schemas and their conformance check,
-    and settles Site 19;
+  - API.3b1 adds the watchlist actions and switches the CLI to them;
+  - API.3b2 builds a selection from its model's fields, adds the per-strategy `add-selection` subcommands, the selection
+    schemas and their conformance check, and settles Site 19;
   - API.3c moves refresh into `application` with an observational progress callback.
 - **What it does not do:** add an endpoint, change a stored shape, a formula or a classification, or add a dependency.
-  API.3a and API.3c change no CLI output. The one CLI change is API.3b's
+  API.3a and API.3c change no CLI output. The CLI changes are API.3b1's
+  ([W11](#w11-every-watchlist-writing-command-has---json-2026-11-05) and
+  [W18](#w18-arguments-are-checked-before-the-database-opens-2026-11-05)) and API.3b2's
   ([C12](#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04)).
 - **Rules every slice follows:**
   - one execution path: the CLI and, in API.4, the API call the same operation, and the CLI holds no
@@ -34,7 +38,8 @@ watchlist actions and builds a selection from its model's fields. The third adds
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | API.3a | [Execution composition and direct analysis](#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-05 |
-| API.3b | [Watchlist actions, selections and Site 19](#api3b--watchlist-actions-selections-and-site-19) | Next | |
+| API.3b1 | [Watchlist actions](#api3b1--watchlist-actions) | Complete | 2026-11-05 |
+| API.3b2 | [Selections and Site 19](#api3b2--selections-and-site-19) | Next | |
 | API.3c | [Refresh with progress](#api3c--refresh-with-progress) | Planned | |
 
 ## 3. The slices
@@ -64,13 +69,30 @@ watchlist actions and builds a selection from its model's fields. The third adds
 - **Branch:** `feat/api-execution-composition`.
 - **Detail:** [Implementation record](#31-api3a-implementation-record).
 
-### API.3b — Watchlist actions, selections and Site 19
+### API.3b1 — Watchlist actions
 
-- **Problem:** watchlist create, rename, delete, add and remove are CLI-only, a selection is built from a flag bundle
-  that every strategy shares, and a client has no description of a strategy's selection fields.
+- **Problem:** watchlist create, rename, delete, add and remove are CLI-only: each command opens the database and calls
+  the repository itself, which the API cannot call.
 - **Decision:**
   - watchlist actions take one reference, a name or an ID, resolved inside the action's own transaction
     ([C9](#c9-watchlist-actions-take-one-watchlistref-2026-11-04));
+  - an action writes and reads back in one transaction ([W8](#w8-a-watchlist-action-writes-and-reads-back-in-one-transaction-2026-11-05)),
+    delete is confirmed and done by ID ([W9](#w9-delete-is-confirmed-and-done-by-id-2026-11-05)), the actions check their
+    own arguments ([W10](#w10-argument-checks-are-in-the-actions-2026-11-05)) and every writing command has `--json`
+    ([W11](#w11-every-watchlist-writing-command-has---json-2026-11-05));
+  - the implementation decisions W15 to W26 ([Appendix A](#appendix-a-decision-records)).
+- **Scope:** the watchlist actions and `application/parameters.py`; the repository's write methods and
+  `StoredSelectionError`; the CLI switched to the actions, with `--json` on five commands; the tests and the documents
+  they touch. `WatchlistFlags`, the `--analysis` option of `create` and `add-selection`, and the Momentum defaults the CLI
+  reads are API.3b2's and stay as they are.
+- **Branch:** `feat/api-watchlist-actions`.
+- **Detail:** [Implementation record](#32-api3b1-implementation-record).
+
+### API.3b2 — Selections and Site 19
+
+- **Problem:** a selection is built from a flag bundle that every strategy shares, and a client has no description of a
+  strategy's selection fields.
+- **Decision:**
   - `build_selection(context, method_id, fields)` applies the configured defaults to omitted fields and then the
     selection model validates ([C10](#c10-selection-is-built-from-model-fields-2026-11-04)), and validation names model
     fields ([C11](#c11-selection-validation-names-model-fields-2026-11-04));
@@ -78,13 +100,12 @@ watchlist actions and builds a selection from its model's fields. The third adds
     ([C12](#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04));
   - one schema per strategy, compared in the gate ([C13](#c13-one-selection-schema-per-strategy-2026-11-04)), with the
     form-supported field types of [C14](#c14-form-supported-field-types-2026-11-04);
-  - the implementation decisions W1 to W13 ([Appendix A](#appendix-a-decision-records)); W2 was done before this slice,
-    in its own pull request.
-- **Scope:** the watchlist actions in `application`; `build_selection`; the selection schemas and their generator and
-  conformance check; the CLI change of C12 with the documents it touches; the closure of Site 19 in the documents named
-  in C12.
-- **Branch:** `feat/api-watchlist-actions`.
-- **Detail:** ⚠ no slice plan yet. Decisions C9 to C14 are in [Appendix A](#appendix-a-decision-records).
+  - the implementation decisions W1, W3 to W7, W12 and W13 ([Appendix A](#appendix-a-decision-records)); W2 was done
+    before API.3b, in its own pull request.
+- **Scope:** `build_selection`; the selection schemas and their generator and conformance check; the CLI change of C12
+  with the documents it touches; the closure of Site 19 in the documents named in C12.
+- **Branch:** `feat/api-selections`.
+- **Detail:** ⚠ no implementation record yet. Decisions C10 to C14 are in [Appendix A](#appendix-a-decision-records).
 
 ### API.3c — Refresh with progress
 
@@ -317,6 +338,108 @@ Noticed for later slices:
   strategy's configured defaults ([C13](#c13-one-selection-schema-per-strategy-2026-11-04)); both are recorded in the
   contract's API.4 entry.
 
+### 3.2 API.3b1 implementation record
+
+What changed, by area:
+
+- **Repository:**
+  - `workspace/watchlists.py` gains `WatchlistName`, `WatchlistId`, `WatchlistRef` and `not_found_message`
+    ([W19](#w19-watchlistref-is-a-name-or-an-id-2026-11-05)); `StoredSelectionError` carries the watchlist name, the
+    1-based entry number, the ticker and the method name, and its message ends after the clause naming the entry and its
+    state ([W16](#w16-the-cli-adds-the-remedy-for-an-unreadable-entry-2026-11-05));
+  - `summary`, `delete`, `rename`, `add_entries` and the three removals take a `WatchlistRef`, resolved by one `_find_id`
+    inside their own transaction ([W20](#w20-the-repositorys-writes-take-a-watchlistref-2026-11-05)); the name-only
+    signatures are gone;
+  - `rename` returns `RenamedWatchlist` and each removal `RemovedEntries` (the count removed), each holding exactly one of
+    the watchlist and the error that makes an entry unreadable, read back with `_load` in the write's own transaction and
+    returned, not raised, so the write commits ([W8](#w8-a-watchlist-action-writes-and-reads-back-in-one-transaction-2026-11-05)).
+    `add_entries` still raises and rolls back ([W15](#w15-adding-to-a-watchlist-with-an-unreadable-entry-is-refused-2026-11-05)).
+- **`application`:**
+  - `parameters.py`: `ActionParameterError`, an `InvalidParameterError` carrying a message template and the action's own
+    parameter names, with `named(...)` to fill in a caller's ([W17](#w17-an-actions-parameter-error-is-a-template-2026-11-05));
+  - `watchlists.py`: `create_watchlist(context, name) -> Watchlist`;
+    `rename_watchlist(context, ref, new_name) -> RenamedWatchlist`; `delete_watchlist(context, ref) -> DeletedWatchlist`;
+    `add_watchlist_entries(context, ref, entries) -> Watchlist`;
+    `remove_watchlist_entry(context, ref, entry_number)`, `remove_watchlist_tickers(context, ref, tickers)` and
+    `remove_watchlist_method(context, ref, method_id)`, each `-> RemovedEntries`;
+    `get_watchlist_summary(context, ref) -> WatchlistSummary`. Each checks its arguments, then opens the database with
+    `open_database(context)` ([W18](#w18-arguments-are-checked-before-the-database-opens-2026-11-05)). The checks are also
+    exported as `check_watchlist_name` and `check_tickers`, which the CLI's `create` calls before it creates the watchlist
+    that it then seeds ([W21](#w21-create-seeds-through-two-actions-until-api3b2-2026-11-05)). An entry is addressed by
+    its 1-based number; the 0-based position stays in the repository.
+- **CLI:** every watchlist write command calls its action and neither opens the database nor calls the repository.
+  `_watchlist_action` fills the action's parameter names in from a table per command (`NAME`, `TICKER`, `INDEX`,
+  `NEW_NAME`), `_fail_with` appends the remedy to an unreadable-entry message, `delete` asks from
+  `get_watchlist_summary` by name and deletes by the summary's `WatchlistId`, and `create`, `add-selection`,
+  `remove-entry`, `remove-ticker` and `remove-method` gain `--json`. `_workspace_database` stays: `refresh` uses it until
+  API.3c.
+- **Documents:** `docs/user/USAGE.md` and `docs/user/WORKSPACE.md` list the new `--json` commands;
+  `schemas/watchlist.schema.json`, `schemas/watchlist-delete.schema.json` and `schemas/openapi.json` carry the watchlist
+  schema's new description, which names every command that writes it. No key or type changed.
+
+User-visible changes:
+
+- `--json` on `watchlist create`, `add-selection`, `remove-entry`, `remove-ticker` and `remove-method`
+  ([W11](#w11-every-watchlist-writing-command-has---json-2026-11-05), [W23](#w23---json-on-the-watchlist-writing-commands-2026-11-05)).
+  Help texts: "Emit the created watchlist document." and "Emit the updated watchlist document." Standard output holds the
+  watchlist document; after a removal the confirmation goes to standard error; an unreadable entry after a committed
+  removal writes the failure document to standard output and exits 1:
+
+  ```text
+  $ ian watchlist remove-ticker Core KO --json
+  stderr:  Removed 1 entry for KO from watchlist 'Core'.
+  stdout:  {"watchlist_id": "…", "display_name": "Core", …, "entries": [{"index": 1, "ticker": "MSFT", …}]}
+  exit 0
+  ```
+
+- Where a command was given both a rejected argument and a database that is not ready, it now reports the argument
+  (W18). Before: the database's readiness error. After: for example `NAME must not be blank.` with exit 1.
+- `GET /v1/watchlists/{watchlist_id}` for a watchlist holding an unreadable entry no longer ends its `reason` with
+  `Remove it with: ian watchlist remove-entry "<name>" <number>` (W16). Before:
+  `Watchlist 'Core', entry 2 (MSFT, momentum): <state>. Remove it with: ian watchlist remove-entry "Core" 2`. After:
+  `Watchlist 'Core', entry 2 (MSFT, momentum): <state>.` The command line's output is unchanged: it appends the remedy.
+- A `remove-entry` number with no entry now reports it by the number given and the watchlist's stored name
+  ([W24](#w24-a-missing-entry-is-named-by-its-number-2026-11-05)). Before: `No entry at position 4 in watchlist 'Short
+  List'.` (for `remove-entry "Short List" 5`, the stored 0-based position). After: `Watchlist 'Short List' has no entry 5.`
+  The same message follows an ID reference.
+- No other CLI message, `parameters` value, exit code or recorded output changed: every recorded output of
+  `tests/expected_output/workspace_commands/` is byte for byte what `main` writes, and the five new `--json` commands add
+  seven recorded steps.
+
+Tests edited, and why:
+
+- `tests/test_cli_workspace.py`: two `patch(...)` targets name the module-path alias
+  `investment_analysis_engine.cli_workspace.SQLiteWatchlistRepository.get`; the CLI no longer imports the repository, so
+  the target names the class where it is defined. The same object is patched.
+- `tests/workspace/repositories/test_watchlist_repository.py`, `tests/_runs_compare_refresh.py`,
+  `tests/test_cli_refresh.py`, `tests/test_cli_momentum_statuses.py`, `tests/test_cli_failure_envelope.py`,
+  `tests/api/test_endpoints.py` and `tests/application/test_watchlists.py`: each call to a repository write method wraps its
+  name argument in `WatchlistName(...)` (W20); the repository tests that compared a removal's return value now compare its
+  `.removed` (W8, W22).
+
+Follow-up tests (W24 to W26): `tests/test_cli_workspace.py::test_watchlist_remove_entry_out_of_range_exits_1` now asserts the
+full new message (edited from a check for `No entry at position`); `test_watchlist_actions.py` asserts the same message for
+a reference by name and by ID, that an undeclared method is rejected under `method_id` before the database opens, and that
+an empty `tickers` and an empty `entries` are rejected.
+
+Tests added: `tests/application/test_watchlist_actions.py` (each action, by name and by ID, its conflicts and parameter
+errors with the action's own names, the unreadable read-back after rename and each removal, the refused add, the order of
+argument and database checks, and a rename between a summary and a delete); `tests/application/test_parameters.py`;
+`tests/test_cli_watchlist_json.py` (`--json` on the five commands, including the unreadable and nothing-to-remove cases,
+and the argument-before-database order on the command line); repository tests of ID addressing, the returned read-back
+and the error's fields; `tests/workspace/test_watchlists.py` for the error's fields and the not-found message; an API test
+that no failure document the API serves contains `ian `.
+
+Accepted deviations: none from the wording of W8 to W26.
+
+Noticed for later slices:
+
+- API.3b2: `create` still seeds through `WatchlistFlags` (W21), and `cli_workspace.py` still reads Momentum's option
+  defaults; C12 removes both. Its selection validation reuses `application/parameters.py`.
+- API.3b2: `check_watchlist_name` and `check_tickers` are public in `application/watchlists.py` only because `create`
+  checks its tickers before it creates and seeds; when API.3b2 removes the seeding (C12), make them private again.
+- API.3c: `_workspace_database` is used only by the refresh command and goes when refresh moves into `application`.
+
 ## 4. Scope limits and acceptance criteria
 
 - API.3a changes no CLI output, text, `--json`, help text, message or exit code, no stored shape, formula or
@@ -331,7 +454,7 @@ Noticed for later slices:
 - A strategy added through `scripts/new_strategy.py` has a `workspace.py`, an `application.py` and an entry in the
   application tier, and passes the conformance checks.
 - Each operation that reports a provider failure builds its own probe from the context's settings.
-- API.3b and API.3c carry out C9 to C17 and meet the criteria of the contract's section 5 that concern them.
+- API.3b1, API.3b2 and API.3c carry out C9 to C17 and meet the criteria of the contract's section 5 that concern them.
 
 ## 5. Background
 
@@ -340,14 +463,14 @@ because the actions needed it ([A11](API_1_SLICE_PLAN.md#a11-cli_compositionpy-s
 The actions are larger than the reads: a direct analysis composes providers and caches, runs a strategy, presents it in
 four forms and may save it, and a refresh does the same for a watchlist and reports progress. Doing them in one slice
 would mix a move of existing code with new behavior, so the move and direct analysis come first (API.3a), the new
-watchlist behavior and the CLI change second (API.3b) and the progress callback last (API.3c).
+watchlist behavior and the CLI change second (API.3b1 and API.3b2) and the progress callback last (API.3c).
 
 The CLI tests pinned the direct commands' output byte for byte, which is why API.3a can move the presentation: the
 expected text of every mode was recorded from `main` before the change and the operation is compared with it.
 
 ## Appendix A: Decision records
 
-C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05.
+C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05, and W14 to W26 on 2026-11-05.
 
 ### C1 API.3 is three slices (2026-11-04)
 
@@ -356,7 +479,8 @@ API.3 is three slices:
 | Slice | Decisions | Branch |
 | :--- | :--- | :--- |
 | API.3a | C2 to C8 and this plan | `feat/api-execution-composition` |
-| API.3b | C9 to C14: watchlist actions, selection from model fields, the selection schemas and their conformance check, Site 19 | `feat/api-watchlist-actions` |
+| API.3b1 | C9, W8 to W11, W15 to W26: the watchlist actions, with the CLI switched to them | `feat/api-watchlist-actions` |
+| API.3b2 | C10 to C14, W1, W3 to W7, W12, W13: selection from model fields, the selection schemas and their conformance check, Site 19 | `feat/api-selections` |
 | API.3c | C15 to C17: refresh with progress | `feat/api-refresh-progress` |
 
 These branches replace the contract's single `feat/api-application-actions`. Each slice switches the CLI to its
@@ -575,3 +699,55 @@ The actions check their own arguments (a blank name or new name, a blank or miss
 ### W13 API.3b's record and closures (2026-11-05)
 
 API.3b's detail is a section "3.2 API.3b implementation record" in this plan, which replaces the "no slice plan yet" line. Its pull request marks its row Complete and API.3c Next, and makes C12's closures: the lines in H.10 of `SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md` and B.3 of `STEP_3_5_3_SLICE_PLAN.md`, the removal of the exit-code paragraph in `docs/user/USAGE.md`, and row 19 of the strategy-site table.
+
+### W14 API.3b is two slices (2026-11-05)
+
+API.3b is split into API.3b1 (C9, W8 to W11 and W15 to W26: the watchlist actions, with the CLI switched to them) on `feat/api-watchlist-actions`, and API.3b2 (C10 to C14, W1, W3 to W7, W12 and W13: selection from model fields, the per-strategy `add-selection` subcommands, the selection schemas and Site 19) on `feat/api-selections`. Each has its own implementation record, 3.2 and 3.3; API.3c's is 3.4. Amends C1's branch list.
+
+### W15 Adding to a watchlist with an unreadable entry is refused (2026-11-05)
+
+Adding entries writes nothing when the watchlist holds an entry this version cannot read, as before. W8's watchlist-or-unreadable result applies to rename, the removals and delete, which commit whatever the other entries hold.
+
+### W16 The CLI adds the remedy for an unreadable entry (2026-11-05)
+
+`StoredSelectionError` carries the watchlist name, the entry number, the ticker and the method, and its message names the entry and its state with no remedy. The CLI appends `Remove it with: ian watchlist remove-entry "<name>" <number>`, so its output does not change; the API serves no `ian` command.
+
+### W17 An action's parameter error is a template (2026-11-05)
+
+An action's parameter error carries a message template and the action's own parameter names, and each caller fills in its names: the CLI from a table per command, so its messages and `parameters` do not change, and the API with the action's names. It is in `application/parameters.py`, and API.3b2's selection validation uses it too.
+
+### W18 Arguments are checked before the database opens (2026-11-05)
+
+Every action checks its arguments before it opens the database. A command given both a rejected argument and a database that is not ready now reports the argument: an approved output change.
+
+### W19 WatchlistRef is a name or an ID (2026-11-05)
+
+`type WatchlistRef = WatchlistName | WatchlistId`, two frozen one-field types. Not found by name is "No watchlist named 'X' exists." and by ID "No watchlist with ID <id> exists."
+
+### W20 The repository's writes take a WatchlistRef (2026-11-05)
+
+`summary`, `delete`, `rename`, `add_entries` and the three removals take a `WatchlistRef`, resolved in their own transaction, in place of a name. The reads `get` and `get_by_id` stay (S36).
+
+### W21 create seeds through two actions until API.3b2 (2026-11-05)
+
+In API.3b1 `ian watchlist create` with `--analysis` calls the create action and then the add action; the create action takes no entries. API.3b2 removes the seeding (C12).
+
+### W22 The watchlist actions (2026-11-05)
+
+`create_watchlist`, `rename_watchlist`, `delete_watchlist`, `add_watchlist_entries`, `remove_watchlist_entry`, `remove_watchlist_tickers`, `remove_watchlist_method` and `get_watchlist_summary`, in `application/watchlists.py`. Rename returns `RenamedWatchlist` and each removal `RemovedEntries` (the count), each holding exactly one of the watchlist and the error that makes an entry unreadable. An entry is addressed by its 1-based number.
+
+### W23 --json on the watchlist writing commands (2026-11-05)
+
+`create`, `add-selection`, `remove-entry`, `remove-ticker` and `remove-method` gain `--json`, with the help texts "Emit the created watchlist document." (`create`) and "Emit the updated watchlist document." (the others). After a removal the confirmation goes to standard error. An unreadable entry after a committed change writes the failure document and exits 1, as `rename --json` does.
+
+### W24 A missing entry is named by its number (2026-11-05)
+
+"Watchlist 'Core' has no entry 3." names the entry by the 1-based number the caller gave and the watchlist by its stored name, whether it was addressed by name or by ID. It replaces a message that printed the stored 0-based position: an approved CLI message change.
+
+### W25 Removing by method needs a declared method (2026-11-05)
+
+`remove_watchlist_method` rejects a method identifier this version does not declare, under its parameter `method_id`, instead of removing nothing. An entry whose method is no longer declared is removed with `remove-entry`.
+
+### W26 An empty ticker or entry list is rejected (2026-11-05)
+
+`remove_watchlist_tickers` rejects an empty `tickers` and `add_watchlist_entries` an empty `entries`, instead of doing nothing. The CLI cannot send either.

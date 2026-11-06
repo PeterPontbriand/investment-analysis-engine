@@ -23,6 +23,7 @@ from investment_analysis_engine.strategies.momentum.selection import MomentumSel
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.repositories.watchlists import SQLiteWatchlistRepository
 from investment_analysis_engine.workspace.runs import RunQuery
+from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._wiring import alias_for
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
@@ -167,7 +168,7 @@ def _seed(settings: ProjectSettings, name: str, tickers: list[str]) -> None:
     database = SQLiteDatabase(settings)
     try:
         SQLiteWatchlistRepository(database, alias_for=alias_for).add_entries(
-            name, [(ticker, selection) for ticker in tickers]
+            WatchlistName(name), [(ticker, selection) for ticker in tickers]
         )
     finally:
         database.close()

@@ -45,7 +45,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.2a | [Versioned list documents](API_2_SLICE_PLAN.md#api2a--versioned-list-documents) | Complete | 2026-11-03 |
 | API.2b | [`ian serve` and the read endpoints](#api2--ian-serve-and-the-read-endpoints) | Complete | 2026-11-04 |
 | API.3a | [Execution composition and direct analysis](API_3_SLICE_PLAN.md#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-05 |
-| API.3b | [Watchlist actions, selections and Site 19](API_3_SLICE_PLAN.md#api3b--watchlist-actions-selections-and-site-19) | Next | |
+| API.3b1 | [Watchlist actions](API_3_SLICE_PLAN.md#api3b1--watchlist-actions) | Complete | 2026-11-05 |
+| API.3b2 | [Selections and Site 19](API_3_SLICE_PLAN.md#api3b2--selections-and-site-19) | Next | |
 | API.3c | [Refresh with progress](API_3_SLICE_PLAN.md#api3c--refresh-with-progress) | Planned | |
 | API.4 | [Action endpoints and refresh jobs](#api4--action-endpoints-and-refresh-jobs) | Planned | |
 | API.5 | [Help content](#api5--help-content) | Planned | |
@@ -130,7 +131,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Scope:**
   - API.3a: strategy execution moves out of the CLI, with production composition, and direct analysis of one ticker is
     an operation, saved or not;
-  - API.3b: watchlist create, rename, delete, add and remove; selection from model fields; the selection models' JSON
+  - API.3b1: watchlist create, rename, delete, add and remove;
+  - API.3b2: selection from model fields; the selection models' JSON
     Schema ([S19](API_2_SLICE_PLAN.md#s19-the-selection-model-schema-moves-to-api3-2026-11-03)) and a conformance
     check that every selection field has a description and a type the API's form schema supports; Site 19;
   - API.3c: refresh with progress;
@@ -142,9 +144,9 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   `as_of` reaches the operation unchanged ([C6](API_3_SLICE_PLAN.md#c6-the-as-of-echo-is-the-existing-document-fields-2026-11-04)).
 - **Site 19:** the watchlist flag bundle is replaced by one `add-selection` subcommand per strategy, decided in
   [C12](API_3_SLICE_PLAN.md#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04) and
-  implemented in API.3b.
-- **Branches:** `feat/api-execution-composition` (API.3a), `feat/api-watchlist-actions` (API.3b) and
-  `feat/api-refresh-progress` (API.3c); they replace the single `feat/api-application-actions`.
+  implemented in API.3b2.
+- **Branches:** `feat/api-execution-composition` (API.3a), `feat/api-watchlist-actions` (API.3b1),
+  `feat/api-selections` (API.3b2) and `feat/api-refresh-progress` (API.3c); they replace the single `feat/api-application-actions`.
 - **Also moved:** `investment_analysis_engine/cli_composition.py` (the provider and resolver builders and the settings
   loaders) was deleted in API.3a: the shared builders are in `application/providers.py` and each strategy's own are in its
   `application.py` ([A11](API_1_SLICE_PLAN.md#a11-cli_compositionpy-stays-in-cli-until-api3-2026-11-01),
