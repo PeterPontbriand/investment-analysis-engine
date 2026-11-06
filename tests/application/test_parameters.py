@@ -54,3 +54,18 @@ def test_a_nested_field_name_is_substituted_and_not_read_as_attribute_access() -
     assert str(error) == "Invalid policy.historical_horizon: bad {unrelated} {0}."
     spelled = error.named({"policy.historical_horizon": "--growth-years"})
     assert str(spelled) == "Invalid --growth-years: bad {unrelated} {0}."
+
+
+def test_text_inserted_for_a_placeholder_is_not_substituted_again() -> None:
+    error = ActionParameterError(
+        "{name} got {value}.", parameters=("name",), rule="demo.once", arguments={"value": "{name} and {other}"}
+    )
+
+    assert str(error) == "name got {name} and {other}."
+    assert str(error.named({"name": "--n"})) == "--n got {name} and {other}."
+
+
+def test_a_placeholder_the_error_does_not_declare_stays_as_written() -> None:
+    error = ActionParameterError("{name} and {undeclared}.", parameters=("name",), rule="demo.undeclared")
+
+    assert str(error) == "name and {undeclared}."

@@ -102,6 +102,18 @@ def test_an_entry_serving_no_descriptor_and_a_duplicate_entry_are_rejected() -> 
         cli_entries(STRATEGIES, (*CLI_STRATEGIES, CLI_STRATEGIES[0]))
 
 
+def test_the_add_selection_help_lists_exactly_the_declared_strategies_with_their_summaries() -> None:
+    """The expected list is built from the declared strategies, so a new strategy needs no edit here."""
+    result = runner.invoke(app, ["watchlist", "add-selection", "--help"], env={"COLUMNS": "200"})
+
+    assert result.exit_code == 0, result.output
+    text = normalize_cli_output(result.output)
+    expected = " ".join(
+        f"{item.alias} Add one {item.label} entry per ticker to an existing watchlist." for item in STRATEGIES
+    )
+    assert text.split(" Commands ")[1] == expected
+
+
 def test_add_selection_is_a_command_group_with_one_command_per_declared_strategy() -> None:
     """The group holds each alias, in declaration order, each summarized from its descriptor's label."""
     group = typer.main.get_group(watchlist_app)

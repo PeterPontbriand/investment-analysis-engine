@@ -21,7 +21,7 @@ from investment_analysis_engine.cli_support import (
     emit_output,
     execution_errors,
     parameter_failures,
-    parse_as_of,
+    parse_as_of_option,
     resolve_command_target,
     selection_from_options,
 )
@@ -39,7 +39,7 @@ CURRENT_PRICE_OPTION = Annotated[
 ]
 
 SELECTION_OPTIONS = (
-    SelectionOption("as_of", "as_of", "--as-of", parse_as_of),
+    SelectionOption("as_of", "as_of", "--as-of", parse_as_of_option),
     SelectionOption("no_cache", "use_cache", "--no-cache", cache_enabled),
     SelectionOption("eps", "eps_override", "--eps"),
     SelectionOption("bvps", "bvps_override", "--bvps"),

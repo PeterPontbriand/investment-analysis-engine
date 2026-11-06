@@ -12,7 +12,7 @@ from investment_analysis_engine.application.analysis import exit_code_of
 from investment_analysis_engine.cli_support import (
     execution_errors,
     parameter_failures,
-    parse_as_of,
+    parse_as_of_option,
     presentation_mode,
     provider_failure_message,
     resolve_ticker,
@@ -70,20 +70,27 @@ def test_execution_errors_classify_without_exposing_exception(error: Exception, 
     echo.assert_called_once_with(message, err=True)
 
 
-def test_date_and_timestamp_boundaries_are_parsed_by_syntax_only() -> None:
-    """The parser returns a date or a timestamp as written; the end-of-day and offset rules are the builder's."""
-    assert parse_as_of(None) is None
-    assert parse_as_of(" 2025-12-31 ") == date(2025, 12, 31)
-    assert parse_as_of("2025-12-31T12:00:00Z") == datetime(2025, 12, 31, 12, tzinfo=UTC)
-    assert parse_as_of("2025-12-31T07:00:00-05:00") == datetime(2025, 12, 31, 12, tzinfo=UTC)
-    assert parse_as_of("2025-12-31T12:00:00") == datetime(2025, 12, 31, 12)  # noqa: DTZ001 - a naive value is parsed
+def test_the_as_of_option_parses_by_syntax_only() -> None:
+    """The option returns a date or a timestamp as written; the end-of-day and offset rules are the builder's."""
+    assert parse_as_of_option(None) is None
+    assert parse_as_of_option(" 2025-12-31 ") == date(2025, 12, 31)
+    assert parse_as_of_option("2025-12-31T12:00:00Z") == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert parse_as_of_option("2025-12-31T12:00:00") == datetime(2025, 12, 31, 12)  # noqa: DTZ001 - a naive value parses
 
 
-@pytest.mark.parametrize("value", ["", "bad", "2025-02-30"])
-def test_invalid_boundaries_are_invalid_parameters(value: str) -> None:
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("", "--as-of must be non-empty when supplied."),
+        ("  ", "--as-of must be non-empty when supplied."),
+        ("bad", "--as-of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp."),
+        ("2025-02-30", "--as-of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp."),
+    ],
+)
+def test_invalid_boundaries_are_invalid_parameters_named_by_the_option(value: str, message: str) -> None:
     with pytest.raises(InvalidParameterError) as caught:
-        parse_as_of(value)
-    assert caught.value.parameters == ("--as-of",)
+        parse_as_of_option(value)
+    assert (str(caught.value), caught.value.parameters) == (message, ("--as-of",))
 
 
 def test_ticker_provider_and_presentation_normalization() -> None:

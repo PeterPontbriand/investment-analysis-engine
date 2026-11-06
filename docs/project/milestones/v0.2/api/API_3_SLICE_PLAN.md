@@ -39,7 +39,7 @@ watchlist actions and builds a selection from its model's fields, in two slices
 | :--- | :--- | :--- | :--- |
 | API.3a | [Execution composition and direct analysis](#api3a--execution-composition-and-direct-analysis) | Complete | 2026-11-05 |
 | API.3b1 | [Watchlist actions](#api3b1--watchlist-actions) | Complete | 2026-11-05 |
-| API.3b2 | [Selections and Site 19](#api3b2--selections-and-site-19) | Complete | 2026-11-05 |
+| API.3b2 | [Selections and Site 19](#api3b2--selections-and-site-19) | Complete | 2026-11-06 |
 | API.3c | [Refresh with progress](#api3c--refresh-with-progress) | Next | |
 
 ## 3. The slices
@@ -100,7 +100,7 @@ watchlist actions and builds a selection from its model's fields, in two slices
     ([C12](#c12-site-19-is-settled-by-one-add-selection-subcommand-per-strategy-2026-11-04));
   - one schema per strategy, compared in the gate ([C13](#c13-one-selection-schema-per-strategy-2026-11-04)), with the
     form-supported field types of [C14](#c14-form-supported-field-types-2026-11-04);
-  - the implementation decisions W1, W3 to W7, W12, W13 and W27 to W42 ([Appendix A](#appendix-a-decision-records));
+  - the implementation decisions W1, W3 to W7, W12, W13 and W27 to W46 ([Appendix A](#appendix-a-decision-records));
     W2 was done before API.3b, in its own pull request.
 - **Scope:** `build_selection`; the selection schemas and their generator and conformance check; the CLI change of C12
   with the documents it touches; the closure of Site 19 in the documents named in C12.
@@ -452,7 +452,7 @@ What changed, by area:
   - `analysis/selection_base.py`: `SelectionRuleError`; `StrategyDescriptor.selection_settings_fields` (all five descriptors; Momentum names its three); `BehaviorView.selection_type`;
   - every selection model has a description on every field, including FCF Growth's `policy` ([W33](#w33-field-descriptions-2026-11-05)); Momentum's positivity and window-order rules, the non-finite override rule and the currency rule raise templated `SelectionRuleError`s; `GrahamGrowthSelection.eps_basis` and `GrahamGrowthConfig.eps_basis` default to `"three_year_average"` ([W34](#w34-graham-growths-eps_basis-2026-11-05)).
 - **CLI:**
-  - `cli_support.py`: `SelectionOption`, `selection_from_options`, `cache_enabled`, `parse_as_of` (syntax only, returns a date or a datetime), the shared options as `Annotated` aliases ([W36](#w36-one-option-style-2026-11-05)), and the failure reporting and watchlist rendering the watchlist commands share, which `cli_workspace.py` held (`workspace_failures`, `fail`, `fail_with`, `watchlist_action`, `watchlist_text`, `watchlist_json`, `document_json`, `add_selection_entries`). `config_usage_errors` is deleted;
+  - `cli_support.py`: `SelectionOption`, `selection_from_options`, `cache_enabled`, `parse_as_of_option` (syntax only, through the application's `parse_as_of_text`), the shared options as `Annotated` aliases ([W36](#w36-one-option-style-2026-11-05)), and the failure reporting and watchlist rendering the watchlist commands share, which `cli_workspace.py` held (`workspace_failures`, `fail`, `fail_with`, `watchlist_action`, `watchlist_text`, `watchlist_json`, `document_json`, `add_selection_entries`). `config_usage_errors` is deleted;
   - each strategy's `cli.py` declares its selection options once as `Annotated` aliases, a `SELECTION_OPTIONS` table, its direct command and `add_selection`; Momentum's three window options default to omitted ([W29](#w29-momentums-window-options-default-to-the-settings-2026-11-05));
   - `cli_strategy_wiring.py`: `CliComposition` and `CliStrategy` hold `command`, `add_selection` and `selection_options` and lose `build`; `add_selection_commands` registers each strategy's subcommand with a summary generated from its label ([W38](#w38-help-for-the-new-and-changed-commands-2026-11-05)); the builder lookups are deleted. `cli_watchlist_flags.py` is deleted;
   - `cli_workspace.py`: `create` takes a name and `--json` only; `add-selection` is a group holding the subcommands.
@@ -487,6 +487,14 @@ Tests edited, and why:
 Re-recorded files: `tests/expected_output/cli_help/momentum.txt` (W29: the window defaults); new help snapshots `watchlist-create.txt` and `watchlist-add-selection-<alias>.txt` for each strategy; five new workspace-command steps, `watchlist-create-seeded-setup.txt`, `watchlist-create-single-entry-setup.txt`, `watchlist-create-failing-setup.txt`, `watchlist-create-as-of-setup.txt` and `watchlist-create-seeded-json-setup.txt`. Every existing file of `tests/expected_output/workspace_commands/` is byte for byte what it was, and every other help snapshot is unchanged. `schemas/watchlist.schema.json`, `schemas/watchlist-delete.schema.json` and `schemas/openapi.json` are regenerated as above.
 
 Tests added: `tests/application/test_selections.py` (declared method, fixed and unknown fields, the as-of rule and its message, the settings fill and given values, every Momentum rule with its identifier and values, missing and built-in errors with their type, nested names, first error only); `tests/application/test_parameters.py` (rule and values, a dotted nested name as a template placeholder); `tests/test_selection_conformance.py` (T27, production and specimen, and each way it can fail); selection-schema tests in `tests/scripts/test_generate_schemas.py` (the properties are exactly what `build_selection` accepts, no default or requirement for a settings-filled field); the help snapshot checks.
+
+Review fixes (2026-11-06, [W43](#w43-the-as-of-syntax-parser-is-in-the-application-layer-2026-11-06) to [W46](#w46-the-add-selection-groups-help-is-tested-without-a-snapshot-2026-11-06)): no output, help, schema or stored shape changed.
+
+- **R1 (W43).** `application/selections.py` gains `parse_as_of_text`; `cli_support.parse_as_of` becomes `parse_as_of_option`, which calls it and names the error `--as-of`; the five strategies' option tables, the generator's `cli.py` template and the specimen use it. Tests edited: `tests/test_cli_support.py` (the parser tests now call `parse_as_of_option` and assert the CLI messages and `parameters` unchanged, one case per message). Tests added: `tests/application/test_selections.py` (the rules of `parse_as_of_text` and its two rule identifiers).
+- **R2 (W44).** `_substitute` in `application/parameters.py` is one `re.sub` pass. Tests added in `tests/application/test_parameters.py`: an argument value that contains a declared placeholder's text appears unchanged, and an undeclared placeholder stays as written.
+- **R3 (W45).** `BehaviorView.selection_type` is `type[FrozenSelection]`; the specimen's behavior returns `SpecimenSelection` and `selection_member_type` is deleted from `tests/specimen/closed_types.py`; `build_selection` narrows with `isinstance`. Test edited: `tests/test_specimen_strategy.py` expects five `cast(` again (reverting the edit listed above).
+- **R4 (W46).** Test added: `tests/test_cli_strategy_wiring.py::test_the_add_selection_help_lists_exactly_the_declared_strategies_with_their_summaries`.
+- **R5.** API.3b2 is Complete on 2026-11-06 in this plan's sequence table and the contract's.
 
 Accepted deviations: the first error follows the order the options are read, then the field order ([W32](#w32-first-error-only-2026-11-05)); the V3 test of the original prompt (an invalid Momentum file no longer stops a command that does not use Momentum) is not added, because the startup check stops every command by design ([W29](#w29-momentums-window-options-default-to-the-settings-2026-11-05)).
 
@@ -526,7 +534,7 @@ expected text of every mode was recorded from `main` before the change and the o
 
 ## Appendix A: Decision records
 
-C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05, and W14 to W26 and W27 to W42 on 2026-11-05.
+C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05, and W14 to W26 and W27 to W42 on 2026-11-05, and W43 to W46 on 2026-11-06.
 
 ### C1 API.3 is three slices (2026-11-04)
 
@@ -536,7 +544,7 @@ API.3 is three slices:
 | :--- | :--- | :--- |
 | API.3a | C2 to C8 and this plan | `feat/api-execution-composition` |
 | API.3b1 | C9, W8 to W11, W15 to W26: the watchlist actions, with the CLI switched to them | `feat/api-watchlist-actions` |
-| API.3b2 | C10 to C14, W1, W3 to W7, W12, W13, W27 to W42: selection from model fields, the selection schemas and their conformance check, Site 19 | `feat/api-selections` |
+| API.3b2 | C10 to C14, W1, W3 to W7, W12, W13, W27 to W46: selection from model fields, the selection schemas and their conformance check, Site 19 | `feat/api-selections` |
 | API.3c | C15 to C17: refresh with progress | `feat/api-refresh-progress` |
 
 These branches replace the contract's single `feat/api-application-actions`. Each slice switches the CLI to its
@@ -822,7 +830,7 @@ As amended on review. Momentum's `--short-window`, `--long-window` and `--rsi-pe
 
 ### W30 What a converter may reject (2026-11-05)
 
-A converter ([W3](#w3-the-field-to-option-table-carries-converters-2026-11-05)) translates the command-line spelling of a value and may reject a value that has no field spelling, keeping its current message: the `--as-of` syntax messages, `--growth-years must be 3, 4, or 5.`, and the two FCF Growth messages that list hyphenated values. Every rule about a field's value (positivity, window order, finiteness, currency format, membership of an enum or `Literal`, presence of a required field, a timestamp's timezone offset) is in the model and is enforced only through `build_selection`. The CLI's `--as-of` parser returns a date or a datetime and leaves the end-of-day rule ([W4](#w4-the-as-of-date-rule-is-shared-2026-11-05)) and the timezone rule to `build_selection`; the timezone message is the template "Timestamp {as_of} values must include an explicit timezone offset." so the CLI's message is unchanged.
+As amended by [W43](#w43-the-as-of-syntax-parser-is-in-the-application-layer-2026-11-06). A converter ([W3](#w3-the-field-to-option-table-carries-converters-2026-11-05)) translates the command-line spelling of a value and may reject a value that has no field spelling, keeping its current message: `--growth-years must be 3, 4, or 5.` and the two FCF Growth messages that list hyphenated values. The syntax of `as_of` is shared by the command line and the API, so it is parsed in the application layer and the converter only names the option. Every rule about a field's value (positivity, window order, finiteness, currency format, membership of an enum or `Literal`, presence of a required field, a timestamp's timezone offset) is in the model and is enforced only through `build_selection`. The end-of-day rule ([W4](#w4-the-as-of-date-rule-is-shared-2026-11-05)) and the timezone rule are `build_selection`'s; the timezone message is the template "Timestamp {as_of} values must include an explicit timezone offset." so the CLI's message is unchanged.
 
 ### W31 Rule templates (2026-11-05)
 
@@ -871,3 +879,19 @@ Every recorded workspace-command output and test that used `create --analysis` a
 ### W42 Errors keep what a translation needs (2026-11-05)
 
 A `SelectionRuleError` carries a stable rule identifier (form `<alias>.<rule>`, for example `momentum.window_order`), the fields it names, and its values as named arguments. Templates use placeholders for both field names and values ("Invalid momentum windows: {short_window} ({short_window_value}) must be smaller than {long_window} ({long_window_value})."), and the CLI renders every message byte-identically. A built-in pydantic error keeps its error `type` and its plain context values beside its rendered text, with the rule identifier `pydantic.<type>`. `ActionParameterError` gains the same, a rule identifier (form `watchlist.<rule>` for the watchlist actions) and value arguments, so [W17](#w17-an-actions-parameter-error-is-a-template-2026-11-05)'s errors follow one rule with the selection errors. The failure document does not change in this slice.
+
+### W43 The as-of syntax parser is in the application layer (2026-11-06)
+
+Amends [W30](#w30-what-a-converter-may-reject-2026-11-05). `parse_as_of_text(value: str | None) -> date | datetime | None` is in `application/selections.py`, with the rules the command line has always had: the text is stripped, an empty value is an error, a 10-character value is a date, a trailing `Z` or `z` means `+00:00`, and anything else is read by `datetime.fromisoformat`. It raises `ActionParameterError` under the parameter `as_of`: "{as_of} must be non-empty when supplied." (rule `selection.as_of_empty`) and "{as_of} must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp." (rule `selection.as_of_syntax`). The command line's `--as-of` converter, `parse_as_of_option` in `cli_support.py`, calls it and names the error `--as-of`, so every message, `parameters` value and exit code is unchanged; `cli_support.parse_as_of` is removed. `build_selection` still accepts only a date or a datetime.
+
+### W44 Placeholders are substituted in one pass (2026-11-06)
+
+`ActionParameterError` replaces every placeholder of its template in a single pass, so text inserted for one placeholder is never itself substituted, and a placeholder the error does not declare stays as written.
+
+### W45 The specimen needs no cast for its selection type (2026-11-06)
+
+`BehaviorView.selection_type` is typed `type[FrozenSelection]`, the base every selection shares, so the specimen returns its own class without a cast and the count of `cast(` in `tests/specimen/closed_types.py` is back to five. `build_selection` narrows the validated selection to `SelectionMember` with `isinstance` and fails closed with `UndeclaredStrategyError` for any other type.
+
+### W46 The add-selection group's help is tested without a snapshot (2026-11-06)
+
+A test checks that `ian watchlist add-selection --help` exits 0 and lists exactly the declared strategies' aliases, each with the summary "Add one <label> entry per ticker to an existing watchlist.", the expected text built from the declared strategies. The group has no stored snapshot, because it would change with every strategy added.

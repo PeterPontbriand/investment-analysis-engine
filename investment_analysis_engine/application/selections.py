@@ -15,12 +15,15 @@ from investment_analysis_engine.analysis.selection_base import SelectionRuleErro
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.config.component_settings import load_component_settings
-from investment_analysis_engine.core.strategy_errors import find
+from investment_analysis_engine.core.strategy_errors import find, undeclared
 from investment_analysis_engine.strategy_wiring import BY_METHOD_ID
 from investment_analysis_engine.workspace.strategy_types import SelectionMember
 
 _FIXED_FIELDS: Final = ("analysis_id", "method_id", "config_schema_version")
 """The fields every selection fixes by its class; a caller cannot supply them."""
+
+_DATE_LENGTH: Final = 10
+"""The length of ``YYYY-MM-DD``."""
 
 _PYDANTIC_MESSAGE: Final = "pydantic_message"
 """The argument name that carries the text of a built-in field error."""
@@ -43,6 +46,38 @@ def as_of_boundary(value: date | datetime | None) -> datetime | None:
             )
         return value
     return datetime.combine(value, time.max, tzinfo=UTC)
+
+
+def parse_as_of_text(value: str | None) -> date | datetime | None:
+    """Parse the text of an ``as_of`` boundary into a date or a timestamp, as written.
+
+    The text is stripped. A 10-character value is a date; a trailing ``Z`` means a UTC offset; anything else is an
+    ISO-8601 timestamp. The end-of-day rule for a date and the requirement of an offset belong to
+    :func:`as_of_boundary`.
+
+    Raises:
+        ActionParameterError: If ``value`` is empty after stripping (parameter ``as_of``, rule
+            ``selection.as_of_empty``) or is neither a date nor an ISO-8601 timestamp (rule
+            ``selection.as_of_syntax``).
+    """
+    if value is None:
+        return None
+    text = value.strip()
+    if not text:
+        raise ActionParameterError(
+            "{as_of} must be non-empty when supplied.", parameters=("as_of",), rule="selection.as_of_empty"
+        )
+    try:
+        if len(text) == _DATE_LENGTH:
+            return date.fromisoformat(text)
+        normalized = f"{text[:-1]}+00:00" if text.endswith(("Z", "z")) else text
+        return datetime.fromisoformat(normalized)
+    except ValueError:
+        raise ActionParameterError(
+            "{as_of} must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp.",
+            parameters=("as_of",),
+            rule="selection.as_of_syntax",
+        ) from None
 
 
 def _field_name(location: tuple[int | str, ...]) -> str:
@@ -142,6 +177,9 @@ def build_selection(context: ApplicationContext, method_id: str, fields: Mapping
         for name in omitted:
             values[name] = getattr(configured, name)
     try:
-        return descriptor.behavior.selection_type.model_validate(values)
+        selection = descriptor.behavior.selection_type.model_validate(values)
     except ValidationError as error:
         raise _first_error(error) from None
+    if not isinstance(selection, SelectionMember):
+        raise undeclared("selection type", type(selection))
+    return selection

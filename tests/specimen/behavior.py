@@ -9,18 +9,18 @@ its types cross the bound only through :mod:`tests.specimen.closed_types`.
 from pydantic import BaseModel
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.analysis.selection_base import FrozenSelection
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import undeclared
 from investment_analysis_engine.orchestrator.tool_runtime import AnalysisToolHandler, ToolRuntime
 from investment_analysis_engine.reporting.headline import Headline
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
-from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
+from investment_analysis_engine.workspace.strategy_types import NativeEvidence
 from tests.specimen.analyzer import SpecimenResult
 from tests.specimen.closed_types import (
     as_native_evidence,
     as_native_handler,
     native_evidence_type,
-    selection_member_type,
 )
 from tests.specimen.codec import decode_specimen, encode_specimen, specimen_native_status, specimen_ticker
 from tests.specimen.replay import headline_specimen, project_specimen, project_specimen_document
@@ -32,9 +32,9 @@ class SpecimenBehavior:
     """The specimen's functions behind the erased ``BehaviorView``, each guarded by an exact-type check."""
 
     @property
-    def selection_type(self) -> type[SelectionMember]:
+    def selection_type(self) -> type[FrozenSelection]:
         """Return the specimen's selection class."""
-        return selection_member_type()
+        return SpecimenSelection
 
     @property
     def result_type(self) -> type[NativeEvidence]:

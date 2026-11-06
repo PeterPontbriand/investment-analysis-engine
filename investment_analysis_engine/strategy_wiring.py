@@ -17,6 +17,7 @@ from typing import Final, Protocol
 from pydantic import BaseModel
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
+from investment_analysis_engine.analysis.selection_base import FrozenSelection
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.strategy_errors import require, undeclared
 from investment_analysis_engine.orchestrator.analysis_tool_arguments import AnalysisToolArguments
@@ -166,7 +167,7 @@ class BehaviorView(Protocol):
     """
 
     @property
-    def selection_type(self) -> type[SelectionMember]:
+    def selection_type(self) -> type[FrozenSelection]:
         """Return the strategy's selection class."""
         ...
 

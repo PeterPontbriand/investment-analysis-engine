@@ -7,7 +7,7 @@ import pytest
 
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.parameters import ActionParameterError
-from investment_analysis_engine.application.selections import as_of_boundary, build_selection
+from investment_analysis_engine.application.selections import as_of_boundary, build_selection, parse_as_of_text
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config.component_settings import clear_component_settings_cache, load_component_settings
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
@@ -210,3 +210,36 @@ def test_only_the_first_error_is_reported() -> None:
     error = _rejection(GRAHAM_NUMBER.method_id, {"eps_override": float("inf"), "bvps_override": float("nan")})
 
     assert error.parameters == ("eps_override",)
+
+
+def test_as_of_text_is_a_date_or_a_timestamp_as_written() -> None:
+    assert parse_as_of_text(None) is None
+    assert parse_as_of_text(" 2025-12-31 ") == date(2025, 12, 31)
+    assert parse_as_of_text("2025-12-31T12:00:00Z") == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert parse_as_of_text("2025-12-31t12:00:00z") == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert parse_as_of_text("2025-12-31T07:00:00-05:00") == datetime(2025, 12, 31, 12, tzinfo=UTC)
+    assert parse_as_of_text("2025-12-31T12:00:00") == datetime(2025, 12, 31, 12)  # noqa: DTZ001 - parsed, not judged
+
+
+@pytest.mark.parametrize(
+    ("value", "message", "rule"),
+    [
+        ("", "as_of must be non-empty when supplied.", "selection.as_of_empty"),
+        ("   ", "as_of must be non-empty when supplied.", "selection.as_of_empty"),
+        (
+            "bad",
+            "as_of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp.",
+            "selection.as_of_syntax",
+        ),
+        (
+            "2025-02-30",
+            "as_of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp.",
+            "selection.as_of_syntax",
+        ),
+    ],
+)
+def test_as_of_text_rejections_name_the_field_and_keep_their_rule(value: str, message: str, rule: str) -> None:
+    with pytest.raises(ActionParameterError) as caught:
+        parse_as_of_text(value)
+
+    assert (str(caught.value), caught.value.parameters, caught.value.rule) == (message, ("as_of",), rule)

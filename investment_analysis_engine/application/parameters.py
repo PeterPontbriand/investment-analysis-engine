@@ -9,17 +9,21 @@ declares are replaced, by explicit substitution and never by ``str.format``, bec
 ``policy.historical_horizon`` is attribute access in a format string.
 """
 
+import re
 from collections.abc import Mapping, Sequence
 
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 
+_PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
+
 
 def _substitute(template: str, replacements: Mapping[str, str]) -> str:
-    """Replace each declared ``{placeholder}`` in ``template`` with its text; other braces stay as written."""
-    message = template
-    for name in sorted(replacements, key=len, reverse=True):
-        message = message.replace(f"{{{name}}}", replacements[name])
-    return message
+    """Replace each declared ``{placeholder}`` in ``template`` with its text, in a single pass.
+
+    Text inserted for one placeholder is never itself substituted, and a placeholder that is not declared stays as
+    written.
+    """
+    return _PLACEHOLDER.sub(lambda match: replacements.get(match.group(1), match.group(0)), template)
 
 
 class ActionParameterError(InvalidParameterError):

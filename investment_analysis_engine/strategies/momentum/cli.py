@@ -25,7 +25,7 @@ from investment_analysis_engine.cli_support import (
     emit_output,
     execution_errors,
     parameter_failures,
-    parse_as_of,
+    parse_as_of_option,
     resolve_command_target,
     selection_from_options,
 )
@@ -77,7 +77,7 @@ SELECTION_OPTIONS = (
     SelectionOption("short_window", "short_window", "--short-window"),
     SelectionOption("long_window", "long_window", "--long-window"),
     SelectionOption("rsi_period", "rsi_period", "--rsi-period"),
-    SelectionOption("as_of", "as_of", "--as-of", parse_as_of),
+    SelectionOption("as_of", "as_of", "--as-of", parse_as_of_option),
     SelectionOption("no_cache", "use_cache", "--no-cache", cache_enabled),
 )
 """The selection field each selection option sets: this strategy's one table of options and fields."""

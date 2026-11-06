@@ -16,7 +16,7 @@ from investment_analysis_engine.application.analysis import AnalysisOutcome, ana
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.failures import SavingFailureError
 from investment_analysis_engine.application.parameters import ActionParameterError
-from investment_analysis_engine.application.selections import build_selection
+from investment_analysis_engine.application.selections import build_selection, parse_as_of_text
 from investment_analysis_engine.application.watchlists import add_watchlist_entries, alias_for_method_id
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.failure_classification import classify_failure
@@ -178,31 +178,16 @@ def cache_enabled(no_cache: bool) -> bool:
     return not no_cache
 
 
-def parse_as_of(value: str | None) -> date | datetime | None:
-    """Parse the syntax of a CLI as-of boundary into a date or a timestamp.
-
-    A ``YYYY-MM-DD`` value is returned as a date and a timestamp as it was written. The end-of-day rule for a date and
-    the requirement of a timezone offset on a timestamp belong to the selection's builder, which every caller uses.
+def parse_as_of_option(value: str | None) -> date | datetime | None:
+    """Parse the text of ``--as-of`` with the application's parser, naming the option in a rejection.
 
     Raises:
         InvalidParameterError: If ``value`` is empty or is neither a date nor an ISO-8601 timestamp.
     """
-    if value is None:
-        return None
-    text = value.strip()
-    if not text:
-        raise InvalidParameterError("--as-of must be non-empty when supplied.", parameters=("--as-of",))
-
     try:
-        if len(text) == 10:
-            return date.fromisoformat(text)
-
-        normalized = f"{text[:-1]}+00:00" if text.endswith(("Z", "z")) else text
-        return datetime.fromisoformat(normalized)
-    except ValueError as exc:
-        raise InvalidParameterError(
-            "--as-of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp.", parameters=("--as-of",)
-        ) from exc
+        return parse_as_of_text(value)
+    except ActionParameterError as error:
+        raise error.named({"as_of": "--as-of"}) from None
 
 
 def _selection_identity(selection_type: type[FrozenSelection] | None) -> tuple[str | None, str | None]:

@@ -14,7 +14,7 @@ from investment_analysis_engine.cli_support import (
     SelectionOption,
     add_selection_entries,
     cache_enabled,
-    parse_as_of,
+    parse_as_of_option,
     presentation_mode,
 )
 from investment_analysis_engine.config import settings
@@ -35,7 +35,7 @@ NO_CACHE_OPTION = Annotated[bool, typer.Option("--no-cache", help="Bypass the ca
 
 SELECTION_OPTIONS = (
     SelectionOption("value", "value", "--value"),
-    SelectionOption("as_of", "as_of", "--as-of", parse_as_of),
+    SelectionOption("as_of", "as_of", "--as-of", parse_as_of_option),
     SelectionOption("no_cache", "use_cache", "--no-cache", cache_enabled),
 )
 """The selection field each selection option sets: the specimen's one table of options and fields."""
@@ -43,7 +43,9 @@ SELECTION_OPTIONS = (
 
 def _selection(*, value: float, as_of: str | None, no_cache: bool) -> SpecimenSelection:
     """Build the specimen's selection from the selection options of either command."""
-    return SpecimenSelection(value=value, as_of=as_of_boundary(parse_as_of(as_of)), use_cache=cache_enabled(no_cache))
+    return SpecimenSelection(
+        value=value, as_of=as_of_boundary(parse_as_of_option(as_of)), use_cache=cache_enabled(no_cache)
+    )
 
 
 def command(  # noqa: PLR0913
