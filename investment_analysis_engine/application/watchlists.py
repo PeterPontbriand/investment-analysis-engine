@@ -147,10 +147,13 @@ def add_watchlist_entries(
     Nothing is written when the watchlist holds an entry this version cannot read.
 
     Raises:
-        ActionParameterError: If a ticker is blank (parameter ``tickers``); nothing is opened or written.
+        ActionParameterError: If ``entries`` is empty (parameter ``entries``) or a ticker is blank (parameter
+            ``tickers``); nothing is opened or written.
         WatchlistNotFoundError: If no watchlist matches ``ref``.
         StoredSelectionError: If an entry of the watchlist cannot be read.
     """
+    if not entries:
+        raise ActionParameterError("{entries} must hold at least one entry.", parameters=("entries",))
     check_tickers([ticker for ticker, _ in entries])
     with open_database(context) as database:
         return watchlist_repository(database).add_entries(ref, entries)
@@ -174,9 +177,12 @@ def remove_watchlist_tickers(context: ApplicationContext, ref: WatchlistRef, tic
     """Remove every entry for the given tickers (idempotent) and read the watchlist back in the same transaction.
 
     Raises:
-        ActionParameterError: If a ticker is blank (parameter ``tickers``); nothing is opened or written.
+        ActionParameterError: If ``tickers`` is empty or holds a blank ticker (parameter ``tickers``); nothing is
+            opened or written.
         WatchlistNotFoundError: If no watchlist matches ``ref``.
     """
+    if not tickers:
+        raise ActionParameterError("{tickers} must name at least one ticker.", parameters=("tickers",))
     check_tickers(tickers)
     with open_database(context) as database:
         return watchlist_repository(database).remove_entries_for_ticker(ref, tickers)
@@ -186,8 +192,11 @@ def remove_watchlist_method(context: ApplicationContext, ref: WatchlistRef, meth
     """Remove every entry for ``method_id`` (idempotent) and read the watchlist back in the same transaction.
 
     Raises:
+        ActionParameterError: If ``method_id`` is not a declared method (parameter ``method_id``); nothing is opened.
         WatchlistNotFoundError: If no watchlist matches ``ref``.
     """
+    if find(BY_METHOD_ID, method_id) is None:
+        raise ActionParameterError("{method_id} is not a declared method.", parameters=("method_id",))
     with open_database(context) as database:
         return watchlist_repository(database).remove_entries_for_method(ref, method_id)
 

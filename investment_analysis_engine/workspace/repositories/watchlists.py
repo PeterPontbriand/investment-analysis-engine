@@ -51,7 +51,7 @@ class WatchlistConflictError(ValueError):
 
 
 class WatchlistEntryNotFoundError(ValueError):
-    """No entry exists at the requested 0-based position."""
+    """The watchlist has no entry at the requested position."""
 
     reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.WATCHLIST_ENTRY_NOT_FOUND
 
@@ -119,13 +119,6 @@ class RemovedEntries:
 def _normalize_name(name: str) -> str:
     """Apply the watchlist name comparison convention: trim, then casefold."""
     return name.strip().casefold()
-
-
-def _label(ref: WatchlistRef) -> str:
-    """Name a watchlist in a message the way the caller addressed it."""
-    if isinstance(ref, WatchlistName):
-        return f"watchlist {ref.name!r}"
-    return f"the watchlist with ID {ref.watchlist_id}"
 
 
 def _utc(value: datetime) -> str:
@@ -364,7 +357,10 @@ class SQLiteWatchlistRepository:
             rows = self._entry_rows(connection, watchlist_id)
             survivors = [row for row in rows if row["position"] != position]
             if len(survivors) == len(rows):
-                raise WatchlistEntryNotFoundError(f"No entry at position {position} in {_label(ref)}.")
+                display_name = connection.execute(
+                    select(watchlists.c.display_name).where(watchlists.c.watchlist_id == watchlist_id)
+                ).scalar_one()
+                raise WatchlistEntryNotFoundError(f"Watchlist {display_name!r} has no entry {position + 1}.")
             self._replace_entries(connection, watchlist_id, survivors)
             self._touch(connection, watchlist_id)
             return self._removed(connection, watchlist_id, len(rows) - len(survivors))

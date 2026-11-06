@@ -80,7 +80,7 @@ watchlist actions and builds a selection from its model's fields, in two slices
     delete is confirmed and done by ID ([W9](#w9-delete-is-confirmed-and-done-by-id-2026-11-05)), the actions check their
     own arguments ([W10](#w10-argument-checks-are-in-the-actions-2026-11-05)) and every writing command has `--json`
     ([W11](#w11-every-watchlist-writing-command-has---json-2026-11-05));
-  - the implementation decisions W15 to W23 ([Appendix A](#appendix-a-decision-records)).
+  - the implementation decisions W15 to W26 ([Appendix A](#appendix-a-decision-records)).
 - **Scope:** the watchlist actions and `application/parameters.py`; the repository's write methods and
   `StoredSelectionError`; the CLI switched to the actions, with `--json` on five commands; the tests and the documents
   they touch. `WatchlistFlags`, the `--analysis` option of `create` and `add-selection`, and the Momentum defaults the CLI
@@ -398,6 +398,10 @@ User-visible changes:
   `Remove it with: ian watchlist remove-entry "<name>" <number>` (W16). Before:
   `Watchlist 'Core', entry 2 (MSFT, momentum): <state>. Remove it with: ian watchlist remove-entry "Core" 2`. After:
   `Watchlist 'Core', entry 2 (MSFT, momentum): <state>.` The command line's output is unchanged: it appends the remedy.
+- A `remove-entry` number with no entry now reports it by the number given and the watchlist's stored name
+  ([W24](#w24-a-missing-entry-is-named-by-its-number-2026-11-05)). Before: `No entry at position 4 in watchlist 'Short
+  List'.` (for `remove-entry "Short List" 5`, the stored 0-based position). After: `Watchlist 'Short List' has no entry 5.`
+  The same message follows an ID reference.
 - No other CLI message, `parameters` value, exit code or recorded output changed: every recorded output of
   `tests/expected_output/workspace_commands/` is byte for byte what `main` writes, and the five new `--json` commands add
   seven recorded steps.
@@ -413,6 +417,11 @@ Tests edited, and why:
   name argument in `WatchlistName(...)` (W20); the repository tests that compared a removal's return value now compare its
   `.removed` (W8, W22).
 
+Follow-up tests (W24 to W26): `tests/test_cli_workspace.py::test_watchlist_remove_entry_out_of_range_exits_1` now asserts the
+full new message (edited from a check for `No entry at position`); `test_watchlist_actions.py` asserts the same message for
+a reference by name and by ID, that an undeclared method is rejected under `method_id` before the database opens, and that
+an empty `tickers` and an empty `entries` are rejected.
+
 Tests added: `tests/application/test_watchlist_actions.py` (each action, by name and by ID, its conflicts and parameter
 errors with the action's own names, the unreadable read-back after rename and each removal, the refused add, the order of
 argument and database checks, and a rename between a summary and a delete); `tests/application/test_parameters.py`;
@@ -421,16 +430,14 @@ and the argument-before-database order on the command line); repository tests of
 and the error's fields; `tests/workspace/test_watchlists.py` for the error's fields and the not-found message; an API test
 that no failure document the API serves contains `ian `.
 
-Accepted deviations: none from the wording of W8 to W23.
+Accepted deviations: none from the wording of W8 to W26.
 
 Noticed for later slices:
 
 - API.3b2: `create` still seeds through `WatchlistFlags` (W21), and `cli_workspace.py` still reads Momentum's option
   defaults; C12 removes both. Its selection validation reuses `application/parameters.py`.
-- API.4: `remove_watchlist_entry` raises `WatchlistEntryNotFoundError` with the text `No entry at position N in watchlist
-  'Core'.`, where `N` is the stored 0-based position and not the entry number the caller sent; changing it changes a CLI
-  message, so it needs approval, and an endpoint should not serve it as it is. `remove_watchlist_method` takes a canonical
-  method ID and removes nothing for an unknown one; the endpoint validates the ID against the declared strategies.
+- API.3b2: `check_watchlist_name` and `check_tickers` are public in `application/watchlists.py` only because `create`
+  checks its tickers before it creates and seeds; when API.3b2 removes the seeding (C12), make them private again.
 - API.3c: `_workspace_database` is used only by the refresh command and goes when refresh moves into `application`.
 
 ## 4. Scope limits and acceptance criteria
@@ -463,7 +470,7 @@ expected text of every mode was recorded from `main` before the change and the o
 
 ## Appendix A: Decision records
 
-C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05, and W14 to W23 on 2026-11-05.
+C1 to C18 and C5a were approved by the project owner on 2026-11-04, with C2 as amended and C5a in place of C5. W1 to W13, API.3b's implementation decisions, were approved on 2026-11-05, and W14 to W26 on 2026-11-05.
 
 ### C1 API.3 is three slices (2026-11-04)
 
@@ -472,7 +479,7 @@ API.3 is three slices:
 | Slice | Decisions | Branch |
 | :--- | :--- | :--- |
 | API.3a | C2 to C8 and this plan | `feat/api-execution-composition` |
-| API.3b1 | C9, W8 to W11, W15 to W23: the watchlist actions, with the CLI switched to them | `feat/api-watchlist-actions` |
+| API.3b1 | C9, W8 to W11, W15 to W26: the watchlist actions, with the CLI switched to them | `feat/api-watchlist-actions` |
 | API.3b2 | C10 to C14, W1, W3 to W7, W12, W13: selection from model fields, the selection schemas and their conformance check, Site 19 | `feat/api-selections` |
 | API.3c | C15 to C17: refresh with progress | `feat/api-refresh-progress` |
 
@@ -695,7 +702,7 @@ API.3b's detail is a section "3.2 API.3b implementation record" in this plan, wh
 
 ### W14 API.3b is two slices (2026-11-05)
 
-API.3b is split into API.3b1 (C9, W8 to W11 and W15 to W23: the watchlist actions, with the CLI switched to them) on `feat/api-watchlist-actions`, and API.3b2 (C10 to C14, W1, W3 to W7, W12 and W13: selection from model fields, the per-strategy `add-selection` subcommands, the selection schemas and Site 19) on `feat/api-selections`. Each has its own implementation record, 3.2 and 3.3; API.3c's is 3.4. Amends C1's branch list.
+API.3b is split into API.3b1 (C9, W8 to W11 and W15 to W26: the watchlist actions, with the CLI switched to them) on `feat/api-watchlist-actions`, and API.3b2 (C10 to C14, W1, W3 to W7, W12 and W13: selection from model fields, the per-strategy `add-selection` subcommands, the selection schemas and Site 19) on `feat/api-selections`. Each has its own implementation record, 3.2 and 3.3; API.3c's is 3.4. Amends C1's branch list.
 
 ### W15 Adding to a watchlist with an unreadable entry is refused (2026-11-05)
 
@@ -732,3 +739,15 @@ In API.3b1 `ian watchlist create` with `--analysis` calls the create action and 
 ### W23 --json on the watchlist writing commands (2026-11-05)
 
 `create`, `add-selection`, `remove-entry`, `remove-ticker` and `remove-method` gain `--json`, with the help texts "Emit the created watchlist document." (`create`) and "Emit the updated watchlist document." (the others). After a removal the confirmation goes to standard error. An unreadable entry after a committed change writes the failure document and exits 1, as `rename --json` does.
+
+### W24 A missing entry is named by its number (2026-11-05)
+
+"Watchlist 'Core' has no entry 3." names the entry by the 1-based number the caller gave and the watchlist by its stored name, whether it was addressed by name or by ID. It replaces a message that printed the stored 0-based position: an approved CLI message change.
+
+### W25 Removing by method needs a declared method (2026-11-05)
+
+`remove_watchlist_method` rejects a method identifier this version does not declare, under its parameter `method_id`, instead of removing nothing. An entry whose method is no longer declared is removed with `remove-entry`.
+
+### W26 An empty ticker or entry list is rejected (2026-11-05)
+
+`remove_watchlist_tickers` rejects an empty `tickers` and `add_watchlist_entries` an empty `entries`, instead of doing nothing. The CLI cannot send either.

@@ -336,10 +336,10 @@ def test_remove_entry_past_the_last_entry_is_not_found_and_removes_nothing(
 ) -> None:
     _seed_core(isolated_cli_settings)
 
-    with pytest.raises(WatchlistEntryNotFoundError, match="No entry at position 3 in watchlist 'Core'."):
-        remove_watchlist_entry(_context(isolated_cli_settings), WatchlistName("Core"), 4)
-    with pytest.raises(WatchlistEntryNotFoundError, match="No entry at position 3 in the watchlist with ID "):
-        remove_watchlist_entry(_context(isolated_cli_settings), _by_name_and_id(isolated_cli_settings)[1], 4)
+    for ref in _by_name_and_id(isolated_cli_settings):
+        with pytest.raises(WatchlistEntryNotFoundError) as caught:
+            remove_watchlist_entry(_context(isolated_cli_settings), ref, 4)
+        assert str(caught.value) == "Watchlist 'Core' has no entry 4."
     assert _entry_tickers(isolated_cli_settings) == ["AAPL", "MSFT", "KO"]
 
 
@@ -421,8 +421,12 @@ def test_a_removal_commits_and_returns_the_error_when_another_entry_is_unreadabl
         (lambda context: add_watchlist_entries(context, WatchlistName("Core"), [(" ", _GRAHAM)]), ("tickers",)),
         (lambda context: remove_watchlist_entry(context, WatchlistName("Core"), 0), ("entry_number",)),
         (lambda context: remove_watchlist_tickers(context, WatchlistName("Core"), [" "]), ("tickers",)),
+        (
+            lambda context: remove_watchlist_method(context, WatchlistName("Core"), "retired_method"),
+            ("method_id",),
+        ),
     ],
-    ids=["create", "rename", "add", "remove-entry", "remove-ticker"],
+    ids=["create", "rename", "add", "remove-entry", "remove-ticker", "remove-method"],
 )
 def test_a_bad_argument_is_reported_even_when_the_database_is_not_ready(
     operation: Callable[[ApplicationContext], object], parameters: tuple[str, ...], tmp_path: Path
@@ -452,3 +456,33 @@ def test_a_valid_call_on_a_database_that_is_not_ready_is_a_readiness_error(
 ) -> None:
     with pytest.raises(DatabaseReadinessError):
         operation(_unready(tmp_path))
+
+
+def test_remove_method_rejects_an_undeclared_method_before_the_database_is_opened(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    _seed_core(isolated_cli_settings)
+
+    with pytest.raises(ActionParameterError) as caught:
+        remove_watchlist_method(_context(isolated_cli_settings), WatchlistName("Core"), "retired_method")
+
+    assert (str(caught.value), caught.value.parameters) == ("method_id is not a declared method.", ("method_id",))
+    assert _entry_tickers(isolated_cli_settings) == ["AAPL", "MSFT", "KO"]
+
+
+def test_remove_tickers_rejects_an_empty_list_and_add_rejects_an_empty_entry_list(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    _seed_core(isolated_cli_settings)
+
+    with pytest.raises(ActionParameterError) as removal:
+        remove_watchlist_tickers(_context(isolated_cli_settings), WatchlistName("Core"), [])
+    with pytest.raises(ActionParameterError) as addition:
+        add_watchlist_entries(_context(isolated_cli_settings), WatchlistName("Core"), [])
+
+    assert (str(removal.value), removal.value.parameters) == ("tickers must name at least one ticker.", ("tickers",))
+    assert (str(addition.value), addition.value.parameters) == (
+        "entries must hold at least one entry.",
+        ("entries",),
+    )
+    assert _entry_tickers(isolated_cli_settings) == ["AAPL", "MSFT", "KO"]
