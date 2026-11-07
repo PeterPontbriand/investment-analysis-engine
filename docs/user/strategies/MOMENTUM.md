@@ -4,7 +4,7 @@ This guide explains the Investment Analysis Engine **Momentum Analysis Strategy*
 
 ## What this strategy does
 
-Momentum compares a short [SMA](../GLOSSARY.md#sma-simple-moving-average) with a longer [SMA](../GLOSSARY.md#sma-simple-moving-average) over historical closing prices and reports the current relationship plus [crossover](../GLOSSARY.md#crossover) state.
+Momentum compares a short [SMA](../GLOSSARY.md#sma) with a longer [SMA](../GLOSSARY.md#sma) over historical closing prices and reports the current relationship plus [crossover](../GLOSSARY.md#crossover) state.
 
 It is a price-series analysis. It does not determine business quality, intrinsic value, or whether a security should be bought or sold.
 
@@ -110,7 +110,7 @@ Retains technical execution traces, original retrieval/cache evidence and identi
 uv run ian momentum AAPL --json
 ```
 
-Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation), including an explicit nullable security-identity snapshot.
+Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json), including an explicit nullable security-identity snapshot.
 
 ## Sufficient history is required
 
@@ -157,7 +157,7 @@ When comparing results, first confirm that both tools are calculating the same i
 
 ## What this strategy does not currently implement
 
-The current Momentum strategy is specifically an SMA/crossover analysis, reporting [RSI](../GLOSSARY.md#rsi-relative-strength-index) as a supporting indicator (see [above](#how-the-calculation-works) for its simple-average, not-Wilder-smoothing convention). It does not currently implement [MACD](../GLOSSARY.md#macd-moving-average-convergence-divergence), [Sharpe ratio](../GLOSSARY.md#sharpe-ratio), or a 12-month-minus-1-month momentum factor.
+The current Momentum strategy is specifically an SMA/crossover analysis, reporting [RSI](../GLOSSARY.md#rsi) as a supporting indicator (see [above](#how-the-calculation-works) for its simple-average, not-Wilder-smoothing convention). It does not currently implement [MACD](../GLOSSARY.md#macd), Sharpe ratio, or a 12-month-minus-1-month momentum factor.
 
 Those are separate analytical methods; they should not be inferred from the generic word “momentum.”
 

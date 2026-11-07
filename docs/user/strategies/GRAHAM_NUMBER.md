@@ -34,7 +34,7 @@ Investment Analysis Engine describes the result as a **maximum indicated price**
 
 ### Earnings basis
 
-The standard basis is [Three-Year-Average EPS](../GLOSSARY.md#three-year-average-eps), using three completed fiscal years of [diluted EPS](../GLOSSARY.md#basic-eps--diluted-eps).
+The standard basis is [Three-Year-Average EPS](../GLOSSARY.md#three-year-average-eps), using three completed fiscal years of [diluted EPS](../GLOSSARY.md#basic-and-diluted-eps).
 
 SEC EDGAR observations are eligible only when the filing information was actually available by the analysis date. An earlier fiscal-year end does not make a later-filed fact historically knowable.
 

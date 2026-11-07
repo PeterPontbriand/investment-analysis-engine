@@ -16,7 +16,7 @@ The [Analysis Strategy Guides](docs/user/strategies/README.md) describe availabl
 
 ## See what it does first
 
-A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves [EPS](docs/user/GLOSSARY.md#eps-earnings-per-share) and [BVPS](docs/user/GLOSSARY.md#bvps-book-value-per-share) from available financial evidence and can compare the resulting [maximum indicated price / screening ceiling](docs/user/GLOSSARY.md#maximum-indicated-price--screening-ceiling) with a [current market price](docs/user/GLOSSARY.md#current-quote--current-market-price), expressed as a [price relationship](docs/user/GLOSSARY.md#price-relationship):
+A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves [EPS](docs/user/GLOSSARY.md#eps) and [BVPS](docs/user/GLOSSARY.md#bvps) from available financial evidence and can compare the resulting [maximum indicated price / screening ceiling](docs/user/GLOSSARY.md#maximum-indicated-price) with a [current market price](docs/user/GLOSSARY.md#current-quote), expressed as a [price relationship](docs/user/GLOSSARY.md#price-relationship):
 
 ```bash
 uv run ian graham-number KO
@@ -41,7 +41,7 @@ Limitation: The Graham Number is a maximum indicated price / screening ceiling, 
 
 Live prices and newly published filings change, so the numbers above are illustrative. When supported provider evidence supplies an instrument name, the heading uses `Instrument Name (TICKER)`; otherwise it safely falls back to the ticker alone. The important part is the shape of the answer: the result names the method, shows the market comparison, identifies the financial basis, summarizes data sources/freshness, and states the method limitation.
 
-The current share price — a [quote](docs/user/GLOSSARY.md#current-quote--current-market-price) — comes from Yahoo Finance. By default the program reuses a quote for up to five minutes before asking for a fresh one. If a fresh price can’t be obtained, the report leaves out the price comparison rather than showing it with an old price; the Graham Number itself is still shown. “Market observation time not supplied” in the sample means Yahoo doesn’t tell the program when that price was last traded. The [Graham Number Strategy Guide](docs/user/strategies/GRAHAM_NUMBER.md) gives the exact timing rules. `--no-cache` makes the program fetch fresh data instead of reusing stored copies.
+The current share price — a [quote](docs/user/GLOSSARY.md#current-quote) — comes from Yahoo Finance. By default the program reuses a quote for up to five minutes before asking for a fresh one. If a fresh price can’t be obtained, the report leaves out the price comparison rather than showing it with an old price; the Graham Number itself is still shown. “Market observation time not supplied” in the sample means Yahoo doesn’t tell the program when that price was last traded. The [Graham Number Strategy Guide](docs/user/strategies/GRAHAM_NUMBER.md) gives the exact timing rules. `--no-cache` makes the program fetch fresh data instead of reusing stored copies.
 
 Want to inspect more?
 
@@ -51,7 +51,7 @@ uv run ian graham-number KO --diagnostics
 uv run ian graham-number KO --json
 ```
 
-`--json` produces [machine-readable output](docs/user/GLOSSARY.md#machine-readable-output) in [JSON](docs/user/GLOSSARY.md#json-javascript-object-notation), intended for another program rather than primarily for a person.
+`--json` produces [machine-readable output](docs/user/GLOSSARY.md#machine-readable-output) in [JSON](docs/user/GLOSSARY.md#json), intended for another program rather than primarily for a person.
 
 For ordinary usage, see the [Usage Guide](docs/user/USAGE.md). For the formula, assumptions, data sources, and interpretation, see the [Graham Number Strategy Guide](docs/user/strategies/GRAHAM_NUMBER.md).
 
@@ -68,7 +68,7 @@ Investment Analysis Engine is being built for several overlapping audiences, wit
 - **AI agents and other programs** that consume typed, provenance-aware results rather than free-form text.
 - **Software engineers, architects, AI practitioners, and prospective contributors** who want to review the project design, implementation plans, and reliability boundaries. See [Project & Technical Documentation](docs/project/README.md).
 
-When terms such as [TTM](docs/user/GLOSSARY.md#ttm-trailing-twelve-months), [SMA](docs/user/GLOSSARY.md#sma-simple-moving-average), [margin of safety](docs/user/GLOSSARY.md#margin-of-safety-mos), [look-ahead bias](docs/user/GLOSSARY.md#look-ahead-bias), or [override](docs/user/GLOSSARY.md#override) have a project-specific meaning, the documentation links to the project's definition rather than assuming that every reader uses the term identically.
+When terms such as [TTM](docs/user/GLOSSARY.md#ttm), [SMA](docs/user/GLOSSARY.md#sma), [margin of safety](docs/user/GLOSSARY.md#margin-of-safety), [look-ahead bias](docs/user/GLOSSARY.md#look-ahead-bias), or [override](docs/user/GLOSSARY.md#override) have a project-specific meaning, the documentation links to the project's definition rather than assuming that every reader uses the term identically.
 
 ---
 
@@ -126,7 +126,7 @@ The core rule is simple: **AI may help reason about structured evidence, but it 
 - Analysis strategies never receive invented financial values from the model.
 - Structured model output is schema-validated rather than trusted as free-form application state.
 
-Today, the project uses a local [LLM](docs/user/GLOSSARY.md#llm-large-language-model) (run through [Ollama](https://ollama.com/)) only on a test bench: the `evaluate` command checks how well a local model picks the right analysis for a request, using the project's [Golden Suite](docs/EVALUATIONS.md). It is not yet an assistant you can talk to. See [Golden Suite evaluation](docs/user/USAGE.md#golden-suite-evaluation).
+Today, the project uses a local [LLM](docs/user/GLOSSARY.md#llm) (run through [Ollama](https://ollama.com/)) only on a test bench: the `evaluate` command checks how well a local model picks the right analysis for a request, using the project's [Golden Suite](docs/EVALUATIONS.md). It is not yet an assistant you can talk to. See [Golden Suite evaluation](docs/user/USAGE.md#golden-suite-evaluation).
 
 A GPU is not required for direct deterministic analysis. See [Hardware & Local AI](docs/user/HARDWARE.md) if you want to use optional local-model features.
 

@@ -236,5 +236,5 @@ FCF yield may appear as optional context when market capitalization at the bound
 
 - [Usage Guide](../USAGE.md)
 - [Financial Math & Data Conventions](../FINANCE_MATH.md#free-cash-flow--earnings-growth-strategy)
-- [Glossary](../GLOSSARY.md#free-cash-flow--earnings-growth-terms)
+- [Glossary](../GLOSSARY.md#fcf-growth-strategy)
 - [Human Smoke Testing Commands](../SMOKE_TESTING.md)

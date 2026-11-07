@@ -372,6 +372,6 @@ wording, since they are squashed.
 - Rationale / decision history → `docs/project/DISCOVERY_WORKBOOK.md`
 - Architecture → `docs/project/ARCHITECTURE.md`
 - Financial mathematics → `docs/user/FINANCE_MATH.md`
-- Domain terms → `docs/user/GLOSSARY.md`
+- Domain terms → `docs/user/GLOSSARY.md` (investor terms, plus an excluded command-line section) and `docs/project/CONTRIBUTOR_GLOSSARY.md` (contributor terms); entry rules in `docs/project/README.md`'s "Glossary entries" section
 - Hardware/model modes → `docs/user/HARDWARE.md`
 - Convenience slash commands → `.claude/commands/` (lower authority than the documents above)

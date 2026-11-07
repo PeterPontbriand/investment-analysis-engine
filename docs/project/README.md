@@ -36,6 +36,7 @@ User-facing financial semantics remain authoritative in:
 
 - [Financial Math & Data Conventions](../user/FINANCE_MATH.md)
 - [Glossary](../user/GLOSSARY.md)
+- [Contributor Glossary](CONTRIBUTOR_GLOSSARY.md)
 - [Analysis Strategy Guides](../user/strategies/README.md)
 
 ## Documentation authority for implementation work
@@ -56,12 +57,28 @@ If governing documents conflict, surface the conflict rather than blending incom
 
 Documentation contains no Mermaid. Draw a diagram as a plain text block or express it as a table; `scripts/check_doc_links.py` fails on a fenced block whose language is `mermaid`. The packages under `investment_analysis_engine/` and the imports between them are declared once, in the table in [Architecture §13](ARCHITECTURE.md#13-module-boundaries).
 
+## Glossary entries
+
+There are three audiences, and each term lives with one of them.
+
+- **Investor terms** are in [`docs/user/GLOSSARY.md`](../user/GLOSSARY.md). An entry is interface-neutral: it contains no command, flag, command-line output convention or closed list of strategies.
+- **Command-line terms** are in the user glossary's last section, which carries the exclude marker. They explain the command line and are not served as help content. No investor entry links to one.
+- **Contributor terms** are in [`CONTRIBUTOR_GLOSSARY.md`](CONTRIBUTOR_GLOSSARY.md). It may link to investor terms; no investor entry links to it.
+
+Every entry in both glossaries follows these rules, which `python scripts/check_help_content.py` checks:
+
+- **Id:** a permanent id, lowercase ASCII words joined by single hyphens, written as `<a id="<id>"></a>` on its own line directly above the entry's heading. It is unique within its glossary and may equal its own entry's heading slug but not a different entry's. Every link to an entry targets the id, never the heading slug; `scripts/check_doc_links.py` fails a link that targets a slug.
+- **Name:** the heading is plain text, with no code span. A combined heading stays one entry unless one short definition cannot cover its parts.
+- **Short definition:** the first paragraph is at most 200 characters and two sentences, in plain text with no link, backtick, `*`, `_` or `[`. It stands alone; that is a review rule, not a checked one. Formulas and links belong in the paragraphs that follow.
+- **Exclude marker:** `<!-- help:exclude -->` on the line directly after a heading excludes that section and its subsections from served content. There are no inline ranges.
+
 ## Quality gates
 
 Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete, whenever the change touches Python source, tests, or any file the gate's own tooling actually parses or executes (this includes `pyproject.toml` fields that affect dependency resolution, build, or tool configuration):
 
 ```bash
 python3 scripts/check_doc_links.py
+python3 scripts/check_help_content.py
 python3 scripts/check_sequence_tables.py
 python3 scripts/check_package_dependencies.py
 uv run ruff check .
@@ -74,7 +91,7 @@ Standard-library-only gate scripts run with system Python (`py -3` on Windows), 
 
 These commands verify that every local link and heading anchor across every Markdown file resolves (files git tracks and new files git does not ignore, staged or not), that every planning sequence table is well formed and correctly ordered, that the package table in the Architecture Guide matches the imports between the top-level `investment_analysis_engine/` packages, lint, formatting, strict typing (including the `scripts/` developer tooling, not only `investment_analysis_engine`/`tests`), deterministic unit/integration behavior, and the pytest-cov configuration in `pyproject.toml`. The project target is at least 85% aggregate line coverage; new financial-analysis code should directly cover meaningful branches and edge cases. Automated tests must not make real external API or LLM calls. Real provider calls are permitted only in tests marked `live_network`, which are excluded from the default run and the managed gate, make at most three requests per check, assert response shape and never values, and never log or persist secrets.
 
-A documentation-only change must pass `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, `python scripts/check_package_dependencies.py`, and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff lints and formats Python code blocks in Markdown, so prose-only edits can still affect Ruff results. CI runs MyPy and pytest for every pull request; those checks remain part of CI, but a documentation-only local gate may omit them unless the change also affects code or test behavior. A change confined to non-executable declarative metadata with no import-time or runtime effect — for example, a single project-metadata field such as `license` — does not require the full pytest run. Confirm the file still parses (e.g. the relevant `uv`/build command succeeds) and note in the record that no source changed; that is sufficient. If there is any doubt whether a change is actually confined in this sense, run the full gate.
+A documentation-only change must pass `python scripts/check_doc_links.py`, `python scripts/check_help_content.py`, `python scripts/check_sequence_tables.py`, `python scripts/check_package_dependencies.py`, and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff lints and formats Python code blocks in Markdown, so prose-only edits can still affect Ruff results. CI runs MyPy and pytest for every pull request; those checks remain part of CI, but a documentation-only local gate may omit them unless the change also affects code or test behavior. A change confined to non-executable declarative metadata with no import-time or runtime effect — for example, a single project-metadata field such as `license` — does not require the full pytest run. Confirm the file still parses (e.g. the relevant `uv`/build command succeeds) and note in the record that no source changed; that is sufficient. If there is any doubt whether a change is actually confined in this sense, run the full gate.
 
 The commands above are the ordinary developer and CI interface. Managed agents whose sandbox cannot write to Windows user-profile temp/cache directories should run the portable wrapper for their active shell instead:
 

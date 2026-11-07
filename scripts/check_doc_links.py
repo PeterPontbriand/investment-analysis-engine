@@ -24,6 +24,10 @@ Separately, a fenced block whose language is ``mermaid`` is reported: this
 repository's documentation draws diagrams as plain text blocks or tables, never
 as Mermaid.
 
+An ``<a id="x"></a>`` line is also an anchor: a link to ``#x`` resolves when such a line exists in the target file.
+A link into either glossary (``GLOSSARY_PATHS``) must target such an id. A link to a glossary heading slug, which
+changes when a heading is reworded, is reported even though a heading produces it.
+
 Only inline links (``[text](target)``) are recognized; reference-style links
 (``[text][ref]``) are not used anywhere in this repository's Markdown and are
 out of scope.
@@ -36,6 +40,12 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+GLOSSARY_PATHS = ("docs/user/GLOSSARY.md", "docs/project/CONTRIBUTOR_GLOSSARY.md")
+"""The two glossaries, as repository-relative paths; a link into either must target an entry's id."""
+
+ANCHOR_ID_RE = re.compile(r'^<a id="([^"]+)"></a>$')
+"""An id line: ``<a id="..."></a>`` on a line of its own, once stripped."""
 
 _ATX_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 _FENCE_RE = re.compile(r"^(```+|~~~+)")
@@ -164,6 +174,50 @@ def file_heading_slugs(lines: list[str]) -> set[str]:
     return slugs
 
 
+@dataclass(frozen=True)
+class FileAnchors:
+    """The anchors one Markdown file offers: heading slugs and ``<a id>`` ids."""
+
+    slugs: frozenset[str]
+    ids: frozenset[str]
+
+
+def file_anchor_ids(lines: list[str]) -> set[str]:
+    """Return every id a file's ``<a id="x"></a>`` lines give, skipping fenced code blocks."""
+    ids: set[str] = set()
+    for _line_number, line in iter_non_fenced_lines(lines):
+        match = ANCHOR_ID_RE.match(line.strip())
+        if match:
+            ids.add(match.group(1))
+    return ids
+
+
+def file_anchors(lines: list[str]) -> FileAnchors:
+    """Return the heading slugs and the ids of one file's lines."""
+    return FileAnchors(frozenset(file_heading_slugs(lines)), frozenset(file_anchor_ids(lines)))
+
+
+def _is_glossary(path: Path, repo_root: Path) -> bool:
+    """Return whether ``path`` is one of the two glossaries of ``repo_root``."""
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix() in GLOSSARY_PATHS
+    except ValueError:
+        return False
+
+
+def _anchor_problem(anchor: str, anchors: FileAnchors, *, glossary: bool, display_target: str) -> str | None:
+    """Return why ``#anchor`` does not resolve in a file, or ``None`` when it does."""
+    if anchor in anchors.ids:
+        return None
+    if glossary:
+        if anchor in anchors.slugs:
+            return f"#{anchor} is a heading slug in {display_target}; link the entry's <a id> instead"
+        return f"no entry id produces anchor #{anchor} in {display_target}"
+    if anchor in anchors.slugs:
+        return None
+    return f"no heading produces anchor #{anchor} in {display_target}"
+
+
 def _is_external(target: str) -> bool:
     return bool(_SCHEME_RE.match(target)) or target.startswith("//")
 
@@ -173,7 +227,7 @@ def find_broken_links_in_file(
     lines: list[str],
     *,
     repo_root: Path,
-    heading_slug_cache: dict[Path, set[str]],
+    heading_slug_cache: dict[Path, FileAnchors],
 ) -> list[BrokenLink]:
     """Return every broken local link/anchor found in one file's lines.
 
@@ -211,24 +265,19 @@ def find_broken_links_in_file(
             if target_file is not None and target_file.suffix.lower() != ".md":
                 continue  # anchors into non-Markdown targets (e.g. line links) are out of scope
             if target_file is None:
-                target_slugs = file_heading_slugs(lines)
+                anchors = file_anchors(lines)
                 display_target = "this file"
+                glossary = _is_glossary(source_file, repo_root)
             else:
                 if target_file not in heading_slug_cache:
                     target_lines = target_file.read_text(encoding="utf-8").splitlines(keepends=True)
-                    heading_slug_cache[target_file] = file_heading_slugs(target_lines)
-                target_slugs = heading_slug_cache[target_file]
+                    heading_slug_cache[target_file] = file_anchors(target_lines)
+                anchors = heading_slug_cache[target_file]
                 display_target = str(target_file.relative_to(repo_root))
-            if anchor not in target_slugs:
-                broken.append(
-                    BrokenLink(
-                        source_file,
-                        line_number,
-                        link_text,
-                        target,
-                        f"no heading produces anchor #{anchor} in {display_target}",
-                    )
-                )
+                glossary = _is_glossary(target_file, repo_root)
+            reason = _anchor_problem(anchor, anchors, glossary=glossary, display_target=display_target)
+            if reason is not None:
+                broken.append(BrokenLink(source_file, line_number, link_text, target, reason))
     return broken
 
 
@@ -250,7 +299,7 @@ def list_tracked_markdown_files(repo_root: Path) -> list[Path]:
 
 def check_repository(repo_root: Path) -> list[BrokenLink]:
     """Check every tracked or untracked-and-unignored Markdown file in ``repo_root`` and return all breaks found."""
-    heading_slug_cache: dict[Path, set[str]] = {}
+    heading_slug_cache: dict[Path, FileAnchors] = {}
     broken: list[BrokenLink] = []
     for markdown_file in list_tracked_markdown_files(repo_root):
         lines = markdown_file.read_text(encoding="utf-8").splitlines(keepends=True)

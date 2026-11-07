@@ -23,6 +23,9 @@ jobs:
       - name: Check Markdown Links and Anchors
         run: python scripts/check_doc_links.py
 
+      - name: Check Glossary Entries
+        run: python scripts/check_help_content.py
+
       - name: Check Planning Sequence Tables
         run: python scripts/check_sequence_tables.py
 

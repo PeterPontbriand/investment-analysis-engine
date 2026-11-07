@@ -224,7 +224,7 @@ The failure's code chooses its `reason` message, and the same code gives the sam
 
 Financial cache bypass is available through `--no-cache` on both Graham commands and `fcf-growth`. Quote responses expire independently after 300 seconds by default, even when annual-fact cache reuse is unlimited. Set the `IAN_QUOTE_CACHE_TTL_SECONDS` environment setting to a finite nonnegative value; zero disables quote reuse. An expired quote is refreshed once without substituting a stale value on failure. Old quotes with an unspecified cache basis are refreshed under the descriptive quote basis; annual caches and database schema are unchanged.
 
-[Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Investment Analysis Engine currently uses [JSON](GLOSSARY.md#json-javascript-object-notation) for this mode.
+[Machine-readable output](GLOSSARY.md#machine-readable-output) is structured for another program to consume reliably rather than primarily for a person to read. Investment Analysis Engine currently uses [JSON](GLOSSARY.md#json) for this mode.
 
 JSON intentionally retains stable machine identifiers such as snake_case field names where those identifiers are part of the programmatic contract.
 
@@ -259,7 +259,7 @@ uv run ian graham-number KO --as-of 2025-12-31
 uv run ian fcf-growth MSFT --as-of 2025-12-31
 ```
 
-`--as-of` creates an information boundary. Financial facts that had not yet been published by that date cannot be used merely because their reporting period ended earlier. See [`as_of`](GLOSSARY.md#as_of), [publication date](GLOSSARY.md#available-at--filing-date--publication-date), and [look-ahead bias](GLOSSARY.md#look-ahead-bias).
+`--as-of` creates an information boundary. Financial facts that had not yet been published by that date cannot be used merely because their reporting period ended earlier. See [`as_of`](GLOSSARY.md#as-of-date), [publication date](GLOSSARY.md#availability-date), and [look-ahead bias](GLOSSARY.md#look-ahead-bias).
 
 A provider that only supplies today's quote does not manufacture a historical quote. A historical calculation may therefore succeed without a market-price comparison.
 

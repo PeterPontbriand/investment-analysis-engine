@@ -163,6 +163,7 @@ main() {
         exit 1
     fi
     run_step "check_doc_links" "${system_python[@]}" scripts/check_doc_links.py
+    run_step "check_help_content" "${system_python[@]}" scripts/check_help_content.py
     run_step "check_sequence_tables" "${system_python[@]}" scripts/check_sequence_tables.py
     run_step "check_package_dependencies" "${system_python[@]}" scripts/check_package_dependencies.py
     run_step "generate_openapi --check" uv run --no-sync python -m scripts.generate_openapi --check
