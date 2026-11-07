@@ -1,6 +1,8 @@
 # Smoke Testing Commands
 
-Run this short set of commands after installing or updating Investment Analysis Engine. It is a manual test with live provider access: it checks that the command line starts, that the data providers answer, that each analysis command produces a well-formed result, and that the watchlist workflow saves, lists and replays results. It does not try to cover every option.
+Run this short set of commands by hand after installing or updating Investment Analysis Engine. It is for a person checking the command line from a terminal they opened themselves, and judging the output as a user would see it. On Windows, a terminal started by another application, such as an AI assistant's desktop app, may see different settings and data folders, and so a different database. An agent or script may rehearse these steps, but its run is not a formal smoke test.
+
+The test needs live provider access. It checks that the command line starts, that the data providers answer, that each analysis command produces a well-formed result, and that the watchlist workflow saves, lists and replays results. It does not try to cover every option.
 
 Provider data changes over time, so exact values are not prescribed. For each command, confirm that the output is well-formed, identifies the requested ticker and method, contains no traceback or `NaN`/infinity, and either produces a typed result or explains classified unavailability clearly. Every step has a number (A1, A2, ... and B1, B2, ...) so that [the record](#recording-the-result) can refer to it.
 
