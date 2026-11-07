@@ -102,6 +102,7 @@ A data file that the evaluation tier reads must be listed, as an explicit path, 
 - `direct-output`: a strategy that builds its own provider reaches Yahoo (identity and instrument kind) unless the harness replaces the provider's Yahoo adapter. Patch the strategy's names in `enter_fixture_providers` of `tests/_direct_command_output.py`, as it does for Piotroski (its `ProductionFinancialFactsProvider`, given `_FixtureYahoo`) and for the others (their `YFinanceClient`). Otherwise regeneration calls the live service and stores its answer.
 - `catalog`: the patches in `tests/scripts/generator_fills/patches.toml` anchor on structural text (the end of a tuple and the definition after it), never on a strategy, a case id, a version or a count, and the generator's end-to-end test bumps the suite version and the case counts itself from the files as they stand. Adding a strategy or a Golden case therefore needs no `patches.toml` edit. A Golden case still moves the suite and fixture-set versions in `evaluation/catalog.py`, [`EVALUATIONS.md`](EVALUATIONS.md) and the case counts in `tests/evaluation/test_catalog.py` together; edit them by hand.
 - A new failure: a class that declares a `reason_code` must be pinned in `tests/_failure_code_table.py`, which is written by hand and is not derived from the code.
+- The smoke test: a new strategy adds its own direct command to [`docs/user/SMOKE_TESTING.md`](user/SMOKE_TESTING.md), with that command's expectations, in the same pull request. No test checks it; the reviewer does.
 
 **Regeneration commands**
 
