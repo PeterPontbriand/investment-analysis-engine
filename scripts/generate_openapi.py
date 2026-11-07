@@ -22,17 +22,21 @@ from typing import Any
 from pydantic import BaseModel
 from pydantic.json_schema import models_json_schema
 
-from investment_analysis_engine.api.documents import API_VERSIONS, installed_engine_version
+from investment_analysis_engine.api.documents import API_VERSIONS, AnalysisDocument, installed_engine_version
 from investment_analysis_engine.api.routes import ROUTES, RouteSpec
+from investment_analysis_engine.api.selection_forms import SelectionFormDocument, selection_schema
+from investment_analysis_engine.strategy_wiring import STRATEGIES
 from scripts.repository_root import REPOSITORY_ROOT
 
 OPENAPI_FILE = REPOSITORY_ROOT / "schemas" / "openapi.json"
 
 STATUS_DESCRIPTIONS = {
     200: "The document.",
+    201: "The document of what was created.",
     400: "A rejected parameter, or a Host or Origin the server does not allow.",
     401: "No valid bearer token.",
     404: "No such resource.",
+    409: "The stored data refuses the change: a name already in use, or an entry this version cannot read.",
     405: "The endpoint does not accept this method.",
     500: "An unexpected failure.",
     503: "The database is busy.",
@@ -44,6 +48,46 @@ def _reference(key_map: dict[Any, Any], models: tuple[type[BaseModel], ...]) -> 
     """Return the schema of a response: a reference, or any one of several references."""
     references = [key_map[(model, "serialization")] for model in models]
     return references[0] if len(references) == 1 else {"anyOf": references}
+
+
+def _rewrite_references(node: Any, prefix: str) -> Any:
+    """Return ``node`` with every ``#/$defs/X`` reference pointing at the component ``<prefix>.X`` instead."""
+    if isinstance(node, dict):
+        return {
+            key: (
+                f"#/components/schemas/{prefix}.{value.removeprefix('#/$defs/')}"
+                if key == "$ref" and isinstance(value, str) and value.startswith("#/$defs/")
+                else _rewrite_references(value, prefix)
+            )
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_rewrite_references(item, prefix) for item in node]
+    return node
+
+
+def _refine(schemas: dict[str, Any], key_map: dict[Any, Any]) -> None:
+    """Name, in the documents that hold a strategy's own document or selection, the schemas they may hold.
+
+    The analysis document's ``document`` is any strategy's document, and the selection form's ``schema`` is any
+    strategy's selection schema; each is declared as a free object in the model, so the description lists the
+    alternatives. A selection schema is a component of its own, with its definitions beside it.
+    """
+    analysis = schemas[key_map[(AnalysisDocument, "serialization")]["$ref"].rsplit("/", 1)[1]]
+    analysis["properties"]["document"] = {
+        "anyOf": [key_map[(item.json_envelope, "serialization")] for item in STRATEGIES],
+        "description": analysis["properties"]["document"]["description"],
+    }
+    alternatives: list[dict[str, str]] = []
+    for item in STRATEGIES:
+        schema = selection_schema(item)
+        name = str(schema["title"])
+        for definition, body in schema.pop("$defs", {}).items():
+            schemas[f"{name}.{definition}"] = _rewrite_references(body, name)
+        schemas[name] = _rewrite_references(schema, name)
+        alternatives.append({"$ref": f"#/components/schemas/{name}"})
+    form = schemas[key_map[(SelectionFormDocument, "serialization")]["$ref"].rsplit("/", 1)[1]]
+    form["properties"]["schema"] = {"anyOf": alternatives, "description": form["properties"]["schema"]["description"]}
 
 
 def _operation(route: RouteSpec, key_map: dict[Any, Any]) -> dict[str, Any]:
@@ -59,7 +103,7 @@ def _operation(route: RouteSpec, key_map: dict[Any, Any]) -> dict[str, Any]:
                 "WWW-Authenticate": {"description": "The challenge: Bearer.", "schema": {"type": "string"}}
             }
         responses[str(status)] = response
-    return {
+    operation: dict[str, Any] = {
         "operationId": route.operation_id,
         "summary": route.summary,
         "parameters": [
@@ -74,15 +118,24 @@ def _operation(route: RouteSpec, key_map: dict[Any, Any]) -> dict[str, Any]:
         ],
         "responses": responses,
     }
+    if route.request is not None:
+        operation["requestBody"] = {
+            "required": True,
+            "content": {"application/json": {"schema": key_map[(route.request, "validation")]}},
+        }
+    return operation
 
 
 def openapi_description() -> dict[str, Any]:
     """Return the OpenAPI 3.1 description of every route in the table."""
     models = list(dict.fromkeys(model for route in ROUTES for _status, group in route.responses for model in group))
+    requests = list(dict.fromkeys(route.request for route in ROUTES if route.request is not None))
     key_map, definitions = models_json_schema(
-        [(model, "serialization") for model in models], ref_template="#/components/schemas/{model}"
+        [*((model, "serialization") for model in models), *((model, "validation") for model in requests)],
+        ref_template="#/components/schemas/{model}",
     )
     schemas: dict[str, Any] = dict(definitions.get("$defs", {}))
+    _refine(schemas, key_map)
     paths: dict[str, Any] = {}
     for route in ROUTES:
         paths.setdefault(route.path, {})[route.method.lower()] = _operation(route, key_map)
@@ -92,7 +145,7 @@ def openapi_description() -> dict[str, Any]:
             "title": "Investment Analysis Engine local API",
             "version": f"{installed_engine_version()} ({', '.join(API_VERSIONS)})",
             "description": (
-                "The read endpoints of `ian serve`. Every request carries the per-launch bearer token. A client "
+                "The endpoints of `ian serve`. Every request carries the per-launch bearer token. A client "
                 "must tolerate unknown fields, unknown values and a higher schema_version."
             ),
         },

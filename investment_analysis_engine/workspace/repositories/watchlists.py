@@ -509,6 +509,7 @@ class SQLiteWatchlistRepository:
                 entry_number=index,
                 ticker=entry_row["ticker"],
                 method=method,
+                method_id=entry_row["method_id"],
             ) from exc
         return WatchlistEntry(ticker=entry_row["ticker"], selection=selection)
 

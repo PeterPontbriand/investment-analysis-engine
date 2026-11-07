@@ -897,7 +897,12 @@ def test_watchlist_delete_json_carries_the_watchlist_show_document() -> None:
     result = runner.invoke(app, ["watchlist", "delete", "Scratch", "--yes", "--json"])
 
     assert result.exit_code == 0, result.output
-    assert json.loads(result.stdout) == {"requested_name": "Scratch", "deleted": True, "watchlist": shown}
+    assert json.loads(result.stdout) == {
+        "schema_version": 1,
+        "deleted": True,
+        "watchlist": shown,
+        "unreadable": None,
+    }
 
 
 def test_watchlist_delete_non_interactive_without_yes_is_a_usage_error_and_changes_nothing(
@@ -971,7 +976,12 @@ def test_watchlist_delete_missing_ok_on_an_unknown_name_exits_0_in_text_and_json
 
     json_result = runner.invoke(app, ["watchlist", "delete", "Nonexistent", "--yes", "--missing-ok", "--json"])
     assert json_result.exit_code == 0, json_result.output
-    assert json.loads(json_result.stdout) == {"requested_name": "Nonexistent", "deleted": False, "watchlist": None}
+    assert json.loads(json_result.stdout) == {
+        "schema_version": 1,
+        "deleted": False,
+        "watchlist": None,
+        "unreadable": None,
+    }
 
 
 def test_watchlist_delete_missing_ok_on_an_existing_watchlist_deletes_normally() -> None:
@@ -1014,14 +1024,18 @@ def test_watchlist_rename_prints_the_confirmation_then_the_renamed_watchlist() -
     assert runner.invoke(app, ["watchlist", "show", "Old Name"]).exit_code == 1
 
 
-def test_watchlist_rename_json_prints_only_the_watchlist_document() -> None:
+def test_watchlist_rename_json_prints_only_the_rename_result_document() -> None:
     _seed_for_delete("Old Name")
     before = json.loads(runner.invoke(app, ["watchlist", "show", "Old Name", "--json"]).output)
 
     result = runner.invoke(app, ["watchlist", "rename", "Old Name", "New Name", "--json"])
 
     assert result.exit_code == 0, result.output
-    document = json.loads(result.stdout)
+    result_document = json.loads(result.stdout)
+    assert list(result_document) == ["schema_version", "watchlist", "unreadable"]
+    assert result_document["schema_version"] == 1
+    assert result_document["unreadable"] is None
+    document = result_document["watchlist"]
     assert document["display_name"] == "New Name"
     assert document["watchlist_id"] == before["watchlist_id"]
     assert document["entries"] == before["entries"]

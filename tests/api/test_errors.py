@@ -21,6 +21,9 @@ _STATUS = {
     "not_authenticated": 401,
     "analysis_run_not_found": 404,
     "watchlist_not_found": 404,
+    "watchlist_entry_not_found": 404,
+    "watchlist_name_conflict": 409,
+    "stored_selection_unreadable": 409,
     "endpoint_not_found": 404,
     "database_busy": 503,
 }
@@ -65,7 +68,7 @@ def test_each_reason_code_reaches_the_status_of_the_table_and_is_a_failure_envel
 
     assert response.status_code == _STATUS.get(code.value, 500)
     body = response.json()
-    assert body["schema_version"] == 11
+    assert body["schema_version"] == 12
     assert body["reason_code"] == code.value
     assert body["result"] is None
     assert body["status"] in ("error", "input_unavailable")

@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime, time
 from typing import Final
 
 from pydantic import ValidationError
+from pydantic_core import ErrorDetails
 
 from investment_analysis_engine.analysis.selection_base import SelectionRuleError
 from investment_analysis_engine.application.context import ApplicationContext
@@ -90,27 +91,26 @@ def _rule_error(error: SelectionRuleError) -> ActionParameterError:
     return ActionParameterError(error.template, parameters=error.fields, rule=error.rule, arguments=error.arguments)
 
 
-def _first_error(error: ValidationError) -> ActionParameterError:
-    """Return the first validation error of a selection model as the action's parameter error.
+def _field_error(entry: ErrorDetails) -> ActionParameterError | None:
+    """Return one validation error of a selection model as the action's parameter error.
 
     A rule the model raised keeps its own template, rule and values. A built-in field error is "Invalid
     {field}: <text>", or "{field} is required." for a missing field, and keeps its pydantic type and its plain
     context values.
 
-    Raises:
-        ValidationError: If the error belongs to the model as a whole and not to a rule or a field, which is a
-            programming error in the model.
+    Returns:
+        The error, or ``None`` if it belongs to the model as a whole and not to a rule or a field, which is a
+        programming error in the model.
     """
-    first = error.errors(include_input=False, include_url=False)[0]
-    context = first.get("ctx") or {}
+    context = entry.get("ctx") or {}
     cause = context.get("error")
     if isinstance(cause, SelectionRuleError):
         return _rule_error(cause)
-    location = first["loc"]
+    location = entry["loc"]
     if not location:
-        raise error
+        return None
     field = _field_name(location)
-    kind = first["type"]
+    kind = entry["type"]
     arguments: dict[str, object] = {
         key: value for key, value in context.items() if isinstance(value, str | int | float | bool)
     }
@@ -118,7 +118,7 @@ def _first_error(error: ValidationError) -> ActionParameterError:
         return ActionParameterError(
             f"{{{field}}} is required.", parameters=(field,), rule="pydantic.missing", arguments=arguments
         )
-    arguments[_PYDANTIC_MESSAGE] = first["msg"].removeprefix("Value error, ")
+    arguments[_PYDANTIC_MESSAGE] = entry["msg"].removeprefix("Value error, ")
     return ActionParameterError(
         f"Invalid {{{field}}}: {{{_PYDANTIC_MESSAGE}}}",
         parameters=(field,),
@@ -132,7 +132,8 @@ def build_selection(context: ApplicationContext, method_id: str, fields: Mapping
 
     Each field the strategy names in ``selection_settings_fields`` that ``fields`` omits is filled from the
     strategy's settings, loaded through ``context``. ``as_of`` is a date (the end of that day in UTC) or a
-    timestamp with a timezone offset. The first error is reported, in field order.
+    timestamp with a timezone offset. Every error is reported, in field order: the first is the raised error's
+    own, and all are listed in its ``errors``.
 
     Args:
         context: The application context, which locates the strategy's settings.
@@ -179,7 +180,11 @@ def build_selection(context: ApplicationContext, method_id: str, fields: Mapping
     try:
         selection = descriptor.behavior.selection_type.model_validate(values)
     except ValidationError as error:
-        raise _first_error(error) from None
+        found = [_field_error(entry) for entry in error.errors(include_input=False, include_url=False)]
+        errors = [item for item in found if item is not None]
+        if len(errors) != len(found):
+            raise
+        raise ActionParameterError.several(errors) from None
     if not isinstance(selection, SelectionMember):
         raise undeclared("selection type", type(selection))
     return selection

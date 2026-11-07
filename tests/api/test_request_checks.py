@@ -140,8 +140,8 @@ def test_a_preflight_from_an_allowed_origin_is_answered_without_a_token(isolated
     assert response.status_code == 204
     assert response.content == b""
     assert response.headers["access-control-allow-origin"] == ALLOWED
-    assert response.headers["access-control-allow-methods"] == "GET"
-    assert response.headers["access-control-allow-headers"] == "Authorization"
+    assert response.headers["access-control-allow-methods"] == "GET, POST, PATCH, DELETE"
+    assert response.headers["access-control-allow-headers"] == "Authorization, Content-Type"
     assert response.headers["access-control-max-age"] == "600"
     assert response.headers["vary"] == "Origin"
     assert "access-control-allow-credentials" not in response.headers

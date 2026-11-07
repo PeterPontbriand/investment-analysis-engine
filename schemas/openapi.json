@@ -11,6 +11,39 @@
         "title": "AccountingScope",
         "type": "string"
       },
+      "AddEntriesRequest": {
+        "additionalProperties": false,
+        "description": "The body that adds one entry per ticker for one strategy's selection.",
+        "properties": {
+          "method_id": {
+            "description": "The strategy's method identifier, as GET /v1/strategies lists it.",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "selection": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "The selection's fields, as GET /v1/strategies/{method_id}/selection describes them. A field left out takes its configured value; as_of is a date or a timestamp with a timezone offset, as text.",
+            "title": "Selection",
+            "type": "object"
+          },
+          "tickers": {
+            "description": "The tickers to add the selection for, one entry each.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tickers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "method_id",
+          "tickers"
+        ],
+        "title": "AddEntriesRequest",
+        "type": "object"
+      },
       "AdjustmentWindow": {
         "description": "Where an applied provider adjustment fell relative to the share count and the price.",
         "enum": [
@@ -19,6 +52,141 @@
         ],
         "title": "AdjustmentWindow",
         "type": "string"
+      },
+      "AnalysisDocument": {
+        "additionalProperties": false,
+        "description": "One analysis of one ticker under one selection: the strategy's document and its text.\n\nA run that is unavailable or failed is still an analysis document, because ``document`` reports it.",
+        "properties": {
+          "analysis_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The saved run's ID; null when the run was not saved.",
+            "title": "Analysis Run Id"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentumDocument"
+              },
+              {
+                "$ref": "#/components/schemas/GrahamNumberDocument"
+              },
+              {
+                "$ref": "#/components/schemas/GrahamGrowthDocument"
+              },
+              {
+                "$ref": "#/components/schemas/FCFDocument"
+              },
+              {
+                "$ref": "#/components/schemas/PiotroskiDocument"
+              }
+            ],
+            "description": "The strategy's document, as its command's --json writes it; its analysis key says which strategy."
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "text": {
+            "$ref": "#/components/schemas/AnalysisTextDocument",
+            "description": "The same run as text, in each presentation mode."
+          }
+        },
+        "required": [
+          "analysis_run_id",
+          "document",
+          "text"
+        ],
+        "title": "AnalysisDocument",
+        "type": "object"
+      },
+      "AnalysisRequest": {
+        "additionalProperties": false,
+        "description": "The body that analyzes one ticker under one selection.",
+        "properties": {
+          "method_id": {
+            "description": "The strategy's method identifier, as GET /v1/strategies lists it.",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Whether to send one test request to a provider after it fails. When absent or null, the choice made when the server was launched (IAN_PROVIDER_CHECK) applies, as it does on the command line.",
+            "title": "Provider Check"
+          },
+          "save": {
+            "default": false,
+            "description": "Whether to keep the result as an Analysis Run.",
+            "title": "Save",
+            "type": "boolean"
+          },
+          "selection": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "The selection's fields, as GET /v1/strategies/{method_id}/selection describes them. A field left out takes its configured value; as_of is a date or a timestamp with a timezone offset, as text.",
+            "title": "Selection",
+            "type": "object"
+          },
+          "ticker": {
+            "description": "The ticker to analyze.",
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "method_id"
+        ],
+        "title": "AnalysisRequest",
+        "type": "object"
+      },
+      "AnalysisTextDocument": {
+        "additionalProperties": false,
+        "description": "An analysis rendered as text in each presentation mode, as the command line would print it.",
+        "properties": {
+          "concise": {
+            "title": "Concise",
+            "type": "string"
+          },
+          "details": {
+            "title": "Details",
+            "type": "string"
+          },
+          "diagnostics": {
+            "title": "Diagnostics",
+            "type": "string"
+          }
+        },
+        "required": [
+          "concise",
+          "details",
+          "diagnostics"
+        ],
+        "title": "AnalysisTextDocument",
+        "type": "object"
+      },
+      "BaseModel": {
+        "properties": {},
+        "title": "BaseModel",
+        "type": "object"
       },
       "CalculationStatus": {
         "description": "Machine-readable outcome of a calculation attempt.\n\nPure calculators (Slice B) may return:\n\n- ``OK`` — required inputs resolved and calculation completed.\n- ``NOT_APPLICABLE`` — inputs are valid but the selected method is\n  inapplicable (e.g. non-positive EPS or BVPS for the Graham Number).\n- ``INVALID_INPUT`` — supplied value, unit, basis, or method/flag\n  combination is invalid.\n\nResolver/provider layers (Slice C and later) will additionally return:\n\n- ``INPUT_UNAVAILABLE`` — a required input could not be resolved under\n  the requested time boundary.\n- ``PROVIDER_ERROR`` — the configured provider failed in a way that\n  should be distinguished from an absent fact.",
@@ -769,14 +937,12 @@
         "additionalProperties": false,
         "description": "Historical FCF/Earnings Growth request options, independent of Graham configs.",
         "properties": {
-          "analysis_id": {
-            "const": "fcf_earnings_growth",
-            "default": "fcf_earnings_growth",
-            "title": "Analysis Id",
-            "type": "string"
-          },
           "as_of": {
             "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
               {
                 "format": "date-time",
                 "type": "string"
@@ -789,26 +955,14 @@
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
             "title": "As Of"
           },
-          "config_schema_version": {
-            "const": 3,
-            "default": 3,
-            "title": "Config Schema Version",
-            "type": "integer"
-          },
           "currency": {
             "default": "USD",
             "description": "Three-letter ISO 4217 code of the reporting currency the annual facts must use.",
             "title": "Currency",
             "type": "string"
           },
-          "method_id": {
-            "const": "reported_fcf_eps_cagr",
-            "default": "reported_fcf_eps_cagr",
-            "title": "Method Id",
-            "type": "string"
-          },
           "policy": {
-            "$ref": "#/components/schemas/FCFPolicySnapshot",
+            "$ref": "#/components/schemas/FCFGrowthSelection.FCFPolicySnapshot",
             "description": "The growth horizon, classification and forward-evidence rules."
           },
           "use_cache": {
@@ -820,6 +974,59 @@
         },
         "title": "FCFGrowthSelection",
         "type": "object"
+      },
+      "FCFGrowthSelection.FCFClassificationBasis": {
+        "description": "Free-cash-flow measure controlling classification.",
+        "enum": [
+          "total_fcf",
+          "fcf_per_share"
+        ],
+        "title": "FCFClassificationBasis",
+        "type": "string"
+      },
+      "FCFGrowthSelection.FCFPolicySnapshot": {
+        "additionalProperties": false,
+        "description": "Validated immutable copy of the existing FCF policy and its native enums.",
+        "properties": {
+          "classification_basis": {
+            "$ref": "#/components/schemas/FCFGrowthSelection.FCFClassificationBasis",
+            "default": "total_fcf",
+            "description": "Whether growth is classified on total free cash flow or on free cash flow per share."
+          },
+          "forward_policy": {
+            "$ref": "#/components/schemas/FCFGrowthSelection.ForwardPolicy",
+            "default": "display_only",
+            "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate."
+          },
+          "historical_horizon": {
+            "$ref": "#/components/schemas/FCFGrowthSelection.HistoricalHorizon",
+            "default": "longest_available",
+            "description": "How many elapsed years of history to require; the default picks the longest available up to five."
+          }
+        },
+        "title": "FCFPolicySnapshot",
+        "type": "object"
+      },
+      "FCFGrowthSelection.ForwardPolicy": {
+        "description": "How forward consensus evidence affects the headline result.",
+        "enum": [
+          "display_only",
+          "confirmation",
+          "hard_gate"
+        ],
+        "title": "ForwardPolicy",
+        "type": "string"
+      },
+      "FCFGrowthSelection.HistoricalHorizon": {
+        "description": "Requested historical elapsed-year horizon for classification.",
+        "enum": [
+          "longest_available",
+          "3",
+          "4",
+          "5"
+        ],
+        "title": "HistoricalHorizon",
+        "type": "string"
       },
       "FCFLineagePart": {
         "additionalProperties": false,
@@ -1604,6 +1811,22 @@
             "title": "Diagnostics",
             "type": "array"
           },
+          "errors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FailureRuleError"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Set exactly when reason_code is invalid_parameter and a rule rejected the argument: every rejection in field order, the first being the one reason and parameters describe; null otherwise.",
+            "title": "Errors"
+          },
           "method": {
             "anyOf": [
               {
@@ -1675,8 +1898,8 @@
             "type": "null"
           },
           "schema_version": {
-            "const": 11,
-            "default": 11,
+            "const": 12,
+            "default": 12,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -1750,6 +1973,46 @@
         ],
         "title": "FailureReasonCode",
         "type": "string"
+      },
+      "FailureRuleError": {
+        "additionalProperties": false,
+        "description": "One rejected argument: the rule that rejected it, the parameters it names, the values and the message.",
+        "properties": {
+          "arguments": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "The values the message shows, by name. A non-finite number is its text (inf, -inf, nan), a date or timestamp is ISO 8601 text, and anything JSON cannot carry is its text.",
+            "title": "Arguments",
+            "type": "object"
+          },
+          "message": {
+            "description": "The rule's message for a person; it carries no guarantee.",
+            "title": "Message",
+            "type": "string"
+          },
+          "parameters": {
+            "description": "The parameters the rule names, spelled as the caller does.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Parameters",
+            "type": "array"
+          },
+          "rule": {
+            "description": "The stable identifier of the rule, such as momentum.window_order.",
+            "title": "Rule",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rule",
+          "parameters",
+          "arguments",
+          "message"
+        ],
+        "title": "FailureRuleError",
+        "type": "object"
       },
       "ForwardEvidenceStatus": {
         "description": "Completeness of the forward consensus evidence block.",
@@ -2061,14 +2324,12 @@
             "title": "Aaa Yield Override",
             "type": "number"
           },
-          "analysis_id": {
-            "const": "graham_growth_value",
-            "default": "graham_growth_value",
-            "title": "Analysis Id",
-            "type": "string"
-          },
           "as_of": {
             "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
               {
                 "format": "date-time",
                 "type": "string"
@@ -2080,12 +2341,6 @@
             "default": null,
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
             "title": "As Of"
-          },
-          "config_schema_version": {
-            "const": 2,
-            "default": 2,
-            "title": "Config Schema Version",
-            "type": "integer"
           },
           "eps_basis": {
             "default": "three_year_average",
@@ -2114,12 +2369,6 @@
             "description": "Expected annual earnings growth, in percentage points.",
             "title": "Expected Growth",
             "type": "number"
-          },
-          "method_id": {
-            "const": "graham_growth_value",
-            "default": "graham_growth_value",
-            "title": "Method Id",
-            "type": "string"
           },
           "quote_override": {
             "anyOf": [
@@ -2393,14 +2642,12 @@
         "additionalProperties": false,
         "description": "Immutable Graham Number selection with an optional book-value override.",
         "properties": {
-          "analysis_id": {
-            "const": "graham_number",
-            "default": "graham_number",
-            "title": "Analysis Id",
-            "type": "string"
-          },
           "as_of": {
             "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
               {
                 "format": "date-time",
                 "type": "string"
@@ -2426,12 +2673,6 @@
             "description": "Book value per share to use instead of the reported figure; leave empty to use it.",
             "title": "Bvps Override"
           },
-          "config_schema_version": {
-            "const": 3,
-            "default": 3,
-            "title": "Config Schema Version",
-            "type": "integer"
-          },
           "eps_override": {
             "anyOf": [
               {
@@ -2444,12 +2685,6 @@
             "default": null,
             "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
             "title": "Eps Override"
-          },
-          "method_id": {
-            "const": "graham_number",
-            "default": "graham_number",
-            "title": "Method Id",
-            "type": "string"
           },
           "quote_override": {
             "anyOf": [
@@ -2581,6 +2816,7 @@
         "title": "InstrumentKindPart",
         "type": "object"
       },
+      "JsonValue": {},
       "LineagePart": {
         "additionalProperties": false,
         "description": "How a derived input was composed from other inputs.",
@@ -3055,14 +3291,12 @@
         "additionalProperties": false,
         "description": "Immutable snapshot of the effective Momentum configuration.\n\nThe canonical analysis/method identifiers are fixed to the contract matrix values\n(``momentum`` / ``sma_crossover``) and cannot be overridden or made to disagree\nwith one another. Window and RSI values are materialized from explicit inputs or\nthe current configured policy at creation time; later settings changes do not\naffect an existing selection. ``as_of`` and ``use_cache`` are persisted with the\nselection, so a saved or refreshed run reuses the boundary and cache choice it was\ncreated with.",
         "properties": {
-          "analysis_id": {
-            "const": "momentum",
-            "default": "momentum",
-            "title": "Analysis Id",
-            "type": "string"
-          },
           "as_of": {
             "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
               {
                 "format": "date-time",
                 "type": "string"
@@ -3075,23 +3309,11 @@
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
             "title": "As Of"
           },
-          "config_schema_version": {
-            "const": 2,
-            "default": 2,
-            "title": "Config Schema Version",
-            "type": "integer"
-          },
           "long_window": {
             "description": "Number of trading days in the long moving average; it must be larger than the short one.",
             "exclusiveMinimum": 0,
             "title": "Long Window",
             "type": "integer"
-          },
-          "method_id": {
-            "const": "sma_crossover",
-            "default": "sma_crossover",
-            "title": "Method Id",
-            "type": "string"
           },
           "rsi_period": {
             "description": "Number of trading days the relative strength index looks back over.",
@@ -3112,11 +3334,6 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "short_window",
-          "long_window",
-          "rsi_period"
-        ],
         "title": "MomentumSelection",
         "type": "object"
       },
@@ -3591,14 +3808,12 @@
         "additionalProperties": false,
         "description": "The Piotroski F-Score selection: the shared point-in-time and cache fields.",
         "properties": {
-          "analysis_id": {
-            "const": "piotroski",
-            "default": "piotroski",
-            "title": "Analysis Id",
-            "type": "string"
-          },
           "as_of": {
             "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
               {
                 "format": "date-time",
                 "type": "string"
@@ -3610,18 +3825,6 @@
             "default": null,
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
             "title": "As Of"
-          },
-          "config_schema_version": {
-            "const": 1,
-            "default": 1,
-            "title": "Config Schema Version",
-            "type": "integer"
-          },
-          "method_id": {
-            "const": "piotroski",
-            "default": "piotroski",
-            "title": "Method Id",
-            "type": "string"
           },
           "use_cache": {
             "default": true,
@@ -4108,6 +4311,41 @@
         ],
         "title": "ReasonCode",
         "type": "string"
+      },
+      "RemoveMethodRequest": {
+        "additionalProperties": false,
+        "description": "The body that removes every entry of one strategy.",
+        "properties": {
+          "method_id": {
+            "description": "The strategy's method identifier, as GET /v1/strategies lists it.",
+            "title": "Method Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method_id"
+        ],
+        "title": "RemoveMethodRequest",
+        "type": "object"
+      },
+      "RemoveTickersRequest": {
+        "additionalProperties": false,
+        "description": "The body that removes every entry for the given tickers.",
+        "properties": {
+          "tickers": {
+            "description": "The tickers whose entries are removed, across every strategy.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Tickers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tickers"
+        ],
+        "title": "RemoveTickersRequest",
+        "type": "object"
       },
       "ReplayTextDocument": {
         "additionalProperties": false,
@@ -4736,6 +4974,52 @@
         "title": "SecurityUnitProvenancePart",
         "type": "object"
       },
+      "SelectionFormDocument": {
+        "additionalProperties": false,
+        "description": "What a client needs to build a form for one strategy's selection.",
+        "properties": {
+          "defaults": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "The configured value of each field the strategy's settings fill, by field name; empty for a strategy whose selection has none. A request that omits one of these fields gets this value.",
+            "title": "Defaults",
+            "type": "object"
+          },
+          "schema": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MomentumSelection"
+              },
+              {
+                "$ref": "#/components/schemas/GrahamNumberSelection"
+              },
+              {
+                "$ref": "#/components/schemas/GrahamGrowthSelection"
+              },
+              {
+                "$ref": "#/components/schemas/FCFGrowthSelection"
+              },
+              {
+                "$ref": "#/components/schemas/PiotroskiSelection"
+              }
+            ],
+            "description": "The JSON Schema of the selection fields a request may carry, as schemas/selections publishes it."
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema",
+          "defaults"
+        ],
+        "title": "SelectionFormDocument",
+        "type": "object"
+      },
       "ShareCountBasis": {
         "description": "Where a share count was taken from.",
         "enum": [
@@ -4848,9 +5132,87 @@
         "title": "TrendStatus",
         "type": "string"
       },
+      "UnreadableEntryDocument": {
+        "additionalProperties": false,
+        "description": "The first entry of a watchlist that this version cannot read, and why.",
+        "properties": {
+          "entry_number": {
+            "description": "The 1-based position of the entry.",
+            "title": "Entry Number",
+            "type": "integer"
+          },
+          "method_id": {
+            "description": "The method identifier as stored; this version may no longer declare it.",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "reason": {
+            "description": "The state of the entry, in words for a person. It names no command.",
+            "title": "Reason",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entry_number",
+          "ticker",
+          "method_id",
+          "reason"
+        ],
+        "title": "UnreadableEntryDocument",
+        "type": "object"
+      },
+      "WatchlistDeleteDocument": {
+        "additionalProperties": false,
+        "description": "The outcome of ``watchlist delete --json``, with the watchlist it removed when there was one.\n\n``deleted`` is false, and ``watchlist`` and ``unreadable`` both null, only for ``--missing-ok`` on a name that does\nnot exist. Otherwise exactly one of ``watchlist`` and ``unreadable`` is set.",
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "unreadable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnreadableEntryDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The first entry this version could not read; null when nothing was deleted."
+          },
+          "watchlist": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WatchlistDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The deleted watchlist; null when an entry was unreadable or nothing was deleted."
+          }
+        },
+        "required": [
+          "deleted",
+          "watchlist",
+          "unreadable"
+        ],
+        "title": "WatchlistDeleteDocument",
+        "type": "object"
+      },
       "WatchlistDocument": {
         "additionalProperties": false,
-        "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show``, ``create``, ``add-selection``, ``remove-entry``, ``remove-ticker``,\n``remove-method`` and ``rename``.\n\nThis document is unversioned: it has no ``schema_version``.",
+        "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show``, ``create`` and ``add-selection``; the API serves it for a watchlist, for a created\nwatchlist and for an added entry, and the result documents below nest it.",
         "properties": {
           "created_at": {
             "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
@@ -4868,6 +5230,12 @@
             },
             "title": "Entries",
             "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
           },
           "updated_at": {
             "anyOf": [
@@ -4976,6 +5344,108 @@
         "title": "WatchlistListDocument",
         "type": "object"
       },
+      "WatchlistNameRequest": {
+        "additionalProperties": false,
+        "description": "The body that creates a watchlist or renames one.",
+        "properties": {
+          "name": {
+            "description": "The watchlist's display name.",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WatchlistNameRequest",
+        "type": "object"
+      },
+      "WatchlistRemovalDocument": {
+        "additionalProperties": false,
+        "description": "The outcome of ``remove-entry``, ``remove-ticker`` and ``remove-method`` with ``--json``.",
+        "properties": {
+          "removed": {
+            "description": "The number of entries removed; 0 when nothing matched.",
+            "title": "Removed",
+            "type": "integer"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "unreadable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnreadableEntryDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The first remaining entry this version cannot read; the removal is committed either way."
+          },
+          "watchlist": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WatchlistDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The watchlist read back; null when an entry is unreadable."
+          }
+        },
+        "required": [
+          "removed",
+          "watchlist",
+          "unreadable"
+        ],
+        "title": "WatchlistRemovalDocument",
+        "type": "object"
+      },
+      "WatchlistRenameDocument": {
+        "additionalProperties": false,
+        "description": "The outcome of ``watchlist rename --json``: the renamed watchlist, or the entry that could not be read.",
+        "properties": {
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "unreadable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnreadableEntryDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The first entry this version cannot read; the rename is committed either way."
+          },
+          "watchlist": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WatchlistDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The renamed watchlist; null when an entry is unreadable."
+          }
+        },
+        "required": [
+          "watchlist",
+          "unreadable"
+        ],
+        "title": "WatchlistRenameDocument",
+        "type": "object"
+      },
       "WatchlistSummaryDocument": {
         "additionalProperties": false,
         "description": "One watchlist, summarized: its identity, name, entry count and timestamps.",
@@ -5033,12 +5503,99 @@
     }
   },
   "info": {
-    "description": "The read endpoints of `ian serve`. Every request carries the per-launch bearer token. A client must tolerate unknown fields, unknown values and a higher schema_version.",
+    "description": "The endpoints of `ian serve`. Every request carries the per-launch bearer token. A client must tolerate unknown fields, unknown values and a higher schema_version.",
     "title": "Investment Analysis Engine local API",
     "version": "0.1.0 (v1)"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/analyses": {
+      "post": {
+        "operationId": "analyze",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Analyze one ticker under one selection, and keep the result when asked."
+      }
+    },
     "/v1/info": {
       "get": {
         "operationId": "get_info",
@@ -5632,6 +6189,90 @@
         "summary": "List the strategies this engine supports."
       }
     },
+    "/v1/strategies/{method_id}/selection": {
+      "get": {
+        "operationId": "get_selection_form",
+        "parameters": [
+          {
+            "description": "The strategy's method identifier.",
+            "in": "path",
+            "name": "method_id",
+            "required": true,
+            "schema": {
+              "enum": [
+                "sma_crossover",
+                "graham_number",
+                "graham_growth_value",
+                "reported_fcf_eps_cagr",
+                "piotroski"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectionFormDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "Describe the selection fields of one strategy, with their configured values."
+      }
+    },
     "/v1/watchlists": {
       "get": {
         "operationId": "list_watchlists",
@@ -5707,11 +6348,106 @@
           }
         },
         "summary": "List every watchlist."
+      },
+      "post": {
+        "operationId": "create_watchlist",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistDocument"
+                }
+              }
+            },
+            "description": "The document of what was created."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The stored data refuses the change: a name already in use, or an entry this version cannot read."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Create an empty watchlist."
       }
     },
     "/v1/watchlists/{watchlist_id}": {
-      "get": {
-        "operationId": "get_watchlist",
+      "delete": {
+        "operationId": "delete_watchlist",
         "parameters": [
           {
             "description": "The watchlist's ID.",
@@ -5729,7 +6465,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WatchlistDocument"
+                  "$ref": "#/components/schemas/WatchlistDeleteDocument"
                 }
               }
             },
@@ -5804,7 +6540,671 @@
             "description": "The database is busy."
           }
         },
+        "summary": "Delete a watchlist and its entries. Saved runs are kept."
+      },
+      "get": {
+        "operationId": "get_watchlist",
+        "parameters": [
+          {
+            "description": "The watchlist's ID.",
+            "in": "path",
+            "name": "watchlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The stored data refuses the change: a name already in use, or an entry this version cannot read."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
         "summary": "Show one watchlist."
+      },
+      "patch": {
+        "operationId": "rename_watchlist",
+        "parameters": [
+          {
+            "description": "The watchlist's ID.",
+            "in": "path",
+            "name": "watchlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchlistNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistRenameDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The stored data refuses the change: a name already in use, or an entry this version cannot read."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Rename a watchlist. Saved runs keep the name it had when they ran."
+      }
+    },
+    "/v1/watchlists/{watchlist_id}/entries": {
+      "post": {
+        "operationId": "add_watchlist_entries",
+        "parameters": [
+          {
+            "description": "The watchlist's ID.",
+            "in": "path",
+            "name": "watchlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddEntriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The stored data refuses the change: a name already in use, or an entry this version cannot read."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Add one entry per ticker for one strategy's selection."
+      }
+    },
+    "/v1/watchlists/{watchlist_id}/entries/{entry_number}": {
+      "delete": {
+        "operationId": "remove_watchlist_entry",
+        "parameters": [
+          {
+            "description": "The watchlist's ID.",
+            "in": "path",
+            "name": "watchlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The entry's 1-based number, as the watchlist document shows it.",
+            "in": "path",
+            "name": "entry_number",
+            "required": true,
+            "schema": {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistRemovalDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Remove one entry by its 1-based number."
+      }
+    },
+    "/v1/watchlists/{watchlist_id}/remove-method": {
+      "post": {
+        "operationId": "remove_watchlist_method",
+        "parameters": [
+          {
+            "description": "The watchlist's ID.",
+            "in": "path",
+            "name": "watchlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveMethodRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistRemovalDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Remove every entry of one strategy."
+      }
+    },
+    "/v1/watchlists/{watchlist_id}/remove-tickers": {
+      "post": {
+        "operationId": "remove_watchlist_tickers",
+        "parameters": [
+          {
+            "description": "The watchlist's ID.",
+            "in": "path",
+            "name": "watchlist_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveTickersRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistRemovalDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Remove every entry for the given tickers."
       }
     }
   },

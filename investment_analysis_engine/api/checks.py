@@ -9,10 +9,17 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from investment_analysis_engine.api.origins import normalize_origin
 from investment_analysis_engine.api.responses import failure_of
+from investment_analysis_engine.api.routes import ROUTES
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 
 PREFLIGHT_MAX_AGE_SECONDS = 600
 """How long a browser may reuse a preflight answer."""
+
+PREFLIGHT_ALLOWED_METHODS = ", ".join(dict.fromkeys(route.method for route in ROUTES))
+"""The methods a preflight allows: exactly those the route table declares, in the order it first uses them."""
+
+PREFLIGHT_ALLOWED_HEADERS = "Authorization, Content-Type"
+"""The request headers a preflight allows: the bearer token and the type of a body."""
 
 _BEARER_PREFIX = "bearer "
 
@@ -62,8 +69,8 @@ class RequestChecks:
             preflight = Response(
                 status_code=204,
                 headers={
-                    "Access-Control-Allow-Methods": "GET",
-                    "Access-Control-Allow-Headers": "Authorization",
+                    "Access-Control-Allow-Methods": PREFLIGHT_ALLOWED_METHODS,
+                    "Access-Control-Allow-Headers": PREFLIGHT_ALLOWED_HEADERS,
                     "Access-Control-Max-Age": str(PREFLIGHT_MAX_AGE_SECONDS),
                     "Cache-Control": "no-store",
                 },
@@ -102,4 +109,4 @@ def _with_cors_headers(send: Send, origin: str) -> Send:
     return wrapped
 
 
-__all__ = ["PREFLIGHT_MAX_AGE_SECONDS", "RequestChecks"]
+__all__ = ["PREFLIGHT_ALLOWED_HEADERS", "PREFLIGHT_ALLOWED_METHODS", "PREFLIGHT_MAX_AGE_SECONDS", "RequestChecks"]

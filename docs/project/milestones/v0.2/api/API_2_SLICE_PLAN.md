@@ -473,6 +473,7 @@ uvicorn's loggers go to the project's file log. The access log is off.
   (404 and 405).
 - `parameters` names the API's query and path parameter names, which is a field-description change, not a shape change.
 - An unexpected exception is a fixed-message `execution_error` with the traceback in the log.
+- Extended by [J12](API_4_SLICE_PLAN.md#j12-failure-statuses-2026-11-06): the action endpoints add 409 and a 404.
 
 | HTTP status | Reason codes |
 | :--- | :--- |
@@ -600,6 +601,8 @@ For an allowed origin, responses carry `Access-Control-Allow-Origin` with that o
 preflight answer allows method `GET` only and header `Authorization` only, with `Access-Control-Max-Age: 600`.
 `Access-Control-Expose-Headers: WWW-Authenticate` is set, and `Access-Control-Allow-Credentials` never is. A request with no
 `Origin` header passes the origin check.
+
+Amended by [J6](API_4_SLICE_PLAN.md#j6-cors-allows-the-declared-methods-2026-11-06): a preflight allows the methods the route table declares and `Content-Type`.
 
 ### S32 Path parameters are named after document fields (2026-11-03)
 

@@ -53,7 +53,7 @@ def test_create_json_writes_only_the_created_watchlist_document() -> None:
     document = json.loads(stdout)
     assert (code, stderr) == (0, "")
     assert (document["display_name"], document["updated_at"], document["entries"]) == ("Core", None, [])
-    assert list(document) == ["watchlist_id", "display_name", "created_at", "updated_at", "entries"]
+    assert list(document) == ["schema_version", "watchlist_id", "display_name", "created_at", "updated_at", "entries"]
 
 
 def test_add_selection_json_with_several_tickers_writes_the_document_with_all_of_them() -> None:
@@ -126,15 +126,19 @@ def test_add_selection_json_failures_write_the_failure_document(isolated_cli_set
     ],
     ids=["remove-entry", "remove-ticker", "remove-method", "nothing-for-ticker", "nothing-for-method"],
 )
-def test_a_removal_with_json_confirms_on_standard_error_and_writes_the_document_to_standard_output(
+def test_a_removal_with_json_confirms_on_standard_error_and_writes_the_removal_document_to_standard_output(
     arguments: list[str], confirmation: str, remaining: list[str]
 ) -> None:
     _seed_core()
 
     code, stdout, stderr = _run("watchlist", *arguments, "--json")
 
-    document = json.loads(stdout)
+    result = json.loads(stdout)
+    document = result["watchlist"]
     assert (code, stderr) == (0, confirmation)
+    assert list(result) == ["schema_version", "removed", "watchlist", "unreadable"]
+    assert (result["schema_version"], result["unreadable"]) == (1, None)
+    assert result["removed"] == 3 - len(remaining)
     assert [entry["ticker"] for entry in document["entries"]] == remaining
     assert [entry["index"] for entry in document["entries"]] == list(range(1, len(remaining) + 1))
 
@@ -157,7 +161,7 @@ def test_a_removal_without_json_still_confirms_on_standard_output_before_the_wat
     ],
     ids=["remove-ticker", "remove-entry", "remove-method"],
 )
-def test_a_removal_with_json_and_another_unreadable_entry_commits_and_writes_the_failure_document(
+def test_a_removal_with_json_and_another_unreadable_entry_commits_and_writes_the_removal_document(
     arguments: list[str], confirmation: str, isolated_cli_settings: ProjectSettings
 ) -> None:
     assert _run("watchlist", "create", "Core")[0] == 0
@@ -169,10 +173,77 @@ def test_a_removal_with_json_and_another_unreadable_entry_commits_and_writes_the
 
     document = json.loads(stdout)
     assert (code, stderr) == (1, confirmation)
-    assert document["reason_code"] == "stored_selection_unreadable"
-    assert document["reason"].startswith("Watchlist 'Core', entry 1 (MSFT, fcf-growth): ")
-    assert document["reason"].endswith('Remove it with: ian watchlist remove-entry "Core" 1')
+    assert document["schema_version"] == 1
+    assert document["removed"] == 1
+    assert document["watchlist"] is None
+    unreadable = document["unreadable"]
+    assert (unreadable["entry_number"], unreadable["ticker"]) == (1, "MSFT")
+    assert unreadable["method_id"] == "reported_fcf_eps_cagr"
+    assert unreadable["reason"].startswith("Watchlist 'Core', entry 1 (MSFT, fcf-growth): ")
+    assert "ian " not in unreadable["reason"]
     assert _tickers(isolated_cli_settings) == ["MSFT"]
+
+
+@pytest.mark.parametrize(
+    ("arguments", "confirmation"),
+    [
+        (["remove-ticker", "Core", "KO"], "Removed 1 entry for KO from watchlist 'Core'."),
+        (["remove-entry", "Core", "1"], "Removed 1 entry from watchlist 'Core'."),
+        (["remove-method", "Core", "-a", "graham-number"], "Removed 1 entry for graham-number from watchlist 'Core'."),
+    ],
+    ids=["remove-ticker", "remove-entry", "remove-method"],
+)
+def test_a_removal_without_json_and_another_unreadable_entry_still_fails_with_the_remedy_on_standard_error(
+    arguments: list[str], confirmation: str, isolated_cli_settings: ProjectSettings
+) -> None:
+    assert _run("watchlist", "create", "Core")[0] == 0
+    assert _run("watchlist", "add-selection", _GRAHAM, "Core", "KO")[0] == 0
+    assert _run("watchlist", "add-selection", "fcf-growth", "Core", "MSFT")[0] == 0
+    _retire(isolated_cli_settings, "MSFT")
+
+    code, stdout, stderr = _run("watchlist", *arguments)
+
+    assert code == 1
+    assert stdout.splitlines() == [confirmation]
+    assert stderr.startswith("Watchlist 'Core', entry 1 (MSFT, fcf-growth): ")
+    assert stderr.endswith('Remove it with: ian watchlist remove-entry "Core" 1')
+
+
+def test_rename_and_delete_with_json_and_an_unreadable_entry_commit_and_write_their_result_document(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    assert _run("watchlist", "create", "Core")[0] == 0
+    assert _run("watchlist", "add-selection", "fcf-growth", "Core", "MSFT")[0] == 0
+    _retire(isolated_cli_settings, "MSFT")
+
+    code, stdout, stderr = _run("watchlist", "rename", "Core", "Main", "--json")
+
+    renamed = json.loads(stdout)
+    assert (code, stderr) == (1, "Renamed watchlist 'Core' to 'Main'.")
+    assert (renamed["schema_version"], renamed["watchlist"]) == (1, None)
+    assert renamed["unreadable"]["method_id"] == "reported_fcf_eps_cagr"
+
+    code, stdout, stderr = _run("watchlist", "delete", "Main", "--yes", "--json")
+
+    deleted = json.loads(stdout)
+    assert code == 1
+    assert stderr.startswith("Deleted watchlist 'Main'")
+    assert (deleted["schema_version"], deleted["deleted"], deleted["watchlist"]) == (1, True, None)
+    assert deleted["unreadable"]["entry_number"] == 1
+    assert _tickers(isolated_cli_settings) == []
+
+
+def test_rename_and_delete_without_json_and_an_unreadable_entry_are_unchanged(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    assert _run("watchlist", "create", "Core")[0] == 0
+    assert _run("watchlist", "add-selection", "fcf-growth", "Core", "MSFT")[0] == 0
+    _retire(isolated_cli_settings, "MSFT")
+
+    code, stdout, stderr = _run("watchlist", "rename", "Core", "Main")
+
+    assert (code, stdout.splitlines()) == (1, ["Renamed watchlist 'Core' to 'Main'."])
+    assert stderr.endswith('Remove it with: ian watchlist remove-entry "Main" 1')
 
 
 def test_a_removal_with_json_that_fails_before_the_write_writes_the_failure_document(

@@ -24,16 +24,26 @@ from investment_analysis_engine.strategies.momentum.selection import MomentumSel
 from investment_analysis_engine.workspace.refresh import RefreshJobResult, RefreshSummary
 from investment_analysis_engine.workspace.runs import Watchlist, WatchlistEntry
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection, SelectionMember
+from investment_analysis_engine.workspace.watchlists import StoredSelectionError
 from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument, RunSummaryDocument
-from investment_analysis_engine.workspace_documents.watchlist import WatchlistDeleteDocument, WatchlistDocument
+from investment_analysis_engine.workspace_documents.watchlist import (
+    UnreadableEntryDocument,
+    WatchlistDeleteDocument,
+    WatchlistDocument,
+    WatchlistRemovalDocument,
+    WatchlistRenameDocument,
+    build_unreadable_entry_document,
+)
 from scripts.generate_schemas import DOCUMENTS, expected_schemas
 
 _DATETIME_LEAVES: tuple[Any, ...] = (datetime, AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime)
 _TIMESTAMP_METADATA: tuple[Any, ...] = get_args(DocumentTimestamp)[1:]
 _SELECTION_MEMBERS: tuple[Any, ...] = get_args(SelectionMember)
-_UNVERSIONED_WORKSPACE_FILES = (
+_VERSIONED_WATCHLIST_FILES = (
     "watchlist-delete.schema.json",
+    "watchlist-removal.schema.json",
+    "watchlist-rename.schema.json",
     "watchlist.schema.json",
 )
 
@@ -98,11 +108,12 @@ def test_a_timestamp_keeps_the_offset_it_carries() -> None:
         Holder(at=datetime(2026, 1, 2))  # noqa: DTZ001 - a naive instant is exactly what must be rejected
 
 
-@pytest.mark.parametrize("file_name", _UNVERSIONED_WORKSPACE_FILES)
-def test_each_unversioned_workspace_schema_states_that_the_document_is_unversioned(file_name: str) -> None:
+@pytest.mark.parametrize("file_name", _VERSIONED_WATCHLIST_FILES)
+def test_each_watchlist_schema_is_version_one(file_name: str) -> None:
     schema = json.loads(expected_schemas()[file_name])
-    assert "unversioned" in schema["description"]
-    assert "schema_version" not in schema.get("properties", {})
+    assert "unversioned" not in schema["description"]
+    assert schema["properties"]["schema_version"]["const"] == 1
+    assert "schema_version" not in schema.get("required", [])
 
 
 def test_the_runs_list_schema_is_version_one_with_a_paging_flag_and_items() -> None:
@@ -207,6 +218,7 @@ def test_the_watchlist_document_matches_what_the_hand_built_dictionary_wrote() -
             dumped["as_of"] = entry.selection.as_of.isoformat()  # type: ignore[union-attr]
         expected_selections.append(dumped)
     expected = {
+        "schema_version": 1,
         "watchlist_id": str(watchlist.watchlist_id),
         "display_name": "Core",
         "created_at": watchlist.created_at.isoformat(),
@@ -254,14 +266,64 @@ def test_a_watchlist_never_changed_has_a_null_updated_at() -> None:
     assert json.loads(watchlist_json(_watchlist(updated_at=None)))["updated_at"] is None
 
 
-def test_the_delete_document_requires_the_watchlist_if_and_only_if_it_was_deleted() -> None:
+def _unreadable() -> UnreadableEntryDocument:
+    return UnreadableEntryDocument(entry_number=2, ticker="KO", method_id="old_method", reason="it cannot be read")
+
+
+def test_the_delete_document_requires_exactly_one_result_unless_nothing_was_deleted() -> None:
     document = WatchlistDocument.model_validate(json.loads(watchlist_json(_watchlist(updated_at=None))))
-    WatchlistDeleteDocument(requested_name="Core", deleted=True, watchlist=document)
-    WatchlistDeleteDocument(requested_name="Nowhere", deleted=False, watchlist=None)
-    with pytest.raises(ValidationError, match="if and only if deleted"):
-        WatchlistDeleteDocument(requested_name="Core", deleted=True, watchlist=None)
-    with pytest.raises(ValidationError, match="if and only if deleted"):
-        WatchlistDeleteDocument(requested_name="Core", deleted=False, watchlist=document)
+    WatchlistDeleteDocument(deleted=True, watchlist=document, unreadable=None)
+    WatchlistDeleteDocument(deleted=True, watchlist=None, unreadable=_unreadable())
+    WatchlistDeleteDocument(deleted=False, watchlist=None, unreadable=None)
+    with pytest.raises(ValidationError, match="exactly one of watchlist and unreadable"):
+        WatchlistDeleteDocument(deleted=True, watchlist=None, unreadable=None)
+    with pytest.raises(ValidationError, match="exactly one of watchlist and unreadable"):
+        WatchlistDeleteDocument(deleted=True, watchlist=document, unreadable=_unreadable())
+    with pytest.raises(ValidationError, match="null when nothing was deleted"):
+        WatchlistDeleteDocument(deleted=False, watchlist=document, unreadable=None)
+    with pytest.raises(ValidationError, match="null when nothing was deleted"):
+        WatchlistDeleteDocument(deleted=False, watchlist=None, unreadable=_unreadable())
+
+
+def test_the_rename_and_removal_documents_require_exactly_one_of_the_watchlist_and_the_unreadable_entry() -> None:
+    document = WatchlistDocument.model_validate(json.loads(watchlist_json(_watchlist(updated_at=None))))
+    WatchlistRenameDocument(watchlist=document, unreadable=None)
+    WatchlistRenameDocument(watchlist=None, unreadable=_unreadable())
+    WatchlistRemovalDocument(removed=0, watchlist=document, unreadable=None)
+    WatchlistRemovalDocument(removed=3, watchlist=None, unreadable=_unreadable())
+    for neither_or_both in ((None, None), (document, _unreadable())):
+        with pytest.raises(ValidationError, match="exactly one of watchlist and unreadable"):
+            WatchlistRenameDocument(watchlist=neither_or_both[0], unreadable=neither_or_both[1])
+        with pytest.raises(ValidationError, match="exactly one of watchlist and unreadable"):
+            WatchlistRemovalDocument(removed=1, watchlist=neither_or_both[0], unreadable=neither_or_both[1])
+
+
+def test_every_watchlist_document_is_versioned() -> None:
+    document = WatchlistDocument.model_validate(json.loads(watchlist_json(_watchlist(updated_at=None))))
+    assert document.schema_version == 1
+    assert json.loads(watchlist_json(_watchlist(updated_at=None)))["schema_version"] == 1
+    assert WatchlistDeleteDocument(deleted=False, watchlist=None, unreadable=None).model_dump(mode="json") == {
+        "schema_version": 1,
+        "deleted": False,
+        "watchlist": None,
+        "unreadable": None,
+    }
+
+
+def test_an_unreadable_entry_document_needs_an_error_that_names_its_entry() -> None:
+    named = StoredSelectionError(
+        "its stored selection is not valid JSON",
+        watchlist_name="Core",
+        entry_number=2,
+        ticker="KO",
+        method="old",
+        method_id="old_method",
+    )
+    assert build_unreadable_entry_document(named) == UnreadableEntryDocument(
+        entry_number=2, ticker="KO", method_id="old_method", reason=str(named)
+    )
+    with pytest.raises(ValueError, match="names its entry"):
+        build_unreadable_entry_document(StoredSelectionError("its stored selection is not valid JSON"))
 
 
 def test_the_runs_list_is_a_versioned_object_and_an_empty_page_has_no_items() -> None:
@@ -370,14 +432,16 @@ def test_a_refresh_result_document_enforces_its_consistency_rules() -> None:
             RefreshResultDocument(**{**base, **change})
 
 
-def test_the_generator_publishes_the_four_workspace_documents() -> None:
+def test_the_generator_publishes_the_watchlist_documents_and_the_other_workspace_documents() -> None:
     assert {
         name: model
         for name, model in DOCUMENTS
-        if name in {*_UNVERSIONED_WORKSPACE_FILES, "refresh-summary.schema.json", "runs-list.schema.json"}
+        if name in {*_VERSIONED_WATCHLIST_FILES, "refresh-summary.schema.json", "runs-list.schema.json"}
     } == {
         "watchlist.schema.json": WatchlistDocument,
         "watchlist-delete.schema.json": WatchlistDeleteDocument,
+        "watchlist-removal.schema.json": WatchlistRemovalDocument,
+        "watchlist-rename.schema.json": WatchlistRenameDocument,
         "runs-list.schema.json": RunsListDocument,
         "refresh-summary.schema.json": RefreshSummaryDocument,
     }

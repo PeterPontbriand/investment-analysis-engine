@@ -23,6 +23,8 @@ from investment_analysis_engine.workspace_documents.watchlist import (
     WatchlistDeleteDocument,
     WatchlistDocument,
     WatchlistListDocument,
+    WatchlistRemovalDocument,
+    WatchlistRenameDocument,
 )
 
 
@@ -49,11 +51,13 @@ DOCUMENTS: Final = (
             "watchlist show",
             "watchlist create",
             "watchlist add-selection",
-            "watchlist remove-entry",
-            "watchlist remove-ticker",
-            "watchlist remove-method",
-            "watchlist rename",
         ),
+    ),
+    JsonDocument("watchlist-rename.schema.json", WatchlistRenameDocument, ("watchlist rename",)),
+    JsonDocument(
+        "watchlist-removal.schema.json",
+        WatchlistRemovalDocument,
+        ("watchlist remove-entry", "watchlist remove-ticker", "watchlist remove-method"),
     ),
     JsonDocument("watchlist-delete.schema.json", WatchlistDeleteDocument, ("watchlist delete",)),
     JsonDocument("runs-list.schema.json", RunsListDocument, ("runs list",)),

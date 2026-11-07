@@ -405,9 +405,42 @@
       "title": "PiotroskiSelection",
       "type": "object"
     },
+    "UnreadableEntryDocument": {
+      "additionalProperties": false,
+      "description": "The first entry of a watchlist that this version cannot read, and why.",
+      "properties": {
+        "entry_number": {
+          "description": "The 1-based position of the entry.",
+          "title": "Entry Number",
+          "type": "integer"
+        },
+        "method_id": {
+          "description": "The method identifier as stored; this version may no longer declare it.",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "reason": {
+          "description": "The state of the entry, in words for a person. It names no command.",
+          "title": "Reason",
+          "type": "string"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entry_number",
+        "ticker",
+        "method_id",
+        "reason"
+      ],
+      "title": "UnreadableEntryDocument",
+      "type": "object"
+    },
     "WatchlistDocument": {
       "additionalProperties": false,
-      "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show``, ``create``, ``add-selection``, ``remove-entry``, ``remove-ticker``,\n``remove-method`` and ``rename``.\n\nThis document is unversioned: it has no ``schema_version``.",
+      "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show``, ``create`` and ``add-selection``; the API serves it for a watchlist, for a created\nwatchlist and for an added entry, and the result documents below nest it.",
       "properties": {
         "created_at": {
           "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
@@ -425,6 +458,12 @@
           },
           "title": "Entries",
           "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
         },
         "updated_at": {
           "anyOf": [
@@ -511,15 +550,28 @@
     }
   },
   "additionalProperties": false,
-  "description": "The outcome of ``watchlist delete --json``, with the watchlist it removed when there was one.\n\n``deleted`` is false, and ``watchlist`` null, only for ``--missing-ok`` on a name that does not exist.\nThis document is unversioned: it has no ``schema_version``.",
+  "description": "The outcome of ``watchlist delete --json``, with the watchlist it removed when there was one.\n\n``deleted`` is false, and ``watchlist`` and ``unreadable`` both null, only for ``--missing-ok`` on a name that does\nnot exist. Otherwise exactly one of ``watchlist`` and ``unreadable`` is set.",
   "properties": {
     "deleted": {
       "title": "Deleted",
       "type": "boolean"
     },
-    "requested_name": {
-      "title": "Requested Name",
-      "type": "string"
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "unreadable": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UnreadableEntryDocument"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The first entry this version could not read; null when nothing was deleted."
     },
     "watchlist": {
       "anyOf": [
@@ -530,13 +582,13 @@
           "type": "null"
         }
       ],
-      "description": "The deleted watchlist; null when nothing was deleted."
+      "description": "The deleted watchlist; null when an entry was unreadable or nothing was deleted."
     }
   },
   "required": [
-    "requested_name",
     "deleted",
-    "watchlist"
+    "watchlist",
+    "unreadable"
   ],
   "title": "WatchlistDeleteDocument",
   "type": "object"

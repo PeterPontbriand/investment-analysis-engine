@@ -76,8 +76,9 @@ from investment_analysis_engine.workspace.watchlists import (
 from investment_analysis_engine.workspace_documents.runs import build_runs_list_document
 from investment_analysis_engine.workspace_documents.runs_compare import render_runs_compare_text
 from investment_analysis_engine.workspace_documents.watchlist import (
-    WatchlistDeleteDocument,
-    build_watchlist_document,
+    build_delete_document,
+    build_removal_document,
+    build_rename_document,
     build_watchlist_list_document,
 )
 
@@ -167,14 +168,20 @@ def _report_removal(removed: RemovedEntries, confirmation: str, *, json_output: 
     """Report a removal that has already committed: the confirmation, then the watchlist read back with it.
 
     The confirmation goes to standard output, or to standard error with ``json_output`` so that standard output
-    holds only the document. If another entry cannot be read, the removal stands: the error naming the next
-    unreadable entry and the command that removes it follows, and the command exits 1.
+    holds only the document. If another entry cannot be read, the removal stands: the text error naming the next
+    unreadable entry and the command that removes it follows, or with ``json_output`` the removal document carries the
+    entry, and the command exits 1.
     """
     typer.echo(confirmation, err=json_output)
+    if json_output:
+        typer.echo(document_json(build_removal_document(removed)))
+        if removed.unreadable is not None:
+            raise typer.Exit(code=1)
+        return
     if removed.watchlist is None:
         assert removed.unreadable is not None  # exactly one of watchlist and unreadable is set
-        fail_with(removed.unreadable, json_output=json_output)
-    typer.echo(watchlist_json(removed.watchlist) if json_output else watchlist_text(removed.watchlist))
+        fail_with(removed.unreadable, json_output=False)
+    typer.echo(watchlist_text(removed.watchlist))
 
 
 @watchlist_app.command("remove-entry")
@@ -281,7 +288,7 @@ def watchlist_delete(
                 fail_with(exc, json_output=json_output)
     if deleted is None:
         if json_output:
-            typer.echo(document_json(WatchlistDeleteDocument(requested_name=name, deleted=False, watchlist=None)))
+            typer.echo(document_json(build_delete_document(None)))
         else:
             typer.echo(f"No watchlist named {name!r} exists. Nothing was deleted.")
         return
@@ -292,14 +299,11 @@ def watchlist_delete(
     if not json_output:
         typer.echo(confirmation)
         return
-    if deleted.watchlist is None:
+    if deleted.unreadable is not None:
         typer.echo(confirmation, err=True)
-        assert deleted.unreadable is not None  # exactly one of watchlist and unreadable is set
-        fail_with(deleted.unreadable, json_output=json_output)
-    document = WatchlistDeleteDocument(
-        requested_name=name, deleted=True, watchlist=build_watchlist_document(deleted.watchlist)
-    )
-    typer.echo(document_json(document))
+    typer.echo(document_json(build_delete_document(deleted)))
+    if deleted.unreadable is not None:
+        raise typer.Exit(code=1)
 
 
 @watchlist_app.command("rename")
@@ -313,14 +317,18 @@ def watchlist_rename(
     with watchlist_action("watchlist rename", _RENAME_PARAMETERS, json_output=json_output):
         renamed = rename_watchlist(ApplicationContext(settings=settings), WatchlistName(name), new_name)
     confirmation = f"Renamed watchlist {name!r} to {new_name.strip()!r}."
-    if not json_output:
-        typer.echo(confirmation)
-    if renamed.watchlist is None:
-        if json_output:
+    if json_output:
+        if renamed.unreadable is not None:
             typer.echo(confirmation, err=True)
+        typer.echo(document_json(build_rename_document(renamed)))
+        if renamed.unreadable is not None:
+            raise typer.Exit(code=1)
+        return
+    typer.echo(confirmation)
+    if renamed.watchlist is None:
         assert renamed.unreadable is not None  # exactly one of watchlist and unreadable is set
-        fail_with(renamed.unreadable, json_output=json_output)
-    typer.echo(watchlist_json(renamed.watchlist) if json_output else watchlist_text(renamed.watchlist))
+        fail_with(renamed.unreadable, json_output=False)
+    typer.echo(watchlist_text(renamed.watchlist))
 
 
 @watchlist_app.command("list")

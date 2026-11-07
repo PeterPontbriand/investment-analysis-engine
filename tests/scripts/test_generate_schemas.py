@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from investment_analysis_engine.api.selection_forms import FIXED_SELECTION_FIELDS, selection_schema
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.selections import build_selection
 from investment_analysis_engine.config import ProjectSettings
@@ -13,11 +14,9 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescr
 from scripts import generate_schemas
 from scripts.generate_schemas import (
     DOCUMENTS,
-    FIXED_SELECTION_FIELDS,
     SCHEMA_DIRECTORY,
     expected_schemas,
     schema_gaps,
-    selection_schema,
     selection_schema_file,
     write_schemas,
 )

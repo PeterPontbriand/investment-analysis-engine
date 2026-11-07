@@ -1,5 +1,5 @@
 exit 0
 --- stdout
-{"watchlist_id": "<uuid>", "display_name": "Json Empty", "created_at": "<time>", "updated_at": null, "entries": []}
+{"schema_version": 1, "watchlist_id": "<uuid>", "display_name": "Json Empty", "created_at": "<time>", "updated_at": null, "entries": []}
 --- stderr
 

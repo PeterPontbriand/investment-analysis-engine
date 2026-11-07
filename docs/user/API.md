@@ -1,7 +1,7 @@
 # Local HTTP API
 
 `ian serve` runs a local HTTP interface that returns the documents the command line writes with `--json`, so another
-program on the same computer can read watchlists, saved runs and run comparisons without parsing terminal output. This
+program on the same computer can read and change watchlists, analyze a ticker, and read saved runs and run comparisons without parsing terminal output. This
 page is for the authors of such a program, called a client here. It is not reachable from another computer.
 
 For the rules that say what may change inside `/v1`, see
@@ -66,8 +66,8 @@ The checks run in this order, before the request is routed:
    `*` and `null` are never accepted, so a page must be loaded from an origin other than `null`, for example a custom
    scheme or `localhost`.
 3. **Preflight.** An `OPTIONS` request from an allowed origin that carries `Access-Control-Request-Method` is a
-   preflight and is answered without the token: status 204, method `GET` only, header `Authorization` only,
-   `Access-Control-Max-Age: 600`. Any other `OPTIONS` request goes through the token check and then routing like any
+   preflight and is answered without the token: status 204, exactly the methods the endpoints declare (`GET`, `POST`,
+   `PATCH` and `DELETE`), the headers `Authorization` and `Content-Type` only, `Access-Control-Max-Age: 600`. Any other `OPTIONS` request goes through the token check and then routing like any
    other request: 405 on a known path, 404 on an unknown one.
 4. **Token.** As above.
 
@@ -87,14 +87,15 @@ changed or removed within `/v1`.
 
 Every response that is not 2xx has a [failure document](../../schemas/failure.schema.json) as its body. A client branches
 on `reason_code`; the HTTP status is coarse and `reason` is a message for people. `parameters` names the offending query
-or path parameter. The five codes only the API and `ian serve` use are `not_authenticated`, `host_not_allowed`,
+or path parameter, or the body field by its path (see [Request bodies](#request-bodies)). The five codes only the API and `ian serve` use are `not_authenticated`, `host_not_allowed`,
 `origin_not_allowed`, `endpoint_not_found` and `port_unavailable`.
 
 | HTTP status | `reason_code` |
 | :--- | :--- |
 | 400 | `invalid_parameter`, `host_not_allowed`, `origin_not_allowed` |
 | 401 | `not_authenticated` |
-| 404 | `analysis_run_not_found`, `watchlist_not_found`, `endpoint_not_found` |
+| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `endpoint_not_found` |
+| 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add that a watchlist's unreadable entry refuses) |
 | 405 | `endpoint_not_found` (a method the endpoint does not declare, `HEAD` included), with an `Allow` header naming the declared method |
 | 503 | `database_busy` |
 | 500 | every other code, including every other `database_*` code and `execution_error` |
@@ -103,12 +104,18 @@ An unexpected failure, whether in an endpoint or in the checks before it, is `ex
 status 500; its detail goes to the log. `port_unavailable` occurs only
 at launch.
 
+When a rule rejected a value (a field of a selection, a blank name), `invalid_parameter` also carries `errors`, one
+item for every rejected value in field order, each with its `rule`, `parameters`, `arguments` and `message`; `reason`
+and `parameters` are the first item's. A client can place each message on its form field and translate by `rule`. A
+rejection that comes from the shape of the request (an unknown field, a wrong type, a bad ID) has `errors` `null`.
+
 A parameter is rejected with `invalid_parameter`, naming it, when it is unknown, when it is given more than once, when it
 is malformed (including an ID that is not a UUID in a path, which is never a 404), or when its value is out of range.
 
 ## Endpoints
 
-All endpoints use `GET` and sit under `/v1`. Any other method, `HEAD` included, is answered 405 `endpoint_not_found`.
+All endpoints sit under `/v1`. A method an endpoint does not declare, `HEAD` included, is answered 405 `endpoint_not_found`.
+The endpoints that read use `GET`; the actions are below.
 
 | Path | Query parameters | Response |
 | :--- | :--- | :--- |
@@ -120,9 +127,53 @@ All endpoints use `GET` and sit under `/v1`. Any other method, `HEAD` included, 
 | `/v1/runs/{analysis_run_id}` | none | the saved run's own strategy document |
 | `/v1/runs/{analysis_run_id}/text` | `mode` (required): `concise`, `details` or `diagnostics` | `schema_version`, `mode` and `text` |
 | `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document |
+| `/v1/strategies/{method_id}/selection` | none | `schema_version`, `schema` and `defaults` (see [Selection forms](#selection-forms)) |
 
 On `/v1/runs`, `limit` is 1 to 100 and defaults to 20, and `offset` defaults to 0. `method_id` is a method identifier
 as `/v1/strategies` lists it. The document says whether more rows follow with `has_more`; there is no total.
 
+### Actions
+
+| Request | Body | Success |
+| :--- | :--- | :--- |
+| `POST /v1/watchlists` | `name` | 201, the watchlist document |
+| `PATCH /v1/watchlists/{watchlist_id}` | `name` | 200, the rename document |
+| `DELETE /v1/watchlists/{watchlist_id}` | none | 200, the delete document |
+| `POST /v1/watchlists/{watchlist_id}/entries` | `method_id`, `tickers`, `selection` | 200, the watchlist document |
+| `DELETE /v1/watchlists/{watchlist_id}/entries/{entry_number}` | none | 200, the removal document |
+| `POST /v1/watchlists/{watchlist_id}/remove-tickers` | `tickers` | 200, the removal document |
+| `POST /v1/watchlists/{watchlist_id}/remove-method` | `method_id` | 200, the removal document |
+| `POST /v1/analyses` | `ticker`, `method_id`, `selection`, `save`, `provider_check` | 200, the analysis document |
+
+`entry_number` is 1-based, as the watchlist document's `index` and the command line's `remove-entry` are. The rename,
+removal and delete documents hold exactly one of `watchlist` and `unreadable`: an action that committed its change and
+then found an entry this version cannot read answers 200 with that entry in `unreadable` (`entry_number`, `ticker`,
+`method_id` as stored and a `reason` that names no command). Adding to a watchlist that holds such an entry is refused
+with 409 `stored_selection_unreadable` and writes nothing. A delete answers `deleted` true; the command line's
+`--missing-ok` has no counterpart, because a missing watchlist is 404.
+
+`POST /v1/analyses` analyzes one ticker under one selection. The ticker is trimmed and upper-cased. `save` is optional
+and defaults to `false`; `provider_check` is optional and defaults to the `IAN_PROVIDER_CHECK` choice the server was
+launched with, as on the command line. The analysis document holds `schema_version`, `analysis_run_id` (`null` when the
+run was not saved), `document` (the strategy's own document, as its command's `--json` writes it) and `text`, with the
+same run as `concise`, `details` and `diagnostics` text. A run that is unavailable or failed is still 200, because
+`document` reports it.
+
+### Request bodies
+
+A body is one JSON object with `Content-Type: application/json`; a field is optional only where the table says so. A
+missing or different content type, or a body that is not one JSON object, is `invalid_parameter` with the parameter
+`body`. An unknown field, a missing field or a field of the wrong type is `invalid_parameter` naming the field by its
+path: `name`, `tickers`, `tickers[1]`, `selection.short_window`, `selection.policy.historical_horizon`. In `selection`,
+`as_of` is text: `YYYY-MM-DD` (the end of that day, UTC) or an ISO 8601 timestamp with a timezone offset.
+
+### Selection forms
+
+`GET /v1/strategies/{method_id}/selection` returns what a form needs. `schema` is the JSON Schema of the `selection`
+fields, the same file as `schemas/selections/<alias>.schema.json`. The schemas state no default for a field the
+strategy's settings fill; `defaults` gives the configured value of each, by field name, as it is now, and is an empty
+object for a strategy with none. A request that leaves such a field out gets that value. A `method_id` this engine does
+not declare is `invalid_parameter` naming `method_id`, as it is anywhere else.
+
 The documents are described by the files in [`schemas/`](../../schemas/) and by
-[`schemas/openapi.json`](../../schemas/openapi.json), which also describes the three documents only the API serves.
+[`schemas/openapi.json`](../../schemas/openapi.json), which also describes the documents only the API serves.

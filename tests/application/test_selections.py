@@ -206,10 +206,13 @@ def test_a_currency_that_is_not_an_iso_code_is_rejected_under_its_field() -> Non
     assert build_selection(CONTEXT, FCF_GROWTH.method_id, {"currency": " eur "}).currency == "EUR"  # type: ignore[union-attr]
 
 
-def test_only_the_first_error_is_reported() -> None:
+def test_every_error_is_listed_in_field_order_and_the_first_is_the_errors_own() -> None:
     error = _rejection(GRAHAM_NUMBER.method_id, {"eps_override": float("inf"), "bvps_override": float("nan")})
 
     assert error.parameters == ("eps_override",)
+    assert [item.action_parameters for item in error.errors] == [("eps_override",), ("bvps_override",)]
+    assert [violation.parameters for violation in error.violations] == [("eps_override",), ("bvps_override",)]
+    assert error.violations[0].message == str(error)
 
 
 def test_as_of_text_is_a_date_or_a_timestamp_as_written() -> None:

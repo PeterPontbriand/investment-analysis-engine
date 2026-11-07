@@ -1,9 +1,10 @@
-"""The documents only the API serves: the engine information, the strategy list and the replay text."""
+"""The documents only the API serves: the engine information, the strategy list, the replay text and an analysis."""
 
 from importlib.metadata import version
 from typing import Literal
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny
 
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
 from investment_analysis_engine.strategy_wiring import STRATEGIES
@@ -66,6 +67,32 @@ class ReplayTextDocument(BaseModel):
     text: str = Field(description="The text the mode shows, as the command line would print it.")
 
 
+class AnalysisTextDocument(BaseModel):
+    """An analysis rendered as text in each presentation mode, as the command line would print it."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    concise: str
+    details: str
+    diagnostics: str
+
+
+class AnalysisDocument(BaseModel):
+    """One analysis of one ticker under one selection: the strategy's document and its text.
+
+    A run that is unavailable or failed is still an analysis document, because ``document`` reports it.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: Literal[1] = 1
+    analysis_run_id: UUID | None = Field(description="The saved run's ID; null when the run was not saved.")
+    document: SerializeAsAny[BaseModel] = Field(
+        description="The strategy's document, as its command's --json writes it; its analysis key says which strategy."
+    )
+    text: AnalysisTextDocument = Field(description="The same run as text, in each presentation mode.")
+
+
 def build_info_document(*, engine_version: str, sec_identity_configured: bool) -> InfoDocument:
     """Build the information document."""
     return InfoDocument(
@@ -89,6 +116,8 @@ def build_replay_text_document(mode: TextPresentationMode, text: str) -> ReplayT
 
 __all__ = [
     "API_VERSIONS",
+    "AnalysisDocument",
+    "AnalysisTextDocument",
     "InfoDocument",
     "ReplayTextDocument",
     "StrategiesDocument",

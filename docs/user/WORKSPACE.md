@@ -72,7 +72,7 @@ Add `--json` to `watchlist show` for the complete, machine-readable document —
 uv run ian watchlist show "Core Holdings" --json
 ```
 
-The document is described by `schemas/watchlist.schema.json`, which `watchlist rename --json` shares. It has no `schema_version`: a change to its keys or types shows in the schema. Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`; its `as_of`, when set, is written the same way (`+00:00`; it was `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
+The document is described by `schemas/watchlist.schema.json`, which `watchlist create --json` and `watchlist add-selection --json` share. Its first key is `schema_version` (currently `1`). Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`; its `as_of`, when set, is written the same way (`+00:00`; it was `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
 
 List every watchlist you have:
 
@@ -116,7 +116,7 @@ uv run ian watchlist remove-ticker "Core Holdings" KO
 uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
 
-Add `--json` to `add-selection`, `remove-entry`, `remove-ticker` or `remove-method` to print only the updated watchlist, as the `watchlist show --json` document, on standard output. After a removal the confirmation (`Removed 1 entry for KO from watchlist 'Core Holdings'.`, or `No entries for ZZZ in watchlist 'Core Holdings'.` when there was nothing to remove) goes to standard error, so standard output holds only the document. If the watchlist holds an entry saved by an earlier version that this version can no longer read, a removal still happens: its confirmation goes to standard error and standard output holds the failure document (`reason_code` `stored_selection_unreadable`, its `reason` naming the entry and the `remove-entry` command that removes it), with exit `1`. `add-selection` writes nothing to such a watchlist and reports the same failure. A rejected argument or a missing watchlist writes the failure document in every case.
+Add `--json` to `add-selection` to print only the updated watchlist, as the `watchlist show --json` document, on standard output. Add `--json` to `remove-entry`, `remove-ticker` or `remove-method` to print the removal document, described by `schemas/watchlist-removal.schema.json`: `schema_version` (currently `1`), `removed` (the number of entries removed, 0 when nothing matched), `watchlist` (the watchlist read back, as the `watchlist show --json` document) and `unreadable`. After a removal the confirmation (`Removed 1 entry for KO from watchlist 'Core Holdings'.`, or `No entries for ZZZ in watchlist 'Core Holdings'.` when there was nothing to remove) goes to standard error, so standard output holds only the document. If the watchlist holds an entry saved by an earlier version that this version can no longer read, a removal still happens. Its confirmation goes to standard error and, with `--json`, standard output holds the removal document with `watchlist` set to `null` and `unreadable` naming the first such entry (`entry_number`, `ticker`, `method_id` as stored, and a `reason` that names no command), with exit `1`. Exactly one of `watchlist` and `unreadable` is set. Without `--json` the message that names the entry and the `remove-entry` command that removes it goes to standard error, with exit `1`. `add-selection` writes nothing to such a watchlist and reports the same failure. A rejected argument or a missing watchlist writes the failure document in every case.
 
 Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (the `--analysis` values in the [strategy table](#strategies-and-their-watchlist-options)). `--json` output keeps the stored method identifiers, listed in the same table, which never change.
 
@@ -126,11 +126,11 @@ Every command that removes entries starts with `remove-`, and text output names 
 uv run ian watchlist rename "Core Holdings" "Long-Term Holdings"
 ```
 
-Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the `watchlist show --json` document, or on a failure the failure document described in [USAGE](USAGE.md#--json--machine-readable-output). The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is an `invalid_parameter` failure (exit `1`).
+Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the rename document, described by `schemas/watchlist-rename.schema.json`, whose keys are `schema_version` (currently `1`), `watchlist` (the `watchlist show --json` document) and `unreadable`; on a failure it prints the failure document described in [USAGE](USAGE.md#--json--machine-readable-output). The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is an `invalid_parameter` failure (exit `1`).
 
 Saved Analysis Runs keep the name the watchlist had when they ran, by design: each run stores its own snapshot of the watchlist's name and ID, and a rename changes neither the snapshot nor anything else about a saved run. Today `runs list` and `runs show` do not print that snapshot.
 
-If the watchlist holds an entry saved by an earlier version that this version can no longer read, the rename still happens. The command then prints the confirmation, followed by the one-line error that names the unreadable entry and the `remove-entry` command that removes it, and exits `1`; with `--json`, the confirmation goes to stderr and stdout holds the failure document (`reason_code` `stored_selection_unreadable`) in place of the error line.
+If the watchlist holds an entry saved by an earlier version that this version can no longer read, the rename still happens. The command then prints the confirmation, followed by the one-line error that names the unreadable entry and the `remove-entry` command that removes it, and exits `1`; with `--json`, the confirmation goes to stderr and stdout holds the rename document with `watchlist` set to `null` and `unreadable` naming the entry, with exit `1`.
 
 ### Deleting a watchlist
 
@@ -152,16 +152,16 @@ An unknown name is exit `1`, like every other watchlist command. For idempotent 
 uv run ian watchlist delete "Scratch" --yes --missing-ok
 ```
 
-`--json` prints one document, with `watchlist` holding the same document `watchlist show --json` prints for the watchlist as it was just before deletion (or `null` when nothing was deleted):
+`--json` prints one document, with `watchlist` holding the same document `watchlist show --json` prints for the watchlist as it was just before deletion (or `null` when nothing was deleted). `deleted` is false only for `--missing-ok` on a name that does not exist; then `watchlist` and `unreadable` are both `null`:
 
 ```text
-{"requested_name": "Scratch", "deleted": true, "watchlist": {...}}
-{"requested_name": "Nonexistent", "deleted": false, "watchlist": null}
+{"schema_version": 1, "deleted": true, "watchlist": {...}, "unreadable": null}
+{"schema_version": 1, "deleted": false, "watchlist": null, "unreadable": null}
 ```
 
-The document is described by `schemas/watchlist-delete.schema.json` and has no `schema_version`.
+The document is described by `schemas/watchlist-delete.schema.json`. It no longer has `requested_name`: you passed the name.
 
-A watchlist holding an entry saved by an earlier version, which this version can no longer read, is still deleted. In text mode that succeeds quietly. With `--json` there is no entry document to print, so the confirmation goes to stderr, stdout holds the failure document (`reason_code` `stored_selection_unreadable`, its `reason` naming the unreadable entry) and the exit code is `1`.
+A watchlist holding an entry saved by an earlier version, which this version can no longer read, is still deleted. In text mode that succeeds quietly. With `--json` the confirmation goes to stderr, stdout holds the delete document with `deleted` true, `watchlist` `null` and `unreadable` naming the entry, and the exit code is `1`.
 
 ### Strategies and their watchlist options
 

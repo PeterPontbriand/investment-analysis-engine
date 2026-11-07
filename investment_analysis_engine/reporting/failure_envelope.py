@@ -4,15 +4,52 @@ The code and the classifier live in ``investment_analysis_engine.core``; this mo
 layer attaches to a failure document, which is why it is the one place that names the exception types that carry them.
 """
 
+import math
+from datetime import date
+
+from pydantic import JsonValue
+
 from investment_analysis_engine.core.failure_classification import (
     parameters_of_exception,
     provider_failure_of_exception,
+    violations_of_exception,
 )
 from investment_analysis_engine.core.failure_codes import FailureReasonCode, status_for
+from investment_analysis_engine.core.operator_errors import RuleViolation
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
 from investment_analysis_engine.data.quality import HistoricalDataQualityError, QualityOutcome
 from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
-from investment_analysis_engine.reporting.documents.failure import FailureDatabase, FailureDiagnostic, FailureEnvelope
+from investment_analysis_engine.reporting.documents.failure import (
+    FailureDatabase,
+    FailureDiagnostic,
+    FailureEnvelope,
+    FailureRuleError,
+)
+
+
+def json_argument(value: object) -> JsonValue:
+    """Return a rule argument as a JSON value.
+
+    A string, integer, boolean and null are kept; a finite float is a number and a non-finite one its text (``inf``,
+    ``-inf``, ``nan``), because JSON cannot carry it; a date or timestamp is ISO 8601 text; anything else is its text.
+    """
+    if value is None or isinstance(value, str | int | bool):
+        return value
+    if isinstance(value, float):
+        return value if math.isfinite(value) else str(value)
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value)
+
+
+def _rule_error(violation: RuleViolation) -> FailureRuleError:
+    """Return a rule violation as the envelope's error item."""
+    return FailureRuleError(
+        rule=violation.rule,
+        parameters=violation.parameters,
+        arguments={name: json_argument(value) for name, value in violation.arguments.items()},
+        message=violation.message,
+    )
 
 
 def failure_envelope(  # noqa: PLR0913
@@ -54,9 +91,15 @@ def failure_envelope(  # noqa: PLR0913
         if cause is not None and reason_code is FailureReasonCode.INVALID_PARAMETER
         else None
     )
+    violations = (
+        violations_of_exception(cause)
+        if cause is not None and reason_code is FailureReasonCode.INVALID_PARAMETER
+        else None
+    )
     return FailureEnvelope(
         status=status_for(reason_code),
         parameters=parameters,
+        errors=None if violations is None else tuple(_rule_error(item) for item in violations),
         reason_code=reason_code,
         reason=reason,
         analysis=analysis,
@@ -68,4 +111,4 @@ def failure_envelope(  # noqa: PLR0913
     )
 
 
-__all__ = ["failure_envelope"]
+__all__ = ["failure_envelope", "json_argument"]
