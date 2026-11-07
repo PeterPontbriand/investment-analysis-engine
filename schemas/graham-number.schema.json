@@ -78,6 +78,8 @@
         "host_not_allowed",
         "origin_not_allowed",
         "endpoint_not_found",
+        "refresh_job_not_found",
+        "refresh_job_running",
         "port_unavailable"
       ],
       "title": "FailureReasonCode",

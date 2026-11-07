@@ -224,12 +224,10 @@ def _refresh(settings: ProjectSettings, row: Row, flags: list[str]) -> tuple[Bas
     with ExitStack() as stack:
         if row.step == "executor" and row.number == "13":
             stack.enter_context(
-                patch("investment_analysis_engine.application.refresh.refresh_executor_for", side_effect=exception)
+                patch("investment_analysis_engine.application.refresh.analysis_runner_for", side_effect=exception)
             )
         elif row.step == "executor":
-            stack.enter_context(
-                patch("investment_analysis_engine.application.refresh._refresh_executor", side_effect=exception)
-            )
+            stack.enter_context(patch("investment_analysis_engine.application.refresh._run_job", side_effect=exception))
         else:
             run = stack.enter_context(
                 patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
@@ -473,7 +471,7 @@ def test_a_stored_selection_that_does_not_convert_is_an_execution_error_from_the
         fields |= {"expected_growth": 5.0, "aaa_yield_override": 4.5}
     selection = build_selection(ApplicationContext(settings=ProjectSettings()), BY_ALIAS[alias].method_id, fields)
     with patch_conversion(_validation_error()), pytest.raises(InternalDefectError) as caught:
-        investment_analysis_engine.application.refresh._refresh_executor(  # noqa: SLF001 - the dispatch under test
+        investment_analysis_engine.application.refresh._run_job(  # noqa: SLF001 - the dispatch under test
             ApplicationContext(settings=ProjectSettings()), "KO", selection, profile_cache=MagicMock()
         )
     assert classify_failure(caught.value).reason_code is FailureReasonCode.EXECUTION_ERROR

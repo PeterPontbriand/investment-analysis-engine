@@ -1,7 +1,6 @@
 """The application tier fails closed: a missing entry or key is an error naming it, never a default strategy.
 
-The tests make no network, provider or LLM call; the run functions and refresh executors are never run against a
-provider.
+The tests make no network, provider or LLM call; the run functions are never run against a provider.
 """
 
 from dataclasses import replace
@@ -12,13 +11,10 @@ import pytest
 
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.tier import (
-    APPLICATION_REFRESHERS,
     APPLICATION_RUNNERS,
     APPLICATION_STRATEGIES,
     analysis_runner_for,
     application_entries,
-    refresh_executor_for,
-    refreshers_by_key,
     runners_by_key,
 )
 from investment_analysis_engine.config import ProjectSettings
@@ -34,11 +30,10 @@ _CONTEXT = ApplicationContext(settings=ProjectSettings())
 _WITHOUT_FCF = tuple(entry for entry in APPLICATION_STRATEGIES if entry.behavior is not FCF_GROWTH.behavior)
 
 
-def test_every_declared_strategy_has_a_run_function_and_a_refresh_executor() -> None:
+def test_every_declared_strategy_has_a_run_function() -> None:
     """The production tier covers every descriptor, in declaration order."""
     keys = tuple((item.analysis_id, item.method_id) for item in STRATEGIES)
     assert tuple(APPLICATION_RUNNERS) == keys
-    assert tuple(APPLICATION_REFRESHERS) == keys
     assert [descriptor for descriptor, _ in application_entries(STRATEGIES)] == list(STRATEGIES)
 
 
@@ -58,15 +53,6 @@ def test_a_missing_application_tier_entry_fails_closed_for_the_run_function() ->
         analysis_runner_for(FCFGrowthSelection(), MappingProxyType(without_runner))
 
 
-def test_a_missing_application_tier_entry_fails_closed_for_the_refresh_executor() -> None:
-    """A selection of a strategy with no entry is reported by its identifiers, never run as another strategy."""
-    with pytest.raises(UndeclaredStrategyError, match=r"application tier has no entry for strategy .*reported_fcf"):
-        refreshers_by_key(STRATEGIES, _WITHOUT_FCF)
-    without_executor = {key: value for key, value in APPLICATION_REFRESHERS.items() if key[1] != FCF_GROWTH.method_id}
-    with pytest.raises(UndeclaredStrategyError, match=r"refresh executor .*reported_fcf_eps_cagr"):
-        refresh_executor_for(FCFGrowthSelection(), MappingProxyType(without_executor))
-
-
 def test_an_entry_serving_no_descriptor_and_a_duplicate_entry_are_rejected() -> None:
     """The tier is checked against the descriptors in both directions."""
     stray = replace(APPLICATION_STRATEGIES[0], behavior=object())
@@ -77,12 +63,10 @@ def test_an_entry_serving_no_descriptor_and_a_duplicate_entry_are_rejected() -> 
 
 
 def test_an_entry_rejects_another_strategys_selection() -> None:
-    """A run function and a refresh executor run for no other strategy's selection."""
+    """A run function runs for no other strategy's selection, whether for a direct analysis or a refresh job."""
     momentum = APPLICATION_STRATEGIES[0]
     assert momentum.behavior is MOMENTUM.behavior
     cache = MagicMock(spec=InstrumentProfileResolver)
-    with pytest.raises(UndeclaredStrategyError, match="selection type"):
-        momentum.refresh(_CONTEXT, "AAPL", GrahamNumberSelection(), profile_cache=cache)
     with pytest.raises(UndeclaredStrategyError, match="selection type"):
         momentum.run(_CONTEXT, "AAPL", GrahamNumberSelection(), executed_at=utc_now(), profile_cache=cache)
     cache.resolve.assert_not_called()

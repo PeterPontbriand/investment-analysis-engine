@@ -175,7 +175,7 @@ def test_the_command_line_message_and_exit_code_are_those_of_the_first_error_and
     assert (document["reason"], document["parameters"]) == (text.stderr.strip(), ["--eps"])
     assert [item["parameters"] for item in document["errors"]] == [["--eps"], ["--bvps"]]
     assert document["errors"][1]["message"] == "Invalid --bvps: Financial override must be a finite number."
-    assert document["schema_version"] == 12
+    assert document["schema_version"] == 13
 
 
 # --- Pre-checks join the list (R2) ---------------------------------------------------------------------------------

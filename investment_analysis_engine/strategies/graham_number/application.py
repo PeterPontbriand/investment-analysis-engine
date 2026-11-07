@@ -1,4 +1,4 @@
-"""Graham Number's application functions: its run function and its refresh executor.
+"""Graham Number's application functions: its run function.
 
 The application tier pairs these with the Graham Number core bundle; nothing here registers itself. The run function
 composes the dependencies of one run, runs it through :func:`execute_graham_number`, and returns it with the means to
@@ -9,11 +9,10 @@ from dataclasses import replace
 from datetime import datetime
 
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.failures import require_job_ticker, stored_configuration
+from investment_analysis_engine.application.failures import stored_configuration
 from investment_analysis_engine.application.providers import production_financial_cache
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
@@ -33,7 +32,6 @@ from investment_analysis_engine.strategies.graham_number.workspace import (
     execute_graham_number,
     from_graham_number_capture,
 )
-from investment_analysis_engine.workspace.capture import ExecutionCapture
 
 
 def run(
@@ -130,17 +128,4 @@ def run(
     )
 
 
-def refresh(
-    context: ApplicationContext,
-    ticker: str,
-    selection: GrahamNumberSelection,
-    /,
-    *,
-    profile_cache: InstrumentProfileResolver | None,
-) -> ExecutionCapture:
-    """Execute one Graham Number refresh job with freshly composed, job-scoped dependencies."""
-    require_job_ticker(ticker)
-    return run(context, ticker, selection, executed_at=utc_now(), profile_cache=profile_cache).execution
-
-
-__all__ = ["refresh", "run"]
+__all__ = ["run"]

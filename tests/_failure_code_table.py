@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from investment_analysis_engine.application.failures import InternalDefectError
+from investment_analysis_engine.application.refresh_jobs import RefreshJobNotFoundError, RefreshJobRunningError
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
@@ -133,6 +134,8 @@ PINNED_CLASSIFICATIONS: tuple[PinnedClassification, ...] = (
     _row(WatchlistNotFoundError, "watchlist_not_found", "error"),
     _row(EmptyRefreshTargetError, "watchlist_empty", "error"),
     _row(WatchlistEntryNotFoundError, "watchlist_entry_not_found", "error"),
+    _row(RefreshJobNotFoundError, "refresh_job_not_found", "error"),
+    _row(RefreshJobRunningError, "refresh_job_running", "error"),
     _row(WatchlistConflictError, "watchlist_name_conflict", "error"),
     _row(AnalysisRunConflictError, "execution_error", "error"),
     _row(InternalDefectError, "execution_error", "error"),

@@ -71,7 +71,7 @@ class FailureEnvelope(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[12] = 12
+    schema_version: Literal[13] = 13
     status: FailureStatus
     reason_code: FailureReasonCode
     reason: str

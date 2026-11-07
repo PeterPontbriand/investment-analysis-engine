@@ -1,4 +1,4 @@
-"""Momentum's application functions: its settings, its run function and its refresh executor.
+"""Momentum's application functions: its settings and its run function.
 
 The application tier pairs these with the Momentum core bundle; nothing here registers itself. The run function
 composes the dependencies of one run, runs it through :func:`execute_momentum`, and returns it with the means to present
@@ -11,11 +11,9 @@ from datetime import datetime
 
 from investment_analysis_engine.analysis.base_analyzer import require_ticker
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.failures import require_job_ticker
 from investment_analysis_engine.application.providers import production_historical_client
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.config.component_settings import load_component_settings
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
@@ -32,7 +30,6 @@ from investment_analysis_engine.strategies.momentum.selection import MomentumSel
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 from investment_analysis_engine.strategies.momentum.workspace import execute_momentum, from_momentum_capture
 from investment_analysis_engine.strategy_wiring import MOMENTUM
-from investment_analysis_engine.workspace.capture import ExecutionCapture
 
 
 def momentum_settings(context: ApplicationContext) -> MomentumSettings:
@@ -117,17 +114,4 @@ def run(
     )
 
 
-def refresh(
-    context: ApplicationContext,
-    ticker: str,
-    selection: MomentumSelection,
-    /,
-    *,
-    profile_cache: InstrumentProfileResolver | None,
-) -> ExecutionCapture:
-    """Execute one Momentum refresh job with freshly composed, job-scoped dependencies."""
-    require_job_ticker(ticker)
-    return run(context, ticker, selection, executed_at=utc_now(), profile_cache=profile_cache).execution
-
-
-__all__ = ["momentum_settings", "refresh", "run"]
+__all__ = ["momentum_settings", "run"]

@@ -21,7 +21,7 @@ from uuid import UUID
 import typer
 
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.refresh import refresh_watchlist
+from investment_analysis_engine.application.refresh import prepare_refresh, run_refresh
 from investment_analysis_engine.application.runs import (
     RunQueryNames,
     build_run_query,
@@ -511,14 +511,15 @@ def refresh(  # noqa: PLR0913
     signal.signal(signal.SIGINT, _handle_sigint)
     try:
         with watchlist_action("refresh", _REFRESH_PARAMETERS, json_output=json_output):
-            outcome = refresh_watchlist(
-                ApplicationContext(settings=settings),
+            context = ApplicationContext(settings=settings)
+            prepared = prepare_refresh(
+                context,
                 WatchlistName(name),
                 workers=workers,
                 save=not no_save,
                 provider_check=not no_provider_check,
-                cancellation=cancellation,
             )
+            outcome = run_refresh(context, prepared, cancellation=cancellation)
     finally:
         signal.signal(signal.SIGINT, previous_handler)
 

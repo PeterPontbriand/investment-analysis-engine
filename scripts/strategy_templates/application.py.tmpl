@@ -1,15 +1,13 @@
 """The $label strategy's application functions.
 
-They are the run function and the refresh executor, with the composition of the analyzer. The run function returns the
-run with the means to present it as a document and as text, so no caller needs the strategy's presentation.
+It is the run function, with the composition of the analyzer. The run function returns the run with the means to
+present it as a document and as text, so no caller needs the strategy's presentation. A refresh job is a run too.
 """
 
 from datetime import datetime
 
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.failures import require_job_ticker
 from investment_analysis_engine.application.strategy_run import StrategyRun
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
@@ -20,7 +18,6 @@ from investment_analysis_engine.strategies.$module.envelope import ${Class}Docum
 from investment_analysis_engine.strategies.$module.presenter import build_${module}_document, render_$module
 from investment_analysis_engine.strategies.$module.selection import ${Class}Selection
 from investment_analysis_engine.strategies.$module.workspace import execute_$module, from_${module}_capture
-from investment_analysis_engine.workspace.capture import ExecutionCapture
 
 
 def compose_$module(context: ApplicationContext, executed_at: datetime) -> tuple[${Class}Analyzer, object]:
@@ -58,16 +55,3 @@ def run(
 
     execution = from_${module}_capture(capture)
     return StrategyRun(execution=execution, document=document, render_text=render_text)
-
-
-def refresh(
-    context: ApplicationContext,
-    ticker: str,
-    selection: ${Class}Selection,
-    /,
-    *,
-    profile_cache: InstrumentProfileResolver | None,
-) -> ExecutionCapture:
-    """Execute one $label refresh job with a freshly composed, job-scoped analyzer."""
-    require_job_ticker(ticker)
-    return run(context, ticker, selection, executed_at=utc_now(), profile_cache=profile_cache).execution

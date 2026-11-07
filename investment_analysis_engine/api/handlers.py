@@ -24,9 +24,16 @@ from investment_analysis_engine.api.documents import (
     build_strategies_document,
     installed_engine_version,
 )
+from investment_analysis_engine.api.refresh_documents import (
+    RefreshEventDocument,
+    RefreshJobDocument,
+    build_job_document,
+)
 from investment_analysis_engine.api.request_bodies import (
+    MAX_REQUEST_BODY_BYTES,
     AddEntriesRequest,
     AnalysisRequest,
+    RefreshRequest,
     RemoveMethodRequest,
     RemoveTickersRequest,
     RequestBody,
@@ -38,10 +45,10 @@ from investment_analysis_engine.api.request_bodies import (
 from investment_analysis_engine.api.responses import (
     DescribedFailure,
     document_response,
-    failure_of,
     failure_response,
 )
 from investment_analysis_engine.api.routes import (
+    DEFAULT_AFTER,
     DEFAULT_RUNS_LIMIT,
     DEFAULT_RUNS_OFFSET,
     TEXT_MODES,
@@ -52,6 +59,13 @@ from investment_analysis_engine.application.analysis import analyze
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.failures import SavingFailureError, describe_failure
 from investment_analysis_engine.application.parameters import ActionParameterError
+from investment_analysis_engine.application.refresh import (
+    RefreshEntries,
+    RefreshEntry,
+    RefreshTarget,
+    prepare_refresh,
+)
+from investment_analysis_engine.application.refresh_jobs import RefreshJob, RefreshJobs, RefreshJobView
 from investment_analysis_engine.application.runs import (
     RunQueryNames,
     build_run_query,
@@ -79,6 +93,7 @@ from investment_analysis_engine.core.failure_classification import classify_fail
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.tickers import normalize_ticker
+from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
@@ -156,24 +171,29 @@ def _query_values(request: Request, route: RouteSpec) -> Mapping[str, str]:
     return values
 
 
-def error_response(exception: Exception) -> Response:
-    """Return the failure response of an exception raised while serving a request.
+def failure_envelope_of(exception: Exception) -> FailureEnvelope:
+    """Return the failure envelope of an exception raised while serving a request or running a job.
 
     An exception that declares its own failure code keeps its message; any other is an ``execution_error`` with one
     fixed message, and its detail and traceback go to the log, so no library text reaches the client.
     """
     if isinstance(exception, DescribedFailure):
-        return failure_response(failure_envelope(exception.code, exception.message, cause=exception.cause))
+        return failure_envelope(exception.code, exception.message, cause=exception.cause)
     if isinstance(getattr(exception, "reason_code", None), FailureReasonCode):
         classification = classify_failure(exception)
         try:
-            return failure_response(failure_envelope(classification.reason_code, str(exception), cause=exception))
+            return failure_envelope(classification.reason_code, str(exception), cause=exception)
         except ValueError:
             # The exception declares a code whose envelope needs facts the exception does not carry.
             logger.exception("A failure could not be described by its own code.")
-            return failure_of(FailureReasonCode.EXECUTION_ERROR, UNEXPECTED_FAILURE_MESSAGE)
+            return failure_envelope(FailureReasonCode.EXECUTION_ERROR, UNEXPECTED_FAILURE_MESSAGE)
     logger.error("Unexpected failure while serving a request.", exc_info=exception)
-    return failure_of(FailureReasonCode.EXECUTION_ERROR, UNEXPECTED_FAILURE_MESSAGE)
+    return failure_envelope(FailureReasonCode.EXECUTION_ERROR, UNEXPECTED_FAILURE_MESSAGE)
+
+
+def error_response(exception: Exception) -> Response:
+    """Return the failure response of an exception raised while serving a request."""
+    return failure_response(failure_envelope_of(exception))
 
 
 def _serve(
@@ -187,7 +207,13 @@ def _serve(
     try:
         body = None if route.request is None or document is None else read_request(route.request, document)
         parameters = RequestParameters(path=request.path_params, query=_query_values(request, route), request=body)
-        return document_response(operation(context, parameters), status=route.success_status)
+        result = operation(context, parameters)
+        location = route.location_of(result)
+        return document_response(
+            result,
+            status=route.success_status,
+            headers=None if location is None else {"Location": location},
+        )
     except Exception as exc:
         return error_response(exc)
 
@@ -382,8 +408,103 @@ def _analyze(context: ApplicationContext, parameters: RequestParameters) -> Base
     )
 
 
-def operations(settings: ProjectSettings) -> Mapping[str, Operation]:
-    """Return the operation of each route in the table, keyed by the route's operation ID."""
+type RefreshJobsOfServer = RefreshJobs[RefreshEventDocument]
+"""The latest refresh job of one server, whose events are the API's event documents."""
+
+
+def _job_document(view: RefreshJobView[RefreshEventDocument]) -> RefreshJobDocument:
+    """Build a job's document; a failed job's exception becomes its failure envelope."""
+    failure = None if view.failure is None else failure_envelope_of(_as_exception(view.failure))
+    return build_job_document(view, failure)
+
+
+def _as_exception(failure: BaseException) -> Exception:
+    """Return a job's recorded failure as an ``Exception``; a job records only ``Exception`` subclasses."""
+    assert isinstance(failure, Exception)  # the job's thread catches ``Exception`` and nothing else
+    return failure
+
+
+def _refresh_target(body: RefreshRequest) -> RefreshTarget:
+    """Return the watchlist or the list of entries a start request names.
+
+    Raises:
+        InvalidParameterError: If neither or both of ``watchlist_id`` and ``entries`` are given, or the ID is not one.
+    """
+    if (body.watchlist_id is None) == (body.entries is None):
+        raise InvalidParameterError(
+            "Exactly one of watchlist_id and entries must be given.", parameters=("watchlist_id", "entries")
+        )
+    if body.entries is not None:
+        return RefreshEntries(tuple(RefreshEntry(item.ticker, item.method_id, item.selection) for item in body.entries))
+    assert body.watchlist_id is not None  # exactly one of the two is given
+    try:
+        return WatchlistId(UUID(body.watchlist_id))
+    except ValueError:
+        raise InvalidParameterError(
+            f"watchlist_id {body.watchlist_id!r} is not a valid watchlist ID.", parameters=("watchlist_id",)
+        ) from None
+
+
+def _start_refresh(jobs: RefreshJobsOfServer) -> Operation:
+    """Return the operation that prepares a refresh and starts its job; the 202 is a view of the job at ``after`` 0."""
+
+    def operation(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+        body = _body(parameters, RefreshRequest)
+        prepared = prepare_refresh(
+            context,
+            _refresh_target(body),
+            workers=body.workers,
+            save=body.save,
+            provider_check=context.settings.provider_check if body.provider_check is None else body.provider_check,
+        )
+        job = jobs.start(context, prepared)
+        return _job_document(job.view(DEFAULT_AFTER, MAX_REQUEST_BODY_BYTES))
+
+    return operation
+
+
+def _after(parameters: RequestParameters) -> int:
+    """Return the ``after`` query parameter: the last event sequence the client has seen, 0 when absent."""
+    after = _integer(parameters, "after", DEFAULT_AFTER)
+    if after < 0:
+        raise InvalidParameterError("after must be 0 or greater.", parameters=("after",))
+    return after
+
+
+def _poll(job: RefreshJob[RefreshEventDocument], parameters: RequestParameters) -> BaseModel:
+    """Return a job's document with the events after the poll's ``after``."""
+    return _job_document(job.view(_after(parameters), MAX_REQUEST_BODY_BYTES))
+
+
+def _get_refresh_job(jobs: RefreshJobsOfServer) -> Operation:
+    def operation(_context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+        return _poll(jobs.get(_uuid(parameters, "refresh_id", "refresh")), parameters)
+
+    return operation
+
+
+def _get_latest_refresh_job(jobs: RefreshJobsOfServer) -> Operation:
+    def operation(_context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+        return _poll(jobs.latest(), parameters)
+
+    return operation
+
+
+def _stop_refresh_job(jobs: RefreshJobsOfServer) -> Operation:
+    def operation(_context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+        job = jobs.get(_uuid(parameters, "refresh_id", "refresh"))
+        after = _after(parameters)  # checked before the job is stopped: a rejected request changes nothing
+        job.stop()
+        return _job_document(job.view(after, MAX_REQUEST_BODY_BYTES))
+
+    return operation
+
+
+def operations(settings: ProjectSettings, refresh_jobs: RefreshJobsOfServer) -> Mapping[str, Operation]:
+    """Return the operation of each route in the table, keyed by the route's operation ID.
+
+    ``refresh_jobs`` is the server's one latest refresh job, which the four refresh routes share.
+    """
     return {
         "get_info": _info(settings),
         "list_strategies": _strategies,
@@ -402,6 +523,10 @@ def operations(settings: ProjectSettings) -> Mapping[str, Operation]:
         "remove_watchlist_tickers": _remove_tickers,
         "remove_watchlist_method": _remove_method,
         "analyze": _analyze,
+        "start_refresh": _start_refresh(refresh_jobs),
+        "get_latest_refresh_job": _get_latest_refresh_job(refresh_jobs),
+        "get_refresh_job": _get_refresh_job(refresh_jobs),
+        "stop_refresh_job": _stop_refresh_job(refresh_jobs),
     }
 
 
@@ -409,8 +534,10 @@ __all__ = [
     "UNEXPECTED_FAILURE_MESSAGE",
     "Endpoint",
     "Operation",
+    "RefreshJobsOfServer",
     "RequestParameters",
     "endpoint_for",
     "error_response",
+    "failure_envelope_of",
     "operations",
 ]

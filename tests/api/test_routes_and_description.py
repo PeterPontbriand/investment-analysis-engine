@@ -32,7 +32,7 @@ def test_every_route_declares_its_success_document_and_each_failure_status() -> 
         assert statuses == sorted(statuses)
         assert {400, 401, 405, 500} <= set(statuses)
         assert sum(status < 300 for status in statuses) == 1  # exactly one success status
-        assert route.success_status == (201 if route.operation_id == "create_watchlist" else 200)
+        assert route.success_status == {"create_watchlist": 201, "start_refresh": 202}.get(route.operation_id, 200)
         assert dict(route.responses)[400][0].__name__ == "FailureEnvelope"
 
 

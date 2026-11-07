@@ -11,10 +11,12 @@ from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
 from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.core.strategy_errors import find, require
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategy_wiring import BY_METHOD_ID
 from investment_analysis_engine.workspace.repositories.watchlists import (
     DeletedWatchlist,
+    DuplicateEntryError,
     RemovedEntries,
     RenamedWatchlist,
     SQLiteWatchlistRepository,
@@ -25,7 +27,14 @@ from investment_analysis_engine.workspace.watchlists import (
     WatchlistNotFoundError,
     WatchlistRef,
     WatchlistSpec,
+    encode_selection,
 )
+
+REPEATED_IN_REQUEST = "earlier in this request"
+"""Where a duplicate entry's twin is, when it is another entry of the same request."""
+
+REPEATED_IN_WATCHLIST = "in the watchlist"
+"""Where a duplicate entry's twin is, when it is an entry the watchlist already holds."""
 
 
 def _stored_method_alias(method_id: str) -> str | None:
@@ -100,6 +109,32 @@ def _check_tickers(tickers: Sequence[str]) -> None:
         )
 
 
+def duplicate_entry_error(parameter: str, ticker: str, method_id: str, where: str) -> ActionParameterError:
+    """Return the error of an entry that repeats another: the same ticker with an equal selection.
+
+    This is the one rule of a duplicate, ``entries.duplicate``, for a list of entries to refresh and for every add to a
+    watchlist.
+
+    Args:
+        parameter: The action's name for the offending entry or entries.
+        ticker: The normalized ticker.
+        method_id: The strategy's method identifier.
+        where: Where the other entry is: :data:`REPEATED_IN_REQUEST` or :data:`REPEATED_IN_WATCHLIST`.
+    """
+    return ActionParameterError(
+        f"{{{parameter}}} must not duplicate an entry: {{ticker}} is already listed for {{method_id}} with an equal "
+        "selection {where}.",
+        parameters=(parameter,),
+        rule="entries.duplicate",
+        arguments={"ticker": ticker, "method_id": method_id, "where": where},
+    )
+
+
+def entry_key(ticker: str, selection: AnalysisSelection) -> tuple[str, str]:
+    """Return what makes two entries equal: the normalized ticker and the canonical text of the selection."""
+    return normalize_ticker(ticker), encode_selection(selection)
+
+
 def create_watchlist(context: ApplicationContext, name: str) -> Watchlist:
     """Create a watchlist with no entries.
 
@@ -156,8 +191,10 @@ def add_watchlist_entries(
     Nothing is written when the watchlist holds an entry this version cannot read.
 
     Raises:
-        ActionParameterError: If ``entries`` is empty (parameter ``entries``) or a ticker is blank (parameter
-            ``tickers``); nothing is opened or written.
+        ActionParameterError: If ``entries`` is empty (parameter ``entries``), a ticker is blank or an entry repeats
+            another entry of the request or one the watchlist holds, the same ticker with an equal selection
+            (parameter ``tickers``, rule ``entries.duplicate``); nothing is written, and a repeat within the request
+            is found before anything is opened.
         WatchlistNotFoundError: If no watchlist matches ``ref``.
         StoredSelectionError: If an entry of the watchlist cannot be read.
     """
@@ -166,8 +203,25 @@ def add_watchlist_entries(
             "{entries} must hold at least one entry.", parameters=("entries",), rule="watchlist.no_entries"
         )
     _check_tickers([ticker for ticker, _ in entries])
+    seen: set[tuple[str, str]] = set()
+    repeated: list[ActionParameterError] = []
+    for ticker, selection in entries:
+        key = entry_key(ticker, selection)
+        if key in seen:
+            repeated.append(duplicate_entry_error("tickers", key[0], selection.method_id, REPEATED_IN_REQUEST))
+        seen.add(key)
+    if repeated:
+        raise ActionParameterError.several(repeated)
     with open_database(context) as database:
-        return watchlist_repository(database).add_entries(ref, entries)
+        try:
+            return watchlist_repository(database).add_entries(ref, entries)
+        except DuplicateEntryError as exc:
+            raise ActionParameterError.several(
+                [
+                    duplicate_entry_error("tickers", ticker, method_id, REPEATED_IN_WATCHLIST)
+                    for ticker, method_id in exc.duplicates
+                ]
+            ) from None
 
 
 def remove_watchlist_entry(context: ApplicationContext, ref: WatchlistRef, entry_number: int) -> RemovedEntries:
@@ -221,10 +275,14 @@ def remove_watchlist_method(context: ApplicationContext, ref: WatchlistRef, meth
 
 
 __all__ = [
+    "REPEATED_IN_REQUEST",
+    "REPEATED_IN_WATCHLIST",
     "alias_for_method_id",
     "add_watchlist_entries",
     "create_watchlist",
     "delete_watchlist",
+    "duplicate_entry_error",
+    "entry_key",
     "get_watchlist_by_id",
     "get_watchlist_by_name",
     "get_watchlist_summary",

@@ -2,7 +2,8 @@
 
 The document carries ``schema_version``, its own lineage, first among its keys. It was unversioned until it gained
 the ``rate_limited`` provider failure code; ``reason_code`` was added to every result before that without a version.
-Version 2 ends the document with ``provider_check``.
+Version 2 ends the document with ``provider_check``. Version 3 lets ``watchlist_id`` and ``watchlist_name`` be null,
+both together, for a refresh of a list of entries that belongs to no watchlist.
 """
 
 from typing import Literal, Self
@@ -57,10 +58,12 @@ class RefreshSummaryDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3
     refresh_id: UUID
-    watchlist_id: UUID
-    watchlist_name: str
+    watchlist_id: UUID | None = Field(description="The watchlist refreshed; null for a refresh of a list of entries.")
+    watchlist_name: str | None = Field(
+        description="The watchlist's name when it was refreshed; null exactly when watchlist_id is."
+    )
     results: tuple[RefreshResultDocument, ...]
     counts: dict[str, int] = Field(description="Jobs per status; a job that raised counts as 'error'.")
     provider_check: tuple[ProviderCheckItem, ...] | None = Field(
@@ -71,8 +74,10 @@ class RefreshSummaryDocument(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _unique_providers(self) -> Self:
-        """Require at most one entry per provider."""
+    def _consistent(self) -> Self:
+        """Require the watchlist's ID and name to be both set or both null, and at most one entry per provider."""
+        if (self.watchlist_id is None) != (self.watchlist_name is None):
+            raise ValueError("watchlist_id and watchlist_name must both be set or both null.")
         require_unique_providers(self.provider_check)
         return self
 

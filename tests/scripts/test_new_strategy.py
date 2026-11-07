@@ -474,7 +474,7 @@ def _stub_functions(role: str) -> set[str]:
 
 
 def test_the_templates_leave_unfilled_only_the_strategy_specific_bodies() -> None:
-    """The execution function, the command, refresh, the selection builder and the tool handler are written in full."""
+    """The execution function, the command, the selection builder and the tool handler are written in full."""
     expected = {
         "analyzer": {"run_analysis"},
         "tool": set(),
@@ -544,8 +544,8 @@ def test_the_generated_normalizer_reads_the_common_fields() -> None:
     assert "unfilled_stub" not in execution
 
 
-def test_the_generated_run_and_refresh_compose_the_analyzer_through_the_one_function() -> None:
-    """Both call ``compose_<name>`` with the run's one reading of the time, and the run presents like Piotroski's."""
+def test_the_generated_run_composes_the_analyzer_through_the_one_function() -> None:
+    """The run calls ``compose_<name>`` with its one reading of the time, and presents like Piotroski's."""
     application = _rendered("application")
     assert "compose_fresh_probe" in _called_names(_function(application, "run"))
     assert "compose_fresh_probe(context, executed_at)" in application
@@ -556,8 +556,8 @@ def test_the_generated_run_and_refresh_compose_the_analyzer_through_the_one_func
     assert "build_fresh_probe_document(result, identity_resolution, profile, element)" in application
 
 
-def test_the_generated_command_and_refresh_use_the_shared_helpers() -> None:
-    """The command calls the one operation through the CLI helpers; refresh runs through the run function."""
+def test_the_generated_command_uses_the_shared_helpers_and_the_application_has_no_refresh_function() -> None:
+    """The command calls the one operation through the CLI helpers; a refresh job runs the run function."""
     cli = _rendered("cli")
     command = _called_names(_function(cli, "command"))
     assert {
@@ -571,7 +571,9 @@ def test_the_generated_command_and_refresh_use_the_shared_helpers() -> None:
     assert "render_execution" not in cli
     assert "presenter" not in cli
     application = _rendered("application")
-    assert {"require_job_ticker", "run", "utc_now"} <= _called_names(_function(application, "refresh"))
+    assert "def refresh(" not in application
+    assert "require_job_ticker" not in application
+    assert "utc_now" not in application
     assert "selection_from_options" in _called_names(_function(cli, "_selection"))
     assert {"_selection", "add_selection_entries"} <= _called_names(_function(cli, "add_selection"))
     assert 'command="fresh-probe"' in cli

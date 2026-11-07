@@ -92,6 +92,8 @@
         "host_not_allowed",
         "origin_not_allowed",
         "endpoint_not_found",
+        "refresh_job_not_found",
+        "refresh_job_running",
         "port_unavailable"
       ],
       "title": "FailureReasonCode",
@@ -362,8 +364,8 @@
       "type": "null"
     },
     "schema_version": {
-      "const": 12,
-      "default": 12,
+      "const": 13,
+      "default": 13,
       "title": "Schema Version",
       "type": "integer"
     },

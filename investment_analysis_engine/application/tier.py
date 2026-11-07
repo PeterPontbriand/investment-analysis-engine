@@ -1,4 +1,4 @@
-"""The application tier: each strategy's run function and refresh executor paired with its core bundle.
+"""The application tier: each strategy's run function paired with its core bundle.
 
 ``APPLICATION_STRATEGIES`` is the closed, statically declared tuple of strategy application compositions. Each entry
 is built by ``pair_application``, which takes a strategy's typed ``StrategyBehavior`` and its
@@ -21,15 +21,10 @@ from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError, describe, require, undeclared
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
-from investment_analysis_engine.strategies.fcf_growth.application import refresh as refresh_fcf_growth
 from investment_analysis_engine.strategies.fcf_growth.application import run as run_fcf_growth
-from investment_analysis_engine.strategies.graham_growth.application import refresh as refresh_graham_growth
 from investment_analysis_engine.strategies.graham_growth.application import run as run_graham_growth
-from investment_analysis_engine.strategies.graham_number.application import refresh as refresh_graham_number
 from investment_analysis_engine.strategies.graham_number.application import run as run_graham_number
-from investment_analysis_engine.strategies.momentum.application import refresh as refresh_momentum
 from investment_analysis_engine.strategies.momentum.application import run as run_momentum
-from investment_analysis_engine.strategies.piotroski.application import refresh as refresh_piotroski
 from investment_analysis_engine.strategies.piotroski.application import run as run_piotroski
 from investment_analysis_engine.strategy_wiring import (
     FCF_GROWTH_BEHAVIOR,
@@ -41,7 +36,6 @@ from investment_analysis_engine.strategy_wiring import (
     StrategyBehavior,
     StrategyDescriptor,
 )
-from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
 
 
@@ -62,33 +56,15 @@ class AnalysisRunner[SelT: SelectionMember](Protocol):
         ...
 
 
-class RefreshExecutor[SelT: SelectionMember](Protocol):
-    """A refresh executor: one job for one ticker and one selection, with the job's shared profile cache."""
-
-    def __call__(
-        self,
-        context: ApplicationContext,
-        ticker: str,
-        selection: SelT,
-        /,
-        *,
-        profile_cache: InstrumentProfileResolver | None,
-    ) -> ExecutionCapture:
-        """Execute the job and return its captured evidence."""
-        ...
-
-
 @dataclass(frozen=True)
 class ApplicationComposition[SelT: SelectionMember]:
-    """One strategy's run function and refresh executor, over its own selection class.
+    """One strategy's run function, over its own selection class.
 
     Attributes:
-        run: Runs the strategy for a direct analysis and returns the run with the means to present it.
-        refresh: Executes one refresh job for a selection of exactly the strategy's own class.
+        run: Runs the strategy for a direct analysis or a refresh job and returns the run with the means to present it.
     """
 
     run: AnalysisRunner[SelT]
-    refresh: RefreshExecutor[SelT]
 
 
 @dataclass(frozen=True)
@@ -101,7 +77,6 @@ class ApplicationStrategy:
 
     behavior: object
     run: AnalysisRunner[SelectionMember]
-    refresh: RefreshExecutor[SelectionMember]
 
 
 def pair_application[SelT: SelectionMember, ResultT: NativeEvidence, DepsT](
@@ -123,31 +98,15 @@ def pair_application[SelT: SelectionMember, ResultT: NativeEvidence, DepsT](
             raise undeclared("selection type", type(selection))
         return composition.run(context, ticker, selection, executed_at=executed_at, profile_cache=profile_cache)
 
-    def refresh(
-        context: ApplicationContext,
-        ticker: str,
-        selection: SelectionMember,
-        /,
-        *,
-        profile_cache: InstrumentProfileResolver | None,
-    ) -> ExecutionCapture:
-        if not isinstance(selection, behavior.selection_type) or type(selection) is not behavior.selection_type:
-            raise undeclared("selection type", type(selection))
-        return composition.refresh(context, ticker, selection, profile_cache=profile_cache)
-
-    return ApplicationStrategy(behavior=behavior, run=run, refresh=refresh)
+    return ApplicationStrategy(behavior=behavior, run=run)
 
 
 APPLICATION_STRATEGIES: Final = (
-    pair_application(MOMENTUM_BEHAVIOR, ApplicationComposition(run=run_momentum, refresh=refresh_momentum)),
-    pair_application(
-        GRAHAM_NUMBER_BEHAVIOR, ApplicationComposition(run=run_graham_number, refresh=refresh_graham_number)
-    ),
-    pair_application(
-        GRAHAM_GROWTH_BEHAVIOR, ApplicationComposition(run=run_graham_growth, refresh=refresh_graham_growth)
-    ),
-    pair_application(FCF_GROWTH_BEHAVIOR, ApplicationComposition(run=run_fcf_growth, refresh=refresh_fcf_growth)),
-    pair_application(PIOTROSKI_BEHAVIOR, ApplicationComposition(run=run_piotroski, refresh=refresh_piotroski)),
+    pair_application(MOMENTUM_BEHAVIOR, ApplicationComposition(run=run_momentum)),
+    pair_application(GRAHAM_NUMBER_BEHAVIOR, ApplicationComposition(run=run_graham_number)),
+    pair_application(GRAHAM_GROWTH_BEHAVIOR, ApplicationComposition(run=run_graham_growth)),
+    pair_application(FCF_GROWTH_BEHAVIOR, ApplicationComposition(run=run_fcf_growth)),
+    pair_application(PIOTROSKI_BEHAVIOR, ApplicationComposition(run=run_piotroski)),
 )
 
 
@@ -208,25 +167,7 @@ def runners_by_key(
     )
 
 
-def refreshers_by_key(
-    descriptors: tuple[StrategyDescriptor, ...],
-    tier: tuple[ApplicationStrategy, ...] = APPLICATION_STRATEGIES,
-) -> Mapping[tuple[str, str], RefreshExecutor[SelectionMember]]:
-    """Return each descriptor's refresh executor keyed by ``(analysis_id, method_id)``, read-only.
-
-    Raises:
-        UndeclaredStrategyError: If a descriptor has no application-tier entry or an entry serves no descriptor.
-    """
-    return MappingProxyType(
-        {
-            (descriptor.analysis_id, descriptor.method_id): entry.refresh
-            for descriptor, entry in application_entries(descriptors, tier)
-        }
-    )
-
-
 APPLICATION_RUNNERS: Final = runners_by_key(STRATEGIES)
-APPLICATION_REFRESHERS: Final = refreshers_by_key(STRATEGIES)
 
 
 def analysis_runner_for(
@@ -241,30 +182,14 @@ def analysis_runner_for(
     return require(runners, (selection.analysis_id, selection.method_id), what="analysis runner")
 
 
-def refresh_executor_for(
-    selection: SelectionMember,
-    refreshers: Mapping[tuple[str, str], RefreshExecutor[SelectionMember]] = APPLICATION_REFRESHERS,
-) -> RefreshExecutor[SelectionMember]:
-    """Return the refresh executor of the strategy that owns ``selection``.
-
-    Raises:
-        UndeclaredStrategyError: If no declared strategy has a refresh executor for the selection's identifiers.
-    """
-    return require(refreshers, (selection.analysis_id, selection.method_id), what="refresh executor")
-
-
 __all__ = [
-    "APPLICATION_REFRESHERS",
     "APPLICATION_RUNNERS",
     "APPLICATION_STRATEGIES",
     "AnalysisRunner",
     "ApplicationComposition",
     "ApplicationStrategy",
-    "RefreshExecutor",
     "analysis_runner_for",
     "application_entries",
     "pair_application",
-    "refresh_executor_for",
-    "refreshers_by_key",
     "runners_by_key",
 ]

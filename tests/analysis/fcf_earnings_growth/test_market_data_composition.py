@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 import investment_analysis_engine.cli
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
@@ -101,10 +102,12 @@ def _assert_composed(composition: Composition, *, use_cache: bool) -> None:
 
 
 @pytest.mark.parametrize("use_cache", [True, False])
-def test_refresh_composes_the_market_data_once(composition: Composition, use_cache: bool) -> None:
+def test_a_run_composes_the_market_data_once(composition: Composition, use_cache: bool) -> None:
     selection = FCFGrowthSelection(use_cache=use_cache)
 
-    fcf_application.refresh(ApplicationContext(settings=ProjectSettings()), "ACME", selection, profile_cache=None)
+    fcf_application.run(
+        ApplicationContext(settings=ProjectSettings()), "ACME", selection, executed_at=utc_now(), profile_cache=None
+    )
 
     _assert_composed(composition, use_cache=use_cache)
     assert isinstance(composition.executions[0]["args"][0], ProductionAnnualGrowthSeriesResolver)

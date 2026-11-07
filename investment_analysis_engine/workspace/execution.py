@@ -70,13 +70,14 @@ class BatchContext:
     All four fields travel together because ``AnalysisRun`` itself requires
     ``refresh_id``/``batch_position`` to be both set or both null, and
     likewise for ``watchlist_id``/``watchlist_name``; a direct (non-refresh)
-    call to :func:`execute` passes no ``BatchContext`` at all.
+    call to :func:`execute` passes no ``BatchContext`` at all. A refresh of a
+    list of entries that belongs to no watchlist has no watchlist ID or name.
     """
 
     refresh_id: UUID
     batch_position: int
-    watchlist_id: UUID
-    watchlist_name: str
+    watchlist_id: UUID | None
+    watchlist_name: str | None
 
 
 class AnalysisRunSink(Protocol):

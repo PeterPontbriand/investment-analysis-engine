@@ -41,8 +41,7 @@ from investment_analysis_engine.application.tier import (
     APPLICATION_STRATEGIES,
     ApplicationComposition,
     ApplicationStrategy,
-    refresh_executor_for,
-    refreshers_by_key,
+    analysis_runner_for,
     runners_by_key,
 )
 from investment_analysis_engine.cli import app
@@ -170,7 +169,7 @@ EVALUATION_ENTRY_FIELDS: frozenset[str] = frozenset(
 CLI_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"command", "add_selection", "selection_options"})
 """The documented members of a strategy's CLI-tier composition."""
 
-APPLICATION_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"run", "refresh"})
+APPLICATION_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"run"})
 """The documented members of a strategy's application-tier composition."""
 
 NON_STRATEGY_COMMANDS: frozenset[str] = frozenset({"evaluate", "health", "refresh", "serve"})
@@ -179,7 +178,7 @@ NON_STRATEGY_COMMANDS: frozenset[str] = frozenset({"evaluate", "health", "refres
 CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "command", "add_selection", "selection_options"})
 """The documented fields of a CLI-tier entry: the paired core bundle and the erased composition."""
 
-APPLICATION_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "run", "refresh"})
+APPLICATION_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "run"})
 """The documented fields of an application-tier entry: the paired core bundle and the erased composition."""
 
 VIEW_ACCESSORS: frozenset[str] = frozenset(
@@ -1123,7 +1122,7 @@ def _evaluation_tier_probes(
 
 
 class _NoProfileCache:
-    """A profile resolver that no probe may reach: a refresh executor rejects the selection before using it."""
+    """A profile resolver that no probe may reach: a run function rejects the selection before using it."""
 
     def resolve(
         self,
@@ -1135,7 +1134,7 @@ class _NoProfileCache:
     ) -> InstrumentProfile:
         """Fail if reached."""
         del identity_candidates, kind_candidate, force_refresh
-        raise AssertionError(f"A refresh executor used its profile cache for {ticker!r}.")
+        raise AssertionError(f"A run function used its profile cache for {ticker!r}.")
 
 
 def _cli_tier_probes(
@@ -1165,26 +1164,22 @@ def _application_tier_probes(
     stored = stored_runs(descriptors, tier, local_runs)
     for item in descriptors:
         without = tuple(entry for entry in application_tier if entry.behavior is not item.behavior)
-        for probe, action in (
-            ("runners_by_key", partial(runners_by_key, descriptors, without)),
-            ("refreshers_by_key", partial(refreshers_by_key, descriptors, without)),
-        ):
-            _expect_undeclared(
-                gaps,
-                f"{probe} without the {label(item)} application tier entry",
-                action,
-                names=item.method_id,
-            )
-    for entry in stored:
-        item = entry.descriptor
-        refreshers = refreshers_by_key(descriptors, application_tier)
         _expect_undeclared(
             gaps,
-            f"refresh_executor_for without the {label(item)} refresh executor",
+            f"runners_by_key without the {label(item)} application tier entry",
+            partial(runners_by_key, descriptors, without),
+            names=item.method_id,
+        )
+    runners = runners_by_key(descriptors, application_tier)
+    for entry in stored:
+        item = entry.descriptor
+        _expect_undeclared(
+            gaps,
+            f"analysis_runner_for without the {label(item)} run function",
             partial(
-                refresh_executor_for,
+                analysis_runner_for,
                 entry.selection,
-                {key: value for key, value in refreshers.items() if key != (item.analysis_id, item.method_id)},
+                {key: value for key, value in runners.items() if key != (item.analysis_id, item.method_id)},
             ),
             names=item.method_id,
         )
@@ -1194,12 +1189,13 @@ def _application_tier_probes(
         if paired is not None:
             _expect_undeclared(
                 gaps,
-                "refresh executor with another strategy's selection",
+                "run function with another strategy's selection",
                 partial(
-                    paired.refresh,
+                    paired.run,
                     ApplicationContext(settings=ProjectSettings()),
                     "X",
                     stored[1].selection,
+                    executed_at=_FIXTURE_CLOCK,
                     profile_cache=_NoProfileCache(),
                 ),
             )
@@ -1700,7 +1696,7 @@ def application_tier_is_closed_gaps(tier: Sequence[ApplicationStrategy] = APPLIC
         entry = tier[0]
         if not _is_frozen(entry, "behavior"):
             gaps.append("ApplicationStrategy is not frozen")
-        composition = ApplicationComposition(run=entry.run, refresh=entry.refresh)
+        composition = ApplicationComposition(run=entry.run)
         if not _is_frozen(composition, "run"):
             gaps.append("ApplicationComposition is not frozen")
     return gaps
@@ -2469,7 +2465,7 @@ def site_workspace(names: StrategyNames, context: SiteContext = PRODUCTION) -> l
 
 
 def site_application(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
-    """Row 8a: the application file defines the strategy's run function and its refresh executor."""
+    """Row 8a: the application file defines the strategy's run function."""
     return _file_site("application", names, context)
 
 

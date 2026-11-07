@@ -1,4 +1,4 @@
-"""The Piotroski F-Score strategy's application functions: its run function and its refresh executor.
+"""The Piotroski F-Score strategy's application functions: its run function.
 
 The application tier pairs these with the Piotroski core bundle; nothing here registers itself.
 
@@ -10,10 +10,8 @@ source of the industry class, so it is built here and the production provider is
 from datetime import datetime
 
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.failures import require_job_ticker
 from investment_analysis_engine.application.providers import build_sec_edgar_adapter
 from investment_analysis_engine.application.strategy_run import StrategyRun
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.financial.resolver import InputResolver
@@ -24,7 +22,6 @@ from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiAn
 from investment_analysis_engine.strategies.piotroski.presenter import build_piotroski_document, render_piotroski
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
 from investment_analysis_engine.strategies.piotroski.workspace import execute_piotroski, from_piotroski_capture
-from investment_analysis_engine.workspace.capture import ExecutionCapture
 
 
 def compose_piotroski(
@@ -86,17 +83,4 @@ def run(
     )
 
 
-def refresh(
-    context: ApplicationContext,
-    ticker: str,
-    selection: PiotroskiSelection,
-    /,
-    *,
-    profile_cache: InstrumentProfileResolver | None,
-) -> ExecutionCapture:
-    """Execute one Piotroski F-Score refresh job with a freshly composed, job-scoped analyzer."""
-    require_job_ticker(ticker)
-    return run(context, ticker, selection, executed_at=utc_now(), profile_cache=profile_cache).execution
-
-
-__all__ = ["compose_piotroski", "refresh", "run"]
+__all__ = ["compose_piotroski", "run"]

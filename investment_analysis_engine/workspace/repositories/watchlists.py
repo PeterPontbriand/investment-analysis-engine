@@ -56,6 +56,21 @@ class WatchlistEntryNotFoundError(ValueError):
     reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.WATCHLIST_ENTRY_NOT_FOUND
 
 
+class DuplicateEntryError(ValueError):
+    """An add would repeat an entry the watchlist already holds: the same ticker with an equal selection.
+
+    Attributes:
+        duplicates: The normalized ticker and the method identifier of each new entry that repeats a stored one, in
+            the order they were given.
+    """
+
+    def __init__(self, duplicates: Sequence[tuple[str, str]]) -> None:
+        """Keep the repeated entries and name the first in the message."""
+        ticker, method_id = duplicates[0]
+        super().__init__(f"{ticker} is already listed for {method_id} with an equal selection.")
+        self.duplicates: tuple[tuple[str, str], ...] = tuple(duplicates)
+
+
 @dataclass(frozen=True)
 class DeletedWatchlist:
     """What :meth:`SQLiteWatchlistRepository.delete` removed.
@@ -314,17 +329,31 @@ class SQLiteWatchlistRepository:
         Tickers are normalized; the whole batch is validated before any row
         is written, and applied in one transaction. An empty ``entries`` is a
         no-op that still returns the current watchlist. A watchlist holding an
-        entry this version cannot read is refused: nothing is written.
+        entry this version cannot read is refused: nothing is written. So is an
+        entry that repeats a stored one, the same ticker with an equal selection;
+        repeats within ``entries`` are the caller's to check.
 
         Raises:
             ValueError: If any ticker normalizes to empty.
             WatchlistNotFoundError: If no watchlist matches ``ref``.
             StoredSelectionError: If an entry of the watchlist cannot be read; the add is rolled back.
+            DuplicateEntryError: If an entry repeats one the watchlist already holds; nothing is written.
         """
         normalized_entries = [(normalize_ticker(ticker), selection) for ticker, selection in entries]
         with self._database.transaction() as connection:
             watchlist_id = self._find_id(connection, ref)
             if normalized_entries:
+                stored = {
+                    (entry.ticker, encode_selection(entry.selection))
+                    for entry in self._load(connection, watchlist_id).entries
+                }
+                repeated = [
+                    (ticker, selection.method_id)
+                    for ticker, selection in normalized_entries
+                    if (ticker, encode_selection(selection)) in stored
+                ]
+                if repeated:
+                    raise DuplicateEntryError(repeated)
                 next_position = self._next_position(connection, watchlist_id)
                 rows: list[dict[str, Any]] = [
                     {
@@ -533,6 +562,7 @@ class SQLiteWatchlistRepository:
 
 __all__ = [
     "DeletedWatchlist",
+    "DuplicateEntryError",
     "RemovedEntries",
     "RenamedWatchlist",
     "SQLiteWatchlistRepository",

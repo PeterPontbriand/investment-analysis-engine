@@ -272,12 +272,12 @@ def test_t11_reports_an_evaluation_tier_that_accepts_a_missing_entry(monkeypatch
 def test_t11_reports_a_cli_tier_whose_lookups_ignore_a_missing_entry(monkeypatch: pytest.MonkeyPatch) -> None:
     """The CLI-tier probes can fail: lookups that accept every key and entry are reported."""
     monkeypatch.setattr(conformance, "cli_entries", lambda *_: ())
-    monkeypatch.setattr(conformance, "refreshers_by_key", lambda *_: {})
-    monkeypatch.setattr(conformance, "refresh_executor_for", lambda *_: object())
+    monkeypatch.setattr(conformance, "runners_by_key", lambda *_: {})
+    monkeypatch.setattr(conformance, "analysis_runner_for", lambda *_: object())
     gaps = conformance.undeclared_input_gaps(STRATEGIES)
-    assert any("refresh_executor_for without" in gap and "accepted an undeclared input" in gap for gap in gaps)
+    assert any("analysis_runner_for without" in gap and "accepted an undeclared input" in gap for gap in gaps)
     assert any("cli_entries without" in gap and "accepted an undeclared input" in gap for gap in gaps)
-    assert any("refreshers_by_key without" in gap and "accepted an undeclared input" in gap for gap in gaps)
+    assert any("runners_by_key without" in gap and "accepted an undeclared input" in gap for gap in gaps)
 
 
 def test_t14_wiring_files_declare_no_discovery_or_registration() -> None:

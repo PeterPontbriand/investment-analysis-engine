@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -23,10 +23,9 @@ from investment_analysis_engine.workspace.codecs import (
     UnsupportedRunVersionError,
     decode_evidence,
 )
-from investment_analysis_engine.workspace.refresh import RefreshPolicy, coordinate_refresh
+from investment_analysis_engine.workspace.refresh import RefreshPolicy, RefreshSnapshot, coordinate_refresh
 from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
-from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._wiring import failure_text
 
 STAMP = datetime(2026, 9, 10, 12, tzinfo=UTC)
@@ -169,10 +168,15 @@ def test_a_refresh_job_whose_strategy_has_no_run_spec_fails_as_that_jobs_error()
         )
 
     summary = coordinate_refresh(
-        WatchlistName("W"),
-        watchlists=_Lookup(watchlist),
+        RefreshSnapshot(
+            refresh_id=uuid4(),
+            entries=watchlist.entries,
+            watchlist_id=watchlist.watchlist_id,
+            watchlist_name=watchlist.display_name,
+        ),
         repository=_Sink(),
         executor=executor,
+        capture_of=lambda capture: capture,
         run_specs={},
         describe=failure_text,
         policy=RefreshPolicy(workers=1),
