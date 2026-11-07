@@ -9,10 +9,13 @@ Momentum compares a short [SMA](../GLOSSARY.md#sma) with a longer [SMA](../GLOSS
 It is a price-series analysis. It does not determine business quality, intrinsic value, or whether a security should be bought or sold.
 
 ## Quick start
+<!-- help:exclude -->
 
 ```bash
 uv run ian momentum AAPL
 ```
+
+## Default windows
 
 The current defaults are:
 
@@ -21,7 +24,12 @@ short window = 50
 long window = 200
 ```
 
-They ship with the application and may be overridden key by key in `strategies/momentum.toml` in your settings folder; the keys are `short_window`, `long_window`, `rsi_period` (14) and `history_start_date` (the first day of the price history, 2021-01-01). See [Strategy settings files](../INSTALLATION.md#strategy-settings-files).
+They ship with the application and may be overridden key by key in the strategy's settings file; the keys are `short_window`, `long_window`, `rsi_period` (14) and `history_start_date` (the first day of the price history, 2021-01-01).
+
+The short window must be smaller than the long window.
+
+### On the command line
+<!-- help:exclude -->
 
 Choose different valid windows when useful:
 
@@ -31,7 +39,7 @@ uv run ian momentum AAPL \
     --long-window 30
 ```
 
-The short window must be smaller than the long window.
+The settings file is `strategies/momentum.toml` in your settings folder. See [Strategy settings files](../INSTALLATION.md#strategy-settings-files).
 
 ## How the calculation works
 
@@ -45,7 +53,7 @@ The strategy calculates a short moving average and a long moving average over th
 
 A crossover needs two consecutive valid SMA pairs. Having exactly enough prices for the long SMA establishes today's relationship but not a prior relationship; crossover is unavailable in that case. The RSI uses simple trailing averages of gains/losses, as specified in [Financial Math](../FINANCE_MATH.md#momentum-strategy).
 
-Diagnostics and JSON retain original provider retrieval time and cache origin. Historical daily labels are not verified exchange-close timestamps, and the provider's past adjusted-price vintages are not retained. Observation-date filtering alone is not a guarantee of historical knowability. Missing or nonfinite prices cause a failure with the affected field/date when known; the application does not silently remove bad rows or substitute an older close.
+The result's technical evidence retains original provider retrieval time and cache origin. Historical daily labels are not verified exchange-close timestamps, and the provider's past adjusted-price vintages are not retained. Observation-date filtering alone is not a guarantee of historical knowability. Missing or nonfinite prices cause a failure with the affected field/date when known; the application does not silently remove bad rows or substitute an older close.
 
 In investor terms:
 
@@ -58,6 +66,21 @@ See [Financial Math](../FINANCE_MATH.md#momentum-strategy) for the exact determi
 
 ## Point-in-time analysis and cache control
 
+Only price observations at or before the as-of boundary are used. The boundary is a date or a timezone-aware timestamp. A run can bypass historical price cache reads and writes.
+
+The result reports the latest observation that remained after the boundary was applied, not the boundary you requested. A date-only boundary includes that whole day.
+
+`data_as_of` and each price observation's `observed_at` are exchange-local trading dates. A daily series stamped at local midnight in its own timezone is read by those local calendar dates, so each observation is reported as that date at 00:00 UTC, the same form a timezone-naive series produces, and a date-only as-of boundary includes the bars dated on or before that date in the exchange's calendar. A series with any bar at another time of day keeps the exact instants its provider supplied. One case is not corrected: a daily bar stamped as the UTC instant of a non-UTC local midnight (for example 15:00 UTC for a Tokyo date), because the series does not carry the exchange's timezone.
+
+As-of runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them. The one exception is a provider that stamps a daily price later in its date than the boundary time; Yahoo stamps daily prices at midnight, so it does not apply to them.
+
+Provider-adjusted prices are revised retroactively: splits and dividends restate history. An as-of result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
+
+Bypassing the cache affects the historical price cache only. A saved run stores the as-of and cache choices with the run, and refreshing a watchlist entry saved this way reuses them.
+
+### On the command line
+<!-- help:exclude -->
+
 ```bash
 uv run ian momentum AAPL --as-of 2025-12-31
 uv run ian momentum AAPL --no-cache
@@ -68,17 +91,10 @@ uv run ian momentum AAPL --no-cache
 | `--as-of DATE_OR_TIMESTAMP` | Use only price observations at or before this boundary, given as `YYYY-MM-DD` or a timezone-aware ISO-8601 timestamp. |
 | `--no-cache` | Bypass historical price cache reads and writes for this run. |
 
-The result reports the latest observation that remained after the boundary was applied, not the boundary you requested. A date-only boundary includes that whole day.
-
-`data_as_of` and each price observation's `observed_at` are exchange-local trading dates. A daily series stamped at local midnight in its own timezone is read by those local calendar dates, so each observation is reported as that date at 00:00 UTC, the same form a timezone-naive series produces, and a date-only `--as-of` includes the bars dated on or before that date in the exchange's calendar. A series with any bar at another time of day keeps the exact instants its provider supplied. One case is not corrected: a daily bar stamped as the UTC instant of a non-UTC local midnight (for example 15:00 UTC for a Tokyo date), because the series does not carry the exchange's timezone.
-
-`--as-of` runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them. The one exception is a provider that stamps a daily price later in its date than the boundary time; Yahoo stamps daily prices at midnight, so it does not apply to them.
-
-Provider-adjusted prices are revised retroactively: splits and dividends restate history. An `--as-of` result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
-
-`--no-cache` affects the historical price cache only. With `--no-cache` and without `--save-run`, the command does not open or create the local database. `--save-run` stores the `--as-of` and `--no-cache` choices with the run, and refreshing a watchlist entry saved this way reuses them.
+With `--no-cache` and without `--save-run`, the command does not open or create the local database. `--save-run` stores the `--as-of` and `--no-cache` choices with the run.
 
 ## Presentation modes
+<!-- help:exclude -->
 
 ### Default
 
@@ -121,6 +137,7 @@ If the returned history is too short, the strategy reports the affected values/r
 Machine-readable JSON uses `null` for unavailable numeric outputs rather than non-standard `NaN`.
 
 ## Status, failures and exit codes
+<!-- help:exclude -->
 
 Every Momentum result carries a status, as the other strategies' results do:
 
@@ -168,10 +185,12 @@ SMA/crossover analysis is backward-looking. It can lag rapid price changes, prod
 Nothing produced by this strategy is investment advice.
 
 ## Watchlist options
+<!-- help:exclude -->
 
 `watchlist add-selection momentum` accepts `--short-window`, `--long-window`, `--rsi-period`, `--as-of` and `--no-cache`. A window left out takes the value in the Momentum settings. `--no-cache` bypasses the historical price cache. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the command that takes them.
 
 ## Related user documentation
+<!-- help:exclude -->
 
 - [Usage Guide](../USAGE.md)
 - [Financial Math — Momentum Strategy](../FINANCE_MATH.md#momentum-strategy)

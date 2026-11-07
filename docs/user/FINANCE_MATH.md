@@ -2,7 +2,7 @@
 
 This document defines the deterministic financial formulas and data conventions used by the analysis strategies that Investment Analysis Engine currently implements.
 
-It is not a catalogue of every financial indicator the project may someday support. Strategy-specific usage and interpretation live in the [Analysis Strategy Guides](strategies/README.md).
+It is not a catalogue of every financial indicator the project may someday support. Strategy-specific usage and interpretation live in each strategy's guide.
 
 ## Shared data conventions
 
@@ -96,7 +96,7 @@ Interpretation:
 
 Machine-readable JSON uses `null` for unavailable numeric outputs rather than non-standard `NaN`.
 
-Historical observations are truncated to `bar_timestamp <= as_of` before any metric is calculated. The short SMA, long SMA, and RSI use typed metric results: insufficient history produces `status = unavailable`, `reason_code = insufficient_history`, and no numeric value. The CLI exposes `--short-window`, `--long-window`, and `--rsi-period`.
+Historical observations are truncated to `bar_timestamp <= as_of` before any metric is calculated. The short SMA, long SMA, and RSI use typed metric results: insufficient history produces `status = unavailable`, `reason_code = insufficient_history`, and no numeric value. The short window, the long window and the RSI period are each configurable.
 
 See the [Momentum Strategy Guide](strategies/MOMENTUM.md).
 
@@ -260,7 +260,7 @@ NaN, infinity, and mathematically invalid configuration values are rejected dete
 
 Investment Analysis Engine does not impose arbitrary financial-domain cutoffs merely because a number “looks unusual.” A non-mathematical bound requires an explicit rationale.
 
-See the [Graham Valuation Strategies overview](strategies/GRAHAM.md).
+See the [Graham Number Strategy Guide](strategies/GRAHAM_NUMBER.md) and the [Graham Growth Value Strategy Guide](strategies/GRAHAM_GROWTH.md).
 
 ## Free Cash Flow & Earnings Growth Strategy
 
@@ -402,7 +402,7 @@ scaled_share_count = share_count * product of the ratios of the provider split a
 
 - **Share count:** the common shares outstanding at fiscal year-end *t*, reported directly or as shares issued minus treasury shares at the same date. When no balance-sheet path gives a count at *t*, the single non-dimensional cover-page count of the anchor filing is used and the result says so. A year-end count dated other than *t* (an older year's count) is `unavailable` with `incompatible_period` and is never substituted. Conflicting counts, and per-class counts with no total, are `unavailable`. One combined count for several share classes is valued at the requested ticker's price.
 - **Price:** the split-adjusted close, without dividend adjustment, on the last trading day on or before the boundary.
-- **Provider split adjustments:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. The provider's split history reports splits and other adjustments alike (a spin-off appears as a ratio such as 0.9535), and only a split changes the share count, so the events apply in two windows. An event after the price date is always applied, whatever its ratio: it undoes the provider's adjustment of the historical close and never changes the market cap at the boundary. An event after `after` and not after the price date is applied only when its ratio is a recognizable split ratio: *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q*, or the reciprocal of one. Any other ratio, such as a spin-off or a stock dividend of 1.05, makes market cap `unavailable` with `ambiguous_fact`, naming the event. Without `--as-of` the price date is the quote's date, so every event after the count's date is in the second window. A filing restates its counts for a split effective before it is issued, so such a split is not applied again.
+- **Provider split adjustments:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. The provider's split history reports splits and other adjustments alike (a spin-off appears as a ratio such as 0.9535), and only a split changes the share count, so the events apply in two windows. An event after the price date is always applied, whatever its ratio: it undoes the provider's adjustment of the historical close and never changes the market cap at the boundary. An event after `after` and not after the price date is applied only when its ratio is a recognizable split ratio: *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q*, or the reciprocal of one. Any other ratio, such as a spin-off or a stock dividend of 1.05, makes market cap `unavailable` with `ambiguous_fact`, naming the event. Without an as-of date the price date is the quote's date, so every event after the count's date is in the second window. A filing restates its counts for a split effective before it is issued, so such a split is not applied again.
 - **Availability:** market cap is available only when all four hold, and each refusal has its reason code.
   1. The anchor annual filing is a 10-K or a 10-K/A (`incompatible_scope`). A 20-F or 40-F filer, or an amendment of either, is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show.
   2. The quote currency equals the filing currency (`incompatible_currency`). When either is unknown, market cap is `unavailable`.

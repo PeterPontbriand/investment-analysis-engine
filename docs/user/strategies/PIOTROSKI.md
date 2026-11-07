@@ -5,12 +5,13 @@ This implementation follows the Piotroski nine-test structure but substitutes th
 The Piotroski F-Score is a deterministic financial-strength screen. It runs nine pass/fail tests on a company's reported financial statements for three consecutive fiscal years and counts the tests passed. The result is a score from 0 to 9, not a valuation, a forecast or an investment recommendation.
 
 ## Quick start
+<!-- help:exclude -->
 
 ```bash
 uv run ian piotroski AAPL
 ```
 
-The command reads the statements from SEC EDGAR, finds the company's latest annual report at the boundary and scores that year against the two years before it. Inspect the evidence or the machine-readable result:
+Inspect the evidence or the machine-readable result:
 
 ```bash
 uv run ian piotroski AAPL --details
@@ -32,6 +33,8 @@ uv run ian piotroski AAPL --json
 The method has no tunable choice, so the strategy has no settings file and no watchlist options of its own. Run `uv run ian piotroski --help` for the command's current option help. The three presentation switches are mutually exclusive.
 
 ## What the strategy calculates
+
+The strategy reads the statements from SEC EDGAR, finds the company's latest annual report at the boundary and scores that year against the two years before it.
 
 Year *t* is the fiscal year of the latest annual report at the boundary; *t−1* and *t−2* are the two years before it. Each test is a strict comparison on unrounded values:
 
@@ -102,13 +105,21 @@ The title shows the instrument name before the ticker, as in "Apple Inc. (AAPL)"
 
 With fewer than six available tests there is no score. The usual reading of the scale applies to complete scores only: a high score (8 or 9) is conventionally read as financial strength and a low score (0 or 1) as weakness. A partial score gets a note saying so and is not ranked against complete scores.
 
+In a side-by-side comparison of runs the strategy offers two cells, **Score** ("7 of 9", or "5 of 6" for a partial score) and **Completeness** ("complete" or "partial (1, 3, 4 unavailable)"), with the fiscal year-end and the filing's taxonomy.
+
 The strategy scores only the latest annual report at the boundary. If that year's inputs are missing, the affected tests are unavailable; an older year is never scored in its place.
+
+#### On the command line
+<!-- help:exclude -->
+
+`ian runs compare` shows the two cells side by side.
 
 ## Industry class
 
 The industry class comes from the SIC code on the annual report the score rests on, as filed, never from the company's current code. The F-Score was designed for non-financial firms, so a financial issuer is scored with a warning: its gross-margin and current-ratio tests are typically unavailable. If the class cannot be established, the strategy still runs and a warning says why. An ETF is not scored: the run is reported as not applicable.
 
 ## Presentation modes
+<!-- help:exclude -->
 
 | Mode | Content |
 |---|---|
@@ -116,8 +127,6 @@ The industry class comes from the SIC code on the annual report the score rests 
 | `--details` | Adds each test's operands with their fiscal year-end and value. |
 | `--diagnostics` | Adds the provider field, accession and filing date of every operand and the notes on how the inputs were assembled. |
 | `--json` | The complete versioned typed result. |
-
-In the side-by-side table of `ian runs compare` the strategy offers two cells, **Score** ("7 of 9", or "5 of 6" for a partial score) and **Completeness** ("complete" or "partial (1, 3, 4 unavailable)"), with the fiscal year-end and the filing's taxonomy.
 
 ## Data sources
 
@@ -130,10 +139,12 @@ All inputs come from SEC EDGAR structured filings: balance-sheet values at three
 - **A screen, not a recommendation.** A pass or fail on a test is a statement about reported statements, not about price, scarcity or durability.
 
 ## Watchlist options
+<!-- help:exclude -->
 
 `watchlist add-selection piotroski` accepts only the options every strategy takes, `--as-of` and `--no-cache`: the method has no tunable choice. It always uses SEC EDGAR data, matching the direct `piotroski` command. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the command that takes them.
 
 ## Related documentation
+<!-- help:exclude -->
 
 - [Financial Math & Data Conventions](../FINANCE_MATH.md#piotroski-f-score-strategy) — normative formulas and conventions.
 - [Glossary](../GLOSSARY.md#piotroski-strategy) — terms used in this guide.

@@ -4,20 +4,14 @@ The Free Cash Flow & Earnings Growth strategy is a deterministic historical scre
 
 The result is a `PASS`, `FAIL`, or `INDETERMINATE` screen—not a valuation, moat rating, forecast, or investment recommendation.
 
-Explanations follow the selected classification basis: total-company FCF or FCF per diluted share. Those measures can move in opposite directions when share counts change. Details retain component currency, source/cache origin, derivation notes and reasons for unavailable optional metrics. The effective analysis time controls input eligibility as well as the reported execution time; a later resolver clock cannot admit later filings into an earlier execution boundary.
+Explanations follow the selected classification basis: total-company FCF or FCF per diluted share. Those measures can move in opposite directions when share counts change. The detailed evidence retains component currency, source/cache origin, derivation notes and reasons for unavailable optional metrics. The effective analysis time controls input eligibility as well as the reported execution time; a later resolver clock cannot admit later filings into an earlier execution boundary.
 
 ## Quick start
+<!-- help:exclude -->
 
 ```bash
 uv run ian fcf-growth MSFT
 ```
-
-The default policy:
-
-- selects the longest usable contiguous history, preferring 5 elapsed years, then 4, then 3;
-- uses total-company FCF growth as the classification basis;
-- requires positive growth in both the controlling FCF measure and diluted EPS for `PASS`; and
-- treats optional forward EPS evidence as display-only.
 
 Inspect the evidence or machine-readable result:
 
@@ -43,6 +37,15 @@ uv run ian fcf-growth MSFT --json
 
 Run `uv run ian fcf-growth --help` for the command's current option help. The three presentation switches are mutually exclusive.
 
+## Default policy
+
+The default policy:
+
+- selects the longest usable contiguous history, preferring 5 elapsed years, then 4, then 3;
+- uses total-company FCF growth as the classification basis;
+- requires positive growth in both the controlling FCF measure and diluted EPS for `PASS`; and
+- treats optional forward EPS evidence as display-only.
+
 ## What the strategy calculates
 
 For each eligible completed fiscal year:
@@ -64,14 +67,14 @@ See [Financial Math & Data Conventions](../FINANCE_MATH.md#free-cash-flow--earni
 
 ## FCF yield
 
-The command also shows an informational FCF yield: the latest completed fiscal year's free cash flow divided by the company's [market capitalization at the boundary](../FINANCE_MATH.md#market-capitalization), as a percentage. It never changes the classification or the execution status.
+The strategy also shows an informational FCF yield: the latest completed fiscal year's free cash flow divided by the company's [market capitalization at the boundary](../FINANCE_MATH.md#market-capitalization), as a percentage. It never changes the classification or the execution status.
 
-- **When it is shown.** The concise view has a `FCF yield:` line only when the yield is a number. The yield requires the latest fiscal year to end at the fiscal year-end of the most recent annual report at the boundary, the year the share count is taken at; otherwise it is unavailable, and an older year is never used.
-- **What it needs.** A share count from the annual report (or its cover page), a split-adjusted closing price, the splits since the count was taken, and a check of the annual report's cover that the ticker is a share of the company. Without `--as-of` the price is the current quote; with `--as-of` it is the closing price on the last trading day on or before that date.
-- **When it is unavailable.** The line is left out and a warning, `FCF yield is unavailable:`, gives the reason: for example a filer of a 20-F or 40-F, a ticker that is a depositary share, unit or warrant on the cover, a quote and annual figures in different currencies, or no share count. When a market-data provider fails, the warning names the provider and the kind of failure (such as `yfinance` and `rate_limited`) and never repeats the provider's own message. The run is still a completed run: its status, classification and exit code are the same as without the yield, and no provider check is made. The failure is not recorded as a provider failure of the run.
+- **When it is shown.** The yield is shown only when it is a number. The yield requires the latest fiscal year to end at the fiscal year-end of the most recent annual report at the boundary, the year the share count is taken at; otherwise it is unavailable, and an older year is never used.
+- **What it needs.** A share count from the annual report (or its cover page), a split-adjusted closing price, the splits since the count was taken, and a check of the annual report's cover that the ticker is a share of the company. Without an as-of date the price is the current quote; with one it is the closing price on the last trading day on or before that date.
+- **When it is unavailable.** The yield is left out and a warning, `FCF yield is unavailable:`, gives the reason: for example a filer of a 20-F or 40-F, a ticker that is a depositary share, unit or warrant on the cover, a quote and annual figures in different currencies, or no share count. When a market-data provider fails, the warning names the provider and the kind of failure (such as `yfinance` and `rate_limited`) and never repeats the provider's own message. The run is still a completed run: its status and classification are the same as without the yield. The failure is not recorded as a provider failure of the run.
 - **No request when it is not wanted.** For an ETF no market data is requested. When no completed fiscal year could be resolved there is nothing to divide, and none is requested either.
 
-`--details` adds the evidence behind the market capitalization under the calculation notes:
+The evidence behind the market capitalization is shown under the calculation notes:
 
 ```text
 Market capitalization: 1,300.00 USD
@@ -84,16 +87,23 @@ Market capitalization: 1,300.00 USD
   Listing check: affirmed on 0000000000-25-000001
 ```
 
-The share count line names its basis (`year end` or `cover page`), the date of the count and the date the filing it came from was filed. A ticker renamed since the annual report is shown with both reports: `affirmed; FB on 10-K <accession>, renamed META on 10-K <accession>`. `--diagnostics` shows the same lines, and `--json` carries the whole `market_capitalization` part, with every field above and the provenance of the share count.
+The share count line names its basis (`year end` or `cover page`), the date of the count and the date the filing it came from was filed. A ticker renamed since the annual report is shown with both reports: `affirmed; FB on 10-K <accession>, renamed META on 10-K <accession>`.
 
 ### Limits of the yield
 
-- With a date-only `--as-of`, the price includes that day's close, and a session is read by its exchange-local date, as Momentum reads its prices.
+- With a date-only as-of boundary, the price includes that day's close, and a session is read by its exchange-local date, as Momentum reads its prices.
 - The share count is the count at the fiscal year-end, so buybacks and issuance between the year-end and the price date are not reflected.
 - A filing restates its counts for a split effective before it is issued. A split announced before the filing but effective just after it is assumed not to be reflected in the filing.
 - The provider's split history reports splits and other adjustments alike. A provider adjustment for a spin-off (Honeywell's appear as ×1.061 and ×0.9535), or a stock dividend outside the recognized split ratios (Commerce Bancshares' ×1.05), between the filing and the price makes the yield unavailable, with the event's date and ratio in the warning; the share count is not guessed. The same adjustment after the price date, which the provider applied to the historical close, is undone and does not make it unavailable. Ordinary splits such as 2-for-1, 3-for-1, 10-for-1 and 3-for-2, and reverse splits, are applied.
 - A filer of a 20-F or 40-F (a foreign private issuer) is unavailable, because its US listing may be a depositary receipt at a ratio the structured data cannot show. A listing that is not a share of the company on the annual report's cover (a depositary share, unit, warrant or preferred security) is unavailable.
 - The yield uses an annual numerator and a market denominator, so it is context, not a valuation.
+
+### On the command line
+<!-- help:exclude -->
+
+The concise view has a `FCF yield:` line only when the yield is a number. When the yield is unavailable, the exit code is the same as without the yield, and no provider check is made.
+
+`--details` adds the evidence behind the market capitalization under the calculation notes. `--diagnostics` shows the same lines, and `--json` carries the whole `market_capitalization` part, with every field above and the provenance of the share count.
 
 ## Historical period
 
@@ -107,13 +117,18 @@ The automatic policy tries these spans in order:
 
 For example, FY2020 through FY2025 contains six observations and five elapsed annual intervals. The observations must be compatible and contiguous. If the automatic policy falls back to a shorter span, the result discloses that fallback.
 
+An exact span can be requested instead.
+
+An explicit span is strict. If the required history is unavailable, the strategy returns `INDETERMINATE` rather than silently choosing a shorter span.
+
+### On the command line
+<!-- help:exclude -->
+
 Request an exact span with `--growth-years`:
 
 ```bash
 uv run ian fcf-growth MSFT --growth-years 5
 ```
-
-An explicit span is strict. If the required history is unavailable, the strategy returns `INDETERMINATE` rather than silently choosing a shorter span.
 
 ## Classification
 
@@ -125,7 +140,16 @@ The screen returns:
 
 An `INDETERMINATE` result is not a failed financial screen. It means the software cannot make the requested classification from the admissible evidence. Software execution status is recorded separately from the financial classification.
 
+The presentation of a result does not recalculate or reclassify it. Identity metadata, such as an instrument name, is descriptive and cannot change the screen classification or execution status.
+
 ## Classification basis
+
+Total-company FCF is the default classification basis. FCF per diluted share can be made controlling instead.
+
+Changing the basis can change the screen when share issuance or repurchases cause total and per-share FCF growth to differ. The result always identifies the selected basis and still reports both FCF CAGRs.
+
+### On the command line
+<!-- help:exclude -->
 
 Use total-company FCF, the default:
 
@@ -139,33 +163,42 @@ Or make FCF per diluted share controlling:
 uv run ian fcf-growth MSFT --classification-basis fcf-per-share
 ```
 
-Changing the basis can change the screen when share issuance or repurchases cause total and per-share FCF growth to differ. The result always identifies the selected basis and still reports both FCF CAGRs.
-
 ## Forward EPS policy
 
 The typed strategy supports analyst-consensus diluted EPS evidence for FY1 and FY2 when compatible evidence is available:
 
-| Option | Effect |
+| Policy | Effect |
 |---|---|
-| `display-only` | Show available forward evidence without changing the historical conclusion. This is the default. |
+| `display_only` | Show available forward evidence without changing the historical conclusion. This is the default. |
 | `confirmation` | Report whether both forward intervals confirm positive growth without changing the historical conclusion. |
-| `hard-gate` | Require both forward intervals to be available and positive for `PASS`; missing required evidence yields `INDETERMINATE`. |
+| `hard_gate` | Require both forward intervals to be available and positive for `PASS`; missing required evidence yields `INDETERMINATE`. |
+
+Forward estimates are optional provider evidence, not predictions generated by Investment Analysis Engine. The current production SEC EDGAR mapping supplies historical company facts but may not supply forward analyst consensus. In that case, `display_only` leaves the historical conclusion unchanged, while `hard_gate` produces `INDETERMINATE` as designed.
+
+### On the command line
+<!-- help:exclude -->
+
+`--forward-policy` selects the policy, with the values `display-only`, `confirmation` and `hard-gate`:
 
 ```bash
 uv run ian fcf-growth MSFT --forward-policy hard-gate
 ```
 
-Forward estimates are optional provider evidence, not predictions generated by Investment Analysis Engine. The current production SEC EDGAR mapping supplies historical company facts but may not supply forward analyst consensus. In that case, `display-only` leaves the historical conclusion unchanged, while `hard-gate` produces `INDETERMINATE` as designed.
-
 ## Point-in-time analysis
+
+An as-of date is an information boundary. A fiscal year is not eligible merely because it ended before that date; its supporting filing must also have been available by the boundary. This prevents later-published facts from leaking into a historical analysis. A ticker names the registrant it maps to today: with an as-of date, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.
+
+### On the command line
+<!-- help:exclude -->
+
+`--as-of` sets the boundary:
 
 ```bash
 uv run ian fcf-growth MSFT --as-of 2025-12-31
 ```
 
-`--as-of` is an information boundary. A fiscal year is not eligible merely because it ended before that date; its supporting filing must also have been available by the boundary. This prevents later-published facts from leaking into a historical analysis. A ticker names the registrant it maps to today: with `--as-of`, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.
-
 ## Presentation modes
+<!-- help:exclude -->
 
 - The default view shows the classification, basis, period, principal metrics, source summary, warnings, and limitation.
 - `--details` adds a compact annual input table, calculation formulas, share counts, the [market capitalization evidence](#fcf-yield) behind the FCF yield, and optional-metric reasons, using readable monetary magnitudes.
@@ -178,7 +211,7 @@ When supported provider evidence supplies an instrument name, the heading shows 
 
 ## Data sources and provenance
 
-The current production command resolves annual financial facts from SEC EDGAR. Required evidence includes:
+The current production analysis resolves annual financial facts from SEC EDGAR. Required evidence includes:
 
 - net cash provided by operating activities;
 - capital expenditures, normalized to a positive expenditure amount;
@@ -196,6 +229,8 @@ substitution remain unsupported.
 Issuer-level operating cash flow, CapEx, and derived FCF can remain valid even
 when per-share or quote-unit evidence is unavailable. ADR/ADS conversion and
 currency conversion are not performed.
+
+A three-letter ISO 4217 reporting currency can be required, and annual facts must then be compatible with it.
 
 The calculation does not accept a provider's precomputed “free cash flow” solely because its label matches. It derives FCF from the resolved components and retains their provider fields, period dates, publication/availability dates, retrieval times, units, currency, and derivation lineage.
 
@@ -229,10 +264,12 @@ Positive FCF and diluted-EPS growth can be evidence of strengthening cash-genera
 FCF yield may appear as optional context when market capitalization at the boundary is available, but it never changes classification in the current method version.
 
 ## Watchlist options
+<!-- help:exclude -->
 
 `watchlist add-selection fcf-growth` accepts `--growth-years`, `--forward-policy`, `--classification-basis` and `--currency`. It always uses SEC EDGAR data, matching the direct `fcf-growth` command. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the command that takes them.
 
 ## Related documentation
+<!-- help:exclude -->
 
 - [Usage Guide](../USAGE.md)
 - [Financial Math & Data Conventions](../FINANCE_MATH.md#free-cash-flow--earnings-growth-strategy)

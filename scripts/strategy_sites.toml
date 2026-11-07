@@ -278,7 +278,7 @@ fails = "the application snapshot has no command row for the alias, or tests/exp
 [[site]]
 id = "guide"
 title = "User guide with FINANCE_MATH.md and GLOSSARY.md links"
-why = "Each strategy has an investor-facing guide."
+why = "Each strategy has an investor-facing guide, which the help bundle serves: its explanatory sections are interface-neutral, and command-line material goes in excluded sections (whole sections, or a final 'On the command line' subsection), which scripts/check_help_content.py and tests/scripts/test_served_content.py enforce."
 kind = "reviewed"
 path = "docs/user/strategies/{guide}.md"
 generated = false
