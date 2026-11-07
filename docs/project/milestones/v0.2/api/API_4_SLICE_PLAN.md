@@ -27,7 +27,7 @@ job: start, progress, stop.
   request is opened, and sets the next slice's row to Next.
 - **Where the history lives:** decisions J1 to J28 and J11b are in [Appendix A](#appendix-a-decision-records), approved by
   the project owner on 2026-11-06, with J2 and J11 as revised; J29 to J44 were approved on 2026-11-07 and decide
-  API.4b.
+  API.4b; J45 to J50 are its review fixes.
 
 ## 2. Sequence and status
 
@@ -337,7 +337,7 @@ Tests edited, and why:
 - Refresh summary version 3: `tests/workspace_documents/test_workspace_documents.py`.
 
 Tests added: `tests/application/test_refresh.py` (every check of `prepare_refresh` for both targets and before any job
-runs, error names such as `entries[2].short_window`, duplicates, an empty list, the stored runs of an entries refresh
+runs, error names such as `entries[2].selection.short_window`, duplicates, an empty list, the stored runs of an entries refresh
 against those of a watchlist refresh, and a finished event carrying its run),
 `tests/application/test_refresh_jobs.py` (each state transition of [J37](#j37-states-2026-11-07), including a stop after
 the last admission ending `completed` and `failed` with its events kept; sequences, `after`, `next_after`, `has_more`,
@@ -351,19 +351,37 @@ and its envelope; the endpoint tests are parametrized over `STRATEGIES`) and `te
 
 Accepted deviations:
 
-- **Entry error names.** An error in a field of an entry's selection is `entries[<index>].<field>`, with no `selection.`
-  segment, as [J5](#j5-request-bodies-2026-11-06) and [J15](#j15-the-jobs-id-is-the-refresh-id-2026-11-06) write it. The
-  body's shape errors, from the request model, are named by their full path, such as `entries[0].selection.colour`.
-- **A poll re-encodes the events it returns.** Each event is built and measured once, when it is recorded
-  ([J36](#j36-polling-2026-11-07)), and a poll builds nothing; but the response body is still the job document
-  serialized, so the returned events are encoded again. Keeping each event's bytes and splicing them into the response
-  would need an operation to return something other than a document
-  ([J27](#j27-an-operation-returns-only-a-document-2026-11-06)).
-- **The 202 and a stop answer without events.** Both carry the job document with no events and `next_after` 0, and
-  `has_more` says whether any are recorded, so the 202 is always the job with no events as
-  [J38](#j38-endpoints-and-statuses-2026-11-07) says, even for a job that had already started an entry.
+- **A poll encodes the events it returns.** Each event is built and its size measured once, when it is recorded, and a
+  poll builds nothing; the response body is the job document serialized, so the returned events are encoded again
+  ([J50](#j50-what-serialized-once-means-2026-11-07)). Splicing stored bytes into the response would need an operation to
+  return something other than a document ([J27](#j27-an-operation-returns-only-a-document-2026-11-06)).
 - **`failure_envelope_of`.** `error_response` is split so a failed job's exception becomes the job document's `failure`
   by the rule that answers a request.
+
+Review fixes (2026-11-07, [J45](#j45-start-and-stop-answer-as-polls-2026-11-07) to
+[J50](#j50-what-serialized-once-means-2026-11-07)): the project owner reviewed the branch and approved these fixes, all
+done. No stored shape, formula, classification or dependency changed, and no CLI text, help or exit code.
+
+- **R1 (J45).** `_without_events` is removed. The 202 is a view of the job at `after` 0, and `POST
+  /v1/refreshes/{refresh_id}/job/stop` takes the optional `after` of a poll, checks it before it stops anything, and answers
+  with a view at it. The route table, `openapi.json` and `API.md` say so.
+- **R2 (J46).** A selection error of an entry is `entries[<index>].selection.<field>`; the docstrings and `API.md` agree.
+- **R3 (J47).** An event that cannot be built sets the job's cancellation; the job ends `failed` with that exception,
+  summary null and the events before it kept, and logs once.
+- **R4 (J48).** `RefreshJobs.start` refuses only while the latest job's state is `running` or `stopping`
+  (`RefreshJob.has_not_ended`); `wait_for_job` and `begin_shutdown` keep using the thread.
+- **R5 (J49).** `RefreshJobs` and `RefreshJob` have no `runner`; the job tests drive `run_refresh` through
+  `tests/application/_refresh_fakes.py`, and `tests/test_cli_serve_shutdown.py` does the same with a real job.
+- **R6 (J50).** The wording of J36's record, the `refresh_jobs.py` and `refresh_documents.py` docstrings.
+
+Tests edited, and why: `tests/application/test_refresh_jobs.py` and `tests/test_cli_serve_shutdown.py` (they passed a
+runner; they drive the real refresh), `tests/application/test_refresh.py` and `tests/api/test_refresh_jobs.py` (the entry
+names; the 202 is a view at 0 and no longer promises no events).
+
+Tests added: in `tests/api/test_refresh_jobs.py`, a client that passes on each `next_after`, the stop answer's included,
+sees every event exactly once; a stop with a rejected `after` changes nothing; and an event that cannot be built fails the
+job with its failure document. In `tests/application/test_refresh_jobs.py`, an event that cannot be built fails the job,
+keeps the first event and admits nothing more, and a new job starts while the ended job's thread is still held.
 
 Noticed for later slices: nothing further.
 
@@ -395,7 +413,8 @@ action that outlasts a request, so it is its own slice.
 ## Appendix A: Decision records
 
 J1 to J28 and J11b were approved by the project owner on 2026-11-06, with J2 and J11 as revised. J29 to J44 were approved on
-2026-11-07; each says which earlier record it amends or extends.
+2026-11-07; each says which earlier record it amends or extends. J45 to J50 record the review fixes of API.4b, approved
+on 2026-11-07.
 
 ### J1 API.4 is two slices (2026-11-06)
 
@@ -444,6 +463,8 @@ Create answers 201; every other action answers 200. An unavailable or failed ana
 reports it.
 
 ### J5 Request bodies (2026-11-06)
+
+(The example `entries[2].short_window` is corrected by [J46](#j46-a-field-in-an-entry-is-named-by-its-full-path-2026-11-07): it is `entries[2].selection.short_window`.)
 
 A body is a JSON object only. An unknown field is `invalid_parameter` naming it. A missing or non-JSON `Content-Type`, or a
 body that does not parse as a JSON object, is `invalid_parameter` with the parameter `body`. A field is named by its path:
@@ -522,6 +543,8 @@ cannot send the `Authorization` header with them, and [S6](API_2_SLICE_PLAN.md#s
 forbids the token in a URL.
 
 ### J15 The job's ID is the refresh ID (2026-11-06)
+
+(The example `entries[2].short_window` is corrected by [J46](#j46-a-field-in-an-entry-is-named-by-its-full-path-2026-11-07): it is `entries[2].selection.short_window`.)
 
 (Amended by [J29](#j29-prepare-and-run-2026-11-07): `prepare_refresh` creates the ID and no `refresh_id` argument exists.)
 The ID is created before the job starts and passed to the coordinator's `refresh_id_factory` through a new optional
@@ -721,12 +744,15 @@ Amends [J14](#j14-refresh-progress-by-polling-2026-11-06).
 
 ### J36 Polling (2026-11-07)
 
+(Amended by [J50](#j50-what-serialized-once-means-2026-11-07): what "serialized once" means.)
+
 - Sequences start at 1. `after` is optional and defaults to 0. A negative or non-integer `after` is `invalid_parameter`.
 - An `after` beyond the last sequence returns no events.
 - A response holds events after `after` until adding the next one would take the events past `MAX_REQUEST_BODY_BYTES`
   (1 MiB), the same figure as [J24](#j24-a-request-body-has-a-size-limit-2026-11-06). It always holds at least one event
   when one is waiting.
-- Each event is serialized once, when it is recorded, and its size is kept.
+- Each event is built and its serialized size measured once, when it is recorded, and the size is kept; a poll builds
+  nothing and the response encodes the events it returns ([J50](#j50-what-serialized-once-means-2026-11-07)).
 - The job document gains `has_more`. `next_after` is the last sequence returned, or `after` when none is.
 - `position` is 0-based, the same as the stored `batch_position` and the `entries[i]` error names, and `API.md` says it is
   not the 1-based `entry_number`.
@@ -734,6 +760,8 @@ Amends [J14](#j14-refresh-progress-by-polling-2026-11-06).
   failure}`.
 
 ### J37 States (2026-11-07)
+
+(Extended by [J47](#j47-a-failed-event-recording-fails-the-job-2026-11-07) and [J48](#j48-a-job-is-running-until-its-state-says-it-has-ended-2026-11-07).)
 
 Extends [J16](#j16-job-states-2026-11-06).
 
@@ -745,6 +773,8 @@ Extends [J16](#j16-job-states-2026-11-06).
 - `summary` is the `RefreshSummaryDocument`, provider check included, for `completed` and `stopped`.
 
 ### J38 Endpoints and statuses (2026-11-07)
+
+(Amended by [J45](#j45-start-and-stop-answer-as-polls-2026-11-07): the 202 and the stop answer are ordinary views, not views with no events.)
 
 - `POST /v1/refreshes`: 202 with the job document (state `running`, no events) and a `Location` header naming the job's
   URL. Before the 202: 400 `invalid_parameter`, 404 `watchlist_not_found`, 409 `watchlist_empty` (J43), 409
@@ -805,3 +835,52 @@ PH.2e (D43) and API.2b ([S37](API_2_SLICE_PLAN.md#s37-the-failure-envelope-is-ve
 bumped. The refresh summary is not bumped for these codes; it goes to 3 under [J31](#j31-an-entries-job-has-no-watchlist-2026-11-07).
 The pull request lists the envelope version change with the other user-visible changes, and every document that states the
 version is updated.
+
+### J45 Start and stop answer as polls (2026-11-07)
+
+Amends [J38](#j38-endpoints-and-statuses-2026-11-07).
+
+- `_without_events` is removed from `api/handlers.py`.
+- The stop answer is an ordinary view of the job. `POST /v1/refreshes/{refresh_id}/job/stop` takes the same optional `after`
+  query parameter as a poll, with the same default and checks.
+- The 202 is an ordinary view at `after` 0: the events recorded so far, normally none.
+- J38's "no events" becomes "the events recorded so far".
+- The route table, the OpenAPI document, `docs/user/API.md` and the tests are updated. A test shows that a client which
+  passes on each answer's `next_after`, stop answer included, sees every event exactly once.
+
+### J46 A field in an entry is named by its full path (2026-11-07)
+
+Amends the examples of [J5](#j5-request-bodies-2026-11-06) and [J15](#j15-the-jobs-id-is-the-refresh-id-2026-11-06).
+
+- A selection error in a list of entries is named `entries[2].selection.short_window`, as J5's path rule gives, the same as
+  `selection.short_window` in `POST /v1/analyses` and as the shape errors such as `entries[0].selection.colour`.
+- The code, its docstrings, `API.md` and the tests are corrected; J5 and J15 are corrected through their pointer lines.
+
+### J47 A failed event recording fails the job (2026-11-07)
+
+Extends [J37](#j37-states-2026-11-07).
+
+- When building an event raises in `RefreshJob._on_progress`, the job sets its cancellation, so no more entries are
+  admitted. Admitted jobs still finish and save, per [W50](API_3_SLICE_PLAN.md#w50-an-admitted-job-always-runs-2026-11-06).
+- When the refresh returns, the job ends `failed`, with that exception as its failure and `summary` null.
+- The events recorded before the failure are kept. Nothing after it is recorded.
+- It is logged once.
+
+### J48 A job is running until its state says it has ended (2026-11-07)
+
+- `RefreshJobs.start` refuses with `refresh_job_running` only while the latest job's state is `running` or `stopping`.
+- The thread's liveness stays what the shutdown wait (`wait_for_job`) and `begin_shutdown` use.
+- A state check replaces the thread check in `start` without two refreshes' coordinators overlapping, because the final
+  state is set only after the refresh has returned.
+
+### J49 `RefreshJobs` has no runner argument (2026-11-07)
+
+- The `runner` parameter is removed from `RefreshJobs` and `RefreshJob`. Jobs always run `run_refresh`.
+- The tests that passed a runner drive the real `run_refresh` through fake strategy compositions.
+- `_ShutdownClock`'s clock and `finish_refresh_job`'s `exit_process` stay: a test cannot check the grace without real waits,
+  or the exit without ending the test process.
+
+### J50 What "serialized once" means (2026-11-07)
+
+Amends the record of [J36](#j36-polling-2026-11-07). Each event is built and its serialized size measured once, when it is
+recorded; a poll builds nothing; the response encodes the events it returns.

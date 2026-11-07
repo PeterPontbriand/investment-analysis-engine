@@ -164,7 +164,7 @@ def _entry_names(error: ActionParameterError, index: int) -> dict[str, str]:
     return {
         parameter: f"entries[{index}].method_id"
         if item.rule == "selection.undeclared_method"
-        else f"entries[{index}].{parameter}"
+        else f"entries[{index}].selection.{parameter}"
         for item in error.errors
         for parameter in item.action_parameters
     }
@@ -174,7 +174,8 @@ def _snapshot_entries(context: ApplicationContext, target: RefreshEntries) -> tu
     """Build the entries of a list to refresh, reporting every rejected entry at once.
 
     Each entry's ticker is normalized and its selection is built by :func:`build_selection`; an error is named
-    ``entries[<index>].<field>`` with the 0-based index, as the request lists them. An entry that repeats an earlier
+    ``entries[<index>].selection.<field>`` with the 0-based index, as the request lists them. An entry that repeats an
+    earlier
     one, the same ticker with an equal selection, is ``entries.duplicate``.
 
     Raises:
@@ -269,7 +270,7 @@ def prepare_refresh(
         ActionParameterError: If ``workers`` is out of range (parameter ``workers``), or a list of entries is empty
             (parameter ``entries``, rule ``refresh.entries_empty``); nothing is opened.
         InvalidParameterError: If a list of entries has a rejected entry (parameters named
-            ``entries[<index>].<field>``, with ``entries.duplicate`` for a repeat); nothing is opened.
+            ``entries[<index>].selection.<field>``, with ``entries.duplicate`` for a repeat); nothing is opened.
         WatchlistNotFoundError: If no watchlist matches the target.
         EmptyRefreshTargetError: If the watchlist has no entries.
         StoredSelectionError: If an entry of the watchlist cannot be read.

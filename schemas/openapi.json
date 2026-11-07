@@ -4327,7 +4327,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/JsonValue"
             },
-            "description": "The selection's fields, as GET /v1/strategies/{method_id}/selection describes them. A field left out takes its configured value; as_of is a date or a timestamp with a timezone offset, as text. An error in a field is named entries[<index>].<field>, with the 0-based index.",
+            "description": "The selection's fields, as GET /v1/strategies/{method_id}/selection describes them. A field left out takes its configured value; as_of is a date or a timestamp with a timezone offset, as text. An error in a field is named entries[<index>].selection.<field>, with the 0-based index.",
             "title": "Selection",
             "type": "object"
           },
@@ -6515,6 +6515,16 @@
               "format": "uuid",
               "type": "string"
             }
+          },
+          {
+            "description": "The last event sequence already seen, from 0; 0 when absent.",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -6587,7 +6597,7 @@
             "description": "An unexpected failure."
           }
         },
-        "summary": "Stop a refresh job from starting more jobs; the ones running finish. Idempotent."
+        "summary": "Stop a refresh job from starting more jobs, and show it as a poll does; the ones running finish. Idempotent."
       }
     },
     "/v1/runs": {

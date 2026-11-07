@@ -1,9 +1,10 @@
 """The documents of a refresh job: its events, its progress and the document a poll returns.
 
 A refresh job records one event when a job of the refresh starts and one when it finishes. An event is built, and its
-serialized size taken, once, when the application records it (:func:`event_recorder`); a poll only selects among the
-recorded events. A finished event carries the job's result as the refresh summary lists it and, unless the job raised,
-the job's analysis: the same document ``POST /v1/analyses`` returns, with its ``provider_check`` element null, as
+serialized size measured, once, when the application records it (:func:`event_recorder`); a poll builds nothing and
+selects among the recorded events, and its response encodes the ones it returns. A finished event carries the job's
+result as the refresh summary lists it and, unless the job raised, the job's analysis: the same document
+``POST /v1/analyses`` returns, with its ``provider_check`` element null, as
 ``runs show --json`` writes a stored run, because the refresh's one provider check is reported in ``summary``.
 """
 

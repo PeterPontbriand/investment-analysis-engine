@@ -8,7 +8,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable, Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from uuid import UUID
 
 from pydantic import BaseModel, JsonValue
@@ -424,11 +424,6 @@ def _as_exception(failure: BaseException) -> Exception:
     return failure
 
 
-def _without_events(view: RefreshJobView[RefreshEventDocument]) -> RefreshJobView[RefreshEventDocument]:
-    """Return ``view`` with no events, as the answer to starting or stopping a job: the poll reads them."""
-    return replace(view, events=(), next_after=0, has_more=bool(view.events))
-
-
 def _refresh_target(body: RefreshRequest) -> RefreshTarget:
     """Return the watchlist or the list of entries a start request names.
 
@@ -451,7 +446,7 @@ def _refresh_target(body: RefreshRequest) -> RefreshTarget:
 
 
 def _start_refresh(jobs: RefreshJobsOfServer) -> Operation:
-    """Return the operation that checks and prepares a refresh and starts its job; the response is the 202."""
+    """Return the operation that prepares a refresh and starts its job; the 202 is a view of the job at ``after`` 0."""
 
     def operation(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
         body = _body(parameters, RefreshRequest)
@@ -463,17 +458,22 @@ def _start_refresh(jobs: RefreshJobsOfServer) -> Operation:
             provider_check=context.settings.provider_check if body.provider_check is None else body.provider_check,
         )
         job = jobs.start(context, prepared)
-        return _job_document(_without_events(job.view(DEFAULT_AFTER, MAX_REQUEST_BODY_BYTES)))
+        return _job_document(job.view(DEFAULT_AFTER, MAX_REQUEST_BODY_BYTES))
 
     return operation
 
 
-def _poll(job: RefreshJob[RefreshEventDocument], parameters: RequestParameters) -> BaseModel:
-    """Return a job's document with the events after the poll's ``after``."""
+def _after(parameters: RequestParameters) -> int:
+    """Return the ``after`` query parameter: the last event sequence the client has seen, 0 when absent."""
     after = _integer(parameters, "after", DEFAULT_AFTER)
     if after < 0:
         raise InvalidParameterError("after must be 0 or greater.", parameters=("after",))
-    return _job_document(job.view(after, MAX_REQUEST_BODY_BYTES))
+    return after
+
+
+def _poll(job: RefreshJob[RefreshEventDocument], parameters: RequestParameters) -> BaseModel:
+    """Return a job's document with the events after the poll's ``after``."""
+    return _job_document(job.view(_after(parameters), MAX_REQUEST_BODY_BYTES))
 
 
 def _get_refresh_job(jobs: RefreshJobsOfServer) -> Operation:
@@ -493,8 +493,9 @@ def _get_latest_refresh_job(jobs: RefreshJobsOfServer) -> Operation:
 def _stop_refresh_job(jobs: RefreshJobsOfServer) -> Operation:
     def operation(_context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
         job = jobs.get(_uuid(parameters, "refresh_id", "refresh"))
+        after = _after(parameters)  # checked before the job is stopped: a rejected request changes nothing
         job.stop()
-        return _job_document(_without_events(job.view(DEFAULT_AFTER, MAX_REQUEST_BODY_BYTES)))
+        return _job_document(job.view(after, MAX_REQUEST_BODY_BYTES))
 
     return operation
 

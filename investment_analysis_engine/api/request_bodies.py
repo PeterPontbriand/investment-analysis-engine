@@ -96,7 +96,7 @@ class RefreshEntryRequest(RequestBody):
         description=(
             "The selection's fields, as GET /v1/strategies/{method_id}/selection describes them. A field left out "
             "takes its configured value; as_of is a date or a timestamp with a timezone offset, as text. An error "
-            "in a field is named entries[<index>].<field>, with the 0-based index."
+            "in a field is named entries[<index>].selection.<field>, with the 0-based index."
         ),
     )
 

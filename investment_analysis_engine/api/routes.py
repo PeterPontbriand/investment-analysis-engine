@@ -353,8 +353,11 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         "POST",
         "/v1/refreshes/{refresh_id}/job/stop",
         "stop_refresh_job",
-        "Stop a refresh job from starting more jobs; the ones running finish. Idempotent.",
-        (_uuid_path("refresh_id", "The refresh's ID."),),
+        "Stop a refresh job from starting more jobs, and show it as a poll does; the ones running finish. Idempotent.",
+        (
+            _uuid_path("refresh_id", "The refresh's ID."),
+            _after(f"The last event sequence already seen, from 0; {DEFAULT_AFTER} when absent."),
+        ),
         _responses((RefreshJobDocument,), lookup=True, database=False),
     ),
 )

@@ -328,12 +328,12 @@ def test_an_entry_error_is_named_by_its_index_and_every_error_is_listed(
 
     names = [violation.parameters for violation in error.violations]
     assert names == [
-        ("entries[2].short_window", "entries[2].long_window"),
+        ("entries[2].selection.short_window", "entries[2].selection.long_window"),
         ("entries[3].method_id",),
         ("entries[4].ticker",),
-        ("entries[5].rsi_period",),
+        ("entries[5].selection.rsi_period",),
     ]
-    assert error.parameters == ("entries[2].short_window", "entries[2].long_window")
+    assert error.parameters == ("entries[2].selection.short_window", "entries[2].selection.long_window")
     assert str(error) == error.violations[0].message
     assert error.violations[2].rule == "refresh.blank_ticker"
     assert error.violations[2].message == "entries[4].ticker must be a non-empty symbol."

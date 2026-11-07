@@ -154,7 +154,7 @@ an item in `/v1/strategies` (for example `sma_crossover`). The document says whe
 | `POST /v1/watchlists/{watchlist_id}/remove-method` | `method_id` | 200, the removal document |
 | `POST /v1/analyses` | `ticker`, `method_id`, `selection`, `save`, `provider_check` | 200, the analysis document |
 | `POST /v1/refreshes` | `watchlist_id` or `entries`, `workers`, `save`, `provider_check` | 202, the refresh job document, with a `Location` header |
-| `POST /v1/refreshes/{refresh_id}/job/stop` | none | 200, the refresh job document |
+| `POST /v1/refreshes/{refresh_id}/job/stop` | none (query: `after`) | 200, the refresh job document |
 
 `entry_number` is 1-based, as the watchlist document's `index` and the command line's `remove-entry` are. The rename,
 removal and delete documents hold exactly one of `watchlist` and `unreadable`: an action that committed its change and
@@ -185,15 +185,15 @@ before the 202, and its failure is the response:
 
 | Status | `reason_code` | Cause |
 | :--- | :--- | :--- |
-| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker with an equal selection (rule `entries.duplicate`) |
+| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].selection.short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker with an equal selection (rule `entries.duplicate`) |
 | 404 | `watchlist_not_found` | no watchlist has that ID |
 | 409 | `watchlist_empty` | the watchlist has no entries |
 | 409 | `stored_selection_unreadable` | the watchlist holds an entry this version cannot read |
 | 409 | `refresh_job_running` | a job is already running; a server runs one at a time |
 | 503 | `database_busy` | the database is busy |
 
-The same ticker with the same method under a different selection is not a duplicate. The 202 carries the job document and
-a `Location` header naming the job's URL. `GET /v1/refreshes/{refresh_id}/job` returns the job (404
+The same ticker with the same method under a different selection is not a duplicate. The 202 carries the job document, as a
+poll at `after` 0 would give it (the events recorded so far, normally none), and a `Location` header naming the job's URL. `GET /v1/refreshes/{refresh_id}/job` returns the job (404
 `refresh_job_not_found` for an ID the server does not keep), and `GET /v1/refreshes/job` returns the server's latest job,
 or 404 `refresh_job_not_found` when it has started none. The server keeps only the latest job: a job that has ended stays
 until a new one starts, and then its ID is 404.
@@ -205,7 +205,8 @@ failure}`:
   you do not know as unfinished. `stopping` lasts from a stop request until the job ends. `completed` means every entry
   was started, including a job stopped after its last entry had started. `stopped` means a stop was requested and at
   least one entry was never started. `failed` means a failure after the 202, such as a database that is busy or needs
-  attention when the job opens it, or an unexpected exception.
+  attention when the job opens it, an unexpected exception, or an event that could not be built: the job then starts no
+  more entries, the ones running finish and are saved, and the events recorded before the failure are kept.
 - `watchlist_id` is `null` for a refresh over `entries`.
 - `totals` is `{admitted, finished, remaining}`: the jobs started, the jobs finished and the jobs not yet started;
   `remaining` stays above zero after a stop.
@@ -235,13 +236,16 @@ holds one when one is waiting, however large. `next_after` is the last sequence 
 `has_more` is `true` and after a short wait otherwise, until `state` is `completed`, `stopped` or `failed`.
 
 `POST /v1/refreshes/{refresh_id}/job/stop` asks the job to stop starting entries: the entries already running finish and
-are saved as usual. It is idempotent, answers the job document without events (its `state` is `stopping`, or the final
-state when the job had already ended), and is 404 `refresh_job_not_found` for an ID the server does not keep. A stop never
+are saved as usual. It is idempotent, takes the same optional `after` as a poll (a rejected `after` stops nothing), and
+answers as a poll does: the job document with the events after `after`, so a client that passes on each answer's
+`next_after`, the stop answer's included, sees every event exactly once. Its `state` is `stopping`, or the final state
+when the job had already ended. It is 404 `refresh_job_not_found` for an ID the server does not keep. A stop never
 fabricates a result for an entry that never started.
 
 #### One job at a time, and one database
 
-A server runs one job at a time. Two servers, or a server and the command line, may use one database: SQLite's
+A server runs one job at a time: a job is running until its `state` is `completed`, `stopped` or `failed`, and a new job
+may start from then on.  Two servers, or a server and the command line, may use one database: SQLite's
 write-ahead log and its busy timeout order their writes, and a write that waits too long is `database_busy`. A running
 refresh works from the entries it read when it was accepted, so the server's other actions proceed normally while it
 runs.

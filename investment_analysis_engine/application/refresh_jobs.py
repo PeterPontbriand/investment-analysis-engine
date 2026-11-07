@@ -5,9 +5,11 @@ records the refresh's progress; a job that has ended stays until a new one repla
 asking for a :meth:`RefreshJob.view` of it, which reads the recorded events after a sequence number, and stops it with
 :meth:`RefreshJob.stop`, which sets the refresh's cancellation.
 
-The jobs are generic over the event the caller keeps. A caller supplies the function that builds an event, and its
-serialized size, from a progress event; it is called once per event, when the event is recorded, and never on a view, so
-a poll costs a copy of the recorded events and no serialization. The application never learns what an event is.
+The jobs are generic over the event the caller keeps. A caller supplies the function that builds an event, and measures
+its serialized size, from a progress event; it is called once per event, when the event is recorded, never on a view,
+so a poll builds nothing and copies the recorded events; the caller's response encodes the events a poll returns. The
+application never learns what an event is. An event that cannot be built fails the job: no more entries are admitted,
+and when the refresh returns the job is ``failed`` with that exception, keeping the events recorded before it.
 """
 
 import logging
@@ -55,7 +57,7 @@ type EventRecorder[EventT] = Callable[[int, RefreshProgress[StrategyRun]], tuple
 
 @dataclass(frozen=True)
 class RecordedEvent[EventT]:
-    """One recorded event: the caller's event, built once, and the bytes it serializes to."""
+    """One recorded event: the caller's event, built once, and the size in bytes of its serialization."""
 
     sequence: int
     event: EventT
@@ -100,13 +102,11 @@ class RefreshJob[EventT]:
         context: ApplicationContext,
         prepared: PreparedRefresh,
         record: EventRecorder[EventT],
-        runner: Callable[..., RefreshOutcome],
     ) -> None:
         """Keep what the job needs; nothing runs until :meth:`start`."""
         self._context = context
         self._prepared = prepared
         self._record = record
-        self._runner = runner
         self._lock = threading.Lock()
         self._cancellation = threading.Event()
         self._state = RefreshJobState.RUNNING
@@ -114,7 +114,7 @@ class RefreshJob[EventT]:
         self._events: list[RecordedEvent[EventT]] = []
         self._outcome: RefreshOutcome | None = None
         self._failure: BaseException | None = None
-        self._recording_failed = False
+        self._recording_error: Exception | None = None
         self._thread = threading.Thread(target=self._run, name="refresh-job", daemon=True)
 
     @property
@@ -127,8 +127,17 @@ class RefreshJob[EventT]:
         self._thread.start()
 
     def is_running(self) -> bool:
-        """Whether the job's thread is alive."""
+        """Whether the job's thread is alive; the shutdown wait and cancellation use this."""
         return self._thread.is_alive()
+
+    def has_not_ended(self) -> bool:
+        """Whether the job's state is ``running`` or ``stopping``: the job a start must not replace.
+
+        The state becomes final only after the refresh has returned, so the coordinator of an ended job is done even
+        while its thread is still winding down.
+        """
+        with self._lock:
+            return self._state in (RefreshJobState.RUNNING, RefreshJobState.STOPPING)
 
     def wait(self, timeout: float) -> bool:
         """Wait up to ``timeout`` seconds for the job's thread to end; return whether it has."""
@@ -178,14 +187,17 @@ class RefreshJob[EventT]:
         event is built before the lock is taken: a view never waits for a document to be built.
         """
         recorded: RecordedEvent[EventT] | None = None
-        if not self._recording_failed:
+        if self._recording_error is None:
             sequence = len(self._events) + 1
             try:
                 event, size = self._record(sequence, progress)
                 recorded = RecordedEvent(sequence=sequence, event=event, size=size)
-            except Exception:
-                self._recording_failed = True
-                logger.exception("A refresh event could not be recorded; it and every later event is dropped.")
+            except Exception as exc:
+                self._recording_error = exc
+                self._cancellation.set()
+                logger.exception(
+                    "A refresh event could not be recorded; the job stops admitting entries and will fail."
+                )
         with self._lock:
             self._totals = progress.totals
             if recorded is not None:
@@ -194,7 +206,7 @@ class RefreshJob[EventT]:
     def _run(self) -> None:
         """Run the refresh and settle the job's state; the one place the job ends."""
         try:
-            outcome = self._runner(
+            outcome = run_refresh(
                 self._context,
                 self._prepared,
                 cancellation=self._cancellation,
@@ -207,6 +219,10 @@ class RefreshJob[EventT]:
                 self._state = RefreshJobState.FAILED
             return
         with self._lock:
+            if self._recording_error is not None:
+                self._failure = self._recording_error
+                self._state = RefreshJobState.FAILED
+                return
             self._outcome = outcome
             never_admitted = len(outcome.document.results) < len(self._prepared.snapshot.entries)
             self._state = RefreshJobState.STOPPED if never_admitted else RefreshJobState.COMPLETED
@@ -218,16 +234,13 @@ class RefreshJobs[EventT]:
     def __init__(
         self,
         record: EventRecorder[EventT],
-        runner: Callable[..., RefreshOutcome] = run_refresh,
     ) -> None:
-        """Keep the event recorder and the function that runs a prepared refresh.
+        """Keep the event recorder.
 
         Args:
             record: Builds each event and its size; see :data:`EventRecorder`.
-            runner: Runs a prepared refresh with the arguments of :func:`run_refresh`; a test supplies its own.
         """
         self._record = record
-        self._runner = runner
         self._lock = threading.Lock()
         self._latest: RefreshJob[EventT] | None = None
 
@@ -238,11 +251,11 @@ class RefreshJobs[EventT]:
             RefreshJobRunningError: If the latest job is still running.
         """
         with self._lock:
-            if self._latest is not None and self._latest.is_running():
+            if self._latest is not None and self._latest.has_not_ended():
                 raise RefreshJobRunningError(
                     f"Refresh {self._latest.refresh_id} is still running; wait for it to end or stop it."
                 )
-            job = RefreshJob(context, prepared, self._record, self._runner)
+            job = RefreshJob(context, prepared, self._record)
             self._latest = job
             job.start()
             return job

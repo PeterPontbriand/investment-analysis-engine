@@ -10,6 +10,7 @@ import httpx2
 import pytest
 from starlette.testclient import TestClient
 
+from investment_analysis_engine.api import refresh_documents
 from investment_analysis_engine.api.request_bodies import MAX_REQUEST_BODY_BYTES
 from investment_analysis_engine.api.responses import STATUS_BY_CODE
 from investment_analysis_engine.api.routes import ROUTES
@@ -90,7 +91,7 @@ def test_each_strategy_is_refreshed_through_the_endpoints_from_a_list_of_entries
     assert started.headers["location"] == f"/v1/refreshes/{document['refresh_id']}/job"
     assert list(document) == _JOB_KEYS
     assert document["state"] == "running" or document["state"] in _ENDED  # a fast job may have ended already
-    assert document["events"] == []
+    assert document["next_after"] == len(document["events"])  # an ordinary view at after 0: the events so far
     assert (document["watchlist_id"], document["summary"], document["failure"]) == (None, None, None)
     assert ended["state"] == "completed"
     assert ended["totals"] == {"admitted": 2, "finished": 2, "remaining": 0}
@@ -214,7 +215,7 @@ def test_entry_errors_are_named_by_their_index_and_listed_together(isolated_cli_
     assert isinstance(errors, list)
     assert [item["parameters"] for item in errors] == [
         ["entries[1].method_id"],
-        ["entries[2].short_window", "entries[2].long_window"],
+        ["entries[2].selection.short_window", "entries[2].selection.long_window"],
         ["entries[3]"],
     ]
     assert [item["rule"] for item in errors][2] == "entries.duplicate"
@@ -370,6 +371,107 @@ def test_stop_ends_the_job_stopped_and_is_idempotent(isolated_cli_settings: Proj
     assert ended["totals"] == {"admitted": 1, "finished": 1, "remaining": 2}
     assert [item["ticker"] for item in ended["summary"]["results"]] == ["KO"]  # type: ignore[index]
     assert third.json()["state"] == "stopped"
+
+
+def test_a_client_that_passes_on_each_next_after_sees_every_event_exactly_once(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    gate, entered = threading.Event(), threading.Event()
+    runs = FakeRuns(gate=gate, entered=entered, blocked=frozenset({"PG"}))
+    body = {"entries": [_entry(_MOMENTUM, "KO"), _entry(_MOMENTUM, "PG"), _entry(_MOMENTUM, "T")], "workers": 1}
+    seen: list[int] = []
+
+    def take(document: dict[str, object]) -> int:
+        events = document["events"]
+        assert isinstance(events, list)
+        seen.extend(item["sequence"] for item in events)
+        next_after = document["next_after"]
+        assert isinstance(next_after, int)
+        return next_after
+
+    with (
+        client_for(isolated_cli_settings) as client,
+        fakes(Probe(), runs),
+        patch("investment_analysis_engine.api.handlers.MAX_REQUEST_BODY_BYTES", 1),  # one event in each answer
+    ):
+        started = _start(client, body)
+        refresh_id = started.json()["refresh_id"]
+        after = take(started.json())
+        assert entered.wait(30)
+        for _ in range(1500):  # wait, without reading events, until the second entry has started
+            if _job(client, refresh_id, 999).json()["totals"]["admitted"] == 2:
+                break
+            time.sleep(0.01)
+        while after < 1:  # the client has the first event; three are recorded
+            after = take(_job(client, refresh_id, after).json())
+        given = after
+        stop = client.post(f"/v1/refreshes/{refresh_id}/job/stop?after={given}", headers=AUTH)
+        stopped = stop.json()
+        after = take(stopped)
+        gate.set()
+        for _ in range(1500):
+            polled = _job(client, refresh_id, after).json()
+            after = take(polled)
+            if polled["state"] in _ENDED and not polled["has_more"]:
+                break
+            time.sleep(0.01)
+
+    assert stop.status_code == 200
+    assert stopped["state"] == "stopping"
+    assert [item["sequence"] for item in stopped["events"]] == [given + 1]  # the event after the `after` it was given
+    assert (stopped["next_after"], stopped["has_more"]) == (given + 1, True)
+    assert polled["state"] == "stopped"
+    assert seen == [1, 2, 3, 4]  # every event exactly once, the stop answer's included
+
+
+def test_a_stop_with_a_rejected_after_changes_nothing(isolated_cli_settings: ProjectSettings) -> None:
+    gate, entered = threading.Event(), threading.Event()
+    body = {"entries": [_entry(_MOMENTUM, "KO"), _entry(_MOMENTUM, "PG")], "workers": 1}
+    with client_for(isolated_cli_settings) as client, fakes(Probe(), FakeRuns(gate=gate, entered=entered)):
+        refresh_id = _start(client, body).json()["refresh_id"]
+        assert entered.wait(30)
+        negative = client.post(f"/v1/refreshes/{refresh_id}/job/stop?after=-1", headers=AUTH)
+        text = client.post(f"/v1/refreshes/{refresh_id}/job/stop?after=x", headers=AUTH)
+        state = _job(client, refresh_id).json()["state"]
+        gate.set()
+        ended = _ended(client, refresh_id)
+
+    assert _failure(negative, 400, "invalid_parameter")["parameters"] == ["after"]
+    _failure(text, 400, "invalid_parameter")
+    assert state == "running"
+    assert ended["state"] == "completed"  # it was never stopped
+
+
+def test_an_event_that_cannot_be_built_fails_the_job_with_its_failure_document(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    gate, entered = threading.Event(), threading.Event()
+    runs = FakeRuns(gate=gate, entered=entered)
+    body = {"entries": [_entry(_MOMENTUM, "KO"), _entry(_MOMENTUM, "PG")], "workers": 1}
+    real = refresh_documents._event_of  # noqa: SLF001 - the one builder of an event
+
+    def failing_second(sequence: int, progress: object) -> object:
+        if sequence == 2:
+            raise RuntimeError("cannot build")
+        return real(sequence, progress)  # type: ignore[arg-type]
+
+    with (
+        client_for(isolated_cli_settings) as client,
+        fakes(Probe(), runs),
+        patch("investment_analysis_engine.api.refresh_documents._event_of", side_effect=failing_second),
+    ):
+        refresh_id = _start(client, body).json()["refresh_id"]
+        gate.set()
+        ended = _ended(client, refresh_id)
+
+    assert ended["state"] == "failed"
+    assert ended["summary"] is None
+    events = ended["events"]
+    assert isinstance(events, list)
+    assert [item["sequence"] for item in events] == [1]
+    assert ended["failure"]["reason_code"] == "execution_error"  # type: ignore[index]
+    assert ended["failure"]["reason"] == "The request failed unexpectedly."  # type: ignore[index]
+    assert [ticker for ticker, _ in runs.calls] == ["KO"]  # nothing more was admitted
 
 
 def test_a_stop_after_the_last_admission_ends_completed(isolated_cli_settings: ProjectSettings) -> None:
