@@ -21,6 +21,7 @@ def test_the_application_serves_exactly_the_routes_of_the_table(isolated_cli_set
         (method, route.path) for route in app.routes if isinstance(route, Route) for method in (route.methods or set())
     }
     assert served == {(route.method, route.path) for route in ROUTES}
+    assert {route.method for route in ROUTES} == {"GET", "POST", "PATCH", "DELETE"}
     assert len(app.routes) == len(ROUTES)
     assert len({route.operation_id for route in ROUTES}) == len(ROUTES)
 
@@ -29,7 +30,9 @@ def test_every_route_declares_its_success_document_and_each_failure_status() -> 
     for route in ROUTES:
         statuses = [status for status, _models in route.responses]
         assert statuses == sorted(statuses)
-        assert {200, 400, 401, 405, 500} <= set(statuses)
+        assert {400, 401, 405, 500} <= set(statuses)
+        assert sum(status < 300 for status in statuses) == 1  # exactly one success status
+        assert route.success_status == (201 if route.operation_id == "create_watchlist" else 200)
         assert dict(route.responses)[400][0].__name__ == "FailureEnvelope"
 
 
@@ -38,7 +41,8 @@ def test_the_description_is_openapi_3_1_with_every_route_and_response_by_status(
     assert description["openapi"] == "3.1.0"
     assert set(description["paths"]) == {route.path for route in ROUTES}
     for route in ROUTES:
-        operation = description["paths"][route.path]["get"]
+        operation = description["paths"][route.path][route.method.lower()]
+        assert ("requestBody" in operation) == (route.request is not None)
         assert operation["operationId"] == route.operation_id
         assert set(operation["responses"]) == {str(status) for status, _models in route.responses}
         assert [item["name"] for item in operation["parameters"]] == [item.name for item in route.parameters]

@@ -23,6 +23,7 @@ from investment_analysis_engine.analysis.run_models import (
 )
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 
@@ -90,10 +91,7 @@ class AnalysisRun(_FrozenModel):
     @classmethod
     def _normalize_ticker(cls, value: str) -> str:
         """Normalize the ticker and reject blank values, as B1 selections do."""
-        normalized = value.strip().upper()
-        if not normalized:
-            raise ValueError("ticker must not be empty.")
-        return normalized
+        return normalize_ticker(value)
 
     @field_validator(
         "config_schema_version",

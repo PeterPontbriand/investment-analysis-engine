@@ -97,6 +97,47 @@
       "title": "FailureReasonCode",
       "type": "string"
     },
+    "FailureRuleError": {
+      "additionalProperties": false,
+      "description": "One rejected argument: the rule that rejected it, the parameters it names, the values and the message.",
+      "properties": {
+        "arguments": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "The values the message shows, by name. A non-finite number is its text (inf, -inf, nan), a date or timestamp is ISO 8601 text, and anything JSON cannot carry is its text.",
+          "title": "Arguments",
+          "type": "object"
+        },
+        "message": {
+          "description": "The rule's message for a person; it carries no guarantee.",
+          "title": "Message",
+          "type": "string"
+        },
+        "parameters": {
+          "description": "The parameters the rule names, spelled as the caller does.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "rule": {
+          "description": "The stable identifier of the rule, such as momentum.window_order.",
+          "title": "Rule",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule",
+        "parameters",
+        "arguments",
+        "message"
+      ],
+      "title": "FailureRuleError",
+      "type": "object"
+    },
+    "JsonValue": {},
     "ProviderCheckItem": {
       "additionalProperties": false,
       "description": "The verdict for one provider.",
@@ -234,6 +275,22 @@
       "title": "Diagnostics",
       "type": "array"
     },
+    "errors": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/FailureRuleError"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set exactly when reason_code is invalid_parameter and a rule rejected the argument: every rejection in field order, the first being the one reason and parameters describe; null otherwise.",
+      "title": "Errors"
+    },
     "method": {
       "anyOf": [
         {
@@ -305,8 +362,8 @@
       "type": "null"
     },
     "schema_version": {
-      "const": 11,
-      "default": 11,
+      "const": 12,
+      "default": 12,
       "title": "Schema Version",
       "type": "integer"
     },

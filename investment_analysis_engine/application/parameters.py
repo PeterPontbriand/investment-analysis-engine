@@ -12,7 +12,7 @@ declares are replaced, by explicit substitution and never by ``str.format``, bec
 import re
 from collections.abc import Mapping, Sequence
 
-from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.core.operator_errors import InvalidParameterError, RuleViolation
 
 _PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
 
@@ -38,6 +38,8 @@ class ActionParameterError(InvalidParameterError):
         rule: The stable identifier of the rule that rejected the argument, ``<scope>.<rule>`` such as
             ``momentum.window_order`` or ``watchlist.blank_name``.
         arguments: The values the template shows, by placeholder name, as the rule saw them.
+        errors: Every rejection this error stands for, in field order: itself for a single rejection, and for
+            several (see :meth:`several`) each one, the first being the error's own rule, parameters and message.
     """
 
     def __init__(
@@ -52,24 +54,54 @@ class ActionParameterError(InvalidParameterError):
         names = tuple(parameters)
         values = dict(arguments or {})
         replacements = {name: name for name in names} | {key: str(value) for key, value in values.items()}
-        super().__init__(_substitute(template, replacements), parameters=names)
+        message = _substitute(template, replacements)
+        super().__init__(message, parameters=names, violations=(RuleViolation(rule, names, values, message),))
+        self.errors: tuple[ActionParameterError, ...] = (self,)
         self.template = template
         self.action_parameters = names
         self.rule = rule
         self.arguments = values
 
+    @classmethod
+    def several(cls, errors: Sequence["ActionParameterError"]) -> "ActionParameterError":
+        """Return one error for several rejections: the first's rule, parameters and message, and all of them listed.
+
+        Raises:
+            ValueError: If ``errors`` is empty.
+        """
+        if not errors:
+            raise ValueError("several needs at least one error.")
+        first = errors[0]
+        combined = cls(first.template, parameters=first.action_parameters, rule=first.rule, arguments=first.arguments)
+        combined.errors = tuple(errors)
+        combined.violations = tuple(violation for error in errors for violation in error.violations)
+        return combined
+
     def named(self, names: Mapping[str, str]) -> InvalidParameterError:
         """Return the same rejection under a caller's spelling of each parameter.
 
+        The first error's parameters and message are the result's own; every error of :attr:`errors` is spelled the
+        same way in its violations, a parameter the caller has no name for keeping the action's.
+
         Args:
-            names: The caller's name for each of the action's parameters this error names.
+            names: The caller's name for each of the action's parameters the first error names.
 
         Raises:
-            KeyError: If ``names`` lacks one of the parameters this error names.
+            KeyError: If ``names`` lacks one of the parameters the first error names.
         """
         spelled = {parameter: names[parameter] for parameter in self.action_parameters}
-        replacements = spelled | {key: str(value) for key, value in self.arguments.items()}
-        return InvalidParameterError(_substitute(self.template, replacements), parameters=tuple(spelled.values()))
+        violations = tuple(error._violation_named(names) for error in self.errors)  # noqa: SLF001
+        return InvalidParameterError(
+            _substitute(self.template, spelled | {key: str(value) for key, value in self.arguments.items()}),
+            parameters=tuple(spelled.values()),
+            violations=violations,
+        )
+
+    def _violation_named(self, names: Mapping[str, str]) -> RuleViolation:
+        """Return this single rejection as a violation under a caller's names."""
+        spelled = {parameter: names.get(parameter, parameter) for parameter in self.action_parameters}
+        message = _substitute(self.template, spelled | {key: str(value) for key, value in self.arguments.items()})
+        return RuleViolation(self.rule, tuple(spelled.values()), self.arguments, message)
 
 
 __all__ = ["ActionParameterError"]

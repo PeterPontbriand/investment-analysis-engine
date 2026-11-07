@@ -17,7 +17,6 @@ from investment_analysis_engine.workspace.watchlists import (
     WatchlistSpec,
     decode_selection,
     encode_selection,
-    normalize_ticker,
     not_found_message,
 )
 
@@ -33,17 +32,6 @@ def test_watchlist_spec_is_frozen() -> None:
     spec = WatchlistSpec(display_name="X")
     with pytest.raises(ValidationError, match="frozen_instance"):
         spec.display_name = "Y"
-
-
-@pytest.mark.parametrize(("raw", "expected"), [("ko", "KO"), (" pfe.to ", "PFE.TO"), ("BRK.B", "BRK.B")])
-def test_normalize_ticker_trims_and_uppercases_preserving_suffix(raw: str, expected: str) -> None:
-    assert normalize_ticker(raw) == expected
-
-
-@pytest.mark.parametrize("raw", ["", "   "])
-def test_normalize_ticker_rejects_blank(raw: str) -> None:
-    with pytest.raises(ValueError, match="must not be empty"):
-        normalize_ticker(raw)
 
 
 @pytest.mark.parametrize(
@@ -106,17 +94,28 @@ def test_decode_selection_rejects_unknown_method_id() -> None:
         decode_selection("unknown_method", 1, '{"method_id": "unknown_method"}')
 
 
-def test_a_stored_selection_error_names_an_entry_by_all_four_fields_or_by_none() -> None:
+def test_a_stored_selection_error_names_an_entry_by_all_five_fields_or_by_none() -> None:
     clause_only = StoredSelectionError("its stored selection is not valid JSON")
     named = StoredSelectionError(
-        "its stored selection is not valid JSON", watchlist_name="Core", entry_number=2, ticker="KO", method="momentum"
+        "its stored selection is not valid JSON",
+        watchlist_name="Core",
+        entry_number=2,
+        ticker="KO",
+        method="momentum",
+        method_id="momentum_sma_crossover",
     )
 
     assert str(clause_only) == "its stored selection is not valid JSON"
     assert clause_only.watchlist_name is None
     assert str(named) == "Watchlist 'Core', entry 2 (KO, momentum): its stored selection is not valid JSON."
-    assert (named.watchlist_name, named.entry_number, named.ticker, named.method) == ("Core", 2, "KO", "momentum")
-    with pytest.raises(ValueError, match="all of its four fields or by none"):
+    assert (named.watchlist_name, named.entry_number, named.ticker, named.method, named.method_id) == (
+        "Core",
+        2,
+        "KO",
+        "momentum",
+        "momentum_sma_crossover",
+    )
+    with pytest.raises(ValueError, match="all of its five fields or by none"):
         StoredSelectionError("clause", watchlist_name="Core")
 
 

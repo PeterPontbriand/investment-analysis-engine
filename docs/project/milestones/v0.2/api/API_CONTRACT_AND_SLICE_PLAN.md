@@ -48,7 +48,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.3b1 | [Watchlist actions](API_3_SLICE_PLAN.md#api3b1--watchlist-actions) | Complete | 2026-11-05 |
 | API.3b2 | [Selections and Site 19](API_3_SLICE_PLAN.md#api3b2--selections-and-site-19) | Complete | 2026-11-06 |
 | API.3c | [Refresh with progress](API_3_SLICE_PLAN.md#api3c--refresh-with-progress) | Complete | 2026-11-06 |
-| API.4 | [Action endpoints and refresh jobs](#api4--action-endpoints-and-refresh-jobs) | Next | |
+| API.4a | [Action endpoints, selection forms, result documents and error lists](API_4_SLICE_PLAN.md#api4a--action-endpoints-selection-forms-result-documents-and-error-lists) | Complete | 2026-11-06 |
+| API.4b | [Refresh jobs](API_4_SLICE_PLAN.md#api4b--refresh-jobs) | Next | |
 | API.5 | [Help content](#api5--help-content) | Planned | |
 | API.6 | [Term references and help endpoints](#api6--term-references-and-help-endpoints) | Planned | |
 
@@ -157,8 +158,10 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 ### API.4 — Action endpoints and refresh jobs
 
 - **Problem:** the GUI needs to start actions and follow a refresh that runs for minutes.
-- **Decision:** action endpoints over API.3. A refresh runs as a job inside the `ian serve`
-  process, one at a time, with a status endpoint the client polls and a stop endpoint. A job does
+- **Decision:** action endpoints over API.3, in two slices ([J1](API_4_SLICE_PLAN.md#j1-api4-is-two-slices-2026-11-06)).
+  A refresh runs as a job inside the `ian serve` process, one at a time, with a status endpoint the client polls and a
+  stop endpoint. A job starts from a watchlist or from a list of entries
+  ([J11](API_4_SLICE_PLAN.md#j11-a-refresh-job-starts-from-a-watchlist-or-a-list-of-entries-2026-11-06)). A job does
   not outlive the process.
 - **Scope:** the action endpoints, with the optional `as_of` and its echoed effective value on the
   direct-analysis and run endpoints; the job status and stop endpoints; their `openapi.json` entries
@@ -172,10 +175,9 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
     ([W32](API_3_SLICE_PLAN.md#w32-first-error-only-2026-11-05)); the error can gain a list of every error additively;
   - serving refresh progress over HTTP needs an event document, a transport (server-sent events, WebSocket or polling, not chosen) and a way for the client to set cancellation ([W56](API_3_SLICE_PLAN.md#w56-serving-refresh-progress-over-http-2026-11-06));
   - a client may need each error's rule identifier and value arguments served, to translate a message or place it on a form field ([W42](API_3_SLICE_PLAN.md#w42-errors-keep-what-a-translation-needs-2026-11-05)).
-- **Open question for API.4's slice plan:** whether two `ian serve` processes may run refresh jobs and writes against
-  the same database, and what the second one does. It is not decided here.
-- **Branch:** `feat/api-actions`.
-- **Detail:** ⚠ no slice plan yet
+- **Two `ian serve` processes against one database:** [J19](API_4_SLICE_PLAN.md#j19-several-processes-one-database-2026-11-06) settled it.
+- **Branches:** `feat/api-actions` (API.4a) and `feat/api-refresh-jobs` (API.4b).
+- **Detail:** [API.4 slice plan](API_4_SLICE_PLAN.md).
 
 ### API.5 — Help content
 

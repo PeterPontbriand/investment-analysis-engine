@@ -22,6 +22,7 @@ from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
@@ -66,20 +67,28 @@ def presentation_mode(*, details: bool, diagnostics: bool, json_output: bool) ->
     return PresentationMode.CONCISE
 
 
+def _comparable(value: str) -> str:
+    """Return ``value`` as the ticker it names for comparison, or the empty text when it is blank."""
+    try:
+        return normalize_ticker(value)
+    except ValueError:
+        return ""
+
+
 def resolve_ticker(positional: str | None, option: str | None, *, command: str) -> str:
     """Resolve positional ticker with a transitional --ticker compatibility alias."""
-    if positional is not None and option is not None and positional.strip().upper() != option.strip().upper():
+    if positional is not None and option is not None and _comparable(positional) != _comparable(option):
         raise InvalidParameterError(
             "Positional TICKER and --ticker refer to different symbols.", parameters=("TICKER", "--ticker")
         )
     selected = positional if positional is not None else option
     if selected is None:
         raise InvalidParameterError(f"TICKER is required. Use 'ian {command} TICKER'.", parameters=("TICKER",))
-    normalized = selected.strip().upper()
-    if not normalized:
+    try:
+        return normalize_ticker(selected)
+    except ValueError:
         name = "TICKER" if positional is not None else "--ticker"
-        raise InvalidParameterError(f"{name} must be a non-empty symbol.", parameters=(name,))
-    return normalized
+        raise InvalidParameterError(f"{name} must be a non-empty symbol.", parameters=(name,)) from None
 
 
 def production_database() -> SQLiteDatabase:

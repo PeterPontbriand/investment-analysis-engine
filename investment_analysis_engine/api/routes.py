@@ -1,4 +1,4 @@
-"""The route table: every endpoint's method, path, parameters and response model for each status code.
+"""The route table: every endpoint's method, path, parameters, request body and response model for each status code.
 
 The application and the OpenAPI generator both read this table, and a test checks that the application serves exactly
 the routes it lists. A response model is a document type; a status with several models is any one of them.
@@ -9,18 +9,41 @@ from typing import Any, Final, Literal
 
 from pydantic import BaseModel
 
-from investment_analysis_engine.api.documents import InfoDocument, ReplayTextDocument, StrategiesDocument
+from investment_analysis_engine.api.documents import (
+    AnalysisDocument,
+    InfoDocument,
+    ReplayTextDocument,
+    StrategiesDocument,
+)
+from investment_analysis_engine.api.request_bodies import (
+    AddEntriesRequest,
+    AnalysisRequest,
+    RemoveMethodRequest,
+    RemoveTickersRequest,
+    RequestBody,
+    WatchlistNameRequest,
+)
+from investment_analysis_engine.api.selection_forms import SelectionFormDocument
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
 from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
-from investment_analysis_engine.workspace_documents.watchlist import WatchlistDocument, WatchlistListDocument
+from investment_analysis_engine.workspace_documents.watchlist import (
+    WatchlistDeleteDocument,
+    WatchlistDocument,
+    WatchlistListDocument,
+    WatchlistRemovalDocument,
+    WatchlistRenameDocument,
+)
 
 DEFAULT_RUNS_LIMIT: Final = 20
 """The page size of the runs list when ``limit`` is not given; the command line's default."""
 
 DEFAULT_RUNS_OFFSET: Final = 0
 """The rows the runs list skips when ``offset`` is not given; the command line's default."""
+
+SUCCESS_STATUS_LIMIT: Final = 300
+"""The first status that is not a success."""
 
 TEXT_MODES: Final = ("concise", "details", "diagnostics")
 """The values of the replay text endpoint's ``mode`` parameter."""
@@ -45,12 +68,18 @@ class ParameterSpec:
 class RouteSpec:
     """One endpoint: how it is called and every response it can give."""
 
-    method: Literal["GET"]
+    method: Literal["GET", "POST", "PATCH", "DELETE"]
     path: str
     operation_id: str
     summary: str
     parameters: tuple[ParameterSpec, ...]
     responses: tuple[tuple[int, tuple[type[BaseModel], ...]], ...]
+    request: type[RequestBody] | None = None
+
+    @property
+    def success_status(self) -> int:
+        """Return the status of the endpoint's success response: the one below 300."""
+        return next(status for status, _models in self.responses if status < SUCCESS_STATUS_LIMIT)
 
     @property
     def query_names(self) -> frozenset[str]:
@@ -66,23 +95,41 @@ def _query(name: str, description: str, *schema: tuple[str, Any], required: bool
     return ParameterSpec(name, "query", required, description, (("type", "string"), *schema))
 
 
-def _responses(
-    success: tuple[type[BaseModel], ...], *, lookup: bool, database: bool
+def _responses(  # noqa: PLR0913
+    success: tuple[type[BaseModel], ...],
+    *,
+    lookup: bool,
+    database: bool,
+    status: int = 200,
+    conflict: bool = False,
 ) -> tuple[tuple[int, tuple[type[BaseModel], ...]], ...]:
     """Return the responses of an endpoint by status: its success document and each failure status it can give.
 
     Every endpoint can answer 400 (the Host and Origin checks, or a rejected parameter), 401, 405 and 500; ``lookup``
-    adds 404 for a missing resource and ``database`` adds 503 for a busy database.
+    adds 404 for a missing resource, ``conflict`` adds 409 for a change the stored data refuses and ``database`` adds
+    503 for a busy database. ``status`` is the success status.
     """
     failure = (FailureEnvelope,)
-    statuses: list[tuple[int, tuple[type[BaseModel], ...]]] = [(200, success), (400, failure), (401, failure)]
+    statuses: list[tuple[int, tuple[type[BaseModel], ...]]] = [(status, success), (400, failure), (401, failure)]
     if lookup:
         statuses.append((404, failure))
+    if conflict:
+        statuses.append((409, failure))
     statuses.append((405, failure))
     statuses.append((500, failure))
     if database:
         statuses.append((503, failure))
     return tuple(sorted(statuses))
+
+
+def _method_path(description: str) -> ParameterSpec:
+    return ParameterSpec(
+        "method_id",
+        "path",
+        True,
+        description,
+        (("type", "string"), ("enum", [item.method_id for item in STRATEGIES])),
+    )
 
 
 ROUTES: Final[tuple[RouteSpec, ...]] = (
@@ -116,7 +163,7 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         "get_watchlist",
         "Show one watchlist.",
         (_uuid_path("watchlist_id", "The watchlist's ID."),),
-        _responses((WatchlistDocument,), lookup=True, database=True),
+        _responses((WatchlistDocument,), lookup=True, database=True, conflict=True),
     ),
     RouteSpec(
         "GET",
@@ -164,6 +211,93 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         (_uuid_path("refresh_id", "The refresh's ID."),),
         _responses((RunsCompareDocument,), lookup=True, database=True),
     ),
+    RouteSpec(
+        "GET",
+        "/v1/strategies/{method_id}/selection",
+        "get_selection_form",
+        "Describe the selection fields of one strategy, with their configured values.",
+        (_method_path("The strategy's method identifier."),),
+        _responses((SelectionFormDocument,), lookup=False, database=False),
+    ),
+    RouteSpec(
+        "POST",
+        "/v1/watchlists",
+        "create_watchlist",
+        "Create an empty watchlist.",
+        (),
+        _responses((WatchlistDocument,), lookup=False, database=True, status=201, conflict=True),
+        WatchlistNameRequest,
+    ),
+    RouteSpec(
+        "PATCH",
+        "/v1/watchlists/{watchlist_id}",
+        "rename_watchlist",
+        "Rename a watchlist. Saved runs keep the name it had when they ran.",
+        (_uuid_path("watchlist_id", "The watchlist's ID."),),
+        _responses((WatchlistRenameDocument,), lookup=True, database=True, conflict=True),
+        WatchlistNameRequest,
+    ),
+    RouteSpec(
+        "DELETE",
+        "/v1/watchlists/{watchlist_id}",
+        "delete_watchlist",
+        "Delete a watchlist and its entries. Saved runs are kept.",
+        (_uuid_path("watchlist_id", "The watchlist's ID."),),
+        _responses((WatchlistDeleteDocument,), lookup=True, database=True),
+    ),
+    RouteSpec(
+        "POST",
+        "/v1/watchlists/{watchlist_id}/entries",
+        "add_watchlist_entries",
+        "Add one entry per ticker for one strategy's selection.",
+        (_uuid_path("watchlist_id", "The watchlist's ID."),),
+        _responses((WatchlistDocument,), lookup=True, database=True, conflict=True),
+        AddEntriesRequest,
+    ),
+    RouteSpec(
+        "DELETE",
+        "/v1/watchlists/{watchlist_id}/entries/{entry_number}",
+        "remove_watchlist_entry",
+        "Remove one entry by its 1-based number.",
+        (
+            _uuid_path("watchlist_id", "The watchlist's ID."),
+            ParameterSpec(
+                "entry_number",
+                "path",
+                True,
+                "The entry's 1-based number, as the watchlist document shows it.",
+                (("type", "string"), ("pattern", "^-?[0-9]+$")),
+            ),
+        ),
+        _responses((WatchlistRemovalDocument,), lookup=True, database=True),
+    ),
+    RouteSpec(
+        "POST",
+        "/v1/watchlists/{watchlist_id}/remove-tickers",
+        "remove_watchlist_tickers",
+        "Remove every entry for the given tickers.",
+        (_uuid_path("watchlist_id", "The watchlist's ID."),),
+        _responses((WatchlistRemovalDocument,), lookup=True, database=True),
+        RemoveTickersRequest,
+    ),
+    RouteSpec(
+        "POST",
+        "/v1/watchlists/{watchlist_id}/remove-method",
+        "remove_watchlist_method",
+        "Remove every entry of one strategy.",
+        (_uuid_path("watchlist_id", "The watchlist's ID."),),
+        _responses((WatchlistRemovalDocument,), lookup=True, database=True),
+        RemoveMethodRequest,
+    ),
+    RouteSpec(
+        "POST",
+        "/v1/analyses",
+        "analyze",
+        "Analyze one ticker under one selection, and keep the result when asked.",
+        (),
+        _responses((AnalysisDocument,), lookup=False, database=True),
+        AnalysisRequest,
+    ),
 )
 """Every endpoint, in the order the documentation lists them."""
 
@@ -174,5 +308,6 @@ __all__ = [
     "ROUTES",
     "TEXT_MODES",
     "ParameterSpec",
+    "SUCCESS_STATUS_LIMIT",
     "RouteSpec",
 ]

@@ -621,7 +621,7 @@ def test_delete_prompt_shows_the_entry_count_without_decoding_unreadable_entries
     assert _stored_tickers(isolated_cli_settings) == ["AAPL", "MSFT"]
 
 
-def test_delete_json_with_an_unreadable_entry_deletes_reports_the_failure_envelope_and_exits_1(
+def test_delete_json_with_an_unreadable_entry_deletes_reports_the_delete_document_and_exits_1(
     isolated_cli_settings: ProjectSettings,
 ) -> None:
     _store_momentum_entry_as_retired_version_one(isolated_cli_settings, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
@@ -632,10 +632,12 @@ def test_delete_json_with_an_unreadable_entry_deletes_reports_the_failure_envelo
     confirmation = normalize_cli_output(result.stderr)
     assert confirmation.startswith("Deleted watchlist 'Old Watch' (ID ")
     assert confirmation.endswith("2 entries). Saved Analysis Runs are kept.")
-    envelope = json.loads(result.stdout)
-    assert envelope["reason_code"] == "stored_selection_unreadable"
-    assert envelope["status"] == "error"
-    assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(envelope["reason"])
+    document = json.loads(result.stdout)
+    assert (document["schema_version"], document["deleted"], document["watchlist"]) == (1, True, None)
+    unreadable = document["unreadable"]
+    assert (unreadable["entry_number"], unreadable["ticker"], unreadable["method_id"]) == (2, "MSFT", "sma_crossover")
+    assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(unreadable["reason"])
+    assert "Remove it with" not in unreadable["reason"]
     assert _stored_tickers(isolated_cli_settings) == []
 
 
@@ -685,7 +687,7 @@ def test_rename_commits_when_an_entry_is_unreadable_and_remove_entry_then_restor
     assert "MSFT" not in shown.output
 
 
-def test_rename_json_with_an_unreadable_entry_renames_reports_the_failure_envelope_and_exits_1(
+def test_rename_json_with_an_unreadable_entry_renames_reports_the_rename_document_and_exits_1(
     isolated_cli_settings: ProjectSettings,
 ) -> None:
     _store_momentum_entry_as_retired_version_one(isolated_cli_settings, "Old Watch", ["AAPL", "MSFT"], retired="MSFT")
@@ -694,6 +696,9 @@ def test_rename_json_with_an_unreadable_entry_renames_reports_the_failure_envelo
 
     assert result.exit_code == 1
     assert normalize_cli_output(result.stderr) == "Renamed watchlist 'Old Watch' to 'Renamed'."
-    envelope = json.loads(result.stdout)
-    assert envelope["reason_code"] == "stored_selection_unreadable"
-    assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(envelope["reason"])
+    document = json.loads(result.stdout)
+    assert (document["schema_version"], document["watchlist"]) == (1, None)
+    unreadable = document["unreadable"]
+    assert (unreadable["entry_number"], unreadable["ticker"], unreadable["method_id"]) == (2, "MSFT", "sma_crossover")
+    assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(unreadable["reason"])
+    assert "Remove it with" not in unreadable["reason"]

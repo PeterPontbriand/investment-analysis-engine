@@ -27,13 +27,13 @@ class StoredSelectionError(ValueError):
     "saved by an earlier version (selection version 1) and can no longer be read"), before it
     knows which entry it was decoding. The repository, which does know, raises it again naming the
     entry: the message is then ``Watchlist 'Core', entry 2 (MSFT, momentum): <clause>.`` and the
-    watchlist name, the 1-based entry number, the ticker and the method name are fields. The message
-    never names a command that removes the entry; a caller that offers one builds it from the fields.
+    watchlist name, the 1-based entry number, the ticker, the method name and the stored method identifier are fields.
+    The message never names a command that removes the entry; a caller that offers one builds it from the fields.
     """
 
     reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.STORED_SELECTION_UNREADABLE
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         clause: str,
         *,
@@ -41,11 +41,12 @@ class StoredSelectionError(ValueError):
         entry_number: int | None = None,
         ticker: str | None = None,
         method: str | None = None,
+        method_id: str | None = None,
     ) -> None:
-        """Keep the clause, or name the entry when all four of its fields are given."""
-        named = (watchlist_name, entry_number, ticker, method)
+        """Keep the clause, or name the entry when all five of its fields are given."""
+        named = (watchlist_name, entry_number, ticker, method, method_id)
         if any(field is not None for field in named) and any(field is None for field in named):
-            raise ValueError("StoredSelectionError names an entry by all of its four fields or by none.")
+            raise ValueError("StoredSelectionError names an entry by all of its five fields or by none.")
         if watchlist_name is None:
             message = clause
         else:
@@ -55,6 +56,7 @@ class StoredSelectionError(ValueError):
         self.entry_number = entry_number
         self.ticker = ticker
         self.method = method
+        self.method_id = method_id
 
 
 class WatchlistNotFoundError(ValueError):
@@ -99,24 +101,6 @@ class WatchlistSpec(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     display_name: str
-
-
-def normalize_ticker(value: str) -> str:
-    """Normalize a member ticker using the existing uppercase/trim convention.
-
-    Args:
-        value: A raw ticker, possibly carrying a venue suffix.
-
-    Returns:
-        The trimmed, uppercased ticker with any venue suffix preserved.
-
-    Raises:
-        ValueError: If the normalized ticker is empty.
-    """
-    normalized = value.strip().upper()
-    if not normalized:
-        raise ValueError("ticker must not be empty.")
-    return normalized
 
 
 def encode_selection(selection: AnalysisSelection) -> str:
@@ -172,6 +156,5 @@ __all__ = [
     "WatchlistSpec",
     "decode_selection",
     "encode_selection",
-    "normalize_ticker",
     "not_found_message",
 ]

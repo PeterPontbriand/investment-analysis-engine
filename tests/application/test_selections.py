@@ -79,7 +79,14 @@ def test_a_timestamp_without_an_offset_is_rejected_under_as_of() -> None:
 def test_an_as_of_that_is_not_a_date_is_rejected_under_as_of() -> None:
     error = _rejection(PIOTROSKI.method_id, {"as_of": 5})
 
-    assert (error.parameters, error.rule) == (("as_of",), "pydantic.date_type")
+    assert (error.parameters, error.rule) == (("as_of",), "selection.as_of_type")
+    assert str(error) == "as_of must be a date, a timestamp or text."
+
+
+def test_an_as_of_given_as_text_is_read_by_build_selection() -> None:
+    selection = build_selection(CONTEXT, PIOTROSKI.method_id, {"as_of": "2025-12-31"})
+
+    assert selection.as_of == datetime(2025, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
 
 
 def test_omitted_momentum_fields_are_filled_from_the_settings_and_given_ones_are_kept(tmp_path: Path) -> None:
@@ -206,10 +213,13 @@ def test_a_currency_that_is_not_an_iso_code_is_rejected_under_its_field() -> Non
     assert build_selection(CONTEXT, FCF_GROWTH.method_id, {"currency": " eur "}).currency == "EUR"  # type: ignore[union-attr]
 
 
-def test_only_the_first_error_is_reported() -> None:
+def test_every_error_is_listed_in_field_order_and_the_first_is_the_errors_own() -> None:
     error = _rejection(GRAHAM_NUMBER.method_id, {"eps_override": float("inf"), "bvps_override": float("nan")})
 
     assert error.parameters == ("eps_override",)
+    assert [item.action_parameters for item in error.errors] == [("eps_override",), ("bvps_override",)]
+    assert [violation.parameters for violation in error.violations] == [("eps_override",), ("bvps_override",)]
+    assert error.violations[0].message == str(error)
 
 
 def test_as_of_text_is_a_date_or_a_timestamp_as_written() -> None:

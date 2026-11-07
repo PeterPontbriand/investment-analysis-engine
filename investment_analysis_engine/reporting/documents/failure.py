@@ -11,7 +11,7 @@ an action, and ``database`` carries facts about the target, not instructions.
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 from investment_analysis_engine.core.failure_codes import (
     PROVIDER_FAILURE_CODES,
@@ -30,6 +30,22 @@ class FailureDiagnostic(BaseModel):
 
     rule: str
     reason: str
+
+
+class FailureRuleError(BaseModel):
+    """One rejected argument: the rule that rejected it, the parameters it names, the values and the message."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    rule: str = Field(description="The stable identifier of the rule, such as momentum.window_order.")
+    parameters: tuple[str, ...] = Field(description="The parameters the rule names, spelled as the caller does.")
+    arguments: dict[str, JsonValue] = Field(
+        description=(
+            "The values the message shows, by name. A non-finite number is its text (inf, -inf, nan), a date or "
+            "timestamp is ISO 8601 text, and anything JSON cannot carry is its text."
+        )
+    )
+    message: str = Field(description="The rule's message for a person; it carries no guarantee.")
 
 
 class FailureDatabase(BaseModel):
@@ -55,7 +71,7 @@ class FailureEnvelope(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[11] = 11
+    schema_version: Literal[12] = 12
     status: FailureStatus
     reason_code: FailureReasonCode
     reason: str
@@ -76,6 +92,13 @@ class FailureEnvelope(BaseModel):
             "Set exactly when reason_code is invalid_parameter: the offending options (declared primary long "
             "spelling), command arguments (upper-case name) and API query or path parameters (their name); "
             "null otherwise."
+        ),
+    )
+    errors: tuple[FailureRuleError, ...] | None = Field(
+        default=None,
+        description=(
+            "Set exactly when reason_code is invalid_parameter and a rule rejected the argument: every rejection in "
+            "field order, the first being the one reason and parameters describe; null otherwise."
         ),
     )
     result: None = Field(default=None, description="Always null, so success and failure share top-level keys.")
@@ -104,6 +127,8 @@ class FailureEnvelope(BaseModel):
             raise ValueError("parameters is set exactly when reason_code is invalid_parameter.")
         if self.parameters is not None and (not self.parameters or not all(self.parameters)):
             raise ValueError("parameters must name at least one parameter, each non-empty.")
+        if self.errors is not None and (not self.errors or self.reason_code is not FailureReasonCode.INVALID_PARAMETER):
+            raise ValueError("errors is set only for invalid_parameter, and then holds at least one error.")
         if self.database is not None and not self.reason_code.value.startswith("database_"):
             raise ValueError("database is set only for a database_* reason_code.")
         if self.reason_code in PROVIDER_FAILURE_CODES:
@@ -126,4 +151,5 @@ __all__ = [
     "FailureDatabase",
     "FailureDiagnostic",
     "FailureEnvelope",
+    "FailureRuleError",
 ]

@@ -460,7 +460,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show``, ``create``, ``add-selection``, ``remove-entry``, ``remove-ticker``,\n``remove-method`` and ``rename``.\n\nThis document is unversioned: it has no ``schema_version``.",
+  "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show``, ``create`` and ``add-selection``; the API serves it for a watchlist, for a created\nwatchlist and for an added entry, and the result documents below nest it.",
   "properties": {
     "created_at": {
       "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
@@ -478,6 +478,12 @@
       },
       "title": "Entries",
       "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
     },
     "updated_at": {
       "anyOf": [

@@ -22,6 +22,7 @@ validation time.
 from pydantic import field_validator
 
 from investment_analysis_engine.analysis.selection_base import FrozenSelection
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 
 
@@ -34,7 +35,4 @@ class AnalysisRequest(FrozenSelection):
     @field_validator("ticker")
     @classmethod
     def _normalize_ticker(cls, value: str) -> str:
-        normalized = value.strip().upper()
-        if not normalized:
-            raise ValueError("ticker must not be empty.")
-        return normalized
+        return normalize_ticker(value)

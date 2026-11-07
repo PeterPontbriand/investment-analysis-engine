@@ -22,6 +22,9 @@ STATUS_BY_CODE: Mapping[FailureReasonCode, int] = MappingProxyType(
         FailureReasonCode.NOT_AUTHENTICATED: 401,
         FailureReasonCode.ANALYSIS_RUN_NOT_FOUND: 404,
         FailureReasonCode.WATCHLIST_NOT_FOUND: 404,
+        FailureReasonCode.WATCHLIST_ENTRY_NOT_FOUND: 404,
+        FailureReasonCode.WATCHLIST_NAME_CONFLICT: 409,
+        FailureReasonCode.STORED_SELECTION_UNREADABLE: 409,
         FailureReasonCode.ENDPOINT_NOT_FOUND: 404,
         FailureReasonCode.DATABASE_BUSY: 503,
     }
@@ -34,6 +37,23 @@ def document_body(document: BaseModel) -> bytes:
     return json.dumps(
         document.model_dump(mode="json"), ensure_ascii=False, allow_nan=False, separators=(",", ":")
     ).encode("utf-8")
+
+
+class DescribedFailure(Exception):  # noqa: N818 - it names the failure it carries, as the application's errors do
+    """A failure an operation has already described: its code, a message safe to show as written, and its cause.
+
+    Attributes:
+        code: The failure's stable code.
+        message: The text shown to the client, as written.
+        cause: The exception the failure was described from, which supplies the envelope's details.
+    """
+
+    def __init__(self, code: FailureReasonCode, message: str, cause: BaseException) -> None:
+        """Keep the code, the message and the cause."""
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.cause = cause
 
 
 def document_response(document: BaseModel, *, status: int = 200, headers: Mapping[str, str] | None = None) -> Response:
@@ -69,6 +89,7 @@ __all__ = [
     "DEFAULT_FAILURE_STATUS",
     "STATUS_BY_CODE",
     "document_body",
+    "DescribedFailure",
     "document_response",
     "failure_of",
     "failure_response",

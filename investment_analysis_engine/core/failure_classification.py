@@ -18,6 +18,7 @@ from investment_analysis_engine.core.failure_codes import (
     FailureStatus,
     status_for,
 )
+from investment_analysis_engine.core.operator_errors import RuleViolation
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure, ProviderFailureInput
 from investment_analysis_engine.core.provider_failure_kind import (
     PROVIDER_KIND_PRECEDENCE,
@@ -94,6 +95,17 @@ def parameters_of_exception(exception: BaseException) -> tuple[str, ...] | None:
     return None
 
 
+def violations_of_exception(exception: BaseException) -> tuple[RuleViolation, ...] | None:
+    """Return the rule violations an exception declares in ``violations``, or ``None`` when it declares none.
+
+    Like :func:`parameters_of_exception`, the function names no exception type.
+    """
+    found = getattr(exception, "violations", None)
+    if isinstance(found, tuple) and found and all(isinstance(item, RuleViolation) for item in found):
+        return found
+    return None
+
+
 def failure_reason_code(
     native_status: CalculationStatus, provider_failure: ProviderFailure | None
 ) -> FailureReasonCode:
@@ -116,4 +128,5 @@ __all__ = [
     "parameters_of_exception",
     "provider_failure_of",
     "provider_failure_of_exception",
+    "violations_of_exception",
 ]
