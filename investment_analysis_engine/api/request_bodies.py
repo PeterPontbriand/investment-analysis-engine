@@ -6,9 +6,12 @@ a plain ``InvalidParameterError``: it comes from the shape of the request, not f
 """
 
 import json
+import math
 from collections.abc import Mapping
+from typing import NoReturn
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
+from starlette.requests import Request
 
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 
@@ -17,6 +20,9 @@ BODY_PARAMETER = "body"
 
 JSON_MEDIA_TYPE = "application/json"
 """The one media type a body may have."""
+
+MAX_REQUEST_BODY_BYTES = 1_048_576
+"""The most bytes a request body may have; a larger one is rejected without being read whole."""
 
 
 class RequestBody(BaseModel):
@@ -87,12 +93,56 @@ def _path(location: tuple[int | str, ...]) -> str:
     return path
 
 
+def _too_large() -> InvalidParameterError:
+    """Return the rejection of a body over :data:`MAX_REQUEST_BODY_BYTES`."""
+    return InvalidParameterError(
+        f"The request body must not be larger than {MAX_REQUEST_BODY_BYTES} bytes.", parameters=(BODY_PARAMETER,)
+    )
+
+
+async def read_body(request: Request) -> bytes:
+    """Return the request's body, refusing one over :data:`MAX_REQUEST_BODY_BYTES`.
+
+    A declared ``Content-Length`` that is an integer over the limit is refused before anything is read; the bytes
+    actually received are counted as they arrive, so a body with no length or a false one is stopped at the limit and
+    never held whole.
+
+    Raises:
+        InvalidParameterError: If the body is larger than the limit; the parameter is ``body``.
+    """
+    declared = request.headers.get("content-length")
+    if declared is not None and declared.isascii() and declared.isdigit() and int(declared) > MAX_REQUEST_BODY_BYTES:
+        raise _too_large()
+    received = bytearray()
+    async for chunk in request.stream():
+        received.extend(chunk)
+        if len(received) > MAX_REQUEST_BODY_BYTES:
+            raise _too_large()
+    return bytes(received)
+
+
+def _reject_constant(token: str) -> NoReturn:
+    """Refuse ``NaN``, ``Infinity`` and ``-Infinity``, which Python reads but JSON does not define."""
+    raise ValueError(f"{token} is not a JSON number.")
+
+
+def _finite_float(text: str) -> float:
+    """Read a JSON number with a fraction or exponent, refusing one too large for a float (``1e999``)."""
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError(f"{text} is not a finite number.")
+    return value
+
+
 def read_json_object(content_type: str | None, body: bytes) -> Mapping[str, object]:
     """Return the JSON object a request carries.
 
+    ``NaN``, ``Infinity``, ``-Infinity`` and a number too large for a float are not JSON numbers a field can hold and
+    are refused wherever they stand in the body.
+
     Raises:
         InvalidParameterError: If the content type is missing or not ``application/json``, or the body is not one JSON
-            object; the parameter is ``body``.
+            object or holds a non-standard number; the parameter is ``body``.
     """
     media_type = (content_type or "").split(";", maxsplit=1)[0].strip().lower()
     if media_type != JSON_MEDIA_TYPE:
@@ -100,9 +150,13 @@ def read_json_object(content_type: str | None, body: bytes) -> Mapping[str, obje
             f"The request must have the content type {JSON_MEDIA_TYPE}.", parameters=(BODY_PARAMETER,)
         )
     try:
-        document = json.loads(body)
-    except ValueError:
-        raise InvalidParameterError("The request body must be a JSON object.", parameters=(BODY_PARAMETER,)) from None
+        document = json.loads(body, parse_constant=_reject_constant, parse_float=_finite_float)
+    except ValueError as exc:
+        if isinstance(exc, json.JSONDecodeError):
+            message = "The request body must be a JSON object."
+        else:
+            message = "The request body must not contain NaN, Infinity or a number too large to store."
+        raise InvalidParameterError(message, parameters=(BODY_PARAMETER,)) from None
     if not isinstance(document, dict):
         raise InvalidParameterError("The request body must be a JSON object.", parameters=(BODY_PARAMETER,))
     return document
@@ -132,12 +186,14 @@ def read_request[BodyT: RequestBody](model: type[BodyT], document: Mapping[str, 
 __all__ = [
     "BODY_PARAMETER",
     "JSON_MEDIA_TYPE",
+    "MAX_REQUEST_BODY_BYTES",
     "AddEntriesRequest",
     "AnalysisRequest",
     "RemoveMethodRequest",
     "RemoveTickersRequest",
     "RequestBody",
     "WatchlistNameRequest",
+    "read_body",
     "read_json_object",
     "read_request",
 ]

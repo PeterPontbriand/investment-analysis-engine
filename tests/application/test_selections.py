@@ -79,7 +79,14 @@ def test_a_timestamp_without_an_offset_is_rejected_under_as_of() -> None:
 def test_an_as_of_that_is_not_a_date_is_rejected_under_as_of() -> None:
     error = _rejection(PIOTROSKI.method_id, {"as_of": 5})
 
-    assert (error.parameters, error.rule) == (("as_of",), "pydantic.date_type")
+    assert (error.parameters, error.rule) == (("as_of",), "selection.as_of_type")
+    assert str(error) == "as_of must be a date, a timestamp or text."
+
+
+def test_an_as_of_given_as_text_is_read_by_build_selection() -> None:
+    selection = build_selection(CONTEXT, PIOTROSKI.method_id, {"as_of": "2025-12-31"})
+
+    assert selection.as_of == datetime(2025, 12, 31, 23, 59, 59, 999999, tzinfo=UTC)
 
 
 def test_omitted_momentum_fields_are_filled_from_the_settings_and_given_ones_are_kept(tmp_path: Path) -> None:

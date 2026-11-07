@@ -91,20 +91,23 @@ What changed, by area:
     `success_status`, and nine routes are added (the selection form and the eight actions). Every route declares exactly
     the statuses it can give; `GET /v1/watchlists/{watchlist_id}` gains 409, because reading a watchlist can meet an
     unreadable entry;
-  - `request_bodies.py`: the strict body models, `read_json_object` and `read_request`. A body field is named by its path
-    (`tickers[1]`, `selection.policy.historical_horizon`);
+  - `request_bodies.py`: the strict body models, `read_body`, `read_json_object` and `read_request`. A body field is named
+    by its path (`tickers[1]`, `selection.policy.historical_horizon`); a body has a size limit and refuses non-standard
+    numbers ([J24](#j24-a-request-body-has-a-size-limit-2026-11-06),
+    [J25](#j25-non-standard-json-numbers-are-refused-2026-11-06));
   - `handlers.py`: a route with a body reads it in an `async` shim and runs the synchronous operation in the thread pool
     ([S40](API_2_SLICE_PLAN.md#s40-synchronous-handlers-2026-11-03) stands for the operations). The handlers call the
     existing application operations; a selection is built by `build_selection`, and its errors are renamed
     `selection.<field>` ([J8](#j8-as_of-in-a-selection-is-text-2026-11-06));
-  - `selection_forms.py`: `selection_schema` moved here from `scripts/generate_schemas.py`, which imports it, so the form
-    and the published file come from one code path; the form document; the configured defaults;
+  - `selection_forms.py`: the form document and its builder, and the configured defaults. The schema comes from
+    `selection_schema` in `application/selections.py`, which `scripts/generate_schemas.py` also imports, so the form and the
+    published file come from one code path ([J21](#j21-the-selection-schema-lives-beside-build_selection-2026-11-06));
   - `documents.py`: the analysis document and its text;
   - `responses.py`: 409 for `watchlist_name_conflict` and `stored_selection_unreadable`, 404 for
     `watchlist_entry_not_found`; `checks.py`: the preflight lists the table's methods and `Authorization, Content-Type`.
 - **`application`:** `build_selection` collects every field error, and `ActionParameterError.several(...)` carries them;
-  `named(...)` spells each in the caller's names. A pre-check (a fixed field, an undeclared method, an `as_of` that is not
-  a date) is still raised alone, before the model validates.
+  `named(...)` spells each in the caller's names. A fixed field and every `as_of` error join the list; only an undeclared
+  method is raised alone ([J22](#j22-pre-check-errors-join-the-error-list-2026-11-06)).
 - **`core` and `reporting`:** `RuleViolation` and `InvalidParameterError.violations`; `FailureEnvelope` goes to version 12
   and gains `errors` (`FailureRuleError`: `rule`, `parameters`, `arguments`, `message`); `json_argument` makes a rule
   argument a JSON value.
@@ -134,6 +137,9 @@ User-visible changes:
 - `GET /v1/watchlists/{watchlist_id}` answers 409 `stored_selection_unreadable` for a watchlist holding an unreadable
   entry; it answered 500.
 - A preflight allows `GET, POST, PATCH, DELETE` and `Authorization, Content-Type`.
+- A request body over 1,048,576 bytes, or one holding `NaN`, `Infinity`, `-Infinity` or a number too large for a float,
+  is `400 invalid_parameter` naming `body`.
+- A save failure in `POST /v1/analyses` names the ticker, as the command line does.
 - No stored shape, `config_schema_version`, formula, classification or dependency changed.
 
 Re-recorded files under `tests/expected_output/workspace_commands/`: `watchlist-add-selection-json.txt`,
@@ -159,7 +165,7 @@ Tests edited, and why:
   unreadable cases now write the result document under `--json`, and a text-mode case pins the unchanged behavior).
 - `StoredSelectionError`'s fifth field: `tests/workspace/test_watchlists.py`.
 - Every error at once: `tests/application/test_selections.py` (the first-error-only test).
-- The moved selection schema: `tests/scripts/test_generate_schemas.py` imports it from `api/selection_forms.py`.
+- The moved selection schema: `tests/scripts/test_generate_schemas.py` imports it from `application/selections.py`.
 
 Tests added: `tests/api/test_actions.py` (every route: success, each failure status it declares, an unknown field, a bad
 or missing content type, an unparseable body, parameter naming by body path, a nested selection field, the unreadable
@@ -176,15 +182,37 @@ Accepted deviations:
   `endpoint_not_found`: an unknown path segment never gave 404 `endpoint_not_found` (that code is for an unrouted path), and
   every other place a method identifier is checked, in a query or a body, already answers `invalid_parameter`.
 - `selection_schema` and `FIXED_SELECTION_FIELDS` moved from `scripts/generate_schemas.py` into
-  `investment_analysis_engine/api/selection_forms.py`, because the package cannot import `scripts`.
-- A pre-check of `build_selection` is raised alone; only the model's field errors are listed together.
+  `investment_analysis_engine/application/selections.py`, because the package cannot import `scripts`.
 - A failure while saving the result of an analysis is answered with the save message and its classified code, as the
   command line reports it, in place of the fixed `execution_error` message.
 
-Noticed for later slices:
+Review fixes (2026-11-06, [J21](#j21-the-selection-schema-lives-beside-build_selection-2026-11-06) to
+[J26](#j26-plan-records-2026-11-06)): the project owner reviewed the branch and approved these fixes, all done. No stored
+shape, formula, classification or dependency changed, and no CLI text, help or exit code.
 
-- A body has no size limit.
-- A selection's `as_of` text that fails to parse is reported before the other fields' errors, because it is parsed first.
+- **R1 (J21).** `selection_schema` and `FIXED_SELECTION_FIELDS` are in `application/selections.py`; `build_selection` uses
+  the constant, `api/selection_forms.py` and `scripts/generate_schemas.py` import the function, and the script no longer
+  imports `api`. The published schemas did not change.
+- **R2 (J22).** `build_selection` lists a fixed field, every `as_of` error and every field error together, in field order,
+  and accepts `as_of` as text. The API handler no longer parses or type-checks `as_of`.
+- **R3 (J23).** The analysis handler describes a save failure with the ticker; the generic branch is gone.
+- **R4 (J24).** `MAX_REQUEST_BODY_BYTES` and `read_body`; `docs/user/API.md` states the limit.
+- **R5 (J25).** `NaN`, `Infinity`, `-Infinity` and a number too large for a float are refused in a body.
+- **R6 (J26).** These records, and the pointer line under S40 in API.2.
+
+Tests edited, and why: `tests/application/test_selections.py` (a non-date `as_of` has the rule `selection.as_of_type`, and the
+first-error-only cases list the pre-checks); `tests/api/test_actions.py` (a number as `as_of` has an `errors` list; the save
+failure names the ticker and carries the classified code; the schema import moved); `tests/scripts/test_generate_schemas.py`
+(the schema import moved); `tests/api/test_rule_error_lists.py` (the API test that sent `Infinity` and `NaN` now sends two
+text values for number fields, because those tokens are refused).
+
+Tests added: `tests/api/test_request_body_limits.py` (a declared length over the limit, a body over it with no length or a
+false one, a body at the limit, each non-standard number nested in `selection`, and an ordinary syntax error keeping its
+message) and, in `tests/api/test_rule_error_lists.py` and `tests/application/test_selections.py`, each pre-check alone with its
+rule, `parameters` and message, the command line's messages and exit codes for a bad `--as-of`, and an invalid `as_of` text
+with invalid field values listed in field order through `build_selection` and `POST /v1/analyses`.
+
+Noticed for later slices: nothing further.
 
 ## 4. Scope limits and acceptance criteria
 
@@ -364,3 +392,56 @@ proceed normally. API.4b documents this in `docs/user/API.md`.
 On shutdown with a job running, the server sets the job's cancellation event, waits up to the same 5-second grace
 ([S26](API_2_SLICE_PLAN.md#s26-stopping-2026-11-03)) and exits. An admitted job not finished by then is not saved. This is
 the one exception to [W50](API_3_SLICE_PLAN.md#w50-an-admitted-job-always-runs-2026-11-06).
+
+### J21 The selection schema lives beside `build_selection` (2026-11-06)
+
+Amends the record of API.4a's `selection_forms.py`. `selection_schema` and the one declaration of the fixed fields,
+`FIXED_SELECTION_FIELDS`, are in `application/selections.py`, next to `build_selection`, which uses the same constant. The
+selection form builder in `api/selection_forms.py` and `scripts/generate_schemas.py` import the schema function from
+`application`; the script no longer imports `api`. The published selection schemas and `openapi.json` are byte for byte
+unchanged.
+
+### J22 Pre-check errors join the error list (2026-11-06)
+
+Amends [J13](#j13-every-error-at-once-2026-11-06), [W27](API_3_SLICE_PLAN.md#w27-build_selections-place-and-input-2026-11-05)
+and [W43](API_3_SLICE_PLAN.md#w43-the-as-of-syntax-parser-is-in-the-application-layer-2026-11-06). `build_selection` reports
+in one `ActionParameterError` list, in the model's field order, a fixed field present in the request, every `as_of` error
+and every model field error. Only an undeclared `method_id` is raised alone, because there is then no model to validate.
+`build_selection` accepts `as_of` as a date, a timestamp with an offset, or text; text is read by `parse_as_of_text` inside
+the same pass, so an empty or malformed `as_of` is listed with the field errors. A value of any other type has the rule
+`selection.as_of_type` and the message "{as_of} must be a date, a timestamp or text.", which replaces both the API's
+"selection.as_of must be a string." and the built-in `pydantic.date_type` for this case. The command line still parses
+`--as-of` itself and names its errors `--as-of`, so every single-error message, `parameters` value and exit code is
+unchanged.
+
+### J23 A save failure names the ticker (2026-11-06)
+
+Amends [J12](#j12-failure-statuses-2026-11-06). The analysis handler describes a failure to save with
+`describe_failure(cause, <the ticker>, saving=True)`, so the message is "<TICKER> was analyzed, but the result could not be
+saved.", as the command line reports it. The generic branch for a saving failure in the error mapping is removed; no other
+caller reaches it.
+
+### J24 A request body has a size limit (2026-11-06)
+
+Amends [J5](#j5-request-bodies-2026-11-06). `MAX_REQUEST_BODY_BYTES` is 1,048,576 in `api/request_bodies.py`. A body over it
+is `400 invalid_parameter` with the parameter `body`; the message states the limit in bytes. A `Content-Length` that is an
+integer over the limit is refused before anything is read, and the bytes actually received are counted as they arrive from
+`request.stream()`, so a body with no length or a false one is stopped at the limit and never held whole. No reason code and no
+status is added.
+
+### J25 Non-standard JSON numbers are refused (2026-11-06)
+
+Amends [J5](#j5-request-bodies-2026-11-06). A body holding `NaN`, `Infinity` or `-Infinity` anywhere is
+`400 invalid_parameter` with the parameter `body` and the message "The request body must not contain NaN, Infinity or a
+number too large to store.". A number too large for a float (`1e999`) is refused the same way, because Python reads it as
+infinity and it would otherwise reach a field as the value the first rule refuses. A body that is not JSON keeps "The
+request body must be a JSON object.". A non-finite argument can therefore reach the failure envelope only from a caller of
+`build_selection`, never from the API.
+
+### J26 Plan records (2026-11-06)
+
+Records the review fixes. A route with a body reads it in one asynchronous step and runs its operation in the thread pool,
+which is noted under [S40](API_2_SLICE_PLAN.md#s40-synchronous-handlers-2026-11-03). The change of
+`GET /v1/watchlists/{watchlist_id}` from 500 to 409 `stored_selection_unreadable` for an unreadable entry is a defect fix
+and not an addition under [S4](API_2_SLICE_PLAN.md): a 500 told clients the condition was unexpected, and it is corrected
+before any client is built against it.

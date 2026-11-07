@@ -24,7 +24,8 @@ from pydantic.json_schema import models_json_schema
 
 from investment_analysis_engine.api.documents import API_VERSIONS, AnalysisDocument, installed_engine_version
 from investment_analysis_engine.api.routes import ROUTES, RouteSpec
-from investment_analysis_engine.api.selection_forms import SelectionFormDocument, selection_schema
+from investment_analysis_engine.api.selection_forms import SelectionFormDocument
+from investment_analysis_engine.application.selections import selection_schema
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from scripts.repository_root import REPOSITORY_ROOT
 

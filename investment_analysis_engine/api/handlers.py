@@ -31,6 +31,7 @@ from investment_analysis_engine.api.request_bodies import (
     RemoveTickersRequest,
     RequestBody,
     WatchlistNameRequest,
+    read_body,
     read_json_object,
     read_request,
 )
@@ -56,7 +57,7 @@ from investment_analysis_engine.application.runs import (
     replay_run_document,
     replay_run_text,
 )
-from investment_analysis_engine.application.selections import build_selection, parse_as_of_text
+from investment_analysis_engine.application.selections import build_selection
 from investment_analysis_engine.application.watchlists import (
     add_watchlist_entries,
     create_watchlist,
@@ -113,7 +114,7 @@ class RequestParameters:
     request: RequestBody | None = None
 
 
-type Operation = Callable[[ApplicationContext, RequestParameters], BaseModel]
+type Operation = Callable[[ApplicationContext, RequestParameters], BaseModel | Response]
 
 
 def _uuid(parameters: RequestParameters, name: str, kind: str) -> UUID:
@@ -155,9 +156,6 @@ def error_response(exception: Exception) -> Response:
     An exception that declares its own failure code keeps its message; any other is an ``execution_error`` with one
     fixed message, and its detail and traceback go to the log, so no library text reaches the client.
     """
-    if isinstance(exception, SavingFailureError):
-        description = describe_failure(exception.cause, None, saving=True)
-        return failure_response(failure_envelope(description.code, description.message, cause=exception.cause))
     if isinstance(getattr(exception, "reason_code", None), FailureReasonCode):
         classification = classify_failure(exception)
         try:
@@ -181,7 +179,10 @@ def _serve(
     try:
         body = None if route.request is None or document is None else read_request(route.request, document)
         parameters = RequestParameters(path=request.path_params, query=_query_values(request, route), request=body)
-        return document_response(operation(context, parameters), status=route.success_status)
+        outcome = operation(context, parameters)
+        if isinstance(outcome, Response):
+            return outcome
+        return document_response(outcome, status=route.success_status)
     except Exception as exc:
         return error_response(exc)
 
@@ -201,7 +202,7 @@ def endpoint_for(route: RouteSpec, operation: Operation, context: ApplicationCon
 
     async def body_endpoint(request: Request) -> Response:
         try:
-            document = read_json_object(request.headers.get("content-type"), await request.body())
+            document = read_json_object(request.headers.get("content-type"), await read_body(request))
         except Exception as exc:
             return error_response(exc)
         return await run_in_threadpool(_serve, route, operation, context, request, document)
@@ -298,14 +299,8 @@ def _selection_names(error: ActionParameterError) -> dict[str, str]:
 
 def _selection(context: ApplicationContext, method_id: str, fields: Mapping[str, JsonValue]) -> SelectionMember:
     """Build the selection a request describes; its errors are named by their path in the request."""
-    values: dict[str, object] = dict(fields)
     try:
-        boundary = values.get("as_of")
-        if isinstance(boundary, str):
-            values["as_of"] = parse_as_of_text(boundary)
-        elif boundary is not None:
-            raise InvalidParameterError("selection.as_of must be a string.", parameters=("selection.as_of",))
-        return build_selection(context, method_id, values)
+        return build_selection(context, method_id, fields)
     except ActionParameterError as error:
         raise error.named(_selection_names(error)) from None
 
@@ -361,14 +356,19 @@ def _selection_form(context: ApplicationContext, parameters: RequestParameters) 
     return build_selection_form_document(context, parameters.path["method_id"])
 
 
-def _analyze(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+def _analyze(context: ApplicationContext, parameters: RequestParameters) -> BaseModel | Response:
     body = _body(parameters, AnalysisRequest)
     ticker = body.ticker.strip().upper()
     if not ticker:
         raise InvalidParameterError("ticker must be a non-empty symbol.", parameters=("ticker",))
     selection = _selection(context, body.method_id, body.selection)
     provider_check = context.settings.provider_check if body.provider_check is None else body.provider_check
-    outcome = analyze(context, ticker, selection, save=body.save, provider_check=provider_check)
+    try:
+        outcome = analyze(context, ticker, selection, save=body.save, provider_check=provider_check)
+    except SavingFailureError as exc:
+        # The analysis finished but its result could not be saved: describe it as the command line does, by ticker.
+        description = describe_failure(exc.cause, ticker, saving=True)
+        return failure_response(failure_envelope(description.code, description.message, cause=exc.cause))
     return AnalysisDocument(
         analysis_run_id=outcome.analysis_run_id,
         document=outcome.document,

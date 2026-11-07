@@ -119,15 +119,14 @@ def test_the_error_list_belongs_to_invalid_parameter_only() -> None:
         )
 
 
-def test_the_api_lists_every_error_with_its_values_and_a_non_finite_value_as_text(
-    isolated_cli_settings: ProjectSettings,
-) -> None:
-    body = (
-        b'{"ticker": "KO", "method_id": "%s", "selection": {"eps_override": Infinity, "bvps_override": NaN}}'
-        % GRAHAM_NUMBER.method_id.encode()
-    )
+def test_the_api_lists_every_error_with_its_rule_and_message(isolated_cli_settings: ProjectSettings) -> None:
+    body = {
+        "ticker": "KO",
+        "method_id": GRAHAM_NUMBER.method_id,
+        "selection": {"eps_override": "x", "bvps_override": "y"},
+    }
     with client_for(isolated_cli_settings) as client:
-        response = client.post("/v1/analyses", content=body, headers={**AUTH, "Content-Type": "application/json"})
+        response = client.post("/v1/analyses", json=body, headers=AUTH)
 
     failure = response.json()
     assert response.status_code == 400
@@ -137,10 +136,8 @@ def test_the_api_lists_every_error_with_its_values_and_a_non_finite_value_as_tex
         ["selection.bvps_override"],
     ]
     assert failure["reason"] == failure["errors"][0]["message"]
-    assert (
-        failure["errors"][0]["message"] == "Invalid selection.eps_override: Financial override must be a finite number."
-    )
-    assert failure["errors"][0]["rule"] == "graham-number.override_not_finite"
+    assert failure["errors"][0]["message"] == "Invalid selection.eps_override: Input should be a valid number"
+    assert failure["errors"][1]["rule"] == "pydantic.float_type"
 
 
 def test_the_api_lists_a_rule_with_its_named_values(isolated_cli_settings: ProjectSettings) -> None:
@@ -179,3 +176,115 @@ def test_the_command_line_message_and_exit_code_are_those_of_the_first_error_and
     assert [item["parameters"] for item in document["errors"]] == [["--eps"], ["--bvps"]]
     assert document["errors"][1]["message"] == "Invalid --bvps: Financial override must be a finite number."
     assert document["schema_version"] == 12
+
+
+# --- Pre-checks join the list (R2) ---------------------------------------------------------------------------------
+
+
+def _graham_rejection(fields: dict[str, object], settings: ProjectSettings) -> ActionParameterError:
+    with pytest.raises(ActionParameterError) as caught:
+        build_selection(ApplicationContext(settings=settings), GRAHAM_NUMBER.method_id, fields)
+    return caught.value
+
+
+@pytest.mark.parametrize(
+    ("fields", "rule", "parameters", "message"),
+    [
+        (
+            {"analysis_id": "x"},
+            "pydantic.extra_forbidden",
+            ("analysis_id",),
+            "Invalid analysis_id: Extra inputs are not permitted",
+        ),
+        ({"as_of": " "}, "selection.as_of_empty", ("as_of",), "as_of must be non-empty when supplied."),
+        (
+            {"as_of": "tomorrow"},
+            "selection.as_of_syntax",
+            ("as_of",),
+            "as_of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp.",
+        ),
+        (
+            {"as_of": datetime(2025, 1, 15, 12)},  # noqa: DTZ001 - the case under test
+            "selection.as_of_offset",
+            ("as_of",),
+            "Timestamp as_of values must include an explicit timezone offset.",
+        ),
+        ({"as_of": 5}, "selection.as_of_type", ("as_of",), "as_of must be a date, a timestamp or text."),
+        (
+            {"eps_override": "x"},
+            "pydantic.float_type",
+            ("eps_override",),
+            "Invalid eps_override: Input should be a valid number",
+        ),
+    ],
+)
+def test_a_single_rejection_keeps_its_rule_parameters_and_message(
+    fields: dict[str, object],
+    rule: str,
+    parameters: tuple[str, ...],
+    message: str,
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    error = _graham_rejection(fields, isolated_cli_settings)
+
+    assert (error.rule, error.parameters, str(error)) == (rule, parameters, message)
+    assert [item.rule for item in error.errors] == [rule]
+
+
+@pytest.mark.usefixtures("isolated_cli_settings")
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("", "--as-of must be non-empty when supplied."),
+        ("tomorrow", "--as-of must be YYYY-MM-DD or a valid timezone-aware ISO-8601 timestamp."),
+        ("2025-01-15T12:00:00", "Timestamp --as-of values must include an explicit timezone offset."),
+    ],
+)
+def test_the_command_line_message_and_exit_code_for_a_bad_as_of_are_unchanged(value: str, message: str) -> None:
+    assert runner.invoke(app, ["watchlist", "create", "Core"]).exit_code == 0
+
+    result = runner.invoke(app, ["watchlist", "add-selection", "momentum", "Core", "KO", "--as-of", value])
+
+    assert result.exit_code == 1
+    assert result.stderr.strip() == message
+
+
+def test_an_invalid_as_of_text_and_invalid_windows_are_listed_in_field_order(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    error = _graham_rejection(
+        {"analysis_id": "x", "eps_override": "x", "bvps_override": "y", "as_of": "tomorrow"}, isolated_cli_settings
+    )
+
+    assert [item.action_parameters for item in error.errors] == [
+        ("analysis_id",),
+        ("eps_override",),
+        ("bvps_override",),
+        ("as_of",),
+    ]
+    assert [item.rule for item in error.errors][-1] == "selection.as_of_syntax"
+
+
+def test_the_api_lists_an_invalid_as_of_text_with_invalid_windows_in_field_order(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    with client_for(isolated_cli_settings) as client:
+        response = client.post(
+            "/v1/analyses",
+            json={
+                "ticker": "KO",
+                "method_id": GRAHAM_NUMBER.method_id,
+                "selection": {"as_of": "tomorrow", "eps_override": "x", "bvps_override": "y"},
+            },
+            headers=AUTH,
+        )
+
+    failure = response.json()
+    assert response.status_code == 400
+    assert [item["parameters"] for item in failure["errors"]] == [
+        ["selection.eps_override"],
+        ["selection.bvps_override"],
+        ["selection.as_of"],
+    ]
+    assert failure["errors"][-1]["rule"] == "selection.as_of_syntax"
+    assert failure["parameters"] == ["selection.eps_override"]

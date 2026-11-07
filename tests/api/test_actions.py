@@ -14,12 +14,11 @@ from starlette.testclient import TestClient
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.api.checks import PREFLIGHT_ALLOWED_METHODS
 from investment_analysis_engine.api.routes import ROUTES
-from investment_analysis_engine.api.selection_forms import FIXED_SELECTION_FIELDS, selection_schema
 from investment_analysis_engine.application.analysis import AnalysisOutcome
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.failures import SavingFailureError
+from investment_analysis_engine.application.failures import SavingFailureError, describe_failure
 from investment_analysis_engine.application.runs import replay_run_document
-from investment_analysis_engine.application.selections import build_selection
+from investment_analysis_engine.application.selections import FIXED_SELECTION_FIELDS, build_selection, selection_schema
 from investment_analysis_engine.application.watchlists import get_watchlist_by_name
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config.component_settings import clear_component_settings_cache
@@ -301,7 +300,7 @@ def test_a_selection_as_of_is_text_parsed_under_its_path(isolated_cli_settings: 
     assert failure["errors"][0]["rule"] == "selection.as_of_syntax"  # type: ignore[index]
     assert failure["errors"][0]["parameters"] == ["selection.as_of"]  # type: ignore[index]
     assert _failure(empty, 400, "invalid_parameter")["parameters"] == ["selection.as_of"]
-    assert _failure(number, 400, "invalid_parameter")["errors"] is None
+    assert _failure(number, 400, "invalid_parameter")["errors"][0]["rule"] == "selection.as_of_type"  # type: ignore[index]
     assert _failure(naive, 400, "invalid_parameter")["parameters"] == ["selection.as_of"]
 
 
@@ -671,8 +670,11 @@ def test_a_run_saved_after_the_analysis_finished_reports_the_save_failure(
         )
 
     failure = response.json()
+    description = describe_failure(OSError("disk"), "KO", saving=True)
     assert response.status_code == 500
-    assert "could not be saved" in failure["reason"]
+    assert failure["reason"] == "KO was analyzed, but the result could not be saved."
+    assert failure["reason"] == description.message
+    assert failure["reason_code"] == description.code.value
     assert "disk" not in response.text
 
 

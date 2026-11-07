@@ -163,7 +163,8 @@ same run as `concise`, `details` and `diagnostics` text. A run that is unavailab
 
 A body is one JSON object with `Content-Type: application/json`; a field is optional only where the table says so. A
 missing or different content type, or a body that is not one JSON object, is `invalid_parameter` with the parameter
-`body`. An unknown field, a missing field or a field of the wrong type is `invalid_parameter` naming the field by its
+`body`. A body is at most 1,048,576 bytes; a larger one, whatever its `Content-Length`, is `invalid_parameter` with the
+parameter `body`, as is one holding `NaN`, `Infinity`, `-Infinity` or a number too large to store. An unknown field, a missing field or a field of the wrong type is `invalid_parameter` naming the field by its
 path: `name`, `tickers`, `tickers[1]`, `selection.short_window`, `selection.policy.historical_horizon`. In `selection`,
 `as_of` is text: `YYYY-MM-DD` (the end of that day, UTC) or an ISO 8601 timestamp with a timezone offset.
 

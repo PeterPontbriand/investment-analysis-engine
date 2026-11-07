@@ -664,6 +664,8 @@ CLI's; the CLI's whitespace and key order are not carried over. Tests compare pa
 Endpoint handlers are synchronous (`def`) and run in Starlette's thread pool. Each operation opens its own connection, as
 the `application` operations already do.
 
+Extended by [J26](API_4_SLICE_PLAN.md#j26-plan-records-2026-11-06): a route with a body reads it in one asynchronous step and runs its operation in the thread pool.
+
 ### S41 One route table (2026-11-03)
 
 One declared route table in `api` lists each route's method, path, parameters and response model for each status code.

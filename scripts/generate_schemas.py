@@ -21,7 +21,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from investment_analysis_engine.api.selection_forms import selection_schema
+from investment_analysis_engine.application.selections import selection_schema
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from investment_analysis_engine.workspace_documents.json_documents import DOCUMENTS as GENERIC_DOCUMENTS
 from scripts.repository_root import REPOSITORY_ROOT
