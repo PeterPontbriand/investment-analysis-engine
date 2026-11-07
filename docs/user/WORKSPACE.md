@@ -103,7 +103,7 @@ Adding the same method again for a ticker that already has it with a different s
 uv run ian watchlist add-selection graham-number "Core Holdings" AAPL --bvps 12.5
 ```
 
-Remove one entry by the number `watchlist show` gives it:
+Remove one entry by the number `watchlist show` gives it. Removing an entry renumbers the entries after it, so the displayed numbers never skip:
 
 ```bash
 uv run ian watchlist remove-entry "Core Holdings" 3

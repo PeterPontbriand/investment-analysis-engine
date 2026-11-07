@@ -200,6 +200,7 @@ try {
         throw "No system Python found (tried: py -3, python); cannot run Markdown checks"
     }
     Invoke-Step -Name "check_doc_links" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_doc_links.py"))
+    Invoke-Step -Name "check_help_content" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_help_content.py"))
     Invoke-Step -Name "check_sequence_tables" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_sequence_tables.py"))
     Invoke-Step -Name "check_package_dependencies" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_package_dependencies.py"))
     Invoke-Step -Name "generate_openapi --check" -Executable "uv" -Arguments @("run", "--no-sync", "python", "-m", "scripts.generate_openapi", "--check")
@@ -224,6 +225,7 @@ try {
             "addopts=",
             "-p",
             "no:cacheprovider",
+            "-rs",
             "--durations=20"
         ) + $(if ($ExtraPython) { @() } else { $coverageArguments }) + @(
             "--basetemp=$pytestRoot",
@@ -251,6 +253,7 @@ try {
                 "addopts=",
                 "-p",
                 "no:cacheprovider",
+                "-rs",
                 "--durations=20"
             ) + $coverageArguments + @(
                 "--basetemp=$(Join-Path $runRoot 'pytest-extra')",

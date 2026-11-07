@@ -250,6 +250,8 @@ _ALLOWED_PHRASES: Final = tuple(
         "draft {w}s",
         "failed {w}s",
         "too many {w}s",
+        "two {w}s",
+        "{w}s; the limit",
     )
 )
 """The phrases that count units of text, or describe the text of a plain-English answer."""

@@ -47,7 +47,7 @@ Retains the full technical input evidence and software resolution behavior: prov
 
 ### `--json`
 
-Emits [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation), including the stable result/provenance representation and an explicit nullable security-identity snapshot.
+Emits [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json), including the stable result/provenance representation and an explicit nullable security-identity snapshot.
 
 ## Point-in-time analysis
 

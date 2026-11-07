@@ -34,7 +34,7 @@ Resolved financial values retain enough [provenance](GLOSSARY.md#provenance) to 
 
 ### `as_of` and publication timing
 
-A requested [`as_of`](GLOSSARY.md#as_of) date is a hard information boundary.
+A requested [`as_of`](GLOSSARY.md#as-of-date) date is a hard information boundary.
 
 A company's fiscal year may end on December 31 while the corresponding filing is not published until weeks or months later. A historical analysis dated January 15 must not use a filing that did not become public until February.
 
@@ -50,7 +50,7 @@ A calculation may instead report that:
 - supplied data is invalid; or
 - the method is not applicable to otherwise valid facts.
 
-## Momentum Analysis Strategy
+## Momentum Strategy
 
 Momentum currently implements a deterministic simple-moving-average/crossover calculation.
 
@@ -98,7 +98,7 @@ Machine-readable JSON uses `null` for unavailable numeric outputs rather than no
 
 Historical observations are truncated to `bar_timestamp <= as_of` before any metric is calculated. The short SMA, long SMA, and RSI use typed metric results: insufficient history produces `status = unavailable`, `reason_code = insufficient_history`, and no numeric value. The CLI exposes `--short-window`, `--long-window`, and `--rsi-period`.
 
-See the [Momentum Analysis Strategy Guide](strategies/MOMENTUM.md).
+See the [Momentum Strategy Guide](strategies/MOMENTUM.md).
 
 ## Graham Number Strategy
 

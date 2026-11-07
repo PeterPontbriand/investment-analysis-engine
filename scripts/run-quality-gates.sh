@@ -163,6 +163,7 @@ main() {
         exit 1
     fi
     run_step "check_doc_links" "${system_python[@]}" scripts/check_doc_links.py
+    run_step "check_help_content" "${system_python[@]}" scripts/check_help_content.py
     run_step "check_sequence_tables" "${system_python[@]}" scripts/check_sequence_tables.py
     run_step "check_package_dependencies" "${system_python[@]}" scripts/check_package_dependencies.py
     run_step "generate_openapi --check" uv run --no-sync python -m scripts.generate_openapi --check
@@ -176,6 +177,7 @@ main() {
     run_step "pytest (Python $python_version)" uv run --no-sync pytest \
         -o addopts= \
         -p no:cacheprovider \
+        -rs \
         --durations=20 \
         ${default_coverage[@]+"${default_coverage[@]}"} \
         --basetemp="$windows_pytest_root" \
@@ -207,6 +209,7 @@ main() {
         run_step "pytest (Python $extra_version)" uv run --no-sync pytest \
             -o addopts= \
             -p no:cacheprovider \
+            -rs \
             --durations=20 \
             "${coverage_args[@]}" \
             --basetemp="$windows_run_root/pytest-extra" \
