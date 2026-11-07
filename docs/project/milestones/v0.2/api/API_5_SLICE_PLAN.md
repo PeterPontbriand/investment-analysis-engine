@@ -111,6 +111,9 @@ What changed, by area:
   the phrases `two sentences` and `sentences; the limit`, which count actual sentences
   ([H16](#h16-sentence-where-actual-sentences-are-counted-2026-11-07)); `scripts/check_help_content.py` asks git for the
   repository root once ([H21](#h21-one-repository-root-lookup-2026-11-07)).
+- **Gate change found during the review:** a pytest pass recorded how many tests skipped but not which, so two of six skips
+  could only be inferred. Every pytest pass of both wrappers, including the extra-interpreter pass, and the CI test step now
+  pass `-rs`, which lists each skipped test by full name with its reason; `docs/project/README.md` says so.
 - **Pointers:** a "Glossary entries" section in `docs/project/README.md` states the rules; `AGENTS.md`, `docs/user/README.md`
   and the project README name both glossaries.
 - **Tests:** `tests/scripts/test_check_help_content.py` and `tests/scripts/test_check_doc_links_glossary.py`.

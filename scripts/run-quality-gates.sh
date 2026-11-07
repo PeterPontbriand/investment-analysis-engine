@@ -177,6 +177,7 @@ main() {
     run_step "pytest (Python $python_version)" uv run --no-sync pytest \
         -o addopts= \
         -p no:cacheprovider \
+        -rs \
         --durations=20 \
         ${default_coverage[@]+"${default_coverage[@]}"} \
         --basetemp="$windows_pytest_root" \
@@ -208,6 +209,7 @@ main() {
         run_step "pytest (Python $extra_version)" uv run --no-sync pytest \
             -o addopts= \
             -p no:cacheprovider \
+            -rs \
             --durations=20 \
             "${coverage_args[@]}" \
             --basetemp="$windows_run_root/pytest-extra" \

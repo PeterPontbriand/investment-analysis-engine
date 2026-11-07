@@ -225,6 +225,7 @@ try {
             "addopts=",
             "-p",
             "no:cacheprovider",
+            "-rs",
             "--durations=20"
         ) + $(if ($ExtraPython) { @() } else { $coverageArguments }) + @(
             "--basetemp=$pytestRoot",
@@ -252,6 +253,7 @@ try {
                 "addopts=",
                 "-p",
                 "no:cacheprovider",
+                "-rs",
                 "--durations=20"
             ) + $coverageArguments + @(
                 "--basetemp=$(Join-Path $runRoot 'pytest-extra')",
