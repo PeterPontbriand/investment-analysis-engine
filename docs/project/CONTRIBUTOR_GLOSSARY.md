@@ -52,6 +52,12 @@ The historical-price provider boundary used by deterministic analyzers and data 
 
 Investment Analysis Engine supplements it with a separate financial-facts provider and resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics, rather than enlarging BaseDataClient into a generic financial-data interface.
 
+<a id="ohlcv"></a>
+### OHLCV
+Open, high, low, close and volume observations for a market-data interval.
+
+The historical-price snapshots the data layer stores carry exactly these columns.
+
 <a id="fixture-adapter"></a>
 ### Fixture Adapter
 A deterministic, no-network implementation of the data contracts, used to validate resolution behavior and run Golden cases.

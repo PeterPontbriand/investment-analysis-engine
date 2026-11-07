@@ -4,11 +4,11 @@ This glossary defines the finance and analysis terms used in Investment Analysis
 
 ---
 
-## Analysis strategies
+## Analysis strategies and results
 
 <a id="analysis-strategy"></a>
 ### Analysis Strategy
-A deterministic way of analyzing a security, with its own rules for what to calculate and how to read the result. Each strategy has its own inputs, calculation and result.
+A rule-based way of analyzing a security, with its own inputs, calculation and way of reading the result. The same inputs always give the same result.
 
 A strategy never leaves a calculation to an AI model. This glossary and the guides call the idea an analysis strategy.
 
@@ -26,8 +26,20 @@ Information with named fields and stated data types, such as a value together wi
 
 “Typed evidence” is distinct from free-form model prose: an AI model may reason about it, but the model does not get to silently redefine or invent the underlying financial values.
 
+<a id="applicability-status"></a>
+### Applicability Status
+Whether a method can be meaningfully calculated for a security, instead of forcing every security into a numeric result.
+
+Investment Analysis Engine uses machine-readable statuses including `ok`, `not_applicable`, `input_unavailable`, `invalid_input`, and `provider_error`.
+
+<a id="not-applicable"></a>
+### Not Applicable
+A valid outcome meaning the method should not be used for the supplied facts, for example when earnings or book value per share is not positive.
+
+The code value is `not_applicable`. It is not the same as a software failure or a zero valuation.
+
 <a id="as-filed-sic-code"></a>
-### As-filed SIC code
+### As-Filed SIC Code
 The four-digit industry code that the SEC header of an annual filing assigns to the issuer on the filing date. It is read from the filing an analysis is anchored to.
 
 A historical analysis therefore sees the code the issuer had then (`ASSIGNED-SIC`). The code shown for an issuer on the SEC website today can differ, and is never used in its place. When the header cannot be read, the [industry class](#industry-class) is unknown.
@@ -80,7 +92,7 @@ A refresh limits how many tickers run at once, and one ticker's failure never st
 
 ---
 
-## Market data
+## Market data and timing
 
 <a id="data-provider"></a>
 ### Data Provider
@@ -157,7 +169,7 @@ The record of where a value came from and how it was transformed.
 Provenance can include source kind, provider, source field, observation period, retrieval time, calculation steps, and whether the value was overridden.
 
 <a id="as-of-date"></a>
-### As-of date
+### As-of Date
 The time boundary for an analysis or an input: information that became available after that date is not used.
 
 A requested analysis boundary (`as_of`) prevents the resolver from using observations or information that became available after that date.
@@ -181,7 +193,7 @@ The version of a time-series observation that was available at a particular time
 A reproducible historical analysis may therefore need the original vintage rather than today's revised value.
 
 <a id="retrieved-at"></a>
-### Retrieved at
+### Retrieval Time
 The time the application obtained a value. It differs from the as-of date: an old financial statement can be retrieved today and still keep its historical reporting date.
 
 The stored field is `retrieved_at`.
@@ -194,75 +206,13 @@ A value you supply yourself instead of accepting the value found from the cache 
 ### Resolution Precedence
 The order in which sources are tried for each financial value: your override, then a valid cache entry, then a configured provider, then an explicit statement that the value is unavailable.
 
-<a id="ohlcv"></a>
-### OHLCV
-Open, high, low, close and volume observations for a market-data interval.
+<a id="utc"></a>
+### UTC (Coordinated Universal Time)
+The common time standard used for unambiguous timestamps across systems and time zones.
 
 ---
 
-## Momentum terms
-
-<a id="momentum-strategy"></a>
-### Momentum Analysis Strategy
-A deterministic technical analysis of recent price behavior. It compares a short and a long simple moving average, reports a bullish or bearish trend, and shows RSI as a supporting indicator.
-
-The moving-average windows are configurable. The strategy reports the state of the crossover of the two averages.
-
-<a id="sma"></a>
-### SMA (Simple Moving Average)
-The arithmetic mean of a price series over a rolling window.
-
-<a id="sma-windows"></a>
-### Short Window / Long Window
-The two averaging periods that are compared: the short window and the long window. The short window must be shorter than the long window.
-
-<a id="crossover"></a>
-### Crossover
-A change in which of the short and long moving averages is higher.
-
-The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.
-
-Both averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.
-
-<a id="momentum-states"></a>
-### Bullish / Bearish / Unknown
-The trend states a Momentum run reports. Unknown means the final moving averages could not be calculated, for example because of too little price history.
-
-The run's status is then `input_unavailable`.
-
-<a id="rsi"></a>
-### RSI (Relative Strength Index)
-A bounded momentum indicator comparing recent gains and losses.
-
-The Momentum strategy uses a simple trailing-average RSI, with a default period of 14 price changes; it does not use Wilder smoothing. See [Financial Math](FINANCE_MATH.md#momentum-analysis-strategy) for the formula and zero-loss/flat-window conventions.
-
-<a id="ema"></a>
-### EMA (Exponential Moving Average)
-A moving average that gives more weight to recent observations than an SMA does.
-
-It is not currently part of the implemented Momentum calculation.
-
-<a id="macd"></a>
-### MACD (Moving Average Convergence Divergence)
-A trend and momentum indicator built from the relationship between exponential moving averages.
-
-It is not currently part of the implemented Momentum calculation.
-
----
-
-## Graham valuation terms
-
-<a id="graham-number-strategy"></a>
-### Graham Number Strategy
-A screening strategy that combines positive earnings per share and book value per share to estimate a conservative maximum indicated price.
-
-It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one.
-
-<a id="graham-growth-value-strategy"></a>
-### Graham Growth Value Strategy
-A forecast-dependent strategy that estimates a value from earnings, an expected growth rate and a current AAA corporate-bond yield.
-
-It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply.
+## Company financial measures
 
 <a id="eps"></a>
 ### EPS (Earnings Per Share)
@@ -311,7 +261,7 @@ Restating per-share values after the number of shares changes through a stock sp
 EPS, BVPS, and price must use compatible share bases.
 
 <a id="split-adjusted-close"></a>
-### Split-adjusted close
+### Split-Adjusted Close
 A closing price restated for every stock split after its date, and for nothing else. A dividend paid later does not change it.
 
 It is the price on the same basis as a share count scaled by those splits, and the two together give the market capitalization the shares and the price had on the day. It is not the dividend-adjusted close that the [Momentum](#momentum-strategy) series uses. A stock dividend appears in the provider's split history as a fractional split (1.05) and is treated like a split; it is not counted as new shares issued.
@@ -372,74 +322,6 @@ Book value after subtracting goodwill and other intangible assets, in total or p
 
 It is a distinct variation and must never be silently substituted for ordinary book value or BVPS.
 
-<a id="pe-ratio"></a>
-### P/E (Price-to-Earnings Ratio)
-Share price divided by earnings per share. A P/E of 15 means the price is fifteen times the selected EPS measure.
-
-<a id="pb-ratio"></a>
-### P/B (Price-to-Book Ratio)
-Share price divided by book value per share. A P/B of 1.5 means the price is one and one-half times BVPS.
-
-<a id="graham-number"></a>
-### Graham Number
-The square root of 22.5 times EPS times BVPS, a price ceiling that expresses Graham's defensive limits of P/E 15 and P/B 1.5.
-
-It is a commonly used algebraic expression of those combined limits:
-
-```text
-sqrt(22.5 × EPS × BVPS)
-```
-
-The result is a maximum indicated price or screening ceiling when EPS and BVPS are positive. It does not by itself prove that a company satisfies Graham's other defensive-investor criteria or that the stock is a suitable investment.
-
-<a id="graham-number-factor"></a>
-### Factor 22.5
-The product of the Graham Number's component limits: 15 times 1.5 equals 22.5.
-
-Algebraically, `P/E × P/B = price² / (EPS × BVPS)`, which leads to the square-root formula.
-
-<a id="maximum-indicated-price"></a>
-### Maximum Indicated Price / Screening Ceiling
-The highest price indicated by the Graham Number's limited earnings-and-book-value screen. It is not a promise of fair value or future return.
-
-This is the preferred description of the Graham Number result.
-
-<a id="defensive-investor"></a>
-### Defensive Investor
-Graham's term for an investor seeking a relatively conservative, low-maintenance approach.
-
-His complete defensive-stock framework included additional size, financial-strength, earnings-stability, dividend, and growth criteria beyond the two ratios represented by the Graham Number.
-
-<a id="applicability-status"></a>
-### Applicability Status
-Whether a method can be meaningfully calculated for a security, instead of forcing every security into a numeric result.
-
-Investment Analysis Engine uses machine-readable statuses including `ok`, `not_applicable`, `input_unavailable`, `invalid_input`, and `provider_error`.
-
-<a id="not-applicable"></a>
-### Not applicable
-A valid outcome meaning the method should not be used for the supplied facts, for example when earnings or book value per share is not positive.
-
-The code value is `not_applicable`. It is not the same as a software failure or a zero valuation.
-
-<a id="expected-growth-rate"></a>
-### Expected growth rate
-The assumed annual earnings-growth rate used by the Graham Growth Value strategy, in percentage points: 6.5 means 6.5%. Its source and horizon must be reported.
-
-It is written `g` in the formula, and its policy must be reported.
-
-<a id="growth-estimation-policy"></a>
-### Growth-Estimation Policy
-The explicit rule that supplies the expected growth rate. The application supports only a growth assumption that you provide.
-
-An LLM, data provider, or silent default must not invent growth.
-
-<a id="analyst-consensus-estimate"></a>
-### Analyst Consensus Estimate
-An aggregation of forecasts from multiple analysts.
-
-The Free Cash Flow & Earnings Growth contract can carry compatible FY1/FY2 diluted-EPS consensus as optional evidence, but the current production SEC mapping may not provide it. Such evidence requires verified field meaning, forecast horizon, provenance, update behavior, and licensing; the software does not invent it.
-
 <a id="cagr"></a>
 ### CAGR (Compound Annual Growth Rate)
 The constant annual rate that would turn a beginning value into an ending value over a stated number of years.
@@ -450,64 +332,35 @@ The constant annual rate that would turn a beginning value into an ending value 
 
 A historical EPS CAGR describes the past. It is only a proxy—not a forecast—unless a separate justified policy says otherwise.
 
-<a id="aaa-corporate-bond-yield"></a>
-### AAA Corporate Bond Yield
-The yield on a documented series of highest-rated corporate debt, used by the Graham Growth Value strategy.
+<a id="operating-cash-flow"></a>
+### Operating Cash Flow (OCF)
+Net cash provided by operating activities for a completed fiscal year.
 
-No live series is currently integrated, so the strategy takes a yield you supply. A future provider integration must retain exact series, units, observation/publication date, and rating/maturity scope.
+It is the starting component in the project's free-cash-flow calculation.
 
-<a id="aaa-rating"></a>
-### AAA
-The highest credit-rating category in commonly used rating scales, indicating very low assessed credit risk.
+<a id="capital-expenditures"></a>
+### Capital Expenditures (CapEx)
+Cash spent to acquire or improve long-lived productive assets.
 
-The precise label and methodology depend on the rating agency or published series.
+Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.
 
-<a id="yield"></a>
-### Yield
-Annual income from a bond or other instrument as a percentage of its price or value. A yield is a rate, not a dollar amount.
+<a id="free-cash-flow"></a>
+### Free Cash Flow (FCF)
+The cash a company's operations generate in a year, minus what it spends on long-lived assets such as equipment.
 
-<a id="basis-point"></a>
-### Basis Point (bp / bps)
-One hundredth of one percentage point.
+In the Free Cash Flow & Earnings Growth strategy, it is completed annual operating cash flow minus normalized capital expenditures.
 
-For example, a move from 4.40% to 4.65% is an increase of 25 basis points.
+FCF is a non-GAAP analytical measure, so another provider may use a different definition.
 
-<a id="baseline-aaa-yield"></a>
-### Baseline AAA Yield
-The historical 4.4 constant used in the selected growth-value convention.
+<a id="weighted-average-diluted-shares"></a>
+### Weighted-Average Diluted Shares
+The average diluted share count for an earnings period, including the effect of potentially dilutive securities under the reported accounting basis.
 
-It is configurable formula normalization, not a current market observation.
+It is not interchangeable with an ending shares-outstanding snapshot.
 
-<a id="current-aaa-yield"></a>
-### Current AAA Yield
-The AAA corporate-bond yield used in the denominator of the growth-value formula. It must be strictly positive.
+---
 
-It is a value you supply and is identified as such; a future provider-resolved value would additionally need series provenance and observation/publication dates.
-
-<a id="growth-value-formula"></a>
-### Graham Growth-Value Formula
-The project's secondary valuation formula: earnings scaled by a growth-adjusted multiple and by the ratio of baseline to current AAA yield. It is a simplified estimate that depends on a forecast.
-
-The project's explicitly identified secondary convention:
-
-```text
-normalized_eps × (base_pe + growth_multiplier × g)
-× baseline_aaa_yield / current_aaa_yield
-```
-
-It is a simplified, forecast-dependent growth-stock estimate. It is not the Graham Number and must not be presented as a precise or universally applicable intrinsic value.
-
-<a id="base-pe"></a>
-### Base P/E
-The no-growth earnings multiple used as a configurable constant in the selected growth-value convention.
-
-The initial conventional value is `8.5` (`base_pe`).
-
-<a id="growth-multiplier"></a>
-### Growth Multiplier
-The configurable constant that multiplies the expected growth rate in the growth-value formula.
-
-The initial conventional value is `2.0` (`growth_multiplier`).
+## Valuation and price comparison
 
 <a id="valuation"></a>
 ### Valuation
@@ -547,39 +400,202 @@ It avoids requiring you to interpret the sign convention of the stored `margin_o
 ### Discount / Premium to Reference Value
 A neutral description of the same price comparison as margin of safety. A discount means the price is below the reference value; a premium means it is above it.
 
+<a id="pe-ratio"></a>
+### P/E (Price-to-Earnings Ratio)
+Share price divided by earnings per share. A P/E of 15 means the price is fifteen times the selected EPS measure.
+
+<a id="pb-ratio"></a>
+### P/B (Price-to-Book Ratio)
+Share price divided by book value per share. A P/B of 1.5 means the price is one and one-half times BVPS.
+
+<a id="yield"></a>
+### Yield
+Annual income from a bond or other instrument as a percentage of its price or value. A yield is a rate, not a dollar amount.
+
 <a id="percentage-point"></a>
 ### Percentage Point
 The arithmetic difference between two percentages. Moving from 4% to 6% is an increase of 2 percentage points.
 
 That is a 50% increase relative to the original 4%.
 
+<a id="aaa-rating"></a>
+### AAA
+The highest credit-rating category in commonly used rating scales, indicating very low assessed credit risk.
+
+The precise label and methodology depend on the rating agency or published series.
+
+<a id="analyst-consensus-estimate"></a>
+### Analyst Consensus Estimate
+An aggregation of forecasts from multiple analysts.
+
+The Free Cash Flow & Earnings Growth contract can carry compatible FY1/FY2 diluted-EPS consensus as optional evidence, but the current production SEC mapping may not provide it. Such evidence requires verified field meaning, forecast horizon, provenance, update behavior, and licensing; the software does not invent it.
+
 ---
 
-## Free Cash Flow & Earnings Growth terms
+## Momentum Strategy terms
+
+<a id="momentum-strategy"></a>
+### Momentum Strategy
+A rule-based analysis of recent price behavior. It compares a short and a long simple moving average, reports a bullish or bearish trend, and shows RSI as a supporting indicator.
+
+The moving-average windows are configurable. The strategy reports the state of the crossover of the two averages.
+
+<a id="sma"></a>
+### SMA (Simple Moving Average)
+The arithmetic mean of a price series over a rolling window.
+
+<a id="sma-windows"></a>
+### Short Window / Long Window
+The two averaging periods that are compared: the short window and the long window. The short window must be shorter than the long window.
+
+<a id="crossover"></a>
+### Crossover
+A change in which of the short and long moving averages is higher.
+
+The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.
+
+Both averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.
+
+<a id="momentum-states"></a>
+### Bullish / Bearish / Unknown
+The trend a Momentum run reports: bullish when the short moving average is above the long one, bearish when it is not, unknown when they cannot be calculated.
+
+The run's status is then `input_unavailable`.
+
+<a id="rsi"></a>
+### RSI (Relative Strength Index)
+An indicator from 0 to 100 that compares the size of recent price gains with recent losses.
+
+The Momentum strategy uses a simple trailing-average RSI, with a default period of 14 price changes; it does not use Wilder smoothing. See [Financial Math](FINANCE_MATH.md#momentum-strategy) for the formula and zero-loss/flat-window conventions.
+
+<a id="ema"></a>
+### EMA (Exponential Moving Average)
+A moving average that gives more weight to recent observations than an SMA does.
+
+It is not currently part of the implemented Momentum calculation.
+
+<a id="macd"></a>
+### MACD (Moving Average Convergence Divergence)
+A trend and momentum indicator built from the relationship between exponential moving averages.
+
+It is not currently part of the implemented Momentum calculation.
+
+---
+
+## Graham Number Strategy terms
+
+<a id="graham-number-strategy"></a>
+### Graham Number Strategy
+A screening strategy that combines positive earnings per share and book value per share to estimate a conservative maximum indicated price.
+
+It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one.
+
+<a id="graham-number"></a>
+### Graham Number
+The square root of 22.5 times EPS times BVPS, a price ceiling that expresses Graham's defensive limits of P/E 15 and P/B 1.5.
+
+It is a commonly used algebraic expression of those combined limits:
+
+```text
+sqrt(22.5 × EPS × BVPS)
+```
+
+The result is a maximum indicated price or screening ceiling when EPS and BVPS are positive. It does not by itself prove that a company satisfies Graham's other defensive-investor criteria or that the stock is a suitable investment.
+
+<a id="graham-number-factor"></a>
+### Factor 22.5
+The product of the Graham Number's component limits: 15 times 1.5 equals 22.5.
+
+Algebraically, `P/E × P/B = price² / (EPS × BVPS)`, which leads to the square-root formula.
+
+<a id="maximum-indicated-price"></a>
+### Maximum Indicated Price / Screening Ceiling
+The highest price indicated by the Graham Number's limited earnings-and-book-value screen. It is not a promise of fair value or future return.
+
+This is the preferred description of the Graham Number result.
+
+<a id="defensive-investor"></a>
+### Defensive Investor
+Graham's term for an investor seeking a relatively conservative, low-maintenance approach.
+
+His complete defensive-stock framework included additional size, financial-strength, earnings-stability, dividend, and growth criteria beyond the two ratios represented by the Graham Number.
+
+---
+
+## Graham Growth Value Strategy terms
+
+<a id="graham-growth-value-strategy"></a>
+### Graham Growth Value Strategy
+A forecast-dependent strategy that estimates a value from earnings, an expected growth rate and a current AAA corporate-bond yield.
+
+It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply.
+
+<a id="expected-growth-rate"></a>
+### Expected Growth Rate
+The assumed annual earnings-growth rate used by the Graham Growth Value strategy, in percentage points: 6.5 means 6.5%. Its source and horizon must be reported.
+
+It is written `g` in the formula, and its policy must be reported.
+
+<a id="growth-estimation-policy"></a>
+### Growth-Estimation Policy
+The explicit rule that supplies the expected growth rate. The application supports only a growth assumption that you provide.
+
+An LLM, data provider, or silent default must not invent growth.
+
+<a id="aaa-corporate-bond-yield"></a>
+### AAA Corporate Bond Yield
+The yield on a documented series of highest-rated corporate debt, used by the Graham Growth Value strategy.
+
+No live series is currently integrated, so the strategy takes a yield you supply. A future provider integration must retain exact series, units, observation/publication date, and rating/maturity scope.
+
+<a id="baseline-aaa-yield"></a>
+### Baseline AAA Yield
+The reference AAA yield, 4.4 by default, that the Graham Growth Value formula compares the current AAA yield against.
+
+The historical `4.4` constant is used in the selected growth-value convention.
+
+It is configurable formula normalization, not a current market observation.
+
+<a id="current-aaa-yield"></a>
+### Current AAA Yield
+The AAA corporate-bond yield used in the denominator of the growth-value formula. It must be strictly positive.
+
+It is a value you supply and is identified as such; a future provider-resolved value would additionally need series provenance and observation/publication dates.
+
+<a id="growth-value-formula"></a>
+### Graham Growth-Value Formula
+The project's secondary valuation formula: earnings scaled by a growth-adjusted multiple and by the ratio of baseline to current AAA yield. It is a simplified estimate that depends on a forecast.
+
+The project's explicitly identified secondary convention:
+
+```text
+normalized_eps × (base_pe + growth_multiplier × g)
+× baseline_aaa_yield / current_aaa_yield
+```
+
+It is a simplified, forecast-dependent growth-stock estimate. It is not the Graham Number and must not be presented as a precise or universally applicable intrinsic value.
+
+<a id="base-pe"></a>
+### Base P/E
+The no-growth earnings multiple used as a configurable constant in the selected growth-value convention.
+
+The initial conventional value is `8.5` (`base_pe`).
+
+<a id="growth-multiplier"></a>
+### Growth Multiplier
+The configurable constant that multiplies the expected growth rate in the growth-value formula.
+
+The initial conventional value is `2.0` (`growth_multiplier`).
+
+---
+
+## Free Cash Flow & Earnings Growth Strategy terms
 
 <a id="fcf-growth-strategy"></a>
 ### Free Cash Flow & Earnings Growth Strategy
 A historical screen asking whether free cash flow and diluted EPS both grew at positive, meaningful compound annual rates over one compatible period. It is not a valuation.
 
 It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.
-
-<a id="operating-cash-flow"></a>
-### Operating Cash Flow (OCF)
-Net cash provided by operating activities for a completed fiscal year.
-
-It is the starting component in the project's free-cash-flow calculation.
-
-<a id="capital-expenditures"></a>
-### Capital Expenditures (CapEx)
-Cash spent to acquire or improve long-lived productive assets.
-
-Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.
-
-<a id="free-cash-flow"></a>
-### Free Cash Flow (FCF)
-For this strategy, completed annual operating cash flow minus normalized capital expenditures.
-
-FCF is a non-GAAP analytical measure, so another provider may use a different definition.
 
 <a id="total-company-fcf"></a>
 ### Total-Company FCF
@@ -591,12 +607,6 @@ Annual total-company FCF divided by compatible weighted-average diluted shares f
 
 It reflects dilution and repurchases and can be selected as the controlling classification basis.
 
-<a id="weighted-average-diluted-shares"></a>
-### Weighted-Average Diluted Shares
-The average diluted share count for an earnings period, including the effect of potentially dilutive securities under the reported accounting basis.
-
-It is not interchangeable with an ending shares-outstanding snapshot.
-
 <a id="classification-basis"></a>
 ### Classification Basis
 The free-cash-flow measure whose growth rate controls the growth screen: the total measure or the per-share measure.
@@ -604,7 +614,7 @@ The free-cash-flow measure whose growth rate controls the growth screen: the tot
 The total is the default (`total_fcf`) and the per-share measure is the alternative (`fcf_per_share`). Both measures remain visible regardless of the choice.
 
 <a id="fcf-classification"></a>
-### PASS / FAIL / INDETERMINATE
+### FCF Classification
 The growth screen's three outcomes: pass when required growth rates are positive, fail when complete evidence shows a nonpositive rate, indeterminate when no classification can be made.
 
 `PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.
@@ -623,7 +633,7 @@ The code values are `display_only`, `confirmation`, and `hard_gate`. Only `hard_
 
 ---
 
-## Piotroski F-Score terms
+## Piotroski F-Score Strategy terms
 
 <a id="piotroski-strategy"></a>
 ### Piotroski F-Score Strategy
@@ -668,14 +678,6 @@ In the F-Score, a year's sales divided by total assets at the start of that year
 The change in the number of common shares outstanding between two fiscal year-ends, after buybacks.
 
 The F-Score's dilution test passes when the count did not rise.
-
----
-
-## General terms
-
-<a id="utc"></a>
-### UTC (Coordinated Universal Time)
-The common time standard used for unambiguous timestamps across systems and time zones.
 
 ---
 

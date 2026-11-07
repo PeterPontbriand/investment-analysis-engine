@@ -1,6 +1,6 @@
-# Momentum Analysis Strategy Guide
+# Momentum Strategy Guide
 
-This guide explains the Investment Analysis Engine **Momentum Analysis Strategy** from an investor/user perspective.
+This guide explains the Investment Analysis Engine **Momentum Strategy** from an investor/user perspective.
 
 ## What this strategy does
 
@@ -43,7 +43,7 @@ SMA_t(n) = mean(P[t-n+1 : t])
 
 The strategy calculates a short moving average and a long moving average over the historical `Close` series, then evaluates their relationship and whether that relationship changed on the latest observation.
 
-A crossover needs two consecutive valid SMA pairs. Having exactly enough prices for the long SMA establishes today's relationship but not a prior relationship; crossover is unavailable in that case. The RSI uses simple trailing averages of gains/losses, as specified in [Financial Math](../FINANCE_MATH.md#momentum-analysis-strategy).
+A crossover needs two consecutive valid SMA pairs. Having exactly enough prices for the long SMA establishes today's relationship but not a prior relationship; crossover is unavailable in that case. The RSI uses simple trailing averages of gains/losses, as specified in [Financial Math](../FINANCE_MATH.md#momentum-strategy).
 
 Diagnostics and JSON retain original provider retrieval time and cache origin. Historical daily labels are not verified exchange-close timestamps, and the provider's past adjusted-price vintages are not retained. Observation-date filtering alone is not a guarantee of historical knowability. Missing or nonfinite prices cause a failure with the affected field/date when known; the application does not silently remove bad rows or substitute an older close.
 
@@ -54,7 +54,7 @@ In investor terms:
 - transition into the bullish relationship → bullish crossover;
 - transition out of the bullish relationship → bearish crossover.
 
-See [Financial Math](../FINANCE_MATH.md#momentum-analysis-strategy) for the exact deterministic convention.
+See [Financial Math](../FINANCE_MATH.md#momentum-strategy) for the exact deterministic convention.
 
 ## Point-in-time analysis and cache control
 
@@ -174,5 +174,5 @@ Nothing produced by this strategy is investment advice.
 ## Related user documentation
 
 - [Usage Guide](../USAGE.md)
-- [Financial Math — Momentum Analysis Strategy](../FINANCE_MATH.md#momentum-analysis-strategy)
+- [Financial Math — Momentum Strategy](../FINANCE_MATH.md#momentum-strategy)
 - [Glossary](../GLOSSARY.md)

@@ -50,7 +50,7 @@ A calculation may instead report that:
 - supplied data is invalid; or
 - the method is not applicable to otherwise valid facts.
 
-## Momentum Analysis Strategy
+## Momentum Strategy
 
 Momentum currently implements a deterministic simple-moving-average/crossover calculation.
 
@@ -98,7 +98,7 @@ Machine-readable JSON uses `null` for unavailable numeric outputs rather than no
 
 Historical observations are truncated to `bar_timestamp <= as_of` before any metric is calculated. The short SMA, long SMA, and RSI use typed metric results: insufficient history produces `status = unavailable`, `reason_code = insufficient_history`, and no numeric value. The CLI exposes `--short-window`, `--long-window`, and `--rsi-period`.
 
-See the [Momentum Analysis Strategy Guide](strategies/MOMENTUM.md).
+See the [Momentum Strategy Guide](strategies/MOMENTUM.md).
 
 ## Graham Number Strategy
 

@@ -24,21 +24,27 @@ Only the standard library is used, so the checker runs with system Python.
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
-if __package__ in (None, ""):
-    # Run as ``python scripts/check_help_content.py``: the repository root is not on the path yet, so ask git for it.
-    sys.path.insert(
-        0,
+
+@cache
+def git_repository_root() -> Path:
+    """Return the repository root that git reports; asked once."""
+    return Path(
         subprocess.run(
             ["git", "rev-parse", "--show-toplevel"], capture_output=True, check=True, text=True
-        ).stdout.strip(),
+        ).stdout.strip()
     )
+
+
+if __package__ in (None, ""):
+    # Run as ``python scripts/check_help_content.py``: the repository root is not on the path yet.
+    sys.path.insert(0, str(git_repository_root()))
 
 from scripts.check_doc_links import ANCHOR_ID_RE, GLOSSARY_PATHS, slugify  # noqa: E402
 
@@ -47,14 +53,14 @@ CONTRIBUTOR_GLOSSARY = GLOSSARY_PATHS[1]
 EXCLUDE_MARKER = "<!-- help:exclude -->"
 ENTRY_LEVEL = 3
 MAX_DEFINITION_CHARACTERS = 200
-MAX_DEFINITION_SENTENCES = 2
+MAX_DEFINITION_PARTS = 2
 _PLAIN_TEXT_FORBIDDEN = "`*_["
 _ID_RE = re.compile(r"^[a-z]+(-[a-z]+)*$")
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 _FENCE_RE = re.compile(r"^(```+|~~~+)")
 _LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 _INLINE_CODE_RE = re.compile(r"(?<!`)(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)")
-_SENTENCE_BREAK_RE = re.compile(r"(?<=[.!?])\s+")
+_DEFINITION_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 _SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
@@ -180,9 +186,9 @@ def _definition_problems(definition: str) -> list[str]:
     problems: list[str] = []
     if len(definition) > MAX_DEFINITION_CHARACTERS:
         problems.append(f"short definition is {len(definition)} characters; the limit is {MAX_DEFINITION_CHARACTERS}")
-    sentences = [part for part in _SENTENCE_BREAK_RE.split(definition) if part.strip()]
-    if len(sentences) > MAX_DEFINITION_SENTENCES:
-        problems.append(f"short definition has {len(sentences)} sentences; the limit is {MAX_DEFINITION_SENTENCES}")
+    parts = [part for part in _DEFINITION_SPLIT_RE.split(definition) if part.strip()]
+    if len(parts) > MAX_DEFINITION_PARTS:
+        problems.append(f"short definition has {len(parts)} sentences; the limit is {MAX_DEFINITION_PARTS}")
     found = sorted({character for character in definition if character in _PLAIN_TEXT_FORBIDDEN})
     if found:
         problems.append(
@@ -299,12 +305,7 @@ def check_repository(repo_root: Path) -> list[Problem]:
 
 def main() -> int:
     """Check the repository this script lives in; print every problem; return the process exit code."""
-    repo_root = Path(
-        subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"], capture_output=True, check=True, text=True
-        ).stdout.strip()
-    )
-    os.chdir(repo_root)
+    repo_root = git_repository_root()
     problems = check_repository(repo_root)
     if not problems:
         print("check_help_content: both glossaries follow the entry rules.")

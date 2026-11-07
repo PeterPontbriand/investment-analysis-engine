@@ -72,11 +72,11 @@ class TestShortDefinition:
         assert len(problems) == 1
         assert "201 characters" in problems[0]
 
-    def test_two_sentences_pass_and_three_are_reported(self) -> None:
+    def test_two_parts_pass_and_three_are_reported(self) -> None:
         assert check(entry("x", "X", "One. Two.")) == []
-        assert any("3 sentences" in text for text in check(entry("x", "X", "One. Two. Three.")))
+        assert any("3 sentences; the limit" in text for text in check(entry("x", "X", "One. Two. Three.")))
 
-    def test_a_decimal_number_is_not_a_sentence_break(self) -> None:
+    def test_a_decimal_number_is_not_a_break(self) -> None:
         assert check(entry("x", "X", "A P/B of 1.5 is a limit. It is fixed at 22.5 here.")) == []
 
     def test_each_forbidden_character_is_reported(self) -> None:
