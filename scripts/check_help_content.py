@@ -19,6 +19,18 @@ content. An entry inside an excluded section of the user glossary is a command-l
 anywhere else, and refuses a link from an investor entry (an entry of the user glossary outside an excluded
 section) to a contributor term or to a command-line term.
 
+The documents the help bundle serves are the Beginner Guide, Finance Math, the user glossary and every strategy guide.
+Their served content (``served_documents``) fails the check on any of:
+
+- a code span that starts with ``ian ``, ``--``, ``uv `` or ``IAN_``;
+- a fenced block that holds an ``ian`` command line, or whose language is a shell;
+- a link to a repository file that is not served, to an excluded section of a served document, to a term that is not
+  served, or to the user glossary without an entry id.
+
+An external link passes. A heading titled ``On the command line`` must carry the exclude marker and be the last
+subsection of its parent. ``tests/scripts/test_served_content.py`` adds the check that no code span starts with the name
+of an ``ian`` command, a name read from the application and not listed here.
+
 Only the standard library is used, so the checker runs with system Python.
 """
 
@@ -55,6 +67,14 @@ ENTRY_LEVEL = 3
 MAX_DEFINITION_CHARACTERS = 200
 MAX_DEFINITION_PARTS = 2
 _PLAIN_TEXT_FORBIDDEN = "`*_["
+SERVED_DOCUMENT_PATHS = ("docs/user/BEGINNER_GUIDE.md", "docs/user/FINANCE_MATH.md", USER_GLOSSARY)
+STRATEGY_GUIDE_DIRECTORY = "docs/user/strategies"
+STRATEGY_INDEX = "README.md"
+COMMAND_LINE_HEADING = "On the command line"
+FORBIDDEN_SPAN_PREFIXES = ("ian ", "--", "uv ", "IAN_")
+SHELL_LANGUAGES = frozenset({"bash", "sh", "shell", "console", "powershell", "pwsh", "ps1", "cmd"})
+_CODE_SPAN_RE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.DOTALL)
+_IAN_COMMAND_LINE_RE = re.compile(r"^(?:uv\s+run\s+)?ian(?:\s|$)")
 _ID_RE = re.compile(r"^[a-z]+(-[a-z]+)*$")
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 _FENCE_RE = re.compile(r"^(```+|~~~+)")
@@ -287,6 +307,352 @@ def command_line_ids_of(lines: list[str]) -> frozenset[str]:
     )
 
 
+@dataclass(frozen=True)
+class ServedSection:
+    """One non-excluded section of a served document.
+
+    ``first_line`` is the heading's 1-based line number and ``last_line`` the section's last line; the section ends
+    at the next heading of any level, so a subsection is a section of its own. ``lines`` is the text after the
+    heading, with its line endings removed. ``anchor_id`` is the id line above the heading, when there is one, and
+    ``slug`` is the heading's GitHub anchor, which counts every heading of the file, excluded ones included.
+    """
+
+    heading: str
+    level: int
+    first_line: int
+    last_line: int
+    lines: tuple[str, ...]
+    anchor_id: str | None
+    slug: str
+
+    @property
+    def body_first_line(self) -> int:
+        """Return the 1-based line number of the first line of ``lines``."""
+        return self.first_line + 1
+
+
+@dataclass(frozen=True)
+class ServedDocument:
+    """A served document: its repository-relative path, its title and its non-excluded sections, in file order."""
+
+    path: str
+    title: str
+    sections: tuple[ServedSection, ...]
+
+
+@dataclass(frozen=True)
+class ContentProblem:
+    """One violation of the served-content rules."""
+
+    source_file: str
+    line_number: int
+    section: str
+    reason: str
+
+    def __str__(self) -> str:
+        """Render as ``path:line: section 'heading' -- reason``."""
+        return f"{self.source_file}:{self.line_number}: section '{self.section}' -- {self.reason}"
+
+
+@dataclass(frozen=True)
+class _Heading:
+    index: int
+    level: int
+    text: str
+    marked: bool
+    excluded: bool
+    slug: str
+
+
+@dataclass(frozen=True)
+class _ParsedDocument:
+    lines: tuple[str, ...]
+    headings: tuple[_Heading, ...]
+    stray_marker_lines: tuple[int, ...]
+
+
+def _parse_document(raw_lines: list[str]) -> _ParsedDocument:
+    """Find the headings of a document, which are excluded, and the markers not on a heading's next line."""
+    lines = tuple(line.rstrip("\n") for line in raw_lines)
+    found: list[tuple[int, int, str]] = []
+    fence_marker: str | None = None
+    for index, line in enumerate(lines):
+        fence = _FENCE_RE.match(line.strip())
+        if fence:
+            if fence_marker is None:
+                fence_marker = fence.group(1)[0] * 3
+            elif line.strip().startswith(fence_marker):
+                fence_marker = None
+            continue
+        match = None if fence_marker else _HEADING_RE.match(line)
+        if match:
+            found.append((index, len(match.group(1)), match.group(2)))
+    marked = {
+        index for index, _level, _text in found if index + 1 < len(lines) and lines[index + 1].strip() == EXCLUDE_MARKER
+    }
+    stray = tuple(
+        number
+        for number, line in enumerate(lines, start=1)
+        if line.strip() == EXCLUDE_MARKER and (number - 2) not in marked
+    )
+    headings: list[_Heading] = []
+    seen: dict[str, int] = {}
+    excluded_level: int | None = None
+    for index, level, text in found:
+        if excluded_level is not None and level <= excluded_level:
+            excluded_level = None
+        if index in marked and excluded_level is None:
+            excluded_level = level
+        base = slugify(text)
+        count = seen.get(base, 0)
+        if base:
+            seen[base] = count + 1
+        slug = base if count == 0 else f"{base}-{count}"
+        headings.append(_Heading(index, level, text, index in marked, excluded_level is not None, slug))
+    return _ParsedDocument(lines, tuple(headings), stray)
+
+
+def _section_of(parsed: _ParsedDocument, position: int) -> ServedSection:
+    """Return the section that starts at heading number ``position``, without its trailing id line."""
+    heading = parsed.headings[position]
+    end = parsed.headings[position + 1].index if position + 1 < len(parsed.headings) else len(parsed.lines)
+    body = list(parsed.lines[heading.index + 1 : end])
+    while body and not body[-1].strip():
+        body.pop()
+    if body and ANCHOR_ID_RE.match(body[-1].strip()):
+        body.pop()
+        while body and not body[-1].strip():
+            body.pop()
+    above = ANCHOR_ID_RE.match(parsed.lines[heading.index - 1].strip()) if heading.index > 0 else None
+    return ServedSection(
+        heading=heading.text,
+        level=heading.level,
+        first_line=heading.index + 1,
+        last_line=heading.index + 1 + len(body),
+        lines=tuple(body),
+        anchor_id=above.group(1) if above else None,
+        slug=heading.slug,
+    )
+
+
+def served_document(relative_path: str, raw_lines: list[str]) -> ServedDocument:
+    """Return the served content of one document from its lines.
+
+    The user glossary serves the text of each entry (a level-3 section) outside an excluded section; its
+    introduction and section headings are not served. Any other document serves every section outside an
+    excluded section, the text under its title included.
+    """
+    parsed = _parse_document(raw_lines)
+    glossary = relative_path == USER_GLOSSARY
+    sections = tuple(
+        _section_of(parsed, position)
+        for position, heading in enumerate(parsed.headings)
+        if not heading.excluded and (heading.level == ENTRY_LEVEL if glossary else True)
+    )
+    title = next((heading.text for heading in parsed.headings if heading.level == 1), Path(relative_path).stem)
+    return ServedDocument(relative_path, title, sections)
+
+
+def strategy_guide_paths(repo_root: Path) -> tuple[str, ...]:
+    """Return the repository-relative path of every strategy guide, which is every file of the folder but its index."""
+    folder = repo_root / STRATEGY_GUIDE_DIRECTORY
+    return tuple(
+        f"{STRATEGY_GUIDE_DIRECTORY}/{path.name}" for path in sorted(folder.glob("*.md")) if path.name != STRATEGY_INDEX
+    )
+
+
+def served_paths(repo_root: Path) -> tuple[str, ...]:
+    """Return the repository-relative path of every served document."""
+    return (*SERVED_DOCUMENT_PATHS, *strategy_guide_paths(repo_root))
+
+
+def served_documents(repo_root: Path) -> tuple[ServedDocument, ...]:
+    """Return the served content of every served document that exists in ``repo_root``."""
+    return tuple(
+        served_document(relative, (repo_root / relative).read_text(encoding="utf-8").splitlines(keepends=True))
+        for relative in served_paths(repo_root)
+        if (repo_root / relative).is_file()
+    )
+
+
+@dataclass(frozen=True)
+class _LinkContext:
+    """What a link in served content is checked against."""
+
+    served: frozenset[str]
+    term_ids: frozenset[str]
+    excluded_slugs: dict[str, frozenset[str]]
+    repo_root: Path
+
+
+def _link_reason(relative_path: str, target: str, context: _LinkContext) -> str | None:
+    """Return why a link in served content is refused, or ``None`` when it passes."""
+    target = target.split(maxsplit=1)[0] if target.split() else target
+    path, anchor = _resolve(relative_path, target, context.repo_root)
+    if path is None:
+        outside = not (_SCHEME_RE.match(target) or target.startswith("//"))
+        return f"link to a file outside the repository: {target}" if outside else None
+    if path not in context.served:
+        return f"link to a repository file that is not served: {target}"
+    if path == USER_GLOSSARY:
+        if not anchor:
+            return f"link to {USER_GLOSSARY} with no entry id: {target}"
+        if anchor not in context.term_ids:
+            return f"link to a term that is not served: {target}"
+    elif anchor in context.excluded_slugs.get(path, frozenset()):
+        return f"link to an excluded section of a served document: {target}"
+    return None
+
+
+def _text_and_numbers(paragraph: list[tuple[int, str]]) -> tuple[str, list[int]]:
+    """Return the text of one paragraph and the line number of each of its lines."""
+    return "\n".join(line for _number, line in paragraph), [number for number, _line in paragraph]
+
+
+def _paragraph_code_spans(paragraph: list[tuple[int, str]]) -> list[tuple[int, str]]:
+    """Return ``(line, content)`` for each code span of one paragraph; the content has single spaces."""
+    text, numbers = _text_and_numbers(paragraph)
+    return [
+        (numbers[text.count("\n", 0, span.start())], " ".join(span.group(2).split()))
+        for span in _CODE_SPAN_RE.finditer(text)
+    ]
+
+
+def _paragraph_problems(
+    paragraph: list[tuple[int, str]], relative_path: str, context: _LinkContext
+) -> list[tuple[int, str]]:
+    """Return ``(line, reason)`` for the code spans and links of one paragraph of prose."""
+    text, numbers = _text_and_numbers(paragraph)
+    found = [
+        (number, f"code span starts with {prefix!r}: `{content}`")
+        for number, content in _paragraph_code_spans(paragraph)
+        for prefix in FORBIDDEN_SPAN_PREFIXES
+        if content.startswith(prefix)
+    ]
+    blanked = _CODE_SPAN_RE.sub(lambda match: re.sub(r"[^\n]", " ", match.group(0)), text)
+    for link in _LINK_RE.finditer(blanked):
+        reason = _link_reason(relative_path, link.group(1).strip(), context)
+        if reason:
+            found.append((numbers[blanked.count("\n", 0, link.start())], reason))
+    return found
+
+
+def _walk_section(section: ServedSection) -> tuple[list[list[tuple[int, str]]], list[tuple[int, str]]]:
+    """Split a section into its paragraphs of prose and the problems of its fenced blocks.
+
+    A paragraph is a list of ``(line, text)``; a problem is ``(line, reason)``.
+    """
+    paragraphs: list[list[tuple[int, str]]] = []
+    problems: list[tuple[int, str]] = []
+    paragraph: list[tuple[int, str]] = []
+    fence_marker: str | None = None
+    for offset, raw in enumerate(section.lines):
+        number = section.body_first_line + offset
+        stripped = raw.strip()
+        fence = _FENCE_RE.match(stripped)
+        if fence:
+            paragraphs.append(paragraph)
+            paragraph = []
+            if fence_marker is None:
+                fence_marker = fence.group(1)[0] * 3
+                language = stripped[len(fence.group(1)) :].split(maxsplit=1)
+                if language and language[0].lower() in SHELL_LANGUAGES:
+                    problems.append((number, f"fenced block in a shell language: {language[0]}"))
+            elif stripped.startswith(fence_marker):
+                fence_marker = None
+            continue
+        if fence_marker is not None:
+            if _IAN_COMMAND_LINE_RE.match(stripped):
+                problems.append((number, f"fenced block holds an ian command line: {stripped}"))
+        elif stripped:
+            paragraph.append((number, raw))
+        else:
+            paragraphs.append(paragraph)
+            paragraph = []
+    paragraphs.append(paragraph)
+    return [item for item in paragraphs if item], problems
+
+
+def code_spans(section: ServedSection) -> list[tuple[int, str]]:
+    """Return ``(line, content)`` for every code span in the prose of a section, fenced blocks excluded."""
+    return [span for paragraph in _walk_section(section)[0] for span in _paragraph_code_spans(paragraph)]
+
+
+def _section_problems(section: ServedSection, relative_path: str, context: _LinkContext) -> list[ContentProblem]:
+    """Return every leak in the text of one served section."""
+    paragraphs, found = _walk_section(section)
+    for paragraph in paragraphs:
+        found.extend(_paragraph_problems(paragraph, relative_path, context))
+    return [ContentProblem(relative_path, number, section.heading, reason) for number, reason in sorted(found)]
+
+
+def _structure_problems(relative_path: str, raw_lines: list[str]) -> list[ContentProblem]:
+    """Return the problems of a document's exclude markers and of its "On the command line" subsections."""
+    parsed = _parse_document(raw_lines)
+    found = [
+        ContentProblem(relative_path, number, "", f"{EXCLUDE_MARKER} must be on the line directly after a heading")
+        for number in parsed.stray_marker_lines
+    ]
+    for position, heading in enumerate(parsed.headings):
+        line = heading.index + 1
+        if heading.marked and heading.level == 1:
+            found.append(ContentProblem(relative_path, line, heading.text, "the document title cannot be excluded"))
+        if heading.text != COMMAND_LINE_HEADING:
+            continue
+        if not heading.marked:
+            found.append(
+                ContentProblem(
+                    relative_path,
+                    line,
+                    heading.text,
+                    f"a section titled {COMMAND_LINE_HEADING!r} must carry {EXCLUDE_MARKER}",
+                )
+            )
+        following = next((item for item in parsed.headings[position + 1 :] if item.level <= heading.level), None)
+        if following is not None and following.level == heading.level:
+            found.append(
+                ContentProblem(
+                    relative_path,
+                    line,
+                    heading.text,
+                    f"a section titled {COMMAND_LINE_HEADING!r} must be the last subsection of its parent; "
+                    f"'{following.text}' follows it",
+                )
+            )
+    return found
+
+
+def check_served_content(repo_root: Path) -> list[ContentProblem]:
+    """Check the served documents of ``repo_root`` and return every problem."""
+    problems: list[ContentProblem] = []
+    texts: dict[str, list[str]] = {}
+    for relative in served_paths(repo_root):
+        path = repo_root / relative
+        if not path.is_file():
+            problems.append(ContentProblem(relative, 0, "", "the served document does not exist"))
+            continue
+        texts[relative] = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    documents = [served_document(relative, lines) for relative, lines in texts.items()]
+    term_ids = frozenset(
+        section.anchor_id
+        for document in documents
+        if document.path == USER_GLOSSARY
+        for section in document.sections
+        if section.anchor_id is not None
+    )
+    excluded_slugs = {
+        relative: frozenset(heading.slug for heading in _parse_document(lines).headings if heading.excluded)
+        for relative, lines in texts.items()
+    }
+    context = _LinkContext(frozenset(texts), term_ids, excluded_slugs, repo_root)
+    for relative, lines in texts.items():
+        problems.extend(_structure_problems(relative, lines))
+    for document in documents:
+        for section in document.sections:
+            problems.extend(_section_problems(section, document.path, context))
+    return problems
+
+
 def check_repository(repo_root: Path) -> list[Problem]:
     """Check both glossaries of ``repo_root`` and return every problem."""
     problems: list[Problem] = []
@@ -306,9 +672,9 @@ def check_repository(repo_root: Path) -> list[Problem]:
 def main() -> int:
     """Check the repository this script lives in; print every problem; return the process exit code."""
     repo_root = git_repository_root()
-    problems = check_repository(repo_root)
+    problems = [*check_repository(repo_root), *check_served_content(repo_root)]
     if not problems:
-        print("check_help_content: both glossaries follow the entry rules.")
+        print("check_help_content: both glossaries follow the entry rules and the served content has no leak.")
         return 0
     for found in problems:
         print(found)

@@ -11,10 +11,7 @@ Graham Growth Value applies a forecast-dependent Graham-style formula using earn
 The exact formula is documented in [Financial Math](../FINANCE_MATH.md#graham-growth-value-strategy).
 
 ## Quick start
-
-Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship. `--no-cache` bypasses financial cache reads and writes.
-
-Detailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence.
+<!-- help:exclude -->
 
 ```bash
 uv run ian graham-growth KO \
@@ -40,9 +37,9 @@ growth multiplier = 2.0
 baseline AAA yield = 4.4
 ```
 
-They ship with the application and may be overridden key by key in `strategies/graham-growth.toml` in your settings folder; the keys are `base_pe`, `growth_multiplier` and `baseline_aaa_yield`, each time an analysis runs. See [Strategy settings files](../INSTALLATION.md#strategy-settings-files).
+They ship with the application and may be overridden key by key in the strategy's settings file, which is read each time an analysis runs; the keys are `base_pe`, `growth_multiplier` and `baseline_aaa_yield`.
 
-Expected growth and both yields are expressed in **percentage points**. For example, `--expected-growth 5` means 5%, not `0.05`.
+Expected growth and both yields are expressed in **percentage points**. For example, an expected growth of 5 means 5%, not `0.05`.
 
 This method is forecast-dependent. It is not the Graham Number and should not be interpreted as a universally precise intrinsic value.
 
@@ -50,10 +47,15 @@ This method is forecast-dependent. It is not the Graham Number and should not be
 
 At present the user must supply:
 
-- expected annual growth with `--expected-growth`; and
-- the current AAA corporate-bond yield with `--aaa-yield`.
+- expected annual growth; and
+- the current AAA corporate-bond yield.
 
 The software and local AI model do not invent either value. No live AAA-yield series is currently integrated for this calculation.
+
+#### On the command line
+<!-- help:exclude -->
+
+Pass them with `--expected-growth` and `--aaa-yield`.
 
 ### Applicability
 
@@ -65,7 +67,7 @@ A current quote is optional to Graham Growth Value itself. When a compatible cur
 
 If the quote is unavailable, the growth value can still remain valid.
 
-The `graham-growth` command automatically verifies share-unit compatibility for a narrow
+The analysis automatically verifies share-unit compatibility for a narrow
 set of current SEC US-GAAP domestic `10-K` inputs and Yahoo Finance quotes. The
 verification matches the original financial source filings and current eligible
 annual filing to a single registered ordinary common-stock class, with matching
@@ -76,12 +78,22 @@ not establish exhaustive coverage of intervening corporate actions.
 Unsupported classes (including ADR/ADS and multiple common classes), ambiguous
 filings, provider failures, and explicit historical requests leave the comparison
 unavailable with a reason. They do not invalidate an otherwise valid growth value.
+
+Older cached inputs may lack the source lineage needed for verification, and the
+output then identifies missing share-unit evidence. Resolving fresh inputs can
+supply it; unsupported or inaccessible evidence can still prevent comparison.
+
+Verification reads at most four filings, each limited to 8 MiB and a 20-second
+transport timeout, without redirects or automatic retries. Filing evidence is
+verified again on each analysis, including when financial inputs are cached.
+
+#### On the command line
+<!-- help:exclude -->
+
 `--details` and `--diagnostics` show the comparison decision and filing provenance.
 
-Older cached inputs may lack the source lineage needed for verification. If the
-output identifies missing share-unit evidence, retry with `--no-cache` to resolve
-fresh inputs; this bypass does not rewrite existing cache entries. Unsupported
-or inaccessible evidence can still prevent comparison after a refresh.
+If the output identifies missing share-unit evidence, retry with `--no-cache` to resolve
+fresh inputs; this bypass does not rewrite existing cache entries.
 
 To replace older cached inputs as well as bypass them, temporarily set the
 existing financial-cache TTL to zero for a normal run. Only entries requested
@@ -102,15 +114,49 @@ Then rerun the ordinary command. Zero-TTL refreshes can emit cache-age rejection
 notes; those indicate the old entries were bypassed. No database deletion or
 schema migration is needed.
 
-Verification reads at most four filings, each limited to 8 MiB and a 20-second
-transport timeout, without redirects or automatic retries. Filing evidence is
-verified again on each invocation, including when financial inputs are cached.
+### On the command line
+<!-- help:exclude -->
 
-Presentation modes (default, `--details`, `--diagnostics`, `--json`) are shared across both Graham strategies — see the [overview's Presentation modes section](GRAHAM.md#presentation-modes).
+`--expected-growth 5` means 5%, not `0.05`.
+
+The constants can be overridden key by key in `strategies/graham-growth.toml` in your settings folder. See [Strategy settings files](../INSTALLATION.md#strategy-settings-files).
+
+## Presentation modes
+<!-- help:exclude -->
+
+Both Graham strategies share the same presentation shape.
+
+### Default
+
+Designed to answer:
+
+- What is the result?
+- What does it mean?
+- What are the most important sources/assumptions?
+- Is there an important limitation or warning?
+
+When supported provider evidence supplies an instrument name, the heading shows `Instrument Name (TICKER)`; otherwise it uses the ticker alone. Identity metadata is descriptive and cannot change a calculation or its status.
+
+### `--details`
+
+Shows compact financial inputs, reporting dates, bases, sources, calculation formulas and material assumptions. Repeated source components appear once. Where retained, the filing link and its historical exchange evidence are shown separately from current listing verification. Display rounding does not change the calculation. For the Graham Number specifically, an inferred preferred-share zero is also explicitly qualified.
+
+### `--diagnostics`
+
+Retains the full technical input evidence and software resolution behavior: provider fields, recursive lineage, notes, retrieval timestamps, share contexts, and override/cache/provider selection or failures. JSON also retains this evidence.
+
+### `--json`
+
+Emits [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json), including the stable result/provenance representation and an explicit nullable security-identity snapshot.
 
 ## Inputs, assumptions, and overrides
 
-The direct command supports explicit [overrides](../GLOSSARY.md#override) for values including EPS, current price, and the growth-method assumptions (`--expected-growth`, `--aaa-yield`).
+The analysis supports explicit [overrides](../GLOSSARY.md#override) for values including EPS, current price, and the growth-method assumptions (expected growth and the AAA yield).
+
+An override is recorded as an override rather than being presented as provider-verified evidence.
+
+### On the command line
+<!-- help:exclude -->
 
 Examples:
 
@@ -118,8 +164,6 @@ Examples:
 uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --eps 3.25
 uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --current-price 75
 ```
-
-An override is recorded as an override rather than being presented as provider-verified evidence.
 
 Use `--details` to inspect what financial values were used and `--diagnostics` to inspect how resolution proceeded.
 
@@ -139,7 +183,35 @@ market-price comparison is unavailable.
 
 For market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
 
-Point-in-time (`--as-of`) analysis is also shared across both Graham strategies — see the [overview's Point-in-time analysis section](GRAHAM.md#point-in-time-analysis). A ticker names the registrant it maps to today: with `--as-of`, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.
+### Quotes and filing evidence
+
+Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship.
+
+Detailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence.
+
+### On the command line
+<!-- help:exclude -->
+
+`--no-cache` bypasses financial cache reads and writes.
+
+## Point-in-time analysis
+
+An [as-of date](../GLOSSARY.md#as-of-date) creates an information boundary for this strategy.
+
+A fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary. A ticker names the registrant it maps to today: with an as-of date, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.
+
+This distinction helps prevent [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
+
+Current-only quote providers do not manufacture historical quotes. A historical calculation can therefore succeed while the market-price comparison is omitted.
+
+### On the command line
+<!-- help:exclude -->
+
+`--as-of` sets the boundary:
+
+```bash
+uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --as-of 2025-12-31
+```
 
 ## Why another Graham growth-value calculator may disagree
 
@@ -154,7 +226,12 @@ Ask:
 - were stock-split adjustments handled consistently?
 - which exact fiscal periods were used?
 
-`--eps-basis` accepts `three_year_average` (the default, for every provider) or `fiscal_year` for reviewed workflows. `fiscal_year` is a single completed fiscal year's diluted EPS and is a Graham Growth Value-only basis: the Graham Number has no `--eps-basis` option. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement. An unsupported basis is rejected, never silently transformed into a different basis.
+The EPS basis is `three_year_average` (the default, for every provider) or `fiscal_year` for reviewed workflows. `fiscal_year` is a single completed fiscal year's diluted EPS and is a Graham Growth Value-only basis: the Graham Number has only the three-year average. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement. An unsupported basis is rejected, never silently transformed into a different basis.
+
+#### On the command line
+<!-- help:exclude -->
+
+`--eps-basis` selects the basis. The Graham Number has no `--eps-basis` option.
 
 ### Publication timing
 
@@ -183,10 +260,12 @@ Accurate arithmetic does not guarantee that this strategy is appropriate for a p
 Nothing produced by this strategy is investment advice.
 
 ## Watchlist options
+<!-- help:exclude -->
 
 `watchlist add-selection graham-growth` accepts the same flags as `graham-number` without `--bvps` (see [Graham Number watchlist options](GRAHAM_NUMBER.md#watchlist-options)), plus `--eps-basis` and `--expected-growth`/`--aaa-yield`. The growth/yield assumptions are required; there is no default. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the command that takes them.
 
 ## Related user documentation
+<!-- help:exclude -->
 
 - [Graham Number Strategy Guide](GRAHAM_NUMBER.md)
 - [Usage Guide](../USAGE.md)

@@ -51,7 +51,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.4a | [Action endpoints, selection forms, result documents and error lists](API_4_SLICE_PLAN.md#api4a--action-endpoints-selection-forms-result-documents-and-error-lists) | Complete | 2026-11-06 |
 | API.4b | [Refresh jobs](API_4_SLICE_PLAN.md#api4b--refresh-jobs) | Complete | 2026-11-07 |
 | API.5a | [Help content: the glossary](#api5a--help-content-the-glossary) | Complete | 2026-11-07 |
-| API.5b | [Help content: the bundle](#api5b--help-content-the-bundle) | Planned | |
+| API.5b1 | [Help content: the guides](#api5b1--help-content-the-guides) | Complete | 2026-11-07 |
+| API.5b2 | [Help content: the bundle](#api5b2--help-content-the-bundle) | Planned | |
 | API.6 | [Term references and help endpoints](#api6--term-references-and-help-endpoints) | Planned | |
 
 ## 3. The slices
@@ -200,18 +201,31 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-help-glossary`.
 - **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md).
 
-### API.5b — Help content: the bundle
+### API.5b1 — Help content: the guides
 
-- **Problem:** the educational guides mix explanation with command-line instructions, and nothing packages the served
-  content for the API.
-- **Decision:** exclude markers and leak checks keep commands out of served content; a generated help bundle ships inside
-  the package and is compared in the gate like `schemas/`
-  ([H11](API_5_SLICE_PLAN.md#h11-leak-checks-on-served-content-2026-11-07) to
-  [H14](API_5_SLICE_PLAN.md#h14-links-in-the-bundle-2026-11-07)).
-- **Scope:** the exclude markers in the served guides; the leak checks; `strategies/GRAHAM.md` retired; the `help` package
-  and the bundle generator with its drift check.
+- **Problem:** the educational guides mix explanation with command-line instructions, so none of them can be served as it
+  stands.
+- **Decision:** every served section is interface-neutral and command-line material stays in excluded sections; leak checks
+  keep commands, flags and links to unserved documents out of served content
+  ([H23](API_5_SLICE_PLAN.md#h23-api5b-is-split-in-two-2026-11-07) to
+  [H30](API_5_SLICE_PLAN.md#h30-the-beginner-guide-2026-11-07)).
+- **Scope:** the exclude markers and the interface-neutral rewording in the served guides; `strategies/GRAHAM.md` retired;
+  the leak checks in `scripts/check_help_content.py` and the command-name test.
+- **Branch:** `feat/api-help-guides`.
+- **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md).
+
+### API.5b2 — Help content: the bundle
+
+- **Problem:** nothing packages the served content for the API.
+- **Decision:** a generated help bundle, with a loader, ships inside the package and is compared in the gate like `schemas/`
+  ([H13](API_5_SLICE_PLAN.md#h13-the-bundle-2026-11-07),
+  [H14](API_5_SLICE_PLAN.md#h14-links-in-the-bundle-2026-11-07) and
+  [H31](API_5_SLICE_PLAN.md#h31-the-bundles-shape-2026-11-07) to
+  [H33](API_5_SLICE_PLAN.md#h33-generator-and-drift-2026-11-07)).
+- **Scope:** the `help` package with the bundle model, its loader and `help_bundle.json`; the bundle generator with its drift
+  check; package-data, Architecture §13 and `check_installed_package`.
 - **Branch:** `feat/api-help-bundle`.
-- **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md); ⚠ no implementation record yet.
+- **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md); ⚠ no slice plan for the bundle yet.
 
 ### API.6 — Term references and help endpoints
 

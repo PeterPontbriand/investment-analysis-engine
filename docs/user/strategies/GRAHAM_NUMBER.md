@@ -11,10 +11,7 @@ The Graham Number asks whether a market price is above or below a conservative e
 The exact formula is documented in [Financial Math](../FINANCE_MATH.md#graham-number-strategy).
 
 ## Quick start
-
-Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship. `--no-cache` bypasses financial cache reads and writes.
-
-Detailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence.
+<!-- help:exclude -->
 
 ```bash
 uv run ian graham-number KO
@@ -60,7 +57,7 @@ A current quote is optional to the Graham Number itself. When a compatible curre
 
 If the quote is unavailable, the Graham Number can still remain valid.
 
-The `graham-number` command automatically verifies share-unit compatibility for a narrow
+The analysis automatically verifies share-unit compatibility for a narrow
 set of current SEC US-GAAP domestic `10-K` inputs and Yahoo Finance quotes. The
 verification matches the original financial source filings and current eligible
 annual filing to a single registered ordinary common-stock class, with matching
@@ -71,12 +68,22 @@ not establish exhaustive coverage of intervening corporate actions.
 Unsupported classes (including ADR/ADS and multiple common classes), ambiguous
 filings, provider failures, and explicit historical requests leave the comparison
 unavailable with a reason. They do not invalidate an otherwise valid Graham Number.
+
+Older cached inputs may lack the source lineage needed for verification, and the
+output then identifies missing share-unit evidence. Resolving fresh inputs can
+supply it; unsupported or inaccessible evidence can still prevent comparison.
+
+Verification reads at most four filings, each limited to 8 MiB and a 20-second
+transport timeout, without redirects or automatic retries. Filing evidence is
+verified again on each analysis, including when financial inputs are cached.
+
+#### On the command line
+<!-- help:exclude -->
+
 `--details` and `--diagnostics` show the comparison decision and filing provenance.
 
-Older cached inputs may lack the source lineage needed for verification. If the
-output identifies missing share-unit evidence, retry with `--no-cache` to resolve
-fresh inputs; this bypass does not rewrite existing cache entries. Unsupported
-or inaccessible evidence can still prevent comparison after a refresh.
+If the output identifies missing share-unit evidence, retry with `--no-cache` to resolve
+fresh inputs; this bypass does not rewrite existing cache entries.
 
 To replace older cached inputs as well as bypass them, temporarily set the
 existing financial-cache TTL to zero for a normal run. Only entries requested
@@ -97,15 +104,42 @@ Then rerun the ordinary command. Zero-TTL refreshes can emit cache-age rejection
 notes; those indicate the old entries were bypassed. No database deletion or
 schema migration is needed.
 
-Verification reads at most four filings, each limited to 8 MiB and a 20-second
-transport timeout, without redirects or automatic retries. Filing evidence is
-verified again on each invocation, including when financial inputs are cached.
+## Presentation modes
+<!-- help:exclude -->
 
-Presentation modes (default, `--details`, `--diagnostics`, `--json`) are shared across both Graham strategies — see the [overview's Presentation modes section](GRAHAM.md#presentation-modes).
+Both Graham strategies share the same presentation shape.
+
+### Default
+
+Designed to answer:
+
+- What is the result?
+- What does it mean?
+- What are the most important sources/assumptions?
+- Is there an important limitation or warning?
+
+When supported provider evidence supplies an instrument name, the heading shows `Instrument Name (TICKER)`; otherwise it uses the ticker alone. Identity metadata is descriptive and cannot change a calculation or its status.
+
+### `--details`
+
+Shows compact financial inputs, reporting dates, bases, sources, calculation formulas and material assumptions. Repeated source components appear once. Where retained, the filing link and its historical exchange evidence are shown separately from current listing verification. Display rounding does not change the calculation. For the Graham Number specifically, an inferred preferred-share zero is also explicitly qualified.
+
+### `--diagnostics`
+
+Retains the full technical input evidence and software resolution behavior: provider fields, recursive lineage, notes, retrieval timestamps, share contexts, and override/cache/provider selection or failures. JSON also retains this evidence.
+
+### `--json`
+
+Emits [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json), including the stable result/provenance representation and an explicit nullable security-identity snapshot.
 
 ## Inputs, assumptions, and overrides
 
-The direct command supports explicit [overrides](../GLOSSARY.md#override) for values including EPS, BVPS, and current price.
+The analysis supports explicit [overrides](../GLOSSARY.md#override) for values including EPS, BVPS, and current price.
+
+An override is recorded as an override rather than being presented as provider-verified evidence.
+
+### On the command line
+<!-- help:exclude -->
 
 Examples:
 
@@ -113,8 +147,6 @@ Examples:
 uv run ian graham-number KO --eps 3.25 --bvps 8.10
 uv run ian graham-number KO --current-price 75
 ```
-
-An override is recorded as an override rather than being presented as provider-verified evidence.
 
 Use `--details` to inspect what financial values were used and `--diagnostics` to inspect how resolution proceeded.
 
@@ -140,7 +172,35 @@ market-price comparison is unavailable.
 
 For market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
 
-Point-in-time (`--as-of`) analysis is also shared across both Graham strategies — see the [overview's Point-in-time analysis section](GRAHAM.md#point-in-time-analysis). A ticker names the registrant it maps to today: with `--as-of`, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.
+### Quotes and filing evidence
+
+Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship.
+
+Detailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence.
+
+### On the command line
+<!-- help:exclude -->
+
+`--no-cache` bypasses financial cache reads and writes.
+
+## Point-in-time analysis
+
+An [as-of date](../GLOSSARY.md#as-of-date) creates an information boundary for this strategy.
+
+A fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary. A ticker names the registrant it maps to today: with an as-of date, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.
+
+This distinction helps prevent [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
+
+Current-only quote providers do not manufacture historical quotes. A historical calculation can therefore succeed while the market-price comparison is omitted.
+
+### On the command line
+<!-- help:exclude -->
+
+`--as-of` sets the boundary:
+
+```bash
+uv run ian graham-number KO --as-of 2025-12-31
+```
 
 ## Why another Graham Number calculator may disagree
 
@@ -155,7 +215,12 @@ Ask:
 - were stock-split adjustments handled consistently?
 - which exact fiscal periods were used?
 
-Investment Analysis Engine uses three-year-average diluted EPS as the Graham Number basis, and offers no other: there is no `--eps-basis` option, and `ian graham-number --eps-basis ...` fails with "No such option". An explicit single-fiscal-year basis is a Graham Growth Value-only capability. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement.
+Investment Analysis Engine uses three-year-average diluted EPS as the Graham Number basis, and offers no other. An explicit single-fiscal-year basis is a Graham Growth Value-only capability. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement.
+
+#### On the command line
+<!-- help:exclude -->
+
+There is no `--eps-basis` option, and `ian graham-number --eps-basis ...` fails with "No such option".
 
 ### BVPS definition
 
@@ -195,10 +260,12 @@ Accurate arithmetic does not guarantee that this strategy is appropriate for a p
 Nothing produced by this strategy is investment advice.
 
 ## Watchlist options
+<!-- help:exclude -->
 
 `watchlist add-selection graham-number` accepts `--as-of`, `--no-cache`, `--eps`, `--bvps` and `--current-price`. See [Local Research Workspace](../WORKSPACE.md#strategies-and-their-watchlist-options) for the command that takes them.
 
 ## Related user documentation
+<!-- help:exclude -->
 
 - [Graham Growth Value Strategy Guide](GRAHAM_GROWTH.md)
 - [Usage Guide](../USAGE.md)

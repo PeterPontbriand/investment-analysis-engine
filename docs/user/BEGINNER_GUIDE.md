@@ -62,7 +62,7 @@ The project derives BVPS from year-end accounting facts that meet the method's d
 
 The method combines the average EPS and BVPS to produce a [maximum indicated price](GLOSSARY.md#maximum-indicated-price), or screening ceiling (a price limit indicated by this formula). If the project has a current share price for the same kind of share and currency as the financial figures, the result can show how they compare.
 
-This is one limited screen, not a complete judgment of what a company is worth or whether its shares are suitable for someone. See the [Graham strategy guide](strategies/GRAHAM.md) and [Financial Math & Data Conventions](FINANCE_MATH.md#graham-number-strategy) for the exact inputs, formula, and data rules.
+This is one limited screen, not a complete judgment of what a company is worth or whether its shares are suitable for someone. See the [Graham Number strategy guide](strategies/GRAHAM_NUMBER.md) and [Financial Math & Data Conventions](FINANCE_MATH.md#graham-number-strategy) for the exact inputs, formula, and data rules.
 
 The arrows show the relationship between these ideas; they are not a literal map of every software operation. The diagram is conceptual, not a substitute for the actual formula.
 
@@ -84,7 +84,7 @@ A **growth rate** describes how a value changes across a period. **[CAGR (compou
 
 A **historical price** is one observed share price in a series of prices over time. The current market price is a separate kind of input: it is a quote, and the time the project retrieves it does not necessarily establish when the underlying trade occurred.
 
-A **[yield](GLOSSARY.md#yield)** expresses an amount of income relative to an investment's price or value, usually as a percentage. In this project's [Graham Growth Value](strategies/GRAHAM.md#graham-growth-value) method, a user supplies an expected growth estimate and the yield on AAA-rated (highest credit category) corporate bonds; the project does not currently provide a live series of that yield. See the glossary's [AAA definition](GLOSSARY.md#aaa-rating).
+A **[yield](GLOSSARY.md#yield)** expresses an amount of income relative to an investment's price or value, usually as a percentage. In this project's [Graham Growth Value](strategies/GRAHAM_GROWTH.md#graham-growth-value) method, a user supplies an expected growth estimate and the yield on AAA-rated (highest credit category) corporate bonds; the project does not currently provide a live series of that yield. See the glossary's [AAA definition](GLOSSARY.md#aaa-rating).
 
 **Market capitalization** is the market value of a company's shares, generally calculated from share price and shares outstanding. It is different from accounting book value. **Valuation measures** compare a price or market value with a financial measure. For example, the [price-to-earnings ratio (P/E)](GLOSSARY.md#pe-ratio) compares price per share with EPS; the [price-to-book ratio (P/B)](GLOSSARY.md#pb-ratio) compares price per share with BVPS. A ratio can help frame a comparison, but it does not establish what a business should be worth. In the current FCF strategy, market capitalization may support an optional, informational [FCF yield](GLOSSARY.md#fcf-yield); it does not determine the growth classification.
 
@@ -100,14 +100,13 @@ Treat a metric as evidence to inspect, not as a verdict. A historical growth rat
 
 ## How the project applies this model today
 
-The project's current strategy guides describe examples of distinct analytical questions:
+A few of the project's strategies, offered only as examples, show how different analytical questions can be:
 
 - The **Graham Number** method combines earnings and book value per share to produce a screening ceiling. Positive EPS and BVPS are required. A current-price comparison is optional and depends on compatible evidence.
 - **Graham Growth Value** is a separate calculation that depends on estimates about future growth. Under the current implementation, the user supplies an expected growth estimate and a current AAA corporate-bond yield; the method is not the Graham Number.
 - **Momentum** examines recent share-price behavior using simple moving averages (averages over selected numbers of past prices) and whether their relationship changes, called a crossover. It also reports [RSI (Relative Strength Index)](GLOSSARY.md#rsi), a momentum indicator—a score that compares recent price gains with losses. The strategy describes price behavior; it does not assess business quality or estimate [intrinsic value](GLOSSARY.md#intrinsic-value), meaning what an investment may be economically worth.
-- **Free Cash Flow & Earnings Growth** is a historical screen that looks at whether the company's total FCF, FCF per diluted share, and diluted EPS grew over completed fiscal years with comparable data. By default, the screen uses total-company FCF growth; it can instead use FCF growth per diluted share. Optional FCF yield provides extra context and does not affect the screen.
 
-These examples have different purposes and inputs. The set of strategies can evolve as the project grows; this list is an orientation to current documentation, not a permanent inventory or a requirement that future strategies use the same measures. The [strategy index](strategies/README.md) links to each guide and its limitations.
+These examples have different purposes and inputs. They are illustrations, not a complete list: the set of strategies can evolve as the project grows, and a future strategy need not use the same measures. Each strategy's own guide describes its inputs, sources and limits.
 
 ## Where values come from, and why dates matter
 
@@ -115,7 +114,7 @@ Financial facts and market observations come from sources with different roles. 
 
 The project uses a software component called `yfinance` to access Yahoo Finance historical prices and certain current share prices. `yfinance` is a third-party open-source library; it is not affiliated with, endorsed by, or vetted by Yahoo.
 
-Some commands also accept user-provided overrides—values supplied for a particular run rather than confirmed by a data service. Each strategy guide describes its specific sources.
+Some analyses also accept user-provided overrides—values supplied for a particular run rather than confirmed by a data service. Each strategy guide describes its specific sources.
 
 A **fiscal period** is the period a reported figure describes. The date that period ended is not necessarily when investors could first know the figure: a company may file its report weeks or months later. For a historical analysis, using a fact before its public release would use information that arrived later, an error called [look-ahead bias](GLOSSARY.md#look-ahead-bias). The project's [`as_of`](GLOSSARY.md#as-of-date) date is a cutoff: where the source supports it, the analysis only uses information available by that date. A current-only quote does not become a historical quote just because an analysis has an earlier `as_of` date. See [filing and publication dates](GLOSSARY.md#availability-date) for more detail.
 
@@ -123,11 +122,12 @@ A **fiscal period** is the period a reported figure describes. The date that per
 
 ## What the project does not establish
 
-Investment Analysis Engine does not provide personalized investment advice, guarantee source-data quality or future performance, or turn one formula or metric into a complete valuation or investment decision. Its results have to be understood in context, and decisions require judgment beyond the calculation. Read the [project limitations and disclaimer](../../README.md#limitations--disclaimer) and the limitations in the relevant [strategy guide](strategies/README.md).
+Investment Analysis Engine does not provide personalized investment advice, guarantee source-data quality or future performance, or turn one formula or metric into a complete valuation or investment decision. Its results have to be understood in context, and decisions require judgment beyond the calculation. Read the [project limitations and disclaimer](https://github.com/PeterPontbriand/investment-analysis-engine/blob/main/README.md#limitations--disclaimer) and the limitations in the relevant strategy guide.
 
 ## Where to go next
 
 ### First steps after this guide
+<!-- help:exclude -->
 
 Want to try the software? If you are new to Git or Python, follow the [Installation & Configuration Guide](INSTALLATION.md). If you are already comfortable with Python development, use the shorter [Quick Start](QUICKSTART.md).
 
@@ -141,9 +141,5 @@ The README's sample result is illustrative; live prices and newly published fili
 
 ### Further reading
 
-- [Glossary](GLOSSARY.md) — short definitions of financial and project terms.
-- [Analysis Strategy Guides](strategies/README.md) — current strategy examples, inputs, interpretation, sources, and limits.
 - [Financial Math & Data Conventions](FINANCE_MATH.md) — authoritative formulas and calculation semantics.
-- [Usage Guide](USAGE.md) — how to run analyses and inspect their output.
-- [Project & Technical Documentation](../project/README.md) — architecture and implementation details for readers who want to go deeper.
 - [Investor.gov glossary](https://www.investor.gov/introduction-investing/investing-basics/glossary) — the SEC's plain-language definitions of everyday investing terms.
