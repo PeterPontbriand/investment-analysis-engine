@@ -1,10 +1,10 @@
-# Momentum Analysis Strategy Guide
+# Momentum Strategy Guide
 
-This guide explains the Investment Analysis Engine **Momentum Analysis Strategy** from an investor/user perspective.
+This guide explains the Investment Analysis Engine **Momentum Strategy** from an investor/user perspective.
 
 ## What this strategy does
 
-Momentum compares a short [SMA](../GLOSSARY.md#sma-simple-moving-average) with a longer [SMA](../GLOSSARY.md#sma-simple-moving-average) over historical closing prices and reports the current relationship plus [crossover](../GLOSSARY.md#crossover) state.
+Momentum compares a short [SMA](../GLOSSARY.md#sma) with a longer [SMA](../GLOSSARY.md#sma) over historical closing prices and reports the current relationship plus [crossover](../GLOSSARY.md#crossover) state.
 
 It is a price-series analysis. It does not determine business quality, intrinsic value, or whether a security should be bought or sold.
 
@@ -43,7 +43,7 @@ SMA_t(n) = mean(P[t-n+1 : t])
 
 The strategy calculates a short moving average and a long moving average over the historical `Close` series, then evaluates their relationship and whether that relationship changed on the latest observation.
 
-A crossover needs two consecutive valid SMA pairs. Having exactly enough prices for the long SMA establishes today's relationship but not a prior relationship; crossover is unavailable in that case. The RSI uses simple trailing averages of gains/losses, as specified in [Financial Math](../FINANCE_MATH.md#momentum-analysis-strategy).
+A crossover needs two consecutive valid SMA pairs. Having exactly enough prices for the long SMA establishes today's relationship but not a prior relationship; crossover is unavailable in that case. The RSI uses simple trailing averages of gains/losses, as specified in [Financial Math](../FINANCE_MATH.md#momentum-strategy).
 
 Diagnostics and JSON retain original provider retrieval time and cache origin. Historical daily labels are not verified exchange-close timestamps, and the provider's past adjusted-price vintages are not retained. Observation-date filtering alone is not a guarantee of historical knowability. Missing or nonfinite prices cause a failure with the affected field/date when known; the application does not silently remove bad rows or substitute an older close.
 
@@ -54,7 +54,7 @@ In investor terms:
 - transition into the bullish relationship → bullish crossover;
 - transition out of the bullish relationship → bearish crossover.
 
-See [Financial Math](../FINANCE_MATH.md#momentum-analysis-strategy) for the exact deterministic convention.
+See [Financial Math](../FINANCE_MATH.md#momentum-strategy) for the exact deterministic convention.
 
 ## Point-in-time analysis and cache control
 
@@ -110,7 +110,7 @@ Retains technical execution traces, original retrieval/cache evidence and identi
 uv run ian momentum AAPL --json
 ```
 
-Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json-javascript-object-notation), including an explicit nullable security-identity snapshot.
+Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json), including an explicit nullable security-identity snapshot.
 
 ## Sufficient history is required
 
@@ -157,7 +157,7 @@ When comparing results, first confirm that both tools are calculating the same i
 
 ## What this strategy does not currently implement
 
-The current Momentum strategy is specifically an SMA/crossover analysis, reporting [RSI](../GLOSSARY.md#rsi-relative-strength-index) as a supporting indicator (see [above](#how-the-calculation-works) for its simple-average, not-Wilder-smoothing convention). It does not currently implement [MACD](../GLOSSARY.md#macd-moving-average-convergence-divergence), [Sharpe ratio](../GLOSSARY.md#sharpe-ratio), or a 12-month-minus-1-month momentum factor.
+The current Momentum strategy is specifically an SMA/crossover analysis, reporting [RSI](../GLOSSARY.md#rsi) as a supporting indicator (see [above](#how-the-calculation-works) for its simple-average, not-Wilder-smoothing convention). It does not currently implement [MACD](../GLOSSARY.md#macd), Sharpe ratio, or a 12-month-minus-1-month momentum factor.
 
 Those are separate analytical methods; they should not be inferred from the generic word “momentum.”
 
@@ -174,5 +174,5 @@ Nothing produced by this strategy is investment advice.
 ## Related user documentation
 
 - [Usage Guide](../USAGE.md)
-- [Financial Math — Momentum Analysis Strategy](../FINANCE_MATH.md#momentum-analysis-strategy)
+- [Financial Math — Momentum Strategy](../FINANCE_MATH.md#momentum-strategy)
 - [Glossary](../GLOSSARY.md)

@@ -136,5 +136,5 @@ All inputs come from SEC EDGAR structured filings: balance-sheet values at three
 ## Related documentation
 
 - [Financial Math & Data Conventions](../FINANCE_MATH.md#piotroski-f-score-strategy) — normative formulas and conventions.
-- [Glossary](../GLOSSARY.md#piotroski-f-score-terms) — terms used in this guide.
+- [Glossary](../GLOSSARY.md#piotroski-strategy) — terms used in this guide.
 - [Analysis strategy guides](README.md)

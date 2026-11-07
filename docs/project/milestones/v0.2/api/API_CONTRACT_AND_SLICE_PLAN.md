@@ -50,7 +50,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.3c | [Refresh with progress](API_3_SLICE_PLAN.md#api3c--refresh-with-progress) | Complete | 2026-11-06 |
 | API.4a | [Action endpoints, selection forms, result documents and error lists](API_4_SLICE_PLAN.md#api4a--action-endpoints-selection-forms-result-documents-and-error-lists) | Complete | 2026-11-06 |
 | API.4b | [Refresh jobs](API_4_SLICE_PLAN.md#api4b--refresh-jobs) | Complete | 2026-11-07 |
-| API.5 | [Help content](#api5--help-content) | Next | |
+| API.5a | [Help content: the glossary](#api5a--help-content-the-glossary) | Complete | 2026-11-07 |
+| API.5b | [Help content: the bundle](#api5b--help-content-the-bundle) | Planned | |
 | API.6 | [Term references and help endpoints](#api6--term-references-and-help-endpoints) | Planned | |
 
 ## 3. The slices
@@ -181,24 +182,36 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branches:** `feat/api-actions` (API.4a) and `feat/api-refresh-jobs` (API.4b).
 - **Detail:** [API.4 slice plan](API_4_SLICE_PLAN.md).
 
-### API.5 — Help content
+### API.5a — Help content: the glossary
 
-- **Problem:** the glossary mixes investor and contributor terms, many entries have no first paragraph that
-  stands alone, nothing gives a term a stable identifier, and the educational guides mix explanation with
-  command-line instructions.
-- **Decision:** Markdown stays the source. Each glossary entry has a stable `<a id>` anchor and a first paragraph
-  that is its short definition; a checker enforces the structure. A generated help bundle ships inside the
-  package and is compared in the gate like `schemas/` ([A.4](#a4-help-content-in-the-gui-2026-10-30)).
+- **Problem:** the glossary mixes investor, command-line and contributor terms, many entries have no first paragraph that
+  stands alone, and nothing gives a term a stable identifier.
+- **Decision:** Markdown stays the source. Each glossary entry has a permanent `<a id>` id and a first paragraph that is its
+  short definition; a checker enforces the structure ([A.4](#a4-help-content-in-the-gui-2026-10-30),
+  [H1](API_5_SLICE_PLAN.md#h1-api5-is-split-in-two-2026-11-07)).
 - **Scope:**
-  - contributor terms move to a contributor glossary under `docs/project/`, which is not served;
-  - every investor entry in `docs/user/GLOSSARY.md` gets an anchor and a short definition of at most two
-    sentences and about 200 characters, with no link or code;
-  - command-line sections of the served guides (Beginner Guide, Finance Math, strategy guides) carry an exclude
-    marker;
-  - the entry checker; the bundle generator and its drift test; the change `scripts/check_doc_links.py` needs
-    to resolve `<a id>` anchors, if any.
-- **Branch:** `docs/api-help-content`.
-- **Detail:** ⚠ no slice plan yet
+  - contributor terms move to `docs/project/CONTRIBUTOR_GLOSSARY.md`, which is not served; command-line terms stay in the
+    user glossary, in a section that carries the exclude marker;
+  - every entry gets an id; every investor entry gets a short definition of at most 200 characters and two sentences, with
+    no link or code, and no command, flag or closed list of strategies;
+  - every link to a glossary entry targets the id; `scripts/check_doc_links.py` resolves `<a id>` anchors and refuses a
+    link to a heading slug;
+  - `scripts/check_help_content.py`, a gate step beside `check_doc_links.py`.
+- **Branch:** `feat/api-help-glossary`.
+- **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md).
+
+### API.5b — Help content: the bundle
+
+- **Problem:** the educational guides mix explanation with command-line instructions, and nothing packages the served
+  content for the API.
+- **Decision:** exclude markers and leak checks keep commands out of served content; a generated help bundle ships inside
+  the package and is compared in the gate like `schemas/`
+  ([H11](API_5_SLICE_PLAN.md#h11-leak-checks-on-served-content-2026-11-07) to
+  [H14](API_5_SLICE_PLAN.md#h14-links-in-the-bundle-2026-11-07)).
+- **Scope:** the exclude markers in the served guides; the leak checks; `strategies/GRAHAM.md` retired; the `help` package
+  and the bundle generator with its drift check.
+- **Branch:** `feat/api-help-bundle`.
+- **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md); ⚠ no implementation record yet.
 
 ### API.6 — Term references and help endpoints
 
@@ -214,7 +227,9 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   - a term in each selection field's metadata;
   - "glossary terms" as an edit site in `scripts/strategy_sites.toml`;
   - `/v1/help/terms/{id}` and `/v1/help/documents/{id}`, which return Markdown, never HTML;
-  - term references for all five strategies, Piotroski included.
+  - term references for all five strategies, Piotroski included;
+  - an orphan-term check: every served term is referenced by an API.6 mapping or linked from served content
+    ([H9](API_5_SLICE_PLAN.md#h9-boundary-with-api6-2026-11-07)).
 - **Branch:** `feat/api-help`.
 - **Detail:**
   - It follows "Changing what every strategy provides" in [`TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#changing-what-every-strategy-provides)
