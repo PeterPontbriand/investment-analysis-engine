@@ -136,22 +136,30 @@ If the returned history is too short, the strategy reports the affected values/r
 
 Machine-readable JSON uses `null` for unavailable numeric outputs rather than non-standard `NaN`.
 
-## Status, failures and exit codes
-<!-- help:exclude -->
+## Statuses and failures
 
 Every Momentum result carries a status, as the other strategies' results do:
 
-| Situation | Status | Run outcome | Exit code |
-| :--- | :--- | :--- | :--- |
-| A bullish or bearish trend | `ok` | `completed` | 0 |
-| The history is too short for the long average (trend `UNKNOWN`) | `input_unavailable` | `unavailable` | 1 |
-| No price history exists at or before the `--as-of` boundary | `input_unavailable` | `unavailable` | 1 |
-| The price data failed a data-quality check | `input_unavailable` | `unavailable` | 1 |
-| The price provider failed | `provider_error` | `failed` | 1 |
+| Situation | Status | Run outcome |
+| :--- | :--- | :--- |
+| A bullish or bearish trend | `ok` | `completed` |
+| The history is too short for the long average (trend `UNKNOWN`) | `input_unavailable` | `unavailable` |
+| No price history exists at or before the as-of boundary | `input_unavailable` | `unavailable` |
+| The price data failed a data-quality check | `input_unavailable` | `unavailable` |
+| The price provider failed | `provider_error` | `failed` |
 
-A result that could not be calculated has no `result` part in `--json`; its `reason` says why, and `reason_code` names the cause where one fits (`insufficient_history`, `not_available_as_of` or `provider_error`; a failed data-quality check has the message only). A provider failure never stores the provider's own error text: the stored reason is a fixed message, and `provider_failure` names the provider and the kind of failure. In the text output, a result with a status other than `ok` is written to standard error, as the other strategies do, and after a provider failure the [provider check](../USAGE.md#after-a-provider-failure-the-first-line) runs unless you pass `--no-provider-check`.
+A result that could not be calculated has a reason, and a reason code where one fits (`insufficient_history`, `not_available_as_of` or `provider_error`; a failed data-quality check has the reason only). A provider failure never stores the provider's own error text: the stored reason is a fixed message, and `provider_failure` names the provider and the kind of failure.
 
-These results are saved like any other: `--save-run` stores a failed or unavailable run, and [`refresh`](../WORKSPACE.md#refreshing-a-watchlist) records it as a run with its outcome instead of an error without a run. A refresh that holds one exits 1.
+A saved run keeps a failed or unavailable outcome, and refreshing a watchlist entry records it as a run with that outcome instead of an error without a run.
+
+### On the command line
+<!-- help:exclude -->
+
+The exit code is 0 for an `ok` result and 1 otherwise.
+
+A result that could not be calculated has no `result` part in `--json`. In the text output, a result with a status other than `ok` is written to standard error, as the other strategies do, and after a provider failure the [provider check](../USAGE.md#after-a-provider-failure-the-first-line) runs unless you pass `--no-provider-check`.
+
+`--save-run` stores a failed or unavailable run, and [`refresh`](../WORKSPACE.md#refreshing-a-watchlist) records it as a run with its outcome instead of an error without a run. A refresh that holds one exits 1.
 
 A request that is itself wrong (a naive `--as-of`, a window or period that is not positive) is rejected before anything is fetched and exits 1 with a failure document, as before.
 

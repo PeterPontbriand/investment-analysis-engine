@@ -100,7 +100,7 @@ Treat a metric as evidence to inspect, not as a verdict. A historical growth rat
 
 ## How the project applies this model today
 
-Three of the project's strategies, offered only as examples, show how different analytical questions can be:
+A few of the project's strategies, offered only as examples, show how different analytical questions can be:
 
 - The **Graham Number** method combines earnings and book value per share to produce a screening ceiling. Positive EPS and BVPS are required. A current-price comparison is optional and depends on compatible evidence.
 - **Graham Growth Value** is a separate calculation that depends on estimates about future growth. Under the current implementation, the user supplies an expected growth estimate and a current AAA corporate-bond yield; the method is not the Graham Number.

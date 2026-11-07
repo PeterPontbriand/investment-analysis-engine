@@ -26,7 +26,8 @@ interface-neutral and checks them, and API.5b2 packages the served content as a 
 - **Where the history lives:** decisions H1 to H15 are in [Appendix A](#appendix-a-decision-records), approved by the
   project owner on 2026-11-07, and H16 to H22 are the review fixes of API.5a, approved the same day. H11 to H14 decide
   the checks on the guides and the bundle and are not implemented by API.5a. H23 to H35 split API.5b and decide API.5b1
-  and API.5b2, approved the same day; API.5b1 implements H23 to H30, H34 and H35, and H31 to H33 are API.5b2's.
+  and API.5b2, approved the same day; API.5b1 implements H23 to H30, H34 and H35, and H31 to H33 are API.5b2's. H36 to H39 are the review fixes of API.5b1,
+  approved the same day.
 
 ## 2. Sequence and status
 
@@ -153,16 +154,23 @@ What changed, by area:
   it.
 - **Guides:**
   - every strategy guide marks its Quick start, Watchlist options and Related documentation as excluded sections, and the
-    guides that have them mark Command options, Presentation modes and, for Momentum, Status, failures and exit codes;
+    guides that have them mark Command options and Presentation modes;
   - a mixed section keeps its explanation as served text and ends with an excluded "On the command line" subsection that
     holds its flags, shell examples, cache-bypass instructions and output-mode pointers
     ([H25](#h25-command-line-material-stays-in-its-guide-2026-11-07));
   - explanation that sat inside a Quick start or Presentation modes section moved to the served section it explains: the
     Graham guides' quote-reuse and provenance paragraphs are under Data sources, the FCF default policy has a section of its
     own, and the Piotroski comparison cells are under Reading the result;
-  - the Beginner Guide lists three illustrative strategies, links no unserved document, and its first steps are excluded
+  - the Beginner Guide lists a few illustrative strategies, links no unserved document, and its first steps are excluded
     ([H30](#h30-the-beginner-guide-2026-11-07)); `FINANCE_MATH.md` has two reworded sentences and no link to an unserved
     document.
+- **Momentum statuses:** "Statuses and failures" is a served section: the status table without an exit-code column, the
+  reason and reason code, the fixed provider-failure reason, and the saved and refreshed outcome. Its final "On the command
+  line" subsection holds the exit codes, the missing result part in `--json`, standard error, the provider check, `--save-run`,
+  the refresh exit code and the rejection of a wrong request ([H36](#h36-momentums-statuses-and-failures-are-served-2026-11-07)).
+- **Project README:** a "Served documents" section after "Glossary entries" states the served documents and the rules, with
+  links to H24, H25, H27 and H28, and the documentation-only gate names `tests/scripts/test_served_content.py`
+  ([H37](#h37-the-served-document-rules-are-documented-now-2026-11-07)).
 - **`strategies/GRAHAM.md`:** deleted. Its Point-in-time section is in both Graham guides, with the explanation served and the
   `--as-of` examples in an "On the command line" subsection; its Presentation modes section is an excluded section of both
   guides; its two summary sections are dropped. Every link to it is retargeted, and `strategies/README.md` lists the two
@@ -192,9 +200,6 @@ Noticed for later slices:
 
 - API.5b2's generator takes its sections from `served_documents`, and a section's id is its `slug`, which counts excluded
   headings as GitHub does.
-- `docs/project/README.md`'s "Glossary entries" section and its documentation-only gate do not yet describe the served-content
-  rules or say that editing a served document also needs `tests/scripts/test_served_content.py`; API.5b2 owns that wording
-  with the bundle.
 - A link into the user glossary from served content must target the id of a served term, so a "Related documentation" list
   that links the glossary as a whole is excluded and the Beginner Guide's "Further reading" no longer lists it.
 
@@ -229,7 +234,8 @@ review once the guides it serves are settled.
 
 H1 to H15 were approved by the project owner on 2026-11-07, with the amendments recorded in H3 and H8. H16 to H22 are the review
 fixes of API.5a, approved the same day. H23 to H35 split API.5b and decide API.5b1 and API.5b2, approved the same day;
-H31 to H33 decide API.5b2 and are recorded here, not implemented by API.5b1.
+H31 to H33 decide API.5b2 and are recorded here, not implemented by API.5b1. H36 to H39 are the review fixes of
+API.5b1, approved the same day.
 
 ### H1 API.5 is split in two (2026-11-07)
 
@@ -422,7 +428,7 @@ For API.5b.
 
 - A section that is entirely command-line material carries `<!-- help:exclude -->` on the line directly after its heading.
   This includes each guide's Quick start, Command options, Presentation modes, Watchlist options and Related documentation,
-  and Momentum's "Status, failures and exit codes".
+  and Momentum's "Status, failures and exit codes" (amended by [H36](#h36-momentums-statuses-and-failures-are-served-2026-11-07): it is served).
 - A mixed section keeps its explanation as served text and ends with a subsection one heading level below it, titled exactly
   "On the command line", which carries the marker. It holds that section's flags and options, shell examples, cache-bypass
   instructions and output-mode pointers, and it is the last subsection of its parent.
@@ -527,3 +533,36 @@ For API.5b2.
   implementation record" is added in the style of the API.5a record.
 - The contract has the same row and section split, with both branches, and each section's Detail points at this plan.
 - "At a glance", "Where the history lives" and the acceptance criteria name API.5b1 and API.5b2.
+
+### H36 Momentum's statuses and failures are served (2026-11-07)
+
+- "Status, failures and exit codes" in the Momentum guide is renamed "Statuses and failures" and loses its exclude marker.
+- The served section keeps the opening sentence; the status table without the exit-code column, with "the as-of boundary" in the
+  third row; the reason and reason-code explanation, worded without `--json`; the rule that a provider failure never stores the
+  provider's own error text, that the stored reason is a fixed message and that `provider_failure` names the provider and the
+  kind of failure; and the fact that a saved run keeps a failed or unavailable outcome and that refreshing a watchlist records
+  it as a run with that outcome instead of an error without a run.
+- Everything else moves to a final "On the command line" subsection that carries the marker: the exit codes, the missing result
+  part in `--json`, standard error, the provider check and `--no-provider-check`, `--save-run`, the exit code of a refresh that
+  holds such a run, and the rejection of a wrong request before anything is fetched. Served text links neither the usage guide
+  nor the workspace guide.
+
+### H37 The served-document rules are documented now (2026-11-07)
+
+- `docs/project/README.md` has a "Served documents" section after "Glossary entries": the served documents, interface-neutral
+  sections, the exclude marker, the "On the command line" subsection, the leak rules and the command-name test, as a short list
+  that links to [H24](#h24-served-sections-are-interface-neutral-2026-11-07),
+  [H25](#h25-command-line-material-stays-in-its-guide-2026-11-07), [H27](#h27-the-leak-rules-2026-11-07) and
+  [H28](#h28-command-names-in-code-spans-2026-11-07) and does not repeat their texts.
+- Its documentation-only gate paragraph adds that a change to a served document must also pass
+  `uv run pytest tests/scripts/test_served_content.py`.
+- The "Noticed for later slices" item that left this wording to API.5b2 is removed.
+
+### H38 No count in the Beginner Guide (2026-11-07)
+
+- In "How the project applies this model today", "Three of the project's strategies, offered only as examples, ..." becomes "A few
+  of the project's strategies, offered only as examples, ...".
+
+### H39 The review basis (2026-11-07)
+
+- The review relied on the pushed branch at commit 0bc90ff. These fixes are a follow-up commit on the same branch.
