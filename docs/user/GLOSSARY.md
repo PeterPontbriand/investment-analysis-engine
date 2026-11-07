@@ -552,8 +552,6 @@ No live series is currently integrated, so the strategy takes a yield you supply
 ### Baseline AAA Yield
 The reference AAA yield, 4.4 by default, that the Graham Growth Value formula compares the current AAA yield against.
 
-The historical `4.4` constant is used in the selected growth-value convention.
-
 It is configurable formula normalization, not a current market observation.
 
 <a id="current-aaa-yield"></a>
