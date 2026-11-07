@@ -36,6 +36,8 @@
         "host_not_allowed",
         "origin_not_allowed",
         "endpoint_not_found",
+        "refresh_job_not_found",
+        "refresh_job_running",
         "port_unavailable"
       ],
       "title": "FailureReasonCode",
@@ -201,19 +203,35 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 2,
-      "default": 2,
+      "const": 3,
+      "default": 3,
       "title": "Schema Version",
       "type": "integer"
     },
     "watchlist_id": {
-      "format": "uuid",
-      "title": "Watchlist Id",
-      "type": "string"
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The watchlist refreshed; null for a refresh of a list of entries.",
+      "title": "Watchlist Id"
     },
     "watchlist_name": {
-      "title": "Watchlist Name",
-      "type": "string"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The watchlist's name when it was refreshed; null exactly when watchlist_id is.",
+      "title": "Watchlist Name"
     }
   },
   "required": [

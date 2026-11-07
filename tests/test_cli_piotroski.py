@@ -17,6 +17,7 @@ from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_support import application_context, selection_from_options
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
@@ -148,12 +149,12 @@ def test_the_selection_options_are_the_boundary_and_the_cache_flag() -> None:
     assert built.as_of == datetime(2025, 1, 15, 23, 59, 59, 999999, tzinfo=UTC)
 
 
-def test_the_refresh_executor_runs_the_job_and_captures_the_evidence_and_status() -> None:
+def test_the_run_function_runs_the_job_and_captures_the_evidence_and_status() -> None:
     selection = PiotroskiSelection(as_of=datetime(2025, 1, 15, tzinfo=UTC))
     with apple_adapter():
-        capture = piotroski_application.refresh(
-            ApplicationContext(settings=settings), "AAPL", selection, profile_cache=None
-        )
+        capture = piotroski_application.run(
+            ApplicationContext(settings=settings), "AAPL", selection, executed_at=utc_now(), profile_cache=None
+        ).execution
     assert capture.native_status is CalculationStatus.OK
     assert capture.outcome is RunOutcome.COMPLETED
     assert isinstance(capture.native_evidence, PiotroskiResult)

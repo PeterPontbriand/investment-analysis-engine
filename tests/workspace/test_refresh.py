@@ -1,11 +1,12 @@
 """Focused tests for the refresh service: sequential (G1) and bounded concurrent (G2)."""
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Protocol
 from unittest.mock import MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -32,18 +33,20 @@ from investment_analysis_engine.strategies.momentum.workspace import (
 )
 from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
+from investment_analysis_engine.workspace.execution import AnalysisRunSink, RunSpec
 from investment_analysis_engine.workspace.refresh import (
-    EmptyRefreshTargetError,
     JobFailure,
     RefreshJobResult,
     RefreshPolicy,
+    RefreshProgress,
+    RefreshSnapshot,
     RefreshSummary,
     coordinate_refresh,
 )
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist, WatchlistEntry
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
-from investment_analysis_engine.workspace.watchlists import WatchlistName, WatchlistNotFoundError
+from investment_analysis_engine.workspace.watchlists import WatchlistId, WatchlistName, WatchlistRef
 from tests._migrated_database import migrated_database_url
 from tests._native_status import NATIVE_STATUS_OF_OUTCOME
 from tests._wiring import encode_native, failure_text
@@ -61,7 +64,7 @@ class _FixtureClient(FixtureDataClient):
 
 
 class _FakeWatchlists:
-    """Minimal WatchlistLookup backed by an in-memory mapping."""
+    """A minimal watchlist lookup backed by an in-memory mapping."""
 
     def __init__(self, watchlists: dict[str, Watchlist]) -> None:
         self._watchlists = watchlists
@@ -126,45 +129,57 @@ def _momentum_only_executor(ticker: str, selection: AnalysisSelection) -> Execut
     return _momentum_capture(ticker)
 
 
-def test_coordinate_refresh_raises_for_missing_watchlist() -> None:
-    with pytest.raises(WatchlistNotFoundError, match="No watchlist named"):
-        coordinate_refresh(
-            WatchlistName("Nonexistent"),
-            watchlists=_FakeWatchlists({}),
-            repository=_FakeSink(),
-            executor=_momentum_only_executor,
-            run_specs=RUN_SPECS_BY_KEY,
-            describe=failure_text,
-            policy=RefreshPolicy(workers=1),
-        )
+class _WatchlistLookup(Protocol):
+    """What the test wrapper reads a snapshot from: a lookup by name or by ID."""
+
+    def get(self, name: str) -> Watchlist | None:
+        """Return the watchlist named ``name``, or ``None``."""
+        ...
+
+    def get_by_id(self, watchlist_id: UUID) -> Watchlist | None:
+        """Return the watchlist with the ID, or ``None``."""
+        ...
 
 
-def test_coordinate_refresh_raises_for_empty_membership() -> None:
-    watchlist = _watchlist((), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
-    with pytest.raises(EmptyRefreshTargetError, match="has no entries"):
-        coordinate_refresh(
-            WatchlistName("My Watch"),
-            watchlists=_FakeWatchlists({"my watch": watchlist}),
-            repository=_FakeSink(),
-            executor=_momentum_only_executor,
-            run_specs=RUN_SPECS_BY_KEY,
-            describe=failure_text,
-            policy=RefreshPolicy(workers=1),
-        )
-
-
-def test_coordinate_refresh_raises_for_zero_selections() -> None:
-    watchlist = _watchlist(("AAPL",), ())
-    with pytest.raises(EmptyRefreshTargetError, match="has no entries"):
-        coordinate_refresh(
-            WatchlistName("My Watch"),
-            watchlists=_FakeWatchlists({"my watch": watchlist}),
-            repository=_FakeSink(),
-            executor=_momentum_only_executor,
-            run_specs=RUN_SPECS_BY_KEY,
-            describe=failure_text,
-            policy=RefreshPolicy(workers=1),
-        )
+def _coordinate(  # noqa: PLR0913
+    ref: WatchlistRef,
+    *,
+    watchlists: _WatchlistLookup,
+    repository: AnalysisRunSink,
+    executor: Callable[[str, AnalysisSelection], ExecutionCapture],
+    run_specs: Mapping[tuple[str, str], RunSpec],
+    describe: Callable[[BaseException, str, bool], JobFailure],
+    policy: RefreshPolicy,
+    save: bool = True,
+    refresh_id_factory: Callable[[], UUID] = uuid4,
+    id_factory: Callable[[], UUID] = uuid4,
+    clock: Callable[[], datetime] | None = None,
+    cancellation: threading.Event | None = None,
+    on_progress: Callable[[RefreshProgress[ExecutionCapture]], None] | None = None,
+) -> RefreshSummary:
+    """Freeze the named in-memory watchlist as a snapshot and coordinate it, the way the application's refresh does."""
+    watchlist = watchlists.get_by_id(ref.watchlist_id) if isinstance(ref, WatchlistId) else watchlists.get(ref.name)
+    assert watchlist is not None
+    snapshot = RefreshSnapshot(
+        refresh_id=refresh_id_factory(),
+        entries=watchlist.entries,
+        watchlist_id=watchlist.watchlist_id,
+        watchlist_name=watchlist.display_name,
+    )
+    return coordinate_refresh(
+        snapshot,
+        repository=repository,
+        executor=executor,
+        capture_of=lambda capture: capture,
+        run_specs=run_specs,
+        describe=describe,
+        policy=policy,
+        save=save,
+        id_factory=id_factory,
+        clock=clock,
+        cancellation=cancellation,
+        on_progress=on_progress,
+    )
 
 
 def test_coordinate_refresh_iterates_member_then_selection_position_order() -> None:
@@ -189,7 +204,7 @@ def test_coordinate_refresh_iterates_member_then_selection_position_order() -> N
         )
         return ExecutionCapture(native_evidence=analysis, profile=None, native_status=CalculationStatus.OK)
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -211,7 +226,7 @@ def test_coordinate_refresh_iterates_member_then_selection_position_order() -> N
 
 def test_coordinate_refresh_stamps_shared_refresh_and_watchlist_identity() -> None:
     watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(),
@@ -244,7 +259,7 @@ def test_coordinate_refresh_isolates_one_jobs_executor_exception() -> None:
             raise RuntimeError("simulated unexpected adapter failure")
         return _momentum_capture(ticker)
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -270,7 +285,7 @@ def test_coordinate_refresh_isolates_one_jobs_persistence_failure() -> None:
     watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink(fail_for_tickers=frozenset({"AAPL"}))
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -295,7 +310,7 @@ def test_coordinate_refresh_repeated_calls_produce_distinct_runs() -> None:
     watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink()
 
-    first = coordinate_refresh(
+    first = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -305,7 +320,7 @@ def test_coordinate_refresh_repeated_calls_produce_distinct_runs() -> None:
         describe=failure_text,
         policy=RefreshPolicy(workers=1),
     )
-    second = coordinate_refresh(
+    second = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -339,7 +354,7 @@ def test_coordinate_refresh_persists_each_job_before_the_next_executes() -> None
         events.append(f"execute:{ticker}")
         return _momentum_capture(ticker)
 
-    coordinate_refresh(
+    _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_RecordingSink(),
@@ -365,7 +380,7 @@ def test_coordinate_refresh_with_save_false_executes_but_persists_nothing() -> N
     watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink()
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -397,7 +412,7 @@ def test_coordinate_refresh_with_save_false_still_isolates_one_jobs_executor_exc
             raise RuntimeError("simulated unexpected adapter failure")
         return _momentum_capture(ticker)
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -487,14 +502,14 @@ def test_refresh_job_result_requires_exactly_one_of_run_outcome_or_error() -> No
     RefreshJobResult(ticker="AAPL", method_id="sma_crossover", outcome=RunOutcome.COMPLETED)
 
 
-def test_job_outcome_requires_exactly_one_of_capture_or_error() -> None:
+def test_job_outcome_requires_exactly_one_of_produced_or_error() -> None:
     from investment_analysis_engine.workspace.refresh import _JobOutcome  # noqa: PLC0415 - private, test-only import
 
     capture = _momentum_capture("AAPL")
     with pytest.raises(ValueError, match="Exactly one"):
-        _JobOutcome(started_at=NOW, completed_at=NOW, capture=None, error=None)
+        _JobOutcome(started_at=NOW, completed_at=NOW, produced=None, error=None)
     with pytest.raises(ValueError, match="Exactly one"):
-        _JobOutcome(started_at=NOW, completed_at=NOW, capture=capture, error=RuntimeError("both set"))
+        _JobOutcome(started_at=NOW, completed_at=NOW, produced=capture, error=RuntimeError("both set"))
 
 
 # --- G2: bounded concurrent admission -----------------------------------------------------
@@ -555,7 +570,7 @@ def test_g2_bounds_admission_and_gates_replacement_on_persisted_completion() -> 
 
     thread = threading.Thread(
         target=lambda: outcome.append(
-            coordinate_refresh(
+            _coordinate(
                 WatchlistName("My Watch"),
                 watchlists=_FakeWatchlists({"my watch": watchlist}),
                 repository=sink,
@@ -610,7 +625,7 @@ def test_g2_preserves_snapshot_order_despite_out_of_order_completion() -> None:
     outcome: list[RefreshSummary] = []
     thread = threading.Thread(
         target=lambda: outcome.append(
-            coordinate_refresh(
+            _coordinate(
                 WatchlistName("My Watch"),
                 watchlists=_FakeWatchlists({"my watch": watchlist}),
                 repository=_FakeSink(),
@@ -657,7 +672,7 @@ def test_g2_repository_insert_always_runs_on_the_calling_thread_not_a_worker() -
                 insert_thread_ids.add(threading.get_ident())
             super().insert(run)
 
-    coordinate_refresh(
+    _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_ThreadTrackingSink(),
@@ -682,7 +697,7 @@ def test_g2_persists_worker_measured_timing_via_replay_clock() -> None:
         with lock:
             return next(ticks)
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(),
@@ -710,7 +725,7 @@ def test_g2_isolates_one_jobs_executor_exception() -> None:
             raise RuntimeError("simulated unexpected adapter failure")
         return _momentum_capture(ticker)
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -735,7 +750,7 @@ def test_g2_isolates_one_jobs_persistence_failure() -> None:
     watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink(fail_for_tickers=frozenset({"AAPL"}))
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -756,7 +771,7 @@ def test_g2_isolates_one_jobs_persistence_failure() -> None:
 
 def test_g2_workers_greater_than_job_count_runs_every_job_without_error() -> None:
     watchlist = _watchlist(("AAPL",), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(),
@@ -775,7 +790,7 @@ def test_g2_with_save_false_executes_but_persists_nothing() -> None:
     watchlist = _watchlist(("AAPL", "MSFT"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink()
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,
@@ -850,7 +865,7 @@ def test_g2_concurrent_refresh_saves_are_visible_to_another_connection_before_th
         outcome: list[RefreshSummary] = []
         thread = threading.Thread(
             target=lambda: outcome.append(
-                coordinate_refresh(
+                _coordinate(
                     WatchlistName("My Watch"),
                     watchlists=_FakeWatchlists({"my watch": watchlist}),
                     repository=repository,
@@ -900,7 +915,7 @@ def test_g3_sequential_refresh_admits_nothing_when_already_cancelled() -> None:
     already_cancelled = threading.Event()
     already_cancelled.set()
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(),
@@ -924,7 +939,7 @@ def test_g3_sequential_refresh_stops_admitting_once_cancelled_mid_batch() -> Non
             cancellation.set()
         return _momentum_capture(ticker)
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(),
@@ -947,7 +962,7 @@ def test_g3_concurrent_refresh_admits_nothing_when_already_cancelled() -> None:
     already_cancelled = threading.Event()
     already_cancelled.set()
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(),
@@ -973,7 +988,7 @@ def test_g3_concurrent_refresh_stops_admitting_and_lets_running_jobs_settle() ->
 
     thread = threading.Thread(
         target=lambda: outcome.append(
-            coordinate_refresh(
+            _coordinate(
                 WatchlistName("My Watch"),
                 watchlists=_FakeWatchlists({"my watch": watchlist}),
                 repository=sink,
@@ -1030,7 +1045,7 @@ def test_coordinate_refresh_asks_describe_once_per_failed_job_and_marks_a_failur
             raise RuntimeError("raw executor text")
         return _momentum_capture(ticker)
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(fail_for_tickers=frozenset({"AAPL"})),
@@ -1060,7 +1075,7 @@ def test_a_missing_run_spec_is_not_a_failure_while_saving(workers: int) -> None:
         calls.append((type(exception).__name__, saving))
         return JobFailure(reason_code="execution_error", error=ticker)
 
-    coordinate_refresh(
+    _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=_FakeSink(),
@@ -1092,7 +1107,7 @@ def test_a_momentum_provider_failure_is_a_stored_failed_run_in_the_batch(workers
     watchlist = _watchlist(("A", "B"), (MomentumSelection(short_window=2, long_window=3, rsi_period=14),))
     sink = _FakeSink()
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": watchlist}),
         repository=sink,

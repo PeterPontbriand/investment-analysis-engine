@@ -1,9 +1,9 @@
-"""Multi-ticker refresh coordination for one watchlist snapshot.
+"""Multi-ticker refresh coordination for one frozen snapshot of entries.
 
-``coordinate_refresh`` freezes one watchlist's ordered entries in a single
-read (the contract's "one read snapshot" requirement: edits made to the
-watchlist afterward apply only to the *next* refresh, never to this one),
-then executes every (ticker, selection) entry against an injected
+``coordinate_refresh`` takes a :class:`RefreshSnapshot`: the refresh's ID and the ordered entries, frozen by the
+caller in a single read (the contract's "one read snapshot" requirement: edits made to the watchlist afterward apply
+only to the *next* refresh, never to this one), with the watchlist's ID and name when the entries are a watchlist's.
+It executes every (ticker, selection) entry against an injected
 ``executor`` callable, persisting each finished result through
 :func:`investment_analysis_engine.workspace.execution.execute` unless the caller passes
 ``save=False``, in which case every entry still executes but nothing is
@@ -12,7 +12,9 @@ without adding to its saved history.
 
 This module owns no provider, resolver, cache, or CLI composition at all:
 ``executor`` is supplied fully bound by the caller (mirroring the D1-D4
-adapters' own "borrow dependencies, don't construct them" convention), and
+adapters' own "borrow dependencies, don't construct them" convention) and returns whatever the caller needs
+from one job; ``capture_of`` takes the normalized capture out of it. The coordinator is generic over that
+result ``T``: a finished event carries it in memory, and nothing here stores it. And
 this service never invokes a Typer command or parses rendered/terminal
 output back into a canonical result.
 
@@ -56,7 +58,7 @@ from collections.abc import Callable, Mapping
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
-from typing import ClassVar, Protocol
+from typing import ClassVar
 from uuid import UUID, uuid4
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
@@ -68,15 +70,8 @@ from investment_analysis_engine.core.strategy_errors import require
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.execution import AnalysisRunSink, BatchContext, RunSpec, execute
 from investment_analysis_engine.workspace.requests import AnalysisRequest
-from investment_analysis_engine.workspace.runs import AnalysisRun, Watchlist
+from investment_analysis_engine.workspace.runs import AnalysisRun, WatchlistEntry
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
-from investment_analysis_engine.workspace.watchlists import (
-    WatchlistId,
-    WatchlistName,
-    WatchlistNotFoundError,
-    WatchlistRef,
-    not_found_message,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -89,18 +84,6 @@ class EmptyRefreshTargetError(ValueError):
     """
 
     reason_code: ClassVar[FailureReasonCode] = FailureReasonCode.WATCHLIST_EMPTY
-
-
-class WatchlistLookup(Protocol):
-    """The read capability refresh needs: a frozen-snapshot lookup by name or by ID."""
-
-    def get(self, name: str) -> Watchlist | None:
-        """Return the watchlist matching ``name``, or None if it does not exist."""
-        ...
-
-    def get_by_id(self, watchlist_id: UUID) -> Watchlist | None:
-        """Return the watchlist with ID ``watchlist_id``, or None if it does not exist."""
-        ...
 
 
 MIN_WORKERS = 1
@@ -185,12 +168,34 @@ class RefreshJobResult:
 
 
 @dataclass(frozen=True)
+class RefreshSnapshot:
+    """The frozen input of one refresh: its ID, its ordered entries and the watchlist they belong to, if any.
+
+    Attributes:
+        refresh_id: The one identity shared by every job of the refresh and by every run it saves.
+        entries: The (ticker, selection) pairs to run, in order; a job's position is its index here.
+        watchlist_id: The watchlist the entries were read from, or ``None`` for a refresh of a list of entries.
+        watchlist_name: The watchlist's display name when it had one; ``None`` exactly when ``watchlist_id`` is.
+    """
+
+    refresh_id: UUID
+    entries: tuple[WatchlistEntry, ...]
+    watchlist_id: UUID | None = None
+    watchlist_name: str | None = None
+
+    def __post_init__(self) -> None:
+        """Require the watchlist's ID and name to be both set or both ``None``."""
+        if (self.watchlist_id is None) != (self.watchlist_name is None):
+            raise ValueError("watchlist_id and watchlist_name must both be set or both None.")
+
+
+@dataclass(frozen=True)
 class RefreshSummary:
     """The complete, ordered outcome of one refresh attempt."""
 
     refresh_id: UUID
-    watchlist_id: UUID
-    watchlist_name: str
+    watchlist_id: UUID | None
+    watchlist_name: str | None
     results: tuple[RefreshJobResult, ...]
 
     @property
@@ -236,27 +241,34 @@ class RefreshJobStarted:
 
 
 @dataclass(frozen=True)
-class RefreshJobFinished:
-    """The coordinator settled a job, so a saved run is already persisted; ``totals`` already counts it as finished."""
+class RefreshJobFinished[T]:
+    """The coordinator settled a job, so a saved run is already persisted; ``totals`` already counts it as finished.
+
+    ``produced`` is what the job's executor returned, held in memory for the observer and never stored; it is
+    ``None`` for a job that raised.
+    """
 
     refresh_id: UUID
     position: int
     result: RefreshJobResult
     totals: RefreshTotals
+    produced: T | None = None
 
 
-type RefreshProgress = RefreshJobStarted | RefreshJobFinished
-"""One progress event of a refresh."""
+type RefreshProgress[T] = RefreshJobStarted | RefreshJobFinished[T]
+"""One progress event of a refresh whose jobs produce ``T``."""
 
 
-class _ProgressReporter:
+class _ProgressReporter[T]:
     """Counts a refresh's jobs and sends its events, failing open when the observer raises.
 
     Used only from the coordinating thread. The first exception the observer raises is logged once with its
     traceback and every later event is dropped; counting continues, so a refresh is unaffected by its observer.
     """
 
-    def __init__(self, refresh_id: UUID, job_count: int, on_progress: Callable[[RefreshProgress], None] | None) -> None:
+    def __init__(
+        self, refresh_id: UUID, job_count: int, on_progress: Callable[[RefreshProgress[T]], None] | None
+    ) -> None:
         self._refresh_id = refresh_id
         self._job_count = job_count
         self._on_progress = on_progress
@@ -277,11 +289,17 @@ class _ProgressReporter:
             )
         )
 
-    def finished(self, position: int, result: RefreshJobResult) -> None:
+    def finished(self, position: int, result: RefreshJobResult, produced: T | None) -> None:
         """Count a job as finished and send its finished event."""
         self._finished += 1
         self._send(
-            RefreshJobFinished(refresh_id=self._refresh_id, position=position, result=result, totals=self._totals())
+            RefreshJobFinished(
+                refresh_id=self._refresh_id,
+                position=position,
+                result=result,
+                totals=self._totals(),
+                produced=produced,
+            )
         )
 
     def _totals(self) -> RefreshTotals:
@@ -289,7 +307,7 @@ class _ProgressReporter:
             admitted=self._admitted, finished=self._finished, remaining=self._job_count - self._admitted
         )
 
-    def _send(self, event: RefreshProgress) -> None:
+    def _send(self, event: RefreshProgress[T]) -> None:
         if self._on_progress is None or self._dropping:
             return
         try:
@@ -299,37 +317,38 @@ class _ProgressReporter:
             logger.exception("The refresh progress callback raised; this and every later event is dropped.")
 
 
-def coordinate_refresh(  # noqa: PLR0913
-    ref: WatchlistRef,
+def coordinate_refresh[T](  # noqa: PLR0913
+    snapshot: RefreshSnapshot,
     *,
-    watchlists: WatchlistLookup,
     repository: AnalysisRunSink,
-    executor: Callable[[str, AnalysisSelection], ExecutionCapture],
+    executor: Callable[[str, AnalysisSelection], T],
+    capture_of: Callable[[T], ExecutionCapture],
     run_specs: Mapping[tuple[str, str], RunSpec],
     describe: Callable[[BaseException, str, bool], JobFailure],
     policy: RefreshPolicy,
     save: bool = True,
-    refresh_id_factory: Callable[[], UUID] = uuid4,
     id_factory: Callable[[], UUID] = uuid4,
     clock: Callable[[], datetime] | None = None,
     cancellation: threading.Event | None = None,
-    on_progress: Callable[[RefreshProgress], None] | None = None,
+    on_progress: Callable[[RefreshProgress[T]], None] | None = None,
 ) -> RefreshSummary:
-    """Execute every (member, selection) pair in one watchlist's frozen snapshot.
+    """Execute every (ticker, selection) pair of one frozen snapshot.
 
     Args:
-        ref: The watchlist to refresh, by name (matched case-insensitively by ``watchlists``) or by ID.
-        watchlists: A read-only lookup for the frozen snapshot; only ``get`` and ``get_by_id`` are used.
+        snapshot: The refresh's ID and its ordered entries, read once by the caller, with the watchlist's ID and
+            name when the entries are a watchlist's. The caller has already checked that it is not empty.
         repository: An already-composed, ready sink for each terminal run. It is only ever called from this
             function's own calling thread, never from a worker thread.
         executor: Runs one method adapter for one (ticker, selection) pair and
-            returns its normalized capture - fully bound with whatever
+            returns its result ``T`` - fully bound with whatever
             provider/resolver/cache dependencies it needs, exactly as a
             direct command's own adapter call is bound. Job-scoped: called
             once per (ticker, selection) pair, never shared/reused state
             across calls unless the caller has proven that is safe. It may be
             called concurrently from multiple worker threads, so this
             job-scoping requirement is load-bearing, not merely a style preference.
+        capture_of: Returns the normalized capture of a job's result; the coordinator saves and classifies the
+            capture and carries the result itself on the job's finished event, in memory only.
         run_specs: The versions and evidence encoder of each declared strategy, keyed by
             ``(analysis_id, method_id)``; a job whose selection has no entry fails closed as that job's error.
         describe: Maps the exception of a failed job, the job's ticker and whether the analysis had finished and
@@ -342,8 +361,6 @@ def coordinate_refresh(  # noqa: PLR0913
             constructed - a preview refresh; each result's outcome is
             available on :attr:`RefreshJobResult.outcome` instead of
             :attr:`RefreshJobResult.run`.
-        refresh_id_factory: Produces the one refresh identity shared by
-            every job in this call; defaults to `uuid4`.
         id_factory: Produces each individual run's identity; defaults to `uuid4`.
         clock: Produces aware UTC instants for each job's timing; defaults
             to the wall clock. It is called from worker threads and must
@@ -357,47 +374,27 @@ def coordinate_refresh(  # noqa: PLR0913
 
     Returns:
         The ordered outcome of every job that was admitted, in the
-        watchlist's own entry order, whether it succeeded, produced a
+        snapshot's own entry order, whether it succeeded, produced a
         non-completed financial outcome, or failed to produce a run at all.
-        Order is the watchlist's own snapshot order regardless of actual
+        Order is the snapshot's own order regardless of actual
         completion order. A job never admitted because ``cancellation`` was
         already set does not appear at all.
-
-    Raises:
-        WatchlistNotFoundError: If no watchlist matches ``ref``.
-        EmptyRefreshTargetError: If the watchlist has no entries. Not raised
-            mid-refresh; checked before any job runs.
     """
-    watchlist = _snapshot(watchlists, ref)
-    if watchlist is None:
-        raise WatchlistNotFoundError(not_found_message(ref))
-    if not watchlist.entries:
-        label = ref.name if isinstance(ref, WatchlistName) else watchlist.display_name
-        raise EmptyRefreshTargetError(f"Watchlist {label!r} has no entries; there is nothing to refresh.")
-
-    refresh_id = refresh_id_factory()
     return _refresh_concurrently(
-        [(entry.ticker, entry.selection) for entry in watchlist.entries],
-        watchlist=watchlist,
-        refresh_id=refresh_id,
+        [(entry.ticker, entry.selection) for entry in snapshot.entries],
+        snapshot=snapshot,
         workers=policy.workers,
         repository=repository,
         executor=executor,
+        capture_of=capture_of,
         run_specs=run_specs,
         describe=describe,
         save=save,
         id_factory=id_factory,
         clock=clock if clock is not None else utc_now,
         cancellation=cancellation,
-        progress=_ProgressReporter(refresh_id, len(watchlist.entries), on_progress),
+        progress=_ProgressReporter(snapshot.refresh_id, len(snapshot.entries), on_progress),
     )
-
-
-def _snapshot(watchlists: WatchlistLookup, ref: WatchlistRef) -> Watchlist | None:
-    """Read the watchlist ``ref`` addresses in one lookup, or return ``None`` if there is none."""
-    if isinstance(ref, WatchlistId):
-        return watchlists.get_by_id(ref.watchlist_id)
-    return watchlists.get(ref.name)
 
 
 def _failed(
@@ -447,22 +444,22 @@ def _spec_for(run_specs: Mapping[tuple[str, str], RunSpec], selection: AnalysisS
 
 
 @dataclass(frozen=True)
-class _JobOutcome:
+class _JobOutcome[T]:
     """One worker's raw result, before the coordinator persists or records it.
 
-    Exactly one of ``capture``/``error`` is set, mirroring
+    Exactly one of ``produced``/``error`` is set, mirroring
     :class:`RefreshJobResult`'s own invariant one layer earlier.
     """
 
     started_at: datetime
     completed_at: datetime
-    capture: ExecutionCapture | None
+    produced: T | None
     error: BaseException | None
 
     def __post_init__(self) -> None:
-        """Enforce the capture-xor-error invariant."""
-        if (self.capture is None) == (self.error is None):
-            raise ValueError("Exactly one of capture or error must be set.")
+        """Enforce the produced-xor-error invariant."""
+        if (self.produced is None) == (self.error is None):
+            raise ValueError("Exactly one of produced or error must be set.")
 
 
 def _replay_clock(started_at: datetime, completed_at: datetime) -> Callable[[], datetime]:
@@ -480,21 +477,21 @@ def _replay_clock(started_at: datetime, completed_at: datetime) -> Callable[[], 
     return lambda: next(values)
 
 
-def _refresh_concurrently(  # noqa: PLR0913
+def _refresh_concurrently[T](  # noqa: PLR0913
     jobs: list[tuple[str, AnalysisSelection]],
     *,
-    watchlist: Watchlist,
-    refresh_id: UUID,
+    snapshot: RefreshSnapshot,
     workers: int,
     repository: AnalysisRunSink,
-    executor: Callable[[str, AnalysisSelection], ExecutionCapture],
+    executor: Callable[[str, AnalysisSelection], T],
+    capture_of: Callable[[T], ExecutionCapture],
     run_specs: Mapping[tuple[str, str], RunSpec],
     describe: Callable[[BaseException, str, bool], JobFailure],
     save: bool,
     id_factory: Callable[[], UUID],
     clock: Callable[[], datetime],
     cancellation: threading.Event | None,
-    progress: _ProgressReporter,
+    progress: _ProgressReporter[T],
 ) -> RefreshSummary:
     """Bounded admission over the per-job contract, for any worker count.
 
@@ -510,16 +507,16 @@ def _refresh_concurrently(  # noqa: PLR0913
     already admitted runs to completion and is settled normally.
     """
 
-    def run_one(ticker: str, selection: AnalysisSelection) -> _JobOutcome:
+    def run_one(ticker: str, selection: AnalysisSelection) -> _JobOutcome[T]:
         started_at = clock()
         try:
-            capture = executor(ticker, selection)
+            produced = executor(ticker, selection)
         except Exception as exc:  # noqa: BLE001 - reported to the coordinator, never crashes the worker
-            return _JobOutcome(started_at=started_at, completed_at=clock(), capture=None, error=exc)
-        return _JobOutcome(started_at=started_at, completed_at=clock(), capture=capture, error=None)
+            return _JobOutcome(started_at=started_at, completed_at=clock(), produced=None, error=exc)
+        return _JobOutcome(started_at=started_at, completed_at=clock(), produced=produced, error=None)
 
     remaining = iter(enumerate(jobs))
-    pending: dict[Future[_JobOutcome], tuple[int, str, AnalysisSelection]] = {}
+    pending: dict[Future[_JobOutcome[T]], tuple[int, str, AnalysisSelection]] = {}
     results: dict[int, RefreshJobResult] = {}
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -543,10 +540,10 @@ def _refresh_concurrently(  # noqa: PLR0913
                 position, ticker, selection = pending.pop(future)
                 outcome = future.result()
                 batch = BatchContext(
-                    refresh_id=refresh_id,
+                    refresh_id=snapshot.refresh_id,
                     batch_position=position,
-                    watchlist_id=watchlist.watchlist_id,
-                    watchlist_name=watchlist.display_name,
+                    watchlist_id=snapshot.watchlist_id,
+                    watchlist_name=snapshot.watchlist_name,
                 )
                 results[position] = _settle(
                     outcome,
@@ -554,29 +551,31 @@ def _refresh_concurrently(  # noqa: PLR0913
                     selection=selection,
                     batch=batch,
                     repository=repository,
+                    capture_of=capture_of,
                     run_specs=run_specs,
                     describe=describe,
                     save=save,
                     id_factory=id_factory,
                 )
-                progress.finished(position, results[position])
+                progress.finished(position, results[position], outcome.produced)
                 admit_next()
 
     return RefreshSummary(
-        refresh_id=refresh_id,
-        watchlist_id=watchlist.watchlist_id,
-        watchlist_name=watchlist.display_name,
+        refresh_id=snapshot.refresh_id,
+        watchlist_id=snapshot.watchlist_id,
+        watchlist_name=snapshot.watchlist_name,
         results=tuple(results[position] for position in sorted(results)),
     )
 
 
-def _settle(  # noqa: PLR0913
-    outcome: _JobOutcome,
+def _settle[T](  # noqa: PLR0913
+    outcome: _JobOutcome[T],
     *,
     ticker: str,
     selection: AnalysisSelection,
     batch: BatchContext,
     repository: AnalysisRunSink,
+    capture_of: Callable[[T], ExecutionCapture],
     run_specs: Mapping[tuple[str, str], RunSpec],
     describe: Callable[[BaseException, str, bool], JobFailure],
     save: bool,
@@ -590,8 +589,12 @@ def _settle(  # noqa: PLR0913
     """
     if outcome.error is not None:
         return _failed(ticker, selection, outcome.error, describe, saving=False)
-    captured = outcome.capture
-    assert captured is not None  # enforced by _JobOutcome's own capture-xor-error invariant
+    produced = outcome.produced
+    assert produced is not None  # enforced by _JobOutcome's own produced-xor-error invariant
+    try:
+        captured = capture_of(produced)
+    except Exception as exc:  # noqa: BLE001 - one job's failure must never abort the batch
+        return _failed(ticker, selection, exc, describe, saving=False)
     if not save:
         return _unsaved(ticker, selection, captured)
     try:
@@ -624,8 +627,8 @@ __all__ = [
     "RefreshJobStarted",
     "RefreshPolicy",
     "RefreshProgress",
+    "RefreshSnapshot",
     "RefreshSummary",
     "RefreshTotals",
-    "WatchlistLookup",
     "coordinate_refresh",
 ]

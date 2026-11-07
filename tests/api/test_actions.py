@@ -78,7 +78,7 @@ def _failure(response: httpx2.Response, status: int, code: str) -> dict[str, obj
     assert response.status_code == status, response.text
     body: dict[str, object] = response.json()
     assert body["reason_code"] == code
-    assert body["schema_version"] == 12
+    assert body["schema_version"] == 13
     return body
 
 

@@ -126,9 +126,11 @@ def test_the_runs_list_schema_is_version_one_with_a_paging_flag_and_items() -> N
     assert "unversioned" not in schema["description"]
 
 
-def test_the_refresh_summary_schema_is_version_two() -> None:
+def test_the_refresh_summary_schema_is_version_three_and_its_watchlist_is_nullable() -> None:
     schema = json.loads(expected_schemas()["refresh-summary.schema.json"])
-    assert schema["properties"]["schema_version"]["const"] == 2
+    assert schema["properties"]["schema_version"]["const"] == 3
+    assert {"type": "null"} in schema["properties"]["watchlist_id"]["anyOf"]
+    assert {"type": "null"} in schema["properties"]["watchlist_name"]["anyOf"]
     assert "unversioned" not in schema["description"]
 
 
@@ -375,7 +377,7 @@ def test_the_refresh_summary_reports_an_unsaved_outcome_and_a_failed_job() -> No
         "counts",
         "provider_check",
     ]
-    assert document["schema_version"] == 2
+    assert document["schema_version"] == 3
     assert document["provider_check"] is None
     assert document["results"] == [
         {
@@ -445,3 +447,26 @@ def test_the_generator_publishes_the_watchlist_documents_and_the_other_workspace
         "runs-list.schema.json": RunsListDocument,
         "refresh-summary.schema.json": RefreshSummaryDocument,
     }
+
+
+def test_a_refresh_of_entries_has_no_watchlist_and_the_id_and_name_go_together() -> None:
+    summary = RefreshSummary(
+        refresh_id=UUID(int=2),
+        watchlist_id=None,
+        watchlist_name=None,
+        results=(RefreshJobResult(ticker="AAPL", method_id="sma_crossover", outcome=RunOutcome.COMPLETED),),
+    )
+
+    document = json.loads(document_json(build_refresh_document(summary, ProviderCheckFindings())))
+
+    assert (document["watchlist_id"], document["watchlist_name"]) == (None, None)
+    for watchlist_id, name in ((UUID(int=3), None), (None, "Seeded")):
+        with pytest.raises(ValueError, match="both be set or both null"):
+            RefreshSummaryDocument(
+                refresh_id=UUID(int=2),
+                watchlist_id=watchlist_id,
+                watchlist_name=name,
+                results=(),
+                counts={},
+                provider_check=None,
+            )

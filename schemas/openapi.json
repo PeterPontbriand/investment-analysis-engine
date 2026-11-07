@@ -1898,8 +1898,8 @@
             "type": "null"
           },
           "schema_version": {
-            "const": 12,
-            "default": 12,
+            "const": 13,
+            "default": 13,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -1969,6 +1969,8 @@
           "host_not_allowed",
           "origin_not_allowed",
           "endpoint_not_found",
+          "refresh_job_not_found",
+          "refresh_job_running",
           "port_unavailable"
         ],
         "title": "FailureReasonCode",
@@ -4312,6 +4314,444 @@
         "title": "ReasonCode",
         "type": "string"
       },
+      "RefreshEntryRequest": {
+        "additionalProperties": false,
+        "description": "One entry of a refresh over a list of entries: a ticker and one strategy's selection.",
+        "properties": {
+          "method_id": {
+            "description": "The strategy's method identifier, as GET /v1/strategies lists it.",
+            "title": "Method Id",
+            "type": "string"
+          },
+          "selection": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "The selection's fields, as GET /v1/strategies/{method_id}/selection describes them. A field left out takes its configured value; as_of is a date or a timestamp with a timezone offset, as text. An error in a field is named entries[<index>].<field>, with the 0-based index.",
+            "title": "Selection",
+            "type": "object"
+          },
+          "ticker": {
+            "description": "The ticker to analyze.",
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "method_id"
+        ],
+        "title": "RefreshEntryRequest",
+        "type": "object"
+      },
+      "RefreshEventDocument": {
+        "additionalProperties": false,
+        "description": "One event of a refresh job: a job of the refresh started, or finished.\n\n``sequence`` counts the job's events from 1 in the order they were recorded. ``position`` is the entry's 0-based\nplace in the refresh, the same as a saved run's ``batch_position`` and the index of an ``entries[i]`` error; it is\nnot the 1-based ``entry_number`` of a watchlist. ``result`` and ``analysis`` are null for a started event, and\n``analysis`` is also null for a job that raised.",
+        "properties": {
+          "analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnalysisDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The job's analysis, as POST /v1/analyses returns it, with its provider_check element null; null for a started event and for a job that raised."
+          },
+          "kind": {
+            "enum": [
+              "started",
+              "finished"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "method_id": {
+            "title": "Method Id",
+            "type": "string"
+          },
+          "position": {
+            "minimum": 0,
+            "title": "Position",
+            "type": "integer"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefreshResultDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The job's entry as the refresh summary lists it; null for a started event."
+          },
+          "sequence": {
+            "minimum": 1,
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence",
+          "kind",
+          "position",
+          "ticker",
+          "method_id",
+          "result",
+          "analysis"
+        ],
+        "title": "RefreshEventDocument",
+        "type": "object"
+      },
+      "RefreshJobDocument": {
+        "additionalProperties": false,
+        "description": "A refresh job as it is now, with the events recorded after the sequence the poll named.\n\n``state`` is an open vocabulary: ``running``, ``stopping``, ``completed``, ``stopped`` and ``failed``. ``summary``\nis set for ``completed`` and ``stopped``, ``failure`` for ``failed``; the events already recorded are kept in\neither case.",
+        "properties": {
+          "events": {
+            "description": "The events after the requested sequence, up to 1,048,576 bytes; at least one when one is waiting.",
+            "items": {
+              "$ref": "#/components/schemas/RefreshEventDocument"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FailureEnvelope"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the job failed after it was accepted; null otherwise."
+          },
+          "has_more": {
+            "description": "Whether recorded events remain after those returned; poll again at once.",
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "next_after": {
+            "description": "The last sequence in events, or the requested one when there are none.",
+            "title": "Next After",
+            "type": "integer"
+          },
+          "refresh_id": {
+            "description": "The refresh's ID, which is the job's and the ID of every run it saves.",
+            "format": "uuid",
+            "title": "Refresh Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "state": {
+            "description": "running, stopping, completed, stopped or failed; treat any other value as running.",
+            "title": "State",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefreshSummaryDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The refresh summary, provider check included, once the job completed or stopped; null otherwise."
+          },
+          "totals": {
+            "$ref": "#/components/schemas/RefreshTotalsDocument"
+          },
+          "watchlist_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The watchlist refreshed; null for a refresh of a list of entries.",
+            "title": "Watchlist Id"
+          }
+        },
+        "required": [
+          "refresh_id",
+          "watchlist_id",
+          "state",
+          "totals",
+          "events",
+          "next_after",
+          "has_more",
+          "summary",
+          "failure"
+        ],
+        "title": "RefreshJobDocument",
+        "type": "object"
+      },
+      "RefreshRequest": {
+        "additionalProperties": false,
+        "description": "The body that starts a refresh job: a watchlist or a list of entries, exactly one.",
+        "properties": {
+          "entries": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RefreshEntryRequest"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The entries to refresh, which belong to no watchlist. Give this or watchlist_id, not both. The same ticker with an equal selection may not appear twice.",
+            "title": "Entries"
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Whether to send one test request to a provider a failed job implicates after the batch. When absent or null, the choice made when the server was launched (IAN_PROVIDER_CHECK) applies, as it does on the command line.",
+            "title": "Provider Check"
+          },
+          "save": {
+            "default": true,
+            "description": "Whether to keep each result as an Analysis Run; true when absent.",
+            "title": "Save",
+            "type": "boolean"
+          },
+          "watchlist_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The watchlist to refresh, by ID. Give this or entries, not both.",
+            "title": "Watchlist Id"
+          },
+          "workers": {
+            "default": 2,
+            "description": "How many jobs run at once, 1 to 4; 2 when absent.",
+            "title": "Workers",
+            "type": "integer"
+          }
+        },
+        "title": "RefreshRequest",
+        "type": "object"
+      },
+      "RefreshResultDocument": {
+        "additionalProperties": false,
+        "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``status`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if the job raised (``error``) or its\n``status`` is ``failed``. An ``unavailable`` job is an analysis outcome and carries none.",
+        "properties": {
+          "analysis_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The saved run; null when nothing was saved.",
+            "title": "Analysis Run Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The message the application wrote for the failure, chosen by its code; null unless the job raised.",
+            "title": "Error"
+          },
+          "method_id": {
+            "title": "Method Id",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FailureReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The stable code of the failure; null unless the job raised or its status is failed."
+          },
+          "saved": {
+            "title": "Saved",
+            "type": "boolean"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run's or the unsaved outcome's status; null for a raised job."
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "method_id",
+          "analysis_run_id",
+          "saved",
+          "status",
+          "error",
+          "reason_code"
+        ],
+        "title": "RefreshResultDocument",
+        "type": "object"
+      },
+      "RefreshSummaryDocument": {
+        "additionalProperties": false,
+        "description": "The one document ``refresh --json`` writes when the refresh completes.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Jobs per status; a job that raised counts as 'error'.",
+            "title": "Counts",
+            "type": "object"
+          },
+          "provider_check": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProviderCheckItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What one test request found for each provider a failed job implicates, one entry per provider; null when no job failed on a provider.",
+            "title": "Provider Check"
+          },
+          "refresh_id": {
+            "format": "uuid",
+            "title": "Refresh Id",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/RefreshResultDocument"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 3,
+            "default": 3,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "watchlist_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The watchlist refreshed; null for a refresh of a list of entries.",
+            "title": "Watchlist Id"
+          },
+          "watchlist_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The watchlist's name when it was refreshed; null exactly when watchlist_id is.",
+            "title": "Watchlist Name"
+          }
+        },
+        "required": [
+          "refresh_id",
+          "watchlist_id",
+          "watchlist_name",
+          "results",
+          "counts",
+          "provider_check"
+        ],
+        "title": "RefreshSummaryDocument",
+        "type": "object"
+      },
+      "RefreshTotalsDocument": {
+        "additionalProperties": false,
+        "description": "How far the refresh has come.",
+        "properties": {
+          "admitted": {
+            "description": "Jobs that have started.",
+            "minimum": 0,
+            "title": "Admitted",
+            "type": "integer"
+          },
+          "finished": {
+            "description": "Jobs that have finished.",
+            "minimum": 0,
+            "title": "Finished",
+            "type": "integer"
+          },
+          "remaining": {
+            "description": "Jobs not yet started; above zero after a stop.",
+            "minimum": 0,
+            "title": "Remaining",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "admitted",
+          "finished",
+          "remaining"
+        ],
+        "title": "RefreshTotalsDocument",
+        "type": "object"
+      },
       "RemoveMethodRequest": {
         "additionalProperties": false,
         "description": "The body that removes every entry of one strategy.",
@@ -5663,6 +6103,209 @@
         "summary": "Describe the engine this server runs."
       }
     },
+    "/v1/refreshes": {
+      "post": {
+        "operationId": "start_refresh",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshJobDocument"
+                }
+              }
+            },
+            "description": "The refresh job was accepted; its document says where it is and the Location header names its URL.",
+            "headers": {
+              "Location": {
+                "description": "The job's URL.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy."
+          }
+        },
+        "summary": "Start a refresh job over a watchlist or a list of entries; one runs at a time. Answers 202 at once."
+      }
+    },
+    "/v1/refreshes/job": {
+      "get": {
+        "operationId": "get_latest_refresh_job",
+        "parameters": [
+          {
+            "description": "The last event sequence already seen, from 0; 0 when absent.",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshJobDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "Show this server's latest refresh job, with its events after the sequence given."
+      }
+    },
     "/v1/refreshes/{refresh_id}/compare": {
       "get": {
         "operationId": "compare_refresh",
@@ -5759,6 +6402,192 @@
           }
         },
         "summary": "Compare the runs of one refresh: one row per ticker, one column group per strategy."
+      }
+    },
+    "/v1/refreshes/{refresh_id}/job": {
+      "get": {
+        "operationId": "get_refresh_job",
+        "parameters": [
+          {
+            "description": "The refresh's ID.",
+            "in": "path",
+            "name": "refresh_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The last event sequence already seen, from 0; 0 when absent.",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshJobDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "Show a refresh job, with its events after the sequence given."
+      }
+    },
+    "/v1/refreshes/{refresh_id}/job/stop": {
+      "post": {
+        "operationId": "stop_refresh_job",
+        "parameters": [
+          {
+            "description": "The refresh's ID.",
+            "in": "path",
+            "name": "refresh_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshJobDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "Stop a refresh job from starting more jobs; the ones running finish. Idempotent."
       }
     },
     "/v1/runs": {
@@ -6419,7 +7248,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, or an entry this version cannot read."
+            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running."
           },
           "500": {
             "content": {
@@ -6623,7 +7452,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, or an entry this version cannot read."
+            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running."
           },
           "500": {
             "content": {
@@ -6739,7 +7568,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, or an entry this version cannot read."
+            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running."
           },
           "500": {
             "content": {
@@ -6857,7 +7686,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, or an entry this version cannot read."
+            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running."
           },
           "500": {
             "content": {

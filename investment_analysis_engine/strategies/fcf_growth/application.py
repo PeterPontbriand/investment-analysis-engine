@@ -1,4 +1,4 @@
-"""FCF Growth's application functions: its run function and its refresh executor.
+"""FCF Growth's application functions: its run function.
 
 The application tier pairs these with the FCF Growth core bundle; nothing here registers itself. The run function
 composes the dependencies of one run, runs it through :func:`execute_fcf_growth`, and returns it with the means to
@@ -9,14 +9,13 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.failures import require_job_ticker, stored_configuration
+from investment_analysis_engine.application.failures import stored_configuration
 from investment_analysis_engine.application.providers import (
     build_sec_production_provider,
     production_financial_cache,
     production_historical_client,
 )
 from investment_analysis_engine.application.strategy_run import StrategyRun
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.financial.cache import ResolvedInputSeriesCacheProtocol
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
@@ -35,7 +34,6 @@ from investment_analysis_engine.strategies.fcf_growth.presenter import (
 )
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.fcf_growth.workspace import execute_fcf_growth, from_fcf_growth_capture
-from investment_analysis_engine.workspace.capture import ExecutionCapture
 
 
 def _market_cap_dependencies(
@@ -121,17 +119,4 @@ def run(
     )
 
 
-def refresh(
-    context: ApplicationContext,
-    ticker: str,
-    selection: FCFGrowthSelection,
-    /,
-    *,
-    profile_cache: InstrumentProfileResolver | None,
-) -> ExecutionCapture:
-    """Execute one FCF Growth refresh job with freshly composed, job-scoped dependencies."""
-    require_job_ticker(ticker)
-    return run(context, ticker, selection, executed_at=utc_now(), profile_cache=profile_cache).execution
-
-
-__all__ = ["refresh", "run"]
+__all__ = ["run"]

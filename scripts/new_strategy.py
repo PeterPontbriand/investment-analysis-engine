@@ -433,17 +433,11 @@ def _cli_tier_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str,
 
 def _application_tier_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, ...]]:
     module, upper = spec.module, spec.upper
-    imports = [
-        _strategy_import(spec, "application", [f"refresh as refresh_{module}"]),
-        _strategy_import(spec, "application", [f"run as run_{module}"]),
-    ]
-    entry = (
-        f"pair_application(\n    {upper}_BEHAVIOR,\n"
-        f"    ApplicationComposition(run=run_{module}, refresh=refresh_{module}),\n)"
-    )
+    imports = [_strategy_import(spec, "application", [f"run as run_{module}"])]
+    entry = f"pair_application(\n    {upper}_BEHAVIOR,\n    ApplicationComposition(run=run_{module}),\n)"
     edited = append_imports(source, imports, where)
     edited = add_import_name(edited, f"{PACKAGE}.strategy_wiring", f"{upper}_BEHAVIOR", where)
-    introduced = (f"run_{module}", f"refresh_{module}")
+    introduced = (f"run_{module}",)
     return append_tuple_entry(edited, "APPLICATION_STRATEGIES", entry, where), introduced
 
 

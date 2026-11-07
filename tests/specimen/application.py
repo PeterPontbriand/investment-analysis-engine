@@ -1,4 +1,4 @@
-"""The specimen's application functions: its settings, its run function and its refresh executor.
+"""The specimen's application functions: its settings and its run function.
 
 The settings path of the composition root is exercised here: the multiplier comes from the specimen's
 ``settings.toml``, overridden per key by the user's ``strategies/specimen-test.toml`` in the context's settings folder.
@@ -9,7 +9,6 @@ from datetime import datetime
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.config.component_settings import load_component_settings
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
@@ -62,15 +61,3 @@ def run(
         document=lambda _element: build_specimen_document(result),
         render_text=render_text,
     )
-
-
-def refresh(
-    context: ApplicationContext,
-    ticker: str,
-    selection: SpecimenSelection,
-    /,
-    *,
-    profile_cache: InstrumentProfileResolver | None,
-) -> ExecutionCapture:
-    """Execute one specimen refresh job; the calculation reads no profile, so the cache is unused."""
-    return run(context, ticker, selection, executed_at=utc_now(), profile_cache=profile_cache).execution

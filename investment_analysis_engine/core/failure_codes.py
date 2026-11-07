@@ -54,6 +54,8 @@ class FailureReasonCode(StrEnum):
     HOST_NOT_ALLOWED = "host_not_allowed"
     ORIGIN_NOT_ALLOWED = "origin_not_allowed"
     ENDPOINT_NOT_FOUND = "endpoint_not_found"
+    REFRESH_JOB_NOT_FOUND = "refresh_job_not_found"
+    REFRESH_JOB_RUNNING = "refresh_job_running"
     PORT_UNAVAILABLE = "port_unavailable"
 
 

@@ -1,7 +1,7 @@
 # Local HTTP API
 
 `ian serve` runs a local HTTP interface that returns the documents the command line writes with `--json`, so another
-program on the same computer can read and change watchlists, analyze a ticker, and read saved runs and run comparisons without parsing terminal output. This
+program on the same computer can read and change watchlists, analyze a ticker, refresh a watchlist, and read saved runs and run comparisons without parsing terminal output. This
 page is for the authors of such a program, called a client here. It is not reachable from another computer.
 
 For the rules that say what may change inside `/v1`, see
@@ -33,6 +33,13 @@ reports goes to the log file.
 The server runs as one process and exits with code 0 when its standard input reaches end of file or on Ctrl+C. A request
 in flight gets up to five seconds to finish. A client that starts the server should hold its standard input open and
 close it to stop the server.
+
+A [refresh job](#refresh-jobs) that is running is stopped the moment the server begins to stop, so its five seconds run
+beside those of the requests and not after them. A job still running when they end is abandoned: the server writes one
+line to the log saying that the refresh did not finish and that its unfinished jobs were not saved, and the process ends
+at once, still with exit code 0. Jobs the refresh had already saved stay saved; a job that was running is not saved. The
+job is cut short this way because a provider request has no time limit of its own, so waiting for it could keep the
+process alive indefinitely.
 
 A launch that fails writes one [failure document](#errors) to standard output and exits with code 1:
 
@@ -87,15 +94,15 @@ changed or removed within `/v1`.
 
 Every response that is not 2xx has a [failure document](../../schemas/failure.schema.json) as its body. A client branches
 on `reason_code`; the HTTP status is coarse and `reason` is a message for people. `parameters` names the offending query
-or path parameter, or the body field by its path (see [Request bodies](#request-bodies)). The five codes only the API and `ian serve` use are `not_authenticated`, `host_not_allowed`,
-`origin_not_allowed`, `endpoint_not_found` and `port_unavailable`.
+or path parameter, or the body field by its path (see [Request bodies](#request-bodies)). The codes only the API and `ian serve` use are `not_authenticated`, `host_not_allowed`,
+`origin_not_allowed`, `endpoint_not_found`, `refresh_job_not_found`, `refresh_job_running` and `port_unavailable`.
 
 | HTTP status | `reason_code` |
 | :--- | :--- |
 | 400 | `invalid_parameter`, `host_not_allowed`, `origin_not_allowed` |
 | 401 | `not_authenticated` |
-| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `endpoint_not_found` |
-| 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add that a watchlist's unreadable entry refuses) |
+| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `endpoint_not_found` |
+| 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add or a refresh that an unreadable entry of the watchlist refuses), `watchlist_empty` (a watchlist to refresh has no entries), `refresh_job_running` |
 | 405 | `endpoint_not_found` (a method the endpoint does not declare, `HEAD` included), with an `Allow` header naming the declared method |
 | 503 | `database_busy` |
 | 500 | every other code, including every other `database_*` code and `execution_error` |
@@ -128,6 +135,8 @@ The endpoints that read use `GET`; the actions are below.
 | `/v1/runs/{analysis_run_id}/text` | `mode` (required): `concise`, `details` or `diagnostics` | `schema_version`, `mode` and `text` |
 | `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document |
 | `/v1/strategies/{method_id}/selection` | none | `schema_version`, `schema` and `defaults` (see [Selection forms](#selection-forms)) |
+| `/v1/refreshes/{refresh_id}/job` | `after` | the refresh job document (see [Refresh jobs](#refresh-jobs)) |
+| `/v1/refreshes/job` | `after` | the latest refresh job document |
 
 On `/v1/runs`, `limit` is 1 to 100 and defaults to 20, and `offset` defaults to 0. `method_id` is the `method` value of
 an item in `/v1/strategies` (for example `sma_crossover`). The document says whether more rows follow with `has_more`; there is no total.
@@ -144,6 +153,8 @@ an item in `/v1/strategies` (for example `sma_crossover`). The document says whe
 | `POST /v1/watchlists/{watchlist_id}/remove-tickers` | `tickers` | 200, the removal document |
 | `POST /v1/watchlists/{watchlist_id}/remove-method` | `method_id` | 200, the removal document |
 | `POST /v1/analyses` | `ticker`, `method_id`, `selection`, `save`, `provider_check` | 200, the analysis document |
+| `POST /v1/refreshes` | `watchlist_id` or `entries`, `workers`, `save`, `provider_check` | 202, the refresh job document, with a `Location` header |
+| `POST /v1/refreshes/{refresh_id}/job/stop` | none | 200, the refresh job document |
 
 `entry_number` is 1-based, as the watchlist document's `index` and the command line's `remove-entry` are. The rename,
 removal and delete documents hold exactly one of `watchlist` and `unreadable`: an action that committed its change and
@@ -158,6 +169,82 @@ launched with, as on the command line. The analysis document holds `schema_versi
 run was not saved), `document` (the strategy's own document, as its command's `--json` writes it) and `text`, with the
 same run as `concise`, `details` and `diagnostics` text. A run that is unavailable or failed is still 200, because
 `document` reports it.
+
+### Refresh jobs
+
+A refresh runs for minutes, so it is a job: `POST /v1/refreshes` starts one and answers 202 at once, and the client
+follows it by polling. The job's ID is the refresh ID that every run it saves carries, so a client can list the saved
+runs with `/v1/runs?refresh_id=` and compare them with `/v1/refreshes/{refresh_id}/compare`.
+
+The body names exactly one of `watchlist_id` (a watchlist's ID) and `entries` (a list of `{ticker, method_id, selection}`
+for a refresh that belongs to no watchlist; `selection` is read as it is for `POST /v1/analyses`). `workers` is optional
+and defaults to 2 (1 to 4), `save` is optional and defaults to `true`, and `provider_check` is optional and defaults to
+the choice the server was launched with: the same defaults as `ian refresh`. A watchlist is read once, when the job is
+accepted; changes made to it afterwards apply to the next refresh. Every check that can be made before a job runs is made
+before the 202, and its failure is the response:
+
+| Status | `reason_code` | Cause |
+| :--- | :--- | :--- |
+| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker with an equal selection (rule `entries.duplicate`) |
+| 404 | `watchlist_not_found` | no watchlist has that ID |
+| 409 | `watchlist_empty` | the watchlist has no entries |
+| 409 | `stored_selection_unreadable` | the watchlist holds an entry this version cannot read |
+| 409 | `refresh_job_running` | a job is already running; a server runs one at a time |
+| 503 | `database_busy` | the database is busy |
+
+The same ticker with the same method under a different selection is not a duplicate. The 202 carries the job document and
+a `Location` header naming the job's URL. `GET /v1/refreshes/{refresh_id}/job` returns the job (404
+`refresh_job_not_found` for an ID the server does not keep), and `GET /v1/refreshes/job` returns the server's latest job,
+or 404 `refresh_job_not_found` when it has started none. The server keeps only the latest job: a job that has ended stays
+until a new one starts, and then its ID is 404.
+
+The job document is `{schema_version, refresh_id, watchlist_id, state, totals, events, next_after, has_more, summary,
+failure}`:
+
+- `state` is one of `running`, `stopping`, `completed`, `stopped` and `failed`; the vocabulary is open, so treat a value
+  you do not know as unfinished. `stopping` lasts from a stop request until the job ends. `completed` means every entry
+  was started, including a job stopped after its last entry had started. `stopped` means a stop was requested and at
+  least one entry was never started. `failed` means a failure after the 202, such as a database that is busy or needs
+  attention when the job opens it, or an unexpected exception.
+- `watchlist_id` is `null` for a refresh over `entries`.
+- `totals` is `{admitted, finished, remaining}`: the jobs started, the jobs finished and the jobs not yet started;
+  `remaining` stays above zero after a stop.
+- `summary` is the [refresh summary](WORKSPACE.md#refreshing-a-watchlist), provider check included, for `completed` and `stopped`, and
+  `null` otherwise. `failure` is a [failure document](#errors) for `failed` and `null` otherwise; the events already
+  recorded are kept either way.
+- An entry whose analysis failed, or raised, is still a finished entry: the event reports it in `result`, and the job is
+  `completed`.
+
+#### Events and polling
+
+Each entry records two events, when it starts and when it finishes. An event has `sequence`, `kind` (`started` or
+`finished`), `position`, `ticker`, `method_id`, `result` and `analysis`. `sequence` counts the job's events from 1 in the
+order they were recorded. `position` is the entry's 0-based place in the refresh: the same as a saved run's
+`batch_position` and as the index in an `entries[i]` error, and not the 1-based `entry_number` of a watchlist. Two entries
+for one ticker are told apart by their position. A started event has `result` and `analysis` `null`. A finished event's
+`result` is the entry as the refresh summary lists it, and its `analysis` is the document `POST /v1/analyses` returns for
+the run, so a client can show a result as soon as it is in; `analysis` is `null` for an entry that raised. The
+`provider_check` element inside a finished event's analysis is always `null`, as it is for a stored run read back,
+because the refresh sends one provider check after the batch and reports it in `summary`.
+
+`after` is the last `sequence` the client has seen; it is optional and defaults to 0, which returns every event. A
+negative or non-integer value is `invalid_parameter`, and a value beyond the last sequence returns no events. The
+response holds the events after `after` until adding the next one would take the events past 1,048,576 bytes, and always
+holds one when one is waiting, however large. `next_after` is the last sequence returned, or `after` when none is, and
+`has_more` says whether recorded events remain: a client polls again with `after` set to `next_after`, at once when
+`has_more` is `true` and after a short wait otherwise, until `state` is `completed`, `stopped` or `failed`.
+
+`POST /v1/refreshes/{refresh_id}/job/stop` asks the job to stop starting entries: the entries already running finish and
+are saved as usual. It is idempotent, answers the job document without events (its `state` is `stopping`, or the final
+state when the job had already ended), and is 404 `refresh_job_not_found` for an ID the server does not keep. A stop never
+fabricates a result for an entry that never started.
+
+#### One job at a time, and one database
+
+A server runs one job at a time. Two servers, or a server and the command line, may use one database: SQLite's
+write-ahead log and its busy timeout order their writes, and a write that waits too long is `database_busy`. A running
+refresh works from the entries it read when it was accepted, so the server's other actions proceed normally while it
+runs.
 
 ### Request bodies
 

@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 from starlette.requests import Request
 
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.workspace.refresh import DEFAULT_WORKERS, MAX_WORKERS, MIN_WORKERS
 
 BODY_PARAMETER = "body"
 """The parameter a body that is missing, not JSON or not an object is reported under."""
@@ -81,6 +82,49 @@ class AnalysisRequest(RequestBody):
         description=(
             "Whether to send one test request to a provider after it fails. When absent or null, the choice made "
             "when the server was launched (IAN_PROVIDER_CHECK) applies, as it does on the command line."
+        ),
+    )
+
+
+class RefreshEntryRequest(RequestBody):
+    """One entry of a refresh over a list of entries: a ticker and one strategy's selection."""
+
+    ticker: str = Field(description="The ticker to analyze.")
+    method_id: str = Field(description="The strategy's method identifier, as GET /v1/strategies lists it.")
+    selection: dict[str, JsonValue] = Field(
+        default_factory=dict,
+        description=(
+            "The selection's fields, as GET /v1/strategies/{method_id}/selection describes them. A field left out "
+            "takes its configured value; as_of is a date or a timestamp with a timezone offset, as text. An error "
+            "in a field is named entries[<index>].<field>, with the 0-based index."
+        ),
+    )
+
+
+class RefreshRequest(RequestBody):
+    """The body that starts a refresh job: a watchlist or a list of entries, exactly one."""
+
+    watchlist_id: str | None = Field(
+        default=None, description="The watchlist to refresh, by ID. Give this or entries, not both."
+    )
+    entries: list[RefreshEntryRequest] | None = Field(
+        default=None,
+        description=(
+            "The entries to refresh, which belong to no watchlist. Give this or watchlist_id, not both. The same "
+            "ticker with an equal selection may not appear twice."
+        ),
+    )
+    workers: int = Field(
+        default=DEFAULT_WORKERS,
+        description=f"How many jobs run at once, {MIN_WORKERS} to {MAX_WORKERS}; {DEFAULT_WORKERS} when absent.",
+    )
+    save: bool = Field(default=True, description="Whether to keep each result as an Analysis Run; true when absent.")
+    provider_check: bool | None = Field(
+        default=None,
+        description=(
+            "Whether to send one test request to a provider a failed job implicates after the batch. When absent or "
+            "null, the choice made when the server was launched (IAN_PROVIDER_CHECK) applies, as it does on the "
+            "command line."
         ),
     )
 
@@ -189,6 +233,8 @@ __all__ = [
     "MAX_REQUEST_BODY_BYTES",
     "AddEntriesRequest",
     "AnalysisRequest",
+    "RefreshEntryRequest",
+    "RefreshRequest",
     "RemoveMethodRequest",
     "RemoveTickersRequest",
     "RequestBody",

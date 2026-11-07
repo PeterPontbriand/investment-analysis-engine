@@ -49,7 +49,7 @@ _ENVELOPE_KEYS = {
 def _envelope(result_stdout: str) -> dict[str, object]:
     document = json.loads(result_stdout)
     assert set(document) == _ENVELOPE_KEYS
-    assert document["schema_version"] == 12
+    assert document["schema_version"] == 13
     assert document["result"] is None
     assert document["diagnostics"] == []
     return dict(document)
@@ -238,7 +238,7 @@ def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(
     ) -> ExecutionCapture:
         raise failures[ticker]
 
-    with patch("investment_analysis_engine.application.refresh._refresh_executor", side_effect=failing_executor):
+    with patch("investment_analysis_engine.application.refresh._run_job", side_effect=failing_executor):
         result = runner.invoke(app, ["refresh", "Core", "--workers", "1", "--json"])
         text = runner.invoke(app, ["refresh", "Core", "--workers", "1"])
 

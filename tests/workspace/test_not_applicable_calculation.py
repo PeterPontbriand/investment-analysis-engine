@@ -21,11 +21,11 @@ from investment_analysis_engine.strategies.graham_number.workspace import (
 from investment_analysis_engine.strategy_wiring import EVIDENCE_BY_KEY, RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.codecs import decode_evidence
-from investment_analysis_engine.workspace.refresh import RefreshPolicy, coordinate_refresh
+from investment_analysis_engine.workspace.refresh import RefreshPolicy
 from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._strategy_document_output import CASES, run_saved
 from tests._wiring import failure_text
-from tests.workspace.test_refresh import _FakeSink, _FakeWatchlists, _watchlist
+from tests.workspace.test_refresh import _coordinate, _FakeSink, _FakeWatchlists, _watchlist
 
 _CASE = next(item for item in CASES if item.name == "graham-number-nonpositive-eps")
 
@@ -60,7 +60,7 @@ def test_a_refresh_job_for_it_carries_no_reason_code(save: bool) -> None:
         # The capture is rebuilt through the real mapping, so a regression in it would show here.
         return from_graham_number_capture(GrahamNumberCapture(analysis, profile))
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": _watchlist((run.ticker,), (run.requested_config,))}),
         repository=_FakeSink(),

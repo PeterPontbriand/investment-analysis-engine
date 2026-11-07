@@ -34,10 +34,14 @@ OPENAPI_FILE = REPOSITORY_ROOT / "schemas" / "openapi.json"
 STATUS_DESCRIPTIONS = {
     200: "The document.",
     201: "The document of what was created.",
+    202: "The refresh job was accepted; its document says where it is and the Location header names its URL.",
     400: "A rejected parameter, or a Host or Origin the server does not allow.",
     401: "No valid bearer token.",
     404: "No such resource.",
-    409: "The stored data refuses the change: a name already in use, or an entry this version cannot read.",
+    409: (
+        "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty "
+        "watchlist to refresh, or a refresh job already running."
+    ),
     405: "The endpoint does not accept this method.",
     500: "An unexpected failure.",
     503: "The database is busy.",
@@ -103,6 +107,8 @@ def _operation(route: RouteSpec, key_map: dict[Any, Any]) -> dict[str, Any]:
             response["headers"] = {
                 "WWW-Authenticate": {"description": "The challenge: Bearer.", "schema": {"type": "string"}}
             }
+        if status == route.success_status and route.location is not None:
+            response["headers"] = {"Location": {"description": "The job's URL.", "schema": {"type": "string"}}}
         responses[str(status)] = response
     operation: dict[str, Any] = {
         "operationId": route.operation_id,

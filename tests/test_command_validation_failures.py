@@ -607,7 +607,7 @@ def test_a_command_with_json_writes_one_valid_failure_document_and_nothing_to_st
     envelope = FailureEnvelope.model_validate(document)
     assert document["reason_code"] == "invalid_parameter"
     assert document["status"] == "error"
-    assert document["schema_version"] == 12
+    assert document["schema_version"] == 13
     assert document["result"] is None
     assert document["parameters"] == list(check.parameters)
     assert envelope.parameters == check.parameters

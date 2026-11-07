@@ -43,7 +43,7 @@ from investment_analysis_engine.strategies.momentum.selection import MomentumSel
 from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY, run_spec_for
 from investment_analysis_engine.workspace.capture import ExecutionCapture
 from investment_analysis_engine.workspace.execution import execute
-from investment_analysis_engine.workspace.refresh import RefreshJobResult, RefreshPolicy, coordinate_refresh
+from investment_analysis_engine.workspace.refresh import RefreshJobResult, RefreshPolicy
 from investment_analysis_engine.workspace.repositories.analysis_runs import (
     AnalysisRunConflictError,  # noqa: F401 - keeps the import graph warm
 )
@@ -54,6 +54,7 @@ from tests.workspace.test_execution import _FakeSink as _ExecutionSink
 from tests.workspace.test_execution import _momentum_native_evidence, _momentum_request
 from tests.workspace.test_refresh import (
     _build_run,
+    _coordinate,
     _FakeSink,
     _FakeWatchlists,
     _momentum_capture,
@@ -324,7 +325,7 @@ def _refresh(
             provider_failure=provider_failure_of((recorded,)) if outcome is RunOutcome.FAILED else None,
         )
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": _watchlist(("KO",), (selection,))}),
         repository=_FakeSink(),
@@ -375,7 +376,7 @@ def test_the_saved_run_and_the_unsaved_job_report_the_same_code(save: bool) -> N
     selection = MomentumSelection(short_window=2, long_window=3, rsi_period=14)
     capture = replace(capture, native_evidence=_momentum_native_evidence())
 
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("My Watch"),
         watchlists=_FakeWatchlists({"my watch": _watchlist(("KO",), (selection,))}),
         repository=_FakeSink(),

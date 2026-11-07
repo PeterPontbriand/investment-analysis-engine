@@ -1,4 +1,4 @@
-"""Graham Growth's application functions: its settings, its run function and its refresh executor.
+"""Graham Growth's application functions: its settings and its run function.
 
 The application tier pairs these with the Graham Growth core bundle; nothing here registers itself. The run function
 composes the dependencies of one run, runs it through :func:`execute_graham_growth`, and returns it with the means to
@@ -9,12 +9,11 @@ from dataclasses import replace
 from datetime import datetime
 
 from investment_analysis_engine.application.context import ApplicationContext
-from investment_analysis_engine.application.failures import require_job_ticker, stored_configuration
+from investment_analysis_engine.application.failures import stored_configuration
 from investment_analysis_engine.application.providers import production_financial_cache
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.config.component_settings import load_component_settings
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
@@ -36,7 +35,6 @@ from investment_analysis_engine.strategies.graham_growth.workspace import (
     from_graham_growth_capture,
 )
 from investment_analysis_engine.strategy_wiring import GRAHAM_GROWTH
-from investment_analysis_engine.workspace.capture import ExecutionCapture
 
 
 def graham_growth_settings(context: ApplicationContext) -> GrahamGrowthSettings:
@@ -149,17 +147,4 @@ def run(
     )
 
 
-def refresh(
-    context: ApplicationContext,
-    ticker: str,
-    selection: GrahamGrowthSelection,
-    /,
-    *,
-    profile_cache: InstrumentProfileResolver | None,
-) -> ExecutionCapture:
-    """Execute one Graham Growth refresh job with freshly composed, job-scoped dependencies."""
-    require_job_ticker(ticker)
-    return run(context, ticker, selection, executed_at=utc_now(), profile_cache=profile_cache).execution
-
-
-__all__ = ["graham_growth_settings", "refresh", "run"]
+__all__ = ["graham_growth_settings", "run"]

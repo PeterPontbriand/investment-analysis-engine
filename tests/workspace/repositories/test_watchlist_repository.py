@@ -20,7 +20,7 @@ from investment_analysis_engine.strategies.momentum.selection import MomentumSel
 from investment_analysis_engine.strategies.momentum.workspace import run_momentum
 from investment_analysis_engine.strategy_wiring import RUN_SPECS_BY_KEY
 from investment_analysis_engine.workspace.capture import ExecutionCapture
-from investment_analysis_engine.workspace.refresh import RefreshPolicy, coordinate_refresh
+from investment_analysis_engine.workspace.refresh import RefreshPolicy
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.repositories.watchlists import (
     DeletedWatchlist,
@@ -41,6 +41,7 @@ from investment_analysis_engine.workspace.watchlists import (
 )
 from tests._migrated_database import migrated_database_url
 from tests._wiring import alias_for, failure_text
+from tests.workspace.test_refresh import _coordinate
 
 NOW = datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC)
 LATER = datetime(2026, 9, 18, 12, 5, 0, tzinfo=UTC)
@@ -489,7 +490,7 @@ def test_delete_keeps_saved_runs_loadable_and_the_name_is_reusable(
 ) -> None:
     watchlist = _seed_momentum(repository, "Doomed", ["AAPL"])
     runs = SQLiteAnalysisRunRepository(migrated_database)
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("Doomed"),
         watchlists=repository,
         repository=runs,
@@ -649,7 +650,7 @@ def test_rename_keeps_a_saved_runs_snapshot_name(
 ) -> None:
     _seed_momentum(repository, "Before", ["AAPL"])
     runs = SQLiteAnalysisRunRepository(migrated_database)
-    summary = coordinate_refresh(
+    summary = _coordinate(
         WatchlistName("Before"),
         watchlists=repository,
         repository=runs,

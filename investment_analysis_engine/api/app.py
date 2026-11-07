@@ -10,10 +10,18 @@ from starlette.responses import Response
 from starlette.routing import Route
 
 from investment_analysis_engine.api.checks import RequestChecks
-from investment_analysis_engine.api.handlers import Endpoint, endpoint_for, error_response, operations
+from investment_analysis_engine.api.handlers import (
+    Endpoint,
+    RefreshJobsOfServer,
+    endpoint_for,
+    error_response,
+    operations,
+)
+from investment_analysis_engine.api.refresh_documents import event_recorder
 from investment_analysis_engine.api.responses import failure_of
 from investment_analysis_engine.api.routes import ROUTES, RouteSpec
 from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.refresh_jobs import RefreshJobs
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 
 ENDPOINT_NOT_FOUND_MESSAGE = "No such endpoint, or the endpoint does not accept this method."
@@ -52,9 +60,10 @@ def create_app(
             whose browsers may call the API; empty by default.
 
     Returns:
-        The ASGI application. It serves exactly the routes of the route table.
+        The ASGI application. It serves exactly the routes of the route table, and keeps one latest refresh job.
     """
-    handlers = operations(context.settings)
+    refresh_jobs: RefreshJobsOfServer = RefreshJobs(event_recorder())
+    handlers = operations(context.settings, refresh_jobs)
     app = Starlette(
         routes=[_route(route, endpoint_for(route, handlers[route.operation_id], context)) for route in ROUTES],
         middleware=[
@@ -63,7 +72,15 @@ def create_app(
         exception_handlers={HTTPException: _not_found, Exception: _unexpected},
     )
     app.router.redirect_slashes = False
+    app.state.refresh_jobs = refresh_jobs
     return app
 
 
-__all__ = ["ENDPOINT_NOT_FOUND_MESSAGE", "create_app"]
+def refresh_jobs_of(app: Starlette) -> RefreshJobsOfServer:
+    """Return the latest refresh job holder of a server built by :func:`create_app`."""
+    jobs = app.state.refresh_jobs
+    assert isinstance(jobs, RefreshJobs)  # create_app sets it
+    return jobs
+
+
+__all__ = ["ENDPOINT_NOT_FOUND_MESSAGE", "create_app", "refresh_jobs_of"]

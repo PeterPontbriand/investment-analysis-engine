@@ -130,13 +130,13 @@ fails = ""
 
 [[site]]
 id = "application"
-title = "Application file: run function, refresh executor"
+title = "Application file: run function"
 why = "The strategy composes its own providers and settings, and its run function returns the run with the means to present it as a document and as text, so no caller needs the strategy's presentation."
 kind = "new_file"
 path = "investment_analysis_engine/strategies/{module}/application.py"
 generated = true
 check = "site_application"
-defines = ["run", "refresh"]
+defines = ["run"]
 fails = ""
 
 [[site]]
@@ -163,7 +163,7 @@ fails = "strategy X is not wired in: CLI tier"
 [[site]]
 id = "application-tier"
 title = "Application-tier entry"
-why = "The application operations cannot import the strategy by name, so the tier pairs its run function and refresh executor with the descriptor's behavior."
+why = "The application operations cannot import the strategy by name, so the tier pairs its run function with the descriptor's behavior."
 kind = "edit"
 path = "investment_analysis_engine/application/tier.py"
 generated = true

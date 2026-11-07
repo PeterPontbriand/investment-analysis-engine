@@ -13,8 +13,8 @@ job: start, progress, stop.
   - API.4a gives rename, delete and the three removals a versioned result document that the CLI's `--json` and the API
     both write, and gives the watchlist document a `schema_version`;
   - API.4a makes `build_selection` report every error in field order, and the failure document list them;
-  - API.4b adds the refresh job: a start endpoint, a polled progress document and a stop endpoint, one job at a time per
-    server.
+  - API.4b adds the refresh job: a start endpoint, a polled progress document, a latest-job endpoint and a stop
+    endpoint, one job at a time per server, over a refresh that is now two application operations, prepare and run.
 - **What it does not do:** change a stored shape, a formula, a classification or a dependency, or build a GUI. API.4a
   adds no job and no CLI command; API.4b adds no CLI command for a refresh over a list of entries
   ([J11b](#j11b-no-cli-command-for-an-entries-job-2026-11-06)).
@@ -25,15 +25,16 @@ job: start, progress, stop.
   - inside `/v1` a change only adds, except where a decision here says otherwise and the pull request lists it.
 - **Sequence rule** (approved 2026-11-04): each slice's pull request marks its own row Complete, dated the day the pull
   request is opened, and sets the next slice's row to Next.
-- **Where the history lives:** decisions J1 to J20 and J11b are in [Appendix A](#appendix-a-decision-records), approved by
-  the project owner on 2026-11-06, with J2 and J11 as revised.
+- **Where the history lives:** decisions J1 to J28 and J11b are in [Appendix A](#appendix-a-decision-records), approved by
+  the project owner on 2026-11-06, with J2 and J11 as revised; J29 to J44 were approved on 2026-11-07 and decide
+  API.4b.
 
 ## 2. Sequence and status
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | API.4a | [Action endpoints, selection forms, result documents and error lists](#api4a--action-endpoints-selection-forms-result-documents-and-error-lists) | Complete | 2026-11-06 |
-| API.4b | [Refresh jobs](#api4b--refresh-jobs) | Next | |
+| API.4b | [Refresh jobs](#api4b--refresh-jobs) | Complete | 2026-11-07 |
 
 ## 3. The slices
 
@@ -70,17 +71,36 @@ job: start, progress, stop.
 
 - **Problem:** a refresh runs for minutes, and a client can neither follow it nor stop it.
 - **Decision:**
-  - the job is polled ([J14](#j14-refresh-progress-by-polling-2026-11-06)), its ID is the refresh ID
-    ([J15](#j15-the-jobs-id-is-the-refresh-id-2026-11-06)), its state is an open vocabulary
-    ([J16](#j16-job-states-2026-11-06)), stop is idempotent ([J17](#j17-stop-2026-11-06)), and only the latest job is kept
-    ([J18](#j18-only-the-latest-job-is-kept-2026-11-06));
-  - a job starts from a watchlist or from a list of entries ([J11](#j11-a-refresh-job-starts-from-a-watchlist-or-a-list-of-entries-2026-11-06));
-  - two servers, or a server and the CLI, may share a database ([J19](#j19-several-processes-one-database-2026-11-06));
-  - shutdown cancels a running job ([J20](#j20-shutdown-with-a-job-running-2026-11-06)).
-- **Scope:** recorded in Part 3 of the API.4a prompt and in the decision records; its slice plan section is written when
-  the slice starts.
+  - a refresh is two operations, `prepare_refresh` and `run_refresh`, and the coordinator takes a frozen snapshot
+    ([J29](#j29-prepare-and-run-2026-11-07), [J30](#j30-the-coordinator-takes-a-snapshot-2026-11-07));
+  - an entries job has no watchlist, and a duplicate entry is refused here and in every watchlist add
+    ([J31](#j31-an-entries-job-has-no-watchlist-2026-11-07), [J32](#j32-duplicate-entries-2026-11-07));
+  - the defaults are those of `ian refresh` ([J33](#j33-defaults-match-ian-refresh-2026-11-07)), and a strategy has no
+    refresh executor ([J34](#j34-strategies-have-no-refresh-executor-2026-11-07));
+  - the job is polled: a finished event carries its analysis, and a poll is bounded by size
+    ([J14](#j14-refresh-progress-by-polling-2026-11-06), [J35](#j35-a-finished-event-carries-its-analysis-2026-11-07),
+    [J36](#j36-polling-2026-11-07));
+  - the job has five states, four endpoints and one holder per server
+    ([J37](#j37-states-2026-11-07), [J38](#j38-endpoints-and-statuses-2026-11-07),
+    [J39](#j39-where-the-job-lives-2026-11-07)), and the server's stop cancels it
+    ([J40](#j40-shutdown-2026-11-07));
+  - the documents, the scope and one more status are settled by
+    [J41](#j41-documents-2026-11-07), [J42](#j42-scope-2026-11-07) and [J43](#j43-watchlist_empty-is-409-2026-11-07);
+    a new reason code bumps the documents that can carry it ([J44](#j44-a-new-reason-code-bumps-the-documents-that-can-carry-it-2026-11-07)).
+- **Scope:**
+  - `application`: `refresh.py` (`prepare_refresh`, `run_refresh`, the targets), the new `refresh_jobs.py`
+    (`RefreshJobs`), `watchlists.py` (the duplicate rule), `tier.py` and each strategy's `application.py` (no refresh
+    function);
+  - `workspace`: `refresh.py` (`RefreshSnapshot`, a generic coordinator and finished event), `execution.py` (a batch
+    with no watchlist), the watchlist repository (`DuplicateEntryError`);
+  - `workspace_documents/refresh.py` (version 3); `core` and `reporting` (two reason codes, failure version 13);
+  - `api`: the four routes, `refresh_documents.py`, the request body, the handlers, the status table;
+  - `cli_serve.py` (shutdown) and `cli_workspace.py` (the refresh command calls both operations);
+  - `scripts/new_strategy.py`, its template, `scripts/strategy_conformance.py`, `scripts/strategy_sites.toml`,
+    `scripts/generate_openapi.py`, `schemas/`, `docs/TOOL_DEVELOPMENT.md`, `docs/user/API.md`, `WORKSPACE.md`,
+    `USAGE.md`, Architecture §13, this plan and the contract.
 - **Branch:** `feat/api-refresh-jobs`.
-- **Detail:** ⚠ no slice plan yet
+- **Detail:** [Implementation record](#32-api4b-implementation-record).
 
 ### 3.1 API.4a implementation record
 
@@ -217,6 +237,136 @@ with invalid field values listed in field order through `build_selection` and `P
 
 Noticed for later slices: nothing further.
 
+### 3.2 API.4b implementation record
+
+What changed, by area:
+
+- **`application`:**
+  - `refresh.py`: `refresh_watchlist` is replaced by `prepare_refresh` and `run_refresh`
+    ([J29](#j29-prepare-and-run-2026-11-07)). `prepare_refresh` checks the worker count and, for a list of entries, every
+    entry before the database opens; it then opens and checks the database, reads a watchlist's snapshot, raises the
+    not-found and empty errors and creates the refresh ID. `RefreshEntries` and `RefreshEntry` describe a list of entries,
+    and `build_refresh_result_document` is public because the API builds an event's result with it. The job is
+    `_run_job`: it checks the ticker as `require_job_ticker` did, reads `utc_now()` for the job and calls the strategy's
+    run function from the tier ([J34](#j34-strategies-have-no-refresh-executor-2026-11-07));
+  - `refresh_jobs.py` (new): `RefreshJobs`, `RefreshJob`, `RefreshJobView`, `RefreshJobState` and the two errors
+    `RefreshJobNotFoundError` and `RefreshJobRunningError`. The jobs are generic over the event a caller keeps; the caller
+    supplies the function that builds an event and measures it, which is called once per event when it is recorded, on the
+    refresh's own thread and outside the lock ([J39](#j39-where-the-job-lives-2026-11-07));
+  - `watchlists.py`: `duplicate_entry_error` and `entry_key` are the one rule of a duplicate, and
+    `add_watchlist_entries` refuses a repeat within the request before it opens the database;
+  - `tier.py` and each strategy's `application.py`: `RefreshExecutor`, `ApplicationComposition.refresh`,
+    `ApplicationStrategy.refresh`, `refreshers_by_key`, `APPLICATION_REFRESHERS`, `refresh_executor_for` and each
+    strategy's `refresh` are removed.
+- **`workspace`:** `RefreshSnapshot`; `coordinate_refresh` takes it, is generic over a job's result and takes `capture_of`;
+  `RefreshJobFinished[T]` carries `produced` in memory; `WatchlistLookup`, the not-found check, the empty check and
+  `refresh_id_factory` are removed from the coordinator ([J30](#j30-the-coordinator-takes-a-snapshot-2026-11-07));
+  `BatchContext` has a nullable watchlist ID and name; `SQLiteWatchlistRepository.add_entries` raises
+  `DuplicateEntryError` for an entry that repeats a stored one, in the same transaction.
+- **`workspace_documents`, `core` and `reporting`:** `RefreshSummaryDocument` is version 3 with a nullable watchlist
+  ([J31](#j31-an-entries-job-has-no-watchlist-2026-11-07)); `refresh_job_not_found` and `refresh_job_running` are new
+  reason codes; `FailureEnvelope` is version 13
+  ([J44](#j44-a-new-reason-code-bumps-the-documents-that-can-carry-it-2026-11-07)).
+- **`api`:** four routes in the table (`start_refresh`, `get_latest_refresh_job`, `get_refresh_job`,
+  `stop_refresh_job`), with `RouteSpec.location` for the 202's `Location` header; `refresh_documents.py` (the event, the
+  totals and the job document, and `event_recorder`); `RefreshRequest` and `RefreshEntryRequest`; the handlers,
+  with `failure_envelope_of` split out of `error_response` so a failed job's exception becomes its failure document;
+  `STATUS_BY_CODE` maps `refresh_job_not_found` to 404 and `refresh_job_running` and `watchlist_empty` to 409
+  ([J43](#j43-watchlist_empty-is-409-2026-11-07)); `create_app` makes one `RefreshJobs` per server and `refresh_jobs_of`
+  reads it.
+- **`cli`:** `refresh` calls `prepare_refresh` and `run_refresh`; `serve` cancels the job when the stop begins, shares the
+  job's grace with uvicorn's and ends the process with `os._exit(0)` if the job's thread outlives it, through an injected
+  exit call ([J40](#j40-shutdown-2026-11-07)).
+- **Generator:** `scripts/new_strategy.py`, `scripts/strategy_templates/application.py.tmpl`,
+  `scripts/strategy_sites.toml` and `scripts/strategy_conformance.py` no longer produce, require or probe a refresh
+  function; the conformance probes the run function and `analysis_runner_for` instead. `docs/TOOL_DEVELOPMENT.md` no
+  longer describes a refresh function.
+- **Schemas:** `refresh-summary.schema.json` is version 3; `failure.schema.json` is version 13; every schema that embeds
+  the shared code list (every strategy's document, the refresh summary and the database maintenance report) is
+  regenerated without a bump, as is `openapi.json`, which also describes the four routes and the job document.
+- **Documents:** `docs/user/API.md` (the refresh jobs, polling, the states, the shared database, the shutdown behavior,
+  why a finished event's `provider_check` is null and the 0-based `position`), `WORKSPACE.md` (version 3 and the
+  duplicate rule), `USAGE.md` (the duplicate message and the failure version), Architecture §13 (the prose of the
+  refresh operations and the `application` row; the package table is unchanged), this plan and the contract.
+
+User-visible changes:
+
+- `ian refresh --json` is `schema_version` 3 instead of 2. `watchlist_id` and `watchlist_name` may now be null, which only
+  an API refresh over a list of entries produces; the output of the command differs only in `schema_version`.
+- The failure document is `schema_version` 13 in the CLI and in the API, for the two new reason codes
+  ([J44](#j44-a-new-reason-code-bumps-the-documents-that-can-carry-it-2026-11-07)); no strategy document, no database
+  maintenance report and no refresh summary is bumped for them.
+- `watchlist add-selection` and the watchlist entries endpoint refuse an entry that repeats another, the same ticker with
+  an equal selection, whether in the request or already stored. It was accepted and stored twice; it is now
+  `invalid_parameter`, rule `entries.duplicate` ([J32](#j32-duplicate-entries-2026-11-07)).
+- New endpoints: `POST /v1/refreshes`, `GET /v1/refreshes/{refresh_id}/job`, `GET /v1/refreshes/job` and
+  `POST /v1/refreshes/{refresh_id}/job/stop`, and the reason codes `refresh_job_not_found` (404) and
+  `refresh_job_running` (409); `watchlist_empty` answers 409.
+- `ian serve` stops a running refresh when it begins to stop, waits for it inside the same five seconds, and then ends
+  the process with exit code 0 and one log line if it has not finished; jobs it had not finished are not saved.
+- No stored shape, `config_schema_version`, formula, classification or dependency changed, and `ian refresh` text output,
+  help text and exit codes are unchanged. A run saved by an entries job stores its refresh ID and batch position with no
+  watchlist, which the stored run already allowed.
+
+Re-recorded files under `tests/expected_output/workspace_commands/`: `refresh-json.txt`, `refresh-no-save-json.txt` and
+`refresh-failed-job-json.txt`, each changed only in `schema_version`. `tests/specimen/specimen-test.schema.json` is
+regenerated for the two codes. No file under `cli_help/`, `direct_commands/` or `strategy_documents/` changed.
+
+Tests edited, and why:
+
+- The coordinator takes a snapshot, a capture function and no lookup: `tests/workspace/test_refresh.py` (a wrapper,
+  `_coordinate`, freezes the in-memory watchlist as a snapshot and calls the real coordinator; the three tests of a
+  missing, an empty and a selection-less watchlist moved to `prepare_refresh` in `tests/application/test_refresh.py`; the
+  job-outcome test names `produced`), `test_refresh_progress.py` (the missing-ID case moved the same way),
+  `test_refresh_provider_failure.py`, `test_failure_reason_codes.py`, `test_not_applicable_calculation.py`,
+  `test_workspace_fail_closed.py` and `repositories/test_watchlist_repository.py`.
+- A strategy has no refresh function: `tests/application/test_tier.py`, `tests/scripts/test_new_strategy.py` (the
+  generated application has no refresh), `tests/test_strategy_wiring_conformance.py` (the probes that stand in for the
+  removed lookups), `tests/specimen/application.py` and `application_tier.py`, `tests/test_cli_piotroski.py` and
+  `tests/analysis/fcf_earnings_growth/test_market_data_composition.py` (they called a strategy's `refresh`; they call its
+  `run`), and `tests/test_failure_messages.py` and `tests/test_cli_failure_envelope.py` (they patched the removed
+  dispatch; they patch `_run_job` and `analysis_runner_for`).
+- `tests/application/test_refresh.py`: the operation is called as prepare then run, and its fakes replace the run
+  function.
+- Failure document version 13: `tests/api/test_actions.py`, `test_errors.py`, `test_rule_error_lists.py`,
+  `tests/reporting/test_failure_envelope.py`, `tests/test_cli_failure_envelope.py`, `tests/test_cli_database_readiness.py`,
+  `tests/test_command_validation_failures.py` and `tests/test_existing_strategy_failure_output.py`. The pinned table of
+  declared codes (`tests/_failure_code_table.py`) lists the two new errors.
+- The status table and the route table: `tests/api/test_errors.py` (409 for `watchlist_empty` and `refresh_job_running`,
+  404 for `refresh_job_not_found`) and `tests/api/test_routes_and_description.py` (a route may succeed with 202).
+- Refresh summary version 3: `tests/workspace_documents/test_workspace_documents.py`.
+
+Tests added: `tests/application/test_refresh.py` (every check of `prepare_refresh` for both targets and before any job
+runs, error names such as `entries[2].short_window`, duplicates, an empty list, the stored runs of an entries refresh
+against those of a watchlist refresh, and a finished event carrying its run),
+`tests/application/test_refresh_jobs.py` (each state transition of [J37](#j37-states-2026-11-07), including a stop after
+the last admission ending `completed` and `failed` with its events kept; sequences, `after`, `next_after`, `has_more`,
+the byte budget with an event larger than the budget returned alone, an `after` beyond the end, and one build per event),
+`tests/application/test_watchlist_duplicates.py`, `tests/test_cli_watchlist_duplicates.py` and
+`tests/api/test_entry_duplicates.py` (a duplicate within one add and against stored entries, and the same ticker under
+another selection accepted), `tests/api/test_refresh_jobs.py` (every endpoint and status, the `Location` header, the
+latest-job endpoint, 409 while a job runs, a new job replacing an ended one and 404 for the older ID, stop, a failed job
+and its envelope; the endpoint tests are parametrized over `STRATEGIES`) and `tests/test_cli_serve_shutdown.py`
+(cancellation at once, the shared grace, and the injected exit called for a blocked job).
+
+Accepted deviations:
+
+- **Entry error names.** An error in a field of an entry's selection is `entries[<index>].<field>`, with no `selection.`
+  segment, as [J5](#j5-request-bodies-2026-11-06) and [J15](#j15-the-jobs-id-is-the-refresh-id-2026-11-06) write it. The
+  body's shape errors, from the request model, are named by their full path, such as `entries[0].selection.colour`.
+- **A poll re-encodes the events it returns.** Each event is built and measured once, when it is recorded
+  ([J36](#j36-polling-2026-11-07)), and a poll builds nothing; but the response body is still the job document
+  serialized, so the returned events are encoded again. Keeping each event's bytes and splicing them into the response
+  would need an operation to return something other than a document
+  ([J27](#j27-an-operation-returns-only-a-document-2026-11-06)).
+- **The 202 and a stop answer without events.** Both carry the job document with no events and `next_after` 0, and
+  `has_more` says whether any are recorded, so the 202 is always the job with no events as
+  [J38](#j38-endpoints-and-statuses-2026-11-07) says, even for a job that had already started an entry.
+- **`failure_envelope_of`.** `error_response` is split so a failed job's exception becomes the job document's `failure`
+  by the rule that answers a request.
+
+Noticed for later slices: nothing further.
+
 ## 4. Scope limits and acceptance criteria
 
 - API.4a changes no stored shape, formula, classification or dependency, adds no job, and changes no CLI text output,
@@ -226,8 +376,13 @@ Noticed for later slices: nothing further.
 - `schemas/` and `schemas/openapi.json` are regenerated and compared in the managed gate.
 - Every route declares exactly the statuses it can give, and a preflight allows exactly the methods the table declares.
 - A selection with several bad fields reports each in field order; `reason` and `parameters` are the first's.
+- API.4b changes no stored shape, formula, classification or dependency, adds no CLI command, and changes no `ian refresh`
+  text output, help text or exit code; its `--json` differs only by `schema_version` 3.
 - API.4b: one job at a time per server, a job that ends is kept until a new one replaces it, a job not finished at shutdown
   is not saved, and the stored runs of an API refresh are those a CLI refresh stores.
+- A new reason code bumps the documents that can carry it and no other ([J44](#j44-a-new-reason-code-bumps-the-documents-that-can-carry-it-2026-11-07)).
+- No strategy has a refresh function, and a strategy added through `scripts/new_strategy.py` is refreshed through its run
+  function with no edit to `api` or `application`.
 
 ## 5. Background
 
@@ -239,7 +394,8 @@ action that outlasts a request, so it is its own slice.
 
 ## Appendix A: Decision records
 
-All approved by the project owner on 2026-11-06; J2 and J11 as revised.
+J1 to J28 and J11b were approved by the project owner on 2026-11-06, with J2 and J11 as revised. J29 to J44 were approved on
+2026-11-07; each says which earlier record it amends or extends.
 
 ### J1 API.4 is two slices (2026-11-06)
 
@@ -357,7 +513,9 @@ date or timestamp as ISO 8601 text, anything else as `str()`.
 ### J14 Refresh progress by polling (2026-11-06)
 
 `GET /v1/refreshes/{refresh_id}/job?after=<sequence>` returns
-`{schema_version, refresh_id, watchlist_id, state, totals, events, next_after, summary, failure}`. Each event has
+`{schema_version, refresh_id, watchlist_id, state, totals, events, next_after, summary, failure}`. (Amended by
+[J35](#j35-a-finished-event-carries-its-analysis-2026-11-07) and [J36](#j36-polling-2026-11-07): the finished event's
+analysis and the job document's `has_more`.) Each event has
 `sequence`, `kind` (`started` or `finished`), `position`, `ticker` and `method_id`; a finished event adds its
 `RefreshResultDocument` and the strategy's document. Server-sent events and WebSocket were rejected because a browser
 cannot send the `Authorization` header with them, and [S6](API_2_SLICE_PLAN.md#s6-205-is-settled-by-contract-rules-2026-11-03)
@@ -365,13 +523,15 @@ forbids the token in a URL.
 
 ### J15 The job's ID is the refresh ID (2026-11-06)
 
+(Amended by [J29](#j29-prepare-and-run-2026-11-07): `prepare_refresh` creates the ID and no `refresh_id` argument exists.)
 The ID is created before the job starts and passed to the coordinator's `refresh_id_factory` through a new optional
 `refresh_id` argument of `refresh_watchlist`. The worker range, a missing or empty watchlist and, for an entries job,
 `build_selection` on every entry (errors named like `entries[2].short_window`) are checked before the 202.
 
 ### J16 Job states (2026-11-06)
 
-`state` is an open vocabulary: `running`, `stopping`, `completed`, `stopped`, `failed`. `summary` is set for `completed` and
+(Extended by [J37](#j37-states-2026-11-07).) `state` is an open vocabulary: `running`, `stopping`, `completed`, `stopped`,
+`failed`. `summary` is set for `completed` and
 `stopped`; `failure` (a `FailureEnvelope`) is set for `failed`.
 
 ### J17 Stop (2026-11-06)
@@ -392,7 +552,7 @@ proceed normally. API.4b documents this in `docs/user/API.md`.
 
 ### J20 Shutdown with a job running (2026-11-06)
 
-On shutdown with a job running, the server sets the job's cancellation event, waits up to the same 5-second grace
+(Amended by [J40](#j40-shutdown-2026-11-07).) On shutdown with a job running, the server sets the job's cancellation event, waits up to the same 5-second grace
 ([S26](API_2_SLICE_PLAN.md#s26-stopping-2026-11-03)) and exits. An admitted job not finished by then is not saved. This is
 the one exception to [W50](API_3_SLICE_PLAN.md#w50-an-admitted-job-always-runs-2026-11-06).
 
@@ -478,3 +638,170 @@ Amends [W10](API_3_SLICE_PLAN.md#w10-argument-checks-are-in-the-actions-2026-11-
   moving the check into `analyze` alone would have changed the order of two errors and the ticker in a failure document.
 - Other places that trim and upper-case a ticker (data providers, document validators, codecs, evaluation fixtures) are
   consistency checks of an already-normalized value or part of a provider's own subject handling, and are not changed.
+
+### J29 Prepare and run (2026-11-07)
+
+Amends [J15](#j15-the-jobs-id-is-the-refresh-id-2026-11-06). The application's refresh is two operations:
+
+- `prepare_refresh(context, target, *, workers, save, provider_check)` checks the worker count, opens the database, reads
+  the frozen snapshot, makes every check J15 lists, creates the refresh ID and returns a `PreparedRefresh`;
+- `run_refresh(context, prepared, *, cancellation, on_progress)` runs the jobs and returns the outcome;
+- `target` is a `WatchlistRef` or a `RefreshEntries`;
+- `refresh_watchlist` is removed, and the CLI's `refresh` command calls both operations;
+- the refresh ID comes from `prepare_refresh`, so no `refresh_id` argument is added anywhere.
+
+### J30 The coordinator takes a snapshot (2026-11-07)
+
+Amends [J11](#j11-a-refresh-job-starts-from-a-watchlist-or-a-list-of-entries-2026-11-06)'s "`WatchlistLookup` becomes a
+source of a frozen entry snapshot".
+
+- `coordinate_refresh` takes a `RefreshSnapshot`: the refresh ID, the entries, and the watchlist's ID and name, or none for
+  an entries job.
+- `WatchlistLookup`, the not-found check and the empty check move to `prepare_refresh`.
+- `refresh_id_factory` is removed from `coordinate_refresh`.
+
+### J31 An entries job has no watchlist (2026-11-07)
+
+- `RefreshSummaryDocument` goes from `schema_version` 2 to 3; `watchlist_id` and `watchlist_name` become nullable, both
+  set or both null, enforced by a model validator.
+- A saved run of an entries job stores its refresh ID and batch position with no watchlist. No stored shape changes.
+- The job document's `watchlist_id` is null for an entries job.
+- The pull request lists the version change of `ian refresh --json`.
+
+### J32 Duplicate entries (2026-11-07)
+
+- A duplicate is the same normalized ticker with an equal selection. The same ticker and method under a different
+  selection is allowed.
+- One shared rule, `entries.duplicate`, refuses a duplicate in an entries job and in every watchlist add (`watchlist
+  add-selection` and the watchlist entries endpoint), whether it duplicates another new entry or one already stored. It is
+  `invalid_parameter`.
+- An empty entries list is `invalid_parameter`, rule `refresh.entries_empty`.
+- Messages and parameters, as built:
+
+| Rule | Where | Template | Parameters | Arguments |
+| :--- | :--- | :--- | :--- | :--- |
+| `entries.duplicate` | an entries job | `{entries[i]} must not duplicate an entry: {ticker} is already listed for {method_id} with an equal selection {where}.` | `entries[i]`, the 0-based index of the repeat | `ticker`, `method_id`, `where` = `earlier in this request` |
+| `entries.duplicate` | a watchlist add | the same, with `{tickers}` in place of `{entries[i]}` | `tickers` (`TICKER` on the command line) | `ticker`, `method_id`, `where` = `earlier in this request` or `in the watchlist` |
+| `refresh.entries_empty` | an entries job | `{entries} must hold at least one entry.` | `entries` | none |
+
+  For example: `entries[2] must not duplicate an entry: AAPL is already listed for sma_crossover with an equal selection
+  earlier in this request.`, `TICKER must not duplicate an entry: AAPL is already listed for sma_crossover with an equal
+  selection in the watchlist.` and `entries must hold at least one entry.` Every repeat is listed in `errors`, in order.
+
+### J33 Defaults match `ian refresh` (2026-11-07)
+
+In `POST /v1/refreshes`:
+
+- `save` is optional and defaults to true;
+- `workers` is optional and defaults to `DEFAULT_WORKERS`;
+- `provider_check` is optional and defaults to `settings.provider_check`.
+
+[J9](#j9-defaults-match-the-cli-2026-11-06)'s `save` default of false stays for `POST /v1/analyses`.
+
+### J34 Strategies have no refresh executor (2026-11-07)
+
+- Each strategy's `refresh` function, `RefreshExecutor`, `refresh` of `ApplicationComposition`, `refreshers_by_key` and
+  `refresh_executor_for` are removed.
+- The application's refresh executor calls the strategy's run function, with `executed_at` read per job with `utc_now()`,
+  and checks the job ticker as `require_job_ticker` does today.
+- `coordinate_refresh` becomes generic over a job's result `T`, with a `capture_of: Callable[[T], ExecutionCapture]`
+  argument. A finished event carries `T` in memory and never stores it.
+- `scripts/new_strategy.py`, its generated bodies and tests, and `docs/TOOL_DEVELOPMENT.md` stop producing or describing a
+  refresh function.
+
+### J35 A finished event carries its analysis (2026-11-07)
+
+Amends [J14](#j14-refresh-progress-by-polling-2026-11-06).
+
+- Each event has `result` (the `RefreshResultDocument`, null for a started event) and `analysis`.
+- `analysis` is [J10](#j10-the-analysis-document-2026-11-06)'s analysis document `{schema_version, analysis_run_id,
+  document, text: {concise, details, diagnostics}}`; it is null for a started event and for a job that raised.
+- The document's `provider_check` element is null, as for `runs show --json`; the refresh's one provider check is
+  reported in `summary`.
+
+### J36 Polling (2026-11-07)
+
+- Sequences start at 1. `after` is optional and defaults to 0. A negative or non-integer `after` is `invalid_parameter`.
+- An `after` beyond the last sequence returns no events.
+- A response holds events after `after` until adding the next one would take the events past `MAX_REQUEST_BODY_BYTES`
+  (1 MiB), the same figure as [J24](#j24-a-request-body-has-a-size-limit-2026-11-06). It always holds at least one event
+  when one is waiting.
+- Each event is serialized once, when it is recorded, and its size is kept.
+- The job document gains `has_more`. `next_after` is the last sequence returned, or `after` when none is.
+- `position` is 0-based, the same as the stored `batch_position` and the `entries[i]` error names, and `API.md` says it is
+  not the 1-based `entry_number`.
+- The job document is `{schema_version: 1, refresh_id, watchlist_id, state, totals, events, next_after, has_more, summary,
+  failure}`.
+
+### J37 States (2026-11-07)
+
+Extends [J16](#j16-job-states-2026-11-06).
+
+- `stopping` lasts from a stop request until the job ends.
+- `stopped` means a stop was requested and at least one entry was never admitted. A stop after the last admission ends
+  `completed`.
+- `failed` is a failure after the 202, for example a database that is busy or needs attention when the job opens it, or an
+  unexpected exception. `failure` is set, `summary` is null, and the events already recorded are kept.
+- `summary` is the `RefreshSummaryDocument`, provider check included, for `completed` and `stopped`.
+
+### J38 Endpoints and statuses (2026-11-07)
+
+- `POST /v1/refreshes`: 202 with the job document (state `running`, no events) and a `Location` header naming the job's
+  URL. Before the 202: 400 `invalid_parameter`, 404 `watchlist_not_found`, 409 `watchlist_empty` (J43), 409
+  `stored_selection_unreadable`, 409 `refresh_job_running`, 503 `database_busy`.
+- `GET /v1/refreshes/{refresh_id}/job`: 200, or 404 `refresh_job_not_found`.
+- `POST /v1/refreshes/{refresh_id}/job/stop`: 200, or 404 `refresh_job_not_found`. Stop is idempotent
+  ([J17](#j17-stop-2026-11-06)).
+- New: `GET /v1/refreshes/job` returns the server's latest job, or 404 `refresh_job_not_found` when it has none.
+- `refresh_job_not_found` and `refresh_job_running` are new reason codes. `STATUS_BY_CODE` maps them to 404 and 409. Every
+  route declares exactly the statuses it can give. CORS preflights follow the route table, as
+  [J6](#j6-cors-allows-the-declared-methods-2026-11-06) says.
+
+### J39 Where the job lives (2026-11-07)
+
+- A new `application/refresh_jobs.py` holds `RefreshJobs`: the latest job, a lock, its state and events, and the daemon
+  thread it runs on. `create_app` makes one per server.
+- The `api` handlers only translate. The job document and the analysis document are built in `api`.
+- If recording each event's size once ([J36](#j36-polling-2026-11-07)) cannot be done without the application importing
+  `api`, or without moving a document between layers, stop and report. It was done by injection: `api` supplies the
+  function that builds each event and measures it, so neither happens.
+
+### J40 Shutdown (2026-11-07)
+
+Amends [J20](#j20-shutdown-with-a-job-running-2026-11-06).
+
+- When the server begins to stop (standard input closes, or Ctrl+C), `serve` sets the job's cancellation at once, so the
+  job's 5-second grace runs alongside uvicorn's rather than after it.
+- If the job's thread is still alive when the grace ends, `serve` logs one line saying the refresh did not finish and its
+  unfinished jobs were not saved, flushes logging and ends the process with `os._exit(0)`.
+- This is needed because a `ThreadPoolExecutor` worker holds up interpreter exit until its call returns, nothing sets a
+  timeout on a provider fetch, and a coordinator still alive at exit could save a run after the grace.
+- The exit call is injected, so a test checks it without ending the test process.
+
+### J41 Documents (2026-11-07)
+
+- `docs/user/API.md`: the four endpoints and their statuses, polling and the 1 MiB budget, the states,
+  [J19](#j19-several-processes-one-database-2026-11-06)'s shared database, the shutdown behaviour, why a finished event's
+  `provider_check` is null, and the 0-based `position`.
+- `docs/user/WORKSPACE.md`: refresh summary version 3, and the duplicate rule for watchlist adds.
+- `docs/user/USAGE.md`: the `add-selection` duplicate message.
+- Architecture §13 in `ARCHITECTURE.md`, if what it says about the API or refresh changes.
+
+### J42 Scope (2026-11-07)
+
+L4's watchlist half ([J32](#j32-duplicate-entries-2026-11-07)) and L6 ([J34](#j34-strategies-have-no-refresh-executor-2026-11-07))
+are in API.4b, not a separate slice.
+
+### J43 `watchlist_empty` is 409 (2026-11-07)
+
+`STATUS_BY_CODE` maps `watchlist_empty` to 409.
+
+### J44 A new reason code bumps the documents that can carry it (2026-11-07)
+
+A document's `schema_version` goes up when its own instances can now carry a new reason code. A schema that merely embeds
+the shared code list, but whose documents can never carry the new code, is regenerated without a bump. This is the rule
+PH.2e (D43) and API.2b ([S37](API_2_SLICE_PLAN.md#s37-the-failure-envelope-is-version-11-2026-11-03)) both followed. For API.4b: the failure envelope goes from 12 to 13 for
+`refresh_job_running` and `refresh_job_not_found`. The strategy documents and the database-maintenance report are not
+bumped. The refresh summary is not bumped for these codes; it goes to 3 under [J31](#j31-an-entries-job-has-no-watchlist-2026-11-07).
+The pull request lists the envelope version change with the other user-visible changes, and every document that states the
+version is updated.

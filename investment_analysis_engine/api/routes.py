@@ -15,9 +15,11 @@ from investment_analysis_engine.api.documents import (
     ReplayTextDocument,
     StrategiesDocument,
 )
+from investment_analysis_engine.api.refresh_documents import RefreshJobDocument
 from investment_analysis_engine.api.request_bodies import (
     AddEntriesRequest,
     AnalysisRequest,
+    RefreshRequest,
     RemoveMethodRequest,
     RemoveTickersRequest,
     RequestBody,
@@ -42,8 +44,14 @@ DEFAULT_RUNS_LIMIT: Final = 20
 DEFAULT_RUNS_OFFSET: Final = 0
 """The rows the runs list skips when ``offset`` is not given; the command line's default."""
 
+DEFAULT_AFTER: Final = 0
+"""The event sequence a refresh job poll starts after when ``after`` is not given: every event."""
+
 SUCCESS_STATUS_LIMIT: Final = 300
 """The first status that is not a success."""
+
+LOCATION_FIELDS: Final = ("refresh_id",)
+"""The document fields a ``Location`` template may name."""
 
 TEXT_MODES: Final = ("concise", "details", "diagnostics")
 """The values of the replay text endpoint's ``mode`` parameter."""
@@ -75,6 +83,16 @@ class RouteSpec:
     parameters: tuple[ParameterSpec, ...]
     responses: tuple[tuple[int, tuple[type[BaseModel], ...]], ...]
     request: type[RequestBody] | None = None
+    location: str | None = None
+
+    def location_of(self, document: BaseModel) -> str | None:
+        """Return the ``Location`` header of the success response, or ``None`` for a route that has none.
+
+        ``location`` is a path template whose placeholders name fields of the response document.
+        """
+        if self.location is None:
+            return None
+        return self.location.format(**{name: getattr(document, name) for name in LOCATION_FIELDS})
 
     @property
     def success_status(self) -> int:
@@ -89,6 +107,10 @@ class RouteSpec:
 
 def _uuid_path(name: str, description: str) -> ParameterSpec:
     return ParameterSpec(name, "path", True, description, (("type", "string"), ("format", "uuid")))
+
+
+def _after(description: str) -> ParameterSpec:
+    return ParameterSpec("after", "query", False, description, (("type", "string"), ("pattern", "^-?[0-9]+$")))
 
 
 def _query(name: str, description: str, *schema: tuple[str, Any], required: bool = False) -> ParameterSpec:
@@ -298,13 +320,52 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         _responses((AnalysisDocument,), lookup=False, database=True),
         AnalysisRequest,
     ),
+    RouteSpec(
+        "POST",
+        "/v1/refreshes",
+        "start_refresh",
+        "Start a refresh job over a watchlist or a list of entries; one runs at a time. Answers 202 at once.",
+        (),
+        _responses((RefreshJobDocument,), lookup=True, database=True, status=202, conflict=True),
+        RefreshRequest,
+        location="/v1/refreshes/{refresh_id}/job",
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/refreshes/job",
+        "get_latest_refresh_job",
+        "Show this server's latest refresh job, with its events after the sequence given.",
+        (_after(f"The last event sequence already seen, from 0; {DEFAULT_AFTER} when absent."),),
+        _responses((RefreshJobDocument,), lookup=True, database=False),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/refreshes/{refresh_id}/job",
+        "get_refresh_job",
+        "Show a refresh job, with its events after the sequence given.",
+        (
+            _uuid_path("refresh_id", "The refresh's ID."),
+            _after(f"The last event sequence already seen, from 0; {DEFAULT_AFTER} when absent."),
+        ),
+        _responses((RefreshJobDocument,), lookup=True, database=False),
+    ),
+    RouteSpec(
+        "POST",
+        "/v1/refreshes/{refresh_id}/job/stop",
+        "stop_refresh_job",
+        "Stop a refresh job from starting more jobs; the ones running finish. Idempotent.",
+        (_uuid_path("refresh_id", "The refresh's ID."),),
+        _responses((RefreshJobDocument,), lookup=True, database=False),
+    ),
 )
 """Every endpoint, in the order the documentation lists them."""
 
 
 __all__ = [
+    "DEFAULT_AFTER",
     "DEFAULT_RUNS_LIMIT",
     "DEFAULT_RUNS_OFFSET",
+    "LOCATION_FIELDS",
     "ROUTES",
     "TEXT_MODES",
     "ParameterSpec",
