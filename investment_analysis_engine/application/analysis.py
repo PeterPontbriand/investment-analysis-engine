@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.failures import SaveStage, saving_failures
+from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.application.provider_check import (
     ProviderCheckChoice,
     ProviderCheckFindings,
@@ -26,6 +27,7 @@ from investment_analysis_engine.application.providers import build_provider_prob
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.application.tier import analysis_runner_for
 from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.repositories.readiness import ensure_database_ready
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
@@ -116,9 +118,12 @@ def analyze(
 ) -> AnalysisOutcome:
     """Analyze one ticker under one selection, saving the run when asked.
 
+    The ticker is checked first, before any database is opened or provider called, and the results are those of the
+    normalized ticker.
+
     Args:
         context: What the operation needs from its caller; the provider check is built from its settings.
-        ticker: The normalized ticker.
+        ticker: The ticker as the caller has it; it is trimmed and upper-cased.
         selection: The selection of the strategy to run; its ``as_of`` reaches the document unchanged.
         save: Whether to persist the run as an Analysis Run.
         provider_check: Whether to send one test request to a provider after it fails; false reports that the
@@ -128,9 +133,16 @@ def analyze(
         The document, the saved run's ID (``None`` when not saved), the run's outcome and the text renderer.
 
     Raises:
+        ActionParameterError: If ``ticker`` is blank (parameter ``ticker``, rule ``analysis.blank_ticker``).
         UndeclaredStrategyError: If no declared strategy owns the selection.
         SavingFailureError: If the analysis finished but its result could not be saved.
     """
+    try:
+        ticker = normalize_ticker(ticker)
+    except ValueError:
+        raise ActionParameterError(
+            "{ticker} must be a non-empty symbol.", parameters=("ticker",), rule="analysis.blank_ticker"
+        ) from None
     runner = analysis_runner_for(selection)
     executed_at = utc_now()
     stage = SaveStage()

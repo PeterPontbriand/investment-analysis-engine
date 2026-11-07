@@ -103,24 +103,6 @@ class WatchlistSpec(BaseModel):
     display_name: str
 
 
-def normalize_ticker(value: str) -> str:
-    """Normalize a member ticker using the existing uppercase/trim convention.
-
-    Args:
-        value: A raw ticker, possibly carrying a venue suffix.
-
-    Returns:
-        The trimmed, uppercased ticker with any venue suffix preserved.
-
-    Raises:
-        ValueError: If the normalized ticker is empty.
-    """
-    normalized = value.strip().upper()
-    if not normalized:
-        raise ValueError("ticker must not be empty.")
-    return normalized
-
-
 def encode_selection(selection: AnalysisSelection) -> str:
     """Encode one selection as canonical, sorted, finite JSON text."""
     return json.dumps(
@@ -174,6 +156,5 @@ __all__ = [
     "WatchlistSpec",
     "decode_selection",
     "encode_selection",
-    "normalize_ticker",
     "not_found_message",
 ]

@@ -187,7 +187,7 @@ Accepted deviations:
   command line reports it, in place of the fixed `execution_error` message.
 
 Review fixes (2026-11-06, [J21](#j21-the-selection-schema-lives-beside-build_selection-2026-11-06) to
-[J26](#j26-plan-records-2026-11-06)): the project owner reviewed the branch and approved these fixes, all done. No stored
+[J28](#j28-the-ticker-rule-is-written-once-2026-11-06)): the project owner reviewed the branch and approved these fixes, all done. No stored
 shape, formula, classification or dependency changed, and no CLI text, help or exit code.
 
 - **R1 (J21).** `selection_schema` and `FIXED_SELECTION_FIELDS` are in `application/selections.py`; `build_selection` uses
@@ -199,6 +199,9 @@ shape, formula, classification or dependency changed, and no CLI text, help or e
 - **R4 (J24).** `MAX_REQUEST_BODY_BYTES` and `read_body`; `docs/user/API.md` states the limit.
 - **R5 (J25).** `NaN`, `Infinity`, `-Infinity` and a number too large for a float are refused in a body.
 - **R6 (J26).** These records, and the pointer line under S40 in API.2.
+- **R7 (J27).** An operation returns only a document; a described save failure is raised as `DescribedFailure`.
+- **R8 (J28).** `normalize_ticker` is in `core/tickers.py`; `analyze` checks its own ticker; the API passes it as
+  received; the command line and the orchestrator delegate to the one rule and keep their messages.
 
 Tests edited, and why: `tests/application/test_selections.py` (a non-date `as_of` has the rule `selection.as_of_type`, and the
 first-error-only cases list the pre-checks); `tests/api/test_actions.py` (a number as `as_of` has an `errors` list; the save
@@ -445,3 +448,33 @@ which is noted under [S40](API_2_SLICE_PLAN.md#s40-synchronous-handlers-2026-11-
 `GET /v1/watchlists/{watchlist_id}` from 500 to 409 `stored_selection_unreadable` for an unreadable entry is a defect fix
 and not an addition under [S4](API_2_SLICE_PLAN.md): a 500 told clients the condition was unexpected, and it is corrected
 before any client is built against it.
+
+### J27 An operation returns only a document (2026-11-06)
+
+Amends [J23](#j23-a-save-failure-names-the-ticker-2026-11-06). An operation in `api/handlers.py` returns a document and
+nothing else. A failure an operation has already described is raised as `DescribedFailure(code, message, cause)`, defined in
+`api/responses.py` beside the failure responses. `_analyze` catches `SavingFailureError`, describes it with
+`describe_failure(cause, <the normalized ticker>, saving=True)` and raises `DescribedFailure`; `error_response` turns it into
+the failure envelope with that code, that message and the cause. The body, status and log output of a save failure are
+unchanged.
+
+### J28 The ticker rule is written once (2026-11-06)
+
+Amends [W10](API_3_SLICE_PLAN.md#w10-argument-checks-are-in-the-actions-2026-11-05) and
+[W18](API_3_SLICE_PLAN.md#w18-arguments-are-checked-before-the-database-opens-2026-11-05).
+
+- `normalize_ticker` moved from `workspace/watchlists.py` to the new `core/tickers.py`, with the same behavior and the same
+  message ("ticker must not be empty."), approved by the project owner on 2026-11-06 because the orchestrator, a lower layer
+  than `workspace`, needs it. Every importer imports it from `core`; nothing re-exports it. The ticker validators of
+  `workspace/runs.py`, `workspace/requests.py` and `orchestrator/analysis_tool_arguments.py` call it; the orchestrator's keeps
+  its own message, "ticker must be a non-empty string."
+- `analyze` normalizes and checks its own ticker before any database is opened or provider called. A blank one is an
+  `ActionParameterError` with the template "{ticker} must be a non-empty symbol.", rule `analysis.blank_ticker` and parameter
+  `ticker`. The API handler passes the ticker as received.
+- The command line keeps resolving its ticker before it checks anything else, so a blank ticker is still reported before an
+  output-flag conflict or a selection error and a failure document still names the normalized ticker. `resolve_ticker` calls
+  `normalize_ticker` and words the rejection with `TICKER` or `--ticker`; the conflict check compares normalized values, a
+  blank one comparing as empty. This keeps every message, `parameters` value, exit code and expected output unchanged;
+  moving the check into `analyze` alone would have changed the order of two errors and the ticker in a failure document.
+- Other places that trim and upper-case a ticker (data providers, document validators, codecs, evaluation fixtures) are
+  consistency checks of an already-normalized value or part of a provider's own subject handling, and are not changed.

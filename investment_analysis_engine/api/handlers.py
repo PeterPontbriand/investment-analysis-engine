@@ -35,7 +35,12 @@ from investment_analysis_engine.api.request_bodies import (
     read_json_object,
     read_request,
 )
-from investment_analysis_engine.api.responses import document_response, failure_of, failure_response
+from investment_analysis_engine.api.responses import (
+    DescribedFailure,
+    document_response,
+    failure_of,
+    failure_response,
+)
 from investment_analysis_engine.api.routes import (
     DEFAULT_RUNS_LIMIT,
     DEFAULT_RUNS_OFFSET,
@@ -73,6 +78,7 @@ from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
@@ -114,7 +120,7 @@ class RequestParameters:
     request: RequestBody | None = None
 
 
-type Operation = Callable[[ApplicationContext, RequestParameters], BaseModel | Response]
+type Operation = Callable[[ApplicationContext, RequestParameters], BaseModel]
 
 
 def _uuid(parameters: RequestParameters, name: str, kind: str) -> UUID:
@@ -156,6 +162,8 @@ def error_response(exception: Exception) -> Response:
     An exception that declares its own failure code keeps its message; any other is an ``execution_error`` with one
     fixed message, and its detail and traceback go to the log, so no library text reaches the client.
     """
+    if isinstance(exception, DescribedFailure):
+        return failure_response(failure_envelope(exception.code, exception.message, cause=exception.cause))
     if isinstance(getattr(exception, "reason_code", None), FailureReasonCode):
         classification = classify_failure(exception)
         try:
@@ -179,10 +187,7 @@ def _serve(
     try:
         body = None if route.request is None or document is None else read_request(route.request, document)
         parameters = RequestParameters(path=request.path_params, query=_query_values(request, route), request=body)
-        outcome = operation(context, parameters)
-        if isinstance(outcome, Response):
-            return outcome
-        return document_response(outcome, status=route.success_status)
+        return document_response(operation(context, parameters), status=route.success_status)
     except Exception as exc:
         return error_response(exc)
 
@@ -356,19 +361,16 @@ def _selection_form(context: ApplicationContext, parameters: RequestParameters) 
     return build_selection_form_document(context, parameters.path["method_id"])
 
 
-def _analyze(context: ApplicationContext, parameters: RequestParameters) -> BaseModel | Response:
+def _analyze(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
     body = _body(parameters, AnalysisRequest)
-    ticker = body.ticker.strip().upper()
-    if not ticker:
-        raise InvalidParameterError("ticker must be a non-empty symbol.", parameters=("ticker",))
     selection = _selection(context, body.method_id, body.selection)
     provider_check = context.settings.provider_check if body.provider_check is None else body.provider_check
     try:
-        outcome = analyze(context, ticker, selection, save=body.save, provider_check=provider_check)
+        outcome = analyze(context, body.ticker, selection, save=body.save, provider_check=provider_check)
     except SavingFailureError as exc:
         # The analysis finished but its result could not be saved: describe it as the command line does, by ticker.
-        description = describe_failure(exc.cause, ticker, saving=True)
-        return failure_response(failure_envelope(description.code, description.message, cause=exc.cause))
+        description = describe_failure(exc.cause, normalize_ticker(body.ticker), saving=True)
+        raise DescribedFailure(description.code, description.message, exc.cause) from exc
     return AnalysisDocument(
         analysis_run_id=outcome.analysis_run_id,
         document=outcome.document,

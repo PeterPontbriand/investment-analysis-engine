@@ -24,6 +24,7 @@ from typer.testing import CliRunner
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.analysis import AnalysisOutcome, analyze, exit_code_of
 from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.application.runs import replay_run_document
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.cli import app
@@ -432,3 +433,30 @@ def test_an_analysis_failure_before_the_save_passes_through_unchanged(context: A
         pytest.raises(ValueError, match="analysis failed"),
     ):
         analyze(context, "KO", _SELECTIONS["piotroski"], save=False, provider_check=True)
+
+
+def test_a_blank_ticker_is_rejected_before_any_database_or_provider_work(context: ApplicationContext) -> None:
+    selection = _SELECTIONS["momentum"]
+    with (
+        patch("investment_analysis_engine.application.analysis.SQLiteDatabase") as database,
+        patch("investment_analysis_engine.application.analysis.analysis_runner_for") as runner,
+        pytest.raises(ActionParameterError) as caught,
+    ):
+        analyze(context, "  ", selection, save=True, provider_check=True)
+
+    assert (str(caught.value), caught.value.parameters, caught.value.rule) == (
+        "ticker must be a non-empty symbol.",
+        ("ticker",),
+        "analysis.blank_ticker",
+    )
+    database.assert_not_called()
+    runner.assert_not_called()
+
+
+def test_a_padded_lower_case_ticker_is_analyzed_as_its_normalized_form(context: ApplicationContext) -> None:
+    ticker = _ticker("momentum")
+    with ExitStack() as stack:
+        enter_fixture_providers(stack, "momentum")
+        outcome = analyze(context, f"  {ticker.lower()} ", _SELECTIONS["momentum"], save=False, provider_check=False)
+
+    assert outcome.document.model_dump(mode="json")["ticker"] == ticker

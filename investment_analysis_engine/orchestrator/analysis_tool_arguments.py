@@ -7,6 +7,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from investment_analysis_engine.core.tickers import normalize_ticker
+
 FiniteFloat = Annotated[float, Field(allow_inf_nan=False)]
 PositiveFiniteFloat = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 
@@ -31,10 +33,10 @@ class AnalysisToolArguments(BaseModel):
     @classmethod
     def normalize_ticker(cls, value: str) -> str:
         """Normalize and require a non-empty ticker symbol."""
-        normalized = value.strip().upper()
-        if not normalized:
-            raise ValueError("ticker must be a non-empty string.")
-        return normalized
+        try:
+            return normalize_ticker(value)
+        except ValueError:
+            raise ValueError("ticker must be a non-empty string.") from None
 
     @field_validator("as_of")
     @classmethod

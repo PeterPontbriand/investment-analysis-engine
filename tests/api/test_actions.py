@@ -563,7 +563,7 @@ def test_an_analysis_is_the_strategy_document_and_its_text_in_each_mode(
     assert body["document"] == json.loads(json.dumps(outcome.document.model_dump(mode="json"), ensure_ascii=False))
     assert body["text"] == {mode: f"{descriptor.alias} as {mode}" for mode in ("concise", "details", "diagnostics")}
     context, ticker, selection = analyze.call_args.args
-    assert (ticker, selection.method_id) == ("KO", descriptor.method_id)
+    assert (ticker, selection.method_id) == (" ko ", descriptor.method_id)  # the operation normalizes its own ticker
     assert isinstance(context, ApplicationContext)
     assert analyze.call_args.kwargs == {"save": False, "provider_check": isolated_cli_settings.provider_check}
 
@@ -641,7 +641,6 @@ def test_an_analysis_request_that_breaks_a_rule_is_rejected_before_anything_runs
         client_for(isolated_cli_settings) as client,
         patch("investment_analysis_engine.api.handlers.analyze") as analyze,
     ):
-        blank = client.post("/v1/analyses", json={"ticker": " ", "method_id": descriptor.method_id}, headers=AUTH)
         undeclared = client.post("/v1/analyses", json={"ticker": "KO", "method_id": "nope"}, headers=AUTH)
         bad_field = client.post(
             "/v1/analyses",
@@ -649,7 +648,6 @@ def test_an_analysis_request_that_breaks_a_rule_is_rejected_before_anything_runs
             headers=AUTH,
         )
 
-    assert _failure(blank, 400, "invalid_parameter")["parameters"] == ["ticker"]
     assert _failure(undeclared, 400, "invalid_parameter")["parameters"] == ["method_id"]
     assert _failure(bad_field, 400, "invalid_parameter")["parameters"] == ["selection.colour"]
     analyze.assert_not_called()
@@ -703,3 +701,13 @@ def test_a_preflight_for_each_declared_method_allows_it_with_the_content_type_he
 
 def test_the_route_table_declares_the_methods_a_preflight_allows() -> None:
     assert set(PREFLIGHT_ALLOWED_METHODS.split(", ")) == {route.method for route in ROUTES}
+
+
+def test_a_blank_ticker_is_rejected_by_the_analysis_naming_ticker(isolated_cli_settings: ProjectSettings) -> None:
+    with client_for(isolated_cli_settings) as client:
+        blank = client.post("/v1/analyses", json={"ticker": " ", "method_id": STRATEGIES[0].method_id}, headers=AUTH)
+
+    failure = _failure(blank, 400, "invalid_parameter")
+    assert failure["parameters"] == ["ticker"]
+    assert failure["reason"] == "ticker must be a non-empty symbol."
+    assert failure["errors"][0]["rule"] == "analysis.blank_ticker"  # type: ignore[index]

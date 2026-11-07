@@ -26,6 +26,7 @@ from sqlalchemy.exc import IntegrityError
 
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.repositories.schema import watchlist_entries, watchlists
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.workspace.runs import Watchlist, WatchlistEntry, WatchlistSummary
@@ -39,7 +40,6 @@ from investment_analysis_engine.workspace.watchlists import (
     WatchlistSpec,
     decode_selection,
     encode_selection,
-    normalize_ticker,
     not_found_message,
 )
 

@@ -17,7 +17,6 @@ from investment_analysis_engine.workspace.watchlists import (
     WatchlistSpec,
     decode_selection,
     encode_selection,
-    normalize_ticker,
     not_found_message,
 )
 
@@ -33,17 +32,6 @@ def test_watchlist_spec_is_frozen() -> None:
     spec = WatchlistSpec(display_name="X")
     with pytest.raises(ValidationError, match="frozen_instance"):
         spec.display_name = "Y"
-
-
-@pytest.mark.parametrize(("raw", "expected"), [("ko", "KO"), (" pfe.to ", "PFE.TO"), ("BRK.B", "BRK.B")])
-def test_normalize_ticker_trims_and_uppercases_preserving_suffix(raw: str, expected: str) -> None:
-    assert normalize_ticker(raw) == expected
-
-
-@pytest.mark.parametrize("raw", ["", "   "])
-def test_normalize_ticker_rejects_blank(raw: str) -> None:
-    with pytest.raises(ValueError, match="must not be empty"):
-        normalize_ticker(raw)
 
 
 @pytest.mark.parametrize(

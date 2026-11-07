@@ -11,6 +11,7 @@ from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.reporting.replay_inputs import ReplayOptions, TextPresentationMode
 from investment_analysis_engine.strategy_wiring import (
     BY_METHOD_ID,
@@ -29,7 +30,6 @@ from investment_analysis_engine.workspace.runs import (
     RunPage,
     RunQuery,
 )
-from investment_analysis_engine.workspace.watchlists import normalize_ticker
 from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
 from investment_analysis_engine.workspace_documents.runs_compare import (
     CompareColumn,
