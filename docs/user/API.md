@@ -129,8 +129,8 @@ The endpoints that read use `GET`; the actions are below.
 | `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document |
 | `/v1/strategies/{method_id}/selection` | none | `schema_version`, `schema` and `defaults` (see [Selection forms](#selection-forms)) |
 
-On `/v1/runs`, `limit` is 1 to 100 and defaults to 20, and `offset` defaults to 0. `method_id` is a method identifier
-as `/v1/strategies` lists it. The document says whether more rows follow with `has_more`; there is no total.
+On `/v1/runs`, `limit` is 1 to 100 and defaults to 20, and `offset` defaults to 0. `method_id` is the `method` value of
+an item in `/v1/strategies` (for example `sma_crossover`). The document says whether more rows follow with `has_more`; there is no total.
 
 ### Actions
 
