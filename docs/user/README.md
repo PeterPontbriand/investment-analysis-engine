@@ -13,7 +13,7 @@ This section is for people **using Investment Analysis Engine**. It deliberately
 
 - [Usage Guide](USAGE.md) — common command structure, available analysis strategies, presentation modes, historical analysis, overrides, data-source selection, and the technical Golden Suite command.
 - [Local Research Workspace](WORKSPACE.md) — saving a result, named watchlists, refreshing many tickers at once, and browsing saved Analysis Runs.
-- [Local HTTP API](API.md) — `ian serve`, its authentication and the read endpoints, for writing a program that reads saved runs and watchlists.
+- [Local HTTP API](API.md) — `ian serve` and its authentication, for writing a program on the same computer that reads and changes watchlists, analyzes a ticker, and reads saved runs and run comparisons.
 - [Smoke Testing Commands](SMOKE_TESTING.md) — representative commands to run after an installation or update, covering direct analysis and the watchlist workflow, and how to record the result.
 - [Analysis Strategy Guides](strategies/README.md) — method-specific use, interpretation, assumptions, data sources, comparison points, and limitations.
 

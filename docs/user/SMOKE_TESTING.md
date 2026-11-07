@@ -18,7 +18,7 @@ Run every command from the repository root.
 
 The smoke test saves analysis runs and a watchlist. A saved run cannot be deleted, and an empty database makes the expectations below exact, so the test runs against a dedicated throwaway SQLite file and not against your real database.
 
-First, with `IAN_DATABASE_URL` unset or reset, check your real database once. This command only reads; it writes nothing:
+First, open a new terminal and check your real database once, before you set `IAN_DATABASE_URL` for the throwaway file. Do not unset or change any `IAN_DATABASE_URL` you already use, since the check must see your real database exactly as you normally run it. This command only reads; it writes nothing:
 
 ```powershell
 uv run ian db status
@@ -26,7 +26,7 @@ uv run ian db status
 
 Expect `State: ready` and `Database is ready.` If it reports anything else, follow [Local Database Operations](DATABASE.md) before going on.
 
-Then point the terminal session at a new file. The path must be absolute and its folder must exist and be writable ([Local Database Operations](DATABASE.md) explains the URL forms). PowerShell:
+Then, in that same terminal, point the session at a new file. The path must be absolute and its folder must exist and be writable ([Local Database Operations](DATABASE.md) explains the URL forms). PowerShell:
 
 ```powershell
 $env:IAN_DATABASE_URL = "sqlite:///E:/FinancialData/smoke-test.sqlite3"
@@ -238,7 +238,7 @@ uv run ian watchlist delete "Smoke Test" --yes
 
 Expect a confirmation that names the watchlist and says that saved Analysis Runs are kept. The runs from both refreshes remain in the throwaway database, which `uv run ian runs list` shows.
 
-When the test is finished, reset `IAN_DATABASE_URL` (`Remove-Item Env:IAN_DATABASE_URL` in PowerShell, `unset IAN_DATABASE_URL` in a shell) and delete the throwaway file, together with any `-wal` and `-shm` files beside it.
+When the test is finished, close the terminal you used for it, which discards the throwaway `IAN_DATABASE_URL` setting, and then delete the throwaway file, together with any `-wal` and `-shm` files beside it.
 
 ## Review checklist
 
