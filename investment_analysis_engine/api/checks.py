@@ -2,6 +2,7 @@
 
 import secrets
 from collections.abc import Collection
+from typing import Final
 
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import Response
@@ -20,6 +21,9 @@ PREFLIGHT_ALLOWED_METHODS = ", ".join(dict.fromkeys(route.method for route in RO
 
 PREFLIGHT_ALLOWED_HEADERS = "Authorization, Content-Type, Accept-Language"
 """The request headers a preflight allows: the bearer token, the type of a body and the language wanted."""
+
+ORIGIN_STATE_KEY: Final = "accepted_origin"
+"""The key of the request state under which the origin the checks accepted is stored."""
 
 _BEARER_PREFIX = "bearer "
 
@@ -64,6 +68,8 @@ class RequestChecks:
                 )
                 await response(scope, receive, send)
                 return
+        if origin is not None:
+            scope.setdefault("state", {})[ORIGIN_STATE_KEY] = origin
         reply = send if origin is None else _with_cors_headers(send, origin)
         if origin is not None and scope["method"] == "OPTIONS" and "access-control-request-method" in headers:
             preflight = Response(
@@ -95,18 +101,29 @@ class RequestChecks:
         return secrets.compare_digest(presented, self._token)
 
 
+def add_cors_headers(headers: MutableHeaders, origin: str) -> None:
+    """Add the headers an allowed origin needs: the origin echoed, ``Origin`` added to ``Vary``, the exposed header."""
+    headers["Access-Control-Allow-Origin"] = origin
+    headers.append("Vary", "Origin")
+    headers["Access-Control-Expose-Headers"] = "WWW-Authenticate"
+
+
 def _with_cors_headers(send: Send, origin: str) -> Send:
     """Wrap ``send`` so the response start carries the headers an allowed origin needs."""
 
     async def wrapped(message: Message) -> None:
         if message["type"] == "http.response.start":
-            headers = MutableHeaders(scope=message)
-            headers["Access-Control-Allow-Origin"] = origin
-            headers.append("Vary", "Origin")
-            headers["Access-Control-Expose-Headers"] = "WWW-Authenticate"
+            add_cors_headers(MutableHeaders(scope=message), origin)
         await send(message)
 
     return wrapped
 
 
-__all__ = ["PREFLIGHT_ALLOWED_HEADERS", "PREFLIGHT_ALLOWED_METHODS", "PREFLIGHT_MAX_AGE_SECONDS", "RequestChecks"]
+__all__ = [
+    "ORIGIN_STATE_KEY",
+    "PREFLIGHT_ALLOWED_HEADERS",
+    "PREFLIGHT_ALLOWED_METHODS",
+    "PREFLIGHT_MAX_AGE_SECONDS",
+    "RequestChecks",
+    "add_cors_headers",
+]

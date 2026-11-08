@@ -1,7 +1,8 @@
 """The locales the help bundle and the API's engine text are available in.
 
-Each declared locale has one bundle file, ``help_bundle.<tag>.json``. A tag is in canonical lowercase form, such as
-``en`` or ``pt-br``, so a negotiated tag compares equal to a declared one without further normalisation.
+Each declared locale has one bundle file, ``help_bundle.<tag>.json``, named with the tag as declared. A tag is declared
+in conventional BCP 47 case, such as ``en``, ``pt-BR`` or ``zh-Hant``, and tags are unique ignoring case. Matching a
+request is case-insensitive, and the negotiated tag, which ``Content-Language`` states, is the declared form.
 """
 
 from dataclasses import dataclass

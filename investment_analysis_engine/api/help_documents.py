@@ -8,8 +8,10 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from investment_analysis_engine.api.term_references import code_terms_by_component
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.help.bundle import HelpBundle
+from investment_analysis_engine.strategy_wiring import STRATEGIES
 
 
 class _Document(BaseModel):
@@ -173,6 +175,15 @@ def build_help_document_document(bundle: HelpBundle, document_id: str) -> HelpDo
     )
 
 
+def build_help_references_document() -> HelpReferencesDocument:
+    """Build the references document from the shared registry and every declared strategy's own code sets.
+
+    Raises:
+        ValueError: If two tables are named for the same component.
+    """
+    return HelpReferencesDocument(code_sets=code_terms_by_component(STRATEGIES))
+
+
 __all__ = [
     "HELP_DOCUMENT_NOT_FOUND_MESSAGE",
     "HELP_TERM_NOT_FOUND_MESSAGE",
@@ -189,5 +200,6 @@ __all__ = [
     "HelpTermNotFoundError",
     "build_help_document_document",
     "build_help_index_document",
+    "build_help_references_document",
     "build_help_term_document",
 ]

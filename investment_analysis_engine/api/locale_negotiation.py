@@ -20,7 +20,8 @@ LOCALE_STATE_KEY: Final = "locale"
 
 _TAG = re.compile(r"[A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*")
 _QUALITY = re.compile(r"[0-9]+(?:\.[0-9]+)?")
-_DECLARED: Final = frozenset(item.tag for item in LOCALES)
+_DECLARED: Final = {item.tag.lower(): item.tag for item in LOCALES}
+"""Each declared tag by its lowercase form, so a request matches case-insensitively and gets the declared form."""
 
 
 def _quality(parameter: str) -> float | None:
@@ -50,12 +51,12 @@ def _ranges(header: str) -> list[tuple[str, float]]:
 
 
 def _available(tag: str) -> str | None:
-    """Return the declared tag a range matches by dropping one subtag at a time, or ``None``."""
+    """Return the declared form of the tag a range matches by dropping one subtag at a time, or ``None``."""
     parts = tag.split("-")
     while parts:
         candidate = "-".join(parts)
         if candidate in _DECLARED:
-            return candidate
+            return _DECLARED[candidate]
         parts.pop()
     return None
 

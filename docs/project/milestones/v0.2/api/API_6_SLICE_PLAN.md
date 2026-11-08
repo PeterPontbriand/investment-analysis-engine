@@ -22,9 +22,9 @@ when one is missing. The second serves the help content over HTTP and chooses th
     the next slice starts.
 - **Where the history lives:** decisions T1 to T15 are in [Appendix A](#appendix-a-decision-records), approved by the
   project owner on 2026-11-07, T16 to T19 and T20 to T24 are the two rounds of review fixes of API.6a, approved on
-  2026-11-07 and 2026-11-08, and T25 to T36 are the implementation decisions of API.6b, approved on 2026-11-08. API.6a
-  implements T1 to T10 and the parts of T15 its changes touch; API.6b implements T11 to T14, the rest of T15 and T25 to
-  T36.
+  2026-11-07 and 2026-11-08, and T25 to T36 are the implementation decisions of API.6b, approved on 2026-11-08, and T37 to T42 are the
+  review fixes of API.6b, approved on 2026-11-08. API.6a implements T1 to T10 and the parts of T15 its changes touch;
+  API.6b implements T11 to T14, the rest of T15 and T25 to T42.
 
 ## 2. Sequence and status
 
@@ -399,15 +399,21 @@ What changed, by area:
 Judgment calls, each a place where the decisions left a choice:
 
 - **Unexpected failures.** Starlette sends the answer to an exception raised outside an endpoint from a layer outside every
-  user middleware. That handler states the locale itself, with the same function, so the 500 carries the headers like
-  every other response.
+  user middleware. That handler reads the locale the negotiation stored and the origin the checks accepted, both kept in
+  the request state, so the 500 carries the same headers as every other response
+  ([T40](#t40-a-500-from-outside-an-endpoint-carries-the-stored-locale-and-the-cors-headers-2026-11-08)). A 500 raised
+  before the origin check has run claims no origin.
 - **Pinned classification table.** `tests/_failure_code_table.py` gains a row for each of the two new exception types,
   because the failure-envelope tests require every exception that declares a code to be pinned.
 - **Error classes.** The two not-found errors are `ValueError` subclasses that declare their code, as the application's
   not-found errors do, so the existing error path produces the envelope.
-- **Where the references are built.** `build_help_references_document` is in `api/routes.py`, which already imports the
-  declared strategies. The import-layering test lists the modules that may import the composition root, and the registry
-  and the help documents are not among them; `code_terms_by_component` therefore takes the descriptors as an argument.
+- **Where the references are built.** `build_help_references_document` is in `api/help_documents.py`, which the
+  import-layering test lists among the modules that may import the composition root
+  ([T39](#t39-the-references-builder-lives-with-the-help-documents-2026-11-08)). `code_terms_by_component` takes the
+  descriptors as an argument, so the registry does not import the root.
+- **Locale tags.** A tag is declared in conventional BCP 47 case and matched case-insensitively; the negotiated tag is the
+  declared form ([T41](#t41-locale-tags-are-declared-in-conventional-bcp-47-case-2026-11-08)). A future bundle file name
+  uses the declared form, as `help_bundle.en.json` does.
 - **Item names.** The item models follow [T26](#t26-document-shapes-2026-11-08); the shared base only freezes the models
   and forbids extra fields.
 - **Existing tests changed.** Only for the decided changes: the information document's version and field, the added `Vary`
@@ -416,8 +422,6 @@ Judgment calls, each a place where the decisions left a choice:
 
 Noticed for later slices:
 
-- `scripts/generate_openapi.py` does not describe the `Content-Language` and `Vary` response headers; `docs/user/API.md`
-  does. Adding them to the description is outside this slice's file scope.
 - A second locale needs the producers of labels, rendered text and messages to take the locale first
   ([A.5](API_CONTRACT_AND_SLICE_PLAN.md#a5-locale-choice-2026-11-07)); until then `Content-Language` is true only because
   there is one locale.
@@ -718,6 +722,8 @@ implementation decisions of API.6b, approved on 2026-11-08.
 - `load_help_bundle(locale: str)` stays cached per tag and raises `ValueError` naming the tag when the tag is not
   declared.
 - Every caller is updated, including `scripts/check_installed_package.py` and the tests.
+- Amended by [T41](#t41-locale-tags-are-declared-in-conventional-bcp-47-case-2026-11-08): tags are declared in
+  conventional BCP 47 case, not lowercase, and tags are unique ignoring case.
 
 ### T33 Bundle file and packaging (2026-11-08)
 
@@ -752,3 +758,57 @@ implementation decisions of API.6b, approved on 2026-11-08.
   plan and in `API_CONTRACT_AND_SLICE_PLAN.md`; row 15A in `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` is
   Complete, and the following row becomes Next, with rows moved as the sequence-table rules require. If what follows 15A
   is unclear, the work stops and asks.
+
+### T37 3.5.5 is Next (2026-11-08)
+
+- In the sequence table of `docs/project/milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md`, 3.5.5 is set to
+  Next. That table says 3.5.5 starts after API.6 merges, and this pull request completes API.6.
+- The table's order stays valid. `IMPLEMENTATION_PLAN.md` is left as it is: row 15 stays In progress and needs no Next row.
+
+### T38 The OpenAPI description states the headers every response carries (2026-11-08)
+
+- `scripts/generate_openapi.py` describes three headers on every response of every operation, beside the `Location` and
+  `WWW-Authenticate` descriptions it already writes. A response with those keeps them.
+
+  | Header | Description |
+  | :--- | :--- |
+  | `Content-Language` | the tag of the locale the engine's text is in |
+  | `Vary` | it names `Accept-Language`, and also `Origin` for an allowed origin |
+  | `Cache-Control` | `no-store` |
+
+- `schemas/openapi.json` is regenerated, and a generator test checks that every response of every operation describes all
+  three headers.
+- In `docs/user/API.md`, `Cache-Control` joins the list of response headers that are part of the contract, and the text
+  says each response carries `no-store`.
+
+### T39 The references builder lives with the help documents (2026-11-08)
+
+- `build_help_references_document` moves from `api/routes.py` into `api/help_documents.py`.
+- `investment_analysis_engine.api.help_documents` is added to `_ROOT_IMPORTERS` in
+  `tests/test_strategy_import_layering.py`, a one-line change to that test.
+- `api/routes.py` keeps only the route table and its helpers, and the importers follow.
+
+### T40 A 500 from outside an endpoint carries the stored locale and the CORS headers (2026-11-08)
+
+- `RequestChecks` stores the origin it accepted in the request state, under a named key constant, as `LocaleNegotiation`
+  stores the locale.
+- The code that sets the CORS headers is one function in `api/checks.py`, `add_cors_headers(headers, origin)`: it sets
+  `Access-Control-Allow-Origin`, appends `Origin` to `Vary` and sets `Access-Control-Expose-Headers`. The wrapped send and
+  the unexpected-failure handler both use it.
+- The handler states the locale with `locale_of(request)`, adds the CORS headers when the state holds an accepted origin,
+  and keeps `Vary` in the order `Origin, Accept-Language`.
+- A test covers a 500 for an allowed `Origin`, one without an origin, and one raised before the origin check.
+
+### T41 Locale tags are declared in conventional BCP 47 case (2026-11-08)
+
+- Tags in `help/locales.py` are declared in conventional BCP 47 case (`en`, `pt-BR`, `zh-Hant`), and the module docstring
+  says so.
+- Matching in `api/locale_negotiation.py` stays case-insensitive, through a map from each tag's lowercase form to the
+  declared tag. The negotiated tag, and so `Content-Language`, is the declared form.
+- Tests check that tags are unique ignoring case, and that a lowercase request such as `pt-br` negotiates the declared
+  `pt-BR`. Bundle file names follow the declared tag, so `help_bundle.en.json` is unchanged.
+- Amends [T32](#t32-locales-and-loader-2026-11-08).
+
+### T42 The review basis (2026-11-08)
+
+- The review relied on the pushed branch at commit 5f416fa. These fixes are a follow-up commit on the same branch.

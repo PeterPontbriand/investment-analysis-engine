@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from investment_analysis_engine.api.checks import RequestChecks
+from investment_analysis_engine.api.checks import ORIGIN_STATE_KEY, RequestChecks, add_cors_headers
 from investment_analysis_engine.api.handlers import (
     Endpoint,
     RefreshJobsOfServer,
@@ -17,7 +17,7 @@ from investment_analysis_engine.api.handlers import (
     error_response,
     operations,
 )
-from investment_analysis_engine.api.locale_negotiation import LocaleNegotiation, add_locale_headers, negotiate_locale
+from investment_analysis_engine.api.locale_negotiation import LocaleNegotiation, add_locale_headers, locale_of
 from investment_analysis_engine.api.refresh_documents import event_recorder
 from investment_analysis_engine.api.responses import failure_of
 from investment_analysis_engine.api.routes import ROUTES, RouteSpec
@@ -39,10 +39,14 @@ def _not_found(_request: Request, exception: Exception) -> Response:
 def _unexpected(request: Request, exception: Exception) -> Response:
     """Answer an exception raised outside an endpoint handler with the fixed-message ``execution_error``.
 
-    The server-error layer sends this answer outside the locale middleware, so it states the locale itself.
+    The server-error layer sends this answer outside both middleware, so it adds what they would have: the CORS headers
+    when the checks had accepted an origin, and the locale the negotiation had chosen, in the order every response has.
     """
     response = error_response(exception)
-    add_locale_headers(response.headers, negotiate_locale(request.headers.get("accept-language")))
+    origin = request.scope.get("state", {}).get(ORIGIN_STATE_KEY)
+    if isinstance(origin, str):
+        add_cors_headers(response.headers, origin)
+    add_locale_headers(response.headers, locale_of(request))
     return response
 
 

@@ -32,7 +32,6 @@ from investment_analysis_engine.api.request_bodies import (
     WatchlistNameRequest,
 )
 from investment_analysis_engine.api.selection_forms import SelectionFormDocument
-from investment_analysis_engine.api.term_references import code_terms_by_component
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
@@ -110,15 +109,6 @@ class RouteSpec:
     def query_names(self) -> frozenset[str]:
         """Return the names of the query parameters the endpoint accepts."""
         return frozenset(item.name for item in self.parameters if item.location == "query")
-
-
-def build_help_references_document() -> HelpReferencesDocument:
-    """Build the references document from the shared registry and every declared strategy's own code sets.
-
-    Raises:
-        ValueError: If two tables are named for the same component.
-    """
-    return HelpReferencesDocument(code_sets=code_terms_by_component(STRATEGIES))
 
 
 def _uuid_path(name: str, description: str) -> ParameterSpec:
@@ -417,7 +407,6 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
 
 
 __all__ = [
-    "build_help_references_document",
     "DEFAULT_AFTER",
     "DEFAULT_RUNS_LIMIT",
     "DEFAULT_RUNS_OFFSET",

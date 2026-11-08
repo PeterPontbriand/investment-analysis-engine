@@ -10,7 +10,9 @@ from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 @pytest.fixture
 def several(monkeypatch: pytest.MonkeyPatch) -> None:
     """Declare more locales than the engine ships, so a choice between them can be tested."""
-    monkeypatch.setattr(locale_negotiation, "_DECLARED", frozenset({DEFAULT_LOCALE, "fr", "pt-br"}))
+    monkeypatch.setattr(
+        locale_negotiation, "_DECLARED", {"en": "en", "fr": "fr", "pt-br": "pt-BR", "zh-hant": "zh-Hant"}
+    )
 
 
 def test_an_absent_header_chooses_the_default() -> None:
@@ -25,30 +27,30 @@ def test_tags_match_case_insensitively_and_by_truncating_one_subtag_at_a_time(he
 
 @pytest.mark.usefixtures("several")
 def test_truncation_matches_a_declared_region_tag_before_its_language() -> None:
-    assert negotiate_locale("pt-BR") == "pt-br"
-    assert negotiate_locale("pt-BR-x-private") == "pt-br"
+    assert negotiate_locale("pt-BR") == "pt-BR"
+    assert negotiate_locale("pt-BR-x-private") == "pt-BR"
     assert negotiate_locale("fr-CA, pt-BR") == "fr"
     assert negotiate_locale("pt") == DEFAULT_LOCALE  # a range never widens to a longer tag
 
 
 @pytest.mark.usefixtures("several")
 def test_q_values_order_the_ranges() -> None:
-    assert negotiate_locale("fr;q=0.5, pt-BR;q=0.9") == "pt-br"
+    assert negotiate_locale("fr;q=0.5, pt-BR;q=0.9") == "pt-BR"
     assert negotiate_locale("fr;q=1, en;q=0.5") == "fr"
     assert negotiate_locale("en;q=0.2, fr;q=0.3") == "fr"
 
 
 @pytest.mark.usefixtures("several")
 def test_equal_q_values_keep_header_order() -> None:
-    assert negotiate_locale("pt-BR, fr") == "pt-br"
+    assert negotiate_locale("pt-BR, fr") == "pt-BR"
     assert negotiate_locale("fr, pt-BR") == "fr"
     assert negotiate_locale("fr;q=0.5, pt-BR;q=0.5") == "fr"
 
 
 @pytest.mark.usefixtures("several")
 def test_q_zero_excludes_a_tag() -> None:
-    assert negotiate_locale("fr;q=0, pt-BR;q=0.1") == "pt-br"
-    assert negotiate_locale("fr;q=0.000, pt-BR;q=0.1") == "pt-br"
+    assert negotiate_locale("fr;q=0, pt-BR;q=0.1") == "pt-BR"
+    assert negotiate_locale("fr;q=0.000, pt-BR;q=0.1") == "pt-BR"
     assert negotiate_locale("en;q=0") == DEFAULT_LOCALE
     assert negotiate_locale("*;q=0, fr") == "fr"
 
@@ -67,7 +69,7 @@ def test_a_wildcard_chooses_the_default() -> None:
     ["fr;q=abc, pt-BR", "fr;q=1.5, pt-BR", "fr;q=-1, pt-BR", "fr;q=nan, pt-BR", "fr;q=, pt-BR", "fr;x=1, pt-BR"],
 )
 def test_an_item_with_a_malformed_quality_is_skipped(header: str) -> None:
-    assert negotiate_locale(header) == "pt-br"
+    assert negotiate_locale(header) == "pt-BR"
 
 
 @pytest.mark.usefixtures("several")
@@ -75,9 +77,17 @@ def test_an_item_with_a_malformed_quality_is_skipped(header: str) -> None:
     "header", ["!!, pt-BR", "f r, pt-BR", "-fr, pt-BR", "fr--ca, pt-BR", "fr;q=1;q=1, pt-BR", ",,pt-BR"]
 )
 def test_an_item_with_a_malformed_tag_is_skipped(header: str) -> None:
-    assert negotiate_locale(header) == "pt-br"
+    assert negotiate_locale(header) == "pt-BR"
 
 
 @pytest.mark.parametrize("header", ["!!", ";;;", "q=1", "fr;q=x", "\x00", "é", "a" * 5000, ",", ";q=1"])
 def test_a_header_with_no_valid_item_chooses_the_default_and_never_raises(header: str) -> None:
     assert negotiate_locale(header) == DEFAULT_LOCALE
+
+
+@pytest.mark.usefixtures("several")
+def test_a_lowercase_or_uppercase_request_negotiates_the_declared_form() -> None:
+    assert negotiate_locale("pt-br") == "pt-BR"
+    assert negotiate_locale("PT-BR") == "pt-BR"
+    assert negotiate_locale("zh-hant-tw") == "zh-Hant"
+    assert negotiate_locale("ZH") == DEFAULT_LOCALE

@@ -8,17 +8,17 @@ import pytest
 from investment_analysis_engine.help.bundle import help_bundle_file_name, load_help_bundle
 from investment_analysis_engine.help.locales import DEFAULT_LOCALE, LOCALES
 
-_CANONICAL = re.compile(r"[a-z]{1,8}(-[a-z0-9]{1,8})*")
+_WELL_FORMED = re.compile(r"[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*")
 
 
 def test_the_default_locale_is_declared() -> None:
     assert DEFAULT_LOCALE in {item.tag for item in LOCALES}
 
 
-def test_tags_are_unique_and_in_canonical_lowercase_form() -> None:
+def test_tags_are_unique_ignoring_case_and_well_formed() -> None:
     tags = [item.tag for item in LOCALES]
-    assert len(tags) == len(set(tags))
-    assert all(_CANONICAL.fullmatch(tag) for tag in tags)
+    assert len(tags) == len({tag.lower() for tag in tags})
+    assert all(_WELL_FORMED.fullmatch(tag) for tag in tags)
     assert all(item.name.strip() for item in LOCALES)
 
 

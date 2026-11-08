@@ -27,6 +27,7 @@ from investment_analysis_engine.api.documents import (
 from investment_analysis_engine.api.help_documents import (
     build_help_document_document,
     build_help_index_document,
+    build_help_references_document,
     build_help_term_document,
 )
 from investment_analysis_engine.api.locale_negotiation import locale_of
@@ -59,7 +60,6 @@ from investment_analysis_engine.api.routes import (
     DEFAULT_RUNS_OFFSET,
     TEXT_MODES,
     RouteSpec,
-    build_help_references_document,
 )
 from investment_analysis_engine.api.selection_forms import build_selection_form_document
 from investment_analysis_engine.application.analysis import analyze

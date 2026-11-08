@@ -1,6 +1,5 @@
 """The help endpoints, in process: each serves its document, an unknown id is a 404, and the locale is stated."""
 
-import logging
 from dataclasses import replace
 from typing import Any
 
@@ -12,8 +11,9 @@ from investment_analysis_engine.api.help_documents import (
     HelpIndexDocument,
     HelpReferencesDocument,
     HelpTermDocument,
+    build_help_references_document,
 )
-from investment_analysis_engine.api.routes import ROUTES, build_help_references_document
+from investment_analysis_engine.api.routes import ROUTES
 from investment_analysis_engine.api.term_references import EXEMPT_LOCATIONS, code_terms_by_component
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.help.bundle import HelpBundle, load_help_bundle
@@ -173,7 +173,7 @@ def test_two_tables_for_one_component_raise_and_fail_the_startup(
     clash = replace(STRATEGIES[0], code_terms={"AccountingScope": {"consolidated": "accounting-scope"}})
     with pytest.raises(ValueError, match="AccountingScope"):
         code_terms_by_component((clash,))
-    monkeypatch.setattr("investment_analysis_engine.api.routes.STRATEGIES", (clash,))
+    monkeypatch.setattr("investment_analysis_engine.api.help_documents.STRATEGIES", (clash,))
     with pytest.raises(ValueError, match="AccountingScope"), client_for(isolated_cli_settings):
         pass
 
@@ -264,15 +264,37 @@ def test_the_locale_is_in_no_document(isolated_cli_settings: ProjectSettings) ->
             assert "locale" not in _get(client, path, **{"Accept-Language": "en"}).json()
 
 
-def test_an_exception_outside_an_endpoint_still_states_the_locale(
-    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize("origin", [None, ALLOWED])
+def test_an_exception_outside_an_endpoint_still_states_the_locale_and_the_accepted_origin(
+    origin: str | None, isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def explode(_presented: bytes, _expected: bytes) -> bool:
         raise RuntimeError("the checks failed")
 
     monkeypatch.setattr("investment_analysis_engine.api.checks.secrets.compare_digest", explode)
-    with caplog.at_level(logging.ERROR), client_for(isolated_cli_settings, raise_server_exceptions=False) as client:
-        response = _get(client, "/v1/help")
+    headers = {} if origin is None else {"Origin": origin}
+    with client_for(isolated_cli_settings, origins=[ALLOWED], raise_server_exceptions=False) as client:
+        response = _get(client, "/v1/help", **headers)
     assert response.status_code == 500
     assert response.headers["content-language"] == "en"
+    if origin is None:
+        assert response.headers["vary"] == "Accept-Language"
+        assert "access-control-allow-origin" not in response.headers
+    else:
+        assert response.headers["vary"] == "Origin, Accept-Language"
+        assert response.headers["access-control-allow-origin"] == origin
+        assert response.headers["access-control-expose-headers"] == "WWW-Authenticate"
+
+
+def test_a_500_before_the_origin_check_claims_no_origin(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def explode(_origin: str) -> str | None:
+        raise RuntimeError("the origin check failed")
+
+    monkeypatch.setattr("investment_analysis_engine.api.checks.normalize_origin", explode)
+    with client_for(isolated_cli_settings, origins=[ALLOWED], raise_server_exceptions=False) as client:
+        response = _get(client, "/v1/help", Origin=ALLOWED)
+    assert response.status_code == 500
+    assert "access-control-allow-origin" not in response.headers
     assert response.headers["vary"] == "Accept-Language"

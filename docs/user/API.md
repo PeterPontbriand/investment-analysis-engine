@@ -84,12 +84,12 @@ For an allowed origin every response carries `Access-Control-Allow-Origin` with 
 ## Responses
 
 Every body is JSON in UTF-8, written compact and in field order, with `Content-Type: application/json` and
-`Cache-Control: no-store`. A document has the shape the command line gives it; its whitespace and key order are not
+`Cache-Control: no-store`; every response carries `no-store`, so a client never reuses one from a cache. A document has the shape the command line gives it; its whitespace and key order are not
 guaranteed. Compare parsed values, not text.
 
 Every response, a refusal and the answer to a preflight included, also carries `Content-Language`, the tag of the locale
 the engine's text is in, and `Vary` naming `Accept-Language` (see [Locales](#locales)). Response headers are not part of
-the contract, except `Content-Type`, `WWW-Authenticate`, `Content-Language` and `Vary`: other headers may be added,
+the contract, except `Content-Type`, `Cache-Control`, `WWW-Authenticate`, `Content-Language` and `Vary`: other headers may be added,
 changed or removed within `/v1`.
 
 ## Errors
