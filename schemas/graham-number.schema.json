@@ -283,12 +283,7 @@
           ]
         },
         "status": {
-          "enum": [
-            "available",
-            "unavailable"
-          ],
-          "title": "Status",
-          "type": "string"
+          "$ref": "#/$defs/PriceComparisonStatus"
         }
       },
       "required": [
@@ -301,6 +296,13 @@
       ],
       "title": "PriceComparisonPart",
       "type": "object"
+    },
+    "PriceComparisonStatus": {
+      "enum": [
+        "available",
+        "unavailable"
+      ],
+      "type": "string"
     },
     "ProviderCheckItem": {
       "additionalProperties": false,
@@ -489,16 +491,7 @@
           "title": "Retrieved At"
         },
         "status": {
-          "enum": [
-            "recent_retrieval",
-            "expired",
-            "unknown_retrieval_time",
-            "future_timestamp",
-            "user_supplied",
-            "historical"
-          ],
-          "title": "Status",
-          "type": "string"
+          "$ref": "#/$defs/QuoteFreshnessStatus"
         }
       },
       "required": [
@@ -511,6 +504,17 @@
       ],
       "title": "QuoteFreshnessPart",
       "type": "object"
+    },
+    "QuoteFreshnessStatus": {
+      "enum": [
+        "recent_retrieval",
+        "expired",
+        "unknown_retrieval_time",
+        "future_timestamp",
+        "user_supplied",
+        "historical"
+      ],
+      "type": "string"
     },
     "QuotePart": {
       "additionalProperties": false,

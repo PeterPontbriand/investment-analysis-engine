@@ -42,7 +42,7 @@ from tests.specimen.runs import (
     project_specimen_run,
     project_specimen_run_document,
 )
-from tests.specimen.vocabulary import ALIAS
+from tests.specimen.vocabulary import ALIAS, HEADLINE_TERMS, TERM
 from tests.specimen.wiring import SPECIMEN, SPECIMEN_STRATEGIES
 from tests.specimen.workspace import SpecimenExecution
 
@@ -210,5 +210,6 @@ SPECIMEN_CONTEXT: Final = SiteContext(
     schema_directory=SPECIMEN_FOLDER,
     catalog_test=CATALOG_TEST,
     covered=dict.fromkeys(COVERED_SITES, COVERED_BY_GENERATOR),
+    terms=frozenset({TERM, *HEADLINE_TERMS.values()}),
 )
 """The context in which the site checks find the specimen done, except the covered sites."""

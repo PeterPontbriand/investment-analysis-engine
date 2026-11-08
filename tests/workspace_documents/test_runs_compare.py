@@ -24,6 +24,7 @@ def _cell(value: float | str | None, unit: str | None, kind: CellKind = CellKind
     return CompareCellDocument(
         key="k",
         label="K",
+        term="term-k",
         kind=kind,
         value=value,
         unit=unit,
@@ -68,6 +69,6 @@ def test_a_run_has_a_headline_or_the_reason_it_has_none_and_not_both() -> None:
 
 
 def test_the_status_values_are_exactly_the_calculation_and_metric_statuses() -> None:
-    assert set(typing.get_args(CellStatusValue)) == {item.value for item in CalculationStatus} | {
+    assert set(typing.get_args(CellStatusValue.__value__)) == {item.value for item in CalculationStatus} | {
         item.value for item in MetricStatus
     }

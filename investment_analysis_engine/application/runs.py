@@ -143,6 +143,7 @@ def _compare_columns() -> tuple[CompareColumn, ...]:
             method_id=descriptor.method_id,
             alias=descriptor.alias,
             label=descriptor.label,
+            term=descriptor.term,
             codec=EVIDENCE_BY_KEY[(descriptor.analysis_id, descriptor.method_id)],
             headline=descriptor.behavior.headline_for,
         )

@@ -5,8 +5,11 @@ ranges and the strategy matrix are the ones in the Step 3.5 shared definitions. 
 code or a class and return a class or an outcome, with no I/O.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from types import MappingProxyType
+from typing import Final
 
 from investment_analysis_engine.core.metric_result import ReasonCode
 
@@ -102,3 +105,14 @@ def applicability_of(gate: SectorGate, industry_class: IndustryClass | None) -> 
     if industry_class in gate.warn:
         return ApplicabilityOutcome(Applicability.APPLIES_WITH_WARNING, None, industry_class)
     return ApplicabilityOutcome(Applicability.APPLIES, None, industry_class)
+
+
+INDUSTRY_CLASS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        IndustryClass.FINANCIAL.value: "industry-class",
+        IndustryClass.UTILITY.value: "industry-class",
+        IndustryClass.MANUFACTURER.value: "industry-class",
+        IndustryClass.OTHER.value: "industry-class",
+    }
+)
+"""The glossary term that explains each industry class; one entry explains all four."""

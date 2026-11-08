@@ -9,6 +9,17 @@
       "title": "CellKind",
       "type": "string"
     },
+    "CellStatusValue": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "not_applicable",
+        "input_unavailable",
+        "invalid_input",
+        "provider_error"
+      ],
+      "type": "string"
+    },
     "CompareCellDocument": {
       "additionalProperties": false,
       "description": "One headline cell of a run.",
@@ -40,22 +51,18 @@
         "status": {
           "anyOf": [
             {
-              "enum": [
-                "ok",
-                "unavailable",
-                "not_applicable",
-                "input_unavailable",
-                "invalid_input",
-                "provider_error"
-              ],
-              "type": "string"
+              "$ref": "#/$defs/CellStatusValue"
             },
             {
               "type": "null"
             }
           ],
-          "description": "The status of a number cell's value; null for a text cell.",
-          "title": "Status"
+          "description": "The status of a number cell's value; null for a text cell."
+        },
+        "term": {
+          "description": "The id of the glossary term that explains the label.",
+          "title": "Term",
+          "type": "string"
         },
         "unit": {
           "anyOf": [
@@ -88,6 +95,7 @@
       "required": [
         "key",
         "label",
+        "term",
         "kind",
         "value",
         "unit",
@@ -229,19 +237,13 @@
         "headline_unavailable": {
           "anyOf": [
             {
-              "enum": [
-                "unsupported_version",
-                "strategy_not_declared",
-                "no_result_stored"
-              ],
-              "type": "string"
+              "$ref": "#/$defs/HeadlineUnavailable"
             },
             {
               "type": "null"
             }
           ],
-          "description": "Why the run has no headline, if it has none.",
-          "title": "Headline Unavailable"
+          "description": "Why the run has no headline, if it has none."
         },
         "outcome": {
           "$ref": "#/$defs/RunOutcome",
@@ -304,6 +306,18 @@
         "method_id": {
           "title": "Method Id",
           "type": "string"
+        },
+        "term": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The id of the glossary term that explains the strategy; null for a strategy no longer declared.",
+          "title": "Term"
         }
       },
       "required": [
@@ -311,10 +325,19 @@
         "method_id",
         "alias",
         "label",
+        "term",
         "declared"
       ],
       "title": "CompareStrategyDocument",
       "type": "object"
+    },
+    "HeadlineUnavailable": {
+      "enum": [
+        "unsupported_version",
+        "strategy_not_declared",
+        "no_result_stored"
+      ],
+      "type": "string"
     },
     "ReasonCode": {
       "description": "Machine-readable reasons shared by deterministic metric results.",
@@ -379,8 +402,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 2,
-      "default": 2,
+      "const": 3,
+      "default": 3,
       "title": "Schema Version",
       "type": "integer"
     },

@@ -23,7 +23,7 @@ from datetime import UTC, date, datetime
 from functools import partial
 from pathlib import Path
 from types import MappingProxyType, UnionType
-from typing import Annotated, Literal, Protocol, Union, cast, get_args, get_origin
+from typing import Annotated, Literal, Protocol, TypeAliasType, Union, cast, get_args, get_origin
 
 import typer
 from pydantic import AwareDatetime, BaseModel, ValidationError
@@ -107,6 +107,7 @@ from investment_analysis_engine.workspace.runs import AnalysisRun
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence, SelectionMember
 from investment_analysis_engine.workspace_documents.json_documents import JSON_DOCUMENTS, STRATEGY_REPLAY_COMMANDS
 from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
+from scripts.check_help_content import USER_GLOSSARY, command_line_ids_of, parse_glossary
 from scripts.generate_schemas import SCHEMA_DIRECTORY, schema_text, strategy_schema_file
 from scripts.generate_strategy_docs import GENERATOR, BlockError, block_problem, current_body, strategy_list_blocks
 from scripts.repository_root import REPOSITORY_ROOT
@@ -138,6 +139,9 @@ DESCRIPTOR_FIELDS: dict[str, object] = {
     "json_envelope": type[BaseModel],
     "settings_type": type[BaseModel] | None,
     "selection_settings_fields": tuple[str, ...],
+    "headline_terms": Mapping[str, str],
+    "code_terms": Mapping[str, Mapping[str, str]],
+    "term": str,
 }
 """The documented descriptor fields and their types; a change here is a reviewed change to the contract."""
 
@@ -1563,6 +1567,8 @@ def _nested_model(annotation: object) -> type[BaseModel] | None:
 
 def _is_form_type(annotation: object) -> bool:
     """Report whether an annotation is a form type: a scalar, a closed set, a date, a nested model or an optional."""
+    if isinstance(annotation, TypeAliasType):
+        annotation = annotation.__value__
     if annotation in (bool, int, float, str, date, datetime, AwareDatetime):
         return True
     if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
@@ -2103,6 +2109,8 @@ class SiteContext:
         root: The folder the paths are relative to; the repository root when ``None``.
         covered: The sites a check here cannot establish, by site id, with where they are covered instead. The
             status command reports them by name and does not run their checks.
+        terms: Glossary term ids the context treats as served although the glossary does not hold them; the
+            specimen's own, since it has no glossary entry.
     """
 
     name: str
@@ -2121,6 +2129,7 @@ class SiteContext:
     catalog_test: Path | None = None
     root: Path | None = None
     covered: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    terms: frozenset[str] = frozenset()
 
 
 PRODUCTION = SiteContext(
@@ -2705,6 +2714,77 @@ def site_guide(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[
         return [Gap(site_id, where, f"no guide for alias {names.alias!r}: {where} does not exist")]
     text = path.read_text(encoding="utf-8")
     return [Gap(site_id, where, f"{where} has no link to {link}") for link in _GUIDE_LINKS if link not in text]
+
+
+def served_term_ids(root: Path) -> frozenset[str]:
+    """Return the ids of the terms the help bundle serves: the user glossary's entries outside excluded sections."""
+    path = root / USER_GLOSSARY
+    if not path.is_file():
+        return frozenset()
+    lines = path.read_text(encoding="utf-8").splitlines()
+    excluded = command_line_ids_of(lines)
+    return frozenset(
+        entry.anchor_id
+        for entry in parse_glossary(lines).entries
+        if entry.anchor_id is not None and entry.anchor_id not in excluded
+    )
+
+
+def _term_gaps(item: StrategyDescriptor, known: frozenset[str]) -> list[str]:
+    """Return what is missing or unknown among the terms the strategy names (T9)."""
+    key = label(item)
+    named: list[tuple[str, str]] = [("the strategy", item.term)]
+    named.extend((f"the headline cell {cell}", term) for cell, term in item.headline_terms.items())
+    named.extend(
+        (f"the code set {component} value {value}", term)
+        for component, table in item.code_terms.items()
+        for value, term in table.items()
+    )
+    messages = [f"strategy {key}: {owner} names no term" for owner, term in named if not term.strip()]
+    for field, info in _selection_field_infos(item.behavior.selection_type).items():
+        extra = info.json_schema_extra
+        term = extra.get("x-term") if isinstance(extra, dict) else None
+        if not isinstance(term, str) or not term.strip():
+            messages.append(f"strategy {key}: the selection field {field} has no x-term")
+        else:
+            named.append((f"the selection field {field}", term))
+    messages.extend(
+        f"strategy {key}: {owner} names the term {term!r}, which the glossary does not serve"
+        for owner, term in named
+        if term.strip() and term not in known
+    )
+    return messages
+
+
+def _headline_term_gaps(item: StrategyDescriptor, stored: StoredRun | None) -> list[str]:
+    """Return the headline cells of the stored run whose term is not their ``headline_terms`` entry."""
+    if stored is None:
+        return []
+    return [
+        f"strategy {label(item)}: the headline cell {cell.key} carries the term {cell.term!r}, which is not its "
+        f"headline_terms entry {item.headline_terms.get(cell.key)!r}"
+        for cell in item.behavior.headline_for(stored.result).cells
+        if item.headline_terms.get(cell.key) != cell.term
+    ]
+
+
+def site_glossary_terms(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:
+    """The strategy, its headline cells, its selection fields and its code sets each name a served glossary term."""
+    site_id = "glossary-terms"
+    item = _declared(names, context)
+    if item is None:
+        return _undeclared(site_id, names, context)
+    where = site_path(site_id, names, context)
+    known = served_term_ids(_root(context)) | context.terms
+    messages = _term_gaps(item, known)
+    try:
+        messages.extend(_headline_term_gaps(item, context.stored_run(item)))
+    except UnfilledStubError as error:
+        dependency = _unfilled_dependency(error, site_id, names, context)
+        if dependency is None:
+            raise
+        messages.extend([dependency] if dependency else [])
+    return [Gap(site_id, where, message) for message in messages]
 
 
 def site_schema(names: StrategyNames, context: SiteContext = PRODUCTION) -> list[Gap]:

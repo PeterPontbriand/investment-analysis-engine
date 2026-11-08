@@ -26,14 +26,19 @@ class GrahamNumberSelection(FrozenSelection):
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     eps_override: StrictFloat | None = Field(
-        default=None, description="Earnings per share to use instead of the reported figure; leave empty to use it."
+        default=None,
+        description="Earnings per share to use instead of the reported figure; leave empty to use it.",
+        json_schema_extra={"x-term": "override"},
     )
     quote_override: StrictFloat | None = Field(
-        default=None, description="Share price to use instead of the current quote; leave empty to use the quote."
+        default=None,
+        description="Share price to use instead of the current quote; leave empty to use the quote.",
+        json_schema_extra={"x-term": "override"},
     )
     bvps_override: StrictFloat | None = Field(
         default=None,
         description="Book value per share to use instead of the reported figure; leave empty to use it.",
+        json_schema_extra={"x-term": "override"},
     )
     as_of: AwareDatetime | None = Field(
         default=None,
@@ -41,11 +46,13 @@ class GrahamNumberSelection(FrozenSelection):
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
             "which needs a timezone offset; leave empty for the latest data."
         ),
+        json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",
+        json_schema_extra={"x-term": "cache"},
     )
 
     @field_validator("eps_override", "quote_override", "bvps_override")

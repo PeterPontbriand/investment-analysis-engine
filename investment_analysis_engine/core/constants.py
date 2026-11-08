@@ -12,7 +12,9 @@ Classes:
     DataColumns: Standardized pandas DataFrame column definitions.
 """
 
+from collections.abc import Mapping
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Final, Literal, TypedDict
 
 
@@ -90,3 +92,13 @@ class DataColumns:
     """
 
     CLOSE: Final[str] = "Close"
+
+
+TREND_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        TrendStatus.BULLISH.value: "momentum-states",
+        TrendStatus.BEARISH.value: "momentum-states",
+        TrendStatus.UNKNOWN.value: "momentum-states",
+    }
+)
+"""The glossary term that explains each trend status; one entry explains all three."""

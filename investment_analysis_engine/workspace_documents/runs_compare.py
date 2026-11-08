@@ -18,7 +18,8 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, ClassVar, Literal, Self
+from types import MappingProxyType
+from typing import Any, ClassVar, Final, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -45,11 +46,22 @@ from investment_analysis_engine.workspace.codecs import (
 )
 from investment_analysis_engine.workspace.repositories.analysis_runs import StoredRefreshRun
 
-CellStatusValue = Literal["ok", "unavailable", "not_applicable", "input_unavailable", "invalid_input", "provider_error"]
+type CellStatusValue = Literal[
+    "ok", "unavailable", "not_applicable", "input_unavailable", "invalid_input", "provider_error"
+]
 """The values a cell's status takes: a calculation status or a metric status."""
 
-HeadlineUnavailable = Literal["unsupported_version", "strategy_not_declared", "no_result_stored"]
+type HeadlineUnavailable = Literal["unsupported_version", "strategy_not_declared", "no_result_stored"]
 """Why a run has no headline: an older stored version, an undeclared strategy, or no stored result at all."""
+
+HEADLINE_UNAVAILABLE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "unsupported_version": "headline-unavailable",
+        "strategy_not_declared": "headline-unavailable",
+        "no_result_stored": "headline-unavailable",
+    }
+)
+"""The glossary term that explains each reason a run has no headline; one entry explains all three."""
 
 MISSING: str = "—"
 """What the text table shows for a value that is absent."""
@@ -99,6 +111,7 @@ class CompareCellDocument(_Document):
 
     key: str = Field(description="The cell's stable key.")
     label: str = Field(description="The column header the text table uses for the cell.")
+    term: str = Field(description="The id of the glossary term that explains the label.")
     kind: CellKind
     value: float | str | None = Field(description="The number or text; null when the run has none.")
     unit: str | None = Field(description="The unit of a number: percent, points, multiple, or '<currency> per share'.")
@@ -145,6 +158,9 @@ class CompareStrategyDocument(_Document):
     method_id: str
     alias: str | None = Field(description="The strategy's command alias; null for a strategy no longer declared.")
     label: str = Field(description="The strategy's display name; its stored method identifier if no longer declared.")
+    term: str | None = Field(
+        description="The id of the glossary term that explains the strategy; null for a strategy no longer declared."
+    )
     declared: bool
 
 
@@ -168,7 +184,7 @@ class RunsCompareDocument(_Document):
     ``schema_version`` is this document's own lineage and is independent of every other document's.
     """
 
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3
     refresh_id: UUID
     watchlist_id: UUID | None = Field(description="The watchlist the refresh ran; null if no readable run records it.")
     watchlist_name: str | None = Field(description="The watchlist's name when the refresh ran.")
@@ -184,6 +200,7 @@ class CompareColumn:
     method_id: str
     alias: str
     label: str
+    term: str
     codec: EvidenceCodec
     headline: Callable[[object], Headline]
 
@@ -224,6 +241,7 @@ def _cell_document(cell: HeadlineCell) -> CompareCellDocument:
     return CompareCellDocument(
         key=cell.key,
         label=cell.label,
+        term=cell.term,
         kind=cell.kind,
         value=cell.value,
         unit=cell.unit,
@@ -356,6 +374,7 @@ def build_runs_compare(
                 method_id=key[1],
                 alias=declared[key].alias if key in declared else None,
                 label=declared[key].label if key in declared else key[1],
+                term=declared[key].term if key in declared else None,
                 declared=key in declared,
             )
             for key in ordered
@@ -583,6 +602,7 @@ def render_runs_compare_text(document: RunsCompareDocument) -> str:
 
 
 __all__ = [
+    "HEADLINE_UNAVAILABLE_TERMS",
     "MISSING",
     "TEXT_WIDTH",
     "CellStatusValue",

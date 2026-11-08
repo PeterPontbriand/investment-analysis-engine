@@ -152,6 +152,7 @@ def selection_schema(descriptor: StrategyDescriptor) -> dict[str, Any]:
             "default": as_of.get("default"),
             "description": as_of.get("description"),
             "title": as_of.get("title"),
+            "x-term": as_of.get("x-term"),
         }.items()
         if value is not None or key == "default"
     }

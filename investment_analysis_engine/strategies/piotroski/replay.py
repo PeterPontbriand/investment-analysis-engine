@@ -16,6 +16,7 @@ from investment_analysis_engine.strategies.piotroski.presenter import (
     score_text,
 )
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
+from investment_analysis_engine.strategies.piotroski.vocabulary import HEADLINE_TERMS
 
 
 def project_piotroski(
@@ -47,8 +48,16 @@ def headline_piotroski(result: PiotroskiResult) -> Headline:
     anchor = result.anchor
     return Headline(
         cells=(
-            HeadlineCell("score", "Score", CellKind.TEXT, score_text(result), None, None),
-            HeadlineCell("completeness", "Completeness", CellKind.TEXT, completeness_text(result), None, None),
+            HeadlineCell("score", "Score", HEADLINE_TERMS["score"], CellKind.TEXT, score_text(result), None, None),
+            HeadlineCell(
+                "completeness",
+                "Completeness",
+                HEADLINE_TERMS["completeness"],
+                CellKind.TEXT,
+                completeness_text(result),
+                None,
+                None,
+            ),
         ),
         period_end=None if anchor is None else datetime.combine(anchor.year_end, time.min, tzinfo=UTC),
         taxonomy=result.taxonomy,

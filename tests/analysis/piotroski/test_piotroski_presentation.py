@@ -302,6 +302,7 @@ def test_the_side_by_side_table_shows_the_score_and_completeness_cells() -> None
                 method_id="piotroski",
                 alias="piotroski",
                 label="Piotroski F-Score",
+                term="piotroski-strategy",
                 declared=True,
             ),
         ),

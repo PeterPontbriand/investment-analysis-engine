@@ -19,7 +19,7 @@ from investment_analysis_engine.strategies.graham_growth.vocabulary import (
     MethodId,
 )
 
-GrahamGrowthSelectionEPSBasis = Literal["three_year_average", "fiscal_year"]
+type GrahamGrowthSelectionEPSBasis = Literal["three_year_average", "fiscal_year"]
 """The EPS bases a stored selection accepts: the ones SEC EDGAR supplies for Graham Growth."""
 
 
@@ -32,26 +32,38 @@ class GrahamGrowthSelection(FrozenSelection):
     eps_basis: GrahamGrowthSelectionEPSBasis = Field(
         default="three_year_average",
         description="Which earnings figure to use: the three-year average, or one completed fiscal year.",
+        json_schema_extra={"x-term": "eps-basis"},
     )
     eps_override: StrictFloat | None = Field(
-        default=None, description="Earnings per share to use instead of the reported figure; leave empty to use it."
+        default=None,
+        description="Earnings per share to use instead of the reported figure; leave empty to use it.",
+        json_schema_extra={"x-term": "override"},
     )
     quote_override: StrictFloat | None = Field(
-        default=None, description="Share price to use instead of the current quote; leave empty to use the quote."
+        default=None,
+        description="Share price to use instead of the current quote; leave empty to use the quote.",
+        json_schema_extra={"x-term": "override"},
     )
-    expected_growth: StrictFloat = Field(description="Expected annual earnings growth, in percentage points.")
-    aaa_yield_override: StrictFloat = Field(description="Current AAA corporate-bond yield, in percentage points.")
+    expected_growth: StrictFloat = Field(
+        description="Expected annual earnings growth, in percentage points.",
+        json_schema_extra={"x-term": "expected-growth-rate"},
+    )
+    aaa_yield_override: StrictFloat = Field(
+        description="Current AAA corporate-bond yield, in percentage points.", json_schema_extra={"x-term": "override"}
+    )
     as_of: AwareDatetime | None = Field(
         default=None,
         description=(
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
             "which needs a timezone offset; leave empty for the latest data."
         ),
+        json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",
+        json_schema_extra={"x-term": "cache"},
     )
 
     @field_validator("eps_override", "quote_override", "expected_growth", "aaa_yield_override")

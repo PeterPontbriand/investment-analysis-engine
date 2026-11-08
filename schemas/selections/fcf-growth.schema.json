@@ -16,17 +16,20 @@
         "classification_basis": {
           "$ref": "#/$defs/FCFClassificationBasis",
           "default": "total_fcf",
-          "description": "Whether growth is classified on total free cash flow or on free cash flow per share."
+          "description": "Whether growth is classified on total free cash flow or on free cash flow per share.",
+          "x-term": "classification-basis"
         },
         "forward_policy": {
           "$ref": "#/$defs/ForwardPolicy",
           "default": "display_only",
-          "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate."
+          "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate.",
+          "x-term": "forward-policy"
         },
         "historical_horizon": {
           "$ref": "#/$defs/HistoricalHorizon",
           "default": "longest_available",
-          "description": "How many elapsed years of history to require; the default picks the longest available up to five."
+          "description": "How many elapsed years of history to require; the default picks the longest available up to five.",
+          "x-term": "historical-horizon"
         }
       },
       "title": "FCFPolicySnapshot",
@@ -73,23 +76,27 @@
       ],
       "default": null,
       "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-      "title": "As Of"
+      "title": "As Of",
+      "x-term": "as-of-date"
     },
     "currency": {
       "default": "USD",
       "description": "Three-letter ISO 4217 code of the reporting currency the annual facts must use.",
       "title": "Currency",
-      "type": "string"
+      "type": "string",
+      "x-term": "reporting-currency"
     },
     "policy": {
       "$ref": "#/$defs/FCFPolicySnapshot",
-      "description": "The growth horizon, classification and forward-evidence rules."
+      "description": "The growth horizon, classification and forward-evidence rules.",
+      "x-term": "fcf-growth-strategy"
     },
     "use_cache": {
       "default": true,
       "description": "Whether the analysis may read and write the local cache of fetched data.",
       "title": "Use Cache",
-      "type": "boolean"
+      "type": "boolean",
+      "x-term": "cache"
     }
   },
   "title": "FCFGrowthSelection",

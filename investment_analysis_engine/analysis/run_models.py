@@ -14,7 +14,8 @@ import math
 from collections.abc import Callable, Mapping
 from datetime import date
 from enum import StrEnum
-from typing import Annotated, Any
+from types import MappingProxyType
+from typing import Annotated, Any, Final
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, model_validator
 
@@ -231,7 +232,19 @@ class EffectiveBoundary(_FrozenModel):
         return self
 
 
+RUN_OUTCOME_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        RunOutcome.COMPLETED.value: "outcome-completed",
+        RunOutcome.UNAVAILABLE.value: "outcome-unavailable",
+        RunOutcome.NOT_APPLICABLE.value: "not-applicable",
+        RunOutcome.FAILED.value: "outcome-failed",
+    }
+)
+"""The glossary term that explains each run outcome."""
+
+
 __all__ = [
+    "RUN_OUTCOME_TERMS",
     "EffectiveBoundary",
     "METHOD_ANALYSIS_KEY",
     "METHOD_SECTIONS",

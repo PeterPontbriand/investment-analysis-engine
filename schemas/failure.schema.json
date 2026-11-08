@@ -139,6 +139,13 @@
       "title": "FailureRuleError",
       "type": "object"
     },
+    "FailureStatus": {
+      "enum": [
+        "error",
+        "input_unavailable"
+      ],
+      "type": "string"
+    },
     "JsonValue": {},
     "ProviderCheckItem": {
       "additionalProperties": false,
@@ -370,12 +377,7 @@
       "type": "integer"
     },
     "status": {
-      "enum": [
-        "error",
-        "input_unavailable"
-      ],
-      "title": "Status",
-      "type": "string"
+      "$ref": "#/$defs/FailureStatus"
     },
     "ticker": {
       "anyOf": [

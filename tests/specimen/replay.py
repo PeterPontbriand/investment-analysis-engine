@@ -7,6 +7,7 @@ from tests.specimen.analyzer import SpecimenResult
 from tests.specimen.envelope import SpecimenDocument
 from tests.specimen.presenter import build_specimen_document, render_specimen
 from tests.specimen.selection import SpecimenSelection
+from tests.specimen.vocabulary import HEADLINE_TERMS
 
 
 def project_specimen(
@@ -28,5 +29,15 @@ def project_specimen_document(
 def headline_specimen(result: SpecimenResult) -> Headline:
     """Return the specimen's one cell: the scaled value, which the specimen always calculates."""
     return Headline(
-        cells=(HeadlineCell("scaled", "Scaled", CellKind.NUMBER, result.scaled, "points", CalculationStatus.OK),)
+        cells=(
+            HeadlineCell(
+                "scaled",
+                "Scaled",
+                HEADLINE_TERMS["scaled"],
+                CellKind.NUMBER,
+                result.scaled,
+                "points",
+                CalculationStatus.OK,
+            ),
+        )
     )

@@ -18,10 +18,12 @@ hold, and each refusal has its code:
 """
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date
 from enum import StrEnum
+from types import MappingProxyType
+from typing import Final
 
 from investment_analysis_engine.analysis.shared.metric_evidence import InputUnavailable
 from investment_analysis_engine.analysis.shared.split_adjustment import AppliedAdjustment, scale_share_count
@@ -307,3 +309,12 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
             MetricStatus.NOT_APPLICABLE,
         )
     return replace(base, result=MetricResult.ok(market_cap))
+
+
+SHARE_COUNT_BASIS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        ShareCountBasis.YEAR_END.value: "share-count-basis",
+        ShareCountBasis.COVER_PAGE.value: "share-count-basis",
+    }
+)
+"""The glossary term that explains each share-count basis."""

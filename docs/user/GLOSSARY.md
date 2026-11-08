@@ -12,6 +12,8 @@ A rule-based way of analyzing a security, with its own inputs, calculation and w
 
 A strategy never leaves a calculation to an AI model. This glossary and the guides call the idea an analysis strategy.
 
+Related terms: [method](#method), [typed evidence](#typed-evidence).
+
 <a id="method"></a>
 ### Method
 One calculation approach within an analysis strategy. A strategy may offer one method or several.
@@ -19,6 +21,8 @@ One calculation approach within an analysis strategy. A strategy may offer one m
 Several methods in one strategy are reserved for true variants of the same underlying calculation, such as a future Altman Z versus Z′′ strategy. They are not for strategies that merely address a related question with a different formula, the way Graham Number and Graham Growth Value do: each of those is its own strategy, not two methods of one.
 
 A method is an application concept; it does not imply that Benjamin Graham or another source used the word “method” in exactly this project-specific sense.
+
+Related terms: [analysis strategy](#analysis-strategy).
 
 <a id="typed-evidence"></a>
 ### Typed Evidence
@@ -78,6 +82,8 @@ A named, ordered list of entries that you want to run and revisit as a group.
 
 Each entry pairs a [ticker](#ticker) with a [selection](#selection).
 
+Related terms: [entry](#entry).
+
 <a id="headline"></a>
 ### Headline
 The few values a strategy picks to stand for one analysis run, so that runs can be compared side by side. It summarizes the run; it is not the full result.
@@ -89,6 +95,20 @@ A value the run could not calculate is shown as a dash.
 Running every entry in one watchlist and saving each result as its own analysis run.
 
 A refresh limits how many tickers run at once, and one ticker's failure never stops the rest of the watchlist.
+
+<a id="refresh-event"></a>
+### Refresh Event
+A progress record of a refresh: one is recorded when an entry starts running and one when it finishes.
+
+A finished event carries the entry's result. A refresh runs one entry at a time or several at once, so events of different entries can interleave.
+
+<a id="headline-unavailable"></a>
+### Headline Unavailable
+The reason a saved run has no headline in a side-by-side comparison: it was stored under an older version, its strategy is no longer available, or it stored no result.
+
+A run stored under an older version is kept but not read by this version. A run of a strategy that is no longer available shows only its outcome. A run that stored no result has an outcome but nothing to summarize. The comparison shows a dash for the missing cells.
+
+Related terms: [headline](#headline).
 
 ---
 
@@ -115,6 +135,8 @@ See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [
 A stored copy of previously retrieved data. A stored value is reused only if it satisfies the requested as-of date and the freshness policy.
 
 Otherwise the engine asks an allowed provider or reports the input unavailable. Caching is automatic and distinct from saving an [Analysis Run](#analysis-run), which is optional and durable.
+
+Related terms: [cache states](#cache-states).
 
 <a id="cache-states"></a>
 ### Cache Hit / Cache Miss / Stale Cache Entry
@@ -174,6 +196,8 @@ The time boundary for an analysis or an input: information that became available
 
 A requested analysis boundary (`as_of`) prevents the resolver from using observations or information that became available after that date.
 
+Related terms: [UTC](#utc), [data vintage](#data-vintage).
+
 <a id="availability-date"></a>
 ### Available At / Filing Date / Publication Date
 The date a fact became knowable to an investor. A financial statement's fiscal-period end can precede its filing date by weeks or months.
@@ -209,6 +233,50 @@ The order in which sources are tried for each financial value: your override, th
 <a id="utc"></a>
 ### UTC (Coordinated Universal Time)
 The common time standard used for unambiguous timestamps across systems and time zones.
+
+<a id="source-kind"></a>
+### Input Source
+How a resolved input value was obtained: you supplied it as an override, it came from the cache, it was fetched from a data provider, or the engine derived it from other inputs.
+
+The source is kept with every input so that a saved run can show where each figure came from. See [override](#override), [cache](#cache) and [provenance](#provenance).
+
+Related terms: [resolution precedence](#resolution-precedence), [financial facts](#financial-facts), [macro series](#macro-series).
+
+<a id="period-kind"></a>
+### Period Kind
+The kind of reporting period behind a financial fact: a completed fiscal year, a quarter, the trailing twelve months, or a single instant.
+
+A completed annual fact covers one fiscal year. A quarterly fact covers one quarter, and a trailing-twelve-month fact covers the twelve months ending at a quarter. An instant fact is a balance measured on one date, such as a share count or total debt. A calculation uses only the kind its method needs. See [reporting period](#reporting-period) and [TTM](#ttm).
+
+<a id="accounting-scope"></a>
+### Accounting Scope
+Whether a financial figure covers the whole consolidated group, the parent company alone, or one segment of the business.
+
+The scope is recorded with the figure, so a consolidated figure is not mistaken for a parent-company or segment figure.
+
+<a id="capex-sign-convention"></a>
+### Capital Expenditure Sign
+How a data provider writes capital expenditures: as a positive amount of spending or as a negative cash outflow.
+
+The engine records the convention so that free cash flow subtracts spending once, whichever sign the provider used. When the convention is missing the figure is ambiguous and is not used. See [capital expenditures](#capital-expenditures) and [free cash flow](#free-cash-flow).
+
+<a id="instrument-kind"></a>
+### Instrument Kind
+The kind of security a ticker names: an equity, an exchange-traded fund or a cryptocurrency.
+
+A strategy that is built for company financial statements reports an instrument kind it does not cover as not applicable. See [instrument profile](#instrument-profile).
+
+<a id="quote-freshness"></a>
+### Quote Freshness
+How recent the price quote behind a comparison is: recently retrieved, expired, of unknown retrieval time, dated in the future, supplied by you, or historical.
+
+A recently retrieved quote is younger than the freshness limit and an expired quote is older. A quote with no recorded retrieval time is unknown, and one dated after the time of the analysis is a future timestamp. A quote you supplied as an override is user supplied. A quote read for a past as-of date is historical. See [current quote](#current-quote) and [retrieved at](#retrieved-at).
+
+<a id="reporting-currency"></a>
+### Reporting Currency
+The currency a company states its financial figures in, written as a three-letter ISO 4217 code such as USD.
+
+A method that combines figures with a price needs the filing currency and the quote currency to agree. A selection can require annual facts in one reporting currency.
 
 ---
 
@@ -259,6 +327,8 @@ The span or date a financial fact applies to, such as a fiscal year, a quarter, 
 Restating per-share values after the number of shares changes through a stock split or reverse split.
 
 EPS, BVPS, and price must use compatible share bases.
+
+Related terms: [split-adjusted close](#split-adjusted-close).
 
 <a id="split-adjusted-close"></a>
 ### Split-Adjusted Close
@@ -358,6 +428,18 @@ The average diluted share count for an earnings period, including the effect of 
 
 It is not interchangeable with an ending shares-outstanding snapshot.
 
+<a id="share-count-basis"></a>
+### Share-Count Basis
+Where a share count was taken from: the balance sheet at the fiscal year-end, or the cover page of the annual filing.
+
+The year-end count is preferred. The cover-page count is used only when no balance-sheet path gives a count at the year-end, and the result says so. See [shares outstanding](#shares-outstanding) and [market capitalization](#market-capitalization).
+
+<a id="split-adjustment-window"></a>
+### Split-Adjustment Window
+Where a data provider's adjustment fell relative to the share count and the price: between the count and the price, or between the price and the date the provider adjusted to.
+
+A recognizable split between the share count and the price is applied to the share count. An adjustment after the price date is always applied, because it undoes the provider's adjustment of the historical close. See [stock split adjustment](#stock-split-adjustment) and [market capitalization](#market-capitalization).
+
 ---
 
 ## Valuation and price comparison
@@ -367,6 +449,8 @@ It is not interchangeable with an ending shares-outstanding snapshot.
 Estimating what a security may be worth under a stated method and assumptions, usually to compare with its market price.
 
 In Investment Analysis Engine a valuation result is one method's reference value, such as the Graham Number's maximum indicated price, not a complete intrinsic-value conclusion or a recommendation (see [Intrinsic Value](#intrinsic-value) and [Reference Value](#reference-value)).
+
+Related terms: [book value](#book-value), [tangible book value](#tangible-book-value), [common shareholders' equity](#common-shareholders-equity), [EBITDA](#ebitda), [enterprise value](#enterprise-value), [invested capital](#invested-capital), [normalized EPS](#normalized-eps).
 
 <a id="intrinsic-value"></a>
 ### Intrinsic Value
@@ -395,6 +479,8 @@ Negative means the price is above the reference value. This calculation measures
 A plain-language statement of how the market price compares with the reference value, such as 20.00% below the Graham Number.
 
 It avoids requiring you to interpret the sign convention of the stored `margin_of_safety_percent` field. Another example is “89.57% above the Graham growth value.”
+
+Related terms: [discount and premium](#discount-and-premium), [percentage point](#percentage-point).
 
 <a id="discount-and-premium"></a>
 ### Discount / Premium to Reference Value
@@ -430,6 +516,12 @@ An aggregation of forecasts from multiple analysts.
 
 The Free Cash Flow & Earnings Growth contract can carry compatible FY1/FY2 diluted-EPS consensus as optional evidence, but the current production SEC mapping may not provide it. Such evidence requires verified field meaning, forecast horizon, provenance, update behavior, and licensing; the software does not invent it.
 
+<a id="price-comparison-status"></a>
+### Price Comparison Status
+Whether a comparison between a method's value and the price could be made: available when it could, unavailable when it could not.
+
+An unavailable comparison leaves the [margin of safety](#margin-of-safety) without a value; it is never replaced by zero. See [price relationship](#price-relationship).
+
 ---
 
 ## Momentum Strategy terms
@@ -439,6 +531,8 @@ The Free Cash Flow & Earnings Growth contract can carry compatible FY1/FY2 dilut
 A rule-based analysis of recent price behavior. It compares a short and a long simple moving average, reports a bullish or bearish trend, and shows RSI as a supporting indicator.
 
 The moving-average windows are configurable. The strategy reports the state of the crossover of the two averages.
+
+Related terms: [historical market data](#historical-market-data), [EMA](#ema).
 
 <a id="sma"></a>
 ### SMA (Simple Moving Average)
@@ -455,6 +549,8 @@ A change in which of the short and long moving averages is higher.
 The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.
 
 Both averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.
+
+The latest signal is one of three states: a bullish crossover, where the short average moved above the long one; a bearish crossover, where it moved below; or no new crossover, where neither happened.
 
 <a id="momentum-states"></a>
 ### Bullish / Bearish / Unknown
@@ -480,6 +576,18 @@ A trend and momentum indicator built from the relationship between exponential m
 
 It is not currently part of the implemented Momentum calculation.
 
+<a id="price-basis"></a>
+### Price Basis
+Which close the current price is: the latest adjusted historical close, or the latest historical close without the adjustment.
+
+The basis shows which price series the averages and the RSI were calculated from. Providers revise adjusted prices after the fact, so an adjusted close can differ from the price quoted on that day.
+
+<a id="trend-relationship"></a>
+### Trend Relationship
+How the short moving average stands against the long one: above it, below it or equal to it.
+
+Above is the bullish reading of the [trend](#momentum-states); below or equal is the bearish reading. The relationship describes the latest observation, and a [crossover](#crossover) describes a change in it.
+
 ---
 
 ## Graham Number Strategy terms
@@ -489,6 +597,8 @@ It is not currently part of the implemented Momentum calculation.
 A screening strategy that combines positive earnings per share and book value per share to estimate a conservative maximum indicated price.
 
 It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one.
+
+Related terms: [Graham Number factor](#graham-number-factor), [defensive investor](#defensive-investor).
 
 <a id="graham-number"></a>
 ### Graham Number
@@ -529,6 +639,8 @@ His complete defensive-stock framework included additional size, financial-stren
 A forecast-dependent strategy that estimates a value from earnings, an expected growth rate and a current AAA corporate-bond yield.
 
 It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply.
+
+Related terms: [Graham growth-value formula](#growth-value-formula), [growth multiplier](#growth-multiplier), [base P/E](#base-pe), [growth-estimation policy](#growth-estimation-policy), [AAA corporate bond yield](#aaa-corporate-bond-yield), [baseline AAA yield](#baseline-aaa-yield), [current AAA yield](#current-aaa-yield).
 
 <a id="expected-growth-rate"></a>
 ### Expected Growth Rate
@@ -585,6 +697,12 @@ The configurable constant that multiplies the expected growth rate in the growth
 
 The initial conventional value is `2.0` (`growth_multiplier`).
 
+<a id="eps-basis"></a>
+### EPS Basis
+Which earnings figure a valuation uses: the three-year average, or the earnings of one completed fiscal year.
+
+The three-year average smooths a single unusual year. The fiscal-year basis uses one year's earnings as reported. See [three-year-average EPS](#three-year-average-eps) and [fiscal year](#fiscal-year).
+
 ---
 
 ## Free Cash Flow & Earnings Growth Strategy terms
@@ -594,6 +712,8 @@ The initial conventional value is `2.0` (`growth_multiplier`).
 A historical screen asking whether free cash flow and diluted EPS both grew at positive, meaningful compound annual rates over one compatible period. It is not a valuation.
 
 It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.
+
+Related terms: [total-company FCF](#total-company-fcf), [FCF per diluted share](#fcf-per-diluted-share), [weighted-average diluted shares](#weighted-average-diluted-shares), [operating cash flow](#operating-cash-flow).
 
 <a id="total-company-fcf"></a>
 ### Total-Company FCF
@@ -629,6 +749,24 @@ The rule for how optional analyst-consensus EPS estimates for the next two fisca
 
 The code values are `display_only`, `confirmation`, and `hard_gate`. Only `hard_gate` can alter an otherwise passing historical classification.
 
+<a id="forward-evidence-status"></a>
+### Forward Evidence Status
+How complete the analyst-consensus evidence is: complete when every estimate was found, partial when only some were, unavailable when none was.
+
+Forward evidence is optional. Whether it can change the result is set by the [forward policy](#forward-policy). See [analyst consensus estimate](#analyst-consensus-estimate).
+
+<a id="historical-horizon"></a>
+### Historical Horizon
+The number of elapsed years of history the growth screen looks back over: three, four or five, or the longest available.
+
+The default picks the longest history available, up to five years. A longer horizon needs more consecutive annual facts and is unavailable when there are too few.
+
+<a id="growth-trend"></a>
+### Growth Trend
+How free cash flow growth and earnings growth compare over the screened period: both growing, only one growing, neither growing, or too little meaningful data to say.
+
+The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](#free-cash-flow) and [CAGR](#cagr).
+
 ---
 
 ## Piotroski F-Score Strategy terms
@@ -638,6 +776,8 @@ The code values are `display_only`, `confirmation`, and `hard_gate`. Only `hard_
 A financial-strength screen that runs nine pass/fail tests on three consecutive fiscal years of reported statements and counts those passed. It is not a valuation.
 
 It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not an investment recommendation.
+
+Related terms: [ROA](#roa), [current ratio](#current-ratio), [gross margin](#gross-margin), [asset turnover](#asset-turnover), [net dilution](#net-dilution).
 
 <a id="f-score"></a>
 ### F-Score
@@ -676,6 +816,282 @@ In the F-Score, a year's sales divided by total assets at the start of that year
 The change in the number of common shares outstanding between two fiscal year-ends, after buybacks.
 
 The F-Score's dilution test passes when the count did not rise.
+
+<a id="test-result"></a>
+### Test Result
+The result of one test of the score: a pass when its condition holds and a fail when it does not.
+
+A test that cannot be decided is not a fail; it is an [unavailable test](#unavailable-test). The [F-Score](#f-score) counts the passes.
+
+---
+
+## Outcomes, statuses and reasons
+
+These entries explain the words an analysis uses to say how it went: the outcome of a run, the status of a
+calculation or a metric, a provider failure, a failure code and the reason behind a missing value. A word that
+means the same everywhere shares one entry.
+
+<a id="outcome-completed"></a>
+### Completed Run
+A run outcome meaning the strategy calculated its result from the inputs it was given.
+
+It is the outcome of a run whose calculation status is [ok](#status-ok). It says that a result exists, not that the result is favorable: a screen can complete and still report that a company failed it.
+
+<a id="outcome-unavailable"></a>
+### Unavailable Run
+A run outcome meaning the analysis could not be calculated because an input it needs was not available.
+
+It is the outcome of a run whose calculation status is [input unavailable](#status-input-unavailable). The run is saved so that it can be revisited; nothing is estimated or replaced by zero.
+
+<a id="outcome-failed"></a>
+### Failed Run
+A run outcome meaning the analysis stopped because an input was invalid or a data provider failed. No result was produced.
+
+It is the outcome of a run whose calculation status is [invalid input](#status-invalid-input) or [provider error](#status-provider-error). The run's failure code says which.
+
+<a id="status-ok"></a>
+### OK Status
+The calculation finished: every required input was found and the value could be calculated.
+
+It is the calculation status that gives a run the outcome [completed](#outcome-completed). For a single metric it means the metric has a value.
+
+<a id="status-unavailable"></a>
+### Unavailable Metric
+A single metric that could not be calculated, usually because an input it needs is missing. It shows no value, and nothing takes its place.
+
+A metric that is unavailable usually comes with a reason code that says why. See [Applicability Status](#applicability-status).
+
+<a id="status-input-unavailable"></a>
+### Input Unavailable
+A required input could not be found for the date and the data the analysis was asked to use. The analysis is not calculated rather than guessed.
+
+It is the calculation status of an [unavailable run](#outcome-unavailable). It is also the category of a failure whose data could not be used, such as a data-quality failure, a lack of observations or a provider that did not deliver.
+
+<a id="status-invalid-input"></a>
+### Invalid Input
+A value given to the analysis, or read from provider data, is not valid, so the analysis cannot be calculated.
+
+It is the calculation status that makes a run [failed](#outcome-failed), and the failure code of the same name. The shown message says only that the inputs or the provider data were invalid; the details are kept in the engine's log.
+
+<a id="status-provider-error"></a>
+### Provider Error
+A data provider failed in a way that is not an absent fact, so the analysis could not be calculated.
+
+It is the calculation status that makes a run [failed](#outcome-failed). The failure code of the same name is used when the provider's failure could not be classified; a classified failure has its own entry: [unreachable](#provider-unreachable), [rate-limited](#provider-rate-limited), [unexpected response](#provider-unexpected-response) or [no data](#provider-no-data).
+
+<a id="provider-unreachable"></a>
+### Provider Unreachable
+The data provider did not serve the request, because of a connection problem, a timeout, a block or a server error.
+
+It says nothing about whether the data exists. The same request can succeed later.
+
+<a id="provider-rate-limited"></a>
+### Provider Rate-Limited
+The data provider refused the request because it is limiting how many requests it accepts.
+
+The analysis can be tried again after a pause.
+
+<a id="provider-unexpected-response"></a>
+### Provider Unexpected Response
+The data provider answered, but not in a form the engine reads, so the answer could not be used.
+
+The provider may have changed its format. Nothing in the answer is used.
+
+<a id="provider-no-data"></a>
+### Provider Returned No Data
+The data provider answered correctly and has nothing for this request.
+
+Unlike an unreachable provider, the provider worked; it holds no data for what was asked.
+
+<a id="provider-healthy"></a>
+### Provider Healthy
+A test request to the data provider was answered normally.
+
+The check is made after a failure to tell a provider problem from a problem with one ticker. See [data provider](#data-provider).
+
+<a id="provider-not-checked"></a>
+### Provider Not Checked
+No test request was made to the data provider, so nothing is known about its condition.
+
+A provider is checked only when a failure suggests a problem with it.
+
+<a id="failure-execution-error"></a>
+### Unexpected Failure
+The analysis failed in a way the engine did not anticipate. The details are in the engine's log, not in the message shown.
+
+It is the code used for any failure that no other code describes.
+
+<a id="failure-historical-quality"></a>
+### Historical Data Quality Failure
+The price history failed the engine's data-quality checks, so it was not used.
+
+The check names what was wrong with the data. It is not a provider outage: the provider answered, and the answer was rejected. Its category is [input unavailable](#status-input-unavailable).
+
+<a id="failure-no-eligible-observations"></a>
+### No Eligible Observations
+No observation exists at or before the requested date, so the analysis has nothing to start from.
+
+Asking for a date earlier than the first available data gives this failure. Its category is [input unavailable](#status-input-unavailable). See [as-of date](#as-of-date).
+
+<a id="failure-configuration-error"></a>
+### Configuration Error
+A setting of the engine prevents the analysis. The message says what to change.
+
+The message is written for the person who runs the engine.
+
+<a id="failure-invalid-parameter"></a>
+### Invalid Parameter
+A value in the request, such as a ticker, a date or a window, was rejected before any analysis ran. The message names what was wrong.
+
+Nothing was calculated or saved. Correct the named value and ask again.
+
+<a id="failure-database"></a>
+### Database Failure
+The local database could not be used. The code says whether it needs an upgrade, is busy, cannot be read or written, or could not be set up.
+
+Every code that begins with database is explained here, and the message shown says what to do:
+
+- upgrade required: the database comes from an older version and needs a one-time upgrade, which keeps its data;
+- incompatible schema: the database's structure does not match this version of the engine;
+- busy: the database could not be accessed within the wait, so close other operations and try again;
+- permission denied: the engine may not use the file or its folder;
+- invalid file: the file is not a readable database, or it is corrupt;
+- input or output error: the storage could not be accessed, so check the path, the space and the disk;
+- resources unavailable: the engine's own migration resources are missing or inconsistent;
+- initialization failed: setting up a new database did not complete;
+- migration failed: an upgrade did not complete and was rolled back.
+
+<a id="failure-stored-data-unreadable"></a>
+### Stored Data Unreadable
+A saved run or watchlist entry cannot be read by this version of the engine, so it cannot be shown or replayed.
+
+A saved run may be malformed or may not match its summary. A watchlist entry's saved selection may be unreadable. A saved run may also have no replay in this version.
+
+<a id="failure-unsupported-run-version"></a>
+### Unsupported Run Version
+A saved run was stored under an older version of its shape or method than this version of the engine reads.
+
+The run stays in the database and is refused by its version; it is never read as if it were current.
+
+<a id="failure-not-found"></a>
+### Not Found
+The watchlist, entry, saved run, refresh job or address that was asked for does not exist.
+
+Check the identifier. A refresh job exists only while the server that started it runs.
+
+<a id="failure-watchlist-empty"></a>
+### Empty Watchlist
+The watchlist has no entries, so there is nothing to refresh.
+
+Add an entry first. See [watchlist](#watchlist) and [refresh](#refresh).
+
+<a id="failure-name-conflict"></a>
+### Name Already in Use
+A watchlist with that name already exists, so the name cannot be used again.
+
+Choose another name, or change the existing watchlist.
+
+<a id="failure-request-refused"></a>
+### Request Refused
+The local interface refused the request, because it carried no valid token or came from a host or origin that is not allowed.
+
+The interface answers only the application that started it, on this computer.
+
+<a id="failure-refresh-running"></a>
+### Refresh Already Running
+A refresh is already running, and only one runs at a time.
+
+Wait for it to finish or stop it, then start the next one. See [refresh](#refresh).
+
+<a id="failure-port-unavailable"></a>
+### Port Unavailable
+The local interface could not start, because the network port it was asked to use is not available.
+
+Choose another port, or stop whatever is using this one.
+
+<a id="failure-category-error"></a>
+### Error Category
+The category of a failure that is not about unusable data. The failure code says what went wrong.
+
+The other category is [input unavailable](#status-input-unavailable). A failure the engine cannot place is treated as this category.
+
+<a id="reason-insufficient-history"></a>
+### Insufficient History
+The history does not cover enough periods for the calculation, or its periods are not consecutive.
+
+Too few observations are not filled in, and a gap is not bridged. The value stays unavailable.
+
+<a id="reason-missing-input"></a>
+### Missing Input
+A fact or an input the calculation needs is missing, so the value is not calculated rather than assumed.
+
+The missing input can be a reported fact, the analyst consensus or the market capitalization. A missing figure is never replaced by zero.
+
+<a id="reason-incompatible-inputs"></a>
+### Incompatible Inputs
+Two inputs cannot be combined because their reporting periods, units, currencies or scopes differ.
+
+A scope can be the accounting scope or the filing taxonomy. The engine does not convert or substitute to make the inputs fit. See [period kind](#period-kind), [accounting scope](#accounting-scope) and [reporting currency](#reporting-currency).
+
+<a id="reason-ambiguous-fact"></a>
+### Ambiguous Fact
+Facts conflict, or a fact cannot be identified reliably, so the engine chooses none of them.
+
+Choosing one would be a guess. The value stays unavailable.
+
+<a id="reason-not-available-as-of"></a>
+### Not Available As Of
+An input was not yet available on the as-of date, for example because it was filed or published after it.
+
+The engine never uses information from after the boundary. See [as-of date](#as-of-date) and [look-ahead bias](#look-ahead-bias).
+
+<a id="reason-growth-not-meaningful"></a>
+### Growth Not Meaningful
+A growth rate or ratio cannot be calculated meaningfully, because a base value is zero or negative or the sign changed across the period.
+
+A compound growth rate needs a positive start and a positive end. See [CAGR](#cagr).
+
+<a id="reason-not-growing"></a>
+### Not Growing
+A required growth rate is not positive, so a growth screen does not pass: free cash flow, earnings or both did not grow.
+
+The code says which of the two did not grow. See [FCF classification](#fcf-classification).
+
+<a id="reason-forward-not-confirmed"></a>
+### Forward Growth Not Confirmed
+The analyst consensus does not confirm the historical growth, which counts when the forward policy requires confirmation.
+
+See [forward policy](#forward-policy) and [analyst consensus estimate](#analyst-consensus-estimate).
+
+<a id="reason-insufficient-tests"></a>
+### Insufficient Tests
+Fewer than six of the nine tests could be decided, so no score is given.
+
+See [F-Score](#f-score) and [unavailable test](#unavailable-test).
+
+<a id="reason-invalid-request"></a>
+### Invalid Request
+A metric was asked for with an invalid input, or its result is too large to represent, so it is not calculated.
+
+The metric is reported as not applicable. See [not applicable](#not-applicable).
+
+<a id="reason-security-not-applicable"></a>
+### Security Not Applicable
+The strategy does not apply to this kind of security or to its industry class.
+
+A strategy built for company financial statements does not cover every instrument or every industry. See [instrument kind](#instrument-kind), [industry class](#industry-class) and [not applicable](#not-applicable).
+
+<a id="reason-industry-class-unknown"></a>
+### Industry Class Unknown
+The issuer's industry class could not be established, so the strategy could not decide whether it applies.
+
+The class comes from the as-filed SIC code. See [industry class](#industry-class) and [as-filed SIC code](#as-filed-sic-code).
+
+<a id="reason-debt-not-visible"></a>
+### Debt Not Visible
+Total debt cannot be determined from the filing: related debt is tagged but no usable component is shown, or the filing's debt mapping is not supported.
+
+An absent debt component counts as zero only when nothing related to it is tagged. Otherwise total debt is unavailable. See [total debt](#total-debt).
 
 ---
 

@@ -5,7 +5,9 @@ analyzer modules, the document envelope and the composition root all read one de
 trend relationship and crossover state are the values its presenter derives and its document writes.
 """
 
+from collections.abc import Mapping
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Final, Literal
 
 AnalysisId = Literal["momentum"]
@@ -39,3 +41,39 @@ class CrossoverState(StrEnum):
     BULLISH_CROSSOVER = "bullish_crossover"
     BEARISH_CROSSOVER = "bearish_crossover"
     NO_NEW_CROSSOVER = "no_new_crossover"
+
+
+HEADLINE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "trend": "momentum-states",
+        "rsi": "rsi",
+    }
+)
+"""The glossary term that explains the label of each headline cell, by the cell's key."""
+
+CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
+    {
+        "PriceBasis": MappingProxyType(
+            {
+                PriceBasis.LATEST_ADJUSTED_HISTORICAL_CLOSE.value: "price-basis",
+                PriceBasis.LATEST_HISTORICAL_CLOSE.value: "price-basis",
+            }
+        ),
+        "TrendRelationship": MappingProxyType(
+            {
+                TrendRelationship.SHORT_ABOVE_LONG.value: "trend-relationship",
+                TrendRelationship.SHORT_BELOW_LONG.value: "trend-relationship",
+                TrendRelationship.SHORT_EQUAL_LONG.value: "trend-relationship",
+            }
+        ),
+        "CrossoverState": MappingProxyType(
+            {
+                CrossoverState.BULLISH_CROSSOVER.value: "crossover",
+                CrossoverState.BEARISH_CROSSOVER.value: "crossover",
+                CrossoverState.NO_NEW_CROSSOVER.value: "crossover",
+            }
+        ),
+    }
+)
+"""The glossary term that explains each value of each code set this strategy defines, by the name of the OpenAPI
+component that carries it."""

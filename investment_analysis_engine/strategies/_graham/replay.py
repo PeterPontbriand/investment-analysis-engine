@@ -38,19 +38,19 @@ Book value can come from another period; no code compares them, so the label nev
 """
 
 
-def price_cell(
-    *, key: str, label: str, value: float | None, status: CalculationStatus, currency: str | None
+def price_cell(  # noqa: PLR0913
+    *, key: str, label: str, term: str, value: float | None, status: CalculationStatus, currency: str | None
 ) -> HeadlineCell:
     """Return a Graham strategy's per-share cell: its value, the strategy's own status and the run's currency.
 
     The Graham results carry text reasons only, so the cell has no reason code. The currency is the one the run
     recorded, or none, which the unit then says.
     """
-    return HeadlineCell(key, label, CellKind.NUMBER, value, per_share_unit(currency), status)
+    return HeadlineCell(key, label, term, CellKind.NUMBER, value, per_share_unit(currency), status)
 
 
 def margin_cell(
-    *, comparison: PriceComparison | None, percent: float | None, native_status: CalculationStatus
+    *, term: str, comparison: PriceComparison | None, percent: float | None, native_status: CalculationStatus
 ) -> HeadlineCell:
     """Return the margin-of-safety cell: the comparison's percent, with its status mapped to a cell status.
 
@@ -65,4 +65,4 @@ def margin_cell(
     else:
         status = MetricStatus.UNAVAILABLE if native_status is CalculationStatus.OK else native_status
         value = None
-    return HeadlineCell("margin_of_safety", "Margin", CellKind.NUMBER, value, UNIT_PERCENT, status)
+    return HeadlineCell("margin_of_safety", "Margin", term, CellKind.NUMBER, value, UNIT_PERCENT, status)

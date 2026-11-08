@@ -1,8 +1,10 @@
 """Quote response reuse policy, distinct from market trade timing."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Literal
+from types import MappingProxyType
+from typing import Final, Literal
 
 from investment_analysis_engine.core.clock import FROZEN_CLOCK_SKEW_TOLERANCE
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
@@ -23,7 +25,7 @@ class QuoteFreshnessPolicy:
 DEFAULT_QUOTE_FRESHNESS_POLICY = QuoteFreshnessPolicy()
 
 
-QuoteFreshnessStatus = Literal[
+type QuoteFreshnessStatus = Literal[
     "recent_retrieval", "expired", "unknown_retrieval_time", "future_timestamp", "user_supplied", "historical"
 ]
 """How a quote's retrieval age compares with the freshness policy."""
@@ -83,3 +85,16 @@ def evaluate_quote_freshness(
     return QuoteFreshnessEvidence(
         status, now, value.retrieved_at, age, policy.max_retrieval_age.total_seconds(), observed
     )
+
+
+QUOTE_FRESHNESS_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "recent_retrieval": "quote-freshness",
+        "expired": "quote-freshness",
+        "unknown_retrieval_time": "quote-freshness",
+        "future_timestamp": "quote-freshness",
+        "user_supplied": "quote-freshness",
+        "historical": "quote-freshness",
+    }
+)
+"""The glossary term that explains each quote-freshness status."""

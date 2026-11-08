@@ -65,8 +65,11 @@ def test_strategies_lists_every_declared_strategy_in_order(isolated_cli_settings
         response = client.get("/v1/strategies", headers=AUTH)
 
     assert response.json() == {
-        "schema_version": 1,
-        "items": [{"analysis": item.analysis_id, "method": item.method_id, "label": item.label} for item in STRATEGIES],
+        "schema_version": 2,
+        "items": [
+            {"analysis": item.analysis_id, "method": item.method_id, "label": item.label, "term": item.term}
+            for item in STRATEGIES
+        ],
     }
 
 

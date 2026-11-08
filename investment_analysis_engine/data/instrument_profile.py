@@ -7,10 +7,12 @@ metadata failures into analysis control flow.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Protocol, runtime_checkable
+from types import MappingProxyType
+from typing import Any, Final, Protocol, runtime_checkable
 
 from investment_analysis_engine.core.provider_failure_kind import (
     PROVIDER_KIND_PRECEDENCE,
@@ -423,3 +425,13 @@ def _diagnostic(
 def _rejected_answer(provider_id: str) -> ProviderFailureRecord:
     """Record that the provider answered and the project rejected the answer as describing another instrument."""
     return ProviderFailureRecord(kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=provider_id)
+
+
+INSTRUMENT_KIND_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        InstrumentKind.EQUITY.value: "instrument-kind",
+        InstrumentKind.ETF.value: "instrument-kind",
+        InstrumentKind.CRYPTOCURRENCY.value: "instrument-kind",
+    }
+)
+"""The glossary term that explains each instrument kind."""

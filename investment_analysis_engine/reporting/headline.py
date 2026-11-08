@@ -1,8 +1,9 @@
 """The headline a strategy offers for the side-by-side refresh table.
 
 Each strategy supplies one pure function from its decoded result to a :class:`Headline`: a fixed-order tuple of
-cells, the fiscal period end the run used and the filing taxonomy. A cell has a stable key, a label, a kind (a number or
-a text), a value, an explicit unit, the status of that cell's own value and the reason code the result carries for it.
+cells, the fiscal period end the run used and the filing taxonomy. A cell has a stable key, a label, the glossary
+term that explains the label, a kind (a number or a text), a value, an explicit unit, the status of that cell's own
+value and the reason code the result carries for it.
 
 A text cell carries no status, no reason code and no unit: the run's status is already shown beside it as the run's
 outcome. A number cell with a value is ``ok``; a number cell without one carries the status that says why and, where
@@ -10,13 +11,15 @@ the result carries one, the reason code. Nothing missing becomes zero.
 """
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Final
 
-from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
+from investment_analysis_engine.core.analysis_status import CALCULATION_STATUS_TERMS, CalculationStatus
+from investment_analysis_engine.core.metric_result import METRIC_STATUS_TERMS, MetricStatus, ReasonCode
 
 
 class CellKind(StrEnum):
@@ -41,6 +44,9 @@ UNSPECIFIED_CURRENCY_PER_SHARE: Final = "currency unspecified per share"
 CellStatus = CalculationStatus | MetricStatus
 """The status of a number cell's value: the run's status or the metric's own."""
 
+CELL_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType({**CALCULATION_STATUS_TERMS, **METRIC_STATUS_TERMS})
+"""The glossary term that explains each cell status; a value both status types share maps to the same term."""
+
 
 def per_share_unit(currency: str | None) -> str:
     """Return ``"<currency> per share"``, or the unspecified form when the run recorded no currency."""
@@ -53,6 +59,7 @@ class HeadlineCell:
 
     key: str
     label: str
+    term: str
     kind: CellKind
     value: float | str | None
     unit: str | None
@@ -63,6 +70,8 @@ class HeadlineCell:
         """Enforce the invariants of a number cell and of a text cell."""
         if not self.key.strip() or not self.label.strip():
             raise ValueError("A headline cell needs a key and a label.")
+        if not self.term.strip():
+            raise ValueError("A headline cell needs the glossary term that explains its label.")
         if self.kind is CellKind.TEXT:
             self._validate_text()
         else:
@@ -125,6 +134,7 @@ class Headline:
 
 
 __all__ = [
+    "CELL_STATUS_TERMS",
     "UNIT_MULTIPLE",
     "UNIT_PERCENT",
     "UNIT_POINTS",

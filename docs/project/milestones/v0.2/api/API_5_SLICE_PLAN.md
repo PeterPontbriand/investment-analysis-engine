@@ -17,7 +17,7 @@ interface-neutral and checks them, and API.5b2 packages the served content as a 
   - API.5b2 adds the `help` package with the generated bundle, its loader and its drift check.
 - **What it does not do:** serve anything over HTTP, add a term for a run outcome, a status or a reason code, or change a
   formula, a stored shape or a dependency. The endpoints and the term references are
-  [API.6](API_CONTRACT_AND_SLICE_PLAN.md#api6--term-references-and-help-endpoints).
+  [API.6](API_CONTRACT_AND_SLICE_PLAN.md#api6a--term-references).
 - **Rules every slice follows:**
   - Markdown stays the source of every explanation;
   - an investor entry is interface-neutral and depends on no contributor or command-line term;

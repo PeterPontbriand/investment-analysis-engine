@@ -773,7 +773,9 @@
         "entry",
         "watchlist",
         "headline",
-        "refresh"
+        "refresh",
+        "refresh-event",
+        "headline-unavailable"
       ],
       "title": "Local research workspace"
     },
@@ -800,7 +802,14 @@
         "retrieved-at",
         "override",
         "resolution-precedence",
-        "utc"
+        "utc",
+        "source-kind",
+        "period-kind",
+        "accounting-scope",
+        "capex-sign-convention",
+        "instrument-kind",
+        "quote-freshness",
+        "reporting-currency"
       ],
       "title": "Market data and timing"
     },
@@ -830,7 +839,9 @@
         "operating-cash-flow",
         "capital-expenditures",
         "free-cash-flow",
-        "weighted-average-diluted-shares"
+        "weighted-average-diluted-shares",
+        "share-count-basis",
+        "split-adjustment-window"
       ],
       "title": "Company financial measures"
     },
@@ -848,7 +859,8 @@
         "yield",
         "percentage-point",
         "aaa-rating",
-        "analyst-consensus-estimate"
+        "analyst-consensus-estimate",
+        "price-comparison-status"
       ],
       "title": "Valuation and price comparison"
     },
@@ -862,7 +874,9 @@
         "momentum-states",
         "rsi",
         "ema",
-        "macd"
+        "macd",
+        "price-basis",
+        "trend-relationship"
       ],
       "title": "Momentum Strategy terms"
     },
@@ -888,7 +902,8 @@
         "current-aaa-yield",
         "growth-value-formula",
         "base-pe",
-        "growth-multiplier"
+        "growth-multiplier",
+        "eps-basis"
       ],
       "title": "Graham Growth Value Strategy terms"
     },
@@ -901,7 +916,10 @@
         "classification-basis",
         "fcf-classification",
         "fcf-yield",
-        "forward-policy"
+        "forward-policy",
+        "forward-evidence-status",
+        "historical-horizon",
+        "growth-trend"
       ],
       "title": "Free Cash Flow & Earnings Growth Strategy terms"
     },
@@ -916,9 +934,58 @@
         "current-ratio",
         "gross-margin",
         "asset-turnover",
-        "net-dilution"
+        "net-dilution",
+        "test-result"
       ],
       "title": "Piotroski F-Score Strategy terms"
+    },
+    {
+      "id": "outcomes-statuses-and-reasons",
+      "terms": [
+        "outcome-completed",
+        "outcome-unavailable",
+        "outcome-failed",
+        "status-ok",
+        "status-unavailable",
+        "status-input-unavailable",
+        "status-invalid-input",
+        "status-provider-error",
+        "provider-unreachable",
+        "provider-rate-limited",
+        "provider-unexpected-response",
+        "provider-no-data",
+        "provider-healthy",
+        "provider-not-checked",
+        "failure-execution-error",
+        "failure-historical-quality",
+        "failure-no-eligible-observations",
+        "failure-configuration-error",
+        "failure-invalid-parameter",
+        "failure-database",
+        "failure-stored-data-unreadable",
+        "failure-unsupported-run-version",
+        "failure-not-found",
+        "failure-watchlist-empty",
+        "failure-name-conflict",
+        "failure-request-refused",
+        "failure-refresh-running",
+        "failure-port-unavailable",
+        "failure-category-error",
+        "reason-insufficient-history",
+        "reason-missing-input",
+        "reason-incompatible-inputs",
+        "reason-ambiguous-fact",
+        "reason-not-available-as-of",
+        "reason-growth-not-meaningful",
+        "reason-not-growing",
+        "reason-forward-not-confirmed",
+        "reason-insufficient-tests",
+        "reason-invalid-request",
+        "reason-security-not-applicable",
+        "reason-industry-class-unknown",
+        "reason-debt-not-visible"
+      ],
+      "title": "Outcomes, statuses and reasons"
     }
   ],
   "terms": {
@@ -934,6 +1001,12 @@
       "group": "valuation-and-price-comparison",
       "name": "AAA"
     },
+    "accounting-scope": {
+      "body": "The scope is recorded with the figure, so a consolidated figure is not mistaken for a parent-company or segment figure.",
+      "definition": "Whether a financial figure covers the whole consolidated group, the parent company alone, or one segment of the business.",
+      "group": "market-data-and-timing",
+      "name": "Accounting Scope"
+    },
     "analysis-run": {
       "body": "A run is saved when you ask for it, and a refresh saves one for every entry it runs. Showing a saved Analysis Run always replays its own captured evidence; it never re-fetches data or recalculates, so it keeps showing the same result even if a data provider or your configuration changes afterward.",
       "definition": "One saved record of a single analysis attempt: the method, the ticker, the exact configuration used and the result, or the fact that no result could be produced.",
@@ -941,7 +1014,7 @@
       "name": "Analysis Run"
     },
     "analysis-strategy": {
-      "body": "A strategy never leaves a calculation to an AI model. This glossary and the guides call the idea an analysis strategy.",
+      "body": "A strategy never leaves a calculation to an AI model. This glossary and the guides call the idea an analysis strategy.\n\nRelated terms: [method](help:terms/method), [typed evidence](help:terms/typed-evidence).",
       "definition": "A rule-based way of analyzing a security, with its own inputs, calculation and way of reading the result. The same inputs always give the same result.",
       "group": "analysis-strategies-and-results",
       "name": "Analysis Strategy"
@@ -965,7 +1038,7 @@
       "name": "As-Filed SIC Code"
     },
     "as-of-date": {
-      "body": "A requested analysis boundary (`as_of`) prevents the resolver from using observations or information that became available after that date.",
+      "body": "A requested analysis boundary (`as_of`) prevents the resolver from using observations or information that became available after that date.\n\nRelated terms: [UTC](help:terms/utc), [data vintage](help:terms/data-vintage).",
       "definition": "The time boundary for an analysis or an input: information that became available after that date is not used.",
       "group": "market-data-and-timing",
       "name": "As-of Date"
@@ -1013,7 +1086,7 @@
       "name": "BVPS (Book Value Per Share)"
     },
     "cache": {
-      "body": "Otherwise the engine asks an allowed provider or reports the input unavailable. Caching is automatic and distinct from saving an [Analysis Run](help:terms/analysis-run), which is optional and durable.",
+      "body": "Otherwise the engine asks an allowed provider or reports the input unavailable. Caching is automatic and distinct from saving an [Analysis Run](help:terms/analysis-run), which is optional and durable.\n\nRelated terms: [cache states](help:terms/cache-states).",
       "definition": "A stored copy of previously retrieved data. A stored value is reused only if it satisfies the requested as-of date and the freshness policy.",
       "group": "market-data-and-timing",
       "name": "Cache"
@@ -1029,6 +1102,12 @@
       "definition": "The constant annual rate that would turn a beginning value into an ending value over a stated number of years.",
       "group": "company-financial-measures",
       "name": "CAGR (Compound Annual Growth Rate)"
+    },
+    "capex-sign-convention": {
+      "body": "The engine records the convention so that free cash flow subtracts spending once, whichever sign the provider used. When the convention is missing the figure is ambiguous and is not used. See [capital expenditures](help:terms/capital-expenditures) and [free cash flow](help:terms/free-cash-flow).",
+      "definition": "How a data provider writes capital expenditures: as a positive amount of spending or as a negative cash outflow.",
+      "group": "market-data-and-timing",
+      "name": "Capital Expenditure Sign"
     },
     "capital-expenditures": {
       "body": "Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.",
@@ -1055,7 +1134,7 @@
       "name": "Complete Score / Partial Score"
     },
     "crossover": {
-      "body": "The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.\n\nBoth averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.",
+      "body": "The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.\n\nBoth averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.\n\nThe latest signal is one of three states: a bullish crossover, where the short average moved above the long one; a bearish crossover, where it moved below; or no new crossover, where neither happened.",
       "definition": "A change in which of the short and long moving averages is higher.",
       "group": "momentum-strategy-terms",
       "name": "Crossover"
@@ -1138,6 +1217,12 @@
       "group": "company-financial-measures",
       "name": "EPS (Earnings Per Share)"
     },
+    "eps-basis": {
+      "body": "The three-year average smooths a single unusual year. The fiscal-year basis uses one year's earnings as reported. See [three-year-average EPS](help:terms/three-year-average-eps) and [fiscal year](help:terms/fiscal-year).",
+      "definition": "Which earnings figure a valuation uses: the three-year average, or the earnings of one completed fiscal year.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "EPS Basis"
+    },
     "expected-growth-rate": {
       "body": "It is written `g` in the formula, and its policy must be reported.",
       "definition": "The assumed annual earnings-growth rate used by the Graham Growth Value strategy, in percentage points: 6.5 means 6.5%. Its source and horizon must be reported.",
@@ -1150,6 +1235,96 @@
       "group": "piotroski-f-score-strategy-terms",
       "name": "F-Score"
     },
+    "failure-category-error": {
+      "body": "The other category is [input unavailable](help:terms/status-input-unavailable). A failure the engine cannot place is treated as this category.",
+      "definition": "The category of a failure that is not about unusable data. The failure code says what went wrong.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Error Category"
+    },
+    "failure-configuration-error": {
+      "body": "The message is written for the person who runs the engine.",
+      "definition": "A setting of the engine prevents the analysis. The message says what to change.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Configuration Error"
+    },
+    "failure-database": {
+      "body": "Every code that begins with database is explained here, and the message shown says what to do:\n\n- upgrade required: the database comes from an older version and needs a one-time upgrade, which keeps its data;\n- incompatible schema: the database's structure does not match this version of the engine;\n- busy: the database could not be accessed within the wait, so close other operations and try again;\n- permission denied: the engine may not use the file or its folder;\n- invalid file: the file is not a readable database, or it is corrupt;\n- input or output error: the storage could not be accessed, so check the path, the space and the disk;\n- resources unavailable: the engine's own migration resources are missing or inconsistent;\n- initialization failed: setting up a new database did not complete;\n- migration failed: an upgrade did not complete and was rolled back.",
+      "definition": "The local database could not be used. The code says whether it needs an upgrade, is busy, cannot be read or written, or could not be set up.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Database Failure"
+    },
+    "failure-execution-error": {
+      "body": "It is the code used for any failure that no other code describes.",
+      "definition": "The analysis failed in a way the engine did not anticipate. The details are in the engine's log, not in the message shown.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Unexpected Failure"
+    },
+    "failure-historical-quality": {
+      "body": "The check names what was wrong with the data. It is not a provider outage: the provider answered, and the answer was rejected. Its category is [input unavailable](help:terms/status-input-unavailable).",
+      "definition": "The price history failed the engine's data-quality checks, so it was not used.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Historical Data Quality Failure"
+    },
+    "failure-invalid-parameter": {
+      "body": "Nothing was calculated or saved. Correct the named value and ask again.",
+      "definition": "A value in the request, such as a ticker, a date or a window, was rejected before any analysis ran. The message names what was wrong.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Invalid Parameter"
+    },
+    "failure-name-conflict": {
+      "body": "Choose another name, or change the existing watchlist.",
+      "definition": "A watchlist with that name already exists, so the name cannot be used again.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Name Already in Use"
+    },
+    "failure-no-eligible-observations": {
+      "body": "Asking for a date earlier than the first available data gives this failure. Its category is [input unavailable](help:terms/status-input-unavailable). See [as-of date](help:terms/as-of-date).",
+      "definition": "No observation exists at or before the requested date, so the analysis has nothing to start from.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "No Eligible Observations"
+    },
+    "failure-not-found": {
+      "body": "Check the identifier. A refresh job exists only while the server that started it runs.",
+      "definition": "The watchlist, entry, saved run, refresh job or address that was asked for does not exist.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Not Found"
+    },
+    "failure-port-unavailable": {
+      "body": "Choose another port, or stop whatever is using this one.",
+      "definition": "The local interface could not start, because the network port it was asked to use is not available.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Port Unavailable"
+    },
+    "failure-refresh-running": {
+      "body": "Wait for it to finish or stop it, then start the next one. See [refresh](help:terms/refresh).",
+      "definition": "A refresh is already running, and only one runs at a time.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Refresh Already Running"
+    },
+    "failure-request-refused": {
+      "body": "The interface answers only the application that started it, on this computer.",
+      "definition": "The local interface refused the request, because it carried no valid token or came from a host or origin that is not allowed.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Request Refused"
+    },
+    "failure-stored-data-unreadable": {
+      "body": "A saved run may be malformed or may not match its summary. A watchlist entry's saved selection may be unreadable. A saved run may also have no replay in this version.",
+      "definition": "A saved run or watchlist entry cannot be read by this version of the engine, so it cannot be shown or replayed.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Stored Data Unreadable"
+    },
+    "failure-unsupported-run-version": {
+      "body": "The run stays in the database and is refused by its version; it is never read as if it were current.",
+      "definition": "A saved run was stored under an older version of its shape or method than this version of the engine reads.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Unsupported Run Version"
+    },
+    "failure-watchlist-empty": {
+      "body": "Add an entry first. See [watchlist](help:terms/watchlist) and [refresh](help:terms/refresh).",
+      "definition": "The watchlist has no entries, so there is nothing to refresh.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Empty Watchlist"
+    },
     "fcf-classification": {
       "body": "`PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.",
       "definition": "The growth screen's three outcomes: pass when required growth rates are positive, fail when complete evidence shows a nonpositive rate, indeterminate when no classification can be made.",
@@ -1157,7 +1332,7 @@
       "name": "FCF Classification"
     },
     "fcf-growth-strategy": {
-      "body": "It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.",
+      "body": "It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.\n\nRelated terms: [total-company FCF](help:terms/total-company-fcf), [FCF per diluted share](help:terms/fcf-per-diluted-share), [weighted-average diluted shares](help:terms/weighted-average-diluted-shares), [operating cash flow](help:terms/operating-cash-flow).",
       "definition": "A historical screen asking whether free cash flow and diluted EPS both grew at positive, meaningful compound annual rates over one compatible period. It is not a valuation.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Free Cash Flow & Earnings Growth Strategy"
@@ -1186,6 +1361,12 @@
       "group": "company-financial-measures",
       "name": "Fiscal Year"
     },
+    "forward-evidence-status": {
+      "body": "Forward evidence is optional. Whether it can change the result is set by the [forward policy](help:terms/forward-policy). See [analyst consensus estimate](help:terms/analyst-consensus-estimate).",
+      "definition": "How complete the analyst-consensus evidence is: complete when every estimate was found, partial when only some were, unavailable when none was.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Forward Evidence Status"
+    },
     "forward-policy": {
       "body": "The code values are `display_only`, `confirmation`, and `hard_gate`. Only `hard_gate` can alter an otherwise passing historical classification.",
       "definition": "The rule for how optional analyst-consensus EPS estimates for the next two fiscal years are treated: display only, confirmation or hard gate.",
@@ -1199,7 +1380,7 @@
       "name": "Free Cash Flow (FCF)"
     },
     "graham-growth-value-strategy": {
-      "body": "It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply.",
+      "body": "It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply.\n\nRelated terms: [Graham growth-value formula](help:terms/growth-value-formula), [growth multiplier](help:terms/growth-multiplier), [base P/E](help:terms/base-pe), [growth-estimation policy](help:terms/growth-estimation-policy), [AAA corporate bond yield](help:terms/aaa-corporate-bond-yield), [baseline AAA yield](help:terms/baseline-aaa-yield), [current AAA yield](help:terms/current-aaa-yield).",
       "definition": "A forecast-dependent strategy that estimates a value from earnings, an expected growth rate and a current AAA corporate-bond yield.",
       "group": "graham-growth-value-strategy-terms",
       "name": "Graham Growth Value Strategy"
@@ -1217,7 +1398,7 @@
       "name": "Factor 22.5"
     },
     "graham-number-strategy": {
-      "body": "It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one.",
+      "body": "It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one.\n\nRelated terms: [Graham Number factor](help:terms/graham-number-factor), [defensive investor](help:terms/defensive-investor).",
       "definition": "A screening strategy that combines positive earnings per share and book value per share to estimate a conservative maximum indicated price.",
       "group": "graham-number-strategy-terms",
       "name": "Graham Number Strategy"
@@ -1240,6 +1421,12 @@
       "group": "graham-growth-value-strategy-terms",
       "name": "Growth Multiplier"
     },
+    "growth-trend": {
+      "body": "The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](help:terms/free-cash-flow) and [CAGR](help:terms/cagr).",
+      "definition": "How free cash flow growth and earnings growth compare over the screened period: both growing, only one growing, neither growing, or too little meaningful data to say.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Growth Trend"
+    },
     "growth-value-formula": {
       "body": "The project's explicitly identified secondary convention:\n\n```text\nnormalized_eps × (base_pe + growth_multiplier × g)\n× baseline_aaa_yield / current_aaa_yield\n```\n\nIt is a simplified, forecast-dependent growth-stock estimate. It is not the Graham Number and must not be presented as a precise or universally applicable intrinsic value.",
       "definition": "The project's secondary valuation formula: earnings scaled by a growth-adjusted multiple and by the ratio of baseline to current AAA yield. It is a simplified estimate that depends on a forecast.",
@@ -1252,6 +1439,18 @@
       "group": "local-research-workspace",
       "name": "Headline"
     },
+    "headline-unavailable": {
+      "body": "A run stored under an older version is kept but not read by this version. A run of a strategy that is no longer available shows only its outcome. A run that stored no result has an outcome but nothing to summarize. The comparison shows a dash for the missing cells.\n\nRelated terms: [headline](help:terms/headline).",
+      "definition": "The reason a saved run has no headline in a side-by-side comparison: it was stored under an older version, its strategy is no longer available, or it stored no result.",
+      "group": "local-research-workspace",
+      "name": "Headline Unavailable"
+    },
+    "historical-horizon": {
+      "body": "The default picks the longest history available, up to five years. A longer horizon needs more consecutive annual facts and is unavailable when there are too few.",
+      "definition": "The number of elapsed years of history the growth screen looks back over: three, four or five, or the longest available.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Historical Horizon"
+    },
     "historical-market-data": {
       "body": "",
       "definition": "A time-indexed series of market observations, such as daily prices, used for time-series calculations such as Momentum.",
@@ -1263,6 +1462,12 @@
       "definition": "The group an issuer belongs to for deciding which screening strategies apply: financial, utility, manufacturer or other. It is unknown when the issuer's industry code cannot be established.",
       "group": "analysis-strategies-and-results",
       "name": "Industry Class"
+    },
+    "instrument-kind": {
+      "body": "A strategy that is built for company financial statements reports an instrument kind it does not cover as not applicable. See [instrument profile](help:terms/instrument-profile).",
+      "definition": "The kind of security a ticker names: an equity, an exchange-traded fund or a cryptocurrency.",
+      "group": "market-data-and-timing",
+      "name": "Instrument Kind"
     },
     "instrument-profile": {
       "body": "The engine keeps a durable copy of an instrument profile; a stored profile expires after a configured freshness window and is refreshed live when it does. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.",
@@ -1319,7 +1524,7 @@
       "name": "Maximum Indicated Price / Screening Ceiling"
     },
     "method": {
-      "body": "Several methods in one strategy are reserved for true variants of the same underlying calculation, such as a future Altman Z versus Z′′ strategy. They are not for strategies that merely address a related question with a different formula, the way Graham Number and Graham Growth Value do: each of those is its own strategy, not two methods of one.\n\nA method is an application concept; it does not imply that Benjamin Graham or another source used the word “method” in exactly this project-specific sense.",
+      "body": "Several methods in one strategy are reserved for true variants of the same underlying calculation, such as a future Altman Z versus Z′′ strategy. They are not for strategies that merely address a related question with a different formula, the way Graham Number and Graham Growth Value do: each of those is its own strategy, not two methods of one.\n\nA method is an application concept; it does not imply that Benjamin Graham or another source used the word “method” in exactly this project-specific sense.\n\nRelated terms: [analysis strategy](help:terms/analysis-strategy).",
       "definition": "One calculation approach within an analysis strategy. A strategy may offer one method or several.",
       "group": "analysis-strategies-and-results",
       "name": "Method"
@@ -1331,7 +1536,7 @@
       "name": "Bullish / Bearish / Unknown"
     },
     "momentum-strategy": {
-      "body": "The moving-average windows are configurable. The strategy reports the state of the crossover of the two averages.",
+      "body": "The moving-average windows are configurable. The strategy reports the state of the crossover of the two averages.\n\nRelated terms: [historical market data](help:terms/historical-market-data), [EMA](help:terms/ema).",
       "definition": "A rule-based analysis of recent price behavior. It compares a short and a long simple moving average, reports a bullish or bearish trend, and shows RSI as a supporting indicator.",
       "group": "momentum-strategy-terms",
       "name": "Momentum Strategy"
@@ -1360,6 +1565,24 @@
       "group": "company-financial-measures",
       "name": "Operating Cash Flow (OCF)"
     },
+    "outcome-completed": {
+      "body": "It is the outcome of a run whose calculation status is [ok](help:terms/status-ok). It says that a result exists, not that the result is favorable: a screen can complete and still report that a company failed it.",
+      "definition": "A run outcome meaning the strategy calculated its result from the inputs it was given.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Completed Run"
+    },
+    "outcome-failed": {
+      "body": "It is the outcome of a run whose calculation status is [invalid input](help:terms/status-invalid-input) or [provider error](help:terms/status-provider-error). The run's failure code says which.",
+      "definition": "A run outcome meaning the analysis stopped because an input was invalid or a data provider failed. No result was produced.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Failed Run"
+    },
+    "outcome-unavailable": {
+      "body": "It is the outcome of a run whose calculation status is [input unavailable](help:terms/status-input-unavailable). The run is saved so that it can be revisited; nothing is estimated or replaced by zero.",
+      "definition": "A run outcome meaning the analysis could not be calculated because an input it needs was not available.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Unavailable Run"
+    },
     "override": {
       "body": "",
       "definition": "A value you supply yourself instead of accepting the value found from the cache or a provider. An override takes precedence over every other source and is identified in provenance.",
@@ -1384,14 +1607,32 @@
       "group": "valuation-and-price-comparison",
       "name": "Percentage Point"
     },
+    "period-kind": {
+      "body": "A completed annual fact covers one fiscal year. A quarterly fact covers one quarter, and a trailing-twelve-month fact covers the twelve months ending at a quarter. An instant fact is a balance measured on one date, such as a share count or total debt. A calculation uses only the kind its method needs. See [reporting period](help:terms/reporting-period) and [TTM](help:terms/ttm).",
+      "definition": "The kind of reporting period behind a financial fact: a completed fiscal year, a quarter, the trailing twelve months, or a single instant.",
+      "group": "market-data-and-timing",
+      "name": "Period Kind"
+    },
     "piotroski-strategy": {
-      "body": "It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not an investment recommendation.",
+      "body": "It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not an investment recommendation.\n\nRelated terms: [ROA](help:terms/roa), [current ratio](help:terms/current-ratio), [gross margin](help:terms/gross-margin), [asset turnover](help:terms/asset-turnover), [net dilution](help:terms/net-dilution).",
       "definition": "A financial-strength screen that runs nine pass/fail tests on three consecutive fiscal years of reported statements and counts those passed. It is not a valuation.",
       "group": "piotroski-f-score-strategy-terms",
       "name": "Piotroski F-Score Strategy"
     },
+    "price-basis": {
+      "body": "The basis shows which price series the averages and the RSI were calculated from. Providers revise adjusted prices after the fact, so an adjusted close can differ from the price quoted on that day.",
+      "definition": "Which close the current price is: the latest adjusted historical close, or the latest historical close without the adjustment.",
+      "group": "momentum-strategy-terms",
+      "name": "Price Basis"
+    },
+    "price-comparison-status": {
+      "body": "An unavailable comparison leaves the [margin of safety](help:terms/margin-of-safety) without a value; it is never replaced by zero. See [price relationship](help:terms/price-relationship).",
+      "definition": "Whether a comparison between a method's value and the price could be made: available when it could, unavailable when it could not.",
+      "group": "valuation-and-price-comparison",
+      "name": "Price Comparison Status"
+    },
     "price-relationship": {
-      "body": "It avoids requiring you to interpret the sign convention of the stored `margin_of_safety_percent` field. Another example is “89.57% above the Graham growth value.”",
+      "body": "It avoids requiring you to interpret the sign convention of the stored `margin_of_safety_percent` field. Another example is “89.57% above the Graham growth value.”\n\nRelated terms: [discount and premium](help:terms/discount-and-premium), [percentage point](help:terms/percentage-point).",
       "definition": "A plain-language statement of how the market price compares with the reference value, such as 20.00% below the Graham Number.",
       "group": "valuation-and-price-comparison",
       "name": "Price Relationship"
@@ -1401,6 +1642,126 @@
       "definition": "The record of where a value came from and how it was transformed.",
       "group": "market-data-and-timing",
       "name": "Provenance"
+    },
+    "provider-healthy": {
+      "body": "The check is made after a failure to tell a provider problem from a problem with one ticker. See [data provider](help:terms/data-provider).",
+      "definition": "A test request to the data provider was answered normally.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Provider Healthy"
+    },
+    "provider-no-data": {
+      "body": "Unlike an unreachable provider, the provider worked; it holds no data for what was asked.",
+      "definition": "The data provider answered correctly and has nothing for this request.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Provider Returned No Data"
+    },
+    "provider-not-checked": {
+      "body": "A provider is checked only when a failure suggests a problem with it.",
+      "definition": "No test request was made to the data provider, so nothing is known about its condition.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Provider Not Checked"
+    },
+    "provider-rate-limited": {
+      "body": "The analysis can be tried again after a pause.",
+      "definition": "The data provider refused the request because it is limiting how many requests it accepts.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Provider Rate-Limited"
+    },
+    "provider-unexpected-response": {
+      "body": "The provider may have changed its format. Nothing in the answer is used.",
+      "definition": "The data provider answered, but not in a form the engine reads, so the answer could not be used.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Provider Unexpected Response"
+    },
+    "provider-unreachable": {
+      "body": "It says nothing about whether the data exists. The same request can succeed later.",
+      "definition": "The data provider did not serve the request, because of a connection problem, a timeout, a block or a server error.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Provider Unreachable"
+    },
+    "quote-freshness": {
+      "body": "A recently retrieved quote is younger than the freshness limit and an expired quote is older. A quote with no recorded retrieval time is unknown, and one dated after the time of the analysis is a future timestamp. A quote you supplied as an override is user supplied. A quote read for a past as-of date is historical. See [current quote](help:terms/current-quote) and [retrieved at](help:terms/retrieved-at).",
+      "definition": "How recent the price quote behind a comparison is: recently retrieved, expired, of unknown retrieval time, dated in the future, supplied by you, or historical.",
+      "group": "market-data-and-timing",
+      "name": "Quote Freshness"
+    },
+    "reason-ambiguous-fact": {
+      "body": "Choosing one would be a guess. The value stays unavailable.",
+      "definition": "Facts conflict, or a fact cannot be identified reliably, so the engine chooses none of them.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Ambiguous Fact"
+    },
+    "reason-debt-not-visible": {
+      "body": "An absent debt component counts as zero only when nothing related to it is tagged. Otherwise total debt is unavailable. See [total debt](help:terms/total-debt).",
+      "definition": "Total debt cannot be determined from the filing: related debt is tagged but no usable component is shown, or the filing's debt mapping is not supported.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Debt Not Visible"
+    },
+    "reason-forward-not-confirmed": {
+      "body": "See [forward policy](help:terms/forward-policy) and [analyst consensus estimate](help:terms/analyst-consensus-estimate).",
+      "definition": "The analyst consensus does not confirm the historical growth, which counts when the forward policy requires confirmation.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Forward Growth Not Confirmed"
+    },
+    "reason-growth-not-meaningful": {
+      "body": "A compound growth rate needs a positive start and a positive end. See [CAGR](help:terms/cagr).",
+      "definition": "A growth rate or ratio cannot be calculated meaningfully, because a base value is zero or negative or the sign changed across the period.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Growth Not Meaningful"
+    },
+    "reason-incompatible-inputs": {
+      "body": "A scope can be the accounting scope or the filing taxonomy. The engine does not convert or substitute to make the inputs fit. See [period kind](help:terms/period-kind), [accounting scope](help:terms/accounting-scope) and [reporting currency](help:terms/reporting-currency).",
+      "definition": "Two inputs cannot be combined because their reporting periods, units, currencies or scopes differ.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Incompatible Inputs"
+    },
+    "reason-industry-class-unknown": {
+      "body": "The class comes from the as-filed SIC code. See [industry class](help:terms/industry-class) and [as-filed SIC code](help:terms/as-filed-sic-code).",
+      "definition": "The issuer's industry class could not be established, so the strategy could not decide whether it applies.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Industry Class Unknown"
+    },
+    "reason-insufficient-history": {
+      "body": "Too few observations are not filled in, and a gap is not bridged. The value stays unavailable.",
+      "definition": "The history does not cover enough periods for the calculation, or its periods are not consecutive.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Insufficient History"
+    },
+    "reason-insufficient-tests": {
+      "body": "See [F-Score](help:terms/f-score) and [unavailable test](help:terms/unavailable-test).",
+      "definition": "Fewer than six of the nine tests could be decided, so no score is given.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Insufficient Tests"
+    },
+    "reason-invalid-request": {
+      "body": "The metric is reported as not applicable. See [not applicable](help:terms/not-applicable).",
+      "definition": "A metric was asked for with an invalid input, or its result is too large to represent, so it is not calculated.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Invalid Request"
+    },
+    "reason-missing-input": {
+      "body": "The missing input can be a reported fact, the analyst consensus or the market capitalization. A missing figure is never replaced by zero.",
+      "definition": "A fact or an input the calculation needs is missing, so the value is not calculated rather than assumed.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Missing Input"
+    },
+    "reason-not-available-as-of": {
+      "body": "The engine never uses information from after the boundary. See [as-of date](help:terms/as-of-date) and [look-ahead bias](help:terms/look-ahead-bias).",
+      "definition": "An input was not yet available on the as-of date, for example because it was filed or published after it.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Not Available As Of"
+    },
+    "reason-not-growing": {
+      "body": "The code says which of the two did not grow. See [FCF classification](help:terms/fcf-classification).",
+      "definition": "A required growth rate is not positive, so a growth screen does not pass: free cash flow, earnings or both did not grow.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Not Growing"
+    },
+    "reason-security-not-applicable": {
+      "body": "A strategy built for company financial statements does not cover every instrument or every industry. See [instrument kind](help:terms/instrument-kind), [industry class](help:terms/industry-class) and [not applicable](help:terms/not-applicable).",
+      "definition": "The strategy does not apply to this kind of security or to its industry class.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Security Not Applicable"
     },
     "reference-value": {
       "body": "The stored names are `maximum_indicated_price` for the Graham Number and `growth_value` for Graham Growth Value.",
@@ -1413,6 +1774,18 @@
       "definition": "Running every entry in one watchlist and saving each result as its own analysis run.",
       "group": "local-research-workspace",
       "name": "Refresh"
+    },
+    "refresh-event": {
+      "body": "A finished event carries the entry's result. A refresh runs one entry at a time or several at once, so events of different entries can interleave.",
+      "definition": "A progress record of a refresh: one is recorded when an entry starts running and one when it finishes.",
+      "group": "local-research-workspace",
+      "name": "Refresh Event"
+    },
+    "reporting-currency": {
+      "body": "A method that combines figures with a price needs the filing currency and the quote currency to agree. A selection can require annual facts in one reporting currency.",
+      "definition": "The currency a company states its financial figures in, written as a three-letter ISO 4217 code such as USD.",
+      "group": "market-data-and-timing",
+      "name": "Reporting Currency"
     },
     "reporting-period": {
       "body": "",
@@ -1462,6 +1835,12 @@
       "group": "local-research-workspace",
       "name": "Selection"
     },
+    "share-count-basis": {
+      "body": "The year-end count is preferred. The cover-page count is used only when no balance-sheet path gives a count at the year-end, and the result says so. See [shares outstanding](help:terms/shares-outstanding) and [market capitalization](help:terms/market-capitalization).",
+      "definition": "Where a share count was taken from: the balance sheet at the fiscal year-end, or the cover page of the annual filing.",
+      "group": "company-financial-measures",
+      "name": "Share-Count Basis"
+    },
     "shares-outstanding": {
       "body": "This period-end figure is commonly used when deriving BVPS and differs from weighted-average shares used in EPS.",
       "definition": "The number of issued common shares held by investors, usually measured at a reporting date.",
@@ -1480,14 +1859,56 @@
       "group": "momentum-strategy-terms",
       "name": "Short Window / Long Window"
     },
+    "source-kind": {
+      "body": "The source is kept with every input so that a saved run can show where each figure came from. See [override](help:terms/override), [cache](help:terms/cache) and [provenance](help:terms/provenance).\n\nRelated terms: [resolution precedence](help:terms/resolution-precedence), [financial facts](help:terms/financial-facts), [macro series](help:terms/macro-series).",
+      "definition": "How a resolved input value was obtained: you supplied it as an override, it came from the cache, it was fetched from a data provider, or the engine derived it from other inputs.",
+      "group": "market-data-and-timing",
+      "name": "Input Source"
+    },
     "split-adjusted-close": {
       "body": "It is the price on the same basis as a share count scaled by those splits, and the two together give the market capitalization the shares and the price had on the day. It is not the dividend-adjusted close that the [Momentum](help:terms/momentum-strategy) series uses. A stock dividend appears in the provider's split history as a fractional split (1.05) and is treated like a split; it is not counted as new shares issued.",
       "definition": "A closing price restated for every stock split after its date, and for nothing else. A dividend paid later does not change it.",
       "group": "company-financial-measures",
       "name": "Split-Adjusted Close"
     },
+    "split-adjustment-window": {
+      "body": "A recognizable split between the share count and the price is applied to the share count. An adjustment after the price date is always applied, because it undoes the provider's adjustment of the historical close. See [stock split adjustment](help:terms/stock-split-adjustment) and [market capitalization](help:terms/market-capitalization).",
+      "definition": "Where a data provider's adjustment fell relative to the share count and the price: between the count and the price, or between the price and the date the provider adjusted to.",
+      "group": "company-financial-measures",
+      "name": "Split-Adjustment Window"
+    },
+    "status-input-unavailable": {
+      "body": "It is the calculation status of an [unavailable run](help:terms/outcome-unavailable). It is also the category of a failure whose data could not be used, such as a data-quality failure, a lack of observations or a provider that did not deliver.",
+      "definition": "A required input could not be found for the date and the data the analysis was asked to use. The analysis is not calculated rather than guessed.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Input Unavailable"
+    },
+    "status-invalid-input": {
+      "body": "It is the calculation status that makes a run [failed](help:terms/outcome-failed), and the failure code of the same name. The shown message says only that the inputs or the provider data were invalid; the details are kept in the engine's log.",
+      "definition": "A value given to the analysis, or read from provider data, is not valid, so the analysis cannot be calculated.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Invalid Input"
+    },
+    "status-ok": {
+      "body": "It is the calculation status that gives a run the outcome [completed](help:terms/outcome-completed). For a single metric it means the metric has a value.",
+      "definition": "The calculation finished: every required input was found and the value could be calculated.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "OK Status"
+    },
+    "status-provider-error": {
+      "body": "It is the calculation status that makes a run [failed](help:terms/outcome-failed). The failure code of the same name is used when the provider's failure could not be classified; a classified failure has its own entry: [unreachable](help:terms/provider-unreachable), [rate-limited](help:terms/provider-rate-limited), [unexpected response](help:terms/provider-unexpected-response) or [no data](help:terms/provider-no-data).",
+      "definition": "A data provider failed in a way that is not an absent fact, so the analysis could not be calculated.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Provider Error"
+    },
+    "status-unavailable": {
+      "body": "A metric that is unavailable usually comes with a reason code that says why. See [Applicability Status](help:terms/applicability-status).",
+      "definition": "A single metric that could not be calculated, usually because an input it needs is missing. It shows no value, and nothing takes its place.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Unavailable Metric"
+    },
     "stock-split-adjustment": {
-      "body": "EPS, BVPS, and price must use compatible share bases.",
+      "body": "EPS, BVPS, and price must use compatible share bases.\n\nRelated terms: [split-adjusted close](help:terms/split-adjusted-close).",
       "definition": "Restating per-share values after the number of shares changes through a stock split or reverse split.",
       "group": "company-financial-measures",
       "name": "Stock Split Adjustment"
@@ -1497,6 +1918,12 @@
       "definition": "Book value after subtracting goodwill and other intangible assets, in total or per share.",
       "group": "company-financial-measures",
       "name": "Tangible Book Value / Tangible BVPS"
+    },
+    "test-result": {
+      "body": "A test that cannot be decided is not a fail; it is an [unavailable test](help:terms/unavailable-test). The [F-Score](help:terms/f-score) counts the passes.",
+      "definition": "The result of one test of the score: a pass when its condition holds and a fail when it does not.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Test Result"
     },
     "three-year-average-eps": {
       "body": "Investment Analysis Engine uses this as the standard Graham Number earnings basis and when the Graham Growth Value strategy uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.",
@@ -1521,6 +1948,12 @@
       "definition": "Short-term borrowings, the current portion of long-term debt, noncurrent long-term debt and the lease liabilities counted as debt.",
       "group": "company-financial-measures",
       "name": "Total Debt"
+    },
+    "trend-relationship": {
+      "body": "Above is the bullish reading of the [trend](help:terms/momentum-states); below or equal is the bearish reading. The relationship describes the latest observation, and a [crossover](help:terms/crossover) describes a change in it.",
+      "definition": "How the short moving average stands against the long one: above it, below it or equal to it.",
+      "group": "momentum-strategy-terms",
+      "name": "Trend Relationship"
     },
     "ttm": {
       "body": "TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. No data source the application currently ships supplies it; the Graham strategies use three-year-average or fiscal-year EPS.",
@@ -1547,13 +1980,13 @@
       "name": "UTC (Coordinated Universal Time)"
     },
     "valuation": {
-      "body": "In Investment Analysis Engine a valuation result is one method's reference value, such as the Graham Number's maximum indicated price, not a complete intrinsic-value conclusion or a recommendation (see [Intrinsic Value](help:terms/intrinsic-value) and [Reference Value](help:terms/reference-value)).",
+      "body": "In Investment Analysis Engine a valuation result is one method's reference value, such as the Graham Number's maximum indicated price, not a complete intrinsic-value conclusion or a recommendation (see [Intrinsic Value](help:terms/intrinsic-value) and [Reference Value](help:terms/reference-value)).\n\nRelated terms: [book value](help:terms/book-value), [tangible book value](help:terms/tangible-book-value), [common shareholders' equity](help:terms/common-shareholders-equity), [EBITDA](help:terms/ebitda), [enterprise value](help:terms/enterprise-value), [invested capital](help:terms/invested-capital), [normalized EPS](help:terms/normalized-eps).",
       "definition": "Estimating what a security may be worth under a stated method and assumptions, usually to compare with its market price.",
       "group": "valuation-and-price-comparison",
       "name": "Valuation"
     },
     "watchlist": {
-      "body": "Each entry pairs a [ticker](help:terms/ticker) with a [selection](help:terms/selection).",
+      "body": "Each entry pairs a [ticker](help:terms/ticker) with a [selection](help:terms/selection).\n\nRelated terms: [entry](help:terms/entry).",
       "definition": "A named, ordered list of entries that you want to run and revisit as a group.",
       "group": "local-research-workspace",
       "name": "Watchlist"

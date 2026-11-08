@@ -18,13 +18,15 @@
       ],
       "default": null,
       "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-      "title": "As Of"
+      "title": "As Of",
+      "x-term": "as-of-date"
     },
     "use_cache": {
       "default": true,
       "description": "Whether the analysis may read and write the local cache of fetched data.",
       "title": "Use Cache",
-      "type": "boolean"
+      "type": "boolean",
+      "x-term": "cache"
     }
   },
   "title": "PiotroskiSelection",
