@@ -9,7 +9,6 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import datetime
 
-from investment_analysis_engine.analysis.base_analyzer import require_ticker
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.providers import production_historical_client
 from investment_analysis_engine.application.strategy_run import StrategyRun
@@ -67,11 +66,10 @@ def run(
     Returns:
         The normalized capture with the document and the text of the run.
     """
-    target_ticker = require_ticker(ticker)
     data_client = YFinanceClient()
     capture = execute_momentum(
         selection,
-        target_ticker,
+        ticker,
         data_client,
         _historical_scope(context, data_client, selection, executed_at),
         start_date=momentum_settings(context).history_start_date.isoformat(),

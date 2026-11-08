@@ -19,4 +19,9 @@ def normalize_ticker(value: str) -> str:
     return normalized
 
 
-__all__ = ["normalize_ticker"]
+def is_normalized_ticker(value: str) -> bool:
+    """Return whether a ticker is already in the form ``normalize_ticker`` gives: non-blank, trimmed and upper-case."""
+    return bool(value) and value == value.strip().upper()
+
+
+__all__ = ["is_normalized_ticker", "normalize_ticker"]

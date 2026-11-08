@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from investment_analysis_engine.analysis.shared.cash_flow import compute_fcf_yield
 from investment_analysis_engine.analysis.shared.financial_resolution import is_known_etf, validate_profile_ticker
 from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence
@@ -17,6 +17,7 @@ from investment_analysis_engine.analysis.shared.metric_inputs import (
 )
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.financial.resolver import InputResolver
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
@@ -195,7 +196,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
             raise ValueError("FCF effective execution time must be timezone-aware.")
         policy = config.policy
         instrument_profile = context.instrument_profile
-        normalized_ticker = require_ticker(ticker)
+        normalized_ticker = normalize_ticker(ticker)
         validate_profile_ticker(
             ticker,
             instrument_profile,

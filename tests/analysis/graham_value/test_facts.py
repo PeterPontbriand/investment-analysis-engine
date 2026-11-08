@@ -168,7 +168,7 @@ def test_provider_id_canonicalization() -> None:
 
 
 def test_request_empty_subject_id_rejected() -> None:
-    with pytest.raises(ValueError, match="subject_id"):
+    with pytest.raises(ValueError, match="ticker must not be empty"):
         FinancialFactRequest(
             subject_kind=FinancialSubjectKind.SECURITY,
             subject_id="   ",

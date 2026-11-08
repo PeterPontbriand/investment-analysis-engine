@@ -41,6 +41,7 @@ from investment_analysis_engine.analysis.shared.metric_evidence import (
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
@@ -273,7 +274,7 @@ def anchor_year_end_scope(
         ``MetricInputsFailure`` when the registrant has no annual report at all or the provider failed. After the last
         two the block must not call another function of this module.
     """
-    subject = ticker.strip().upper()
+    subject = normalize_ticker(ticker)
     scope = financial_facts_analysis_scope(
         resolver.provider, subject_id=subject, provider_id=SEC_PROVIDER_ID, as_of=as_of
     )
@@ -495,7 +496,7 @@ def resolve_market_cap_inputs(  # noqa: PLR0913
         as_of: The point-in-time boundary, ``None`` for a current run.
         use_cache: Whether stored responses may be reused.
     """
-    subject = ticker.strip().upper()
+    subject = normalize_ticker(ticker)
     check = _listing_check(listing, anchor, subject)
     if isinstance(check, MetricInputsFailure):
         return check
@@ -937,7 +938,7 @@ def resolve_industry_class(
     runs and says so. A provider failure is returned as a ``MetricInputsFailure`` for the input ``industry_class``.
     """
     try:
-        resolution = source.resolve_as_filed_sic_at_anchor(ticker.strip().upper(), as_of)
+        resolution = source.resolve_as_filed_sic_at_anchor(normalize_ticker(ticker), as_of)
     except FinancialProviderError as exc:
         return _failure("industry_class", exc)
     if resolution.sic is None:

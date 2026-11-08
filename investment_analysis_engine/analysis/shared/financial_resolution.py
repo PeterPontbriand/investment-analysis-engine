@@ -9,6 +9,7 @@ from datetime import datetime
 from types import MappingProxyType
 from typing import Final, Literal, get_args
 
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessEvidence
@@ -155,7 +156,7 @@ def resolve_optional_quote(  # noqa: PLR0913
 
 def validate_profile_ticker(ticker: str, profile: InstrumentProfile | None, *, mismatch_message: str) -> None:
     """Reject accidental reuse of evidence for another requested instrument."""
-    if profile is not None and profile.ticker != ticker.strip().upper():
+    if profile is not None and profile.ticker != normalize_ticker(ticker):
         raise ValueError(mismatch_message)
 
 

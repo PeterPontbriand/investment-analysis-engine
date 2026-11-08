@@ -10,6 +10,7 @@ from investment_analysis_engine.analysis.shared.cash_flow import compute_free_ca
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.cache import (
     ResolvedInputCacheKey,
     ResolvedInputSeriesCacheProtocol,
@@ -839,9 +840,8 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             longest_count=0,
             trace=ResolutionTrace(),
         )
-    normalized_subject = subject_id.strip().upper()
     normalized_currency = currency.strip().upper()
-    if not normalized_subject or not normalized_currency:
+    if not subject_id.strip() or not normalized_currency:
         return _failure_assembly(
             status=CalculationStatus.INVALID_INPUT,
             code=ReasonCode.INVALID_REQUEST,
@@ -851,6 +851,7 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             longest_count=0,
             trace=ResolutionTrace(),
         )
+    normalized_subject = normalize_ticker(subject_id)
     candidates = _candidate_horizons(policy.historical_horizon)
     required_count = max(candidates) + 1
     trace = ResolutionTrace()

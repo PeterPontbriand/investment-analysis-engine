@@ -3,7 +3,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.core.tickers import normalize_ticker
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ class SpecimenAnalyzer(BaseAnalyzer[SpecimenResult, SpecimenConfig]):
     def run_analysis(self, ticker: str, context: AnalysisContext, config: SpecimenConfig) -> SpecimenResult:
         """Return ``config.value`` times the multiplier, with the run's effective point in time."""
         return SpecimenResult(
-            ticker=require_ticker(ticker),
+            ticker=normalize_ticker(ticker),
             value=config.value,
             multiplier=self._multiplier,
             scaled=config.value * self._multiplier,

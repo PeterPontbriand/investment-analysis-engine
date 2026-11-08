@@ -17,6 +17,7 @@ from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.engine import Connection
 
 from investment_analysis_engine.core.clock import utc_now
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.market_data import (
     HistoricalMarketData,
     MarketDataContext,
@@ -73,7 +74,7 @@ class MarketDataCacheKey:
     def __post_init__(self) -> None:
         """Normalize identifiers and validate calendar bounds and version."""
         for name, value in (
-            ("ticker", self.ticker.strip().upper()),
+            ("ticker", normalize_ticker(self.ticker)),
             ("request_provider_id", self.request_provider_id.strip().lower()),
             ("request_variant", self.request_variant.strip()),
         ):

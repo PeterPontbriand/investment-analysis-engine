@@ -8,6 +8,7 @@ from investment_analysis_engine.analysis.run_models import (
     snapshot_by_revalidation,
 )
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.tickers import is_normalized_ticker
 from investment_analysis_engine.strategies.fcf_growth.models import (
     METHOD_VERSION,
     SCHEMA_VERSION,
@@ -26,7 +27,7 @@ class _FCFEvidence(BaseModel):
     @model_validator(mode="after")
     def _validate_context(self) -> "_FCFEvidence":
         result = self.result
-        if not result.ticker or result.ticker != result.ticker.strip().upper():
+        if not is_normalized_ticker(result.ticker):
             raise ValueError("FCF evidence requires a normalized ticker.")
         for stamp in (result.requested_as_of, result.effective_as_of, result.period_start, result.period_end):
             if stamp is not None and stamp.utcoffset() is None:

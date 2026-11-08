@@ -128,7 +128,7 @@ def test_key_macro_upper_preserved() -> None:
 
 
 def test_key_empty_subject_id_rejected() -> None:
-    with pytest.raises(ValueError, match="subject_id"):
+    with pytest.raises(ValueError, match="ticker must not be empty"):
         _make_key(subject_id="   ")
 
 

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
     GrahamGrowthInputResolver,
@@ -23,7 +24,7 @@ class GrahamGrowthAnalyzer(BaseAnalyzer[GrahamGrowthAnalysis, GrahamGrowthConfig
         """Return complete service evidence, retaining the supplied policy."""
         return run_graham_growth_analysis(
             resolver=self._resolver,
-            ticker=require_ticker(ticker),
+            ticker=normalize_ticker(ticker),
             eps_basis=config.eps_basis,
             eps_override=config.eps_override,
             expected_growth=config.expected_growth,

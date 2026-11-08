@@ -27,6 +27,7 @@ from typing import Protocol, runtime_checkable
 
 from investment_analysis_engine.core.failure_codes import FailureReasonCode, provider_reason_code
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, require_provider_identity
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.provenance import (
     AccountingScope,
     CapitalExpenditureSign,
@@ -63,10 +64,10 @@ def _require_non_empty(text: str, *, field_name: str) -> None:
 def _normalize_subject_id(subject_kind: FinancialSubjectKind, subject_id: str) -> str:
     """Normalize *subject_id* per C1 cache-key conventions.
 
-    SECURITY uses ``strip().upper()``; MACRO uses ``strip()`` (case preserved).
+    SECURITY uses ``normalize_ticker``; MACRO uses ``strip()`` (case preserved).
     The result must remain non-empty.
     """
-    normalized = subject_id.strip().upper() if subject_kind is FinancialSubjectKind.SECURITY else subject_id.strip()
+    normalized = normalize_ticker(subject_id) if subject_kind is FinancialSubjectKind.SECURITY else subject_id.strip()
     if not normalized:
         msg = "subject_id must be non-empty after normalization."
         raise ValueError(msg)
@@ -319,7 +320,7 @@ class FinancialFactRequest:
     capital expenditures.
 
     Normalization (applied in ``__post_init__``):
-        - SECURITY ``subject_id``: ``strip().upper()``
+        - SECURITY ``subject_id``: ``normalize_ticker``
         - MACRO ``subject_id``: ``strip()`` (case preserved)
         - ``provider_id``: ``strip().lower()``
         - ``basis``: ``strip()`` if present; empty/whitespace-only rejected
@@ -384,8 +385,8 @@ class InstantSeriesRequest:
     The latest-only ``FinancialFactRequest`` is left as it is. This request names the dates, and a provider returns
     what its filings report for exactly those dates, never the newest balance sheet in place of an earlier one.
 
-    Normalization (applied in ``__post_init__``): ``subject_id`` is ``strip().upper()``, ``provider_id`` is
-    ``strip().lower()``, and ``period_ends`` is sorted ascending.
+    Normalization (applied in ``__post_init__``): ``subject_id`` is normalized with ``normalize_ticker``,
+    ``provider_id`` is ``strip().lower()``, and ``period_ends`` is sorted ascending.
 
     Attributes:
         subject_id: Security symbol (normalized).
@@ -546,7 +547,7 @@ class ProviderFact:
     negative EPS/BVPS remain representable.
 
     Normalization (applied in ``__post_init__``):
-        - SECURITY ``subject_id``: ``strip().upper()``
+        - SECURITY ``subject_id``: ``normalize_ticker``
         - MACRO ``subject_id``: ``strip()`` (case preserved)
         - ``provider_id``: ``strip().lower()``
         - ``currency``: ``strip().upper()`` for per-share facts

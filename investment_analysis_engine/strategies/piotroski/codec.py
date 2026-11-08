@@ -8,6 +8,7 @@ from investment_analysis_engine.analysis.run_models import (
     snapshot_by_revalidation,
 )
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.tickers import is_normalized_ticker
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
 from investment_analysis_engine.strategies.piotroski.vocabulary import (
     ANALYSIS_ID,
@@ -27,7 +28,7 @@ class _PiotroskiEvidence(BaseModel):
     @model_validator(mode="after")
     def _validate_context(self) -> "_PiotroskiEvidence":
         result = self.result
-        if not result.ticker or result.ticker != result.ticker.strip().upper():
+        if not is_normalized_ticker(result.ticker):
             raise ValueError("Piotroski evidence requires a normalized ticker.")
         for stamp in (result.requested_as_of, result.effective_as_of):
             if stamp is not None and stamp.utcoffset() is None:

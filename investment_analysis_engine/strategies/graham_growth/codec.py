@@ -8,6 +8,7 @@ from investment_analysis_engine.analysis.run_models import (
     snapshot_by_revalidation,
 )
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.tickers import is_normalized_ticker
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 from investment_analysis_engine.strategies.graham_growth.vocabulary import METHOD_ID
 
@@ -22,7 +23,7 @@ class _GrowthEvidence(BaseModel):
     @model_validator(mode="after")
     def _validate_evidence(self) -> "_GrowthEvidence":
         analysis = self.analysis
-        if not analysis.ticker or analysis.ticker != analysis.ticker.strip().upper():
+        if not is_normalized_ticker(analysis.ticker):
             raise ValueError("Graham Growth requires a normalized ticker.")
         if analysis.as_of is not None and analysis.as_of.utcoffset() is None:
             raise ValueError("Analysis as_of must be timezone-aware.")

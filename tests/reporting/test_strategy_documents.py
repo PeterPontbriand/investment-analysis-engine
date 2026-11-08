@@ -116,7 +116,7 @@ def test_the_identity_part_rejects_a_blank_ticker_and_an_identity_for_another_ti
         IdentityResolutionStatus.RESOLVED, SecurityIdentity("KO", "yfinance", _STAMP), "Resolved."
     )
     assert security_identity_part(" ko ", resolution).ticker == "KO"
-    with pytest.raises(ValueError, match="non-empty"):
+    with pytest.raises(ValueError, match="ticker must not be empty"):
         security_identity_part("  ", None)
     with pytest.raises(ValueError, match="does not match"):
         security_identity_part("PEP", resolution)

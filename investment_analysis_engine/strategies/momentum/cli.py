@@ -12,7 +12,6 @@ from typing import Annotated
 
 import typer
 
-from investment_analysis_engine.analysis.base_analyzer import require_ticker
 from investment_analysis_engine.cli_support import (
     AS_OF_OPTION,
     NO_PROVIDER_CHECK_OPTION,
@@ -129,7 +128,7 @@ def command(  # noqa: PLR0913
         json_output=json_output,
         selection_type=MomentumSelection,
     ) as scope:
-        requested_ticker, mode = resolve_command_target(
+        target_ticker, mode = resolve_command_target(
             scope,
             ticker,
             ticker_option,
@@ -138,7 +137,6 @@ def command(  # noqa: PLR0913
             diagnostics=diagnostics,
             json_output=json_output,
         )
-        target_ticker = require_ticker(requested_ticker)
         selection = _selection(
             short_window=short_window,
             long_window=long_window,
