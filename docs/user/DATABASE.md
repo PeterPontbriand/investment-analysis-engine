@@ -17,9 +17,9 @@ are not fresh. A revision stamp alone does not prove readiness.
 Maintenance commands are hidden from top-level help but available explicitly:
 
 ```powershell
-ian db --help
-ian db status
-ian db status --json
+uv run ian db --help
+uv run ian db status
+uv run ian db status --json
 ```
 
 `db status` inspects without initializing, upgrading, enabling WAL or creating
@@ -31,7 +31,7 @@ To initialize in advance or explicitly upgrade supported existing storage, stop
 application processes and back up existing data, then run:
 
 ```powershell
-ian db upgrade
+uv run ian db upgrade
 ```
 
 The command initializes fresh storage, upgrades a structurally valid recognized
@@ -48,8 +48,8 @@ Both maintenance commands accept `--database-url` and `--json`. An override is
 for that invocation only; it does not redirect later analyses:
 
 ```powershell
-ian db status --database-url "sqlite:///E:/FinancialData/trial.sqlite3" --json
-ian db upgrade --database-url "sqlite:///E:/FinancialData/trial.sqlite3"
+uv run ian db status --database-url "sqlite:///E:/FinancialData/trial.sqlite3" --json
+uv run ian db upgrade --database-url "sqlite:///E:/FinancialData/trial.sqlite3"
 ```
 
 A relative path in `--database-url` is resolved against the folder the command runs in. A Windows path that is only
@@ -94,22 +94,22 @@ PowerShell example:
 
 ```powershell
 $env:IAN_DATABASE_URL = "sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
-ian db upgrade
-ian db status
+uv run ian db upgrade
+uv run ian db status
 ```
 
 Linux or macOS example:
 
 ```bash
 export IAN_DATABASE_URL="sqlite:////srv/financial-data/investment-analysis-engine.sqlite3"
-ian db upgrade
+uv run ian db upgrade
 ```
 
 Git Bash on Windows example:
 
 ```bash
 export IAN_DATABASE_URL="sqlite:///E:/FinancialData/investment-analysis-engine.sqlite3"
-ian db upgrade
+uv run ian db upgrade
 ```
 
 On Windows, a path that has a root but no drive letter (such as `/e/FinancialData/...`,

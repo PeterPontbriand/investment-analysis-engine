@@ -2,51 +2,55 @@
 
 Run this short set of commands by hand after installing or updating Investment Analysis Engine. It is for a person checking the command line from a terminal they opened themselves, and judging the output as a user would see it. On Windows, a terminal started by another application, such as an AI assistant's desktop app, may see different settings and data folders, and so a different database. An agent or script may rehearse these steps, but its run is not a formal smoke test.
 
+Run every command in one terminal, from the installation folder (the folder `git clone` created). Every command starts with `uv run`, which runs `ian` inside the installation's own Python environment; typing `ian` on its own gives "not recognized" (see [Installation, troubleshooting](INSTALLATION.md#ian-is-not-recognized--command-not-found)).
+
 The test needs live provider access. It checks that the command line starts, that the data providers answer, that each analysis command produces a well-formed result, and that the watchlist workflow saves, lists and replays results. It does not try to cover every option.
 
-Provider data changes over time, so exact values are not prescribed. For each command, confirm that the output is well-formed, identifies the requested ticker and method, contains no traceback or `NaN`/infinity, and either produces a typed result or explains classified unavailability clearly. Every step has a number (A1, A2, ... and B1, B2, ...) so that [the record](#recording-the-result) can refer to it.
+Provider data changes over time, so exact values are not prescribed. For each command, confirm that the output is well-formed, identifies the requested ticker and method, contains no traceback or `NaN`/infinity, and either produces a typed result or explains classified unavailability clearly. Every step has a number (S1, S2, ... then A1, A2, ... and B1, B2, ...) so that [the record](#recording-the-result) can refer to it.
 
 ## Before you start
 
-Run every command from the repository root.
+S1. Get a current installation.
 
-### Prerequisites
+- No copy yet: follow [Installation, section 1](INSTALLATION.md#1-installation) to install it, then [section 2](INSTALLATION.md#2-configuration) to configure it.
+- A copy already exists: follow [Updating an existing installation](INSTALLATION.md#updating-an-existing-installation). It never changes your settings, your database or your logs.
 
-- Complete the normal installation and configuration steps, including [database schema preparation](DATABASE.md). The database guide also describes the separate offline persistence test.
-- Allow outbound access required by Yahoo Finance and SEC EDGAR.
-- Configure the SEC EDGAR application identity described in the installation guidance.
+Also check two prerequisites:
+
+- Outbound access to Yahoo Finance and SEC EDGAR must be allowed. If a provider does not answer later, see [Installation, troubleshooting](INSTALLATION.md#4-troubleshooting).
+- The SEC EDGAR application identity must be configured, as [Installation, SEC EDGAR identification](INSTALLATION.md#sec-edgar-identification) explains.
 
 ### Use a throwaway database
 
 The smoke test saves analysis runs and a watchlist. A saved run cannot be deleted, and an empty database makes the expectations below exact, so the test runs against a dedicated throwaway SQLite file and not against your real database.
 
-First, open a new terminal and check your real database once, before you set `IAN_DATABASE_URL` for the throwaway file. Do not unset or change any `IAN_DATABASE_URL` you already use, since the check must see your real database exactly as you normally run it. This command only reads; it writes nothing:
+S2. Open a new terminal, change to the installation folder, and check your real database once, before you set `IAN_DATABASE_URL` for the throwaway file. Do not unset or change any `IAN_DATABASE_URL` you already use, since the check must see your real database exactly as you normally run it. This command only reads; it writes nothing:
 
 ```powershell
 uv run ian db status
 ```
 
-Expect `State: ready` and `Database is ready.` If it reports anything else, follow [Local Database Operations](DATABASE.md) before going on.
+Expect `State: ready`, or `State: missing` with `Database is not initialized.` if you have never run an analysis (there is no database yet, which is correct, although the command then exits with status 1). If it reports `upgrade_required`, follow [First use and explicit upgrades](DATABASE.md#first-use-and-explicit-upgrades) before going on. For any other state, stop and use [Local Database Operations](DATABASE.md).
 
-Then, in that same terminal, point the session at a new file. The path must be absolute and its folder must exist and be writable ([Local Database Operations](DATABASE.md) explains the URL forms). PowerShell:
+S3. In that same terminal, point the session at a new throwaway file. This creates a new timestamped folder under the repository's ignored `.tmp/smoke/` and sets an absolute URL from it, so there is no folder to prepare. PowerShell:
 
 ```powershell
-$env:IAN_DATABASE_URL = "sqlite:///E:/FinancialData/smoke-test.sqlite3"
+$smoke = Join-Path (git rev-parse --show-toplevel) ".tmp/smoke/$(Get-Date -Format yyyyMMdd-HHmmss)"
+New-Item -ItemType Directory -Force $smoke | Out-Null
+$env:IAN_DATABASE_URL = "sqlite:///$($smoke -replace '\\', '/')/smoke-test.sqlite3"
 ```
 
-Linux or macOS:
+Git Bash, macOS or Linux:
 
 ```bash
-export IAN_DATABASE_URL="sqlite:////srv/financial-data/smoke-test.sqlite3"
+smoke="$(git rev-parse --show-toplevel)/.tmp/smoke/$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$smoke"
+export IAN_DATABASE_URL="sqlite:///$smoke/smoke-test.sqlite3"
 ```
 
-Git Bash on Windows:
+Each run gets its own folder, so a repeated smoke test also starts with an empty database. The setting lasts until the terminal closes. [Local Database Operations](DATABASE.md) explains the URL forms.
 
-```bash
-export IAN_DATABASE_URL="sqlite:///E:/FinancialData/smoke-test.sqlite3"
-```
-
-The setting lasts for the terminal session. Create the file's schema and confirm it is ready:
+S4. Create the file's schema and confirm it is ready:
 
 ```powershell
 uv run ian db upgrade
@@ -56,6 +60,8 @@ uv run ian db status
 Expect the second command to name the throwaway file and report `State: ready`.
 
 ### Check the providers
+
+S5. Check that the data providers answer:
 
 ```powershell
 uv run ian health
@@ -248,7 +254,7 @@ When the test is finished, close the terminal you used for it, which discards th
 - Investor-facing output uses readable statuses, warnings, and limitations.
 - Successful text reports begin with the instrument name/ticker and analysis heading. Routine cache rejection or refresh must not print an internal quality warning before that heading; diagnostic evidence remains available in `--diagnostics` and JSON.
 - Detail and diagnostic views retain provider, period, freshness, and resolution evidence.
-- JSON output parses as JSON and uses `null`, never non-standard numeric sentinels. Every JSON document carries an integer `schema_version`. If a runtime failure occurs during any command run with `--json` (`health`, A5, A7 and B9), stdout must still contain a versioned failure document with `result: null` and a reason; `$LASTEXITCODE` must be nonzero. Historical numeric-quality failures should identify affected fields/dates without dumping raw payloads or secrets. Do not manufacture a live provider failure merely to complete this smoke test.
+- JSON output parses as JSON and uses `null`, never non-standard numeric sentinels. Every JSON document carries an integer `schema_version`. If a runtime failure occurs during any command run with `--json` (S5, A5, A7 and B9), stdout must still contain a versioned failure document with `result: null` and a reason; `$LASTEXITCODE` must be nonzero. Historical numeric-quality failures should identify affected fields/dates without dumping raw payloads or secrets. Do not manufacture a live provider failure merely to complete this smoke test.
 - Historical requests do not use information published after the requested boundary.
 - Optional quote failure does not discard an otherwise valid Graham calculation.
 - If a text run does fail on a provider (do not manufacture one), its first line says what a test request to that provider found, or that it was not checked; the seven wordings are explained in [Installation, troubleshooting](INSTALLATION.md#4-troubleshooting). `--json` output carries no such line.
@@ -269,9 +275,11 @@ Operating system:
 Python version (uv run python --version):
 yfinance version (providers[].library.version in: uv run ian health --json):
 
-Database status, real database:
-Database setup and status, throwaway database:
-Health, text and JSON:
+S1 (installation current):
+S2 (database status, real database):
+S3 (throwaway database set):
+S4 (setup and status, throwaway database):
+S5 (health, text and JSON):
 A1:
 A2:
 A3:

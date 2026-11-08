@@ -65,6 +65,28 @@ uv run ian --help
 If you see the Investment Analysis Engine help text, the command is available. Help
 does not open or verify the database.
 
+### How commands are run
+
+Every command in this documentation starts with `uv run`. `uv run` runs `ian` inside the installation's own Python environment, which `uv sync` set up, so run it from the installation folder. Typing `ian` on its own gives "not recognized" (or "command not found"), because the terminal does not know about that environment; see [the troubleshooting entry](#ian-is-not-recognized--command-not-found).
+
+### Updating an existing installation
+
+To bring an existing installation up to date, run these three commands in order from the installation folder:
+
+```bash
+git pull
+uv sync
+uv run ian db status
+```
+
+`git pull` downloads the latest version of the application. `uv sync` only brings the installation's own Python environment in line with the project, and it is safe to run again at any time. It never touches your settings, your database or your logs, which are kept outside the installation folder (see [Where the application keeps its files](#where-the-application-keeps-its-files)).
+
+Read the `State:` line of the status:
+
+- `ready` or `missing`: the update is done. `missing` means this installation has not yet run an analysis, so there is no database yet (the command then exits with status 1, which is expected); it is created on first use.
+- `upgrade_required`: the new version needs an upgraded database. Stop any application processes, back up your data, and upgrade as [First use and explicit upgrades](DATABASE.md#first-use-and-explicit-upgrades) describes.
+- Any other state: use [Local Database Operations](DATABASE.md).
+
 ---
 
 ## 2. Configuration
@@ -230,6 +252,10 @@ Check that `SEC_USER_AGENT` is present in the `.env` file in your settings folde
 ### `git`, `python`, or `uv` is "not recognized" / "command not found"
 
 The corresponding prerequisite is either not installed or its executable is not available to the terminal. Revisit the official installation link for that tool, then open a new terminal and try again.
+
+### `ian` is "not recognized" / "command not found"
+
+You typed `ian` on its own. Add the `uv run` prefix (`uv run ian --help`) and run it from the installation folder, the folder `git clone` created. See [How commands are run](#how-commands-are-run).
 
 ### `uv sync` fails
 

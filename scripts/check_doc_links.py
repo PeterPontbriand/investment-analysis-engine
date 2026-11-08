@@ -28,6 +28,10 @@ An ``<a id="x"></a>`` line is also an anchor: a link to ``#x`` resolves when suc
 A link into either glossary (``GLOSSARY_PATHS``) must target such an id. A link to a glossary heading slug, which
 changes when a heading is reworded, is reported even though a heading produces it.
 
+Finally, a line inside a fenced code block of ``README.md`` or a Markdown file below ``docs/user/`` whose first word is
+``ian`` is reported: every command shown to a user starts with ``uv run``, because a bare ``ian`` is not recognized
+outside the installation's own Python environment.
+
 Only inline links (``[text](target)``) are recognized; reference-style links
 (``[text][ref]``) are not used anywhere in this repository's Markdown and are
 out of scope.
@@ -92,6 +96,47 @@ def slugify(heading_text: str) -> str:
     text = strip_markdown_markup(heading_text).strip().lower()
     text = _SLUG_PUNCTUATION_RE.sub("", text)
     return re.sub(r"\s", "-", text)
+
+
+USER_DOCUMENT_PREFIX = "docs/user/"
+"""Repository-relative folder whose Markdown files are user documentation."""
+
+USER_README = "README.md"
+"""The repository README, which is user-facing and so held to the same command rule as the user documentation."""
+
+_BARE_IAN_COMMAND_RE = re.compile(r"^\s*ian(\s|$)")
+
+
+@dataclass(frozen=True)
+class BareIanCommand:
+    """One line in a fenced code block that starts with ``ian`` and not ``uv run ian``."""
+
+    source_file: Path
+    line_number: int
+
+    def __str__(self) -> str:
+        """Render as ``path:line: bare ian command -- ...``."""
+        return f"{self.source_file}:{self.line_number}: bare ian command -- use `uv run ian` instead of `ian`"
+
+
+def find_bare_ian_commands_in_file(source_file: Path, lines: list[str]) -> list[BareIanCommand]:
+    """Return every line inside a fenced code block whose first word is ``ian``."""
+    found: list[BareIanCommand] = []
+    in_fence = False
+    fence_marker = ""
+    for index, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        fence_match = _FENCE_RE.match(stripped)
+        if fence_match is not None:
+            if not in_fence:
+                in_fence = True
+                fence_marker = fence_match.group(1)[0] * 3
+            elif stripped.startswith(fence_marker):
+                in_fence = False
+            continue
+        if in_fence and _BARE_IAN_COMMAND_RE.match(line):
+            found.append(BareIanCommand(source_file, index))
+    return found
 
 
 @dataclass(frozen=True)
@@ -318,6 +363,18 @@ def check_repository_diagrams(repo_root: Path) -> list[MermaidBlock]:
     return found
 
 
+def check_repository_commands(repo_root: Path) -> list[BareIanCommand]:
+    """Return every bare ``ian`` command in the fenced blocks of the user documentation and README of ``repo_root``."""
+    found: list[BareIanCommand] = []
+    for markdown_file in list_tracked_markdown_files(repo_root):
+        relative = markdown_file.relative_to(repo_root).as_posix()
+        if relative != USER_README and not relative.startswith(USER_DOCUMENT_PREFIX):
+            continue
+        lines = markdown_file.read_text(encoding="utf-8").splitlines(keepends=True)
+        found.extend(find_bare_ian_commands_in_file(markdown_file, lines))
+    return found
+
+
 def main() -> int:
     """Check the repository this script lives in; print every break; return the process exit code."""
     repo_root = Path(
@@ -327,16 +384,19 @@ def main() -> int:
     )
     broken_links = check_repository(repo_root)
     mermaid_blocks = check_repository_diagrams(repo_root)
-    if not broken_links and not mermaid_blocks:
-        print("check_doc_links: no broken local links or anchors and no Mermaid blocks found.")
+    bare_commands = check_repository_commands(repo_root)
+    if not broken_links and not mermaid_blocks and not bare_commands:
+        print("check_doc_links: no broken local links or anchors, no Mermaid blocks and no bare ian commands found.")
         return 0
     for broken in broken_links:
         print(broken)
     for block in mermaid_blocks:
         print(block)
+    for command in bare_commands:
+        print(command)
     print(
-        f"check_doc_links: {len(broken_links)} broken local link(s)/anchor(s) and "
-        f"{len(mermaid_blocks)} Mermaid block(s) found.",
+        f"check_doc_links: {len(broken_links)} broken local link(s)/anchor(s), "
+        f"{len(mermaid_blocks)} Mermaid block(s) and {len(bare_commands)} bare ian command(s) found.",
         file=sys.stderr,
     )
     return 1

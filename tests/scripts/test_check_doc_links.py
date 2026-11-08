@@ -9,8 +9,10 @@ import pytest
 
 from scripts.check_doc_links import (
     check_repository,
+    check_repository_commands,
     check_repository_diagrams,
     file_heading_slugs,
+    find_bare_ian_commands_in_file,
     find_broken_links_in_file,
     find_mermaid_blocks_in_file,
     list_tracked_markdown_files,
@@ -237,3 +239,39 @@ class TestMermaidBlocks:
 
     def test_repository_markdown_has_no_mermaid_blocks(self) -> None:
         assert check_repository_diagrams(REPOSITORY_ROOT) == []
+
+
+class TestBareIanCommands:
+    def test_accepts_a_uv_run_ian_line(self) -> None:
+        lines = ["```bash\n", "uv run ian db status\n", "```\n"]
+        assert find_bare_ian_commands_in_file(Path("doc.md"), lines) == []
+
+    def test_reports_a_bare_ian_line_with_file_and_line(self) -> None:
+        lines = ["Text\n", "```bash\n", "ian db status\n", "```\n"]
+        found = find_bare_ian_commands_in_file(Path("doc.md"), lines)
+        assert [command.line_number for command in found] == [3]
+        assert "doc.md:3" in str(found[0])
+        assert "uv run ian" in str(found[0])
+
+    def test_reports_an_indented_bare_ian_line(self) -> None:
+        lines = ["```powershell\n", "    ian --help\n", "```\n"]
+        assert [command.line_number for command in find_bare_ian_commands_in_file(Path("doc.md"), lines)] == [2]
+
+    def test_ignores_prose_and_other_words_that_start_with_ian(self) -> None:
+        lines = ["ian is mentioned in prose\n", "```text\n", "iana\n", "```\n"]
+        assert find_bare_ian_commands_in_file(Path("doc.md"), lines) == []
+
+    def test_check_repository_commands_covers_user_docs_and_readme_only(self, tmp_path: Path) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+        block = "```bash\nian db status\n```\n"
+        (tmp_path / "docs" / "user").mkdir(parents=True)
+        (tmp_path / "docs" / "project").mkdir(parents=True)
+        (tmp_path / "docs" / "user" / "GUIDE.md").write_text(block, encoding="utf-8")
+        (tmp_path / "README.md").write_text(block, encoding="utf-8")
+        (tmp_path / "docs" / "project" / "PLAN.md").write_text(block, encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+        found = check_repository_commands(tmp_path)
+        assert sorted(command.source_file.name for command in found) == ["GUIDE.md", "README.md"]
+
+    def test_repository_documentation_has_no_bare_ian_commands(self) -> None:
+        assert check_repository_commands(REPOSITORY_ROOT) == []

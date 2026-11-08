@@ -22,12 +22,22 @@ Fresh storage initializes automatically on first persistence use. Set
 schemas require explicit upgrades after stopping processes and backing up data:
 
 ```bash
-ian db status
-ian db upgrade
+uv run ian db status
+uv run ian db upgrade
 ```
 
 The maintenance group is hidden from top-level help; use `db --help`. See
 [Local Database Operations](DATABASE.md) for upgrades, backups, and recovery.
+
+## Update
+
+```bash
+git pull
+uv sync
+uv run ian db status
+```
+
+`ready` or `missing` means the update is done. See [Updating an existing installation](INSTALLATION.md#updating-an-existing-installation) for `upgrade_required` and other states.
 
 ## Configure SEC EDGAR
 
