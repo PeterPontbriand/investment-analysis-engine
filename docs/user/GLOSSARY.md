@@ -781,7 +781,7 @@ The growth screen's three outcomes: pass when required growth rates are positive
 
 `PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.
 
-The values are explained in [FCF Pass](#fcf-pass), [FCF Fail](#fcf-fail), [FCF Indeterminate](#fcf-indeterminate).
+The values are explained in [FCF Growth Pass](#fcf-growth-pass), [FCF Growth Fail](#fcf-growth-fail), [FCF Growth Indeterminate](#fcf-growth-indeterminate).
 
 <a id="fcf-yield"></a>
 ### FCF Yield
@@ -815,23 +815,23 @@ How free cash flow growth and earnings growth compare over the screened period: 
 
 The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](#free-cash-flow) and [CAGR](#cagr).
 
-The values are explained in [Both Growing](#growth-trend-both), [Only Free Cash Flow Growing](#growth-trend-fcf-only), [Only Earnings Growing](#growth-trend-earnings-only), [Neither Growing](#growth-trend-neither), [Growth Insufficient](#growth-trend-insufficient).
+The values are explained in [Both Growing](#growth-trend-both), [Only Free Cash Flow Growing](#growth-trend-fcf-only), [Only Earnings Growing](#growth-trend-earnings-only), [Neither Growing](#growth-trend-neither), [Insufficient Growth Evidence](#growth-trend-insufficient).
 
-<a id="fcf-pass"></a>
-### FCF Pass
+<a id="fcf-growth-pass"></a>
+### FCF Growth Pass
 The growth screen passes: the free cash flow and diluted EPS growth rates are both meaningful and above zero, and any forward hard gate is met.
 
 It is a screen result, not a valuation or a recommendation. See [FCF Classification](#fcf-classification) for the whole set of values.
 
-<a id="fcf-fail"></a>
-### FCF Fail
-The growth screen fails: the required growth rates are meaningful and at least one is zero or negative.
+<a id="fcf-growth-fail"></a>
+### FCF Growth Fail
+The screen fails: a historical growth rate of free cash flow or diluted EPS is zero or negative, or, under the hard gate, forward consensus growth is not positive in both years.
 
 It is a screen result, not a valuation or a recommendation. See [FCF Classification](#fcf-classification) for the whole set of values.
 
-<a id="fcf-indeterminate"></a>
-### FCF Indeterminate
-The screen cannot be decided, because required evidence is missing, incompatible, not consecutive or not meaningful.
+<a id="fcf-growth-indeterminate"></a>
+### FCF Growth Indeterminate
+The screen cannot be decided, because a required growth rate could not be calculated or is not meaningful, or the hard gate lacks complete consensus evidence.
 
 It is not a failed screen: the engine cannot make the classification from the evidence it may use. See [FCF Classification](#fcf-classification) for the whole set of values.
 
@@ -860,10 +860,10 @@ Neither free cash flow nor diluted EPS increased over the measured period.
 See [Growth Trend](#growth-trend) for the whole set of values.
 
 <a id="growth-trend-insufficient"></a>
-### Growth Insufficient
-Growth is insufficient or mathematically not meaningful for this screen.
+### Insufficient Growth Evidence
+At least one of the two growth rates, of free cash flow and of diluted EPS, could not be calculated or is not meaningful, so the trend cannot be described.
 
-A growth rate could not be calculated meaningfully from the evidence. See [Growth Trend](#growth-trend) for the whole set of values.
+Without both rates the engine cannot say which of the two grew. See [Growth Trend](#growth-trend) for the whole set of values.
 
 <a id="forward-evidence-complete"></a>
 ### Complete Forward Evidence
@@ -945,13 +945,13 @@ The values are explained in [Passed Test](#test-passed), [Failed Test](#test-fai
 
 <a id="test-passed"></a>
 ### Passed Test
-A test of the score whose condition holds. It adds one to the F-Score.
+A Piotroski F-Score test whose condition holds. It adds one point to the score.
 
 See [Test Result](#test-result) for the whole set of values.
 
 <a id="test-failed"></a>
 ### Failed Test
-A test of the score whose condition does not hold. It adds nothing to the F-Score.
+A Piotroski F-Score test whose condition does not hold. It adds nothing to the score.
 
 See [Test Result](#test-result) for the whole set of values.
 

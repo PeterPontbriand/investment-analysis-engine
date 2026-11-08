@@ -926,9 +926,9 @@
         "forward-evidence-status",
         "historical-horizon",
         "growth-trend",
-        "fcf-pass",
-        "fcf-fail",
-        "fcf-indeterminate",
+        "fcf-growth-pass",
+        "fcf-growth-fail",
+        "fcf-growth-indeterminate",
         "growth-trend-both",
         "growth-trend-fcf-only",
         "growth-trend-earnings-only",
@@ -1373,34 +1373,34 @@
       "name": "Empty Watchlist"
     },
     "fcf-classification": {
-      "body": "`PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.\n\nThe values are explained in [FCF Pass](help:terms/fcf-pass), [FCF Fail](help:terms/fcf-fail), [FCF Indeterminate](help:terms/fcf-indeterminate).",
+      "body": "`PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.\n\nThe values are explained in [FCF Growth Pass](help:terms/fcf-growth-pass), [FCF Growth Fail](help:terms/fcf-growth-fail), [FCF Growth Indeterminate](help:terms/fcf-growth-indeterminate).",
       "definition": "The growth screen's three outcomes: pass when required growth rates are positive, fail when complete evidence shows a nonpositive rate, indeterminate when no classification can be made.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "FCF Classification"
     },
-    "fcf-fail": {
+    "fcf-growth-fail": {
       "body": "It is a screen result, not a valuation or a recommendation. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
-      "definition": "The growth screen fails: the required growth rates are meaningful and at least one is zero or negative.",
+      "definition": "The screen fails: a historical growth rate of free cash flow or diluted EPS is zero or negative, or, under the hard gate, forward consensus growth is not positive in both years.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
-      "name": "FCF Fail"
+      "name": "FCF Growth Fail"
+    },
+    "fcf-growth-indeterminate": {
+      "body": "It is not a failed screen: the engine cannot make the classification from the evidence it may use. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
+      "definition": "The screen cannot be decided, because a required growth rate could not be calculated or is not meaningful, or the hard gate lacks complete consensus evidence.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "FCF Growth Indeterminate"
+    },
+    "fcf-growth-pass": {
+      "body": "It is a screen result, not a valuation or a recommendation. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
+      "definition": "The growth screen passes: the free cash flow and diluted EPS growth rates are both meaningful and above zero, and any forward hard gate is met.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "FCF Growth Pass"
     },
     "fcf-growth-strategy": {
       "body": "It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.\n\nRelated terms: [total-company FCF](help:terms/total-company-fcf), [FCF per diluted share](help:terms/fcf-per-diluted-share), [weighted-average diluted shares](help:terms/weighted-average-diluted-shares), [operating cash flow](help:terms/operating-cash-flow).",
       "definition": "A historical screen asking whether free cash flow and diluted EPS both grew at positive, meaningful compound annual rates over one compatible period. It is not a valuation.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Free Cash Flow & Earnings Growth Strategy"
-    },
-    "fcf-indeterminate": {
-      "body": "It is not a failed screen: the engine cannot make the classification from the evidence it may use. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
-      "definition": "The screen cannot be decided, because required evidence is missing, incompatible, not consecutive or not meaningful.",
-      "group": "free-cash-flow--earnings-growth-strategy-terms",
-      "name": "FCF Indeterminate"
-    },
-    "fcf-pass": {
-      "body": "It is a screen result, not a valuation or a recommendation. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
-      "definition": "The growth screen passes: the free cash flow and diluted EPS growth rates are both meaningful and above zero, and any forward hard gate is met.",
-      "group": "free-cash-flow--earnings-growth-strategy-terms",
-      "name": "FCF Pass"
     },
     "fcf-per-diluted-share": {
       "body": "It reflects dilution and repurchases and can be selected as the controlling classification basis.",
@@ -1505,7 +1505,7 @@
       "name": "Growth Multiplier"
     },
     "growth-trend": {
-      "body": "The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](help:terms/free-cash-flow) and [CAGR](help:terms/cagr).\n\nThe values are explained in [Both Growing](help:terms/growth-trend-both), [Only Free Cash Flow Growing](help:terms/growth-trend-fcf-only), [Only Earnings Growing](help:terms/growth-trend-earnings-only), [Neither Growing](help:terms/growth-trend-neither), [Growth Insufficient](help:terms/growth-trend-insufficient).",
+      "body": "The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](help:terms/free-cash-flow) and [CAGR](help:terms/cagr).\n\nThe values are explained in [Both Growing](help:terms/growth-trend-both), [Only Free Cash Flow Growing](help:terms/growth-trend-fcf-only), [Only Earnings Growing](help:terms/growth-trend-earnings-only), [Neither Growing](help:terms/growth-trend-neither), [Insufficient Growth Evidence](help:terms/growth-trend-insufficient).",
       "definition": "How free cash flow growth and earnings growth compare over the screened period: both growing, only one growing, neither growing, or too little meaningful data to say.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Growth Trend"
@@ -1529,10 +1529,10 @@
       "name": "Only Free Cash Flow Growing"
     },
     "growth-trend-insufficient": {
-      "body": "A growth rate could not be calculated meaningfully from the evidence. See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
-      "definition": "Growth is insufficient or mathematically not meaningful for this screen.",
+      "body": "Without both rates the engine cannot say which of the two grew. See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
+      "definition": "At least one of the two growth rates, of free cash flow and of diluted EPS, could not be calculated or is not meaningful, so the trend cannot be described.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
-      "name": "Growth Insufficient"
+      "name": "Insufficient Growth Evidence"
     },
     "growth-trend-neither": {
       "body": "See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
@@ -2094,13 +2094,13 @@
     },
     "test-failed": {
       "body": "See [Test Result](help:terms/test-result) for the whole set of values.",
-      "definition": "A test of the score whose condition does not hold. It adds nothing to the F-Score.",
+      "definition": "A Piotroski F-Score test whose condition does not hold. It adds nothing to the score.",
       "group": "piotroski-f-score-strategy-terms",
       "name": "Failed Test"
     },
     "test-passed": {
       "body": "See [Test Result](help:terms/test-result) for the whole set of values.",
-      "definition": "A test of the score whose condition holds. It adds one to the F-Score.",
+      "definition": "A Piotroski F-Score test whose condition holds. It adds one point to the score.",
       "group": "piotroski-f-score-strategy-terms",
       "name": "Passed Test"
     },

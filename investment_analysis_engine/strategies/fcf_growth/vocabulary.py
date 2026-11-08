@@ -83,9 +83,9 @@ CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
     {
         "Classification": MappingProxyType(
             {
-                Classification.PASS.value: "fcf-pass",
-                Classification.FAIL.value: "fcf-fail",
-                Classification.INDETERMINATE.value: "fcf-indeterminate",
+                Classification.PASS.value: "fcf-growth-pass",
+                Classification.FAIL.value: "fcf-growth-fail",
+                Classification.INDETERMINATE.value: "fcf-growth-indeterminate",
             }
         ),
         "ForwardEvidenceStatus": MappingProxyType(

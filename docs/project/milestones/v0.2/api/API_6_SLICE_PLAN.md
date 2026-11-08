@@ -21,7 +21,7 @@ when one is missing. The second serves the help content over HTTP and chooses th
   - the managed quality gate, with the Python 3.14 second pass, after each slice, and the project owner's approval before
     the next slice starts.
 - **Where the history lives:** decisions T1 to T15 are in [Appendix A](#appendix-a-decision-records), approved by the
-  project owner on 2026-11-07, and T16 to T19 are the review fixes of API.6a, approved the same day. API.6a implements T1 to T10 and the parts of T15 its changes touch; API.6b implements T11
+  project owner on 2026-11-07, and T16 to T19 and T20 to T24 are the two rounds of review fixes of API.6a, approved on 2026-11-07 and 2026-11-08. API.6a implements T1 to T10 and the parts of T15 its changes touch; API.6b implements T11
   to T14 and the rest of T15.
 
 ## 2. Sequence and status
@@ -164,7 +164,8 @@ Judgment calls, each a place where the decisions left a choice:
 - **Per-value entries.** Under T18 the glossary gained 29 entries: three each for the trend status, the crossover state and
   the FCF classification, five for the growth trend, three for the forward evidence status, two each for the test result,
   the score completeness and the price comparison, and six for the quote freshness. The combined entries stay as overviews and
-  link both ways. The totals are now 90 new entries and 198 served terms.
+  link both ways. The totals are now 90 new entries and 198 served terms. The second round renamed the three FCF
+  Growth verdict entries to `fcf-growth-pass`, `fcf-growth-fail` and `fcf-growth-indeterminate`, renamed the `growth-trend-insufficient` entry "Insufficient Growth Evidence", rewrote the short definitions of the fail, indeterminate, insufficient-evidence, passed-test and failed-test entries ([T20](#t20-the-fcf-growth-verdict-entries-name-the-strategy-2026-11-08) to [T23](#t23-the-piotroski-test-entries-name-the-score-2026-11-08)), and changed no counts.
 - **Date.** The sequence tables date API.6a with the day the branch was finished, 2026-11-07; the pull request, when
   opened, keeps that date unless it opens later.
 
@@ -206,9 +207,9 @@ description names them both as a document component and inside the selection sch
 | `CheckOutcome` | `pass` | `test-passed` |
 | `CheckOutcome` | `fail` | `test-failed` |
 | `CheckOutcome` | `unavailable` | `unavailable-test` |
-| `Classification` | `pass` | `fcf-pass` |
-| `Classification` | `fail` | `fcf-fail` |
-| `Classification` | `indeterminate` | `fcf-indeterminate` |
+| `Classification` | `pass` | `fcf-growth-pass` |
+| `Classification` | `fail` | `fcf-growth-fail` |
+| `Classification` | `indeterminate` | `fcf-growth-indeterminate` |
 | `Completeness` | `complete` | `score-complete` |
 | `Completeness` | `partial` | `score-partial` |
 | `CrossoverState` | `bullish_crossover` | `crossover-bullish` |
@@ -392,7 +393,7 @@ half; the conformance half touches every strategy, every code set and the genera
 ## Appendix A: Decision records
 
 T1 to T15 were approved by the project owner on 2026-11-07 and are recorded here as given. T16 to T19 are the review fixes
-of API.6a, approved the same day.
+of API.6a, approved the same day, and T20 to T24 are the second round, approved on 2026-11-08.
 
 ### T1 API.6 is split in two (2026-11-07)
 
@@ -540,3 +541,31 @@ of API.6a, approved the same day.
 ### T19 The review basis (2026-11-07)
 
 - The review relied on the pushed branch at commit 6f371ec. These fixes are a follow-up commit on the same branch.
+
+### T20 The FCF Growth verdict entries name the strategy (2026-11-08)
+
+- The ids and headings become `fcf-growth-pass` "FCF Growth Pass", `fcf-growth-fail` "FCF Growth Fail" and
+  `fcf-growth-indeterminate` "FCF Growth Indeterminate". Every reference follows: the FCF Growth term table, the
+  glossary links and the mapping in section 3.2.
+
+### T21 growth-trend-insufficient says what happened (2026-11-08)
+
+- The id stays. The name becomes "Insufficient Growth Evidence" and the short definition says that at least one of
+  the two growth rates could not be calculated or is not meaningful, so the trend cannot be described. This matches
+  `_trend_classification`, which gives the value whenever either growth metric is not ok.
+
+### T22 The FCF Growth fail and indeterminate entries cover the hard gate (2026-11-08)
+
+- Fail covers a zero or negative historical growth rate and, under the hard gate, forward consensus growth that is not
+  positive in both years. Indeterminate covers a required growth rate that could not be calculated or is not
+  meaningful, and a hard gate without complete consensus evidence. Pass keeps its short definition. This matches
+  `classify_fcf_earnings_growth`.
+
+### T23 The Piotroski test entries name the score (2026-11-08)
+
+- The passed-test and failed-test short definitions say "Piotroski F-Score test" and "the score".
+
+### T24 The review basis (2026-11-08)
+
+- The review relied on the pushed branch at commit 07f90ab, and the FCF Growth definitions were checked against
+  `calculators.py`. These fixes are a follow-up commit on the same branch.
