@@ -367,6 +367,54 @@ class TestExcludedSections:
         assert any("title cannot be excluded" in text for text in problems)
 
 
+class TestDocumentTitle:
+    def test_a_served_document_with_one_level_one_heading_passes(self, tmp_path: Path) -> None:
+        assert served_problems("# G\n\n## S\n\nText.\n", tmp_path) == []
+
+    def test_a_served_document_without_a_level_one_heading_is_reported(self, tmp_path: Path) -> None:
+        problems = served_problems("## S\n\nText.\n", tmp_path)
+        assert problems == [
+            f"{GUIDE}:0: section '' -- a served document must have exactly one level-1 heading; found 0"
+        ]
+
+    def test_a_served_document_with_two_level_one_headings_is_reported_at_the_first(self, tmp_path: Path) -> None:
+        problems = served_problems("# G\n\nText.\n\n# H\n\nMore.\n", tmp_path)
+        assert problems == [
+            f"{GUIDE}:1: section '' -- a served document must have exactly one level-1 heading; found 2"
+        ]
+
+    def test_a_level_one_heading_inside_a_fenced_block_is_not_counted(self, tmp_path: Path) -> None:
+        assert served_problems("# G\n\n```text\n# not a heading\n```\n", tmp_path) == []
+
+
+class TestGlossaryGroups:
+    TEXT = (
+        "# Glossary\n\nIntro.\n\n## Terms\n\n"
+        + entry("cache", "Cache")
+        + "## Terms\n\n"
+        + entry("eps", "EPS")
+        + f"## Command-line terms\n{EXCLUDE_MARKER}\n\n"
+        + entry("cli", "CLI")
+    )
+
+    def test_the_user_glossary_gives_its_level_two_headings_with_line_slug_and_marker(self) -> None:
+        document = served_document(USER_GLOSSARY, self.TEXT.splitlines(keepends=True))
+        assert [(item.heading, item.line, item.slug, item.excluded) for item in document.groups] == [
+            ("Terms", 5, "terms", False),
+            ("Terms", 13, "terms-1", False),
+            ("Command-line terms", 21, "command-line-terms", True),
+        ]
+
+    def test_another_document_has_no_groups(self) -> None:
+        assert served_document("docs/user/BEGINNER_GUIDE.md", self.TEXT.splitlines(keepends=True)).groups == ()
+
+    def test_a_heading_inside_a_fenced_block_is_not_a_group(self) -> None:
+        text = "# G\n\n```text\n## Not a heading\n```\n\n## Real\n"
+        assert [item.heading for item in served_document(USER_GLOSSARY, text.splitlines(keepends=True)).groups] == [
+            "Real"
+        ]
+
+
 class TestServedSet:
     def test_the_served_documents_are_the_guides_finance_math_the_glossary_and_the_strategy_guides(
         self, tmp_path: Path

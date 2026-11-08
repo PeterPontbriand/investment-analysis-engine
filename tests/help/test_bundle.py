@@ -102,6 +102,21 @@ def test_a_link_that_resolves_to_nothing_fails_naming_where_and_the_link(place: 
         HelpBundle.model_validate(data)
 
 
+@pytest.mark.parametrize("level", [1, 7, 0, -1])
+def test_a_section_level_outside_two_to_six_fails(level: int) -> None:
+    data = bundle_data()
+    data["documents"]["guide"]["sections"][0]["level"] = level
+    with pytest.raises(ValidationError, match="level"):
+        HelpBundle.model_validate(data)
+
+
+@pytest.mark.parametrize("level", [2, 3, 6])
+def test_a_section_level_from_two_to_six_passes(level: int) -> None:
+    data = bundle_data()
+    data["documents"]["guide"]["sections"][0]["level"] = level
+    assert HelpBundle.model_validate(data).documents["guide"].sections[0].level == level
+
+
 def test_a_help_link_of_another_kind_fails() -> None:
     data = bundle_data()
     data["terms"]["beta"]["body"] = "See [x](help:other/beta)."

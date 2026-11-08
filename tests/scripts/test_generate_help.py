@@ -62,6 +62,16 @@ Gamma stands alone.
 
 """
 
+CONTRIBUTOR_GLOSSARY = """# Contributor Glossary
+
+## Terms
+
+<a id="widget"></a>
+### Widget
+
+A widget is a thing.
+"""
+
 BEGINNER = """# Beginner
 
 Intro text. See [Alpha](GLOSSARY.md#alpha) and [math](FINANCE_MATH.md#shared).
@@ -90,12 +100,15 @@ Shared text. [back](BEGINNER_GUIDE.md#beginner) and [web](https://example.com/pa
 
 
 def write_repository(root: Path, *, beginner: str = BEGINNER, finance: str = FINANCE, glossary: str = GLOSSARY) -> Path:
-    """Write the three fixed served documents of a small repository and return its root."""
+    """Write the fixed served documents and the contributor glossary of a small repository and return its root."""
     folder = root / "docs" / "user"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "BEGINNER_GUIDE.md").write_text(beginner, encoding="utf-8")
     (folder / "FINANCE_MATH.md").write_text(finance, encoding="utf-8")
     (folder / "GLOSSARY.md").write_text(glossary, encoding="utf-8")
+    contributors = root / "docs" / "project"
+    contributors.mkdir(parents=True, exist_ok=True)
+    (contributors / "CONTRIBUTOR_GLOSSARY.md").write_text(CONTRIBUTOR_GLOSSARY, encoding="utf-8")
     return root
 
 
@@ -183,16 +196,27 @@ def test_check_mode_reports_drift_and_writes_nothing(tmp_path: Path, capsys: pyt
 
 
 @pytest.mark.parametrize("check", [False, True])
-def test_a_served_content_problem_stops_writing_and_comparing(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], check: bool
+@pytest.mark.parametrize(
+    ("kind", "reason"),
+    [
+        ("served content", "code span starts with '--'"),
+        ("entry rule", "no id line directly above the heading"),
+        ("document structure", "exactly one level-1 heading; found 2"),
+    ],
+)
+def test_a_checker_problem_stops_writing_and_comparing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], check: bool, kind: str, reason: str
 ) -> None:
-    leaking = BEGINNER.replace("Text.", "Run `--json` now.", 1)
-    repository = write_repository(tmp_path / "repo", beginner=leaking)
+    files = {
+        "served content": {"beginner": BEGINNER.replace("Text.", "Run `--json` now.", 1)},
+        "entry rule": {"glossary": GLOSSARY.replace('<a id="gamma"></a>\n', "")},
+        "document structure": {"finance": FINANCE + "\n# Second title\n"},
+    }[kind]
+    repository = write_repository(tmp_path / "repo", **files)
     target = tmp_path / "out" / "help_bundle.json"
     assert generate_help.main(["--check"] if check else [], path=target, repo_root=repository) == 1
     error = capsys.readouterr().err
-    assert "docs/user/BEGINNER_GUIDE.md:" in error
-    assert "code span starts with '--'" in error
+    assert reason in error
     assert "out of date" not in error
     assert not target.parent.exists()
 
@@ -338,18 +362,6 @@ def test_a_section_followed_by_a_thematic_break_is_trimmed(tmp_path: Path) -> No
     assert bundle.documents["finance-math"].sections[0].markdown.startswith("Shared text.")
 
 
-def test_an_entry_without_an_id_line_is_refused(tmp_path: Path) -> None:
-    glossary = GLOSSARY.replace('<a id="gamma"></a>\n', "")
-    with pytest.raises(HelpGenerationError, match="the entry 'Gamma' has no id line"):
-        build_bundle(write_repository(tmp_path, glossary=glossary))
-
-
-def test_an_entry_without_a_paragraph_is_refused(tmp_path: Path) -> None:
-    glossary = GLOSSARY.replace("Gamma stands alone.\n", "")
-    with pytest.raises(HelpGenerationError, match="the entry 'Gamma' has no short definition"):
-        build_bundle(write_repository(tmp_path, glossary=glossary))
-
-
 def test_a_link_to_a_section_that_is_not_in_the_bundle_fails_the_bundle_model(tmp_path: Path) -> None:
     beginner = BEGINNER.replace("[self](#second-1)", "[self](FINANCE_MATH.md#nothing)")
     with pytest.raises(ValueError, match="names no section 'nothing' of document 'finance-math'"):
@@ -372,8 +384,3 @@ def test_document_ids_are_the_fixed_ids_and_each_strategys_alias() -> None:
     }
     with pytest.raises(HelpGenerationError, match="matches no document id"):
         document_ids([served_document("docs/user/strategies/UNKNOWN.md", ["# U\n"])])
-
-
-def test_a_document_needs_exactly_one_level_one_heading(tmp_path: Path) -> None:
-    with pytest.raises(HelpGenerationError, match="expected one level-1 heading, found 2"):
-        build_bundle(write_repository(tmp_path, finance=FINANCE + "\n# Second title\n"))

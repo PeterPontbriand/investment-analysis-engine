@@ -28,7 +28,7 @@ interface-neutral and checks them, and API.5b2 packages the served content as a 
   the checks on the guides and the bundle and are not implemented by API.5a. H23 to H35 split API.5b and decide API.5b1
   and API.5b2, approved the same day; API.5b1 implements H23 to H30, H34 and H35, and H31 to H33 are API.5b2's. H36 to H39 are the review fixes of API.5b1,
   approved the same day. H40 to H55 complete API.5b2 and amend H31 to H33, approved the same day; H54 and H55 are
-  contract decisions for API.6.
+  contract decisions for API.6. H56 to H60 are the review fixes of API.5b2, approved the same day.
 
 ## 2. Sequence and status
 
@@ -218,8 +218,9 @@ What changed, by area:
   `HelpBundle`, `HelpTerm`, `HelpGroup`, `HelpDocument` and `HelpSection`, the cached `load_help_bundle()`
   ([H42](#h42-model-and-loader-2026-11-07)) and the integrity validator
   ([H43](#h43-integrity-is-checked-by-the-model-2026-11-07)). Nothing imports it yet.
-- **Generator:** `scripts/generate_help.py` mirrors `scripts/generate_openapi.py`. It runs `check_served_content` first and
-  stops with every problem when there is one ([H48](#h48-generator-refusal-2026-11-07)), builds the bundle through
+- **Generator:** `scripts/generate_help.py` mirrors `scripts/generate_openapi.py`. It runs the whole checker first,
+  `check_repository` and `check_served_content`, and stops with every problem when there is one
+  ([H48](#h48-generator-refusal-2026-11-07), amended by [H57](#h57-the-generator-runs-the-whole-checker-2026-11-07)), builds the bundle through
   `HelpBundle`, and writes it in the form of [H51](#h51-json-text-2026-11-07). A term is an investor entry of the user
   glossary: its short definition is the first paragraph and its body the rest ([H46](#h46-trimming-2026-11-07)). A
   document's title and introduction are its level-1 heading and the text under it, and its sections are every served heading
@@ -227,11 +228,18 @@ What changed, by area:
   [H47](#h47-link-rewriting-2026-11-07); a link that fits no row stops the generator, naming the file, the line and the
   target. A group is a level-2 section of the glossary, with the heading slug as its id
   ([H44](#h44-group-ids-2026-11-07)).
+- **Shared parser ([H56](#h56-one-parser-for-served-content-2026-11-07)):** the generator has no parser of its own.
+  `scripts/check_help_content.py` makes its fence, heading, code-span, link and scheme patterns public (`FENCE_RE`,
+  `HEADING_RE`, `CODE_SPAN_RE`, `LINK_RE`, `SCHEME_RE`), and `ServedDocument` gains `groups`, a tuple of `ServedGroup`
+  (heading, line, slug, excluded) for the level-2 headings of the user glossary, empty for every other document. The
+  checker's messages and results are unchanged, except for the new rule of
+  [H57](#h57-the-generator-runs-the-whole-checker-2026-11-07): a served document has exactly one level-1 heading.
 - **Installed package:** `scripts/check_installed_package.py` prints the installed `load_help_bundle()` result as JSON and
   compares it with the repository's `help_bundle.json` loaded through `HelpBundle`, as a whole
   ([H49](#h49-installed-package-check-amends-h32-2026-11-07)). `help/help_bundle.json` is in package-data.
 - **Gate:** `generate_help --check` is a step of both wrappers after `generate_openapi --check`, and a step of the CI
-  `quality-and-test` job. `docs/project/README.md` lists it among the gate's commands, names it for a change to a served
+  `quality-and-test` job, which also runs `generate_openapi --check` directly before it
+  ([H58](#h58-ci-checks-openapijson-for-drift-2026-11-07)). `docs/project/README.md` lists both among the gate's commands, names it for a change to a served
   document and says to regenerate the bundle after editing one ([H50](#h50-contributor-gate-and-docs-2026-11-07));
   `AGENTS.md` §7 points at that section; the `guide` site of `scripts/strategy_sites.toml` says the bundle is regenerated,
   and the edit-site table in `docs/TOOL_DEVELOPMENT.md` is regenerated.
@@ -243,17 +251,11 @@ Judgment calls, each a place where the decisions left a choice:
 
 - `slugify` is imported from `scripts/check_doc_links.py`, the module that defines it, not through
   `scripts/check_help_content.py`, which only imports it.
-- The checker's parser gives no level-2 headings of the glossary, so the generator reads them itself, with the same fence
-  rule and GitHub's duplicate suffixes counted over every heading of the file. The checker's public behaviour is unchanged.
-  The generator carries its own copies of the checker's fence, heading, code-span and link patterns, because the checker's
-  are private.
 - A glossary section with no served entry is left out of `groups`, so a client's group list never shows an empty group.
   Today none is empty.
-- The generator refuses an entry with no id line or no first paragraph, and a document without exactly one level-1 heading;
-  the checker's glossary rules already forbid the first two, but the generator does not run them.
-- The CI workflow had no `generate_openapi --check` step, so the new step sits in the `quality-and-test` job directly before
-  the Ruff format check. The README's list of the gate's commands had no `generate_openapi` line either, so the new command
-  follows `check_package_dependencies.py`.
+- The first version of this slice put `generate_help --check` in the `quality-and-test` job before the Ruff format check,
+  because the CI workflow had no `generate_openapi --check` step; [H58](#h58-ci-checks-openapijson-for-drift-2026-11-07)
+  adds that step and the README line before it.
 - The sequence tables date API.5b2 with the day the branch was finished; the pull request, when opened, keeps that date
   unless it opens later.
 
@@ -300,7 +302,8 @@ review once the guides it serves are settled.
 H1 to H15 were approved by the project owner on 2026-11-07, with the amendments recorded in H3 and H8. H16 to H22 are the review
 fixes of API.5a, approved the same day. H23 to H35 split API.5b and decide API.5b1 and API.5b2, approved the same day;
 H31 to H33 decide API.5b2 and are recorded here, not implemented by API.5b1. H36 to H39 are the review fixes of
-API.5b1, approved the same day. H40 to H55 complete API.5b2 and are approved the same day.
+API.5b1, approved the same day. H40 to H55 complete API.5b2 and are approved the same day. H56 to H60 are the review
+fixes of API.5b2, approved the same day.
 
 ### H1 API.5 is split in two (2026-11-07)
 
@@ -581,6 +584,7 @@ For API.5b2.
 - It is a gate step in both wrappers and in CI after `generate_openapi --check`, and it has a drift test like
   `tests/scripts/test_generate_schemas.py`.
 - It uses `check_help_content.py`'s served-content parser, and refuses to write while any leak check fails.
+- Amendment ([H57](#h57-the-generator-runs-the-whole-checker-2026-11-07)): it runs the whole checker, not only the leak checks.
 
 ### H34 The contributor guide's guide edit site (2026-11-07)
 
@@ -714,6 +718,8 @@ existing `guide_name` rule in `scripts/generate_strategy_docs.py`, imported, not
   and exits 1 without writing or comparing.
 - The drift message names the command to run: `uv run python -m scripts.generate_help`.
 - The generator builds the bundle through `HelpBundle`, so H43's checks apply before anything is written.
+- Amendment ([H57](#h57-the-generator-runs-the-whole-checker-2026-11-07)): both modes first run `check_repository`, which
+  includes the glossary entry rules, as well as `check_served_content`.
 
 ### H49 Installed-package check, amends H32 (2026-11-07)
 
@@ -776,3 +782,41 @@ A contract decision, implemented in API.6; the contract records it as
 - API.6 decides whether the list is its own endpoint or a field of an existing document, and whether the bundle has one file
   per locale.
 - No locale field, argument or header handling is added in API.5b2.
+
+### H56 One parser for served content (2026-11-07)
+
+- `scripts/generate_help.py` carried copies of the checker's internals: its fence, heading, code-span and link patterns, and a
+  function that reimplemented fence tracking, heading parsing, GitHub's duplicate-slug counting and exclude detection to find
+  the glossary's level-2 headings. All of them are deleted.
+- `scripts/check_help_content.py` makes the patterns the generator needs public (`FENCE_RE`, `HEADING_RE`, `CODE_SPAN_RE`,
+  `LINK_RE`, `SCHEME_RE`) and uses them throughout. `ServedDocument` gains `groups`, a tuple of `ServedGroup` (heading, line,
+  slug counted over every heading of the file, and whether the heading carries the exclude marker), filled for the user
+  glossary and empty for every other document.
+- The generator keeps only the thematic-break pattern, which the checker has no equivalent of. The checker's behaviour and
+  messages are unchanged and the bundle regenerates byte for byte.
+
+### H57 The generator runs the whole checker (2026-11-07)
+
+Amends [H48](#h48-generator-refusal-2026-11-07).
+
+- Both writing and `--check` first run `check_repository` (the glossary entry rules) and `check_served_content`. On any problem
+  the generator prints every problem and exits 1 without writing or comparing.
+- The generator's own refusals of an entry with no id line or no first paragraph are deleted.
+- "A served document has exactly one level-1 heading" moves into the checker's structure rules for served documents, and the
+  generator's own version is deleted.
+- The refusal test covers an entry-rule problem and a document-structure problem as well as a served-content problem.
+
+### H58 CI checks openapi.json for drift (2026-11-07)
+
+- The CI `quality-and-test` job runs `uv run python -m scripts.generate_openapi --check` directly before the
+  `generate_help --check` step, and `docs/project/README.md` lists it directly before the `generate_help` line, matching the
+  wrappers' order.
+
+### H59 Section level is constrained (2026-11-07)
+
+- `HelpSection.level` is declared with `Field(ge=2, le=6)`, with a failing case (levels 1 and 7) and a passing case in
+  `tests/help/test_bundle.py`.
+
+### H60 The review basis (2026-11-07)
+
+- The review relied on the pushed branch at commit 9a5e115. These fixes are a follow-up commit on the same branch.

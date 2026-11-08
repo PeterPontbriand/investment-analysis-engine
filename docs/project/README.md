@@ -92,6 +92,7 @@ python3 scripts/check_doc_links.py
 python3 scripts/check_help_content.py
 python3 scripts/check_sequence_tables.py
 python3 scripts/check_package_dependencies.py
+uv run python -m scripts.generate_openapi --check
 uv run python -m scripts.generate_help --check
 uv run ruff check .
 uv run ruff format --check .

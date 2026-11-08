@@ -13,7 +13,7 @@ import re
 from functools import cache
 from importlib.resources import files
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 HELP_BUNDLE_FILE_NAME = "help_bundle.json"
 TERM_LINK_PREFIX = "help:terms/"
@@ -64,13 +64,13 @@ class HelpSection(_Frozen):
     Attributes:
         id: The heading's GitHub slug, counted over the whole source file; valid only within the bundle.
         heading: The heading text.
-        level: The heading level, 2 or deeper.
+        level: The heading level, from 2 to 6.
         markdown: The text under the heading, up to the next heading of any level.
     """
 
     id: str
     heading: str
-    level: int
+    level: int = Field(ge=2, le=6)
     markdown: str
 
 

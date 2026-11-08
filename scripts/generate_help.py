@@ -36,12 +36,16 @@ from investment_analysis_engine.help.bundle import (
     HelpTerm,
 )
 from investment_analysis_engine.strategy_wiring import STRATEGIES
-from scripts.check_doc_links import slugify
 from scripts.check_help_content import (
-    EXCLUDE_MARKER,
+    CODE_SPAN_RE,
+    FENCE_RE,
+    LINK_RE,
+    SCHEME_RE,
     STRATEGY_GUIDE_DIRECTORY,
     USER_GLOSSARY,
     ServedDocument,
+    ServedGroup,
+    check_repository,
     check_served_content,
     served_documents,
 )
@@ -50,18 +54,12 @@ from scripts.repository_root import REPOSITORY_ROOT
 
 HELP_BUNDLE_FILE = REPOSITORY_ROOT / "investment_analysis_engine" / "help" / "help_bundle.json"
 REGENERATE_COMMAND = "uv run python -m scripts.generate_help"
-GLOSSARY_GROUP_LEVEL = 2
 FIXED_DOCUMENT_IDS = {
     "docs/user/BEGINNER_GUIDE.md": "beginner-guide",
     "docs/user/FINANCE_MATH.md": "finance-math",
 }
 
-_FENCE_RE = re.compile(r"^(```+|~~~+)")
-_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
-_CODE_SPAN_RE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.DOTALL)
-_LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 _THEMATIC_BREAK_RE = re.compile(r"^(?:-{3,}|\*{3,}|_{3,})$")
-_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
 class HelpGenerationError(ValueError):
@@ -85,7 +83,7 @@ def _mask_code(text: str) -> str:
     lines: list[str] = []
     fence_marker: str | None = None
     for line in text.split("\n"):
-        fence = _FENCE_RE.match(line.strip())
+        fence = FENCE_RE.match(line.strip())
         if fence and fence_marker is None:
             fence_marker = fence.group(1)[0] * 3
             lines.append(" " * len(line))
@@ -96,12 +94,12 @@ def _mask_code(text: str) -> str:
         else:
             lines.append(line)
     masked = "\n".join(lines)
-    return _CODE_SPAN_RE.sub(lambda match: re.sub(r"[^\n]", " ", match.group(0)), masked)
+    return CODE_SPAN_RE.sub(lambda match: re.sub(r"[^\n]", " ", match.group(0)), masked)
 
 
 def _resolve_target(source: str, target: str) -> tuple[str, str] | None:
     """Return the repository-relative path and the anchor a relative link names, or ``None`` when it is not one."""
-    if _SCHEME_RE.match(target) or target.startswith("//"):
+    if SCHEME_RE.match(target) or target.startswith("//"):
         return None
     path_part, _, anchor = target.partition("#")
     if not path_part:
@@ -139,7 +137,7 @@ def rewrite_links(lines: Sequence[str], first_line: int, source: str, context: L
     masked = _mask_code(text)
     pieces: list[str] = []
     position = 0
-    for match in _LINK_RE.finditer(masked):
+    for match in LINK_RE.finditer(masked):
         raw = text[match.start(1) : match.end(1)]
         if not raw.split():
             continue
@@ -183,79 +181,37 @@ def _split_entry(lines: Sequence[str]) -> tuple[str, str] | None:
     return " ".join(line.strip() for line in lines[start:end]), trim(lines[end:])
 
 
-@dataclass(frozen=True)
-class _GlossaryGroup:
-    """A level-2 heading of the user glossary: where it is, its text and slug, and whether it is excluded."""
-
-    line: int
-    title: str
-    slug: str
-    excluded: bool
-
-
-def _glossary_groups(raw_lines: Sequence[str]) -> list[_GlossaryGroup]:
-    """Return the glossary's level-2 headings, with GitHub's slugs counted over every heading of the file."""
-    lines = [line.rstrip("\n") for line in raw_lines]
-    seen: dict[str, int] = {}
-    groups: list[_GlossaryGroup] = []
-    fence_marker: str | None = None
-    for index, line in enumerate(lines):
-        fence = _FENCE_RE.match(line.strip())
-        if fence:
-            if fence_marker is None:
-                fence_marker = fence.group(1)[0] * 3
-            elif line.strip().startswith(fence_marker):
-                fence_marker = None
-            continue
-        match = None if fence_marker else _HEADING_RE.match(line)
-        if not match:
-            continue
-        base = slugify(match.group(2))
-        count = seen.get(base, 0)
-        if base:
-            seen[base] = count + 1
-        if len(match.group(1)) == GLOSSARY_GROUP_LEVEL:
-            excluded = index + 1 < len(lines) and lines[index + 1].strip() == EXCLUDE_MARKER
-            groups.append(
-                _GlossaryGroup(index + 1, match.group(2), base if count == 0 else f"{base}-{count}", excluded)
-            )
-    return groups
-
-
 def _terms_and_groups(
-    glossary: ServedDocument, group_headings: Sequence[_GlossaryGroup], context: LinkContext
+    glossary: ServedDocument, groups: Sequence[ServedGroup], context: LinkContext
 ) -> tuple[dict[str, HelpTerm], list[HelpGroup]]:
     """Return the terms of the glossary's served entries and the groups that hold them."""
     terms: dict[str, HelpTerm] = {}
     members: dict[str, list[str]] = {}
     for section in glossary.sections:
         where = f"{glossary.path}:{section.first_line}"
-        if section.anchor_id is None:
-            raise HelpGenerationError(f"{where}: the entry '{section.heading}' has no id line")
-        owner = [group for group in group_headings if group.line < section.first_line][-1:]
+        # ``check_repository`` has already required an id line and a short definition for every entry.
+        assert section.anchor_id is not None
+        owner = [group for group in groups if group.line < section.first_line][-1:]
         if not owner:
             raise HelpGenerationError(f"{where}: the entry '{section.heading}' is under no level-2 heading")
         lines = rewrite_links(section.lines, section.body_first_line, glossary.path, context)
         split = _split_entry(lines)
-        if split is None:
-            raise HelpGenerationError(f"{where}: the entry '{section.heading}' has no short definition")
+        assert split is not None
         terms[section.anchor_id] = HelpTerm(
             name=section.heading, definition=split[0], body=split[1], group=owner[0].slug
         )
         members.setdefault(owner[0].slug, []).append(section.anchor_id)
-    groups = [
-        HelpGroup(id=group.slug, title=group.title, terms=tuple(members[group.slug]))
-        for group in group_headings
+    bundle_groups = [
+        HelpGroup(id=group.slug, title=group.heading, terms=tuple(members[group.slug]))
+        for group in groups
         if group.slug in members
     ]
-    return terms, groups
+    return terms, bundle_groups
 
 
 def _document(served: ServedDocument, context: LinkContext) -> HelpDocument:
     """Return the bundle document of one served guide: its title, introduction and sections below level 1."""
-    titles = [section for section in served.sections if section.level == 1]
-    if len(titles) != 1:
-        raise HelpGenerationError(f"{served.path}: expected one level-1 heading, found {len(titles)}")
+    title = next(section for section in served.sections if section.level == 1)
     sections: list[HelpSection] = []
     for section in served.sections:
         if section.level == 1:
@@ -268,8 +224,8 @@ def _document(served: ServedDocument, context: LinkContext) -> HelpDocument:
         sections.append(
             HelpSection(id=section.slug, heading=section.heading, level=section.level, markdown=trim(lines))
         )
-    introduction = rewrite_links(titles[0].lines, titles[0].body_first_line, served.path, context)
-    return HelpDocument(title=titles[0].heading, introduction=trim(introduction), sections=tuple(sections))
+    introduction = rewrite_links(title.lines, title.body_first_line, served.path, context)
+    return HelpDocument(title=title.heading, introduction=trim(introduction), sections=tuple(sections))
 
 
 def document_ids(documents: Sequence[ServedDocument]) -> dict[str, str]:
@@ -300,8 +256,7 @@ def build_bundle(repo_root: Path = REPOSITORY_ROOT) -> HelpBundle:
     terms: dict[str, HelpTerm] = {}
     groups: list[HelpGroup] = []
     if glossary is not None:
-        raw = (repo_root / USER_GLOSSARY).read_text(encoding="utf-8").splitlines()
-        terms, groups = _terms_and_groups(glossary, _glossary_groups(raw), context)
+        terms, groups = _terms_and_groups(glossary, glossary.groups, context)
     return HelpBundle(
         terms=terms,
         groups=tuple(groups),
@@ -336,12 +291,10 @@ def main(argv: Sequence[str] | None = None, *, path: Path = HELP_BUNDLE_FILE, re
     parser = argparse.ArgumentParser(description=__doc__.split("\n", maxsplit=1)[0] if __doc__ else None)
     parser.add_argument("--check", action="store_true", help="Report a missing or out-of-date bundle; write nothing.")
     arguments = parser.parse_args(argv)
-    problems = check_served_content(repo_root)
+    problems = [*check_repository(repo_root), *check_served_content(repo_root)]
     if problems:
         sys.stderr.write("".join(f"{problem}\n" for problem in problems))
-        sys.stderr.write(
-            f"generate_help: {len(problems)} served-content problem(s); nothing was written or compared.\n"
-        )
+        sys.stderr.write(f"generate_help: {len(problems)} problem(s); nothing was written or compared.\n")
         return 1
     try:
         if arguments.check:
