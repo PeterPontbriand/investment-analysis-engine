@@ -81,7 +81,7 @@ The help bundle serves some user documents. Their rules are decided in [H24](mil
 - **Command-line material:** a section that is entirely command-line material carries the exclude marker. A mixed section ends with an excluded "On the command line" subsection, one heading level below it and its last subsection.
 - **Leak rules:** `python scripts/check_help_content.py` fails served content on a code span that starts with `ian `, `--`, `uv ` or `IAN_`; a fenced block with an `ian` command line or in a shell language; and a link to a file that is not served, to an excluded section, to a term that is not served, or to the user glossary without an entry id.
 - **Command names:** `tests/scripts/test_served_content.py` fails on a served code span that starts with the name of an `ian` command or command group, read from the Typer application.
-- **The help bundle:** after editing a served document, regenerate the bundle with `uv run python -m scripts.generate_help`; the gate fails on drift. The generator refuses to write while the served-content check reports any problem.
+- **The help bundle:** after editing a served document, regenerate the bundle with `uv run python -m scripts.generate_help`; the gate fails on drift. The generator refuses to write while scripts/check_help_content.py reports any problem, glossary entry rules included.
 
 ## Quality gates
 
