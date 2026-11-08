@@ -1,0 +1,1574 @@
+{
+  "documents": {
+    "beginner-guide": {
+      "introduction": "You do not need a background in finance to start exploring Investment Analysis Engine. This guide introduces the basic ideas behind the numbers it works with, shows how those numbers become an analysis, and points to deeper explanations. It is an orientation, not an investing course.",
+      "sections": [
+        {
+          "heading": "Words you'll meet first",
+          "id": "words-youll-meet-first",
+          "level": 2,
+          "markdown": "A few everyday investing words appear throughout this guide and the rest of the documentation:\n\n- **Share (stock):** a small unit of ownership in a company. Owning shares means owning a slice of the company; “stock” usually means shares in general.\n- **Stock exchange:** a regulated marketplace where shares of publicly traded companies are bought and sold, such as the New York Stock Exchange.\n- **Ticker symbol:** the short code that identifies a company's shares on an exchange, such as KO for Coca-Cola. You give the program a [ticker](help:terms/ticker) to say which company to analyze.\n- **Market price and quote:** the market price is what shares have recently been bought and sold for. A [quote](help:terms/current-quote) is the price a data service reports at a given moment; it changes throughout the trading day.\n- **Valuation:** estimating what a share might be worth by a stated method, usually to compare that estimate with the market price. Different methods give different answers, and no [valuation](help:terms/valuation) is a prediction or a recommendation.\n- **Financial report (filing):** a document a company publishes about its finances. In the United States, companies file these reports with the [SEC](help:terms/sec).\n- **Fiscal year:** a company's twelve-month accounting year, which need not match the calendar year. See [fiscal year](help:terms/fiscal-year).\n- **Data provider:** a service the program gets information from. This project uses Yahoo Finance for share prices and the SEC's [EDGAR](help:terms/edgar) system for company reports.\n\nFor more everyday investing terms, the SEC's investor-education site has a plain-language [glossary](https://www.investor.gov/introduction-investing/investing-basics/glossary)."
+        },
+        {
+          "heading": "Investment analysis, in everyday terms",
+          "id": "investment-analysis-in-everyday-terms",
+          "level": 2,
+          "markdown": "Investment analysis means examining information about a business and the market for its shares to understand what the information may suggest. Someone might look at a company's reported earnings, the cash it generates, how those figures have changed, or how a share price compares with a particular measure.\n\n“Quantitative investment research” means using numbers and explicit calculation rules as part of that research. In this project, **quantitative** does not necessarily mean advanced mathematics: an average or a comparison can also be quantitative. The important point is that the calculation is defined and repeatable. The project's software performs financial arithmetic; an artificial intelligence (AI) model is not treated as a calculator or source of financial facts.\n\nNumbers can help organize evidence and raise questions. Their meaning depends on definitions, dates, and business context, and a result is not by itself a recommendation.\n\nPublicly traded companies periodically publish financial reports and other information about their business for investors and regulators. This information can include revenue (money from sales), expenses (business costs), assets (what the company owns), liabilities (what it owes), cash flows (money coming in and going out), earnings (profit), and share information.\n\nIn the United States, companies file reports with the [Securities and Exchange Commission (SEC)](help:terms/sec). The SEC's [EDGAR](help:terms/edgar) system provides public access to filings and related data.\n\nThese reports are the original source of the company's figures. The project selects and prepares relevant values as financial facts for a requested analysis; deterministic calculations then produce metrics from those inputs.\n\nA reporting period tells you what span of time a figure describes. A filing or availability date tells you when the information became public. Both dates matter when analyzing the past, as explained below."
+        },
+        {
+          "heading": "Facts, metrics, methods, and strategies",
+          "id": "facts-metrics-methods-and-strategies",
+          "level": 2,
+          "markdown": "These four terms describe different layers:\n\n- A **financial fact** is a reported or observed input, such as earnings for a reporting period, a share count, or a historical market price.\n- A **metric** is a measurement calculated from facts, such as free cash flow per share or a growth rate. Some measures, including [earnings per share (EPS)](help:terms/eps), may also be reported directly by a company and used as an input. The important distinction is whether a value is reported evidence or a result calculated from other inputs in the particular analysis.\n- An **analysis method** applies a defined calculation to selected inputs to address a particular question.\n- An **analysis strategy** organizes one or more methods around an analytical question and presents the result, including relevant evidence and limits.\n\nHere is a deliberately simplified example using the project's [Graham Number](help:terms/graham-number) method. EPS is profit attributable to common shareholders for each share. [Book value per share (BVPS)](help:terms/bvps) is the company's reported assets minus its liabilities, attributed to common shareholders and expressed per share; it is not the market price. A [fiscal year](help:terms/fiscal-year) is a company's annual accounting period.\n\n```text\nReported annual diluted earnings per share, plus accounting and share information that meets the method's requirements (such as the right periods and share counts)\n                              ↓\n Three-year average earnings per share and derived book value per share\n                              ↓\n       Graham Number calculation (analysis method)\n                              ↓\n          Graham Analysis Strategy (strategy)\n                              ↓\n A screening ceiling, with its inputs, sources, dates, and limitations\n```\n\nIn the standard Graham Number path, the project uses reported diluted EPS from three completed fiscal years to form an average. \"Diluted\" means the share calculation also allows for certain shares that could be created, for example through employee options.\n\nThe project derives BVPS from year-end accounting facts that meet the method's data rules. These include common shareholders' equity (the accounting value left for common owners after liabilities and other claims) and shares outstanding.\n\nThe method combines the average EPS and BVPS to produce a [maximum indicated price](help:terms/maximum-indicated-price), or screening ceiling (a price limit indicated by this formula). If the project has a current share price for the same kind of share and currency as the financial figures, the result can show how they compare.\n\nThis is one limited screen, not a complete judgment of what a company is worth or whether its shares are suitable for someone. See the [Graham Number strategy guide](help:documents/graham-number) and [Financial Math & Data Conventions](help:documents/finance-math#graham-number-strategy) for the exact inputs, formula, and data rules.\n\nThe arrows show the relationship between these ideas; they are not a literal map of every software operation. The diagram is conceptual, not a substitute for the actual formula."
+        },
+        {
+          "heading": "What kinds of information are involved?",
+          "id": "what-kinds-of-information-are-involved",
+          "level": 2,
+          "markdown": "Different analyses use different kinds of information. A term may be useful background even when it is not an input to a particular strategy."
+        },
+        {
+          "heading": "Company facts and per-share measures",
+          "id": "company-facts-and-per-share-measures",
+          "level": 3,
+          "markdown": "Companies report financial information for defined periods. **Earnings** describe profit under an accounting basis. **EPS** expresses earnings per share; basic and diluted EPS use different share assumptions. **Shares outstanding** is a share count at a point in time, while weighted-average shares are averaged across a reporting period. These distinctions matter because a per-share figure depends on which earnings and share basis are used. See [EPS](help:terms/eps), [diluted EPS](help:terms/basic-and-diluted-eps), and [shares outstanding](help:terms/shares-outstanding).\n\n**[Free cash flow (FCF)](help:terms/free-cash-flow)** is an analytical measure of cash generated after spending on long-lived assets such as buildings or equipment (capital expenditures). Different sources may define it differently. In the Free Cash Flow & Earnings Growth strategy, the project calculates annual FCF as cash generated by normal business operations minus capital expenditures, then also calculates FCF per diluted share. See the [strategy guide](help:documents/fcf-growth) for the project's calculation and limits."
+        },
+        {
+          "heading": "Change over time",
+          "id": "change-over-time",
+          "level": 3,
+          "markdown": "A **growth rate** describes how a value changes across a period. **[CAGR (compound annual growth rate)](help:terms/cagr)** is the constant annual rate that would connect a beginning value to an ending value over a stated number of years. It summarizes the endpoints; it does not mean the value actually changed at that steady rate each year. A historical CAGR describes the past and does not predict the future."
+        },
+        {
+          "heading": "Prices, yields, and valuation measures",
+          "id": "prices-yields-and-valuation-measures",
+          "level": 3,
+          "markdown": "A **historical price** is one observed share price in a series of prices over time. The current market price is a separate kind of input: it is a quote, and the time the project retrieves it does not necessarily establish when the underlying trade occurred.\n\nA **[yield](help:terms/yield)** expresses an amount of income relative to an investment's price or value, usually as a percentage. In this project's [Graham Growth Value](help:documents/graham-growth#graham-growth-value) method, a user supplies an expected growth estimate and the yield on AAA-rated (highest credit category) corporate bonds; the project does not currently provide a live series of that yield. See the glossary's [AAA definition](help:terms/aaa-rating).\n\n**Market capitalization** is the market value of a company's shares, generally calculated from share price and shares outstanding. It is different from accounting book value. **Valuation measures** compare a price or market value with a financial measure. For example, the [price-to-earnings ratio (P/E)](help:terms/pe-ratio) compares price per share with EPS; the [price-to-book ratio (P/B)](help:terms/pb-ratio) compares price per share with BVPS. A ratio can help frame a comparison, but it does not establish what a business should be worth. In the current FCF strategy, market capitalization may support an optional, informational [FCF yield](help:terms/fcf-yield); it does not determine the growth classification.\n\nRelevant inputs can also include economic or market data. For example, the Graham Growth Value calculation refers to a corporate-bond yield. Not every strategy needs every type of information."
+        },
+        {
+          "heading": "Why examine these measurements—and what are their limits?",
+          "id": "why-examine-these-measurementsand-what-are-their-limits",
+          "level": 2,
+          "markdown": "An investor may examine earnings and EPS to understand reported profitability on a per-share basis, cash flow to consider cash generated after investment in long-lived assets, or growth to summarize how a measure changed across years. Price comparisons and valuation measures put a share price alongside selected financial information. Historical prices can be used to describe price trends and changes in those trends.\n\nThese measurements answer limited questions. Earnings depend on accounting definitions and reporting periods. FCF is not defined identically by every source or analyst. Growth depends on the chosen start and end values, the length of the period, and whether the values are comparable. Per-share measurements depend on share basis and share-count changes. Price-based comparisons also depend on quote timing and compatible units or currency. Business circumstances can make the same measurement more or less informative in different cases.\n\nTreat a metric as evidence to inspect, not as a verdict. A historical growth rate is not a forecast; a valuation formula is not a complete valuation; and no one metric determines whether a security is good or bad for an investor."
+        },
+        {
+          "heading": "How the project applies this model today",
+          "id": "how-the-project-applies-this-model-today",
+          "level": 2,
+          "markdown": "A few of the project's strategies, offered only as examples, show how different analytical questions can be:\n\n- The **Graham Number** method combines earnings and book value per share to produce a screening ceiling. Positive EPS and BVPS are required. A current-price comparison is optional and depends on compatible evidence.\n- **Graham Growth Value** is a separate calculation that depends on estimates about future growth. Under the current implementation, the user supplies an expected growth estimate and a current AAA corporate-bond yield; the method is not the Graham Number.\n- **Momentum** examines recent share-price behavior using simple moving averages (averages over selected numbers of past prices) and whether their relationship changes, called a crossover. It also reports [RSI (Relative Strength Index)](help:terms/rsi), a momentum indicator—a score that compares recent price gains with losses. The strategy describes price behavior; it does not assess business quality or estimate [intrinsic value](help:terms/intrinsic-value), meaning what an investment may be economically worth.\n\nThese examples have different purposes and inputs. They are illustrations, not a complete list: the set of strategies can evolve as the project grows, and a future strategy need not use the same measures. Each strategy's own guide describes its inputs, sources and limits."
+        },
+        {
+          "heading": "Where values come from, and why dates matter",
+          "id": "where-values-come-from-and-why-dates-matter",
+          "level": 2,
+          "markdown": "Financial facts and market observations come from sources with different roles. For some annual company facts, the project uses [SEC filings](help:terms/sec) available through [EDGAR](help:terms/edgar) that meet its data rules.\n\nThe project uses a software component called `yfinance` to access Yahoo Finance historical prices and certain current share prices. `yfinance` is a third-party open-source library; it is not affiliated with, endorsed by, or vetted by Yahoo.\n\nSome analyses also accept user-provided overrides—values supplied for a particular run rather than confirmed by a data service. Each strategy guide describes its specific sources.\n\nA **fiscal period** is the period a reported figure describes. The date that period ended is not necessarily when investors could first know the figure: a company may file its report weeks or months later. For a historical analysis, using a fact before its public release would use information that arrived later, an error called [look-ahead bias](help:terms/look-ahead-bias). The project's [`as_of`](help:terms/as-of-date) date is a cutoff: where the source supports it, the analysis only uses information available by that date. A current-only quote does not become a historical quote just because an analysis has an earlier `as_of` date. See [filing and publication dates](help:terms/availability-date) for more detail.\n\n**[Provenance](help:terms/provenance)** means the record of where a value came from and how it was changed or calculated. Source details, reporting periods, availability dates, and when data were retrieved help someone inspect or reconstruct what an analysis used. They do not prove that a source is complete or correct, that a measure suits every purpose, or that the result predicts future performance."
+        },
+        {
+          "heading": "What the project does not establish",
+          "id": "what-the-project-does-not-establish",
+          "level": 2,
+          "markdown": "Investment Analysis Engine does not provide personalized investment advice, guarantee source-data quality or future performance, or turn one formula or metric into a complete valuation or investment decision. Its results have to be understood in context, and decisions require judgment beyond the calculation. Read the [project limitations and disclaimer](https://github.com/PeterPontbriand/investment-analysis-engine/blob/main/README.md#limitations--disclaimer) and the limitations in the relevant strategy guide."
+        },
+        {
+          "heading": "Where to go next",
+          "id": "where-to-go-next",
+          "level": 2,
+          "markdown": ""
+        },
+        {
+          "heading": "Further reading",
+          "id": "further-reading",
+          "level": 3,
+          "markdown": "- [Financial Math & Data Conventions](help:documents/finance-math) — authoritative formulas and calculation semantics.\n- [Investor.gov glossary](https://www.investor.gov/introduction-investing/investing-basics/glossary) — the SEC's plain-language definitions of everyday investing terms."
+        }
+      ],
+      "title": "A Beginner's Guide to Investment Analysis in This Project"
+    },
+    "fcf-growth": {
+      "introduction": "The Free Cash Flow & Earnings Growth strategy is a deterministic historical screen. It asks whether a company produced positive, measurable growth in both free cash flow (FCF) and diluted earnings per share (EPS) over a common span of completed fiscal years.\n\nThe result is a `PASS`, `FAIL`, or `INDETERMINATE` screen—not a valuation, moat rating, forecast, or investment recommendation.\n\nExplanations follow the selected classification basis: total-company FCF or FCF per diluted share. Those measures can move in opposite directions when share counts change. The detailed evidence retains component currency, source/cache origin, derivation notes and reasons for unavailable optional metrics. The effective analysis time controls input eligibility as well as the reported execution time; a later resolver clock cannot admit later filings into an earlier execution boundary.",
+      "sections": [
+        {
+          "heading": "Default policy",
+          "id": "default-policy",
+          "level": 2,
+          "markdown": "The default policy:\n\n- selects the longest usable contiguous history, preferring 5 elapsed years, then 4, then 3;\n- uses total-company FCF growth as the classification basis;\n- requires positive growth in both the controlling FCF measure and diluted EPS for `PASS`; and\n- treats optional forward EPS evidence as display-only."
+        },
+        {
+          "heading": "What the strategy calculates",
+          "id": "what-the-strategy-calculates",
+          "level": 2,
+          "markdown": "For each eligible completed fiscal year:\n\n```text\nfree cash flow = operating cash flow - normalized capital expenditures\nFCF per diluted share = free cash flow / weighted-average diluted shares\n```\n\nIt then calculates compound annual growth rates (CAGRs) for:\n\n- total-company FCF;\n- FCF per diluted share; and\n- diluted EPS.\n\nBoth FCF growth measures are reported. Total-company FCF controls classification by default because it measures growth in the business's aggregate cash generation. The optional per-share basis incorporates the effect of dilution and repurchases.\n\nSee [Financial Math & Data Conventions](help:documents/finance-math#free-cash-flow--earnings-growth-strategy) for the normative formulas and edge-case rules."
+        },
+        {
+          "heading": "FCF yield",
+          "id": "fcf-yield",
+          "level": 2,
+          "markdown": "The strategy also shows an informational FCF yield: the latest completed fiscal year's free cash flow divided by the company's [market capitalization at the boundary](help:documents/finance-math#market-capitalization), as a percentage. It never changes the classification or the execution status.\n\n- **When it is shown.** The yield is shown only when it is a number. The yield requires the latest fiscal year to end at the fiscal year-end of the most recent annual report at the boundary, the year the share count is taken at; otherwise it is unavailable, and an older year is never used.\n- **What it needs.** A share count from the annual report (or its cover page), a split-adjusted closing price, the splits since the count was taken, and a check of the annual report's cover that the ticker is a share of the company. Without an as-of date the price is the current quote; with one it is the closing price on the last trading day on or before that date.\n- **When it is unavailable.** The yield is left out and a warning, `FCF yield is unavailable:`, gives the reason: for example a filer of a 20-F or 40-F, a ticker that is a depositary share, unit or warrant on the cover, a quote and annual figures in different currencies, or no share count. When a market-data provider fails, the warning names the provider and the kind of failure (such as `yfinance` and `rate_limited`) and never repeats the provider's own message. The run is still a completed run: its status and classification are the same as without the yield. The failure is not recorded as a provider failure of the run.\n- **No request when it is not wanted.** For an ETF no market data is requested. When no completed fiscal year could be resolved there is nothing to divide, and none is requested either.\n\nThe evidence behind the market capitalization is shown under the calculation notes:\n\n```text\nMarket capitalization: 1,300.00 USD\n  Share count: 200 (year end, dated 2025-01-01; source filed 2025-02-01)\n  Share count on the price's basis: 400\n  Provider split adjustments applied:\n    2025-03-03 ×2 (between the share count and the price)\n  Price: 3.25 USD (split-adjusted close, 2026-10-28)\n  Currencies: filing USD, quote USD\n  Listing check: affirmed on 0000000000-25-000001\n```\n\nThe share count line names its basis (`year end` or `cover page`), the date of the count and the date the filing it came from was filed. A ticker renamed since the annual report is shown with both reports: `affirmed; FB on 10-K <accession>, renamed META on 10-K <accession>`."
+        },
+        {
+          "heading": "Limits of the yield",
+          "id": "limits-of-the-yield",
+          "level": 3,
+          "markdown": "- With a date-only as-of boundary, the price includes that day's close, and a session is read by its exchange-local date, as Momentum reads its prices.\n- The share count is the count at the fiscal year-end, so buybacks and issuance between the year-end and the price date are not reflected.\n- A filing restates its counts for a split effective before it is issued. A split announced before the filing but effective just after it is assumed not to be reflected in the filing.\n- The provider's split history reports splits and other adjustments alike. A provider adjustment for a spin-off (Honeywell's appear as ×1.061 and ×0.9535), or a stock dividend outside the recognized split ratios (Commerce Bancshares' ×1.05), between the filing and the price makes the yield unavailable, with the event's date and ratio in the warning; the share count is not guessed. The same adjustment after the price date, which the provider applied to the historical close, is undone and does not make it unavailable. Ordinary splits such as 2-for-1, 3-for-1, 10-for-1 and 3-for-2, and reverse splits, are applied.\n- A filer of a 20-F or 40-F (a foreign private issuer) is unavailable, because its US listing may be a depositary receipt at a ratio the structured data cannot show. A listing that is not a share of the company on the annual report's cover (a depositary share, unit, warrant or preferred security) is unavailable.\n- The yield uses an annual numerator and a market denominator, so it is context, not a valuation."
+        },
+        {
+          "heading": "Historical period",
+          "id": "historical-period",
+          "level": 2,
+          "markdown": "The automatic policy tries these spans in order:\n\n| Elapsed years | Required annual observations |\n|---:|---:|\n| 5 | 6 |\n| 4 | 5 |\n| 3 | 4 |\n\nFor example, FY2020 through FY2025 contains six observations and five elapsed annual intervals. The observations must be compatible and contiguous. If the automatic policy falls back to a shorter span, the result discloses that fallback.\n\nAn exact span can be requested instead.\n\nAn explicit span is strict. If the required history is unavailable, the strategy returns `INDETERMINATE` rather than silently choosing a shorter span."
+        },
+        {
+          "heading": "Classification",
+          "id": "classification",
+          "level": 2,
+          "markdown": "The screen returns:\n\n- `PASS` when the selected FCF CAGR and diluted-EPS CAGR are both meaningful and greater than zero, subject to any selected forward hard gate;\n- `FAIL` when the required historical metrics are meaningful and at least one is zero or negative; or\n- `INDETERMINATE` when required evidence is missing, incompatible, non-contiguous, or mathematically nonmeaningful.\n\nAn `INDETERMINATE` result is not a failed financial screen. It means the software cannot make the requested classification from the admissible evidence. Software execution status is recorded separately from the financial classification.\n\nThe presentation of a result does not recalculate or reclassify it. Identity metadata, such as an instrument name, is descriptive and cannot change the screen classification or execution status."
+        },
+        {
+          "heading": "Classification basis",
+          "id": "classification-basis",
+          "level": 2,
+          "markdown": "Total-company FCF is the default classification basis. FCF per diluted share can be made controlling instead.\n\nChanging the basis can change the screen when share issuance or repurchases cause total and per-share FCF growth to differ. The result always identifies the selected basis and still reports both FCF CAGRs."
+        },
+        {
+          "heading": "Forward EPS policy",
+          "id": "forward-eps-policy",
+          "level": 2,
+          "markdown": "The typed strategy supports analyst-consensus diluted EPS evidence for FY1 and FY2 when compatible evidence is available:\n\n| Policy | Effect |\n|---|---|\n| `display_only` | Show available forward evidence without changing the historical conclusion. This is the default. |\n| `confirmation` | Report whether both forward intervals confirm positive growth without changing the historical conclusion. |\n| `hard_gate` | Require both forward intervals to be available and positive for `PASS`; missing required evidence yields `INDETERMINATE`. |\n\nForward estimates are optional provider evidence, not predictions generated by Investment Analysis Engine. The current production SEC EDGAR mapping supplies historical company facts but may not supply forward analyst consensus. In that case, `display_only` leaves the historical conclusion unchanged, while `hard_gate` produces `INDETERMINATE` as designed."
+        },
+        {
+          "heading": "Point-in-time analysis",
+          "id": "point-in-time-analysis",
+          "level": 2,
+          "markdown": "An as-of date is an information boundary. A fiscal year is not eligible merely because it ended before that date; its supporting filing must also have been available by the boundary. This prevents later-published facts from leaking into a historical analysis. A ticker names the registrant it maps to today: with an as-of date, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied."
+        },
+        {
+          "heading": "Data sources and provenance",
+          "id": "data-sources-and-provenance",
+          "level": 2,
+          "markdown": "The current production analysis resolves annual financial facts from SEC EDGAR. Required evidence includes:\n\n- net cash provided by operating activities;\n- capital expenditures, normalized to a positive expenditure amount;\n- diluted EPS; and\n- weighted-average diluted shares.\n\nEligible annual forms are `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and\n`40-F/A` for the reviewed duration fields. US-GAAP uses the existing exact\nconcept mappings. IFRS support is deliberately limited to exact diluted EPS,\ndiluted weighted-average shares, operating cash flow, and physical-PP&E CapEx\nconcepts. Broader combined investing concepts, custom extensions, fuzzy\nmatches, negative-to-positive CapEx normalization, and missing-value\nsubstitution remain unsupported.\n\nIssuer-level operating cash flow, CapEx, and derived FCF can remain valid even\nwhen per-share or quote-unit evidence is unavailable. ADR/ADS conversion and\ncurrency conversion are not performed.\n\nA three-letter ISO 4217 reporting currency can be required, and annual facts must then be compatible with it.\n\nThe calculation does not accept a provider's precomputed “free cash flow” solely because its label matches. It derives FCF from the resolved components and retains their provider fields, period dates, publication/availability dates, retrieval times, units, currency, and derivation lineage.\n\nThe resolver rejects incompatible facts instead of combining values with mismatched fiscal periods, units, currency, or measurement bases. Amendments and restatements are handled by deterministic selection rules."
+        },
+        {
+          "heading": "Why another calculator may disagree",
+          "id": "why-another-calculator-may-disagree",
+          "level": 2,
+          "markdown": "Differences can arise when another source:\n\n- defines capital expenditures or FCF differently;\n- uses trailing-twelve-month rather than completed annual values;\n- mixes basic and diluted EPS or uses ending shares rather than weighted-average diluted shares;\n- smooths or normalizes annual values;\n- selects different filings, restatements, fiscal periods, or publication cutoffs;\n- calculates growth across a different number of elapsed years; or\n- reports growth from zero, negative, or sign-changing endpoints using a different convention.\n\nInvestment Analysis Engine preserves the reported annual history and does not use absolute values to manufacture a CAGR from nonpositive endpoints."
+        },
+        {
+          "heading": "Interpretation and limitations",
+          "id": "interpretation-and-limitations",
+          "level": 2,
+          "markdown": "Positive FCF and diluted-EPS growth can be evidence of strengthening cash-generation economics, but this strategy does not establish:\n\n- a durable competitive moat, scarcity, market opportunity, or management quality;\n- relative leadership versus peers;\n- fair value, discounted cash flow, terminal value, or cost of capital;\n- a minimum acceptable FCF yield;\n- future growth; or\n- an investment recommendation.\n\nFCF yield may appear as optional context when market capitalization at the boundary is available, but it never changes classification in the current method version."
+        }
+      ],
+      "title": "Free Cash Flow & Earnings Growth Strategy"
+    },
+    "finance-math": {
+      "introduction": "This document defines the deterministic financial formulas and data conventions used by the analysis strategies that Investment Analysis Engine currently implements.\n\nIt is not a catalogue of every financial indicator the project may someday support. Strategy-specific usage and interpretation live in each strategy's guide.",
+      "sections": [
+        {
+          "heading": "Shared data conventions",
+          "id": "shared-data-conventions",
+          "level": 2,
+          "markdown": ""
+        },
+        {
+          "heading": "Data sources are capabilities, not interchangeable labels",
+          "id": "data-sources-are-capabilities-not-interchangeable-labels",
+          "level": 3,
+          "markdown": "Investment Analysis Engine uses different sources for different kinds of information:\n\n- **SEC EDGAR** — completed annual company financial facts used by Graham and FCF/Earnings Growth. Reviewed US-GAAP duration concepts accept `10-K`/`20-F`/`40-F` annual forms; reviewed IFRS support is limited to exact diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx concepts.\n- **Yahoo Finance data via [`yfinance`](https://ranaroussi.github.io/yfinance/)** — historical market prices for Momentum and current quote comparison for Graham where applicable. `yfinance` is an independent open-source library and is not affiliated with, endorsed by, or vetted by Yahoo.\n- **AAA corporate-bond yield** — currently supplied explicitly by the user for Graham Growth Value; no automatic live series is integrated.\n\nA source is used only for financial values whose meaning and time behavior are understood well enough for the selected calculation."
+        },
+        {
+          "heading": "Historical series and current quotes are different",
+          "id": "historical-series-and-current-quotes-are-different",
+          "level": 3,
+          "markdown": "A historical price series is an ordered set of observations used for time-series calculations. A current quote is a point-in-time market price used for comparison.\n\nA provider that supplies a current quote does not automatically provide a historically valid quote for an earlier `as_of` date."
+        },
+        {
+          "heading": "Resolution and provenance",
+          "id": "resolution-and-provenance",
+          "level": 3,
+          "markdown": "Where a strategy resolves financial facts, each required value follows the documented precedence:\n\n```text\nexplicit override → valid cache → configured data provider → unavailable\n```\n\nResolved financial values retain enough [provenance](help:terms/provenance) to explain their source, measurement basis, relevant dates, and derivation."
+        },
+        {
+          "heading": "`as_of` and publication timing",
+          "id": "as_of-and-publication-timing",
+          "level": 3,
+          "markdown": "A requested [`as_of`](help:terms/as-of-date) date is a hard information boundary.\n\nA company's fiscal year may end on December 31 while the corresponding filing is not published until weeks or months later. A historical analysis dated January 15 must not use a filing that did not become public until February.\n\nThis distinction helps prevent [look-ahead bias](help:terms/look-ahead-bias)."
+        },
+        {
+          "heading": "Missing data",
+          "id": "missing-data",
+          "level": 3,
+          "markdown": "Unknown or unavailable financial data does not silently become zero.\n\nA calculation may instead report that:\n\n- required data is unavailable;\n- supplied data is invalid; or\n- the method is not applicable to otherwise valid facts."
+        },
+        {
+          "heading": "Momentum Strategy",
+          "id": "momentum-strategy",
+          "level": 2,
+          "markdown": "Momentum currently implements a deterministic simple-moving-average/crossover calculation."
+        },
+        {
+          "heading": "Inputs",
+          "id": "inputs",
+          "level": 3,
+          "markdown": "The strategy uses:\n\n- a short moving-average window;\n- a long moving-average window; and\n- an RSI lookback period; and\n- historical closing prices.\n\nThe short window must be smaller than the long window."
+        },
+        {
+          "heading": "Simple moving average",
+          "id": "simple-moving-average",
+          "level": 3,
+          "markdown": "For a window of `n` observations:\n\n```text\nSMA_t(n) = mean(P[t-n+1 : t])\n```\n\nThe current implementation calculates:\n\n```text\nshort_sma = rolling_mean(Close, short_window)\nlong_sma  = rolling_mean(Close, long_window)\nsignal    = 1 if short_sma > long_sma else 0\ncrossover = signal[t] - signal[t-1]\n```\n\nA crossover requires valid short and long SMAs at both `t` and `t-1`. At the first valid long-SMA observation, the current trend can be classified while crossover remains unavailable. Zero means no transition between two valid states.\n\nRSI uses the simple mean of gains and losses over the configured number of price changes, not Wilder smoothing: `100 - 100 / (1 + mean_gain / mean_loss)`. Rising-only changes produce 100, falling-only changes produce 0, and an entirely flat window produces 50. A period of `n` requires at least `n+1` prices. Invalid observations are rejected in both fetched and preloaded frames; they are not dropped or filled.\n\nInterpretation:\n\n- `signal == 1` → short SMA above long SMA → bullish price-momentum state;\n- otherwise → bearish state under the configured rule;\n- positive crossover → transition into the bullish relationship;\n- negative crossover → transition out of the bullish relationship;\n- insufficient history → unavailable moving averages / unknown state rather than invented zeroes.\n\nMachine-readable JSON uses `null` for unavailable numeric outputs rather than non-standard `NaN`.\n\nHistorical observations are truncated to `bar_timestamp <= as_of` before any metric is calculated. The short SMA, long SMA, and RSI use typed metric results: insufficient history produces `status = unavailable`, `reason_code = insufficient_history`, and no numeric value. The short window, the long window and the RSI period are each configurable.\n\nSee the [Momentum Strategy Guide](help:documents/momentum)."
+        },
+        {
+          "heading": "Graham Number Strategy",
+          "id": "graham-number-strategy",
+          "level": 2,
+          "markdown": "```text\nmaximum indicated price = sqrt(22.5 × EPS × BVPS)\n```\n\nThe factor `22.5` combines the conventional limits:\n\n```text\nmaximum P/E = 15\nmaximum P/B = 1.5\n15 × 1.5 = 22.5\n```\n\nBecause:\n\n```text\nP/E × P/B = price² / (EPS × BVPS)\n```\n\nsolving the combined limit for price produces the square-root formula.\n\nThe output is a **maximum indicated price / screening ceiling** based on earnings and book value. It is not a complete defensive-investor qualification and is not presented as an unquestionable intrinsic value."
+        },
+        {
+          "heading": "Earnings convention",
+          "id": "earnings-convention",
+          "level": 3,
+          "markdown": "The standard Graham Number basis is a three-year average of completed fiscal-year diluted EPS:\n\n```text\nthree-year-average EPS =\n    (fiscal EPS 1 + fiscal EPS 2 + fiscal EPS 3) / 3\n```\n\nThe three observations must be compatible in financial meaning/share basis and must have been available by the requested historical boundary.\n\nCompatibility requires the same provider concept, diluted/basic basis, currency, units, and fiscal basis across distinct fiscal years. Provider-exposed share-class and split-treatment evidence must agree. Ambiguous restatements or compatibility gaps make the series unavailable rather than triggering a guessed normalization.\n\nThe Graham Number has no other EPS basis: it always uses the three-year average, and a trailing-twelve-month EPS is not offered."
+        },
+        {
+          "heading": "Book value per common share",
+          "id": "book-value-per-common-share",
+          "level": 3,
+          "markdown": "```text\nBVPS = common shareholders' equity / period-end common shares outstanding\n```\n\nA provider-reported BVPS is usable only when its definition is understood. Investment Analysis Engine's SEC calculation derives fiscal-year-end BVPS from compatible accounting evidence when a safe direct value is unavailable.\n\nTangible BVPS is a different measure and is not silently substituted."
+        },
+        {
+          "heading": "Applicability",
+          "id": "applicability",
+          "level": 3,
+          "markdown": "Positive EPS and BVPS are required for the Graham Number. Non-positive EPS or BVPS means the method is not applicable rather than producing a zero or complex-number valuation."
+        },
+        {
+          "heading": "Price comparison",
+          "id": "price-comparison",
+          "level": 3,
+          "markdown": "See [Reference-value price comparison](help:documents/finance-math#reference-value-price-comparison) — the Graham Number is one such reference value.\n\nSee the [Graham Number Strategy Guide](help:documents/graham-number)."
+        },
+        {
+          "heading": "Graham Growth Value Strategy",
+          "id": "graham-growth-value-strategy",
+          "level": 2,
+          "markdown": "```text\ngrowth value = normalized EPS\n    × (base P/E + growth multiplier × g)\n    × baseline AAA yield / current AAA yield\n```\n\nCurrent conventional constants:\n\n```text\nbase P/E = 8.5\ngrowth multiplier = 2.0\nbaseline AAA yield = 4.4\n```\n\nWhere:\n\n- `normalized EPS` is the earnings value supplied on an explicitly documented basis;\n- `g` is expected annual growth in **percentage points** (`6.5` means 6.5%, not `0.065`);\n- `baseline AAA yield` is a historical formula constant, also in percentage points; and\n- `current AAA yield` is the user-supplied current AAA corporate-bond yield, in percentage points.\n\nThis is a forecast-dependent growth-stock estimate. It is not the Graham Number."
+        },
+        {
+          "heading": "EPS basis",
+          "id": "eps-basis",
+          "level": 3,
+          "markdown": "- Graham Number always uses three-year-average diluted EPS; it has no EPS-basis option.\n- Graham Growth uses three-year-average diluted EPS by default, for every provider. The production tool boundary also supports an explicit single completed fiscal-year EPS basis for reviewed workflows.\n\nAn unsupported basis is rejected rather than silently transformed into a different calculation.\n\nSEC IFRS support does not include BVPS or preferred-zero inference. Filing\nper-share values are compared with quotes only when ordinary-share 1:1 unit\nevidence and matching currencies are affirmative. ADR/ADS and currency\nconversion are not performed."
+        },
+        {
+          "heading": "Expected growth",
+          "id": "expected-growth",
+          "level": 3,
+          "markdown": "The user supplies expected growth explicitly. The software and AI model do not invent, infer, clip, cap, floor, or silently annualize that forecast."
+        },
+        {
+          "heading": "AAA yield",
+          "id": "aaa-yield",
+          "level": 3,
+          "markdown": "No automatic current AAA-yield data source is integrated at present. The user therefore supplies the current AAA corporate-bond yield explicitly.\n\nBoth baseline and current yields must be strictly positive."
+        },
+        {
+          "heading": "Price comparison",
+          "id": "price-comparison-1",
+          "level": 3,
+          "markdown": "See [Reference-value price comparison](help:documents/finance-math#reference-value-price-comparison) — the Graham Growth Value estimate is one such reference value.\n\nSee the [Graham Growth Value Strategy Guide](help:documents/graham-growth)."
+        },
+        {
+          "heading": "Reference-value price comparison",
+          "id": "reference-value-price-comparison",
+          "level": 2,
+          "markdown": "This section applies to every strategy that compares a calculated reference value against a current market price — the Graham Number and Graham Growth Value today.\n\nA compatible current market price is optional to either formula itself.\n\nAutomatic share-unit verification currently covers only a single positively\nidentified ordinary common-stock class in SEC domestic US-GAAP `10-K` evidence\nfor current requests. It checks original source values and contexts without\nreplacing the financial inputs or changing the formula. Matching the sole\nregistered common class to entity-wide common-share inputs supports the 1:1\nunit inference; an equity classification alone does not. Missing, contradictory,\nor unsupported evidence suppresses only the comparison with an explicit reason.\nSee the [Graham Number guide](help:documents/graham-number#current-price-comparison) or the\n[Graham Growth Value guide](help:documents/graham-growth#current-price-comparison) for scope,\ntiming limitations, and legacy-cache handling.\n\nWhen both a reference value and current price are available:\n\n```text\nmargin_of_safety_percent =\n    (reference_value - current_price)\n    / reference_value\n    × 100\n```\n\nInterpretation:\n\n- positive → current price is below the selected reference value;\n- zero → current price equals the reference value;\n- negative → current price exceeds the reference value.\n\nThe concise investor report describes this as a **price relationship** (for example, “25.00% below the Graham Number”) rather than requiring a reader to interpret an internal sign convention.\n\nThe relationship is to the latest available quote response, whose retrieval age is bounded independently from annual financial-fact age. The default maximum reuse age is 300 seconds, including equality; zero disables quote cache reuse. Missing or future retrieval times cannot establish eligibility. Yahoo retrieval time is not treated as an exchange observation or publication timestamp. User price overrides remain explicitly unverified assumptions.\n\nIf a current quote is unavailable, the Graham calculation can still remain valid while the price comparison is omitted.\n\nAn invalid explicit quote override is instead a fatal input error. An override may omit currency; a provider quote may not. Provider quotes without verified currency are classified as unavailable. A known cross-currency quote remains visible, but its price relationship is suppressed.\n\nA quote in a different currency is not used for a price relationship without an approved currency-conversion mechanism."
+        },
+        {
+          "heading": "Mathematical validation",
+          "id": "mathematical-validation",
+          "level": 2,
+          "markdown": "NaN, infinity, and mathematically invalid configuration values are rejected deterministically.\n\nInvestment Analysis Engine does not impose arbitrary financial-domain cutoffs merely because a number “looks unusual.” A non-mathematical bound requires an explicit rationale.\n\nSee the [Graham Number Strategy Guide](help:documents/graham-number) and the [Graham Growth Value Strategy Guide](help:documents/graham-growth)."
+        },
+        {
+          "heading": "Free Cash Flow & Earnings Growth Strategy",
+          "id": "free-cash-flow--earnings-growth-strategy",
+          "level": 2,
+          "markdown": "This strategy compares a company with its own completed annual history. It reports total-company free cash flow, free cash flow per diluted share, and diluted EPS growth over one compatible, contiguous span."
+        },
+        {
+          "heading": "Annual measures",
+          "id": "annual-measures",
+          "level": 3,
+          "markdown": "For each eligible completed fiscal year:\n\n```text\nfree_cash_flow = operating_cash_flow - normalized_capital_expenditures\n\nfree_cash_flow_per_diluted_share =\n    free_cash_flow / weighted_average_diluted_shares\n```\n\nOperating cash flow is net cash provided by operating activities. Capital expenditures are normalized to a positive expenditure amount before subtraction because providers may report cash outflows with different sign conventions. The normalization and original provider field remain in provenance.\n\nWeighted-average diluted shares must be positive and compatible with the same completed fiscal year. Ending shares outstanding are not silently substituted. A provider's precomputed “free cash flow” is not accepted merely because its label matches; the strategy derives FCF from its resolved components."
+        },
+        {
+          "heading": "Historical horizon",
+          "id": "historical-horizon",
+          "level": 3,
+          "markdown": "The automatic `longest_available` policy prefers 5 elapsed years, then 4, then 3. An `N`-year CAGR requires `N + 1` contiguous annual observations:\n\n| Elapsed years | Annual observations |\n|---:|---:|\n| 5 | 6 |\n| 4 | 5 |\n| 3 | 4 |\n\nAn explicitly requested horizon is strict and never falls back. Facts must also satisfy the analysis `as_of` boundary: a period ending before the boundary is not eligible if its filing became available afterward."
+        },
+        {
+          "heading": "Compound annual growth",
+          "id": "compound-annual-growth",
+          "level": 3,
+          "markdown": "For positive endpoints separated by `N` elapsed years:\n\n```text\ncagr_percent = ((ending_value / beginning_value) ** (1 / N) - 1) * 100\n```\n\nThe beginning and ending values must be strictly positive, and the annual series must be contiguous. Zero or negative endpoints and sign changes make CAGR nonmeaningful under this policy. The raw history remains available, but the metric is unavailable with a reason; the calculation does not apply absolute values or manufacture “growth from loss.”\n\nBoth total-company-FCF CAGR and FCF-per-diluted-share CAGR are returned. Total-company FCF controls classification by default. The explicit `fcf_per_share` policy makes per-share FCF controlling; presentation does not infer or change that choice."
+        },
+        {
+          "heading": "Classification",
+          "id": "classification",
+          "level": 3,
+          "markdown": "The selected policy returns:\n\n- `PASS` when the controlling FCF CAGR and diluted-EPS CAGR are meaningful and greater than zero, and any selected forward hard gate is satisfied;\n- `FAIL` when required metrics are meaningful and at least one required growth rate is zero or negative; or\n- `INDETERMINATE` when required evidence is missing, incompatible, non-contiguous, or mathematically nonmeaningful.\n\nClassification is separate from software execution status. `INDETERMINATE` is not equivalent to financial failure."
+        },
+        {
+          "heading": "Optional FCF yield",
+          "id": "optional-fcf-yield",
+          "level": 3,
+          "markdown": "When [market capitalization at the boundary](help:documents/finance-math#market-capitalization) is available:\n\n```text\nfcf_yield_percent =\n    latest_completed_fiscal_year_fcf / market_capitalization_at_the_boundary * 100\n```\n\nThe numerator is annual and the denominator is the market capitalization at the boundary, so both dates remain visible. The yield is computed only when the latest completed fiscal year ends at the anchor filing's fiscal year-end *t*, which the market capitalization is also taken at; otherwise it is `unavailable` with `incompatible_period`, and an older year is never used. When market capitalization is `unavailable`, the yield is `unavailable` with its reason code, and a market-data failure makes it `unavailable` with `provider_error`. FCF yield is informational only and has no pass threshold in the current method version."
+        },
+        {
+          "heading": "Optional forward EPS evidence",
+          "id": "optional-forward-eps-evidence",
+          "level": 3,
+          "markdown": "Compatible analyst-consensus diluted EPS for FY1 and FY2 may provide two implied growth intervals: latest actual to FY1 and FY1 to FY2. Each prior value must be positive for the corresponding growth rate to be meaningful.\n\nThe `display_only` and `confirmation` policies do not change the historical classification. Under `hard_gate`, both intervals must be available and positive for `PASS`; missing required forward evidence produces `INDETERMINATE`. The current production SEC mapping may not supply analyst consensus, and the software does not generate estimates to fill that gap.\n\nSee the [Free Cash Flow & Earnings Growth Strategy Guide](help:documents/fcf-growth)."
+        },
+        {
+          "heading": "Piotroski F-Score Strategy",
+          "id": "piotroski-f-score-strategy",
+          "level": 2,
+          "markdown": "This implementation follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal, because issuance cannot be established reliably from structured filings.\n\nThe strategy runs nine pass/fail tests on one company's reported statements at three consecutive fiscal year-ends and counts the tests passed. Year *t* is the fiscal year of the anchor annual filing, the latest at the boundary; *t−1* is the day before the start of the completed annual period that ends at *t*, and *t−2* is derived the same way from the period that ends at *t−1*. A year-end is never taken from a filing date, and an older year is never scored in place of *t*."
+        },
+        {
+          "heading": "The nine tests",
+          "id": "the-nine-tests",
+          "level": 3,
+          "markdown": "```text\n1  net_income(t) / total_assets(t-1) > 0\n2  operating_cash_flow(t) / total_assets(t-1) > 0\n3  net_income(t) / total_assets(t-1) > net_income(t-1) / total_assets(t-2)\n4  operating_cash_flow(t) > net_income(t)\n5  long_term_debt(t) / average(total_assets(t), total_assets(t-1))\n       < long_term_debt(t-1) / average(total_assets(t-1), total_assets(t-2)),\n   or long_term_debt is zero in both years\n6  current_assets(t) / current_liabilities(t) > current_assets(t-1) / current_liabilities(t-1)\n7  shares_outstanding(t) <= shares_outstanding(t-1)\n8  gross_profit(t) / sales(t) > gross_profit(t-1) / sales(t-1)\n9  sales(t) / total_assets(t-1) > sales(t-1) / total_assets(t-2)\n```\n\nComparisons are strict and made on unrounded values with no tolerance: each operand is converted to an exact fraction, so an unchanged ratio earns no point. The two exceptions are test 5's zero-debt case and test 7, where an unchanged share count passes. A reported ratio is the float nearest the exact value."
+        },
+        {
+          "heading": "Conventions fixed by the method",
+          "id": "conventions-fixed-by-the-method",
+          "level": 3,
+          "markdown": "None of these is a user option.\n\n- **Income** is net income as reported. The paper uses income before extraordinary items; US GAAP removed extraordinary items in 2015, so net income is the modern equivalent. Income from continuing operations is not used, because many filers never report it.\n- **Turnover** uses beginning-of-year total assets, following the paper's method text.\n- **Long-term debt** is the current portion of long-term debt plus the noncurrent long-term debt, decided by the rules of [Total debt](help:documents/finance-math#total-debt). Short-term borrowings and lease liabilities are excluded except that they count as a debt concept present at the date. Long-term debt is unavailable where the mapping is unsupported, as for every IFRS filer.\n- **Zero debt:** a company with no long-term debt in either year passes test 5 whatever its assets, so a missing *t−2* total assets does not make the test unavailable in that case.\n- **Dilution** compares the split-adjusted common share counts at *t* and *t−1* instead of the paper's equity-issuance test. Issuance proceeds include option exercises, which would fail nearly every issuer, and issuance evidence is unreliable in structured filings. The counts are compared only when both come from the same filing, which puts them on one split basis because a filing restates its counts for splits effective before it is issued, and when both come by the same path (reported directly, or issued less treasury shares). A *t−1* count from another filing, or a direct count with a derived one, makes the test unavailable (`ambiguous_fact`). The test has no price and needs no market data. It measures net dilution: a company can issue shares and still pass when buybacks exceed issuance."
+        },
+        {
+          "heading": "Outcomes and the score",
+          "id": "outcomes-and-the-score",
+          "level": 3,
+          "markdown": "Each test is `pass`, `fail` or `unavailable`, with its ratios, operands and provenance. A test is unavailable when an operand is missing, when the currencies of its monetary operands differ (`incompatible_currency`), when its operands mix us-gaap and ifrs-full (`incompatible_scope`), or when a denominator is not positive (`nonpositive_denominator`); an unavailable test is never a fail. Total assets, sales and current liabilities must be positive wherever they are a denominator.\n\n| Tests available | Score | Completeness |\n|---|---|---|\n| 9 | `ok`, the number passed | complete |\n| 6 to 8 | `ok`, the number passed, shown as \"*x* of *n*\" | partial |\n| Fewer than 6 | `unavailable` with `insufficient_tests` | none |\n\nA partial score is always shown as \"*x* of *n*\" with the unavailable tests named. The usual reading of high and low scores applies to complete scores only, and a partial score never enters a ranking. If year *t−1* or *t−2* is unavailable, every operand of that year carries the reason, so the result always holds nine tests."
+        },
+        {
+          "heading": "Execution status and applicability",
+          "id": "execution-status-and-applicability",
+          "level": 3,
+          "markdown": "The status is `ok` for a complete or partial score, `input_unavailable` below six available tests, `provider_error` after a provider failure while the inputs were assembled (the result then holds the failure and no tests), and `not_applicable` for a provider-confirmed ETF. A financial issuer is applicable with a warning, because the gross-margin and current-ratio tests are typically unavailable for it. The industry class is that of the SIC code on the anchor filing, as filed; an unknown class runs and says so.\n\nThe result records one taxonomy, us-gaap or ifrs-full, only when every resolved operand states the same one; otherwise it records none.\n\nSee the [Piotroski F-Score Strategy Guide](help:documents/piotroski)."
+        },
+        {
+          "heading": "Shared metrics",
+          "id": "shared-metrics",
+          "level": 2,
+          "markdown": "These metrics are defined once and used by every strategy that needs them. Each is a pure calculation over resolved inputs; every result is a typed outcome that is either `ok` with a finite number or `unavailable` with a reason code and a reason. Nothing missing becomes zero, neutral or `NaN`, except the absent components named below. Balance-sheet values are instants at the anchor fiscal year-end *t*; annual values are those of the fiscal year ending at *t*. Free cash flow and the FCF yield keep their entries under [Free Cash Flow & Earnings Growth Strategy](help:documents/finance-math#free-cash-flow--earnings-growth-strategy)."
+        },
+        {
+          "heading": "Market capitalization",
+          "id": "market-capitalization",
+          "level": 3,
+          "markdown": "```text\nmarket_cap = scaled_share_count * price\nscaled_share_count = share_count * product of the ratios of the provider split adjustments\n                     of the two windows below, with after < ex_date <= adjustment_date\n```\n\n- **Share count:** the common shares outstanding at fiscal year-end *t*, reported directly or as shares issued minus treasury shares at the same date. When no balance-sheet path gives a count at *t*, the single non-dimensional cover-page count of the anchor filing is used and the result says so. A year-end count dated other than *t* (an older year's count) is `unavailable` with `incompatible_period` and is never substituted. Conflicting counts, and per-class counts with no total, are `unavailable`. One combined count for several share classes is valued at the requested ticker's price.\n- **Price:** the split-adjusted close, without dividend adjustment, on the last trading day on or before the boundary.\n- **Provider split adjustments:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. The provider's split history reports splits and other adjustments alike (a spin-off appears as a ratio such as 0.9535), and only a split changes the share count, so the events apply in two windows. An event after the price date is always applied, whatever its ratio: it undoes the provider's adjustment of the historical close and never changes the market cap at the boundary. An event after `after` and not after the price date is applied only when its ratio is a recognizable split ratio: *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q*, or the reciprocal of one. Any other ratio, such as a spin-off or a stock dividend of 1.05, makes market cap `unavailable` with `ambiguous_fact`, naming the event. Without an as-of date the price date is the quote's date, so every event after the count's date is in the second window. A filing restates its counts for a split effective before it is issued, so such a split is not applied again.\n- **Availability:** market cap is available only when all four hold, and each refusal has its reason code.\n  1. The anchor annual filing is a 10-K or a 10-K/A (`incompatible_scope`). A 20-F or 40-F filer, or an amendment of either, is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show.\n  2. The quote currency equals the filing currency (`incompatible_currency`). When either is unknown, market cap is `unavailable`.\n  3. A listing check on the anchor 10-K's cover affirms the requested ticker, under the issuer's CIK, on a registered title that is a share of the issuer. A depositary share, unit, warrant or preferred security is refused (`incompatible_units`), and a missing or unreadable cover is `unavailable` (`missing_fact`).\n  4. A share count and a price are present (the code of the missing input).\n- **Limitations:** buybacks and issuance between the fiscal year-end and the price date are not reflected. A split announced before the filing but effective just after it is assumed not to be reflected in the filing. A spin-off or stock dividend between the count and the price makes market cap unavailable. A ticker renamed after the anchor filing does not match the cover and is `unavailable`.\n- **Critical inputs:** the share count and the price."
+        },
+        {
+          "heading": "Gross profit, EBIT, depreciation and amortization, EBITDA",
+          "id": "gross-profit-ebit-depreciation-and-amortization-ebitda",
+          "level": 3,
+          "markdown": "```text\ngross_profit = reported gross profit, else sales - cost_of_revenue (both reported)\nEBIT         = reported operating income            (may be negative)\nD&A          = depreciation, depletion and amortization of the cash-flow statement\nEBITDA       = EBIT + D&A\n```\n\nGross profit is never taken from operating income; a filer that reports neither form has none. EBIT is never rebuilt from pretax income plus interest. When EBIT or D&A is missing, EBITDA is `unavailable` with `missing_fact`. Critical inputs: operating income (EBIT), D&A (EBITDA), and for gross profit either the reported figure or both sales and cost of revenue."
+        },
+        {
+          "heading": "Total debt",
+          "id": "total-debt",
+          "level": 3,
+          "markdown": "```text\ntotal_debt = short_term_borrowings + current_portion_of_long_term_debt\n           + noncurrent_long_term_debt + lease_liabilities_counted_as_debt\n```\n\nA missing debt figure is not assumed to be zero. An absent component counts as zero, with a diagnostic, only with supporting evidence:\n\n| What the filing reports for the year-end | Treatment |\n| :--- | :--- |\n| At least one debt component | An absent component is zero only when no concept is tagged for it (`not_tagged`) and none of its recorded related concepts is tagged at that date. Otherwise total debt is `unavailable`: `debt_not_visible` when a related concept is tagged, `unsupported_mapping` when the mapping is unsupported, and the absence's own code otherwise. |\n| No component, no related concept, no unsupported mapping, and interest expense absent or zero | Total debt is zero (\"no reported debt\"). |\n| No component, but a related concept is tagged or interest expense is not zero | `unavailable` with `debt_not_visible`. |\n| No component, and a mapping is unsupported | `unavailable` with `unsupported_mapping`, which takes precedence. |\n\nThe direct long-term-debt total only reconciles. When it is present, each of the current portion and the noncurrent long-term debt that is absent as `not_tagged` with no related concept counts as zero, and the two must equal the total exactly, with no tolerance. A mismatch makes total debt `unavailable`: with `ambiguous_fact` when at least one part is present, both parts being the affected components, and with `debt_not_visible` when neither is. A part absent for any other reason, or with a related concept, keeps its own outcome. This check comes before the other component rules, so a filer that tags only the direct total never has zero debt. The direct total is never added to its parts and never used as a value. An IFRS issuer's total debt is `unavailable` with `unsupported_mapping` while the IFRS noncurrent long-term debt mapping is unsupported."
+        },
+        {
+          "heading": "Long-term debt",
+          "id": "long-term-debt",
+          "level": 3,
+          "markdown": "```text\nlong_term_debt = current_portion_of_long_term_debt + noncurrent_long_term_debt\n```\n\nLong-term debt follows the rules of total debt, applied to its two parts. The direct long-term-debt total is reconciled with the two parts first, with the same outcomes, and is never added. An absent part counts as zero, with a diagnostic, only when it is `not_tagged` with no related concept and at least one of the four mapped debt concepts (short-term borrowings, current portion, noncurrent long-term debt, lease liabilities counted as debt) is present at the year-end; any other absence makes long-term debt `unavailable` with the code total debt gives, and an unsupported mapping decides first. Short-term borrowings and leases are never added: they count only as a debt concept present, so a gap in either does not make long-term debt `unavailable`. With none of the four present, the \"no reported debt\" row of total debt applies to all four components and the year's interest expense. An IFRS issuer's long-term debt is `unavailable` with `unsupported_mapping` while the IFRS noncurrent long-term debt mapping is unsupported."
+        },
+        {
+          "heading": "Enterprise value",
+          "id": "enterprise-value",
+          "level": 3,
+          "markdown": "```text\nEV = market_cap + total_debt + preferred_stock + noncontrolling_interest\n     - cash_and_equivalents - short_term_investments\n```\n\nThe critical inputs are market cap, total debt and cash. Preferred stock, noncontrolling interest and short-term investments are zero, with a diagnostic, only when the filing tags no concept for them (`not_tagged`), never when the mapping is unsupported or another concept is tagged. Short-term investments are zero only when current assets are tagged at the year-end: on an unclassified balance sheet (Deere's) a missing line does not show that the filer has none, so EV is `unavailable`. A negative EV is a valid number."
+        },
+        {
+          "heading": "Invested capital",
+          "id": "invested-capital",
+          "level": 3,
+          "markdown": "```text\nIC = (current_assets - cash - short_term_investments)\n   - (current_liabilities - short_term_borrowings - current_portion_of_long_term_debt)\n   + net_ppe\n```\n\nThe critical inputs are current assets, current liabilities, net PP&E and cash. Short-term investments are zero when `not_tagged`. Short-term borrowings and the current portion of long-term debt follow the debt-component rule of total debt. Net PP&E is taken as reported, and goodwill and intangibles are excluded. An IC at or below zero is an `ok` value; a ratio that divides by it decides what that means."
+        },
+        {
+          "heading": "Source notes",
+          "id": "source-notes",
+          "level": 2,
+          "markdown": "- Benjamin Graham, *The Intelligent Investor*, Chapter 14: defensive-investor limits on price relative to average earnings and book value, including the combined product limit of 22.5.\n- Benjamin Graham, *The Intelligent Investor*, Chapter 11: simplified growth-stock formula and cautions about the reliability of projected growth.\n- Federal Reserve Bank of St. Louis FRED, [Moody's Seasoned Aaa Corporate Bond Yield (AAA)](https://fred.stlouisfed.org/series/AAA): useful background on a defined AAA corporate-bond-yield series; Investment Analysis Engine does not currently retrieve it automatically.\n\nSecondary calculators or articles may illustrate common modern usage, but they do not override the formula, input, provenance, and naming conventions documented here."
+        }
+      ],
+      "title": "Financial Math & Data Conventions"
+    },
+    "graham-growth": {
+      "introduction": "This guide explains how the Investment Analysis Engine **Graham Growth Value** strategy works, where its financial values come from, and how to interpret its results.\n\nGraham Growth Value is an explicitly selected, forecast-dependent calculation. It is a complete, independent strategy — not one of two \"Graham methods\" sharing a base — and it is not a complete investment decision. For the related but formula-independent Graham Number strategy, see [its own guide](help:documents/graham-number).",
+      "sections": [
+        {
+          "heading": "What this strategy does",
+          "id": "what-this-strategy-does",
+          "level": 2,
+          "markdown": "Graham Growth Value applies a forecast-dependent Graham-style formula using earnings, expected growth, and a current AAA corporate-bond yield, using a deterministic calculation based on explicitly defined financial values and conventions.\n\nThe exact formula is documented in [Financial Math](help:documents/finance-math#graham-growth-value-strategy)."
+        },
+        {
+          "heading": "Graham Growth Value",
+          "id": "graham-growth-value",
+          "level": 2,
+          "markdown": "The implemented convention is:\n\n```text\ngrowth value = normalized EPS\n    × (base P/E + growth multiplier × expected growth)\n    × baseline AAA yield / current AAA yield\n```\n\nCurrent configurable conventional constants are:\n\n```text\nbase P/E = 8.5\ngrowth multiplier = 2.0\nbaseline AAA yield = 4.4\n```\n\nThey ship with the application and may be overridden key by key in the strategy's settings file, which is read each time an analysis runs; the keys are `base_pe`, `growth_multiplier` and `baseline_aaa_yield`.\n\nExpected growth and both yields are expressed in **percentage points**. For example, an expected growth of 5 means 5%, not `0.05`.\n\nThis method is forecast-dependent. It is not the Graham Number and should not be interpreted as a universally precise intrinsic value."
+        },
+        {
+          "heading": "Required user-supplied values",
+          "id": "required-user-supplied-values",
+          "level": 3,
+          "markdown": "At present the user must supply:\n\n- expected annual growth; and\n- the current AAA corporate-bond yield.\n\nThe software and local AI model do not invent either value. No live AAA-yield series is currently integrated for this calculation."
+        },
+        {
+          "heading": "Applicability",
+          "id": "applicability",
+          "level": 3,
+          "markdown": "Positive EPS is required for a meaningful growth-value output, and current AAA yield must be strictly positive. If a required input cannot be resolved, the result reports that limitation rather than guessing."
+        },
+        {
+          "heading": "Current-price comparison",
+          "id": "current-price-comparison",
+          "level": 3,
+          "markdown": "A current quote is optional to Graham Growth Value itself. When a compatible current price is available, Investment Analysis Engine shows how far the market price is above or below the calculated growth value.\n\nIf the quote is unavailable, the growth value can still remain valid.\n\nThe analysis automatically verifies share-unit compatibility for a narrow\nset of current SEC US-GAAP domestic `10-K` inputs and Yahoo Finance quotes. The\nverification matches the original financial source filings and current eligible\nannual filing to a single registered ordinary common-stock class, with matching\nissuer, ticker, currency, periods, and source values. The 1:1 relationship is a\ndocumented inference from that evidence, not an upstream ratio field. It does\nnot establish exhaustive coverage of intervening corporate actions.\n\nUnsupported classes (including ADR/ADS and multiple common classes), ambiguous\nfilings, provider failures, and explicit historical requests leave the comparison\nunavailable with a reason. They do not invalidate an otherwise valid growth value.\n\nOlder cached inputs may lack the source lineage needed for verification, and the\noutput then identifies missing share-unit evidence. Resolving fresh inputs can\nsupply it; unsupported or inaccessible evidence can still prevent comparison.\n\nVerification reads at most four filings, each limited to 8 MiB and a 20-second\ntransport timeout, without redirects or automatic retries. Filing evidence is\nverified again on each analysis, including when financial inputs are cached."
+        },
+        {
+          "heading": "Inputs, assumptions, and overrides",
+          "id": "inputs-assumptions-and-overrides",
+          "level": 2,
+          "markdown": "The analysis supports explicit [overrides](help:terms/override) for values including EPS, current price, and the growth-method assumptions (expected growth and the AAA yield).\n\nAn override is recorded as an override rather than being presented as provider-verified evidence."
+        },
+        {
+          "heading": "Data sources",
+          "id": "data-sources",
+          "level": 2,
+          "markdown": ""
+        },
+        {
+          "heading": "SEC EDGAR",
+          "id": "sec-edgar",
+          "level": 3,
+          "markdown": "[SEC](help:terms/sec) [EDGAR](help:terms/edgar) is the U.S. Securities and Exchange Commission's public filing system.\n\nInvestment Analysis Engine currently uses eligible SEC filing facts for completed annual diluted EPS from reviewed `10-K`/`20-F`/`40-F` forms and exact US-GAAP or IFRS concepts.\n\nIFRS custom-extension fallbacks and broader-concept substitution are not supported. A filing per-share value is\ncompared with a current quote only when affirmative evidence establishes a\nmatching-currency ordinary-share 1:1 relationship. ADR/ADS and currency\nconversion are not performed; the valuation can remain available while its\nmarket-price comparison is unavailable.\n\nFor market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo."
+        },
+        {
+          "heading": "Quotes and filing evidence",
+          "id": "quotes-and-filing-evidence",
+          "level": 3,
+          "markdown": "Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship.\n\nDetailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence."
+        },
+        {
+          "heading": "Point-in-time analysis",
+          "id": "point-in-time-analysis",
+          "level": 2,
+          "markdown": "An [as-of date](help:terms/as-of-date) creates an information boundary for this strategy.\n\nA fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary. A ticker names the registrant it maps to today: with an as-of date, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.\n\nThis distinction helps prevent [look-ahead bias](help:terms/look-ahead-bias).\n\nCurrent-only quote providers do not manufacture historical quotes. A historical calculation can therefore succeed while the market-price comparison is omitted."
+        },
+        {
+          "heading": "Why another Graham growth-value calculator may disagree",
+          "id": "why-another-graham-growth-value-calculator-may-disagree",
+          "level": 2,
+          "markdown": "Before treating a difference as a bug, compare the conventions."
+        },
+        {
+          "heading": "EPS basis",
+          "id": "eps-basis",
+          "level": 3,
+          "markdown": "Ask:\n\n- three completed fiscal years averaged together, a trailing twelve months, or a single completed fiscal year?\n- basic EPS or diluted EPS?\n- were stock-split adjustments handled consistently?\n- which exact fiscal periods were used?\n\nThe EPS basis is `three_year_average` (the default, for every provider) or `fiscal_year` for reviewed workflows. `fiscal_year` is a single completed fiscal year's diluted EPS and is a Graham Growth Value-only basis: the Graham Number has only the three-year average. See [Financial Math](help:documents/finance-math#eps-basis) for the authoritative formula-level statement. An unsupported basis is rejected, never silently transformed into a different basis."
+        },
+        {
+          "heading": "Publication timing",
+          "id": "publication-timing",
+          "level": 3,
+          "markdown": "A filing's fiscal-year end and its public filing date are different things. A historical calculator that uses information not yet available at the requested date can differ because of look-ahead bias."
+        },
+        {
+          "heading": "Quote timing and currency",
+          "id": "quote-timing-and-currency",
+          "level": 3,
+          "markdown": "Otherwise identical calculations can show different price relationships if they compare against different market prices or incompatible currencies."
+        },
+        {
+          "heading": "Different Graham strategy",
+          "id": "different-graham-strategy",
+          "level": 3,
+          "markdown": "The Graham Number and Graham Growth Value are different, independent strategies with different required values and different formulas. A result from one should not be treated as merely another implementation of the other; see [the Graham Number guide](help:documents/graham-number)."
+        },
+        {
+          "heading": "Rounding and source revisions",
+          "id": "rounding-and-source-revisions",
+          "level": 3,
+          "markdown": "Provider corrections, accounting restatements, and intermediate rounding can create smaller differences.\n\nThe goal is not to force every external calculator to match. It is to make Investment Analysis Engine's formula, evidence, dates, and assumptions inspectable enough that a difference can be explained."
+        },
+        {
+          "heading": "Important limitations",
+          "id": "important-limitations",
+          "level": 2,
+          "markdown": "Graham Growth Value depends materially on a user-supplied forecast and current AAA-yield assumption.\n\nAccurate arithmetic does not guarantee that this strategy is appropriate for a particular security.\n\nNothing produced by this strategy is investment advice."
+        }
+      ],
+      "title": "Graham Growth Value Strategy Guide"
+    },
+    "graham-number": {
+      "introduction": "This guide explains how the Investment Analysis Engine **Graham Number** strategy works, where its financial values come from, and how to interpret its results.\n\nThe Graham Number is the earnings-and-book-value screening ceiling. It is a complete, independent strategy — not one of two \"Graham methods\" sharing a base — and it is not a complete investment decision. For the related but formula-independent Graham Growth Value strategy, see [its own guide](help:documents/graham-growth).",
+      "sections": [
+        {
+          "heading": "What this strategy does",
+          "id": "what-this-strategy-does",
+          "level": 2,
+          "markdown": "The Graham Number asks whether a market price is above or below a conservative earnings/book-value screening ceiling, using a deterministic calculation based on explicitly defined financial values and conventions.\n\nThe exact formula is documented in [Financial Math](help:documents/finance-math#graham-number-strategy)."
+        },
+        {
+          "heading": "The Graham Number",
+          "id": "the-graham-number",
+          "level": 2,
+          "markdown": "The formula is:\n\n```text\nmaximum indicated price = sqrt(22.5 × EPS × BVPS)\n```\n\nThe factor `22.5` combines the conventional maximum P/E of 15 and maximum P/B of 1.5.\n\nInvestment Analysis Engine describes the result as a **maximum indicated price** or **screening ceiling**. It does not present the Graham Number as an unquestionable intrinsic value or as proof that a stock satisfies Graham's complete defensive-investor framework."
+        },
+        {
+          "heading": "Earnings basis",
+          "id": "earnings-basis",
+          "level": 3,
+          "markdown": "The standard basis is [Three-Year-Average EPS](help:terms/three-year-average-eps), using three completed fiscal years of [diluted EPS](help:terms/basic-and-diluted-eps).\n\nSEC EDGAR observations are eligible only when the filing information was actually available by the analysis date. An earlier fiscal-year end does not make a later-filed fact historically knowable."
+        },
+        {
+          "heading": "Book value per common share",
+          "id": "book-value-per-common-share",
+          "level": 3,
+          "markdown": "The implemented convention is:\n\n```text\nBVPS = common shareholders' equity / period-end common shares outstanding\n```\n\nWhen using [SEC](help:terms/sec) [EDGAR](help:terms/edgar) data, Investment Analysis Engine derives BVPS conservatively from eligible fiscal-year-end accounting facts rather than pretending that EDGAR provides one universal BVPS field.\n\nIf the evidence required for a defensible calculation is unavailable, the result reports that limitation rather than guessing."
+        },
+        {
+          "heading": "Applicability",
+          "id": "applicability",
+          "level": 3,
+          "markdown": "Positive EPS and BVPS are required. If either is non-positive, the method reports that it is not applicable rather than forcing a zero, complex number, or misleading price estimate."
+        },
+        {
+          "heading": "Current-price comparison",
+          "id": "current-price-comparison",
+          "level": 3,
+          "markdown": "A current quote is optional to the Graham Number itself. When a compatible current price is available, Investment Analysis Engine shows how far the market price is above or below the Graham Number.\n\nIf the quote is unavailable, the Graham Number can still remain valid.\n\nThe analysis automatically verifies share-unit compatibility for a narrow\nset of current SEC US-GAAP domestic `10-K` inputs and Yahoo Finance quotes. The\nverification matches the original financial source filings and current eligible\nannual filing to a single registered ordinary common-stock class, with matching\nissuer, ticker, currency, periods, and source values. The 1:1 relationship is a\ndocumented inference from that evidence, not an upstream ratio field. It does\nnot establish exhaustive coverage of intervening corporate actions.\n\nUnsupported classes (including ADR/ADS and multiple common classes), ambiguous\nfilings, provider failures, and explicit historical requests leave the comparison\nunavailable with a reason. They do not invalidate an otherwise valid Graham Number.\n\nOlder cached inputs may lack the source lineage needed for verification, and the\noutput then identifies missing share-unit evidence. Resolving fresh inputs can\nsupply it; unsupported or inaccessible evidence can still prevent comparison.\n\nVerification reads at most four filings, each limited to 8 MiB and a 20-second\ntransport timeout, without redirects or automatic retries. Filing evidence is\nverified again on each analysis, including when financial inputs are cached."
+        },
+        {
+          "heading": "Inputs, assumptions, and overrides",
+          "id": "inputs-assumptions-and-overrides",
+          "level": 2,
+          "markdown": "The analysis supports explicit [overrides](help:terms/override) for values including EPS, BVPS, and current price.\n\nAn override is recorded as an override rather than being presented as provider-verified evidence."
+        },
+        {
+          "heading": "Data sources",
+          "id": "data-sources",
+          "level": 2,
+          "markdown": ""
+        },
+        {
+          "heading": "SEC EDGAR",
+          "id": "sec-edgar",
+          "level": 3,
+          "markdown": "[SEC](help:terms/sec) [EDGAR](help:terms/edgar) is the U.S. Securities and Exchange Commission's public filing system.\n\nInvestment Analysis Engine currently uses eligible SEC filing facts for:\n\n- completed annual diluted EPS from reviewed `10-K`/`20-F`/`40-F` forms and\n  exact US-GAAP or IFRS concepts; and\n- US-GAAP fiscal-year-end accounting components used to derive BVPS\n  conservatively.\n\nIFRS BVPS, preferred-zero inference for IFRS, custom-extension fallbacks, and\nbroader-concept substitution are not supported. A filing per-share value is\ncompared with a current quote only when affirmative evidence establishes a\nmatching-currency ordinary-share 1:1 relationship. ADR/ADS and currency\nconversion are not performed; the valuation can remain available while its\nmarket-price comparison is unavailable.\n\nFor market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo."
+        },
+        {
+          "heading": "Quotes and filing evidence",
+          "id": "quotes-and-filing-evidence",
+          "level": 3,
+          "markdown": "Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship.\n\nDetailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence."
+        },
+        {
+          "heading": "Point-in-time analysis",
+          "id": "point-in-time-analysis",
+          "level": 2,
+          "markdown": "An [as-of date](help:terms/as-of-date) creates an information boundary for this strategy.\n\nA fiscal period ending before that date is not automatically eligible. The supporting filing must also have been available by the requested boundary. A ticker names the registrant it maps to today: with an as-of date, every input is that registrant's evidence as filed or priced at the boundary, so the boundary limits the information used and not which company is studied.\n\nThis distinction helps prevent [look-ahead bias](help:terms/look-ahead-bias).\n\nCurrent-only quote providers do not manufacture historical quotes. A historical calculation can therefore succeed while the market-price comparison is omitted."
+        },
+        {
+          "heading": "Why another Graham Number calculator may disagree",
+          "id": "why-another-graham-number-calculator-may-disagree",
+          "level": 2,
+          "markdown": "Before treating a difference as a bug, compare the conventions."
+        },
+        {
+          "heading": "EPS basis",
+          "id": "eps-basis",
+          "level": 3,
+          "markdown": "Ask:\n\n- three completed fiscal years averaged together, a trailing twelve months, or a single completed fiscal year?\n- basic EPS or diluted EPS?\n- were stock-split adjustments handled consistently?\n- which exact fiscal periods were used?\n\nInvestment Analysis Engine uses three-year-average diluted EPS as the Graham Number basis, and offers no other. An explicit single-fiscal-year basis is a Graham Growth Value-only capability. See [Financial Math](help:documents/finance-math#eps-basis) for the authoritative formula-level statement."
+        },
+        {
+          "heading": "BVPS definition",
+          "id": "bvps-definition",
+          "level": 3,
+          "markdown": "Ask:\n\n- which balance-sheet date?\n- which common-equity definition?\n- period-end shares outstanding or another share count?\n- ordinary book value or tangible book value?\n\nInvestment Analysis Engine uses a documented common-equity/period-end-share convention and does not silently substitute tangible book value."
+        },
+        {
+          "heading": "Publication timing",
+          "id": "publication-timing",
+          "level": 3,
+          "markdown": "A filing's fiscal-year end and its public filing date are different things. A historical calculator that uses information not yet available at the requested date can differ because of look-ahead bias."
+        },
+        {
+          "heading": "Quote timing and currency",
+          "id": "quote-timing-and-currency",
+          "level": 3,
+          "markdown": "Otherwise identical calculations can show different price relationships if they compare against different market prices or incompatible currencies."
+        },
+        {
+          "heading": "Different Graham strategy",
+          "id": "different-graham-strategy",
+          "level": 3,
+          "markdown": "The Graham Number and Graham Growth Value are different, independent strategies with different required values and different formulas. A result from one should not be treated as merely another implementation of the other; see [the Graham Growth Value guide](help:documents/graham-growth)."
+        },
+        {
+          "heading": "Rounding and source revisions",
+          "id": "rounding-and-source-revisions",
+          "level": 3,
+          "markdown": "Provider corrections, accounting restatements, and intermediate rounding can create smaller differences.\n\nThe goal is not to force every external calculator to match. It is to make Investment Analysis Engine's formula, evidence, dates, and assumptions inspectable enough that a difference can be explained."
+        },
+        {
+          "heading": "Important limitations",
+          "id": "important-limitations",
+          "level": 2,
+          "markdown": "The Graham Number uses only earnings and book value. It does not test Graham's complete defensive-investor criteria and may be economically inappropriate for some businesses.\n\nAccurate arithmetic does not guarantee that this strategy is appropriate for a particular security.\n\nNothing produced by this strategy is investment advice."
+        }
+      ],
+      "title": "Graham Number Strategy Guide"
+    },
+    "momentum": {
+      "introduction": "This guide explains the Investment Analysis Engine **Momentum Strategy** from an investor/user perspective.",
+      "sections": [
+        {
+          "heading": "What this strategy does",
+          "id": "what-this-strategy-does",
+          "level": 2,
+          "markdown": "Momentum compares a short [SMA](help:terms/sma) with a longer [SMA](help:terms/sma) over historical closing prices and reports the current relationship plus [crossover](help:terms/crossover) state.\n\nIt is a price-series analysis. It does not determine business quality, intrinsic value, or whether a security should be bought or sold."
+        },
+        {
+          "heading": "Default windows",
+          "id": "default-windows",
+          "level": 2,
+          "markdown": "The current defaults are:\n\n```text\nshort window = 50\nlong window = 200\n```\n\nThey ship with the application and may be overridden key by key in the strategy's settings file; the keys are `short_window`, `long_window`, `rsi_period` (14) and `history_start_date` (the first day of the price history, 2021-01-01).\n\nThe short window must be smaller than the long window."
+        },
+        {
+          "heading": "How the calculation works",
+          "id": "how-the-calculation-works",
+          "level": 2,
+          "markdown": "For a window of `n` observations:\n\n```text\nSMA_t(n) = mean(P[t-n+1 : t])\n```\n\nThe strategy calculates a short moving average and a long moving average over the historical `Close` series, then evaluates their relationship and whether that relationship changed on the latest observation.\n\nA crossover needs two consecutive valid SMA pairs. Having exactly enough prices for the long SMA establishes today's relationship but not a prior relationship; crossover is unavailable in that case. The RSI uses simple trailing averages of gains/losses, as specified in [Financial Math](help:documents/finance-math#momentum-strategy).\n\nThe result's technical evidence retains original provider retrieval time and cache origin. Historical daily labels are not verified exchange-close timestamps, and the provider's past adjusted-price vintages are not retained. Observation-date filtering alone is not a guarantee of historical knowability. Missing or nonfinite prices cause a failure with the affected field/date when known; the application does not silently remove bad rows or substitute an older close.\n\nIn investor terms:\n\n- short SMA above long SMA → bullish price-momentum state;\n- short SMA not above long SMA → bearish price-momentum state under the current rule;\n- transition into the bullish relationship → bullish crossover;\n- transition out of the bullish relationship → bearish crossover.\n\nSee [Financial Math](help:documents/finance-math#momentum-strategy) for the exact deterministic convention."
+        },
+        {
+          "heading": "Point-in-time analysis and cache control",
+          "id": "point-in-time-analysis-and-cache-control",
+          "level": 2,
+          "markdown": "Only price observations at or before the as-of boundary are used. The boundary is a date or a timezone-aware timestamp. A run can bypass historical price cache reads and writes.\n\nThe result reports the latest observation that remained after the boundary was applied, not the boundary you requested. A date-only boundary includes that whole day.\n\n`data_as_of` and each price observation's `observed_at` are exchange-local trading dates. A daily series stamped at local midnight in its own timezone is read by those local calendar dates, so each observation is reported as that date at 00:00 UTC, the same form a timezone-naive series produces, and a date-only as-of boundary includes the bars dated on or before that date in the exchange's calendar. A series with any bar at another time of day keeps the exact instants its provider supplied. One case is not corrected: a daily bar stamped as the UTC instant of a non-UTC local midnight (for example 15:00 UTC for a Tokyo date), because the series does not carry the exchange's timezone.\n\nAs-of runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them. The one exception is a provider that stamps a daily price later in its date than the boundary time; Yahoo stamps daily prices at midnight, so it does not apply to them.\n\nProvider-adjusted prices are revised retroactively: splits and dividends restate history. An as-of result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](help:terms/look-ahead-bias).\n\nBypassing the cache affects the historical price cache only. A saved run stores the as-of and cache choices with the run, and refreshing a watchlist entry saved this way reuses them."
+        },
+        {
+          "heading": "Sufficient history is required",
+          "id": "sufficient-history-is-required",
+          "level": 2,
+          "markdown": "A moving average cannot be calculated until enough price observations exist for its window.\n\nIf the returned history is too short, the strategy reports the affected values/result as unavailable or unknown rather than pretending that missing values are zero. A history too short for the long average gives a trend of `UNKNOWN` and the status `input_unavailable`. The RSI is still calculated and shown when the history is longer than the RSI period.\n\nMachine-readable JSON uses `null` for unavailable numeric outputs rather than non-standard `NaN`."
+        },
+        {
+          "heading": "Statuses and failures",
+          "id": "statuses-and-failures",
+          "level": 2,
+          "markdown": "Every Momentum result carries a status, as the other strategies' results do:\n\n| Situation | Status | Run outcome |\n| :--- | :--- | :--- |\n| A bullish or bearish trend | `ok` | `completed` |\n| The history is too short for the long average (trend `UNKNOWN`) | `input_unavailable` | `unavailable` |\n| No price history exists at or before the as-of boundary | `input_unavailable` | `unavailable` |\n| The price data failed a data-quality check | `input_unavailable` | `unavailable` |\n| The price provider failed | `provider_error` | `failed` |\n\nA result that could not be calculated has a reason, and a reason code where one fits (`insufficient_history`, `not_available_as_of` or `provider_error`; a failed data-quality check has the reason only). A provider failure never stores the provider's own error text: the stored reason is a fixed message, and `provider_failure` names the provider and the kind of failure.\n\nA saved run keeps a failed or unavailable outcome, and refreshing a watchlist entry records it as a run with that outcome instead of an error without a run."
+        },
+        {
+          "heading": "Data source",
+          "id": "data-source",
+          "level": 2,
+          "markdown": "Momentum currently obtains historical market-price data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library and operates on the normalized historical `Close` values returned to the strategy. `yfinance` is not affiliated with or endorsed by Yahoo."
+        },
+        {
+          "heading": "Why another momentum calculation may disagree",
+          "id": "why-another-momentum-calculation-may-disagree",
+          "level": 2,
+          "markdown": "Common causes include:\n\n- different short/long windows;\n- a different price field, such as adjusted close instead of close;\n- different trading-day coverage;\n- missing-price handling;\n- different crossover definitions/reporting rules; and\n- different market-data revisions or provider histories.\n\nWhen comparing results, first confirm that both tools are calculating the same indicator over the same price series and dates."
+        },
+        {
+          "heading": "What this strategy does not currently implement",
+          "id": "what-this-strategy-does-not-currently-implement",
+          "level": 2,
+          "markdown": "The current Momentum strategy is specifically an SMA/crossover analysis, reporting [RSI](help:terms/rsi) as a supporting indicator (see [above](help:documents/momentum#how-the-calculation-works) for its simple-average, not-Wilder-smoothing convention). It does not currently implement [MACD](help:terms/macd), Sharpe ratio, or a 12-month-minus-1-month momentum factor.\n\nThose are separate analytical methods; they should not be inferred from the generic word “momentum.”"
+        },
+        {
+          "heading": "Important limitations",
+          "id": "important-limitations",
+          "level": 2,
+          "markdown": "SMA/crossover analysis is backward-looking. It can lag rapid price changes, produce whipsaws in sideways markets, and says nothing by itself about valuation, balance-sheet quality, earnings durability, or future returns.\n\nNothing produced by this strategy is investment advice."
+        }
+      ],
+      "title": "Momentum Strategy Guide"
+    },
+    "piotroski": {
+      "introduction": "This implementation follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal, because issuance cannot be established reliably from structured filings.\n\nThe Piotroski F-Score is a deterministic financial-strength screen. It runs nine pass/fail tests on a company's reported financial statements for three consecutive fiscal years and counts the tests passed. The result is a score from 0 to 9, not a valuation, a forecast or an investment recommendation.",
+      "sections": [
+        {
+          "heading": "What the strategy calculates",
+          "id": "what-the-strategy-calculates",
+          "level": 2,
+          "markdown": "The strategy reads the statements from SEC EDGAR, finds the company's latest annual report at the boundary and scores that year against the two years before it.\n\nYear *t* is the fiscal year of the latest annual report at the boundary; *t−1* and *t−2* are the two years before it. Each test is a strict comparison on unrounded values:\n\n| # | Group | Test | Passes when |\n|---|---|---|---|\n| 1 | Profitability | Positive ROA | net income of *t* ÷ total assets at *t−1* is greater than zero |\n| 2 | Profitability | Positive CFO | operating cash flow of *t* ÷ total assets at *t−1* is greater than zero |\n| 3 | Profitability | Improving ROA | ROA of *t* is greater than ROA of *t−1* |\n| 4 | Profitability | Cash exceeds income | operating cash flow of *t* is greater than net income of *t* |\n| 5 | Leverage and liquidity | Falling leverage | long-term debt ÷ average total assets fell, or long-term debt is zero in both years |\n| 6 | Leverage and liquidity | Improving liquidity | the current ratio at *t* is greater than at *t−1* |\n| 7 | Leverage and liquidity | No dilution | shares outstanding at *t* are not more than at *t−1* |\n| 8 | Efficiency | Improving margin | gross margin of *t* is greater than that of *t−1* |\n| 9 | Efficiency | Improving turnover | sales ÷ total assets at the start of the year is greater than the year before |\n\nAn unchanged ratio earns no point in any test but 5 (zero debt) and 7. See [Financial Math & Data Conventions](help:documents/finance-math#piotroski-f-score-strategy) for the normative definitions, the conventions the method fixes and the edge-case rules."
+        },
+        {
+          "heading": "Reading the result",
+          "id": "reading-the-result",
+          "level": 2,
+          "markdown": "```text\nApple Inc. (AAPL) — Piotroski F-Score: 7 of 9 (complete)\nFiscal year-end: 2024-09-28 · 10-K 0000320193-24-000123 · us-gaap\nIndustry class: manufacturer (SIC code as filed)\nProfitability\n  1 Positive ROA          pass         ROA 26.59% > 0\n  2 Positive CFO          pass         CFO / assets 33.54% > 0\n  3 Improving ROA         fail         ROA 26.59%, prior 27.50%\n  4 Cash exceeds income   pass         CFO 118,254,000,000 USD > net income 93,736,000,000 USD\nLeverage and liquidity\n  5 Falling leverage      pass         long-term debt / assets 26.94%, prior 29.80%\n  6 Improving liquidity   fail         current ratio 0.87x, prior 0.99x\n  7 No dilution           pass         shares 15,116,786,000, prior 15,550,061,000\nEfficiency\n  8 Improving margin      pass         gross margin 46.21%, prior 44.13%\n  9 Improving turnover    pass         asset turnover 1.11x, prior 1.09x\n```\n\nPercentages and multiples are shown with two decimals; when two compared values would look equal at two decimals but differ, both are shown with more digits so the comparison can be seen."
+        },
+        {
+          "heading": "Complete and partial scores",
+          "id": "complete-and-partial-scores",
+          "level": 3,
+          "markdown": "A score is **complete** when all nine tests could be decided. A test that cannot be decided is **unavailable**, never a fail: its line shows `unavailable` and the reason. A score is **partial** when six to eight tests are available, and it is always shown as \"*x* of *n*\" with the unavailable tests named, never as a bare number and never as \"*x* of 9\":\n\n```text\nMNST — Piotroski F-Score: 5 of 6 (partial: tests 1, 3, 4 unavailable)\nFiscal year-end: 2025-12-31 · 10-K 0001104659-26-020831 · us-gaap\nIndustry class: manufacturer (SIC code as filed)\n\nProfitability\n  1 Positive ROA          unavailable  Net income for 2025-12-31 is unavailable: The filings report none for that fiscal year.\n  2 Positive CFO          pass         CFO / assets 27.18% > 0\n  3 Improving ROA         unavailable  Net income for 2025-12-31 is unavailable: The filings report none for that fiscal year.\n  4 Cash exceeds income   unavailable  Net income for 2025-12-31 is unavailable: The filings report none for that fiscal year.\nLeverage and liquidity\n  5 Falling leverage      pass         long-term debt / assets 0.00%, prior 4.30%\n  6 Improving liquidity   pass         current ratio 3.70x, prior 3.32x\n  7 No dilution           fail         shares 978,113,000, prior 973,079,000\nEfficiency\n  8 Improving margin      pass         gross margin 55.85%, prior 54.04%\n  9 Improving turnover    pass         asset turnover 1.07x, prior 0.77x\n\nNote: The usual reading of high and low scores applies to complete scores only.\nSource: SEC EDGAR; latest evidence available 2026-02-27\nLimitation: Follows the Piotroski nine-test structure, with the net change in shares outstanding in place of the paper's equity-issuance test; not an investment recommendation.\n```\n\nThe title shows the instrument name before the ticker, as in \"Apple Inc. (AAPL)\", when the instrument profile gives one; the example above shows the ticker alone because no profile is attached to it.\n\nWith fewer than six available tests there is no score. The usual reading of the scale applies to complete scores only: a high score (8 or 9) is conventionally read as financial strength and a low score (0 or 1) as weakness. A partial score gets a note saying so and is not ranked against complete scores.\n\nIn a side-by-side comparison of runs the strategy offers two cells, **Score** (\"7 of 9\", or \"5 of 6\" for a partial score) and **Completeness** (\"complete\" or \"partial (1, 3, 4 unavailable)\"), with the fiscal year-end and the filing's taxonomy.\n\nThe strategy scores only the latest annual report at the boundary. If that year's inputs are missing, the affected tests are unavailable; an older year is never scored in its place."
+        },
+        {
+          "heading": "Industry class",
+          "id": "industry-class",
+          "level": 2,
+          "markdown": "The industry class comes from the SIC code on the annual report the score rests on, as filed, never from the company's current code. The F-Score was designed for non-financial firms, so a financial issuer is scored with a warning: its gross-margin and current-ratio tests are typically unavailable. If the class cannot be established, the strategy still runs and a warning says why. An ETF is not scored: the run is reported as not applicable."
+        },
+        {
+          "heading": "Data sources",
+          "id": "data-sources",
+          "level": 2,
+          "markdown": "All inputs come from SEC EDGAR structured filings: balance-sheet values at three fiscal year-ends, annual income and cash-flow values for two, common shares outstanding at two year-ends and the as-filed SIC code. The fiscal year-ends are found from the periods the filings report, not from filing dates. A company filing under IFRS has no long-term-debt mapping, so test 5 is unavailable for it. The strategy uses no market data and no quote."
+        },
+        {
+          "heading": "Limitations",
+          "id": "limitations",
+          "level": 2,
+          "markdown": "- **Dilution is net.** Test 7 compares share counts. A company can issue shares and still pass when buybacks exceed issuance, as Apple did in fiscal 2024. The two counts are compared only when both come from the same filing and the same path, so a company whose prior-year count comes from an earlier filing has test 7 unavailable.\n- **Net income is as reported.** The paper uses income before extraordinary items; net income is the modern equivalent. A company that does not tag net income has tests 1, 3 and 4 unavailable.\n- **A screen, not a recommendation.** A pass or fail on a test is a statement about reported statements, not about price, scarcity or durability."
+        }
+      ],
+      "title": "Piotroski F-Score Strategy"
+    }
+  },
+  "groups": [
+    {
+      "id": "analysis-strategies-and-results",
+      "terms": [
+        "analysis-strategy",
+        "method",
+        "typed-evidence",
+        "applicability-status",
+        "not-applicable",
+        "as-filed-sic-code",
+        "industry-class"
+      ],
+      "title": "Analysis strategies and results"
+    },
+    {
+      "id": "local-research-workspace",
+      "terms": [
+        "analysis-run",
+        "selection",
+        "entry",
+        "watchlist",
+        "headline",
+        "refresh"
+      ],
+      "title": "Local research workspace"
+    },
+    {
+      "id": "market-data-and-timing",
+      "terms": [
+        "data-provider",
+        "sec",
+        "edgar",
+        "cache",
+        "cache-states",
+        "historical-market-data",
+        "current-quote",
+        "ticker",
+        "security-identity",
+        "instrument-profile",
+        "financial-facts",
+        "macro-series",
+        "provenance",
+        "as-of-date",
+        "availability-date",
+        "look-ahead-bias",
+        "data-vintage",
+        "retrieved-at",
+        "override",
+        "resolution-precedence",
+        "utc"
+      ],
+      "title": "Market data and timing"
+    },
+    {
+      "id": "company-financial-measures",
+      "terms": [
+        "eps",
+        "basic-and-diluted-eps",
+        "ttm",
+        "three-year-average-eps",
+        "normalized-eps",
+        "fiscal-year",
+        "reporting-period",
+        "stock-split-adjustment",
+        "split-adjusted-close",
+        "market-capitalization",
+        "ebitda",
+        "enterprise-value",
+        "total-debt",
+        "invested-capital",
+        "bvps",
+        "common-shareholders-equity",
+        "shares-outstanding",
+        "book-value",
+        "tangible-book-value",
+        "cagr",
+        "operating-cash-flow",
+        "capital-expenditures",
+        "free-cash-flow",
+        "weighted-average-diluted-shares"
+      ],
+      "title": "Company financial measures"
+    },
+    {
+      "id": "valuation-and-price-comparison",
+      "terms": [
+        "valuation",
+        "intrinsic-value",
+        "reference-value",
+        "margin-of-safety",
+        "price-relationship",
+        "discount-and-premium",
+        "pe-ratio",
+        "pb-ratio",
+        "yield",
+        "percentage-point",
+        "aaa-rating",
+        "analyst-consensus-estimate"
+      ],
+      "title": "Valuation and price comparison"
+    },
+    {
+      "id": "momentum-strategy-terms",
+      "terms": [
+        "momentum-strategy",
+        "sma",
+        "sma-windows",
+        "crossover",
+        "momentum-states",
+        "rsi",
+        "ema",
+        "macd"
+      ],
+      "title": "Momentum Strategy terms"
+    },
+    {
+      "id": "graham-number-strategy-terms",
+      "terms": [
+        "graham-number-strategy",
+        "graham-number",
+        "graham-number-factor",
+        "maximum-indicated-price",
+        "defensive-investor"
+      ],
+      "title": "Graham Number Strategy terms"
+    },
+    {
+      "id": "graham-growth-value-strategy-terms",
+      "terms": [
+        "graham-growth-value-strategy",
+        "expected-growth-rate",
+        "growth-estimation-policy",
+        "aaa-corporate-bond-yield",
+        "baseline-aaa-yield",
+        "current-aaa-yield",
+        "growth-value-formula",
+        "base-pe",
+        "growth-multiplier"
+      ],
+      "title": "Graham Growth Value Strategy terms"
+    },
+    {
+      "id": "free-cash-flow--earnings-growth-strategy-terms",
+      "terms": [
+        "fcf-growth-strategy",
+        "total-company-fcf",
+        "fcf-per-diluted-share",
+        "classification-basis",
+        "fcf-classification",
+        "fcf-yield",
+        "forward-policy"
+      ],
+      "title": "Free Cash Flow & Earnings Growth Strategy terms"
+    },
+    {
+      "id": "piotroski-f-score-strategy-terms",
+      "terms": [
+        "piotroski-strategy",
+        "f-score",
+        "complete-and-partial-score",
+        "unavailable-test",
+        "roa",
+        "current-ratio",
+        "gross-margin",
+        "asset-turnover",
+        "net-dilution"
+      ],
+      "title": "Piotroski F-Score Strategy terms"
+    }
+  ],
+  "terms": {
+    "aaa-corporate-bond-yield": {
+      "body": "No live series is currently integrated, so the strategy takes a yield you supply. A future provider integration must retain exact series, units, observation/publication date, and rating/maturity scope.",
+      "definition": "The yield on a documented series of highest-rated corporate debt, used by the Graham Growth Value strategy.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "AAA Corporate Bond Yield"
+    },
+    "aaa-rating": {
+      "body": "The precise label and methodology depend on the rating agency or published series.",
+      "definition": "The highest credit-rating category in commonly used rating scales, indicating very low assessed credit risk.",
+      "group": "valuation-and-price-comparison",
+      "name": "AAA"
+    },
+    "analysis-run": {
+      "body": "A run is saved when you ask for it, and a refresh saves one for every entry it runs. Showing a saved Analysis Run always replays its own captured evidence; it never re-fetches data or recalculates, so it keeps showing the same result even if a data provider or your configuration changes afterward.",
+      "definition": "One saved record of a single analysis attempt: the method, the ticker, the exact configuration used and the result, or the fact that no result could be produced.",
+      "group": "local-research-workspace",
+      "name": "Analysis Run"
+    },
+    "analysis-strategy": {
+      "body": "A strategy never leaves a calculation to an AI model. This glossary and the guides call the idea an analysis strategy.",
+      "definition": "A rule-based way of analyzing a security, with its own inputs, calculation and way of reading the result. The same inputs always give the same result.",
+      "group": "analysis-strategies-and-results",
+      "name": "Analysis Strategy"
+    },
+    "analyst-consensus-estimate": {
+      "body": "The Free Cash Flow & Earnings Growth contract can carry compatible FY1/FY2 diluted-EPS consensus as optional evidence, but the current production SEC mapping may not provide it. Such evidence requires verified field meaning, forecast horizon, provenance, update behavior, and licensing; the software does not invent it.",
+      "definition": "An aggregation of forecasts from multiple analysts.",
+      "group": "valuation-and-price-comparison",
+      "name": "Analyst Consensus Estimate"
+    },
+    "applicability-status": {
+      "body": "Investment Analysis Engine uses machine-readable statuses including `ok`, `not_applicable`, `input_unavailable`, `invalid_input`, and `provider_error`.",
+      "definition": "Whether a method can be meaningfully calculated for a security, instead of forcing every security into a numeric result.",
+      "group": "analysis-strategies-and-results",
+      "name": "Applicability Status"
+    },
+    "as-filed-sic-code": {
+      "body": "A historical analysis therefore sees the code the issuer had then (`ASSIGNED-SIC`). The code shown for an issuer on the SEC website today can differ, and is never used in its place. When the header cannot be read, the [industry class](help:terms/industry-class) is unknown.",
+      "definition": "The four-digit industry code that the SEC header of an annual filing assigns to the issuer on the filing date. It is read from the filing an analysis is anchored to.",
+      "group": "analysis-strategies-and-results",
+      "name": "As-Filed SIC Code"
+    },
+    "as-of-date": {
+      "body": "A requested analysis boundary (`as_of`) prevents the resolver from using observations or information that became available after that date.",
+      "definition": "The time boundary for an analysis or an input: information that became available after that date is not used.",
+      "group": "market-data-and-timing",
+      "name": "As-of Date"
+    },
+    "asset-turnover": {
+      "body": "",
+      "definition": "In the F-Score, a year's sales divided by total assets at the start of that year.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Asset Turnover"
+    },
+    "availability-date": {
+      "body": "Historical analysis must therefore not treat the period-end value as if it had already been published.",
+      "definition": "The date a fact became knowable to an investor. A financial statement's fiscal-period end can precede its filing date by weeks or months.",
+      "group": "market-data-and-timing",
+      "name": "Available At / Filing Date / Publication Date"
+    },
+    "base-pe": {
+      "body": "The initial conventional value is `8.5` (`base_pe`).",
+      "definition": "The no-growth earnings multiple used as a configurable constant in the selected growth-value convention.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "Base P/E"
+    },
+    "baseline-aaa-yield": {
+      "body": "It is configurable formula normalization, not a current market observation.",
+      "definition": "The reference AAA yield, 4.4 by default, that the Graham Growth Value formula compares the current AAA yield against.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "Baseline AAA Yield"
+    },
+    "basic-and-diluted-eps": {
+      "body": "Values with different share bases must not be combined silently.",
+      "definition": "Basic EPS divides profit by the weighted-average common shares actually outstanding. Diluted EPS also counts potentially dilutive securities such as options and convertible instruments.",
+      "group": "company-financial-measures",
+      "name": "Basic EPS / Diluted EPS"
+    },
+    "book-value": {
+      "body": "It may differ greatly from market value and may not capture internally generated intangible assets.",
+      "definition": "The accounting value of assets minus liabilities attributable to the relevant equity holders.",
+      "group": "company-financial-measures",
+      "name": "Book Value"
+    },
+    "bvps": {
+      "body": "When using SEC EDGAR data, Investment Analysis Engine derives it from eligible fiscal-year-end balance-sheet components rather than claiming a direct SEC BVPS field.",
+      "definition": "Book value attributable to common shareholders divided by period-end common shares outstanding. It is an accounting measure of net assets per share, not a market price.",
+      "group": "company-financial-measures",
+      "name": "BVPS (Book Value Per Share)"
+    },
+    "cache": {
+      "body": "Otherwise the engine asks an allowed provider or reports the input unavailable. Caching is automatic and distinct from saving an [Analysis Run](help:terms/analysis-run), which is optional and durable.",
+      "definition": "A stored copy of previously retrieved data. A stored value is reused only if it satisfies the requested as-of date and the freshness policy.",
+      "group": "market-data-and-timing",
+      "name": "Cache"
+    },
+    "cache-states": {
+      "body": "A stale cache entry exists but is too old or otherwise outside the active policy, so it cannot silently be treated as current.",
+      "definition": "A cache hit finds a valid stored value to reuse, a cache miss finds none, and a stale entry exists but is too old to be treated as current.",
+      "group": "market-data-and-timing",
+      "name": "Cache Hit / Cache Miss / Stale Cache Entry"
+    },
+    "cagr": {
+      "body": "```text\n(ending_value / beginning_value)^(1 / years) - 1\n```\n\nA historical EPS CAGR describes the past. It is only a proxy—not a forecast—unless a separate justified policy says otherwise.",
+      "definition": "The constant annual rate that would turn a beginning value into an ending value over a stated number of years.",
+      "group": "company-financial-measures",
+      "name": "CAGR (Compound Annual Growth Rate)"
+    },
+    "capital-expenditures": {
+      "body": "Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.",
+      "definition": "Cash spent to acquire or improve long-lived productive assets.",
+      "group": "company-financial-measures",
+      "name": "Capital Expenditures (CapEx)"
+    },
+    "classification-basis": {
+      "body": "The total is the default (`total_fcf`) and the per-share measure is the alternative (`fcf_per_share`). Both measures remain visible regardless of the choice.",
+      "definition": "The free-cash-flow measure whose growth rate controls the growth screen: the total measure or the per-share measure.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Classification Basis"
+    },
+    "common-shareholders-equity": {
+      "body": "",
+      "definition": "The part of reported equity that belongs to common shareholders, after the claims of preferred shareholders and other senior equity interests are excluded where applicable.",
+      "group": "company-financial-measures",
+      "name": "Common Shareholders' Equity"
+    },
+    "complete-and-partial-score": {
+      "body": "A partial score is shown with the unavailable tests named, the usual reading of high and low scores does not apply to it, and it never enters a ranking.",
+      "definition": "A complete score rests on all nine tests. A partial score rests on six to eight, because the other tests are unavailable.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Complete Score / Partial Score"
+    },
+    "crossover": {
+      "body": "The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.\n\nBoth averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.",
+      "definition": "A change in which of the short and long moving averages is higher.",
+      "group": "momentum-strategy-terms",
+      "name": "Crossover"
+    },
+    "current-aaa-yield": {
+      "body": "It is a value you supply and is identified as such; a future provider-resolved value would additionally need series provenance and observation/publication dates.",
+      "definition": "The AAA corporate-bond yield used in the denominator of the growth-value formula. It must be strictly positive.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "Current AAA Yield"
+    },
+    "current-quote": {
+      "body": "For an analysis with an explicit historical [as-of date](help:terms/as-of-date), a quote is usable only if the selected provider can establish an eligible observation at or before that boundary. A current-only quote adapter therefore returns unavailable for historical financial-fact requests rather than substituting today's price.\n\nThe report calls this the latest available quote. Retrieval time records when the provider response was obtained; market observation time records when the market price was observed, if actually supplied. A five-minute response-reuse bound does not prove that the underlying trade is five minutes old. The current Yahoo adapter retains retrieval time and explicitly reports unknown market observation time.",
+      "definition": "A market price taken as of now, used for comparison with a valuation. For a historical as-of date, it is usable only if the provider can establish a price at or before that date.",
+      "group": "market-data-and-timing",
+      "name": "Current Quote / Current Market Price"
+    },
+    "current-ratio": {
+      "body": "",
+      "definition": "Current assets divided by current liabilities at a fiscal year-end.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Current Ratio"
+    },
+    "data-provider": {
+      "body": "",
+      "definition": "An external or local source of market prices, company financial facts or economic-series observations. Examples are a quote service, a financial-statements service and a macroeconomic data service.",
+      "group": "market-data-and-timing",
+      "name": "Data Provider"
+    },
+    "data-vintage": {
+      "body": "A reproducible historical analysis may therefore need the original vintage rather than today's revised value.",
+      "definition": "The version of a time-series observation that was available at a particular time. Some economic data are revised after first publication.",
+      "group": "market-data-and-timing",
+      "name": "Data Vintage"
+    },
+    "defensive-investor": {
+      "body": "His complete defensive-stock framework included additional size, financial-strength, earnings-stability, dividend, and growth criteria beyond the two ratios represented by the Graham Number.",
+      "definition": "Graham's term for an investor seeking a relatively conservative, low-maintenance approach.",
+      "group": "graham-number-strategy-terms",
+      "name": "Defensive Investor"
+    },
+    "discount-and-premium": {
+      "body": "",
+      "definition": "A neutral description of the same price comparison as margin of safety. A discount means the price is below the reference value; a premium means it is above it.",
+      "group": "valuation-and-price-comparison",
+      "name": "Discount / Premium to Reference Value"
+    },
+    "ebitda": {
+      "body": "The amortization and depreciation come from the cash-flow statement. Lease cost sits above or below EBITDA according to the accounting framework, so a US GAAP and an IFRS filer are not fully comparable.",
+      "definition": "Earnings before interest, taxes, depreciation and amortization, taken here as reported operating income plus depreciation and amortization.",
+      "group": "company-financial-measures",
+      "name": "EBITDA"
+    },
+    "edgar": {
+      "body": "See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data).",
+      "definition": "The SEC's Electronic Data Gathering, Analysis, and Retrieval system, which gives public access to company filings and structured filing data.",
+      "group": "market-data-and-timing",
+      "name": "EDGAR"
+    },
+    "ema": {
+      "body": "It is not currently part of the implemented Momentum calculation.",
+      "definition": "A moving average that gives more weight to recent observations than an SMA does.",
+      "group": "momentum-strategy-terms",
+      "name": "EMA (Exponential Moving Average)"
+    },
+    "enterprise-value": {
+      "body": "",
+      "definition": "Market capitalization plus total debt, preferred stock and noncontrolling interest, minus cash and short-term investments. It may be negative.",
+      "group": "company-financial-measures",
+      "name": "Enterprise Value (EV)"
+    },
+    "entry": {
+      "body": "A [watchlist](help:terms/watchlist) is an ordered list of entries, not a separate list of tickers and a separate list of [selections](help:terms/selection). Each entry's position in the list is a number counted from 1.",
+      "definition": "One ticker paired with one selection inside a watchlist. The same method can appear in several entries, for different tickers or for one ticker with different configuration.",
+      "group": "local-research-workspace",
+      "name": "Entry"
+    },
+    "eps": {
+      "body": "Its basis and period must always be identified.",
+      "definition": "Profit attributable to common shareholders, expressed per common share. It may be basic or diluted and may cover a fiscal year or a trailing period.",
+      "group": "company-financial-measures",
+      "name": "EPS (Earnings Per Share)"
+    },
+    "expected-growth-rate": {
+      "body": "It is written `g` in the formula, and its policy must be reported.",
+      "definition": "The assumed annual earnings-growth rate used by the Graham Growth Value strategy, in percentage points: 6.5 means 6.5%. Its source and horizon must be reported.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "Expected Growth Rate"
+    },
+    "f-score": {
+      "body": "It is shown as “*x* of *n*” with *n* the tests that could be decided, and is unavailable with fewer than six decided tests.",
+      "definition": "The number of the nine Piotroski tests passed, from 0 to 9.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "F-Score"
+    },
+    "fcf-classification": {
+      "body": "`PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.",
+      "definition": "The growth screen's three outcomes: pass when required growth rates are positive, fail when complete evidence shows a nonpositive rate, indeterminate when no classification can be made.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "FCF Classification"
+    },
+    "fcf-growth-strategy": {
+      "body": "It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.",
+      "definition": "A historical screen asking whether free cash flow and diluted EPS both grew at positive, meaningful compound annual rates over one compatible period. It is not a valuation.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Free Cash Flow & Earnings Growth Strategy"
+    },
+    "fcf-per-diluted-share": {
+      "body": "It reflects dilution and repurchases and can be selected as the controlling classification basis.",
+      "definition": "Annual total-company FCF divided by compatible weighted-average diluted shares for the same fiscal year.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "FCF per Diluted Share"
+    },
+    "fcf-yield": {
+      "body": "Its numerator covers a completed year and its denominator is taken at the boundary; it is informational only in the current method.",
+      "definition": "Latest completed annual free cash flow divided by market capitalization at the boundary, expressed as a percentage.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "FCF Yield"
+    },
+    "financial-facts": {
+      "body": "",
+      "definition": "Reported accounting values such as earnings, shareholders' equity and shares outstanding, taken from financial statements. Their reporting periods usually differ from market-quote times.",
+      "group": "market-data-and-timing",
+      "name": "Company Financial Facts / Fundamentals"
+    },
+    "fiscal-year": {
+      "body": "Annual EPS observations must therefore retain their fiscal-period dates.",
+      "definition": "A company's twelve-month accounting period, which may differ from the calendar year.",
+      "group": "company-financial-measures",
+      "name": "Fiscal Year"
+    },
+    "forward-policy": {
+      "body": "The code values are `display_only`, `confirmation`, and `hard_gate`. Only `hard_gate` can alter an otherwise passing historical classification.",
+      "definition": "The rule for how optional analyst-consensus EPS estimates for the next two fiscal years are treated: display only, confirmation or hard gate.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Forward Policy"
+    },
+    "free-cash-flow": {
+      "body": "In the Free Cash Flow & Earnings Growth strategy, it is completed annual operating cash flow minus normalized capital expenditures.\n\nFCF is a non-GAAP analytical measure, so another provider may use a different definition.",
+      "definition": "The cash a company's operations generate in a year, minus what it spends on long-lived assets such as equipment.",
+      "group": "company-financial-measures",
+      "name": "Free Cash Flow (FCF)"
+    },
+    "graham-growth-value-strategy": {
+      "body": "It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply.",
+      "definition": "A forecast-dependent strategy that estimates a value from earnings, an expected growth rate and a current AAA corporate-bond yield.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "Graham Growth Value Strategy"
+    },
+    "graham-number": {
+      "body": "It is a commonly used algebraic expression of those combined limits:\n\n```text\nsqrt(22.5 × EPS × BVPS)\n```\n\nThe result is a maximum indicated price or screening ceiling when EPS and BVPS are positive. It does not by itself prove that a company satisfies Graham's other defensive-investor criteria or that the stock is a suitable investment.",
+      "definition": "The square root of 22.5 times EPS times BVPS, a price ceiling that expresses Graham's defensive limits of P/E 15 and P/B 1.5.",
+      "group": "graham-number-strategy-terms",
+      "name": "Graham Number"
+    },
+    "graham-number-factor": {
+      "body": "Algebraically, `P/E × P/B = price² / (EPS × BVPS)`, which leads to the square-root formula.",
+      "definition": "The product of the Graham Number's component limits: 15 times 1.5 equals 22.5.",
+      "group": "graham-number-strategy-terms",
+      "name": "Factor 22.5"
+    },
+    "graham-number-strategy": {
+      "body": "It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one.",
+      "definition": "A screening strategy that combines positive earnings per share and book value per share to estimate a conservative maximum indicated price.",
+      "group": "graham-number-strategy-terms",
+      "name": "Graham Number Strategy"
+    },
+    "gross-margin": {
+      "body": "",
+      "definition": "Gross profit divided by sales for a fiscal year.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Gross Margin"
+    },
+    "growth-estimation-policy": {
+      "body": "An LLM, data provider, or silent default must not invent growth.",
+      "definition": "The explicit rule that supplies the expected growth rate. The application supports only a growth assumption that you provide.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "Growth-Estimation Policy"
+    },
+    "growth-multiplier": {
+      "body": "The initial conventional value is `2.0` (`growth_multiplier`).",
+      "definition": "The configurable constant that multiplies the expected growth rate in the growth-value formula.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "Growth Multiplier"
+    },
+    "growth-value-formula": {
+      "body": "The project's explicitly identified secondary convention:\n\n```text\nnormalized_eps × (base_pe + growth_multiplier × g)\n× baseline_aaa_yield / current_aaa_yield\n```\n\nIt is a simplified, forecast-dependent growth-stock estimate. It is not the Graham Number and must not be presented as a precise or universally applicable intrinsic value.",
+      "definition": "The project's secondary valuation formula: earnings scaled by a growth-adjusted multiple and by the ratio of baseline to current AAA yield. It is a simplified estimate that depends on a forecast.",
+      "group": "graham-growth-value-strategy-terms",
+      "name": "Graham Growth-Value Formula"
+    },
+    "headline": {
+      "body": "A value the run could not calculate is shown as a dash.",
+      "definition": "The few values a strategy picks to stand for one analysis run, so that runs can be compared side by side. It summarizes the run; it is not the full result.",
+      "group": "local-research-workspace",
+      "name": "Headline"
+    },
+    "historical-market-data": {
+      "body": "",
+      "definition": "A time-indexed series of market observations, such as daily prices, used for time-series calculations such as Momentum.",
+      "group": "market-data-and-timing",
+      "name": "Historical Market Data"
+    },
+    "industry-class": {
+      "body": "It comes from the [as-filed SIC code](help:terms/as-filed-sic-code) of the annual report the analysis rests on. The groups are financial (SIC 6000 to 6799, which includes REITs), utility (4900 to 4999), manufacturer (2000 to 3999), or any other issuer. A strategy that does not apply to a class reports the issuer as not applicable; a strategy that depends on the class reports an unknown class as unavailable, and one that does not (Piotroski) runs and says the class is unknown. The SEC assigns one code per filer, so a diversified issuer has the class of that one code.",
+      "definition": "The group an issuer belongs to for deciding which screening strategies apply: financial, utility, manufacturer or other. It is unknown when the issuer's industry code cannot be established.",
+      "group": "analysis-strategies-and-results",
+      "name": "Industry Class"
+    },
+    "instrument-profile": {
+      "body": "The engine keeps a durable copy of an instrument profile; a stored profile expires after a configured freshness window and is refreshed live when it does. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.",
+      "definition": "A security's identity plus a normalized kind of instrument, such as equity or ETF, each with its own provenance. It is kept so that repeated analyses do not look up details that rarely change.",
+      "group": "market-data-and-timing",
+      "name": "Instrument Profile"
+    },
+    "intrinsic-value": {
+      "body": "Different models can produce different intrinsic-value estimates. Investment Analysis Engine avoids using this term without qualification for the Graham Number.",
+      "definition": "An estimate of what an investment is economically worth under a stated model and assumptions, rather than its market price.",
+      "group": "valuation-and-price-comparison",
+      "name": "Intrinsic Value"
+    },
+    "invested-capital": {
+      "body": "Net working capital here excludes cash, short-term investments and the debt in current liabilities.",
+      "definition": "The tangible capital employed: net working capital plus net property, plant and equipment, with goodwill and intangibles excluded.",
+      "group": "company-financial-measures",
+      "name": "Invested Capital"
+    },
+    "look-ahead-bias": {
+      "body": "Tracking availability dates separately from reporting periods helps prevent it.",
+      "definition": "An error in historical analysis caused by using information that was not yet available at the analysis date.",
+      "group": "market-data-and-timing",
+      "name": "Look-Ahead Bias"
+    },
+    "macd": {
+      "body": "It is not currently part of the implemented Momentum calculation.",
+      "definition": "A trend and momentum indicator built from the relationship between exponential moving averages.",
+      "group": "momentum-strategy-terms",
+      "name": "MACD (Moving Average Convergence Divergence)"
+    },
+    "macro-series": {
+      "body": "A specific observation must retain its series identifier, units, source and observation date.",
+      "definition": "A time-indexed economic or market benchmark, such as a corporate-bond-yield series.",
+      "group": "market-data-and-timing",
+      "name": "Macro Series"
+    },
+    "margin-of-safety": {
+      "body": "```text\n(reference_value - current_price) / reference_value × 100\n```\n\nNegative means the price is above the reference value. This calculation measures a valuation discount or premium but does not eliminate business or investment risk. If the reference value or current price is unavailable, MOS is unavailable (`None`), not zero.",
+      "definition": "The percentage difference between a method's reference value and the current market price, measured against the reference value. Positive means the price is below the reference value.",
+      "group": "valuation-and-price-comparison",
+      "name": "Margin of Safety (MOS)"
+    },
+    "market-capitalization": {
+      "body": "The share count is scaled by every stock split after the date it was taken, and the price is the split-adjusted close. It is available only for an issuer whose annual filing is a 10-K, whose quote currency equals its filing currency, and whose listing on the filing's cover page is a share of the issuer. See [Financial Math](help:documents/finance-math#shared-metrics).",
+      "definition": "Common shares outstanding multiplied by the share price, both on the basis of the same date.",
+      "group": "company-financial-measures",
+      "name": "Market Capitalization"
+    },
+    "maximum-indicated-price": {
+      "body": "This is the preferred description of the Graham Number result.",
+      "definition": "The highest price indicated by the Graham Number's limited earnings-and-book-value screen. It is not a promise of fair value or future return.",
+      "group": "graham-number-strategy-terms",
+      "name": "Maximum Indicated Price / Screening Ceiling"
+    },
+    "method": {
+      "body": "Several methods in one strategy are reserved for true variants of the same underlying calculation, such as a future Altman Z versus Z′′ strategy. They are not for strategies that merely address a related question with a different formula, the way Graham Number and Graham Growth Value do: each of those is its own strategy, not two methods of one.\n\nA method is an application concept; it does not imply that Benjamin Graham or another source used the word “method” in exactly this project-specific sense.",
+      "definition": "One calculation approach within an analysis strategy. A strategy may offer one method or several.",
+      "group": "analysis-strategies-and-results",
+      "name": "Method"
+    },
+    "momentum-states": {
+      "body": "The run's status is then `input_unavailable`.",
+      "definition": "The trend a Momentum run reports: bullish when the short moving average is above the long one, bearish when it is not, unknown when they cannot be calculated.",
+      "group": "momentum-strategy-terms",
+      "name": "Bullish / Bearish / Unknown"
+    },
+    "momentum-strategy": {
+      "body": "The moving-average windows are configurable. The strategy reports the state of the crossover of the two averages.",
+      "definition": "A rule-based analysis of recent price behavior. It compares a short and a long simple moving average, reports a bullish or bearish trend, and shows RSI as a supporting indicator.",
+      "group": "momentum-strategy-terms",
+      "name": "Momentum Strategy"
+    },
+    "net-dilution": {
+      "body": "The F-Score's dilution test passes when the count did not rise.",
+      "definition": "The change in the number of common shares outstanding between two fiscal year-ends, after buybacks.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Net Dilution"
+    },
+    "normalized-eps": {
+      "body": "“Normalized” is not self-defining: every adjustment and period must be documented. The growth calculator accepts an EPS value on the explicitly selected basis; the software does not invent discretionary normalization adjustments.",
+      "definition": "Earnings adjusted by an explicit policy to reduce the effect of unusual or non-recurring items.",
+      "group": "company-financial-measures",
+      "name": "Normalized EPS / Normal Earnings"
+    },
+    "not-applicable": {
+      "body": "The code value is `not_applicable`. It is not the same as a software failure or a zero valuation.",
+      "definition": "A valid outcome meaning the method should not be used for the supplied facts, for example when earnings or book value per share is not positive.",
+      "group": "analysis-strategies-and-results",
+      "name": "Not Applicable"
+    },
+    "operating-cash-flow": {
+      "body": "It is the starting component in the project's free-cash-flow calculation.",
+      "definition": "Net cash provided by operating activities for a completed fiscal year.",
+      "group": "company-financial-measures",
+      "name": "Operating Cash Flow (OCF)"
+    },
+    "override": {
+      "body": "",
+      "definition": "A value you supply yourself instead of accepting the value found from the cache or a provider. An override takes precedence over every other source and is identified in provenance.",
+      "group": "market-data-and-timing",
+      "name": "Override"
+    },
+    "pb-ratio": {
+      "body": "",
+      "definition": "Share price divided by book value per share. A P/B of 1.5 means the price is one and one-half times BVPS.",
+      "group": "valuation-and-price-comparison",
+      "name": "P/B (Price-to-Book Ratio)"
+    },
+    "pe-ratio": {
+      "body": "",
+      "definition": "Share price divided by earnings per share. A P/E of 15 means the price is fifteen times the selected EPS measure.",
+      "group": "valuation-and-price-comparison",
+      "name": "P/E (Price-to-Earnings Ratio)"
+    },
+    "percentage-point": {
+      "body": "That is a 50% increase relative to the original 4%.",
+      "definition": "The arithmetic difference between two percentages. Moving from 4% to 6% is an increase of 2 percentage points.",
+      "group": "valuation-and-price-comparison",
+      "name": "Percentage Point"
+    },
+    "piotroski-strategy": {
+      "body": "It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not an investment recommendation.",
+      "definition": "A financial-strength screen that runs nine pass/fail tests on three consecutive fiscal years of reported statements and counts those passed. It is not a valuation.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Piotroski F-Score Strategy"
+    },
+    "price-relationship": {
+      "body": "It avoids requiring you to interpret the sign convention of the stored `margin_of_safety_percent` field. Another example is “89.57% above the Graham growth value.”",
+      "definition": "A plain-language statement of how the market price compares with the reference value, such as 20.00% below the Graham Number.",
+      "group": "valuation-and-price-comparison",
+      "name": "Price Relationship"
+    },
+    "provenance": {
+      "body": "Provenance can include source kind, provider, source field, observation period, retrieval time, calculation steps, and whether the value was overridden.",
+      "definition": "The record of where a value came from and how it was transformed.",
+      "group": "market-data-and-timing",
+      "name": "Provenance"
+    },
+    "reference-value": {
+      "body": "The stored names are `maximum_indicated_price` for the Graham Number and `growth_value` for Graham Growth Value.",
+      "definition": "The value a method produces for comparison with the current price, such as the Graham Number's maximum indicated price or the growth value.",
+      "group": "valuation-and-price-comparison",
+      "name": "Reference Value"
+    },
+    "refresh": {
+      "body": "A refresh limits how many tickers run at once, and one ticker's failure never stops the rest of the watchlist.",
+      "definition": "Running every entry in one watchlist and saving each result as its own analysis run.",
+      "group": "local-research-workspace",
+      "name": "Refresh"
+    },
+    "reporting-period": {
+      "body": "",
+      "definition": "The span or date a financial fact applies to, such as a fiscal year, a quarter, a trailing twelve-month interval or a balance-sheet date.",
+      "group": "company-financial-measures",
+      "name": "Reporting Period"
+    },
+    "resolution-precedence": {
+      "body": "",
+      "definition": "The order in which sources are tried for each financial value: your override, then a valid cache entry, then a configured provider, then an explicit statement that the value is unavailable.",
+      "group": "market-data-and-timing",
+      "name": "Resolution Precedence"
+    },
+    "retrieved-at": {
+      "body": "The stored field is `retrieved_at`.",
+      "definition": "The time the application obtained a value. It differs from the as-of date: an old financial statement can be retrieved today and still keep its historical reporting date.",
+      "group": "market-data-and-timing",
+      "name": "Retrieval Time"
+    },
+    "roa": {
+      "body": "",
+      "definition": "In the F-Score, a year's net income divided by total assets at the start of that year.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "ROA (Return on Assets)"
+    },
+    "rsi": {
+      "body": "The Momentum strategy uses a simple trailing-average RSI, with a default period of 14 price changes; it does not use Wilder smoothing. See [Financial Math](help:documents/finance-math#momentum-strategy) for the formula and zero-loss/flat-window conventions.",
+      "definition": "An indicator from 0 to 100 that compares the size of recent price gains with recent losses.",
+      "group": "momentum-strategy-terms",
+      "name": "RSI (Relative Strength Index)"
+    },
+    "sec": {
+      "body": "The SEC's website is at [sec.gov](https://www.sec.gov/).",
+      "definition": "The United States Securities and Exchange Commission, the federal securities regulator. The engine uses its public data as a source of company financial facts.",
+      "group": "market-data-and-timing",
+      "name": "SEC"
+    },
+    "security-identity": {
+      "body": "Security identity is best-effort metadata recorded at a resolution time. A ticker is not permanent identity and may be reused. Missing identity metadata never changes a financial result, and historical Analysis Runs retain their original identity snapshot rather than silently re-resolving the ticker later.",
+      "definition": "Descriptive details that associate a ticker with an instrument name and, when known, its listing venue and issuer identifiers. They never change a financial result.",
+      "group": "market-data-and-timing",
+      "name": "Security Identity"
+    },
+    "selection": {
+      "body": "The same method may appear in more than one selection, for example to compare Graham Number computed from SEC EDGAR data under two different overrides.",
+      "definition": "One analysis method together with its own configuration, such as Graham Number with SEC EDGAR data or Graham Growth Value with a 6% expected-growth assumption.",
+      "group": "local-research-workspace",
+      "name": "Selection"
+    },
+    "shares-outstanding": {
+      "body": "This period-end figure is commonly used when deriving BVPS and differs from weighted-average shares used in EPS.",
+      "definition": "The number of issued common shares held by investors, usually measured at a reporting date.",
+      "group": "company-financial-measures",
+      "name": "Shares Outstanding"
+    },
+    "sma": {
+      "body": "",
+      "definition": "The arithmetic mean of a price series over a rolling window.",
+      "group": "momentum-strategy-terms",
+      "name": "SMA (Simple Moving Average)"
+    },
+    "sma-windows": {
+      "body": "",
+      "definition": "The two averaging periods that are compared: the short window and the long window. The short window must be shorter than the long window.",
+      "group": "momentum-strategy-terms",
+      "name": "Short Window / Long Window"
+    },
+    "split-adjusted-close": {
+      "body": "It is the price on the same basis as a share count scaled by those splits, and the two together give the market capitalization the shares and the price had on the day. It is not the dividend-adjusted close that the [Momentum](help:terms/momentum-strategy) series uses. A stock dividend appears in the provider's split history as a fractional split (1.05) and is treated like a split; it is not counted as new shares issued.",
+      "definition": "A closing price restated for every stock split after its date, and for nothing else. A dividend paid later does not change it.",
+      "group": "company-financial-measures",
+      "name": "Split-Adjusted Close"
+    },
+    "stock-split-adjustment": {
+      "body": "EPS, BVPS, and price must use compatible share bases.",
+      "definition": "Restating per-share values after the number of shares changes through a stock split or reverse split.",
+      "group": "company-financial-measures",
+      "name": "Stock Split Adjustment"
+    },
+    "tangible-book-value": {
+      "body": "It is a distinct variation and must never be silently substituted for ordinary book value or BVPS.",
+      "definition": "Book value after subtracting goodwill and other intangible assets, in total or per share.",
+      "group": "company-financial-measures",
+      "name": "Tangible Book Value / Tangible BVPS"
+    },
+    "three-year-average-eps": {
+      "body": "Investment Analysis Engine uses this as the standard Graham Number earnings basis and when the Graham Growth Value strategy uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.",
+      "definition": "The arithmetic mean of EPS from three completed fiscal years.",
+      "group": "company-financial-measures",
+      "name": "Three-Year-Average EPS"
+    },
+    "ticker": {
+      "body": "A ticker is not permanent identity: it can be reassigned after a delisting (see [Security Identity](help:terms/security-identity)).",
+      "definition": "The short symbol that identifies a security on an exchange, such as KO for The Coca-Cola Company.",
+      "group": "market-data-and-timing",
+      "name": "Ticker"
+    },
+    "total-company-fcf": {
+      "body": "",
+      "definition": "Free cash flow measured for the company as a whole. Its CAGR is the default classification basis.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Total-Company FCF"
+    },
+    "total-debt": {
+      "body": "A missing debt figure is never assumed to be zero without evidence that the filer has none.",
+      "definition": "Short-term borrowings, the current portion of long-term debt, noncurrent long-term debt and the lease liabilities counted as debt.",
+      "group": "company-financial-measures",
+      "name": "Total Debt"
+    },
+    "ttm": {
+      "body": "TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. No data source the application currently ships supplies it; the Graham strategies use three-year-average or fiscal-year EPS.",
+      "definition": "The most recent continuous twelve-month period covered by available reports.",
+      "group": "company-financial-measures",
+      "name": "TTM (Trailing Twelve Months)"
+    },
+    "typed-evidence": {
+      "body": "“Typed evidence” is distinct from free-form model prose: an AI model may reason about it, but the model does not get to silently redefine or invent the underlying financial values.",
+      "definition": "Information with named fields and stated data types, such as a value together with its units, source and dates. It is the opposite of free-form text.",
+      "group": "analysis-strategies-and-results",
+      "name": "Typed Evidence"
+    },
+    "unavailable-test": {
+      "body": "",
+      "definition": "A Piotroski test that cannot be decided because an input is missing or incompatible. It is never counted as a fail.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Unavailable Test"
+    },
+    "utc": {
+      "body": "",
+      "definition": "The common time standard used for unambiguous timestamps across systems and time zones.",
+      "group": "market-data-and-timing",
+      "name": "UTC (Coordinated Universal Time)"
+    },
+    "valuation": {
+      "body": "In Investment Analysis Engine a valuation result is one method's reference value, such as the Graham Number's maximum indicated price, not a complete intrinsic-value conclusion or a recommendation (see [Intrinsic Value](help:terms/intrinsic-value) and [Reference Value](help:terms/reference-value)).",
+      "definition": "Estimating what a security may be worth under a stated method and assumptions, usually to compare with its market price.",
+      "group": "valuation-and-price-comparison",
+      "name": "Valuation"
+    },
+    "watchlist": {
+      "body": "Each entry pairs a [ticker](help:terms/ticker) with a [selection](help:terms/selection).",
+      "definition": "A named, ordered list of entries that you want to run and revisit as a group.",
+      "group": "local-research-workspace",
+      "name": "Watchlist"
+    },
+    "weighted-average-diluted-shares": {
+      "body": "It is not interchangeable with an ending shares-outstanding snapshot.",
+      "definition": "The average diluted share count for an earnings period, including the effect of potentially dilutive securities under the reported accounting basis.",
+      "group": "company-financial-measures",
+      "name": "Weighted-Average Diluted Shares"
+    },
+    "yield": {
+      "body": "",
+      "definition": "Annual income from a bond or other instrument as a percentage of its price or value. A yield is a rate, not a dollar amount.",
+      "group": "valuation-and-price-comparison",
+      "name": "Yield"
+    }
+  }
+}

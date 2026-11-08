@@ -167,6 +167,7 @@ main() {
     run_step "check_sequence_tables" "${system_python[@]}" scripts/check_sequence_tables.py
     run_step "check_package_dependencies" "${system_python[@]}" scripts/check_package_dependencies.py
     run_step "generate_openapi --check" uv run --no-sync python -m scripts.generate_openapi --check
+    run_step "generate_help --check" uv run --no-sync python -m scripts.generate_help --check
     run_step "ruff check" uv run --no-sync ruff check --no-cache .
     run_step "ruff format" uv run --no-sync ruff format --check .
     run_step "mypy" uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" investment_analysis_engine tests scripts

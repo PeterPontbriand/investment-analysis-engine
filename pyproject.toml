@@ -67,6 +67,7 @@ include = ["investment_analysis_engine*"]
 [tool.setuptools.package-data]
 investment_analysis_engine = [
     "orchestrator/RUNTIME_AGENTS.md",
+    "help/help_bundle.json",
     "strategies/*/settings.toml",
     "data/sec_edgar/settings.toml",
     "evaluation/fixtures/sec_edgar/step_2_5a_d0/*",

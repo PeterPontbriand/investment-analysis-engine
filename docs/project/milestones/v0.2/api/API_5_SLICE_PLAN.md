@@ -27,7 +27,8 @@ interface-neutral and checks them, and API.5b2 packages the served content as a 
   project owner on 2026-11-07, and H16 to H22 are the review fixes of API.5a, approved the same day. H11 to H14 decide
   the checks on the guides and the bundle and are not implemented by API.5a. H23 to H35 split API.5b and decide API.5b1
   and API.5b2, approved the same day; API.5b1 implements H23 to H30, H34 and H35, and H31 to H33 are API.5b2's. H36 to H39 are the review fixes of API.5b1,
-  approved the same day.
+  approved the same day. H40 to H55 complete API.5b2 and amend H31 to H33, approved the same day; H54 and H55 are
+  contract decisions for API.6.
 
 ## 2. Sequence and status
 
@@ -35,7 +36,7 @@ interface-neutral and checks them, and API.5b2 packages the served content as a 
 | :--- | :--- | :--- | :--- |
 | API.5a | [The glossary](#api5a--the-glossary) | Complete | 2026-11-07 |
 | API.5b1 | [The guides](#api5b1--the-guides) | Complete | 2026-11-07 |
-| API.5b2 | [The bundle](#api5b2--the-bundle) | Planned | |
+| API.5b2 | [The bundle](#api5b2--the-bundle) | Complete | 2026-11-07 |
 
 ## 3. The slices
 
@@ -82,13 +83,18 @@ interface-neutral and checks them, and API.5b2 packages the served content as a 
 ### API.5b2 — The bundle
 
 - **Problem:** nothing packages the served content for the API.
-- **Decision:** the bundle ([H13](#h13-the-bundle-2026-11-07), amended by [H32](#h32-a-loader-now-2026-11-07)), links in it
-  ([H14](#h14-links-in-the-bundle-2026-11-07)), its shape ([H31](#h31-the-bundles-shape-2026-11-07)) and its generator and
-  drift check ([H33](#h33-generator-and-drift-2026-11-07)).
+- **Decision:**
+  - the bundle ([H13](#h13-the-bundle-2026-11-07), amended by [H32](#h32-a-loader-now-2026-11-07)), links in it
+    ([H14](#h14-links-in-the-bundle-2026-11-07)), its shape ([H31](#h31-the-bundles-shape-2026-11-07)) and its generator and
+    drift check ([H33](#h33-generator-and-drift-2026-11-07));
+  - the plan, package, model, loader, integrity checks, text forms, rewriting, refusal, installed-package check, gate and
+    documents ([H40](#h40-plan-records-2026-11-07) to [H53](#h53-architecture-2026-11-07));
+  - which references are stable across locales ([H54](#h54-stable-references-across-locales-2026-11-07)) and how API.6 chooses
+    a locale ([H55](#h55-locale-choice-2026-11-07)).
 - **Scope:** the `help` package with the bundle model, its loader and `help_bundle.json`; the generator
-  `scripts/generate_help.py` and its drift check; package-data; Architecture §13; `check_installed_package`.
+  `scripts/generate_help.py` and its drift check; package-data; Architecture §13; `check_installed_package`; the gate wiring.
 - **Branch:** `feat/api-help-bundle`.
-- **Detail:** ⚠ no slice plan yet
+- **Detail:** [Implementation record](#33-api5b2-implementation-record).
 
 ### 3.1 API.5a implementation record
 
@@ -203,6 +209,62 @@ Noticed for later slices:
 - A link into the user glossary from served content must target the id of a served term, so a "Related documentation" list
   that links the glossary as a whole is excluded and the Beginner Guide's "Further reading" no longer lists it.
 
+### 3.3 API.5b2 implementation record
+
+What changed, by area:
+
+- **Package:** `investment_analysis_engine/help/` holds `bundle.py` and the generated `help_bundle.json`, and its
+  `__init__.py` holds only a docstring ([H41](#h41-package-layout-2026-11-07)). `bundle.py` has the frozen models
+  `HelpBundle`, `HelpTerm`, `HelpGroup`, `HelpDocument` and `HelpSection`, the cached `load_help_bundle()`
+  ([H42](#h42-model-and-loader-2026-11-07)) and the integrity validator
+  ([H43](#h43-integrity-is-checked-by-the-model-2026-11-07)). Nothing imports it yet.
+- **Generator:** `scripts/generate_help.py` mirrors `scripts/generate_openapi.py`. It runs `check_served_content` first and
+  stops with every problem when there is one ([H48](#h48-generator-refusal-2026-11-07)), builds the bundle through
+  `HelpBundle`, and writes it in the form of [H51](#h51-json-text-2026-11-07). A term is an investor entry of the user
+  glossary: its short definition is the first paragraph and its body the rest ([H46](#h46-trimming-2026-11-07)). A
+  document's title and introduction are its level-1 heading and the text under it, and its sections are every served heading
+  below level 1 ([H45](#h45-title-and-introduction-2026-11-07)). Links are rewritten by the table of
+  [H47](#h47-link-rewriting-2026-11-07); a link that fits no row stops the generator, naming the file, the line and the
+  target. A group is a level-2 section of the glossary, with the heading slug as its id
+  ([H44](#h44-group-ids-2026-11-07)).
+- **Installed package:** `scripts/check_installed_package.py` prints the installed `load_help_bundle()` result as JSON and
+  compares it with the repository's `help_bundle.json` loaded through `HelpBundle`, as a whole
+  ([H49](#h49-installed-package-check-amends-h32-2026-11-07)). `help/help_bundle.json` is in package-data.
+- **Gate:** `generate_help --check` is a step of both wrappers after `generate_openapi --check`, and a step of the CI
+  `quality-and-test` job. `docs/project/README.md` lists it among the gate's commands, names it for a change to a served
+  document and says to regenerate the bundle after editing one ([H50](#h50-contributor-gate-and-docs-2026-11-07));
+  `AGENTS.md` §7 points at that section; the `guide` site of `scripts/strategy_sites.toml` says the bundle is regenerated,
+  and the edit-site table in `docs/TOOL_DEVELOPMENT.md` is regenerated.
+- **Architecture:** §13 has a `help` row at layer 0 with no imports ([H53](#h53-architecture-2026-11-07)).
+- **Tests:** `tests/scripts/test_generate_help.py`, `tests/help/test_bundle.py` and an addition to
+  `tests/scripts/test_check_installed_package.py` ([H52](#h52-tests-2026-11-07)).
+
+Judgment calls, each a place where the decisions left a choice:
+
+- `slugify` is imported from `scripts/check_doc_links.py`, the module that defines it, not through
+  `scripts/check_help_content.py`, which only imports it.
+- The checker's parser gives no level-2 headings of the glossary, so the generator reads them itself, with the same fence
+  rule and GitHub's duplicate suffixes counted over every heading of the file. The checker's public behaviour is unchanged.
+  The generator carries its own copies of the checker's fence, heading, code-span and link patterns, because the checker's
+  are private.
+- A glossary section with no served entry is left out of `groups`, so a client's group list never shows an empty group.
+  Today none is empty.
+- The generator refuses an entry with no id line or no first paragraph, and a document without exactly one level-1 heading;
+  the checker's glossary rules already forbid the first two, but the generator does not run them.
+- The CI workflow had no `generate_openapi --check` step, so the new step sits in the `quality-and-test` job directly before
+  the Ruff format check. The README's list of the gate's commands had no `generate_openapi` line either, so the new command
+  follows `check_package_dependencies.py`.
+- The sequence tables date API.5b2 with the day the branch was finished; the pull request, when opened, keeps that date
+  unless it opens later.
+
+Noticed for later slices:
+
+- API.6 adds the `api` import of `help` and decides whether the bundle has one file per locale
+  ([H55](#h55-locale-choice-2026-11-07)); the loader reads one file today.
+- 21 terms have no body, only a definition, so a client must render an empty `body` as nothing.
+- A link rewritten to `help:documents/<id>` stands for the document's start, whether the source linked the file or its title
+  anchor.
+
 ## 4. Scope limits and acceptance criteria
 
 - API.5a changes no stored shape, formula, classification, dependency or CLI text, and adds no term for a run outcome, a
@@ -219,7 +281,10 @@ Noticed for later slices:
   file that is not served, to an excluded section, to a term that is not served or to the glossary without an entry id; the
   check reports zero findings in the managed gate.
 - API.5b1: `strategies/GRAHAM.md` is gone, nothing links to it, and exactly one strategy guide is served for each strategy.
-- API.5b2: the help bundle is regenerated and compared in the managed gate.
+- API.5b2: the help bundle is regenerated and compared in the managed gate, in both wrappers and in CI; a drift fails it,
+  and the generator writes nothing while the served-content check reports a problem.
+- API.5b2: every term is in exactly one group, every `help:` link in the bundle resolves, the installed package's bundle
+  equals the repository's, and no endpoint, `api` import of `help` or locale handling is added.
 
 ## 5. Background
 
@@ -235,7 +300,7 @@ review once the guides it serves are settled.
 H1 to H15 were approved by the project owner on 2026-11-07, with the amendments recorded in H3 and H8. H16 to H22 are the review
 fixes of API.5a, approved the same day. H23 to H35 split API.5b and decide API.5b1 and API.5b2, approved the same day;
 H31 to H33 decide API.5b2 and are recorded here, not implemented by API.5b1. H36 to H39 are the review fixes of
-API.5b1, approved the same day.
+API.5b1, approved the same day. H40 to H55 complete API.5b2 and are approved the same day.
 
 ### H1 API.5 is split in two (2026-11-07)
 
@@ -566,3 +631,148 @@ For API.5b2.
 ### H39 The review basis (2026-11-07)
 
 - The review relied on the pushed branch at commit 0bc90ff. These fixes are a follow-up commit on the same branch.
+
+### H40 Plan records (2026-11-07)
+
+- API.5b2 has no separate slice-plan document. This plan's H-records and its
+  [implementation record](#33-api5b2-implementation-record) are its plan.
+- "⚠ no slice plan yet" in this plan's API.5b2 section and in the contract's API.5b2 section is replaced by a link to this
+  plan, and in this plan's own section by a link to the implementation record.
+- API.5b2 is Complete in the sequence tables of this plan and of the contract, dated the day the pull request is opened, and
+  API.6 is Next in the contract. A parent table changes only when a parent's status changes.
+- "At a glance" and the acceptance criteria describe API.5b2.
+
+### H41 Package layout (2026-11-07)
+
+- A new layer-0 package `investment_analysis_engine/help/` whose `__init__.py` holds only a docstring.
+- `investment_analysis_engine/help/bundle.py` defines the Pydantic models `HelpBundle`, `HelpTerm`, `HelpGroup`,
+  `HelpDocument` and `HelpSection` and the function `load_help_bundle()`.
+- The generated file is `investment_analysis_engine/help/help_bundle.json`.
+
+### H42 Model and loader (2026-11-07)
+
+- Every model is frozen with `extra="forbid"`.
+- `load_help_bundle()` reads `help_bundle.json` through `importlib.resources`, validates it with `HelpBundle`, and is cached
+  with `functools.cache`.
+- A missing or invalid file raises as it is; there is no custom error type.
+
+### H43 Integrity is checked by the model (2026-11-07)
+
+A `HelpBundle` model validator requires:
+
+- every term is in exactly one group, and its `group` names that group;
+- every term id a group lists exists;
+- every `help:` link in any term body, document introduction or section `markdown` resolves: `help:terms/<id>` to an
+  existing term; `help:documents/<id>` to an existing document; `help:documents/<id>#<section-id>` to a section of that
+  document.
+
+A validation failure names the term, group, document or section and the bad id or link.
+
+### H44 Group ids (2026-11-07)
+
+- A group's id is the GitHub heading slug of the glossary's level-2 heading, computed with `slugify`, in the same way as
+  section ids. It is not permanent.
+- Nothing links to a group; `help:` links name only terms and documents.
+
+### H45 Title and introduction (2026-11-07)
+
+- A document's `title` is its level-1 heading text, and its `introduction` is the text under that heading.
+- `sections` holds only headings of level 2 and below, in file order, excluded ones omitted. The level-1 heading is never a
+  section.
+
+### H46 Trimming (2026-11-07)
+
+- Every term `body`, document `introduction` and section `markdown` has leading and trailing blank lines removed, and a
+  trailing thematic break line (`---`, `***` or `___`, with any surrounding blank lines) removed. Ten glossary entries
+  currently end in one.
+- A term's `definition` is the entry's first paragraph (the short definition); its `body` is the entry's remaining text after
+  that paragraph, or `""` when there is none.
+- Exclude markers and `<a id>` lines never appear in bundle text.
+
+### H47 Link rewriting (2026-11-07)
+
+Only the link target changes; the link text is untouched. Relative targets are resolved from the source file's location.
+
+| Source link | Bundle link |
+| --- | --- |
+| `GLOSSARY.md#<id>`, any relative form | `help:terms/<id>` |
+| `#<id>` inside the glossary | `help:terms/<id>` |
+| a served document, no anchor | `help:documents/<doc-id>` |
+| a served document `#<slug>` | `help:documents/<doc-id>#<slug>` |
+| a served document `#<its level-1 heading slug>` | `help:documents/<doc-id>` |
+| `#<slug>` within the same document | as if it named its own file |
+| absolute `https://` | unchanged |
+| anything else | the generator refuses, naming the file, line and target |
+
+Document ids are `beginner-guide`, `finance-math` and each strategy's alias. A strategy guide is matched to its alias with the
+existing `guide_name` rule in `scripts/generate_strategy_docs.py`, imported, not copied.
+
+### H48 Generator refusal (2026-11-07)
+
+- `scripts/generate_help.py` mirrors `scripts/generate_openapi.py`: it writes the bundle, or with `--check` compares it.
+- Both writing and `--check` first run `check_served_content`. If it reports any problem, the generator prints every problem
+  and exits 1 without writing or comparing.
+- The drift message names the command to run: `uv run python -m scripts.generate_help`.
+- The generator builds the bundle through `HelpBundle`, so H43's checks apply before anything is written.
+
+### H49 Installed-package check, amends H32 (2026-11-07)
+
+- `check_installed_package` checks that the installed package's `load_help_bundle()` result equals the repository's bundle as
+  a whole, not only its term ids.
+- One subprocess in the installed environment prints the loaded bundle as JSON; the script compares it with the repository's
+  `help_bundle.json` loaded through `HelpBundle`.
+- `help/help_bundle.json` is in package-data.
+
+### H50 Contributor gate and docs (2026-11-07)
+
+- `docs/project/README.md` "Quality gates": a change to a served document must also pass
+  `uv run python -m scripts.generate_help --check`, beside the existing `tests/scripts/test_served_content.py` requirement.
+- `docs/project/README.md` "Served documents": after editing a served document, regenerate the bundle with
+  `uv run python -m scripts.generate_help`; the gate fails on drift.
+- `AGENTS.md` §7: one sentence after the documentation-only command list saying that a change to a served document must also
+  pass the commands `docs/project/README.md`'s Quality gates section names for it, linking that section. No other `AGENTS.md`
+  change.
+- `scripts/strategy_sites.toml`: the `guide` site's `why` also says the help bundle is regenerated after a guide changes. The
+  edit-site table in `docs/TOOL_DEVELOPMENT.md` is regenerated with the existing generator.
+
+### H51 JSON text (2026-11-07)
+
+- Sorted keys, two-space indent, a final line feed ([H31](#h31-the-bundles-shape-2026-11-07)), `ensure_ascii=False`, written
+  as UTF-8 bytes. This is the same form as `schemas/openapi.json`.
+
+### H52 Tests (2026-11-07)
+
+- `tests/scripts/test_generate_help.py`: the drift test, in the style of `tests/scripts/test_generate_schemas.py`; a refusal
+  case where a served-content problem stops writing; one case per row of H47's table; the H46 trimming cases.
+- `tests/help/test_bundle.py`: each H43 rule failing and passing; the loader returning a validated bundle; a cached second
+  call returning the same object.
+- `tests/scripts/test_check_installed_package.py`: updated for H49.
+
+### H53 Architecture (2026-11-07)
+
+- `docs/project/ARCHITECTURE.md` §13 gains a `help` row at layer 0 with no imports. Its "Owns" cell reads: "The served help
+  content: the generated help bundle, its model and its loader."
+- Nothing imports `help` in this slice. API.6 adds the `api` import.
+
+### H54 Stable references across locales (2026-11-07)
+
+- Only term ids and document ids are stable references.
+- Section ids and group ids are valid only within the bundle that carries them; a client follows them but never stores them.
+- The contract's API.6 section carries this as a bullet, so the help endpoints and the GUI build on it.
+
+### H55 Locale choice (2026-11-07)
+
+A contract decision, implemented in API.6; the contract records it as
+[A.5](API_CONTRACT_AND_SLICE_PLAN.md#a5-locale-choice-2026-11-07).
+
+- Every endpoint that returns engine text honours `Accept-Language` and falls back to the engine's default locale. Every such
+  response states the locale it used in `Content-Language`.
+- The API serves a list of available locales, each with its name in its own language. A GUI builds its language picker from
+  that list.
+- Every piece of engine text the API serves follows the requested locale: help content, term names, labels, status and
+  outcome wording, and error messages. W42's rule identifiers and arguments are what make translated error messages possible.
+- Raw values stay language-neutral (JSON numbers, ISO dates); a client formats them.
+- The list holds many locales by design, so it is not a single-value option.
+- API.6 decides whether the list is its own endpoint or a field of an existing document, and whether the bundle has one file
+  per locale.
+- No locale field, argument or header handling is added in API.5b2.

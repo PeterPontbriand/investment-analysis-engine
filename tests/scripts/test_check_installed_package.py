@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from scripts.check_installed_package import PACKAGE_NAME, clean_environment, comparable, expected_package_data
+import json
+
+from scripts.check_installed_package import (
+    PACKAGE_NAME,
+    bundle_difference,
+    clean_environment,
+    comparable,
+    expected_package_data,
+)
 from scripts.repository_root import REPOSITORY_ROOT
 
 
@@ -48,3 +56,29 @@ def test_every_settings_file_shipped_in_the_package_matches_a_package_data_patte
 
     assert f"{PACKAGE_NAME}/data/sec_edgar/settings.toml" in expected
     assert shipped <= expected
+
+
+def test_the_help_bundle_is_listed_in_package_data() -> None:
+    assert f"{PACKAGE_NAME}/help/help_bundle.json" in expected_package_data(REPOSITORY_ROOT)
+
+
+def test_an_installed_bundle_is_compared_with_the_repositorys_as_a_whole() -> None:
+    repository_file = REPOSITORY_ROOT / PACKAGE_NAME / "help" / "help_bundle.json"
+    installed = repository_file.read_text(encoding="utf-8")
+
+    assert bundle_difference(installed, repository_file) is None
+
+    changed = json.loads(installed)
+    changed["terms"][next(iter(changed["terms"]))]["body"] += " changed"
+    assert bundle_difference(json.dumps(changed, ensure_ascii=False), repository_file) == (
+        "the installed bundle differs from the repository's in terms"
+    )
+
+    first = next(iter(changed["documents"]))
+    smaller = json.loads(installed)
+    smaller["documents"][first]["sections"].pop()
+    assert bundle_difference(json.dumps(smaller, ensure_ascii=False), repository_file) == (
+        "the installed bundle differs from the repository's in documents"
+    )
+
+    assert "did not print a bundle as JSON" in str(bundle_difference("Traceback", repository_file))
