@@ -54,7 +54,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.5b1 | [Help content: the guides](#api5b1--help-content-the-guides) | Complete | 2026-11-07 |
 | API.5b2 | [Help content: the bundle](#api5b2--help-content-the-bundle) | Complete | 2026-11-07 |
 | API.6a | [Term references](API_6_SLICE_PLAN.md#api6a--term-references) | Complete | 2026-11-07 |
-| API.6b | [Help endpoints and locales](API_6_SLICE_PLAN.md#api6b--help-endpoints-and-locales) | Next | |
+| API.6b | [Help endpoints and locales](API_6_SLICE_PLAN.md#api6b--help-endpoints-and-locales) | Complete | 2026-11-08 |
 
 ## 3. The slices
 
@@ -270,7 +270,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
     ([H54](API_5_SLICE_PLAN.md#h54-stable-references-across-locales-2026-11-07));
   - locale choice: every endpoint that returns engine text follows [A.5](#a5-locale-choice-2026-11-07).
 - **Branch:** `feat/api-help`.
-- **Detail:** ⚠ no slice plan yet
+- **Detail:** [API.6 slice plan](API_6_SLICE_PLAN.md#33-api6b-implementation-record)
 
 ## 4. Out of scope
 
@@ -404,4 +404,4 @@ Approved by the project owner on 2026-11-07. Recorded as
 | What does not | Raw values stay language-neutral (JSON numbers, ISO dates); a client formats them |
 | Left to API.6 | Whether the list is its own endpoint or a field of an existing document, and whether the bundle has one file per locale |
 | Not in API.5b2 | No locale field, argument or header handling |
-| Precondition for a new locale | Before any locale beyond the default is added, every producer of labels, rendered text and messages takes the locale first, because a response that states a locale in `Content-Language` is true only while all of its text follows it ([T14](API_6_SLICE_PLAN.md#t14-api6b-negotiation-2026-11-07)) |
+| Precondition for a new locale | Before any locale beyond the default is added, every producer of labels, rendered text and messages takes the locale first, because a response that states a locale in `Content-Language` is true only while all of its text follows it ([T14](API_6_SLICE_PLAN.md#t14-api6b-negotiation-2026-11-07)). Where a translation's source documents live is decided with the first added locale ([T33](API_6_SLICE_PLAN.md#t33-bundle-file-and-packaging-2026-11-08)) |

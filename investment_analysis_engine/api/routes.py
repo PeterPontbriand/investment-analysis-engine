@@ -15,6 +15,12 @@ from investment_analysis_engine.api.documents import (
     ReplayTextDocument,
     StrategiesDocument,
 )
+from investment_analysis_engine.api.help_documents import (
+    HelpDocumentDocument,
+    HelpIndexDocument,
+    HelpReferencesDocument,
+    HelpTermDocument,
+)
 from investment_analysis_engine.api.refresh_documents import RefreshJobDocument
 from investment_analysis_engine.api.request_bodies import (
     AddEntriesRequest,
@@ -26,6 +32,7 @@ from investment_analysis_engine.api.request_bodies import (
     WatchlistNameRequest,
 )
 from investment_analysis_engine.api.selection_forms import SelectionFormDocument
+from investment_analysis_engine.api.term_references import code_terms_by_component
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
@@ -105,8 +112,21 @@ class RouteSpec:
         return frozenset(item.name for item in self.parameters if item.location == "query")
 
 
+def build_help_references_document() -> HelpReferencesDocument:
+    """Build the references document from the shared registry and every declared strategy's own code sets.
+
+    Raises:
+        ValueError: If two tables are named for the same component.
+    """
+    return HelpReferencesDocument(code_sets=code_terms_by_component(STRATEGIES))
+
+
 def _uuid_path(name: str, description: str) -> ParameterSpec:
     return ParameterSpec(name, "path", True, description, (("type", "string"), ("format", "uuid")))
+
+
+def _help_path(name: str, description: str) -> ParameterSpec:
+    return ParameterSpec(name, "path", True, description, (("type", "string"),))
 
 
 def _after(description: str) -> ParameterSpec:
@@ -242,6 +262,38 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         _responses((SelectionFormDocument,), lookup=False, database=False),
     ),
     RouteSpec(
+        "GET",
+        "/v1/help",
+        "get_help_index",
+        "List the help terms by group and the help documents.",
+        (),
+        _responses((HelpIndexDocument,), lookup=False, database=False),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/help/terms/{term_id}",
+        "get_help_term",
+        "Show one help term with its full entry.",
+        (_help_path("term_id", "The term's ID."),),
+        _responses((HelpTermDocument,), lookup=True, database=False),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/help/documents/{document_id}",
+        "get_help_document",
+        "Show one help document with its sections.",
+        (_help_path("document_id", "The document's ID."),),
+        _responses((HelpDocumentDocument,), lookup=True, database=False),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/help/references",
+        "get_help_references",
+        "Show the help term that explains each value of each code set the API returns.",
+        (),
+        _responses((HelpReferencesDocument,), lookup=False, database=False),
+    ),
+    RouteSpec(
         "POST",
         "/v1/watchlists",
         "create_watchlist",
@@ -365,6 +417,7 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
 
 
 __all__ = [
+    "build_help_references_document",
     "DEFAULT_AFTER",
     "DEFAULT_RUNS_LIMIT",
     "DEFAULT_RUNS_OFFSET",

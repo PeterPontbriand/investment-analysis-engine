@@ -87,7 +87,9 @@ Every body is JSON in UTF-8, written compact and in field order, with `Content-T
 `Cache-Control: no-store`. A document has the shape the command line gives it; its whitespace and key order are not
 guaranteed. Compare parsed values, not text.
 
-Response headers are not part of the contract, except `Content-Type` and `WWW-Authenticate`: other headers may be added,
+Every response, a refusal and the answer to a preflight included, also carries `Content-Language`, the tag of the locale
+the engine's text is in, and `Vary` naming `Accept-Language` (see [Locales](#locales)). Response headers are not part of
+the contract, except `Content-Type`, `WWW-Authenticate`, `Content-Language` and `Vary`: other headers may be added,
 changed or removed within `/v1`.
 
 ## Errors
@@ -95,13 +97,14 @@ changed or removed within `/v1`.
 Every response that is not 2xx has a [failure document](../../schemas/failure.schema.json) as its body. A client branches
 on `reason_code`; the HTTP status is coarse and `reason` is a message for people. `parameters` names the offending query
 or path parameter, or the body field by its path (see [Request bodies](#request-bodies)). The codes only the API and `ian serve` use are `not_authenticated`, `host_not_allowed`,
-`origin_not_allowed`, `endpoint_not_found`, `refresh_job_not_found`, `refresh_job_running` and `port_unavailable`.
+`origin_not_allowed`, `endpoint_not_found`, `refresh_job_not_found`, `refresh_job_running`, `help_term_not_found`,
+`help_document_not_found` and `port_unavailable`.
 
 | HTTP status | `reason_code` |
 | :--- | :--- |
 | 400 | `invalid_parameter`, `host_not_allowed`, `origin_not_allowed` |
 | 401 | `not_authenticated` |
-| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `endpoint_not_found` |
+| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `help_term_not_found`, `help_document_not_found`, `endpoint_not_found` |
 | 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add or a refresh that an unreadable entry of the watchlist refuses), `watchlist_empty` (a watchlist to refresh has no entries), `refresh_job_running` |
 | 405 | `endpoint_not_found` (a method the endpoint does not declare, `HEAD` included), with an `Allow` header naming the declared method |
 | 503 | `database_busy` |
@@ -126,7 +129,7 @@ The endpoints that read use `GET`; the actions are below.
 
 | Path | Query parameters | Response |
 | :--- | :--- | :--- |
-| `/v1/info` | none | `schema_version`, `api_versions`, `engine_version` and `sec_identity_configured`; never the identity itself |
+| `/v1/info` | none | `schema_version`, `api_versions`, `engine_version`, `sec_identity_configured` and `locales`; never the identity itself |
 | `/v1/strategies` | none | `schema_version` and `items`, each with `analysis`, `method` and `label` |
 | `/v1/watchlists` | none | the watchlist list document |
 | `/v1/watchlists/{watchlist_id}` | none | the watchlist document |
@@ -135,6 +138,10 @@ The endpoints that read use `GET`; the actions are below.
 | `/v1/runs/{analysis_run_id}/text` | `mode` (required): `concise`, `details` or `diagnostics` | `schema_version`, `mode` and `text` |
 | `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document |
 | `/v1/strategies/{method_id}/selection` | none | `schema_version`, `schema` and `defaults` (see [Selection forms](#selection-forms)) |
+| `/v1/help` | none | the help index document (see [Help](#help)) |
+| `/v1/help/terms/{term_id}` | none | one glossary term |
+| `/v1/help/documents/{document_id}` | none | one help document with its sections |
+| `/v1/help/references` | none | the term of every value of every code set (see [References](#references)) |
 | `/v1/refreshes/{refresh_id}/job` | `after` | the refresh job document (see [Refresh jobs](#refresh-jobs)) |
 | `/v1/refreshes/job` | `after` | the latest refresh job document |
 
@@ -266,6 +273,45 @@ fields, the same file as `schemas/selections/<alias>.schema.json`. The schemas s
 strategy's settings fill; `defaults` gives the configured value of each, by field name, as it is now, and is an empty
 object for a strategy with none. A request that leaves such a field out gets that value. A `method_id` this engine does
 not declare is `invalid_parameter` naming `method_id`, as it is anywhere else.
+
+### Help
+
+The engine serves the explanations a client shows beside what it displays, as Markdown. A client renders it with a
+sanitizing renderer; the engine never returns HTML.
+
+- `GET /v1/help` returns `schema_version`, `groups` and `documents`. Each group has an `id`, a `title` and its `terms`,
+  each with an `id`, a `name` and a short `definition`; each document has an `id` and a `title`. Both lists keep the order
+  of the help content.
+- `GET /v1/help/terms/{term_id}` returns `schema_version`, `id`, `name`, `definition`, `body` and `group`, which has an
+  `id` and a `title`. `body` is empty when an entry is only a definition, so a client renders an empty `body` as nothing.
+- `GET /v1/help/documents/{document_id}` returns `schema_version`, `id`, `title`, `introduction` and `sections`, each with
+  an `id`, a `heading`, a `level` and its `markdown`, in file order.
+
+Markdown is served as written. A link of the form `help:terms/<term id>` names a term and `help:documents/<document id>`
+(with an optional `#<section id>`) names a document or one of its sections; the client turns them into links of its own.
+Only a term ID and a document ID are stable references. A group ID and a section ID are valid only within the help
+content that carries them, so a client follows them but never stores them. A term ID or document ID the engine does not
+have is 404 `help_term_not_found` or `help_document_not_found`; the IDs are plain text in the path and are never
+rejected as malformed.
+
+### References
+
+`GET /v1/help/references` returns `schema_version` and `code_sets`: for each code set the API returns, named by its
+component in [`schemas/openapi.json`](../../schemas/openapi.json), a map from each value to the ID of the term that
+explains it. Keys are sorted by component name, and the values of a set keep the order of the engine's table. Values that
+differ only in detail share one term. A label does not appear here: a headline cell, a strategy and a selection field
+carry their own `term`. A few fields name no term: `schema_version`, a headline cell's `kind`, the replay text `mode` and
+the `method_id` in a path. A client must tolerate a code set or a value it does not know.
+
+### Locales
+
+`locales` in `/v1/info` lists the locales the engine's text is available in, each with a `tag` and a `name` in its own
+language, so a client can build a language picker from it. A client states the locale it wants with `Accept-Language`;
+the engine honours q-values, matches a tag case-insensitively and falls back from a longer tag to a shorter (`en-CA` to
+`en`), and chooses its default locale for `*`, for a header that is absent or malformed, and for a header that names
+nothing it has. It never answers 406. Every response states the locale it used in `Content-Language`, and varies on
+`Accept-Language`. No document carries a locale field. A preflight may ask for the `Accept-Language` header. Only the
+help content follows the locale today; the other text of the API stays in the default locale.
 
 The documents are described by the files in [`schemas/`](../../schemas/) and by
 [`schemas/openapi.json`](../../schemas/openapi.json), which also describes the documents only the API serves.

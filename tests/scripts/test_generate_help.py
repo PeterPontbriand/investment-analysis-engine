@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from investment_analysis_engine.help.bundle import load_help_bundle
+from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from scripts import generate_help
 from scripts.check_help_content import served_document
@@ -135,11 +136,11 @@ def test_the_checked_in_bundle_is_current() -> None:
 
 
 def test_the_checked_in_bundle_loads_and_equals_the_generated_one() -> None:
-    assert load_help_bundle() == build_bundle()
+    assert load_help_bundle(DEFAULT_LOCALE) == build_bundle()
 
 
 def test_a_bundle_has_a_term_for_every_served_entry_and_a_document_for_every_strategy() -> None:
-    bundle = load_help_bundle()
+    bundle = load_help_bundle(DEFAULT_LOCALE)
     assert {item.alias for item in STRATEGIES} <= set(bundle.documents)
     assert {"beginner-guide", "finance-math"} <= set(bundle.documents)
     assert bundle.terms
@@ -148,7 +149,7 @@ def test_a_bundle_has_a_term_for_every_served_entry_and_a_document_for_every_str
 
 def test_the_bundle_text_uses_sorted_keys_two_space_indent_and_a_trailing_line_feed() -> None:
     text = HELP_BUNDLE_FILE.read_bytes().decode("utf-8")
-    assert text == bundle_text(load_help_bundle())
+    assert text == bundle_text(load_help_bundle(DEFAULT_LOCALE))
     assert text.endswith("}\n")
     assert not text.endswith("\n\n")
     assert "\r" not in text

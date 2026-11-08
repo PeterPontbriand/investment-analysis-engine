@@ -15,6 +15,7 @@ import pytest
 
 from investment_analysis_engine.api.term_references import EXEMPT_CODE_SETS, EXEMPT_LOCATIONS, SHARED_CODE_TERMS
 from investment_analysis_engine.help.bundle import TERM_LINK_PREFIX, HelpBundle, load_help_bundle
+from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.reporting.headline import CELL_STATUS_TERMS
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from scripts.generate_openapi import openapi_description
@@ -26,7 +27,7 @@ _SELECTION_DIRECTORY: Final = "schemas/selections"
 
 
 def _bundle() -> HelpBundle:
-    return load_help_bundle()
+    return load_help_bundle(DEFAULT_LOCALE)
 
 
 type Path = tuple[str | int, ...]

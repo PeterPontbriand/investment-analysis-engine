@@ -24,6 +24,8 @@ STATUS_BY_CODE: Mapping[FailureReasonCode, int] = MappingProxyType(
         FailureReasonCode.WATCHLIST_NOT_FOUND: 404,
         FailureReasonCode.WATCHLIST_ENTRY_NOT_FOUND: 404,
         FailureReasonCode.REFRESH_JOB_NOT_FOUND: 404,
+        FailureReasonCode.HELP_TERM_NOT_FOUND: 404,
+        FailureReasonCode.HELP_DOCUMENT_NOT_FOUND: 404,
         FailureReasonCode.WATCHLIST_NAME_CONFLICT: 409,
         FailureReasonCode.STORED_SELECTION_UNREADABLE: 409,
         FailureReasonCode.WATCHLIST_EMPTY: 409,

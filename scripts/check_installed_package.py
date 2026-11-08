@@ -8,7 +8,8 @@ environment there and runs the installed ``ian`` with the temporary folder as th
 * ``ian --help`` succeeds, and ``ian db upgrade`` and ``ian db status`` succeed with the database in the data folder;
 * ``ian evaluate --mode deterministic`` writes the same report as the repository checkout;
 * the system prompt built by the installed package contains the runtime rules;
-* the installed package's help bundle, loaded through ``load_help_bundle()``, equals the repository's bundle as a whole;
+* the installed package's help bundle of each declared locale, loaded through ``load_help_bundle(locale)``, equals the
+  repository's bundle file of that locale as a whole;
 * ``ian momentum`` without a ticker gives the message ``ian graham-number`` gives, for its own name;
 * a user ``strategies/momentum.toml`` with one valid key is accepted, and one with an invalid value is refused with a
   message naming that file;
@@ -37,7 +38,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from investment_analysis_engine.help.bundle import HelpBundle
+from investment_analysis_engine.help.bundle import HelpBundle, help_bundle_file_name
+from investment_analysis_engine.help.locales import LOCALES
 from scripts.repository_root import REPOSITORY_ROOT
 
 PACKAGE_NAME = "investment_analysis_engine"
@@ -292,22 +294,27 @@ def run_installed_checks(  # noqa: PLR0913
     )
     results.record("the system prompt contains the runtime rules", prompt.stdout.strip() == "True", tail(prompt))
 
-    loaded = run(
-        [
-            python,
-            "-c",
-            "from investment_analysis_engine.help.bundle import load_help_bundle; "
-            "print(load_help_bundle().model_dump_json())",
-        ],
-        cwd=work,
-        env=environment,
-    )
-    difference = (
-        bundle_difference(loaded.stdout, repository / PACKAGE_NAME / "help" / "help_bundle.json")
-        if loaded.returncode == 0
-        else tail(loaded)
-    )
-    results.record("the installed help bundle equals the repository's bundle", difference is None, str(difference))
+    for locale in LOCALES:
+        loaded = run(
+            [
+                python,
+                "-c",
+                "from investment_analysis_engine.help.bundle import load_help_bundle; "
+                f"print(load_help_bundle({locale.tag!r}).model_dump_json())",
+            ],
+            cwd=work,
+            env=environment,
+        )
+        difference = (
+            bundle_difference(loaded.stdout, repository / PACKAGE_NAME / "help" / help_bundle_file_name(locale.tag))
+            if loaded.returncode == 0
+            else tail(loaded)
+        )
+        results.record(
+            f"the installed help bundle of the locale {locale.tag} equals the repository's bundle",
+            difference is None,
+            str(difference),
+        )
 
     momentum = run([ian, "momentum"], cwd=work, env=environment)
     graham = run([ian, "graham-number"], cwd=work, env=environment)

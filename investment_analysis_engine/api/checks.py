@@ -18,8 +18,8 @@ PREFLIGHT_MAX_AGE_SECONDS = 600
 PREFLIGHT_ALLOWED_METHODS = ", ".join(dict.fromkeys(route.method for route in ROUTES))
 """The methods a preflight allows: exactly those the route table declares, in the order it first uses them."""
 
-PREFLIGHT_ALLOWED_HEADERS = "Authorization, Content-Type"
-"""The request headers a preflight allows: the bearer token and the type of a body."""
+PREFLIGHT_ALLOWED_HEADERS = "Authorization, Content-Type, Accept-Language"
+"""The request headers a preflight allows: the bearer token, the type of a body and the language wanted."""
 
 _BEARER_PREFIX = "bearer "
 

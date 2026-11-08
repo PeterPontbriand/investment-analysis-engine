@@ -1991,7 +1991,9 @@
           "endpoint_not_found",
           "refresh_job_not_found",
           "refresh_job_running",
-          "port_unavailable"
+          "port_unavailable",
+          "help_term_not_found",
+          "help_document_not_found"
         ],
         "title": "FailureReasonCode",
         "type": "string"
@@ -2767,6 +2769,297 @@
         ],
         "type": "string"
       },
+      "HelpDocumentDocument": {
+        "additionalProperties": false,
+        "description": "One guide with its sections.",
+        "properties": {
+          "id": {
+            "description": "The guide's stable ID.",
+            "title": "Id",
+            "type": "string"
+          },
+          "introduction": {
+            "description": "The text under the guide's title as Markdown.",
+            "title": "Introduction",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "description": "The version of this document's shape.",
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "sections": {
+            "description": "The guide's sections, in file order.",
+            "items": {
+              "$ref": "#/components/schemas/HelpSectionItem"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "title": {
+            "description": "The guide's title.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "introduction",
+          "sections"
+        ],
+        "title": "HelpDocumentDocument",
+        "type": "object"
+      },
+      "HelpDocumentItem": {
+        "additionalProperties": false,
+        "description": "One guide in the index.",
+        "properties": {
+          "id": {
+            "description": "The guide's stable ID.",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "description": "The guide's title.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "HelpDocumentItem",
+        "type": "object"
+      },
+      "HelpGroupItem": {
+        "additionalProperties": false,
+        "description": "One group of the index: a section of the glossary and its terms.",
+        "properties": {
+          "id": {
+            "description": "The group's ID, valid only within this bundle; it is not a stable reference.",
+            "title": "Id",
+            "type": "string"
+          },
+          "terms": {
+            "description": "The group's terms, in glossary order.",
+            "items": {
+              "$ref": "#/components/schemas/HelpTermItem"
+            },
+            "title": "Terms",
+            "type": "array"
+          },
+          "title": {
+            "description": "The group's title.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "terms"
+        ],
+        "title": "HelpGroupItem",
+        "type": "object"
+      },
+      "HelpGroupReference": {
+        "additionalProperties": false,
+        "description": "The group that lists a term.",
+        "properties": {
+          "id": {
+            "description": "The group's ID, valid only within this bundle; it is not a stable reference.",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "description": "The group's title.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "HelpGroupReference",
+        "type": "object"
+      },
+      "HelpIndexDocument": {
+        "additionalProperties": false,
+        "description": "Everything the help offers, in the bundle's order: the glossary groups with their terms, and the guides.",
+        "properties": {
+          "documents": {
+            "description": "The guides, in bundle order.",
+            "items": {
+              "$ref": "#/components/schemas/HelpDocumentItem"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "groups": {
+            "description": "The glossary's groups, in bundle order.",
+            "items": {
+              "$ref": "#/components/schemas/HelpGroupItem"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "description": "The version of this document's shape.",
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "groups",
+          "documents"
+        ],
+        "title": "HelpIndexDocument",
+        "type": "object"
+      },
+      "HelpReferencesDocument": {
+        "additionalProperties": false,
+        "description": "The glossary term that explains each value of each code set the API returns.",
+        "properties": {
+          "code_sets": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "description": "For each code set, named by its OpenAPI component, a map from each of its values to a term ID.",
+            "title": "Code Sets",
+            "type": "object"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "description": "The version of this document's shape.",
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code_sets"
+        ],
+        "title": "HelpReferencesDocument",
+        "type": "object"
+      },
+      "HelpSectionItem": {
+        "additionalProperties": false,
+        "description": "One section of a guide.",
+        "properties": {
+          "heading": {
+            "description": "The section's heading text.",
+            "title": "Heading",
+            "type": "string"
+          },
+          "id": {
+            "description": "The section's ID, valid only within this bundle; it is not a stable reference.",
+            "title": "Id",
+            "type": "string"
+          },
+          "level": {
+            "description": "The heading level, from 2 to 6.",
+            "title": "Level",
+            "type": "integer"
+          },
+          "markdown": {
+            "description": "The text under the heading as Markdown, up to the next heading of any level.",
+            "title": "Markdown",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "heading",
+          "level",
+          "markdown"
+        ],
+        "title": "HelpSectionItem",
+        "type": "object"
+      },
+      "HelpTermDocument": {
+        "additionalProperties": false,
+        "description": "One glossary term with its full entry.",
+        "properties": {
+          "body": {
+            "description": "The rest of the entry as Markdown; empty when the entry is only a definition.",
+            "title": "Body",
+            "type": "string"
+          },
+          "definition": {
+            "description": "The term's short definition, which depends on no link.",
+            "title": "Definition",
+            "type": "string"
+          },
+          "group": {
+            "$ref": "#/components/schemas/HelpGroupReference",
+            "description": "The group that lists the term."
+          },
+          "id": {
+            "description": "The term's stable ID.",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "The term's name, the heading of its entry.",
+            "title": "Name",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "description": "The version of this document's shape.",
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "definition",
+          "body",
+          "group"
+        ],
+        "title": "HelpTermDocument",
+        "type": "object"
+      },
+      "HelpTermItem": {
+        "additionalProperties": false,
+        "description": "One term in the index: enough to show a list and a popup.",
+        "properties": {
+          "definition": {
+            "description": "The term's short definition, which depends on no link.",
+            "title": "Definition",
+            "type": "string"
+          },
+          "id": {
+            "description": "The term's stable ID.",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "The term's name, the heading of its entry.",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "definition"
+        ],
+        "title": "HelpTermItem",
+        "type": "object"
+      },
       "HistoricalHorizon": {
         "description": "Requested historical elapsed-year horizon for classification.",
         "enum": [
@@ -2806,9 +3099,17 @@
             "title": "Engine Version",
             "type": "string"
           },
+          "locales": {
+            "description": "The locales engine text is available in, for a language picker.",
+            "items": {
+              "$ref": "#/components/schemas/LocaleItem"
+            },
+            "title": "Locales",
+            "type": "array"
+          },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -2821,7 +3122,8 @@
         "required": [
           "api_versions",
           "engine_version",
-          "sec_identity_configured"
+          "sec_identity_configured",
+          "locales"
         ],
         "title": "InfoDocument",
         "type": "object"
@@ -2896,6 +3198,28 @@
           "components"
         ],
         "title": "LineagePart",
+        "type": "object"
+      },
+      "LocaleItem": {
+        "additionalProperties": false,
+        "description": "One available locale.",
+        "properties": {
+          "name": {
+            "description": "The locale's name in its own language.",
+            "title": "Name",
+            "type": "string"
+          },
+          "tag": {
+            "description": "The locale's language tag, as Accept-Language and Content-Language state it.",
+            "title": "Tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag",
+          "name"
+        ],
+        "title": "LocaleItem",
         "type": "object"
       },
       "MetricResultPart": {
@@ -6109,6 +6433,314 @@
           }
         },
         "summary": "Analyze one ticker under one selection, and keep the result when asked."
+      }
+    },
+    "/v1/help": {
+      "get": {
+        "operationId": "get_help_index",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelpIndexDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "List the help terms by group and the help documents."
+      }
+    },
+    "/v1/help/documents/{document_id}": {
+      "get": {
+        "operationId": "get_help_document",
+        "parameters": [
+          {
+            "description": "The document's ID.",
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelpDocumentDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "Show one help document with its sections."
+      }
+    },
+    "/v1/help/references": {
+      "get": {
+        "operationId": "get_help_references",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelpReferencesDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "Show the help term that explains each value of each code set the API returns."
+      }
+    },
+    "/v1/help/terms/{term_id}": {
+      "get": {
+        "operationId": "get_help_term",
+        "parameters": [
+          {
+            "description": "The term's ID.",
+            "in": "path",
+            "name": "term_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelpTermDocument"
+                }
+              }
+            },
+            "description": "The document."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource."
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure."
+          }
+        },
+        "summary": "Show one help term with its full entry."
       }
     },
     "/v1/info": {

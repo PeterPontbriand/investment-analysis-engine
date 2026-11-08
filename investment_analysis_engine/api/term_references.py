@@ -6,8 +6,8 @@ discovered: a code set added to the API is added here in the same change, and th
 strategy's own code sets are reached through its descriptor's ``code_terms``.
 """
 
-from collections.abc import Mapping
-from typing import Final
+from collections.abc import Iterable, Mapping
+from typing import Final, Protocol
 
 from investment_analysis_engine.analysis.run_models import RUN_OUTCOME_TERMS
 from investment_analysis_engine.analysis.shared.applicability import INDUSTRY_CLASS_TERMS
@@ -76,3 +76,29 @@ EXEMPT_LOCATIONS: Final[Mapping[str, str]] = {
 
 ``schema_version`` is a constant in every document, so it never appears as an enumeration; a test requires that.
 """
+
+
+class HasCodeTerms(Protocol):
+    """What the registry needs of a strategy descriptor: the term tables of its own code sets."""
+
+    @property
+    def code_terms(self) -> Mapping[str, Mapping[str, str]]:
+        """The term table of each of the strategy's code sets, by component name."""
+        ...
+
+
+def code_terms_by_component(descriptors: Iterable[HasCodeTerms]) -> dict[str, dict[str, str]]:
+    """Return the term table of every code set: the shared registry merged with each strategy's own tables.
+
+    The keys are sorted by component name; within a table the values keep the order it declares them.
+
+    Raises:
+        ValueError: If two tables are declared for the same component; the message names it.
+    """
+    tables: dict[str, Mapping[str, str]] = dict(SHARED_CODE_TERMS)
+    for descriptor in descriptors:
+        for component, table in descriptor.code_terms.items():
+            if component in tables:
+                raise ValueError(f"The code set {component!r} has two term tables.")
+            tables[component] = table
+    return {component: dict(tables[component]) for component in sorted(tables)}

@@ -1119,7 +1119,7 @@ The run stays in the database and is refused by its version; it is never read as
 
 <a id="failure-not-found"></a>
 ### Not Found
-The watchlist, entry, saved run, refresh job or address that was asked for does not exist.
+The watchlist, entry, saved run, refresh job, help term, help document or address that was asked for does not exist.
 
 Check the identifier. A refresh job exists only while the server that started it runs.
 

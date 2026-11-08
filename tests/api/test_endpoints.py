@@ -16,6 +16,7 @@ from investment_analysis_engine.application.runs import compare_refresh_runs, re
 from investment_analysis_engine.application.watchlists import get_watchlist_by_name, watchlist_repository
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.help.locales import LOCALES
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
@@ -50,14 +51,21 @@ def test_info_names_the_served_versions_and_never_the_sec_identity(isolated_cli_
 
     assert response.status_code == 200
     assert response.json() == {
-        "schema_version": 1,
+        "schema_version": 2,
         "api_versions": list(API_VERSIONS),
         "engine_version": version("investment-analysis-engine"),
         "sec_identity_configured": True,
+        "locales": [{"tag": item.tag, "name": item.name} for item in LOCALES],
     }
     assert "someone@example.com" not in response.text
     assert absent.json()["sec_identity_configured"] is False
-    assert list(response.json()) == ["schema_version", "api_versions", "engine_version", "sec_identity_configured"]
+    assert list(response.json()) == [
+        "schema_version",
+        "api_versions",
+        "engine_version",
+        "sec_identity_configured",
+        "locales",
+    ]
 
 
 def test_strategies_lists_every_declared_strategy_in_order(isolated_cli_settings: ProjectSettings) -> None:
