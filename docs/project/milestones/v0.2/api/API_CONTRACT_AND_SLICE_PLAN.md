@@ -34,7 +34,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
 
 ## 2. Sequence and status
 
-Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and its issues 207 and 210 are complete ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.5 starts after API.6 merges
+Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and its issues 207 and 210 are complete ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.5 starts after API.6b merges
 ([milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status)).
 
 | Slice | Scope | Status | Completed |
@@ -53,7 +53,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.5a | [Help content: the glossary](#api5a--help-content-the-glossary) | Complete | 2026-11-07 |
 | API.5b1 | [Help content: the guides](#api5b1--help-content-the-guides) | Complete | 2026-11-07 |
 | API.5b2 | [Help content: the bundle](#api5b2--help-content-the-bundle) | Complete | 2026-11-07 |
-| API.6 | [Term references and help endpoints](#api6--term-references-and-help-endpoints) | Next | |
+| API.6a | [Term references](API_6_SLICE_PLAN.md#api6a--term-references) | Complete | 2026-11-07 |
+| API.6b | [Help endpoints and locales](API_6_SLICE_PLAN.md#api6b--help-endpoints-and-locales) | Next | |
 
 ## 3. The slices
 
@@ -227,32 +228,49 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-help-bundle`.
 - **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md#api5b2--the-bundle).
 
-### API.6 — Term references and help endpoints
+### API.6a — Term references
 
 - **Problem:** no API document says which term explains a label, status or code, so a GUI cannot explain what it
   shows, and a new strategy could add an unexplained column.
-- **Decision:** every piece of engine text the API returns carries a term reference, and a conformance test fails
-  the gate when one is missing or names no term.
+- **Decision:** every value of every closed code set in `openapi.json` (every `enum` with more than one value), and every
+  label (headline cells, strategies and selection fields), names a glossary term. An explicit exemption list, with a reason
+  for each entry, holds exactly `schema_version`, the headline cell `kind`, the replay text `mode` and the `method_id` path
+  parameter, and a test that walks `openapi.json` fails the gate on any value that has no term and is not exempt. A
+  strategy document's field names and rendered text are explained through the strategy's term and its guide, not field by
+  field ([T2](API_6_SLICE_PLAN.md#t2-what-must-name-a-term-2026-11-07)).
 - **Scope:**
-  - a `term` on each headline cell (an additive change; the runs-compare document's `schema_version` goes up and
-    nothing stored changes);
-  - a `term` on each strategy descriptor;
-  - one mapping table each for run outcomes, calculation statuses and failure reason codes;
+  - a term table beside each code set, including one mapping table each for run outcomes, calculation statuses and failure
+    reason codes ([T3](API_6_SLICE_PLAN.md#t3-how-values-map-to-terms-2026-11-07),
+    [T4](API_6_SLICE_PLAN.md#t4-where-the-tables-live-2026-11-07));
+  - a `term` on each headline cell (an additive change; the runs-compare document's `schema_version` goes up and nothing
+    stored changes) and on each strategy descriptor and in the strategies document;
   - a term in each selection field's metadata;
   - "glossary terms" as an edit site in `scripts/strategy_sites.toml`;
-  - `/v1/help/terms/{id}` and `/v1/help/documents/{id}`, which return Markdown, never HTML;
-  - term references for all five strategies, Piotroski included;
-  - an orphan-term check: every served term is referenced by an API.6 mapping or linked from served content
-    ([H9](API_5_SLICE_PLAN.md#h9-boundary-with-api6-2026-11-07));
+  - term references for every declared strategy;
+  - an orphan-term check: every served term is referenced by a table, a headline cell, a strategy or a selection field, or
+    linked from served content ([H9](API_5_SLICE_PLAN.md#h9-boundary-with-api6-2026-11-07)).
+- **Branch:** `feat/api-term-references`.
+- **Detail:**
+  - It follows "Changing what every strategy provides" in [`TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#changing-what-every-strategy-provides)
+    for the "glossary terms" edit site, and records any file that section missed in its implementation record.
+  - [API.6 slice plan](API_6_SLICE_PLAN.md#31-api6a-implementation-record)
+
+### API.6b — Help endpoints and locales
+
+- **Problem:** the help bundle is packaged but nothing serves it, a client cannot ask which term a value maps to, and
+  engine text has one language.
+- **Decision:** three read endpoints over the bundle, a references endpoint over the API.6a tables, a list of locales and
+  `Accept-Language` negotiation ([T11](API_6_SLICE_PLAN.md#t11-api6b-help-endpoints-2026-11-07) to
+  [T15](API_6_SLICE_PLAN.md#t15-docs-2026-11-07)).
+- **Scope:**
+  - `/v1/help`, `/v1/help/terms/{id}` and `/v1/help/documents/{id}`, which return Markdown, never HTML, and
+    `/v1/help/references`;
   - only term ids and document ids are stable references: section ids and group ids are valid only within the bundle that
     carries them, and a client follows them but never stores them
     ([H54](API_5_SLICE_PLAN.md#h54-stable-references-across-locales-2026-11-07));
   - locale choice: every endpoint that returns engine text follows [A.5](#a5-locale-choice-2026-11-07).
 - **Branch:** `feat/api-help`.
-- **Detail:**
-  - It follows "Changing what every strategy provides" in [`TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#changing-what-every-strategy-provides)
-    for the "glossary terms" edit site, and records any file that section missed in its own implementation record.
-  - ⚠ no slice plan yet
+- **Detail:** ⚠ no slice plan yet
 
 ## 4. Out of scope
 
@@ -285,9 +303,9 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - A refresh started through the API reports progress per job, can be stopped, and stores the same
   runs a CLI refresh of the same watchlist stores.
 - Inside `/v1`, a change only adds; a breaking change is a new version path.
-- Every headline cell, strategy, run outcome, calculation status, failure reason code and selection field the API
-  returns names a term, and every named term exists in the help bundle; the gate fails otherwise.
-- Every glossary term and served section is reachable through the help endpoints, and no served text contains an
+- API.6a: every value of every closed code set the API returns, and every headline cell, strategy and selection field, names a
+  term, except the four exemptions of API.6a, and every named term exists in the help bundle; the gate fails otherwise.
+- API.6b: every glossary term and served section is reachable through the help endpoints, and no served text contains an
   `ian` command.
 - The help bundle is regenerated and compared in the managed gate; a drift fails it.
 
@@ -386,3 +404,4 @@ Approved by the project owner on 2026-11-07. Recorded as
 | What does not | Raw values stay language-neutral (JSON numbers, ISO dates); a client formats them |
 | Left to API.6 | Whether the list is its own endpoint or a field of an existing document, and whether the bundle has one file per locale |
 | Not in API.5b2 | No locale field, argument or header handling |
+| Precondition for a new locale | Before any locale beyond the default is added, every producer of labels, rendered text and messages takes the locale first, because a response that states a locale in `Content-Language` is true only while all of its text follows it ([T14](API_6_SLICE_PLAN.md#t14-api6b-negotiation-2026-11-07)) |

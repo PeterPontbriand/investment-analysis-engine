@@ -8,7 +8,7 @@ removed within the public contract.
 from collections.abc import Mapping
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Literal
+from typing import Final, Literal
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 
@@ -59,7 +59,7 @@ class FailureReasonCode(StrEnum):
     PORT_UNAVAILABLE = "port_unavailable"
 
 
-FailureStatus = Literal["error", "input_unavailable"]
+type FailureStatus = Literal["error", "input_unavailable"]
 
 PROVIDER_FAILURE_CODES = frozenset(
     {
@@ -100,7 +100,61 @@ def provider_reason_code(kind: ProviderFailureKind | None) -> FailureReasonCode:
     return FailureReasonCode.PROVIDER_ERROR if kind is None else PROVIDER_CODE_BY_KIND[kind]
 
 
+FAILURE_REASON_CODE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        FailureReasonCode.EXECUTION_ERROR.value: "failure-execution-error",
+        FailureReasonCode.HISTORICAL_QUALITY.value: "failure-historical-quality",
+        FailureReasonCode.PROVIDER_ERROR.value: "status-provider-error",
+        FailureReasonCode.PROVIDER_UNREACHABLE.value: "provider-unreachable",
+        FailureReasonCode.PROVIDER_RATE_LIMITED.value: "provider-rate-limited",
+        FailureReasonCode.PROVIDER_UNEXPECTED_RESPONSE.value: "provider-unexpected-response",
+        FailureReasonCode.PROVIDER_NO_DATA.value: "provider-no-data",
+        FailureReasonCode.CONFIGURATION_ERROR.value: "failure-configuration-error",
+        FailureReasonCode.NO_ELIGIBLE_OBSERVATIONS.value: "failure-no-eligible-observations",
+        FailureReasonCode.INVALID_INPUT.value: "status-invalid-input",
+        FailureReasonCode.INVALID_PARAMETER.value: "failure-invalid-parameter",
+        FailureReasonCode.DATABASE_UPGRADE_REQUIRED.value: "failure-database",
+        FailureReasonCode.DATABASE_INCOMPATIBLE_SCHEMA.value: "failure-database",
+        FailureReasonCode.DATABASE_BUSY.value: "failure-database",
+        FailureReasonCode.DATABASE_PERMISSION_DENIED.value: "failure-database",
+        FailureReasonCode.DATABASE_INVALID_FILE.value: "failure-database",
+        FailureReasonCode.DATABASE_IO_ERROR.value: "failure-database",
+        FailureReasonCode.DATABASE_RESOURCES_UNAVAILABLE.value: "failure-database",
+        FailureReasonCode.DATABASE_INITIALIZATION_FAILED.value: "failure-database",
+        FailureReasonCode.DATABASE_MIGRATION_FAILED.value: "failure-database",
+        FailureReasonCode.INVALID_STORED_RUN.value: "failure-stored-data-unreadable",
+        FailureReasonCode.UNSUPPORTED_RUN_VERSION.value: "failure-unsupported-run-version",
+        FailureReasonCode.WATCHLIST_NOT_FOUND.value: "failure-not-found",
+        FailureReasonCode.WATCHLIST_ENTRY_NOT_FOUND.value: "failure-not-found",
+        FailureReasonCode.WATCHLIST_EMPTY.value: "failure-watchlist-empty",
+        FailureReasonCode.WATCHLIST_NAME_CONFLICT.value: "failure-name-conflict",
+        FailureReasonCode.ANALYSIS_RUN_NOT_FOUND.value: "failure-not-found",
+        FailureReasonCode.STORED_SELECTION_UNREADABLE.value: "failure-stored-data-unreadable",
+        FailureReasonCode.UNSUPPORTED_PROJECTION.value: "failure-stored-data-unreadable",
+        FailureReasonCode.NOT_AUTHENTICATED.value: "failure-request-refused",
+        FailureReasonCode.HOST_NOT_ALLOWED.value: "failure-request-refused",
+        FailureReasonCode.ORIGIN_NOT_ALLOWED.value: "failure-request-refused",
+        FailureReasonCode.ENDPOINT_NOT_FOUND.value: "failure-not-found",
+        FailureReasonCode.REFRESH_JOB_NOT_FOUND.value: "failure-not-found",
+        FailureReasonCode.REFRESH_JOB_RUNNING.value: "failure-refresh-running",
+        FailureReasonCode.PORT_UNAVAILABLE.value: "failure-port-unavailable",
+    }
+)
+"""The glossary term that explains each failure code; codes that differ only in detail share one term."""
+
+
+FAILURE_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "error": "failure-category-error",
+        "input_unavailable": "status-input-unavailable",
+    }
+)
+"""The glossary term that explains each failure category."""
+
+
 __all__ = [
+    "FAILURE_STATUS_TERMS",
+    "FAILURE_REASON_CODE_TERMS",
     "INPUT_UNAVAILABLE_CODES",
     "PROVIDER_CODE_BY_KIND",
     "PROVIDER_FAILURE_CODES",

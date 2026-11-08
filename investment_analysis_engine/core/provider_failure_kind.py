@@ -4,8 +4,11 @@ This is a leaf module: it imports nothing from the application, so the data adap
 failure documents can all depend on it without a cycle.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
+from types import MappingProxyType
+from typing import Final
 
 
 class ProviderFailureKind(StrEnum):
@@ -63,4 +66,21 @@ class ProviderFailureRecord:
         return replace(self, input=input_name)
 
 
-__all__ = ["PROVIDER_KIND_PRECEDENCE", "ProviderFailureKind", "ProviderFailureRecord", "require_provider_identity"]
+PROVIDER_FAILURE_KIND_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        ProviderFailureKind.UNREACHABLE.value: "provider-unreachable",
+        ProviderFailureKind.RATE_LIMITED.value: "provider-rate-limited",
+        ProviderFailureKind.UNEXPECTED_RESPONSE.value: "provider-unexpected-response",
+        ProviderFailureKind.NO_DATA.value: "provider-no-data",
+    }
+)
+"""The glossary term that explains each kind of provider failure."""
+
+
+__all__ = [
+    "PROVIDER_FAILURE_KIND_TERMS",
+    "PROVIDER_KIND_PRECEDENCE",
+    "ProviderFailureKind",
+    "ProviderFailureRecord",
+    "require_provider_identity",
+]

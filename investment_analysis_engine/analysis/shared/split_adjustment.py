@@ -16,10 +16,11 @@ The function is pure: a count, three dates and the provider's events in, the sca
 """
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Final
 
 from investment_analysis_engine.data.market_data import SplitEvent
@@ -123,3 +124,12 @@ def scale_share_count(
         scaled *= event.ratio
         applied.append(AppliedAdjustment(event.ex_date, event.ratio, window))
     return ScaledShareCount(scaled, tuple(applied))
+
+
+ADJUSTMENT_WINDOW_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        AdjustmentWindow.COUNT_TO_PRICE.value: "split-adjustment-window",
+        AdjustmentWindow.PRICE_TO_ADJUSTMENT.value: "split-adjustment-window",
+    }
+)
+"""The glossary term that explains each place an applied provider adjustment can fall."""

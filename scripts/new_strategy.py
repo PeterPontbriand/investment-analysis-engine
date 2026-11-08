@@ -350,6 +350,8 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
         _strategy_import(spec, "vocabulary", [f"ANALYSIS_ID as {upper}_ANALYSIS_ID"]),
         _strategy_import(spec, "vocabulary", [f"CONFIG_SCHEMA_VERSION as {upper}_CONFIG_SCHEMA_VERSION"]),
         _strategy_import(spec, "vocabulary", [f"METHOD_ID as {upper}_METHOD_ID"]),
+        _strategy_import(spec, "vocabulary", [f"CODE_TERMS as {upper}_CODE_TERMS"]),
+        _strategy_import(spec, "vocabulary", [f"HEADLINE_TERMS as {upper}_HEADLINE_TERMS"]),
     ]
     behavior = (
         f"{upper}_BEHAVIOR: Final = StrategyBehavior[{cls}Selection, {cls}Result, {cls}ToolDependencies](\n"
@@ -372,6 +374,7 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
         f"    method_id={upper}_METHOD_ID,\n"
         f'    alias="{spec.names.alias}",\n'
         f'    label="{spec.label}",\n'
+        f'    term="{spec.names.alias}-strategy",\n'
         f"    tool=ToolName.{spec.tool_member},\n"
         f"    tool_arguments={cls}ToolArguments,\n"
         f'    tool_description="Run the {spec.label} analysis.",\n'
@@ -383,6 +386,8 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
         f"    json_envelope={cls}Document,\n"
         "    settings_type=None,\n"
         "    selection_settings_fields=(),\n"
+        f"    headline_terms={upper}_HEADLINE_TERMS,\n"
+        f"    code_terms={upper}_CODE_TERMS,\n"
         ")"
     )
     introduced = (
@@ -391,6 +396,8 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
         f"{upper}_ANALYSIS_ID",
         f"{upper}_METHOD_ID",
         f"{upper}_CONFIG_SCHEMA_VERSION",
+        f"{upper}_CODE_TERMS",
+        f"{upper}_HEADLINE_TERMS",
     )
     edited = append_imports(source, imports, where)
     edited = insert_before(edited, "STRATEGIES", behavior + descriptor, where)

@@ -5,7 +5,9 @@ analyzer modules, the document envelope and the composition root all read one de
 enumerations are the values its policy, classification and forward evidence take.
 """
 
+from collections.abc import Mapping
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Final, Literal
 
 AnalysisId = Literal["fcf_earnings_growth"]
@@ -66,3 +68,85 @@ class ForwardEvidenceStatus(StrEnum):
     COMPLETE = "complete"
     PARTIAL = "partial"
     UNAVAILABLE = "unavailable"
+
+
+HEADLINE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "fcf_cagr": "cagr",
+        "eps_cagr": "cagr",
+        "classification": "fcf-classification",
+    }
+)
+"""The glossary term that explains the label of each headline cell, by the cell's key."""
+
+CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
+    {
+        "Classification": MappingProxyType(
+            {
+                Classification.PASS.value: "fcf-growth-pass",
+                Classification.FAIL.value: "fcf-growth-fail",
+                Classification.INDETERMINATE.value: "fcf-growth-indeterminate",
+            }
+        ),
+        "ForwardEvidenceStatus": MappingProxyType(
+            {
+                ForwardEvidenceStatus.COMPLETE.value: "forward-evidence-complete",
+                ForwardEvidenceStatus.PARTIAL.value: "forward-evidence-partial",
+                ForwardEvidenceStatus.UNAVAILABLE.value: "forward-evidence-unavailable",
+            }
+        ),
+        "HistoricalHorizon": MappingProxyType(
+            {
+                HistoricalHorizon.LONGEST_AVAILABLE.value: "historical-horizon",
+                HistoricalHorizon.THREE_YEARS.value: "historical-horizon",
+                HistoricalHorizon.FOUR_YEARS.value: "historical-horizon",
+                HistoricalHorizon.FIVE_YEARS.value: "historical-horizon",
+            }
+        ),
+        "FCFGrowthSelection.HistoricalHorizon": MappingProxyType(
+            {
+                HistoricalHorizon.LONGEST_AVAILABLE.value: "historical-horizon",
+                HistoricalHorizon.THREE_YEARS.value: "historical-horizon",
+                HistoricalHorizon.FOUR_YEARS.value: "historical-horizon",
+                HistoricalHorizon.FIVE_YEARS.value: "historical-horizon",
+            }
+        ),
+        "ForwardPolicy": MappingProxyType(
+            {
+                ForwardPolicy.DISPLAY_ONLY.value: "forward-policy",
+                ForwardPolicy.CONFIRMATION.value: "forward-policy",
+                ForwardPolicy.HARD_GATE.value: "forward-policy",
+            }
+        ),
+        "FCFGrowthSelection.ForwardPolicy": MappingProxyType(
+            {
+                ForwardPolicy.DISPLAY_ONLY.value: "forward-policy",
+                ForwardPolicy.CONFIRMATION.value: "forward-policy",
+                ForwardPolicy.HARD_GATE.value: "forward-policy",
+            }
+        ),
+        "FCFClassificationBasis": MappingProxyType(
+            {
+                FCFClassificationBasis.TOTAL_FCF.value: "classification-basis",
+                FCFClassificationBasis.FCF_PER_SHARE.value: "classification-basis",
+            }
+        ),
+        "FCFGrowthSelection.FCFClassificationBasis": MappingProxyType(
+            {
+                FCFClassificationBasis.TOTAL_FCF.value: "classification-basis",
+                FCFClassificationBasis.FCF_PER_SHARE.value: "classification-basis",
+            }
+        ),
+        "TrendClassification": MappingProxyType(
+            {
+                TrendClassification.BOTH_GROWING.value: "growth-trend-both",
+                TrendClassification.FCF_GROWING_EARNINGS_NOT.value: "growth-trend-fcf-only",
+                TrendClassification.EARNINGS_GROWING_FCF_NOT.value: "growth-trend-earnings-only",
+                TrendClassification.NEITHER_GROWING.value: "growth-trend-neither",
+                TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH.value: "growth-trend-insufficient",
+            }
+        ),
+    }
+)
+"""The glossary term that explains each value of each code set this strategy defines, by the name of the OpenAPI
+component that carries it."""

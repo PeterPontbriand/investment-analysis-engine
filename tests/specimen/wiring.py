@@ -16,11 +16,14 @@ from tests.specimen.tool import SpecimenTool, SpecimenToolArguments
 from tests.specimen.vocabulary import (
     ALIAS,
     ANALYSIS_ID,
+    CODE_TERMS,
     CONFIG_SCHEMA_VERSION,
     EVIDENCE_CODEC_VERSION,
+    HEADLINE_TERMS,
     METHOD_ID,
     METHOD_VERSION,
     RESULT_SCHEMA_VERSION,
+    TERM,
 )
 
 SPECIMEN_BEHAVIOR: Final = SpecimenBehavior()
@@ -30,6 +33,7 @@ SPECIMEN: Final = StrategyDescriptor(
     method_id=METHOD_ID,
     alias=ALIAS,
     label="Specimen",
+    term=TERM,
     tool=as_tool_name(SpecimenTool.ANALYZE_SPECIMEN),
     tool_arguments=SpecimenToolArguments,
     tool_description="Scale a value by the specimen's configured multiplier.",
@@ -41,6 +45,8 @@ SPECIMEN: Final = StrategyDescriptor(
     json_envelope=SpecimenDocument,
     settings_type=SpecimenSettings,
     selection_settings_fields=(),
+    headline_terms=HEADLINE_TERMS,
+    code_terms=CODE_TERMS,
 )
 
 SPECIMEN_STRATEGIES: Final = (*STRATEGIES, SPECIMEN)

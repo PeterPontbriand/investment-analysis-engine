@@ -10,7 +10,7 @@ from investment_analysis_engine.strategies.fcf_growth.presenter import (
     screen_word,
 )
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
-from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import HEADLINE_TERMS, FCFClassificationBasis
 
 
 def project_fcf_growth(
@@ -50,6 +50,7 @@ def headline_fcf_growth(result: FCFEarningsGrowthResult) -> Headline:
             HeadlineCell(
                 "fcf_cagr",
                 "FCF/share CAGR" if per_share else "FCF CAGR",
+                HEADLINE_TERMS["fcf_cagr"],
                 CellKind.NUMBER,
                 growth.value,
                 UNIT_PERCENT,
@@ -59,13 +60,22 @@ def headline_fcf_growth(result: FCFEarningsGrowthResult) -> Headline:
             HeadlineCell(
                 "eps_cagr",
                 "EPS CAGR",
+                HEADLINE_TERMS["eps_cagr"],
                 CellKind.NUMBER,
                 result.eps_cagr.value,
                 UNIT_PERCENT,
                 result.eps_cagr.status,
                 result.eps_cagr.reason_code,
             ),
-            HeadlineCell("classification", "Class", CellKind.TEXT, screen_word(result.classification), None, None),
+            HeadlineCell(
+                "classification",
+                "Class",
+                HEADLINE_TERMS["classification"],
+                CellKind.TEXT,
+                screen_word(result.classification),
+                None,
+                None,
+            ),
         ),
         period_end=result.period_end,
         period_end_label="selected span end",

@@ -11,9 +11,12 @@ timezone-aware; naive datetimes raise ``ValueError`` at construction.
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from types import MappingProxyType
+from typing import Final
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -328,3 +331,44 @@ def _validate_optional_datetime(dt: datetime | None, field_name: str) -> None:
     """Validate an optional datetime field is timezone-aware if present."""
     if dt is not None:
         _require_timezone_aware(dt, field_name=field_name)
+
+
+SOURCE_KIND_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        SourceKind.OVERRIDE.value: "source-kind",
+        SourceKind.CACHE.value: "source-kind",
+        SourceKind.PROVIDER.value: "source-kind",
+        SourceKind.DERIVED.value: "source-kind",
+    }
+)
+"""The glossary term that explains each way a resolved input value was obtained."""
+
+
+PERIOD_KIND_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        PeriodKind.COMPLETED_ANNUAL.value: "period-kind",
+        PeriodKind.QUARTERLY.value: "period-kind",
+        PeriodKind.TTM.value: "period-kind",
+        PeriodKind.INSTANT.value: "period-kind",
+    }
+)
+"""The glossary term that explains each kind of reporting period."""
+
+
+ACCOUNTING_SCOPE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        AccountingScope.CONSOLIDATED.value: "accounting-scope",
+        AccountingScope.PARENT.value: "accounting-scope",
+        AccountingScope.SEGMENT.value: "accounting-scope",
+    }
+)
+"""The glossary term that explains each accounting scope."""
+
+
+CAPITAL_EXPENDITURE_SIGN_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        CapitalExpenditureSign.POSITIVE_EXPENDITURE.value: "capex-sign-convention",
+        CapitalExpenditureSign.NEGATIVE_CASH_OUTFLOW.value: "capex-sign-convention",
+    }
+)
+"""The glossary term that explains each sign convention for capital expenditures."""

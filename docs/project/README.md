@@ -71,6 +71,7 @@ Every entry in both glossaries follows these rules, which `python scripts/check_
 - **Name:** the heading is plain text, with no code span. A combined heading stays one entry unless one short definition cannot cover its parts.
 - **Short definition:** the first paragraph is at most 200 characters and two sentences, in plain text with no link, backtick, `*`, `_` or `[`. It stands alone; that is a review rule, not a checked one. Formulas and links belong in the paragraphs that follow.
 - **Exclude marker:** `<!-- help:exclude -->` on the line directly after a heading excludes that section and its subsections from served content. There are no inline ranges.
+- **Where a term sits and who names it:** an entry that explains a shared outcome, status or reason goes in the user glossary's "Outcomes, statuses and reasons" section, and an entry that belongs to one strategy goes in that strategy's section. Every served term is named by a code set's term table, a headline cell, a strategy or a selection field, or linked from served content; `tests/test_term_references.py` fails on an orphan, and on a value of any code set in `schemas/openapi.json` that names no term.
 
 ## Served documents
 

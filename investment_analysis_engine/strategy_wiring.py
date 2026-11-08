@@ -9,7 +9,7 @@ layering rule permits.
 """
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from types import MappingProxyType
 from typing import Final, Protocol
@@ -52,9 +52,11 @@ from investment_analysis_engine.strategies.fcf_growth.tool import (
     FCFEarningsGrowthToolHandler,
 )
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import ANALYSIS_ID as FCF_GROWTH_ANALYSIS_ID
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import CODE_TERMS as FCF_GROWTH_CODE_TERMS
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     CONFIG_SCHEMA_VERSION as FCF_GROWTH_CONFIG_SCHEMA_VERSION,
 )
+from investment_analysis_engine.strategies.fcf_growth.vocabulary import HEADLINE_TERMS as FCF_GROWTH_HEADLINE_TERMS
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import METHOD_ID as FCF_GROWTH_METHOD_ID
 from investment_analysis_engine.strategies.graham_growth.codec import (
     decode_graham_growth,
@@ -77,8 +79,12 @@ from investment_analysis_engine.strategies.graham_growth.tool import (
     GrahamGrowthValueToolArguments,
 )
 from investment_analysis_engine.strategies.graham_growth.vocabulary import ANALYSIS_ID as GRAHAM_GROWTH_ANALYSIS_ID
+from investment_analysis_engine.strategies.graham_growth.vocabulary import CODE_TERMS as GRAHAM_GROWTH_CODE_TERMS
 from investment_analysis_engine.strategies.graham_growth.vocabulary import (
     CONFIG_SCHEMA_VERSION as GRAHAM_GROWTH_CONFIG_SCHEMA_VERSION,
+)
+from investment_analysis_engine.strategies.graham_growth.vocabulary import (
+    HEADLINE_TERMS as GRAHAM_GROWTH_HEADLINE_TERMS,
 )
 from investment_analysis_engine.strategies.graham_growth.vocabulary import METHOD_ID as GRAHAM_GROWTH_METHOD_ID
 from investment_analysis_engine.strategies.graham_number.codec import (
@@ -101,8 +107,12 @@ from investment_analysis_engine.strategies.graham_number.tool import (
     GrahamNumberToolHandler,
 )
 from investment_analysis_engine.strategies.graham_number.vocabulary import ANALYSIS_ID as GRAHAM_NUMBER_ANALYSIS_ID
+from investment_analysis_engine.strategies.graham_number.vocabulary import CODE_TERMS as GRAHAM_NUMBER_CODE_TERMS
 from investment_analysis_engine.strategies.graham_number.vocabulary import (
     CONFIG_SCHEMA_VERSION as GRAHAM_NUMBER_CONFIG_SCHEMA_VERSION,
+)
+from investment_analysis_engine.strategies.graham_number.vocabulary import (
+    HEADLINE_TERMS as GRAHAM_NUMBER_HEADLINE_TERMS,
 )
 from investment_analysis_engine.strategies.graham_number.vocabulary import METHOD_ID as GRAHAM_NUMBER_METHOD_ID
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
@@ -126,9 +136,11 @@ from investment_analysis_engine.strategies.momentum.tool import (
     MomentumToolHandler,
 )
 from investment_analysis_engine.strategies.momentum.vocabulary import ANALYSIS_ID as MOMENTUM_ANALYSIS_ID
+from investment_analysis_engine.strategies.momentum.vocabulary import CODE_TERMS as MOMENTUM_CODE_TERMS
 from investment_analysis_engine.strategies.momentum.vocabulary import (
     CONFIG_SCHEMA_VERSION as MOMENTUM_CONFIG_SCHEMA_VERSION,
 )
+from investment_analysis_engine.strategies.momentum.vocabulary import HEADLINE_TERMS as MOMENTUM_HEADLINE_TERMS
 from investment_analysis_engine.strategies.momentum.vocabulary import METHOD_ID as MOMENTUM_METHOD_ID
 from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiResult
 from investment_analysis_engine.strategies.piotroski.codec import (
@@ -150,9 +162,11 @@ from investment_analysis_engine.strategies.piotroski.tool import (
     PiotroskiToolHandler,
 )
 from investment_analysis_engine.strategies.piotroski.vocabulary import ANALYSIS_ID as PIOTROSKI_ANALYSIS_ID
+from investment_analysis_engine.strategies.piotroski.vocabulary import CODE_TERMS as PIOTROSKI_CODE_TERMS
 from investment_analysis_engine.strategies.piotroski.vocabulary import (
     CONFIG_SCHEMA_VERSION as PIOTROSKI_CONFIG_SCHEMA_VERSION,
 )
+from investment_analysis_engine.strategies.piotroski.vocabulary import HEADLINE_TERMS as PIOTROSKI_HEADLINE_TERMS
 from investment_analysis_engine.strategies.piotroski.vocabulary import METHOD_ID as PIOTROSKI_METHOD_ID
 from investment_analysis_engine.workspace.codecs import EvidenceCodec, encode_with
 from investment_analysis_engine.workspace.execution import RunSpec
@@ -276,12 +290,19 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
 
 @dataclass(frozen=True)
 class StrategyDescriptor:
-    """One strategy's identity, analysis-tool binding and typed behavior."""
+    """One strategy's identity, analysis-tool binding and typed behavior.
+
+    ``term`` is the glossary id of the strategy's own entry. ``headline_terms`` maps each headline cell key to the
+    term that explains its label, and ``code_terms`` maps the name of each OpenAPI component the strategy defines to
+    the term of each of its values; the strategy declares both beside its vocabulary. Both mappings are left out
+    of the descriptor's hash, which keeps a descriptor usable as a dictionary key.
+    """
 
     analysis_id: str
     method_id: str
     alias: str
     label: str
+    term: str
     tool: ToolName
     tool_arguments: type[AnalysisToolArguments]
     tool_description: str
@@ -293,6 +314,8 @@ class StrategyDescriptor:
     json_envelope: type[BaseModel]
     settings_type: type[BaseModel] | None
     selection_settings_fields: tuple[str, ...]
+    headline_terms: Mapping[str, str] = field(hash=False)
+    code_terms: Mapping[str, Mapping[str, str]] = field(hash=False)
 
 
 MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, MomentumToolDependencies](
@@ -359,6 +382,7 @@ MOMENTUM: Final = StrategyDescriptor(
     method_id=MOMENTUM_METHOD_ID,
     alias="momentum",
     label="Momentum",
+    term="momentum-strategy",
     tool=ToolName.ANALYZE_MOMENTUM,
     tool_arguments=MomentumToolArguments,
     tool_description="Analyze historical price momentum with structured SMA and RSI metrics.",
@@ -370,12 +394,15 @@ MOMENTUM: Final = StrategyDescriptor(
     json_envelope=MomentumDocument,
     settings_type=MomentumSettings,
     selection_settings_fields=("short_window", "long_window", "rsi_period"),
+    headline_terms=MOMENTUM_HEADLINE_TERMS,
+    code_terms=MOMENTUM_CODE_TERMS,
 )
 GRAHAM_NUMBER: Final = StrategyDescriptor(
     analysis_id=GRAHAM_NUMBER_ANALYSIS_ID,
     method_id=GRAHAM_NUMBER_METHOD_ID,
     alias="graham-number",
     label="Graham Number",
+    term="graham-number-strategy",
     tool=ToolName.ANALYZE_GRAHAM_NUMBER,
     tool_arguments=GrahamNumberToolArguments,
     tool_description="Calculate the Graham Number company-level valuation ceiling.",
@@ -387,12 +414,15 @@ GRAHAM_NUMBER: Final = StrategyDescriptor(
     json_envelope=GrahamNumberDocument,
     settings_type=None,
     selection_settings_fields=(),
+    headline_terms=GRAHAM_NUMBER_HEADLINE_TERMS,
+    code_terms=GRAHAM_NUMBER_CODE_TERMS,
 )
 GRAHAM_GROWTH: Final = StrategyDescriptor(
     analysis_id=GRAHAM_GROWTH_ANALYSIS_ID,
     method_id=GRAHAM_GROWTH_METHOD_ID,
     alias="graham-growth",
     label="Graham Growth",
+    term="graham-growth-value-strategy",
     tool=ToolName.ANALYZE_GRAHAM_GROWTH_VALUE,
     tool_arguments=GrahamGrowthValueToolArguments,
     tool_description="Calculate the explicit Graham growth-value method.",
@@ -404,12 +434,15 @@ GRAHAM_GROWTH: Final = StrategyDescriptor(
     json_envelope=GrahamGrowthDocument,
     settings_type=GrahamGrowthSettings,
     selection_settings_fields=(),
+    headline_terms=GRAHAM_GROWTH_HEADLINE_TERMS,
+    code_terms=GRAHAM_GROWTH_CODE_TERMS,
 )
 FCF_GROWTH: Final = StrategyDescriptor(
     analysis_id=FCF_GROWTH_ANALYSIS_ID,
     method_id=FCF_GROWTH_METHOD_ID,
     alias="fcf-growth",
     label="FCF Growth",
+    term="fcf-growth-strategy",
     tool=ToolName.ANALYZE_FCF_EARNINGS_GROWTH,
     tool_arguments=FCFEarningsGrowthToolArguments,
     tool_description="Analyze company free-cash-flow and diluted-EPS growth.",
@@ -421,6 +454,8 @@ FCF_GROWTH: Final = StrategyDescriptor(
     json_envelope=FCFDocument,
     settings_type=None,
     selection_settings_fields=(),
+    headline_terms=FCF_GROWTH_HEADLINE_TERMS,
+    code_terms=FCF_GROWTH_CODE_TERMS,
 )
 
 PIOTROSKI_BEHAVIOR: Final = StrategyBehavior[PiotroskiSelection, PiotroskiResult, PiotroskiToolDependencies](
@@ -441,6 +476,7 @@ PIOTROSKI: Final = StrategyDescriptor(
     method_id=PIOTROSKI_METHOD_ID,
     alias="piotroski",
     label="Piotroski F-Score",
+    term="piotroski-strategy",
     tool=ToolName.ANALYZE_PIOTROSKI,
     tool_arguments=PiotroskiToolArguments,
     tool_description="Run the Piotroski F-Score analysis.",
@@ -452,6 +488,8 @@ PIOTROSKI: Final = StrategyDescriptor(
     json_envelope=PiotroskiDocument,
     settings_type=None,
     selection_settings_fields=(),
+    headline_terms=PIOTROSKI_HEADLINE_TERMS,
+    code_terms=PIOTROSKI_CODE_TERMS,
 )
 
 STRATEGIES: Final = (MOMENTUM, GRAHAM_NUMBER, GRAHAM_GROWTH, FCF_GROWTH, PIOTROSKI)

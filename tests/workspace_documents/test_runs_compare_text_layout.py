@@ -31,19 +31,33 @@ Period = tuple[str, date | None]
 
 def _text(label: str, value: str | None) -> CompareCellDocument:
     return CompareCellDocument(
-        key=label, label=label, kind=CellKind.TEXT, value=value, unit=None, status=None, reason_code=None
+        key=label, label=label, term="term-k", kind=CellKind.TEXT, value=value, unit=None, status=None, reason_code=None
     )
 
 
 def _percent(label: str, value: float | None) -> CompareCellDocument:
     return CompareCellDocument(
-        key=label, label=label, kind=CellKind.NUMBER, value=value, unit="percent", status="ok", reason_code=None
+        key=label,
+        label=label,
+        term="term-k",
+        kind=CellKind.NUMBER,
+        value=value,
+        unit="percent",
+        status="ok",
+        reason_code=None,
     )
 
 
 def _money(label: str, value: float | None) -> CompareCellDocument:
     return CompareCellDocument(
-        key=label, label=label, kind=CellKind.NUMBER, value=value, unit="USD per share", status="ok", reason_code=None
+        key=label,
+        label=label,
+        term="term-k",
+        kind=CellKind.NUMBER,
+        value=value,
+        unit="USD per share",
+        status="ok",
+        reason_code=None,
     )
 
 
@@ -75,7 +89,12 @@ def _document(labels: Sequence[str], rows: dict[str, Sequence[CompareRunDocument
         watchlist_name=None,
         strategies=tuple(
             CompareStrategyDocument(
-                analysis_id=f"a{index}", method_id=f"m{index}", alias=f"s{index}", label=label, declared=True
+                analysis_id=f"a{index}",
+                method_id=f"m{index}",
+                alias=f"s{index}",
+                label=label,
+                term=f"term-s{index}",
+                declared=True,
             )
             for index, label in enumerate(labels)
         ),

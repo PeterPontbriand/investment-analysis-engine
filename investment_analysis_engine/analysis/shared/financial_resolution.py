@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, get_args
+from types import MappingProxyType
+from typing import Final, Literal, get_args
 
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
@@ -18,7 +20,7 @@ from investment_analysis_engine.data.security_unit import (
     evaluate_security_unit_compatibility,
 )
 
-PriceComparisonStatus = Literal["available", "unavailable"]
+type PriceComparisonStatus = Literal["available", "unavailable"]
 """Whether a price relationship could be calculated."""
 
 
@@ -34,7 +36,7 @@ class PriceComparison:
 
     def __post_init__(self) -> None:
         """Keep percentage and status consistent and finite."""
-        if self.status not in get_args(PriceComparisonStatus):
+        if self.status not in get_args(PriceComparisonStatus.__value__):
             raise ValueError("Unknown price comparison status.")
         if (self.status == "available") != (self.percent is not None):
             raise ValueError("Price comparison status contradicts its percentage.")
@@ -173,3 +175,12 @@ def common_currency(*inputs: ResolvedInput | None) -> str | None:
     """Return one shared known currency, or None when inputs disagree or omit it."""
     currencies = {item.currency for item in inputs if item is not None and item.currency}
     return next(iter(currencies)) if len(currencies) == 1 else None
+
+
+PRICE_COMPARISON_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "available": "price-comparison-available",
+        "unavailable": "price-comparison-unavailable",
+    }
+)
+"""The glossary term that explains each price-comparison status."""

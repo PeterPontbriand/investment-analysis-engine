@@ -31,7 +31,8 @@
           ],
           "default": null,
           "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-          "title": "As Of"
+          "title": "As Of",
+          "x-term": "as-of-date"
         },
         "config_schema_version": {
           "const": 3,
@@ -43,7 +44,8 @@
           "default": "USD",
           "description": "Three-letter ISO 4217 code of the reporting currency the annual facts must use.",
           "title": "Currency",
-          "type": "string"
+          "type": "string",
+          "x-term": "reporting-currency"
         },
         "method_id": {
           "const": "reported_fcf_eps_cagr",
@@ -53,13 +55,15 @@
         },
         "policy": {
           "$ref": "#/$defs/FCFPolicySnapshot",
-          "description": "The growth horizon, classification and forward-evidence rules."
+          "description": "The growth horizon, classification and forward-evidence rules.",
+          "x-term": "fcf-growth-strategy"
         },
         "use_cache": {
           "default": true,
           "description": "Whether the analysis may read and write the local cache of fetched data.",
           "title": "Use Cache",
-          "type": "boolean"
+          "type": "boolean",
+          "x-term": "cache"
         }
       },
       "title": "FCFGrowthSelection",
@@ -72,17 +76,20 @@
         "classification_basis": {
           "$ref": "#/$defs/FCFClassificationBasis",
           "default": "total_fcf",
-          "description": "Whether growth is classified on total free cash flow or on free cash flow per share."
+          "description": "Whether growth is classified on total free cash flow or on free cash flow per share.",
+          "x-term": "classification-basis"
         },
         "forward_policy": {
           "$ref": "#/$defs/ForwardPolicy",
           "default": "display_only",
-          "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate."
+          "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate.",
+          "x-term": "forward-policy"
         },
         "historical_horizon": {
           "$ref": "#/$defs/HistoricalHorizon",
           "default": "longest_available",
-          "description": "How many elapsed years of history to require; the default picks the longest available up to five."
+          "description": "How many elapsed years of history to require; the default picks the longest available up to five.",
+          "x-term": "historical-horizon"
         }
       },
       "title": "FCFPolicySnapshot",
@@ -105,7 +112,8 @@
         "aaa_yield_override": {
           "description": "Current AAA corporate-bond yield, in percentage points.",
           "title": "Aaa Yield Override",
-          "type": "number"
+          "type": "number",
+          "x-term": "override"
         },
         "analysis_id": {
           "const": "graham_growth_value",
@@ -125,7 +133,8 @@
           ],
           "default": null,
           "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-          "title": "As Of"
+          "title": "As Of",
+          "x-term": "as-of-date"
         },
         "config_schema_version": {
           "const": 2,
@@ -134,14 +143,10 @@
           "type": "integer"
         },
         "eps_basis": {
+          "$ref": "#/$defs/GrahamGrowthSelectionEPSBasis",
           "default": "three_year_average",
           "description": "Which earnings figure to use: the three-year average, or one completed fiscal year.",
-          "enum": [
-            "three_year_average",
-            "fiscal_year"
-          ],
-          "title": "Eps Basis",
-          "type": "string"
+          "x-term": "eps-basis"
         },
         "eps_override": {
           "anyOf": [
@@ -154,12 +159,14 @@
           ],
           "default": null,
           "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
-          "title": "Eps Override"
+          "title": "Eps Override",
+          "x-term": "override"
         },
         "expected_growth": {
           "description": "Expected annual earnings growth, in percentage points.",
           "title": "Expected Growth",
-          "type": "number"
+          "type": "number",
+          "x-term": "expected-growth-rate"
         },
         "method_id": {
           "const": "graham_growth_value",
@@ -178,13 +185,15 @@
           ],
           "default": null,
           "description": "Share price to use instead of the current quote; leave empty to use the quote.",
-          "title": "Quote Override"
+          "title": "Quote Override",
+          "x-term": "override"
         },
         "use_cache": {
           "default": true,
           "description": "Whether the analysis may read and write the local cache of fetched data.",
           "title": "Use Cache",
-          "type": "boolean"
+          "type": "boolean",
+          "x-term": "cache"
         }
       },
       "required": [
@@ -193,6 +202,13 @@
       ],
       "title": "GrahamGrowthSelection",
       "type": "object"
+    },
+    "GrahamGrowthSelectionEPSBasis": {
+      "enum": [
+        "three_year_average",
+        "fiscal_year"
+      ],
+      "type": "string"
     },
     "GrahamNumberSelection": {
       "additionalProperties": false,
@@ -216,7 +232,8 @@
           ],
           "default": null,
           "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-          "title": "As Of"
+          "title": "As Of",
+          "x-term": "as-of-date"
         },
         "bvps_override": {
           "anyOf": [
@@ -229,7 +246,8 @@
           ],
           "default": null,
           "description": "Book value per share to use instead of the reported figure; leave empty to use it.",
-          "title": "Bvps Override"
+          "title": "Bvps Override",
+          "x-term": "override"
         },
         "config_schema_version": {
           "const": 3,
@@ -248,7 +266,8 @@
           ],
           "default": null,
           "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
-          "title": "Eps Override"
+          "title": "Eps Override",
+          "x-term": "override"
         },
         "method_id": {
           "const": "graham_number",
@@ -267,13 +286,15 @@
           ],
           "default": null,
           "description": "Share price to use instead of the current quote; leave empty to use the quote.",
-          "title": "Quote Override"
+          "title": "Quote Override",
+          "x-term": "override"
         },
         "use_cache": {
           "default": true,
           "description": "Whether the analysis may read and write the local cache of fetched data.",
           "title": "Use Cache",
-          "type": "boolean"
+          "type": "boolean",
+          "x-term": "cache"
         }
       },
       "title": "GrahamNumberSelection",
@@ -312,7 +333,8 @@
           ],
           "default": null,
           "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-          "title": "As Of"
+          "title": "As Of",
+          "x-term": "as-of-date"
         },
         "config_schema_version": {
           "const": 2,
@@ -324,7 +346,8 @@
           "description": "Number of trading days in the long moving average; it must be larger than the short one.",
           "exclusiveMinimum": 0,
           "title": "Long Window",
-          "type": "integer"
+          "type": "integer",
+          "x-term": "sma-windows"
         },
         "method_id": {
           "const": "sma_crossover",
@@ -336,19 +359,22 @@
           "description": "Number of trading days the relative strength index looks back over.",
           "exclusiveMinimum": 0,
           "title": "Rsi Period",
-          "type": "integer"
+          "type": "integer",
+          "x-term": "rsi"
         },
         "short_window": {
           "description": "Number of trading days in the short moving average.",
           "exclusiveMinimum": 0,
           "title": "Short Window",
-          "type": "integer"
+          "type": "integer",
+          "x-term": "sma-windows"
         },
         "use_cache": {
           "default": true,
           "description": "Whether the analysis may read and write the local cache of fetched data.",
           "title": "Use Cache",
-          "type": "boolean"
+          "type": "boolean",
+          "x-term": "cache"
         }
       },
       "required": [
@@ -381,7 +407,8 @@
           ],
           "default": null,
           "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-          "title": "As Of"
+          "title": "As Of",
+          "x-term": "as-of-date"
         },
         "config_schema_version": {
           "const": 1,
@@ -399,7 +426,8 @@
           "default": true,
           "description": "Whether the analysis may read and write the local cache of fetched data.",
           "title": "Use Cache",
-          "type": "boolean"
+          "type": "boolean",
+          "x-term": "cache"
         }
       },
       "title": "PiotroskiSelection",

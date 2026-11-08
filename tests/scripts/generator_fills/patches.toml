@@ -136,3 +136,25 @@ old = "evaluate Run the versioned Golden Suite"
 new = '''ci-probe Run the CI Probe analysis.
 evaluate Run the versioned Golden Suite'''
 count = 1
+
+# The glossary terms of the throwaway strategy: its headline cell names an existing entry, and its own entry is added
+# to the user glossary in front of the command-line section, as a contributor writes it by hand.
+[[patch]]
+path = "investment_analysis_engine/strategies/ci_probe/vocabulary.py"
+old = "HEADLINE_TERMS: Final[Mapping[str, str]] = MappingProxyType({})"
+new = 'HEADLINE_TERMS: Final[Mapping[str, str]] = MappingProxyType({"probe": "headline"})'
+count = 1
+
+[[patch]]
+path = "docs/user/GLOSSARY.md"
+old = """---
+
+## Command-line terms"""
+new = """<a id="ci-probe-strategy"></a>
+### CI Probe Strategy
+A throwaway strategy that scales a number, used only to prove the contributor path.
+
+---
+
+## Command-line terms"""
+count = 1

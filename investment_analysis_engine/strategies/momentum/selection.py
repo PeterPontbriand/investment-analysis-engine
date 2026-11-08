@@ -34,14 +34,23 @@ class MomentumSelection(FrozenSelection):
     analysis_id: AnalysisId = ANALYSIS_ID
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
-    short_window: int = Field(gt=0, strict=True, description="Number of trading days in the short moving average.")
+    short_window: int = Field(
+        gt=0,
+        strict=True,
+        description="Number of trading days in the short moving average.",
+        json_schema_extra={"x-term": "sma-windows"},
+    )
     long_window: int = Field(
         gt=0,
         strict=True,
         description="Number of trading days in the long moving average; it must be larger than the short one.",
+        json_schema_extra={"x-term": "sma-windows"},
     )
     rsi_period: int = Field(
-        gt=0, strict=True, description="Number of trading days the relative strength index looks back over."
+        gt=0,
+        strict=True,
+        description="Number of trading days the relative strength index looks back over.",
+        json_schema_extra={"x-term": "rsi"},
     )
     as_of: AwareDatetime | None = Field(
         default=None,
@@ -49,11 +58,13 @@ class MomentumSelection(FrozenSelection):
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
             "which needs a timezone offset; leave empty for the latest data."
         ),
+        json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",
+        json_schema_extra={"x-term": "cache"},
     )
 
     @model_validator(mode="before")

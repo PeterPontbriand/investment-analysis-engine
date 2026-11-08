@@ -11,6 +11,7 @@ from investment_analysis_engine.strategies.momentum.presenter import (
     trend_word,
 )
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.vocabulary import HEADLINE_TERMS
 
 
 def _presentation(inputs: ReplayInputs, evidence: MomentumRun, selection: MomentumSelection) -> MomentumPresentation:
@@ -85,11 +86,35 @@ def headline_momentum(run: MomentumRun) -> Headline:
     """
     metrics = run.metrics
     trend = HeadlineCell(
-        "trend", "Trend", CellKind.TEXT, None if metrics is None else trend_word(metrics.status), None, None
+        "trend",
+        "Trend",
+        HEADLINE_TERMS["trend"],
+        CellKind.TEXT,
+        None if metrics is None else trend_word(metrics.status),
+        None,
+        None,
     )
     if metrics is None:
-        rsi = HeadlineCell("rsi", "RSI", CellKind.NUMBER, None, UNIT_POINTS, run.execution_status, run.reason_code)
+        rsi = HeadlineCell(
+            "rsi",
+            "RSI",
+            HEADLINE_TERMS["rsi"],
+            CellKind.NUMBER,
+            None,
+            UNIT_POINTS,
+            run.execution_status,
+            run.reason_code,
+        )
     else:
         metric = metrics.rsi_14
-        rsi = HeadlineCell("rsi", "RSI", CellKind.NUMBER, metric.value, UNIT_POINTS, metric.status, metric.reason_code)
+        rsi = HeadlineCell(
+            "rsi",
+            "RSI",
+            HEADLINE_TERMS["rsi"],
+            CellKind.NUMBER,
+            metric.value,
+            UNIT_POINTS,
+            metric.status,
+            metric.reason_code,
+        )
     return Headline(cells=(trend, rsi))

@@ -18,6 +18,7 @@ from investment_analysis_engine.strategies.graham_growth.presenter import (
 )
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
+from investment_analysis_engine.strategies.graham_growth.vocabulary import HEADLINE_TERMS
 
 
 def _presentation(
@@ -73,11 +74,13 @@ def headline_graham_growth(analysis: GrahamGrowthAnalysis) -> Headline:
             price_cell(
                 key="intrinsic_value",
                 label="Value",
+                term=HEADLINE_TERMS["intrinsic_value"],
                 value=analysis.result.growth_value,
                 status=analysis.native_status,
                 currency=common_currency(assembly.eps),
             ),
             margin_cell(
+                term=HEADLINE_TERMS["margin_of_safety"],
                 comparison=analysis.price_comparison,
                 percent=analysis.margin_of_safety_percent,
                 native_status=analysis.native_status,

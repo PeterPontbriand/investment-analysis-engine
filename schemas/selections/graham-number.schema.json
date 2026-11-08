@@ -18,7 +18,8 @@
       ],
       "default": null,
       "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-      "title": "As Of"
+      "title": "As Of",
+      "x-term": "as-of-date"
     },
     "bvps_override": {
       "anyOf": [
@@ -31,7 +32,8 @@
       ],
       "default": null,
       "description": "Book value per share to use instead of the reported figure; leave empty to use it.",
-      "title": "Bvps Override"
+      "title": "Bvps Override",
+      "x-term": "override"
     },
     "eps_override": {
       "anyOf": [
@@ -44,7 +46,8 @@
       ],
       "default": null,
       "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
-      "title": "Eps Override"
+      "title": "Eps Override",
+      "x-term": "override"
     },
     "quote_override": {
       "anyOf": [
@@ -57,13 +60,15 @@
       ],
       "default": null,
       "description": "Share price to use instead of the current quote; leave empty to use the quote.",
-      "title": "Quote Override"
+      "title": "Quote Override",
+      "x-term": "override"
     },
     "use_cache": {
       "default": true,
       "description": "Whether the analysis may read and write the local cache of fetched data.",
       "title": "Use Cache",
-      "type": "boolean"
+      "type": "boolean",
+      "x-term": "cache"
     }
   },
   "title": "GrahamNumberSelection",

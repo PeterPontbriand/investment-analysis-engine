@@ -286,6 +286,16 @@ check = "site_guide"
 fails = "no guide for alias X"
 
 [[site]]
+id = "glossary-terms"
+title = "Glossary terms: the strategy's own entry, and the terms of its headline cells, selection fields and code sets"
+why = "A client explains every label, status and code the API returns through the glossary, so the strategy names the term of its own entry (the descriptor's term), of each headline cell (headline_terms), of each selection field (an x-term in its Field) and of each value of each code set it defines (code_terms, with the tables beside the enumerations in vocabulary.py), and each term is an entry the help bundle serves. A new entry goes in the strategy's section of docs/user/GLOSSARY.md, and the help bundle is regenerated (uv run python -m scripts.generate_help)."
+kind = "reviewed"
+path = "docs/user/GLOSSARY.md"
+generated = false
+check = "site_glossary_terms"
+fails = "the descriptor's term, a headline_terms or code_terms term or a selection field's x-term is missing, or names an entry that is not in the glossary's served sections, or a headline cell carries a term other than its headline_terms entry"
+
+[[site]]
 id = "schema"
 title = "Published schema (run uv run python -m scripts.generate_schemas)"
 why = "Every strategy document has a checked-in schema."

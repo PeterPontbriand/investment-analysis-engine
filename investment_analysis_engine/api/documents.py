@@ -46,6 +46,7 @@ class StrategyItem(BaseModel):
     analysis: str = Field(description="The analysis identifier, as a strategy document's analysis key names it.")
     method: str = Field(description="The method identifier, as a strategy document's method key and a run's method_id.")
     label: str = Field(description="The name a person sees.")
+    term: str = Field(description="The id of the glossary term that explains the strategy.")
 
 
 class StrategiesDocument(BaseModel):
@@ -53,7 +54,7 @@ class StrategiesDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     items: tuple[StrategyItem, ...]
 
 
@@ -104,7 +105,8 @@ def build_strategies_document() -> StrategiesDocument:
     """Build the strategies document from the declared strategies."""
     return StrategiesDocument(
         items=tuple(
-            StrategyItem(analysis=item.analysis_id, method=item.method_id, label=item.label) for item in STRATEGIES
+            StrategyItem(analysis=item.analysis_id, method=item.method_id, label=item.label, term=item.term)
+            for item in STRATEGIES
         )
     )
 

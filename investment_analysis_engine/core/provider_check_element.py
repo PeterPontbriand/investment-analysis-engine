@@ -9,8 +9,10 @@ that produces the verdicts lives in ``investment_analysis_engine.data``, which t
 values are declared here and a test pins them equal to the probe's.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from enum import StrEnum
+from types import MappingProxyType
+from typing import Final
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -65,7 +67,21 @@ def require_check_matches_failure(
         raise ValueError("provider_check must name exactly the providers provider_failure names.")
 
 
+PROVIDER_CHECK_VERDICT_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        ProviderCheckVerdict.HEALTHY.value: "provider-healthy",
+        ProviderCheckVerdict.UNREACHABLE.value: "provider-unreachable",
+        ProviderCheckVerdict.RATE_LIMITED.value: "provider-rate-limited",
+        ProviderCheckVerdict.UNEXPECTED_RESPONSE.value: "provider-unexpected-response",
+        ProviderCheckVerdict.NO_DATA.value: "provider-no-data",
+        ProviderCheckVerdict.NOT_CHECKED.value: "provider-not-checked",
+    }
+)
+"""The glossary term that explains each verdict; a failure kind the verdict shares maps to the same term."""
+
+
 __all__ = [
+    "PROVIDER_CHECK_VERDICT_TERMS",
     "ProviderCheckItem",
     "ProviderCheckVerdict",
     "require_check_matches_failure",

@@ -29,11 +29,13 @@ class ${Class}Selection(FrozenSelection):
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
             "which needs a timezone offset; leave empty for the latest data."
         ),
+        json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",
+        json_schema_extra={"x-term": "cache"},
     )
 
     def to_analysis_context(

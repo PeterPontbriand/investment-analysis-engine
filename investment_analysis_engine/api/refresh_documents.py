@@ -8,7 +8,9 @@ result as the refresh summary lists it and, unless the job raised, the job's ana
 ``runs show --json`` writes a stored run, because the refresh's one provider check is reported in ``summary``.
 """
 
-from typing import Literal
+from collections.abc import Mapping
+from types import MappingProxyType
+from typing import Final, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -23,6 +25,14 @@ from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.workspace.refresh import RefreshJobFinished, RefreshJobStarted, RefreshProgress
 from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 
+type RefreshEventKind = Literal["started", "finished"]
+"""Whether a refresh job's event records a job starting or finishing."""
+
+REFRESH_EVENT_KIND_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {"started": "refresh-event", "finished": "refresh-event"}
+)
+"""The glossary term that explains each kind of refresh event; one entry explains both."""
+
 
 class RefreshEventDocument(BaseModel):
     """One event of a refresh job: a job of the refresh started, or finished.
@@ -36,7 +46,7 @@ class RefreshEventDocument(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     sequence: int = Field(ge=1)
-    kind: Literal["started", "finished"]
+    kind: RefreshEventKind
     position: int = Field(ge=0)
     ticker: str
     method_id: str
@@ -173,6 +183,8 @@ def build_job_document(
 
 
 __all__ = [
+    "REFRESH_EVENT_KIND_TERMS",
+    "RefreshEventKind",
     "RefreshEventDocument",
     "RefreshJobDocument",
     "RefreshTotalsDocument",

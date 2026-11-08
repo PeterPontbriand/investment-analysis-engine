@@ -30,7 +30,7 @@ def project_${module}_document(
 def headline_$module(result: ${Class}Result) -> Headline:
     """Return the $label cells of the side-by-side refresh table.
 
-    Each cell has its key, label, unit and status.
+    Each cell has its key, label, the glossary term of its label (from ``HEADLINE_TERMS``), unit and status.
     """
     del result
     unfilled_stub("replay")

@@ -32,14 +32,14 @@ NO_CURRENCY = "currency unspecified per share"
 
 
 def _number(**changes: object) -> HeadlineCell:
-    base = HeadlineCell("k", "K", CellKind.NUMBER, 1.0, UNIT_PERCENT, MetricStatus.OK)
+    base = HeadlineCell("k", "K", "term-k", CellKind.NUMBER, 1.0, UNIT_PERCENT, MetricStatus.OK)
     return replace(base, **changes)  # type: ignore[arg-type]
 
 
 def test_a_valid_number_and_text_cell_construct() -> None:
     assert _number().value == 1.0
-    assert HeadlineCell("t", "T", CellKind.TEXT, "Bullish", None, None).value == "Bullish"
-    assert HeadlineCell("t", "T", CellKind.TEXT, None, None, None).value is None
+    assert HeadlineCell("t", "T", "term-t", CellKind.TEXT, "Bullish", None, None).value == "Bullish"
+    assert HeadlineCell("t", "T", "term-t", CellKind.TEXT, None, None, None).value is None
     absent = _number(value=None, status=CalculationStatus.INPUT_UNAVAILABLE, reason_code=ReasonCode.MISSING_FACT)
     assert absent.value is None
 
@@ -58,6 +58,7 @@ def test_a_valid_number_and_text_cell_construct() -> None:
         {"status": MetricStatus.UNAVAILABLE},
         {"reason_code": ReasonCode.MISSING_FACT},
         {"key": " "},
+        {"term": " "},
         {"label": ""},
     ],
 )
@@ -77,7 +78,7 @@ def test_an_invalid_number_cell_is_rejected(changes: dict[str, object]) -> None:
     ],
 )
 def test_an_invalid_text_cell_is_rejected(changes: dict[str, object]) -> None:
-    base = HeadlineCell("t", "T", CellKind.TEXT, "PASS", None, None)
+    base = HeadlineCell("t", "T", "term-t", CellKind.TEXT, "PASS", None, None)
     with pytest.raises(ValueError, match=r"."):
         replace(base, **changes)  # type: ignore[arg-type]
 

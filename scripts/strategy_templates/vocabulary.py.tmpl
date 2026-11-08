@@ -5,6 +5,8 @@ It holds the identifiers and the stored-configuration version.
 Like every strategy's vocabulary, this is a leaf: it imports nothing from its package.
 """
 
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Final, Literal
 
 AnalysisId = Literal["$module"]
@@ -15,3 +17,9 @@ METHOD_ID: Final[MethodId] = "$module"
 
 ConfigSchemaVersion = Literal[1]
 CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 1
+
+HEADLINE_TERMS: Final[Mapping[str, str]] = MappingProxyType({})
+"""The glossary term that explains the label of each headline cell, by the cell's key; one entry per cell."""
+
+CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType({})
+"""The glossary term of each value of each code set this strategy defines, by the OpenAPI component name."""

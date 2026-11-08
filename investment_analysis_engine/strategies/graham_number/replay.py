@@ -18,6 +18,7 @@ from investment_analysis_engine.strategies.graham_number.presenter import (
 )
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
+from investment_analysis_engine.strategies.graham_number.vocabulary import HEADLINE_TERMS
 
 
 def _presentation(
@@ -69,11 +70,13 @@ def headline_graham_number(analysis: GrahamNumberAnalysis) -> Headline:
             price_cell(
                 key="maximum_indicated_price",
                 label="Max price",
+                term=HEADLINE_TERMS["maximum_indicated_price"],
                 value=analysis.result.maximum_indicated_price,
                 status=analysis.native_status,
                 currency=common_currency(assembly.eps, assembly.bvps),
             ),
             margin_cell(
+                term=HEADLINE_TERMS["margin_of_safety"],
                 comparison=analysis.price_comparison,
                 percent=analysis.margin_of_safety_percent,
                 native_status=analysis.native_status,

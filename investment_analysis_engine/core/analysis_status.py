@@ -1,6 +1,9 @@
 """Shared status contract for deterministic analysis and input resolution."""
 
+from collections.abc import Mapping
 from enum import StrEnum
+from types import MappingProxyType
+from typing import Final
 
 
 class CalculationStatus(StrEnum):
@@ -27,3 +30,15 @@ class CalculationStatus(StrEnum):
     INVALID_INPUT = "invalid_input"
     INPUT_UNAVAILABLE = "input_unavailable"
     PROVIDER_ERROR = "provider_error"
+
+
+CALCULATION_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        CalculationStatus.OK.value: "status-ok",
+        CalculationStatus.NOT_APPLICABLE.value: "not-applicable",
+        CalculationStatus.INVALID_INPUT.value: "status-invalid-input",
+        CalculationStatus.INPUT_UNAVAILABLE.value: "status-input-unavailable",
+        CalculationStatus.PROVIDER_ERROR.value: "status-provider-error",
+    }
+)
+"""The glossary term that explains each calculation status."""
