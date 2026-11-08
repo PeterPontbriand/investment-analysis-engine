@@ -1332,7 +1332,7 @@
     },
     "failure-not-found": {
       "body": "Check the identifier. A refresh job exists only while the server that started it runs.",
-      "definition": "The watchlist, entry, saved run, refresh job or address that was asked for does not exist.",
+      "definition": "The watchlist, entry, saved run, refresh job, help term, help document or address that was asked for does not exist.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Not Found"
     },

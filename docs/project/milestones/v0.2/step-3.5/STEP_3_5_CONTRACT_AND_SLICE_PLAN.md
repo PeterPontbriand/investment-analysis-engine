@@ -75,7 +75,7 @@ next begins.
 | 3.5.3e1c | [Generated execution, command, refresh and tool bodies](STEP_3_5_3_SLICE_PLAN.md#353e1c--generated-execution-command-refresh-and-tool-bodies) | Complete | 2026-11-01 |
 | Issue 207 | [Align how the existing strategies order their checks and provider requests](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) | Complete | 2026-11-01 |
 | Issue 210 | [Strategy development: four generator and provider shortfalls (3.5.3)](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210) | Complete | 2026-11-01 |
-| 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Planned | |
+| 3.5.5 | [Valuation multiples, Interest Coverage and ROIC](#355--valuation-multiples-interest-coverage-and-roic) | Next | |
 | 3.5.4 | [Altman Z-Score and accrual ratio](#354--altman-z-score-and-accrual-ratio) | Planned | |
 | 3.5.6 | [Shareholder Yield](#356--shareholder-yield) | Planned | |
 | 3.5.7 | [Golden suite and cross-cutting docs](#357--golden-suite-and-cross-cutting-docs) | Planned | |

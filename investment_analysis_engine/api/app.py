@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
-from investment_analysis_engine.api.checks import RequestChecks
+from investment_analysis_engine.api.checks import ORIGIN_STATE_KEY, RequestChecks, add_cors_headers
 from investment_analysis_engine.api.handlers import (
     Endpoint,
     RefreshJobsOfServer,
@@ -17,6 +17,7 @@ from investment_analysis_engine.api.handlers import (
     error_response,
     operations,
 )
+from investment_analysis_engine.api.locale_negotiation import LocaleNegotiation, add_locale_headers, locale_of
 from investment_analysis_engine.api.refresh_documents import event_recorder
 from investment_analysis_engine.api.responses import failure_of
 from investment_analysis_engine.api.routes import ROUTES, RouteSpec
@@ -35,9 +36,18 @@ def _not_found(_request: Request, exception: Exception) -> Response:
     return failure_of(FailureReasonCode.ENDPOINT_NOT_FOUND, ENDPOINT_NOT_FOUND_MESSAGE, status=status, headers=headers)
 
 
-def _unexpected(_request: Request, exception: Exception) -> Response:
-    """Answer an exception raised outside an endpoint handler with the fixed-message ``execution_error``."""
-    return error_response(exception)
+def _unexpected(request: Request, exception: Exception) -> Response:
+    """Answer an exception raised outside an endpoint handler with the fixed-message ``execution_error``.
+
+    The server-error layer sends this answer outside both middleware, so it adds what they would have: the CORS headers
+    when the checks had accepted an origin, and the locale the negotiation had chosen, in the order every response has.
+    """
+    response = error_response(exception)
+    origin = request.scope.get("state", {}).get(ORIGIN_STATE_KEY)
+    if isinstance(origin, str):
+        add_cors_headers(response.headers, origin)
+    add_locale_headers(response.headers, locale_of(request))
+    return response
 
 
 def _route(route: RouteSpec, endpoint: Endpoint) -> Route:
@@ -67,6 +77,7 @@ def create_app(
     app = Starlette(
         routes=[_route(route, endpoint_for(route, handlers[route.operation_id], context)) for route in ROUTES],
         middleware=[
+            Middleware(LocaleNegotiation),
             Middleware(RequestChecks, token=token, port=port, allowed_origins=tuple(allowed_origins)),
         ],
         exception_handlers={HTTPException: _not_found, Exception: _unexpected},

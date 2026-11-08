@@ -21,15 +21,17 @@ when one is missing. The second serves the help content over HTTP and chooses th
   - the managed quality gate, with the Python 3.14 second pass, after each slice, and the project owner's approval before
     the next slice starts.
 - **Where the history lives:** decisions T1 to T15 are in [Appendix A](#appendix-a-decision-records), approved by the
-  project owner on 2026-11-07, and T16 to T19 and T20 to T24 are the two rounds of review fixes of API.6a, approved on 2026-11-07 and 2026-11-08. API.6a implements T1 to T10 and the parts of T15 its changes touch; API.6b implements T11
-  to T14 and the rest of T15.
+  project owner on 2026-11-07, T16 to T19 and T20 to T24 are the two rounds of review fixes of API.6a, approved on
+  2026-11-07 and 2026-11-08, and T25 to T36 are the implementation decisions of API.6b, approved on 2026-11-08, and T37 to T42 are the
+  review fixes of API.6b, approved on 2026-11-08. API.6a implements T1 to T10 and the parts of T15 its changes touch;
+  API.6b implements T11 to T14, the rest of T15 and T25 to T42.
 
 ## 2. Sequence and status
 
 | Slice | Scope | Status | Completed |
 | :--- | :--- | :--- | :--- |
 | API.6a | [Term references](#api6a--term-references) | Complete | 2026-11-07 |
-| API.6b | [Help endpoints and locales](#api6b--help-endpoints-and-locales) | Next | |
+| API.6b | [Help endpoints and locales](#api6b--help-endpoints-and-locales) | Complete | 2026-11-08 |
 
 ## 3. The slices
 
@@ -69,7 +71,8 @@ when one is missing. The second serves the help content over HTTP and chooses th
   `InfoDocument.locales`; `LOCALES`, `help_bundle.en.json` and `load_help_bundle(locale)`; `Accept-Language` negotiation
   and the `Content-Language` and `Vary` headers; `docs/user/API.md`; Architecture §13; `openapi.json`.
 - **Branch:** `feat/api-help`.
-- **Detail:** ⚠ no slice plan yet
+- **Detail:** [Implementation record](#33-api6b-implementation-record) and decisions
+  [T25](#t25-branch-2026-11-08) to [T36](#t36-docs-and-records-2026-11-08).
 
 ### 3.1 API.6a implementation record
 
@@ -366,6 +369,63 @@ description names them both as a document component and inside the selection sch
 | `TrendStatus` | `BEARISH` | `trend-bearish` |
 | `TrendStatus` | `UNKNOWN` | `trend-unknown` |
 
+### 3.3 API.6b implementation record
+
+What changed, by area:
+
+- **Locales ([T32](#t32-locales-and-loader-2026-11-08)):** `help/locales.py` declares `Locale`, `LOCALES` (English) and
+  `DEFAULT_LOCALE`. `load_help_bundle(locale)` is cached per tag and raises a `ValueError` naming an undeclared tag.
+- **Bundle file ([T33](#t33-bundle-file-and-packaging-2026-11-08)):** the bundle is `help_bundle.en.json`, named from
+  `DEFAULT_LOCALE` by the generator, and the package-data entry is `help/help_bundle.*.json`. The installed-package check
+  compares the bundle file of every declared locale. A test requires one bundle file for each declared locale.
+- **Documents ([T26](#t26-document-shapes-2026-11-08), [T27](#t27-no-locale-in-the-body-2026-11-08)):**
+  `api/help_documents.py` holds the four documents, their item models and their builders. No document carries a locale.
+  `InfoDocument` gains `locales` (`LocaleItem`) and is at `schema_version` 2.
+- **References ([T28](#t28-references-content-2026-11-08)):** `code_terms_by_component` in `api/term_references.py` merges
+  the shared registry with each descriptor's `code_terms`, sorted by component name, and raises on a duplicate. The handler
+  builds the document once, when the operations are assembled at application creation.
+- **Routes and codes ([T29](#t29-ids-and-404s-2026-11-08)):** four routes after the existing read routes. The new codes
+  `help_term_not_found` and `help_document_not_found` are in `FailureReasonCode`, `STATUS_BY_CODE` (404) and
+  `FAILURE_REASON_CODE_TERMS` (`failure-not-found`); the `failure-not-found` glossary entry names help terms and help
+  documents. The failure schema, the strategy and report schemas that embed the code enumeration, and `openapi.json` are
+  regenerated; only the enumeration gains the two values.
+- **Negotiation ([T30](#t30-where-negotiation-runs-2026-11-08), [T31](#t31-parsing-2026-11-08)):**
+  `api/locale_negotiation.py` holds the pure `negotiate_locale` and the outermost `LocaleNegotiation` middleware. The help
+  handlers read the tag from `RequestParameters.locale`, which the request handling fills from the request. The preflight
+  allows `Accept-Language`.
+- **Docs ([T36](#t36-docs-and-records-2026-11-08)):** `docs/user/API.md`, Architecture §13 (the `api` row imports `help`),
+  this plan, the contract and the milestone plan's sequence tables.
+
+Judgment calls, each a place where the decisions left a choice:
+
+- **Unexpected failures.** Starlette sends the answer to an exception raised outside an endpoint from a layer outside every
+  user middleware. That handler reads the locale the negotiation stored and the origin the checks accepted, both kept in
+  the request state, so the 500 carries the same headers as every other response
+  ([T40](#t40-a-500-from-outside-an-endpoint-carries-the-stored-locale-and-the-cors-headers-2026-11-08)). A 500 raised
+  before the origin check has run claims no origin.
+- **Pinned classification table.** `tests/_failure_code_table.py` gains a row for each of the two new exception types,
+  because the failure-envelope tests require every exception that declares a code to be pinned.
+- **Error classes.** The two not-found errors are `ValueError` subclasses that declare their code, as the application's
+  not-found errors do, so the existing error path produces the envelope.
+- **Where the references are built.** `build_help_references_document` is in `api/help_documents.py`, which the
+  import-layering test lists among the modules that may import the composition root
+  ([T39](#t39-the-references-builder-lives-with-the-help-documents-2026-11-08)). `code_terms_by_component` takes the
+  descriptors as an argument, so the registry does not import the root.
+- **Locale tags.** A tag is declared in conventional BCP 47 case and matched case-insensitively; the negotiated tag is the
+  declared form ([T41](#t41-locale-tags-are-declared-in-conventional-bcp-47-case-2026-11-08)). A future bundle file name
+  uses the declared form, as `help_bundle.en.json` does.
+- **Item names.** The item models follow [T26](#t26-document-shapes-2026-11-08); the shared base only freezes the models
+  and forbids extra fields.
+- **Existing tests changed.** Only for the decided changes: the information document's version and field, the added `Vary`
+  and preflight header values, the status table of failure codes, the pinned classification rows, and the bundle file name
+  and loader argument.
+
+Noticed for later slices:
+
+- A second locale needs the producers of labels, rendered text and messages to take the locale first
+  ([A.5](API_CONTRACT_AND_SLICE_PLAN.md#a5-locale-choice-2026-11-07)); until then `Content-Language` is true only because
+  there is one locale.
+
 ## 4. Scope limits and acceptance criteria
 
 - API.6a changes no stored shape, formula, classification, dependency or command-line text. The only change to
@@ -393,7 +453,8 @@ half; the conformance half touches every strategy, every code set and the genera
 ## Appendix A: Decision records
 
 T1 to T15 were approved by the project owner on 2026-11-07 and are recorded here as given. T16 to T19 are the review fixes
-of API.6a, approved the same day, and T20 to T24 are the second round, approved on 2026-11-08.
+of API.6a, approved the same day, and T20 to T24 are the second round, approved on 2026-11-08. T25 to T36 are the
+implementation decisions of API.6b, approved on 2026-11-08.
 
 ### T1 API.6 is split in two (2026-11-07)
 
@@ -569,3 +630,185 @@ of API.6a, approved the same day, and T20 to T24 are the second round, approved 
 
 - The review relied on the pushed branch at commit 07f90ab, and the FCF Growth definitions were checked against
   `calculators.py`. These fixes are a follow-up commit on the same branch.
+
+### T25 Branch (2026-11-08)
+
+- API.6b is implemented on `feat/api-help`, branched from `main` after API.6a merged.
+
+### T26 Document shapes (2026-11-08)
+
+- Four new API documents, each with `schema_version: Literal[1]`, frozen, `extra="forbid"`, and a `Field(description=...)`
+  on every field.
+  - `GET /v1/help` returns `HelpIndexDocument`.
+    - `groups` is a list of `{id, title, terms}`, in bundle order; `terms` is a list of `{id, name, definition}`, in
+      group order.
+    - `documents` is a list of `{id, title}`, in bundle order.
+  - `GET /v1/help/terms/{term_id}` returns `HelpTermDocument`.
+    - Fields: `id`, `name`, `definition`, `body` (an empty string when the entry has no body) and `group`.
+    - `group` is `{id, title}`.
+  - `GET /v1/help/documents/{document_id}` returns `HelpDocumentDocument`.
+    - Fields: `id`, `title`, `introduction` and `sections`.
+    - `sections` is a list of `{id, heading, level, markdown}`, in file order.
+  - `GET /v1/help/references` returns `HelpReferencesDocument`.
+    - One field: `code_sets`, a map from OpenAPI component name to a map from value to term id.
+- Markdown is served as written; `help:` links are not rewritten.
+- The item models are named `HelpGroupItem`, `HelpTermItem`, `HelpDocumentItem`, `HelpSectionItem` and
+  `HelpGroupReference`. The name `HelpDocumentDocument` is accepted as it stands.
+
+### T27 No locale in the body (2026-11-08)
+
+- No document carries a locale field. The locale is stated only in `Content-Language`.
+
+### T28 References content (2026-11-08)
+
+- `code_sets` is the shared registry `SHARED_CODE_TERMS` merged with every declared strategy's `code_terms`.
+- Keys are sorted by component name; within a set, values are in the order its table declares them.
+- The document is built once, when the app is created. A duplicate component name raises and fails startup.
+- Tests:
+  - the keys equal exactly the enumerated components that [T2](#t2-what-must-name-a-term-2026-11-07)'s walk finds, minus
+    the exemptions;
+  - a duplicate key raises, shown by a constructed case.
+- Labels are not included; they carry their inline `term` ([T5](#t5-how-the-tables-are-served-2026-11-07)).
+
+### T29 Ids and 404s (2026-11-08)
+
+- `term_id` and `document_id` are plain string path parameters, with no enum and no pattern.
+- Any id the bundle lacks answers 404 with a new failure code:
+
+  | Code | Message |
+  | :--- | :--- |
+  | `help_term_not_found` | "No help term has this ID." |
+  | `help_document_not_found` | "No help document has this ID." |
+
+- Both codes are added to `FailureReasonCode`, to `STATUS_BY_CODE` as 404, and to `FAILURE_REASON_CODE_TERMS` as
+  `failure-not-found`.
+- In `docs/user/GLOSSARY.md`, the `failure-not-found` short definition's list gains "help term or help document". It
+  still follows the entry rules: at most 200 characters and two sentences.
+- The bundle is regenerated.
+- Single-item routes declare `lookup=True`. All four help routes declare `database=False`.
+
+### T30 Where negotiation runs (2026-11-08)
+
+- One new ASGI middleware, outermost, outside `RequestChecks`:
+  - it negotiates the locale once per request from `Accept-Language`;
+  - it stores the chosen tag where the help handlers read it;
+  - on the response start, it sets `Content-Language` to the chosen tag and appends `Accept-Language` to `Vary`.
+    Appending keeps the `Vary: Origin` that the CORS wrapper adds.
+- Every response the server sends gets the headers, including Host, Origin and token rejections, the unrouted 404 and 405,
+  and the preflight 204.
+- The help handlers call `load_help_bundle(locale)` with the negotiated tag. Help reading is not an application
+  operation; `api` imports `help` directly.
+- `ApplicationContext` gains no locale. Every other endpoint is unchanged, and its English text is correct under
+  [A.5](API_CONTRACT_AND_SLICE_PLAN.md#a5-locale-choice-2026-11-07)'s precondition.
+- `PREFLIGHT_ALLOWED_HEADERS` gains `Accept-Language`.
+
+### T31 Parsing (2026-11-08)
+
+- `api` parses `Accept-Language` itself, with no dependency.
+  - Tags match case-insensitively.
+  - q-values are honoured, and `q=0` excludes a tag.
+  - A malformed item (a bad tag, or a q outside 0 to 1 or not a number) is skipped. A header with no valid item, an
+    absent header, and `*` with q > 0 all choose the default locale.
+  - Equal q-values keep header order.
+  - Matching truncates one subtag at a time (`en-Latn-CA` to `en-Latn` to `en`) against the declared tags.
+  - The parser never answers 406 and never raises.
+- Each rule has a unit test. The parser is a pure function, so the tests need no app.
+
+### T32 Locales and loader (2026-11-08)
+
+- New module `investment_analysis_engine/help/locales.py` holds a frozen `Locale(tag, name)`,
+  `LOCALES = (Locale("en", "English"),)` and `DEFAULT_LOCALE = "en"`.
+- Tests: `DEFAULT_LOCALE` is in `LOCALES`, tags are unique, and every tag is in canonical lowercase form.
+- `load_help_bundle(locale: str)` stays cached per tag and raises `ValueError` naming the tag when the tag is not
+  declared.
+- Every caller is updated, including `scripts/check_installed_package.py` and the tests.
+- Amended by [T41](#t41-locale-tags-are-declared-in-conventional-bcp-47-case-2026-11-08): tags are declared in
+  conventional BCP 47 case, not lowercase, and tags are unique ignoring case.
+
+### T33 Bundle file and packaging (2026-11-08)
+
+- The bundle becomes `investment_analysis_engine/help/help_bundle.en.json`. The generator builds the name from
+  `DEFAULT_LOCALE` and keeps writing only the default locale's file.
+- Permission granted: in `pyproject.toml`, the package-data entry `help/help_bundle.json` becomes
+  `help/help_bundle.*.json`. No other `pyproject.toml` or `uv.lock` change is permitted.
+- `scripts/check_installed_package.py` compares every declared locale's bundle file.
+- [T13](#t13-api6b-bundle-per-locale-2026-11-07)'s test: the set of `help_bundle.*.json` files in the package equals the
+  set of tags in `LOCALES`.
+- Contract record: in A.5's "Precondition for a new locale" row in `API_CONTRACT_AND_SLICE_PLAN.md`, where a
+  translation's source documents live is decided with the first added locale.
+
+### T34 Caching (2026-11-08)
+
+- Help responses keep `Cache-Control: no-store`, as every response does.
+
+### T35 No CLI (2026-11-08)
+
+- There is no `ian help` command; the help content is served through the API only.
+
+### T36 Docs and records (2026-11-08)
+
+- This plan gains §3.3, the API.6b implementation record, in the style of §3.1: what changed by area, the judgment
+  calls, and anything noticed for later. API.6b's Detail line points at §3.3. The "At a glance" history bullet mentions
+  T25 to T36 and the date, and §4 keeps the API.6b acceptance bullet true.
+- `docs/user/API.md` gains "Help", "References" and "Locales" sections, the two new error codes wherever the error codes
+  are listed, and the new response headers in "Responses".
+- `ARCHITECTURE.md` §13: the `api` row's Imports cell gains `help`, and the row says what `api` owns if that changes.
+  `scripts/check_package_dependencies.py` passes.
+- Sequence tables: API.6b, the last row of the API table, is Complete and dated the day the branch is finished, in this
+  plan and in `API_CONTRACT_AND_SLICE_PLAN.md`; row 15A in `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` is
+  Complete, and the following row becomes Next, with rows moved as the sequence-table rules require. If what follows 15A
+  is unclear, the work stops and asks.
+
+### T37 3.5.5 is Next (2026-11-08)
+
+- In the sequence table of `docs/project/milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md`, 3.5.5 is set to
+  Next. That table says 3.5.5 starts after API.6 merges, and this pull request completes API.6.
+- The table's order stays valid. `IMPLEMENTATION_PLAN.md` is left as it is: row 15 stays In progress and needs no Next row.
+
+### T38 The OpenAPI description states the headers every response carries (2026-11-08)
+
+- `scripts/generate_openapi.py` describes three headers on every response of every operation, beside the `Location` and
+  `WWW-Authenticate` descriptions it already writes. A response with those keeps them.
+
+  | Header | Description |
+  | :--- | :--- |
+  | `Content-Language` | the tag of the locale the engine's text is in |
+  | `Vary` | it names `Accept-Language`, and also `Origin` for an allowed origin |
+  | `Cache-Control` | `no-store` |
+
+- `schemas/openapi.json` is regenerated, and a generator test checks that every response of every operation describes all
+  three headers.
+- In `docs/user/API.md`, `Cache-Control` joins the list of response headers that are part of the contract, and the text
+  says each response carries `no-store`.
+
+### T39 The references builder lives with the help documents (2026-11-08)
+
+- `build_help_references_document` moves from `api/routes.py` into `api/help_documents.py`.
+- `investment_analysis_engine.api.help_documents` is added to `_ROOT_IMPORTERS` in
+  `tests/test_strategy_import_layering.py`, a one-line change to that test.
+- `api/routes.py` keeps only the route table and its helpers, and the importers follow.
+
+### T40 A 500 from outside an endpoint carries the stored locale and the CORS headers (2026-11-08)
+
+- `RequestChecks` stores the origin it accepted in the request state, under a named key constant, as `LocaleNegotiation`
+  stores the locale.
+- The code that sets the CORS headers is one function in `api/checks.py`, `add_cors_headers(headers, origin)`: it sets
+  `Access-Control-Allow-Origin`, appends `Origin` to `Vary` and sets `Access-Control-Expose-Headers`. The wrapped send and
+  the unexpected-failure handler both use it.
+- The handler states the locale with `locale_of(request)`, adds the CORS headers when the state holds an accepted origin,
+  and keeps `Vary` in the order `Origin, Accept-Language`.
+- A test covers a 500 for an allowed `Origin`, one without an origin, and one raised before the origin check.
+
+### T41 Locale tags are declared in conventional BCP 47 case (2026-11-08)
+
+- Tags in `help/locales.py` are declared in conventional BCP 47 case (`en`, `pt-BR`, `zh-Hant`), and the module docstring
+  says so.
+- Matching in `api/locale_negotiation.py` stays case-insensitive, through a map from each tag's lowercase form to the
+  declared tag. The negotiated tag, and so `Content-Language`, is the declared form.
+- Tests check that tags are unique ignoring case, and that a lowercase request such as `pt-br` negotiates the declared
+  `pt-BR`. Bundle file names follow the declared tag, so `help_bundle.en.json` is unchanged.
+- Amends [T32](#t32-locales-and-loader-2026-11-08).
+
+### T42 The review basis (2026-11-08)
+
+- The review relied on the pushed branch at commit 5f416fa. These fixes are a follow-up commit on the same branch.

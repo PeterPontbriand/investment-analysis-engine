@@ -696,7 +696,7 @@ def test_a_preflight_for_each_declared_method_allows_it_with_the_content_type_he
 
     assert response.status_code == 204
     assert method in response.headers["access-control-allow-methods"].split(", ")
-    assert response.headers["access-control-allow-headers"] == "Authorization, Content-Type"
+    assert response.headers["access-control-allow-headers"] == "Authorization, Content-Type, Accept-Language"
 
 
 def test_the_route_table_declares_the_methods_a_preflight_allows() -> None:

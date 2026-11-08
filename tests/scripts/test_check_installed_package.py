@@ -59,11 +59,11 @@ def test_every_settings_file_shipped_in_the_package_matches_a_package_data_patte
 
 
 def test_the_help_bundle_is_listed_in_package_data() -> None:
-    assert f"{PACKAGE_NAME}/help/help_bundle.json" in expected_package_data(REPOSITORY_ROOT)
+    assert f"{PACKAGE_NAME}/help/help_bundle.en.json" in expected_package_data(REPOSITORY_ROOT)
 
 
 def test_an_installed_bundle_is_compared_with_the_repositorys_as_a_whole() -> None:
-    repository_file = REPOSITORY_ROOT / PACKAGE_NAME / "help" / "help_bundle.json"
+    repository_file = REPOSITORY_ROOT / PACKAGE_NAME / "help" / "help_bundle.en.json"
     installed = repository_file.read_text(encoding="utf-8")
 
     assert bundle_difference(installed, repository_file) is None

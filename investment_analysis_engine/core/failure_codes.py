@@ -57,6 +57,8 @@ class FailureReasonCode(StrEnum):
     REFRESH_JOB_NOT_FOUND = "refresh_job_not_found"
     REFRESH_JOB_RUNNING = "refresh_job_running"
     PORT_UNAVAILABLE = "port_unavailable"
+    HELP_TERM_NOT_FOUND = "help_term_not_found"
+    HELP_DOCUMENT_NOT_FOUND = "help_document_not_found"
 
 
 type FailureStatus = Literal["error", "input_unavailable"]
@@ -138,6 +140,8 @@ FAILURE_REASON_CODE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
         FailureReasonCode.REFRESH_JOB_NOT_FOUND.value: "failure-not-found",
         FailureReasonCode.REFRESH_JOB_RUNNING.value: "failure-refresh-running",
         FailureReasonCode.PORT_UNAVAILABLE.value: "failure-port-unavailable",
+        FailureReasonCode.HELP_TERM_NOT_FOUND.value: "failure-not-found",
+        FailureReasonCode.HELP_DOCUMENT_NOT_FOUND.value: "failure-not-found",
     }
 )
 """The glossary term that explains each failure code; codes that differ only in detail share one term."""

@@ -28,6 +28,8 @@ _STATUS = {
     "refresh_job_running": 409,
     "refresh_job_not_found": 404,
     "endpoint_not_found": 404,
+    "help_term_not_found": 404,
+    "help_document_not_found": 404,
     "database_busy": 503,
 }
 _PROVIDER_KIND = {code: kind for kind, code in PROVIDER_CODE_BY_KIND.items()}

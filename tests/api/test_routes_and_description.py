@@ -56,6 +56,23 @@ def test_the_description_is_openapi_3_1_with_every_route_and_response_by_status(
     assert "WWW-Authenticate" in description["paths"]["/v1/info"]["get"]["responses"]["401"]["headers"]
 
 
+def test_every_response_of_every_operation_describes_the_headers_every_response_carries() -> None:
+    description = openapi_description()
+    seen = 0
+    for methods in description["paths"].values():
+        for operation in methods.values():
+            for status, response in operation["responses"].items():
+                headers = response["headers"]
+                assert {"Content-Language", "Vary", "Cache-Control"} <= set(headers), (operation["operationId"], status)
+                assert all(headers[name]["description"].strip() for name in headers)
+                seen += 1
+    assert seen > 0
+    info = description["paths"]["/v1/info"]["get"]["responses"]
+    assert "WWW-Authenticate" in info["401"]["headers"]
+    assert "Location" in description["paths"]["/v1/refreshes"]["post"]["responses"]["202"]["headers"]
+    assert "Location" not in info["200"]["headers"]
+
+
 def test_the_checked_in_description_is_current() -> None:
     assert openapi_gaps() == []
 

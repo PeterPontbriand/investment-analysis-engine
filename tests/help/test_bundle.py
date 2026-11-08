@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from investment_analysis_engine.help.bundle import HelpBundle, HelpTerm, load_help_bundle
+from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 
 
 def bundle_data() -> dict[str, Any]:
@@ -148,9 +149,9 @@ def test_every_model_is_frozen_and_refuses_an_extra_field() -> None:
 
 
 def test_the_loader_returns_a_validated_bundle_and_a_second_call_the_same_object() -> None:
-    first = load_help_bundle()
+    first = load_help_bundle(DEFAULT_LOCALE)
     assert isinstance(first, HelpBundle)
     assert first.terms
     assert first.documents
     assert HelpBundle.model_validate(first.model_dump(mode="json")) == first
-    assert load_help_bundle() is first
+    assert load_help_bundle(DEFAULT_LOCALE) is first

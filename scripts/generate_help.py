@@ -4,7 +4,8 @@ The bundle is built from the served documents that ``scripts/check_help_content.
 user glossary become terms, grouped by the glossary's sections, and the Beginner Guide, Finance Math and each strategy
 guide become documents of sections. Links between served content become ``help:`` links. The bundle is built through
 ``HelpBundle``, so its integrity checks apply before anything is written, and it is written to
-``investment_analysis_engine/help/help_bundle.json`` with sorted keys, two-space indent and a trailing line feed.
+``investment_analysis_engine/help/help_bundle.<default locale>.json`` with sorted keys, two-space indent and a trailing
+line feed. Only the default locale's file is written.
 
 Both writing and ``--check`` first run the served-content check; if it reports any problem, every problem is printed and
 nothing is written or compared.
@@ -34,7 +35,9 @@ from investment_analysis_engine.help.bundle import (
     HelpGroup,
     HelpSection,
     HelpTerm,
+    help_bundle_file_name,
 )
+from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from scripts.check_help_content import (
     CODE_SPAN_RE,
@@ -52,7 +55,7 @@ from scripts.check_help_content import (
 from scripts.generate_strategy_docs import guide_name
 from scripts.repository_root import REPOSITORY_ROOT
 
-HELP_BUNDLE_FILE = REPOSITORY_ROOT / "investment_analysis_engine" / "help" / "help_bundle.json"
+HELP_BUNDLE_FILE = REPOSITORY_ROOT / "investment_analysis_engine" / "help" / help_bundle_file_name(DEFAULT_LOCALE)
 REGENERATE_COMMAND = "uv run python -m scripts.generate_help"
 FIXED_DOCUMENT_IDS = {
     "docs/user/BEGINNER_GUIDE.md": "beginner-guide",
@@ -273,7 +276,7 @@ def help_gaps(path: Path = HELP_BUNDLE_FILE, repo_root: Path = REPOSITORY_ROOT) 
     """Return a message when the bundle file is missing or differs from the regenerated text."""
     if path.is_file() and path.read_bytes() == bundle_text(build_bundle(repo_root)).encode("utf-8"):
         return []
-    return [f"help_bundle.json is missing or out of date; run {REGENERATE_COMMAND}"]
+    return [f"{path.name} is missing or out of date; run {REGENERATE_COMMAND}"]
 
 
 def write_help(path: Path = HELP_BUNDLE_FILE, repo_root: Path = REPOSITORY_ROOT) -> bool:
@@ -301,7 +304,7 @@ def main(argv: Sequence[str] | None = None, *, path: Path = HELP_BUNDLE_FILE, re
             gaps = help_gaps(path, repo_root)
             sys.stderr.write("".join(f"{gap}\n" for gap in gaps))
             return 1 if gaps else 0
-        sys.stdout.write("wrote help_bundle.json\n" if write_help(path, repo_root) else "help_bundle.json is current\n")
+        sys.stdout.write(f"wrote {path.name}\n" if write_help(path, repo_root) else f"{path.name} is current\n")
     except (HelpGenerationError, ValueError) as error:
         sys.stderr.write(f"generate_help: {error}\n")
         return 1

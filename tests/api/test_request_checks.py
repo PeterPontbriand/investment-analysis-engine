@@ -90,7 +90,7 @@ def test_a_request_with_no_origin_header_passes_the_origin_check(isolated_cli_se
         response = client.get("/v1/info", headers=AUTH)
     assert response.status_code == 200
     assert "access-control-allow-origin" not in response.headers
-    assert "vary" not in response.headers
+    assert response.headers["vary"] == "Accept-Language"
 
 
 @pytest.mark.parametrize("origin", ["http://evil.example", "null", "*", f"{ALLOWED}/", f"{ALLOWED}/path", "tauri://"])
@@ -121,7 +121,7 @@ def test_an_allowed_origin_is_echoed_with_vary_and_the_exposed_challenge_header(
         missing = client.get("/v1/nothing-here", headers={**AUTH, "Origin": sent})
     for response in (ok, unauthenticated, missing):
         assert response.headers["access-control-allow-origin"] == sent
-        assert response.headers["vary"] == "Origin"
+        assert response.headers["vary"] == "Origin, Accept-Language"
         assert response.headers["access-control-expose-headers"] == "WWW-Authenticate"
         assert "access-control-allow-credentials" not in response.headers
     assert (ok.status_code, unauthenticated.status_code, missing.status_code) == (200, 401, 404)
@@ -141,9 +141,9 @@ def test_a_preflight_from_an_allowed_origin_is_answered_without_a_token(isolated
     assert response.content == b""
     assert response.headers["access-control-allow-origin"] == ALLOWED
     assert response.headers["access-control-allow-methods"] == "GET, POST, PATCH, DELETE"
-    assert response.headers["access-control-allow-headers"] == "Authorization, Content-Type"
+    assert response.headers["access-control-allow-headers"] == "Authorization, Content-Type, Accept-Language"
     assert response.headers["access-control-max-age"] == "600"
-    assert response.headers["vary"] == "Origin"
+    assert response.headers["vary"] == "Origin, Accept-Language"
     assert "access-control-allow-credentials" not in response.headers
 
 

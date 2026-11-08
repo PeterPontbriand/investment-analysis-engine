@@ -24,6 +24,13 @@ from investment_analysis_engine.api.documents import (
     build_strategies_document,
     installed_engine_version,
 )
+from investment_analysis_engine.api.help_documents import (
+    build_help_document_document,
+    build_help_index_document,
+    build_help_references_document,
+    build_help_term_document,
+)
+from investment_analysis_engine.api.locale_negotiation import locale_of
 from investment_analysis_engine.api.refresh_documents import (
     RefreshEventDocument,
     RefreshJobDocument,
@@ -93,6 +100,8 @@ from investment_analysis_engine.core.failure_classification import classify_fail
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.tickers import normalize_ticker
+from investment_analysis_engine.help.bundle import load_help_bundle
+from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.reporting.presentation import PresentationMode
@@ -128,11 +137,15 @@ type Endpoint = Callable[[Request], Response] | Callable[[Request], Awaitable[Re
 
 @dataclass(frozen=True)
 class RequestParameters:
-    """The checked parameters of one request: the path's, the query's with each name given once, and the body."""
+    """The checked parameters of one request: the path's, the query's with each name given once, and the body.
+
+    ``locale`` is the tag the request negotiated; only the help operations read it.
+    """
 
     path: Mapping[str, str]
     query: Mapping[str, str]
     request: RequestBody | None = None
+    locale: str = DEFAULT_LOCALE
 
 
 type Operation = Callable[[ApplicationContext, RequestParameters], BaseModel]
@@ -206,7 +219,9 @@ def _serve(
     """Check a request's parameters and body, run ``operation`` and answer with its document or its failure."""
     try:
         body = None if route.request is None or document is None else read_request(route.request, document)
-        parameters = RequestParameters(path=request.path_params, query=_query_values(request, route), request=body)
+        parameters = RequestParameters(
+            path=request.path_params, query=_query_values(request, route), request=body, locale=locale_of(request)
+        )
         result = operation(context, parameters)
         location = route.location_of(result)
         return document_response(
@@ -251,6 +266,24 @@ def _info(settings: ProjectSettings) -> Operation:
 
 def _strategies(_context: ApplicationContext, _parameters: RequestParameters) -> BaseModel:
     return build_strategies_document()
+
+
+def _help_index(_context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+    return build_help_index_document(load_help_bundle(parameters.locale))
+
+
+def _help_term(_context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+    return build_help_term_document(load_help_bundle(parameters.locale), parameters.path["term_id"])
+
+
+def _help_document(_context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+    return build_help_document_document(load_help_bundle(parameters.locale), parameters.path["document_id"])
+
+
+def _help_references() -> Operation:
+    """Return the operation that serves the references document, built once when the application is created."""
+    document = build_help_references_document()
+    return lambda _context, _parameters: document
 
 
 def _watchlists(context: ApplicationContext, _parameters: RequestParameters) -> BaseModel:
@@ -515,6 +548,10 @@ def operations(settings: ProjectSettings, refresh_jobs: RefreshJobsOfServer) -> 
         "get_run_text": _run_text,
         "compare_refresh": _compare,
         "get_selection_form": _selection_form,
+        "get_help_index": _help_index,
+        "get_help_term": _help_term,
+        "get_help_document": _help_document,
+        "get_help_references": _help_references(),
         "create_watchlist": _create,
         "rename_watchlist": _rename,
         "delete_watchlist": _delete,

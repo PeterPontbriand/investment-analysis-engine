@@ -1,7 +1,8 @@
-"""The help bundle: the served glossary terms and guides, generated into ``help_bundle.json``.
+"""The help bundle: the served glossary terms and guides, generated into ``help_bundle.<locale>.json``.
 
-``scripts/generate_help.py`` writes the bundle from the served Markdown documents and the drift check compares it.
-:func:`load_help_bundle` reads the shipped file and validates it with :class:`HelpBundle`, whose validator checks that
+``scripts/generate_help.py`` writes the default locale's bundle from the served Markdown documents and the drift check
+compares it. :func:`load_help_bundle` reads the shipped file of a declared locale and validates it with
+:class:`HelpBundle`, whose validator checks that
 the bundle holds together: every term is in exactly one group, every group lists existing terms, and every
 ``help:`` link in any text resolves.
 
@@ -15,7 +16,8 @@ from importlib.resources import files
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-HELP_BUNDLE_FILE_NAME = "help_bundle.json"
+from investment_analysis_engine.help.locales import LOCALES
+
 TERM_LINK_PREFIX = "help:terms/"
 DOCUMENT_LINK_PREFIX = "help:documents/"
 
@@ -161,11 +163,26 @@ class HelpBundle(_Frozen):
         return "is neither a term link nor a document link"
 
 
-@cache
-def load_help_bundle() -> HelpBundle:
-    """Return the shipped help bundle, read once and validated.
+def help_bundle_file_name(locale: str) -> str:
+    """Return the name of the bundle file of a locale tag."""
+    return f"help_bundle.{locale}.json"
 
-    A missing or invalid file raises as it is: ``FileNotFoundError`` or ``pydantic.ValidationError``.
+
+@cache
+def load_help_bundle(locale: str) -> HelpBundle:
+    """Return the shipped help bundle of a locale, read once per tag and validated.
+
+    Args:
+        locale: The tag of a declared locale, in canonical lowercase form.
+
+    Raises:
+        ValueError: If ``locale`` is not a declared tag; the message names it.
+        FileNotFoundError: If the locale's file is missing.
+        pydantic.ValidationError: If the file is not a valid bundle.
     """
-    text = files("investment_analysis_engine.help").joinpath(HELP_BUNDLE_FILE_NAME).read_text(encoding="utf-8")
+    if locale not in {item.tag for item in LOCALES}:
+        raise ValueError(
+            f"The locale {locale!r} is not declared; the available locales are {[i.tag for i in LOCALES]}."
+        )
+    text = files("investment_analysis_engine.help").joinpath(help_bundle_file_name(locale)).read_text(encoding="utf-8")
     return HelpBundle.model_validate_json(text)

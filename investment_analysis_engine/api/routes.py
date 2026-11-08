@@ -15,6 +15,12 @@ from investment_analysis_engine.api.documents import (
     ReplayTextDocument,
     StrategiesDocument,
 )
+from investment_analysis_engine.api.help_documents import (
+    HelpDocumentDocument,
+    HelpIndexDocument,
+    HelpReferencesDocument,
+    HelpTermDocument,
+)
 from investment_analysis_engine.api.refresh_documents import RefreshJobDocument
 from investment_analysis_engine.api.request_bodies import (
     AddEntriesRequest,
@@ -107,6 +113,10 @@ class RouteSpec:
 
 def _uuid_path(name: str, description: str) -> ParameterSpec:
     return ParameterSpec(name, "path", True, description, (("type", "string"), ("format", "uuid")))
+
+
+def _help_path(name: str, description: str) -> ParameterSpec:
+    return ParameterSpec(name, "path", True, description, (("type", "string"),))
 
 
 def _after(description: str) -> ParameterSpec:
@@ -240,6 +250,38 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         "Describe the selection fields of one strategy, with their configured values.",
         (_method_path("The strategy's method identifier."),),
         _responses((SelectionFormDocument,), lookup=False, database=False),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/help",
+        "get_help_index",
+        "List the help terms by group and the help documents.",
+        (),
+        _responses((HelpIndexDocument,), lookup=False, database=False),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/help/terms/{term_id}",
+        "get_help_term",
+        "Show one help term with its full entry.",
+        (_help_path("term_id", "The term's ID."),),
+        _responses((HelpTermDocument,), lookup=True, database=False),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/help/documents/{document_id}",
+        "get_help_document",
+        "Show one help document with its sections.",
+        (_help_path("document_id", "The document's ID."),),
+        _responses((HelpDocumentDocument,), lookup=True, database=False),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/help/references",
+        "get_help_references",
+        "Show the help term that explains each value of each code set the API returns.",
+        (),
+        _responses((HelpReferencesDocument,), lookup=False, database=False),
     ),
     RouteSpec(
         "POST",

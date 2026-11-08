@@ -49,6 +49,14 @@ STATUS_DESCRIPTIONS = {
 """What each status means, in the words of the description."""
 
 
+COMMON_RESPONSE_HEADERS = {
+    "Content-Language": "The tag of the locale the engine's text is in.",
+    "Vary": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+    "Cache-Control": "no-store",
+}
+"""The headers every response of every operation carries, with their descriptions."""
+
+
 def _reference(key_map: dict[Any, Any], models: tuple[type[BaseModel], ...]) -> dict[str, Any]:
     """Return the schema of a response: a reference, or any one of several references."""
     references = [key_map[(model, "serialization")] for model in models]
@@ -103,12 +111,15 @@ def _operation(route: RouteSpec, key_map: dict[Any, Any]) -> dict[str, Any]:
             "description": STATUS_DESCRIPTIONS[status],
             "content": {"application/json": {"schema": _reference(key_map, models)}},
         }
+        headers: dict[str, Any] = {
+            name: {"description": description, "schema": {"type": "string"}}
+            for name, description in COMMON_RESPONSE_HEADERS.items()
+        }
         if status == 401:
-            response["headers"] = {
-                "WWW-Authenticate": {"description": "The challenge: Bearer.", "schema": {"type": "string"}}
-            }
+            headers["WWW-Authenticate"] = {"description": "The challenge: Bearer.", "schema": {"type": "string"}}
         if status == route.success_status and route.location is not None:
-            response["headers"] = {"Location": {"description": "The job's URL.", "schema": {"type": "string"}}}
+            headers["Location"] = {"description": "The job's URL.", "schema": {"type": "string"}}
+        response["headers"] = headers
         responses[str(status)] = response
     operation: dict[str, Any] = {
         "operationId": route.operation_id,
