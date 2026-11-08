@@ -67,6 +67,12 @@ jobs:
         shell: bash
         run: uv run python -c "import sys; want='${{ matrix.python-version }}'; got='%d.%d' % sys.version_info[:2]; print(sys.version); assert got == want, f'expected {want}, got {got}'"
 
+      - name: Check the OpenAPI Description Is Current
+        run: uv run python -m scripts.generate_openapi --check
+
+      - name: Check the Help Bundle Is Current
+        run: uv run python -m scripts.generate_help --check
+
       - name: Enforce Code Formatting (Ruff)
         run: uv run ruff format --check .
 

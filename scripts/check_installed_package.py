@@ -8,6 +8,7 @@ environment there and runs the installed ``ian`` with the temporary folder as th
 * ``ian --help`` succeeds, and ``ian db upgrade`` and ``ian db status`` succeed with the database in the data folder;
 * ``ian evaluate --mode deterministic`` writes the same report as the repository checkout;
 * the system prompt built by the installed package contains the runtime rules;
+* the installed package's help bundle, loaded through ``load_help_bundle()``, equals the repository's bundle as a whole;
 * ``ian momentum`` without a ticker gives the message ``ian graham-number`` gives, for its own name;
 * a user ``strategies/momentum.toml`` with one valid key is accepted, and one with an invalid value is refused with a
   message naming that file;
@@ -36,6 +37,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from investment_analysis_engine.help.bundle import HelpBundle
 from scripts.repository_root import REPOSITORY_ROOT
 
 PACKAGE_NAME = "investment_analysis_engine"
@@ -113,6 +115,23 @@ def expected_package_data(repository: Path) -> list[str]:
         for path in package.glob(pattern)
         if path.is_file()
     )
+
+
+def bundle_difference(installed_json: str, repository_bundle: Path) -> str | None:
+    """Return why the installed bundle differs from the repository's bundle file, or ``None`` when they are equal.
+
+    ``installed_json`` is the installed package's loaded bundle printed as JSON; the repository's file is loaded
+    through ``HelpBundle`` so that the two are compared as whole bundles, not by their term ids.
+    """
+    try:
+        installed = json.loads(installed_json)
+    except ValueError:
+        return f"the installed package did not print a bundle as JSON: {installed_json.strip()[:200]!r}"
+    expected = HelpBundle.model_validate_json(repository_bundle.read_text(encoding="utf-8")).model_dump(mode="json")
+    if installed == expected:
+        return None
+    parts = [name for name in expected if installed.get(name) != expected[name]]
+    return f"the installed bundle differs from the repository's in {', '.join(parts) or 'its fields'}"
 
 
 def clean_environment(base: Mapping[str, str]) -> dict[str, str]:
@@ -272,6 +291,23 @@ def run_installed_checks(  # noqa: PLR0913
         env=environment,
     )
     results.record("the system prompt contains the runtime rules", prompt.stdout.strip() == "True", tail(prompt))
+
+    loaded = run(
+        [
+            python,
+            "-c",
+            "from investment_analysis_engine.help.bundle import load_help_bundle; "
+            "print(load_help_bundle().model_dump_json())",
+        ],
+        cwd=work,
+        env=environment,
+    )
+    difference = (
+        bundle_difference(loaded.stdout, repository / PACKAGE_NAME / "help" / "help_bundle.json")
+        if loaded.returncode == 0
+        else tail(loaded)
+    )
+    results.record("the installed help bundle equals the repository's bundle", difference is None, str(difference))
 
     momentum = run([ian, "momentum"], cwd=work, env=environment)
     graham = run([ian, "graham-number"], cwd=work, env=environment)

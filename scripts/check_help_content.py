@@ -27,9 +27,10 @@ Their served content (``served_documents``) fails the check on any of:
 - a link to a repository file that is not served, to an excluded section of a served document, to a term that is not
   served, or to the user glossary without an entry id.
 
-An external link passes. A heading titled ``On the command line`` must carry the exclude marker and be the last
-subsection of its parent. ``tests/scripts/test_served_content.py`` adds the check that no code span starts with the name
-of an ``ian`` command, a name read from the application and not listed here.
+An external link passes. A served document has exactly one level-1 heading, its title. A heading titled
+``On the command line`` must carry the exclude marker and be the last subsection of its parent.
+``tests/scripts/test_served_content.py`` adds the check that no code span starts with the name of an ``ian``
+command, a name read from the application and not listed here.
 
 Only the standard library is used, so the checker runs with system Python.
 """
@@ -64,6 +65,7 @@ USER_GLOSSARY = GLOSSARY_PATHS[0]
 CONTRIBUTOR_GLOSSARY = GLOSSARY_PATHS[1]
 EXCLUDE_MARKER = "<!-- help:exclude -->"
 ENTRY_LEVEL = 3
+GROUP_LEVEL = 2
 MAX_DEFINITION_CHARACTERS = 200
 MAX_DEFINITION_PARTS = 2
 _PLAIN_TEXT_FORBIDDEN = "`*_["
@@ -73,15 +75,15 @@ STRATEGY_INDEX = "README.md"
 COMMAND_LINE_HEADING = "On the command line"
 FORBIDDEN_SPAN_PREFIXES = ("ian ", "--", "uv ", "IAN_")
 SHELL_LANGUAGES = frozenset({"bash", "sh", "shell", "console", "powershell", "pwsh", "ps1", "cmd"})
-_CODE_SPAN_RE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.DOTALL)
+CODE_SPAN_RE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.DOTALL)
 _IAN_COMMAND_LINE_RE = re.compile(r"^(?:uv\s+run\s+)?ian(?:\s|$)")
 _ID_RE = re.compile(r"^[a-z]+(-[a-z]+)*$")
-_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
-_FENCE_RE = re.compile(r"^(```+|~~~+)")
-_LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+FENCE_RE = re.compile(r"^(```+|~~~+)")
+LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 _INLINE_CODE_RE = re.compile(r"(?<!`)(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)")
 _DEFINITION_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
-_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
 @dataclass(frozen=True)
@@ -124,10 +126,10 @@ def _first_paragraph(lines: list[str], start: int, end: int) -> str | None:
     index = start
     while index < end and not lines[index].strip():
         index += 1
-    if index >= end or _FENCE_RE.match(lines[index].strip()):
+    if index >= end or FENCE_RE.match(lines[index].strip()):
         return None
     parts: list[str] = []
-    while index < end and lines[index].strip() and not _FENCE_RE.match(lines[index].strip()):
+    while index < end and lines[index].strip() and not FENCE_RE.match(lines[index].strip()):
         parts.append(lines[index].strip())
         index += 1
     return " ".join(parts)
@@ -138,13 +140,13 @@ def _links_in(lines: list[str]) -> tuple[str, ...]:
     targets: list[str] = []
     in_fence = False
     for line in lines:
-        if _FENCE_RE.match(line.strip()):
+        if FENCE_RE.match(line.strip()):
             in_fence = not in_fence
             continue
         if in_fence:
             continue
         searchable = _INLINE_CODE_RE.sub(" ", line)
-        targets.extend(match.group(1).strip() for match in _LINK_RE.finditer(searchable))
+        targets.extend(match.group(1).strip() for match in LINK_RE.finditer(searchable))
     return tuple(targets)
 
 
@@ -154,12 +156,12 @@ def parse_glossary(lines: list[str]) -> ParsedGlossary:
     headings: list[tuple[int, int, str]] = []
     in_fence = False
     for index, line in enumerate(stripped):
-        if _FENCE_RE.match(line.strip()):
+        if FENCE_RE.match(line.strip()):
             in_fence = not in_fence
             continue
         if in_fence:
             continue
-        match = _HEADING_RE.match(line)
+        match = HEADING_RE.match(line)
         if match:
             headings.append((index, len(match.group(1)), match.group(2)))
     marker_after_heading = {
@@ -219,7 +221,7 @@ def _definition_problems(definition: str) -> list[str]:
 
 def _resolve(relative_path: str, target: str, repo_root: Path) -> tuple[str | None, str]:
     """Return the repository-relative path a link in ``relative_path`` names (``None`` when external) and its anchor."""
-    if _SCHEME_RE.match(target) or target.startswith("//"):
+    if SCHEME_RE.match(target) or target.startswith("//"):
         return None, ""
     path_part, _, anchor = target.partition("#")
     if not path_part:
@@ -332,12 +334,31 @@ class ServedSection:
 
 
 @dataclass(frozen=True)
+class ServedGroup:
+    """One level-2 heading of the user glossary, which groups the entries under it.
+
+    ``line`` is the heading's 1-based line number and ``slug`` its GitHub anchor, counting every heading of the file.
+    ``excluded`` is whether the heading carries the exclude marker itself.
+    """
+
+    heading: str
+    line: int
+    slug: str
+    excluded: bool
+
+
+@dataclass(frozen=True)
 class ServedDocument:
-    """A served document: its repository-relative path, its title and its non-excluded sections, in file order."""
+    """A served document: its repository-relative path, its title and its non-excluded sections, in file order.
+
+    ``groups`` holds the level-2 headings of the user glossary, in file order, excluded ones included; it is empty
+    for every other document.
+    """
 
     path: str
     title: str
     sections: tuple[ServedSection, ...]
+    groups: tuple[ServedGroup, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -377,14 +398,14 @@ def _parse_document(raw_lines: list[str]) -> _ParsedDocument:
     found: list[tuple[int, int, str]] = []
     fence_marker: str | None = None
     for index, line in enumerate(lines):
-        fence = _FENCE_RE.match(line.strip())
+        fence = FENCE_RE.match(line.strip())
         if fence:
             if fence_marker is None:
                 fence_marker = fence.group(1)[0] * 3
             elif line.strip().startswith(fence_marker):
                 fence_marker = None
             continue
-        match = None if fence_marker else _HEADING_RE.match(line)
+        match = None if fence_marker else HEADING_RE.match(line)
         if match:
             found.append((index, len(match.group(1)), match.group(2)))
     marked = {
@@ -450,7 +471,12 @@ def served_document(relative_path: str, raw_lines: list[str]) -> ServedDocument:
         if not heading.excluded and (heading.level == ENTRY_LEVEL if glossary else True)
     )
     title = next((heading.text for heading in parsed.headings if heading.level == 1), Path(relative_path).stem)
-    return ServedDocument(relative_path, title, sections)
+    groups = tuple(
+        ServedGroup(heading.text, heading.index + 1, heading.slug, heading.marked)
+        for heading in parsed.headings
+        if glossary and heading.level == GROUP_LEVEL
+    )
+    return ServedDocument(relative_path, title, sections, groups)
 
 
 def strategy_guide_paths(repo_root: Path) -> tuple[str, ...]:
@@ -490,7 +516,7 @@ def _link_reason(relative_path: str, target: str, context: _LinkContext) -> str 
     target = target.split(maxsplit=1)[0] if target.split() else target
     path, anchor = _resolve(relative_path, target, context.repo_root)
     if path is None:
-        outside = not (_SCHEME_RE.match(target) or target.startswith("//"))
+        outside = not (SCHEME_RE.match(target) or target.startswith("//"))
         return f"link to a file outside the repository: {target}" if outside else None
     if path not in context.served:
         return f"link to a repository file that is not served: {target}"
@@ -514,7 +540,7 @@ def _paragraph_code_spans(paragraph: list[tuple[int, str]]) -> list[tuple[int, s
     text, numbers = _text_and_numbers(paragraph)
     return [
         (numbers[text.count("\n", 0, span.start())], " ".join(span.group(2).split()))
-        for span in _CODE_SPAN_RE.finditer(text)
+        for span in CODE_SPAN_RE.finditer(text)
     ]
 
 
@@ -529,8 +555,8 @@ def _paragraph_problems(
         for prefix in FORBIDDEN_SPAN_PREFIXES
         if content.startswith(prefix)
     ]
-    blanked = _CODE_SPAN_RE.sub(lambda match: re.sub(r"[^\n]", " ", match.group(0)), text)
-    for link in _LINK_RE.finditer(blanked):
+    blanked = CODE_SPAN_RE.sub(lambda match: re.sub(r"[^\n]", " ", match.group(0)), text)
+    for link in LINK_RE.finditer(blanked):
         reason = _link_reason(relative_path, link.group(1).strip(), context)
         if reason:
             found.append((numbers[blanked.count("\n", 0, link.start())], reason))
@@ -549,7 +575,7 @@ def _walk_section(section: ServedSection) -> tuple[list[list[tuple[int, str]]], 
     for offset, raw in enumerate(section.lines):
         number = section.body_first_line + offset
         stripped = raw.strip()
-        fence = _FENCE_RE.match(stripped)
+        fence = FENCE_RE.match(stripped)
         if fence:
             paragraphs.append(paragraph)
             paragraph = []
@@ -587,12 +613,22 @@ def _section_problems(section: ServedSection, relative_path: str, context: _Link
 
 
 def _structure_problems(relative_path: str, raw_lines: list[str]) -> list[ContentProblem]:
-    """Return the problems of a document's exclude markers and of its "On the command line" subsections."""
+    """Return the problems of a document's level-1 headings, exclude markers and "On the command line" subsections."""
     parsed = _parse_document(raw_lines)
     found = [
         ContentProblem(relative_path, number, "", f"{EXCLUDE_MARKER} must be on the line directly after a heading")
         for number in parsed.stray_marker_lines
     ]
+    titles = [heading for heading in parsed.headings if heading.level == 1]
+    if len(titles) != 1:
+        found.append(
+            ContentProblem(
+                relative_path,
+                titles[0].index + 1 if titles else 0,
+                "",
+                f"a served document must have exactly one level-1 heading; found {len(titles)}",
+            )
+        )
     for position, heading in enumerate(parsed.headings):
         line = heading.index + 1
         if heading.marked and heading.level == 1:

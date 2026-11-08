@@ -52,8 +52,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.4b | [Refresh jobs](API_4_SLICE_PLAN.md#api4b--refresh-jobs) | Complete | 2026-11-07 |
 | API.5a | [Help content: the glossary](#api5a--help-content-the-glossary) | Complete | 2026-11-07 |
 | API.5b1 | [Help content: the guides](#api5b1--help-content-the-guides) | Complete | 2026-11-07 |
-| API.5b2 | [Help content: the bundle](#api5b2--help-content-the-bundle) | Planned | |
-| API.6 | [Term references and help endpoints](#api6--term-references-and-help-endpoints) | Planned | |
+| API.5b2 | [Help content: the bundle](#api5b2--help-content-the-bundle) | Complete | 2026-11-07 |
+| API.6 | [Term references and help endpoints](#api6--term-references-and-help-endpoints) | Next | |
 
 ## 3. The slices
 
@@ -225,7 +225,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Scope:** the `help` package with the bundle model, its loader and `help_bundle.json`; the bundle generator with its drift
   check; package-data, Architecture §13 and `check_installed_package`.
 - **Branch:** `feat/api-help-bundle`.
-- **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md); ⚠ no slice plan for the bundle yet.
+- **Detail:** [API.5 slice plan](API_5_SLICE_PLAN.md#api5b2--the-bundle).
 
 ### API.6 — Term references and help endpoints
 
@@ -243,7 +243,11 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   - `/v1/help/terms/{id}` and `/v1/help/documents/{id}`, which return Markdown, never HTML;
   - term references for all five strategies, Piotroski included;
   - an orphan-term check: every served term is referenced by an API.6 mapping or linked from served content
-    ([H9](API_5_SLICE_PLAN.md#h9-boundary-with-api6-2026-11-07)).
+    ([H9](API_5_SLICE_PLAN.md#h9-boundary-with-api6-2026-11-07));
+  - only term ids and document ids are stable references: section ids and group ids are valid only within the bundle that
+    carries them, and a client follows them but never stores them
+    ([H54](API_5_SLICE_PLAN.md#h54-stable-references-across-locales-2026-11-07));
+  - locale choice: every endpoint that returns engine text follows [A.5](#a5-locale-choice-2026-11-07).
 - **Branch:** `feat/api-help`.
 - **Detail:**
   - It follows "Changing what every strategy provides" in [`TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#changing-what-every-strategy-provides)
@@ -368,3 +372,17 @@ Approved by the project owner on 2026-10-30.
 | Links | Links to terms and served sections become in-app links; other links are optional further reading. A short definition depends on no link. Responses are Markdown; the GUI renders them with a sanitizing renderer |
 | Sequence | API.5 and API.6, after API.4 and before 3.5.4; API.5 waits for 3.5.3e because 3.5.3d adds Piotroski's glossary entries |
 | GUI behavior | A popup on hover or focus with the short definition, and a help panel on click with the full entry, linked terms and the longer guide. A run's own derivation stays in its Details view. The GUI repository decides the interaction details |
+
+### A.5 Locale choice (2026-11-07)
+
+Approved by the project owner on 2026-11-07. Recorded as
+[H55](API_5_SLICE_PLAN.md#h55-locale-choice-2026-11-07) and implemented in API.6.
+
+| Item | Decision |
+| :--- | :--- |
+| Request and response | Every endpoint that returns engine text honours `Accept-Language` and falls back to the engine's default locale. Every such response states the locale it used in `Content-Language` |
+| Available locales | The API serves a list of available locales, each with its name in its own language. A GUI builds its language picker from that list. The list holds many locales by design, so it is not a single-value option |
+| What follows the locale | Every piece of engine text the API serves: help content, term names, labels, status and outcome wording, and error messages. W42's rule identifiers and arguments are what make translated error messages possible |
+| What does not | Raw values stay language-neutral (JSON numbers, ISO dates); a client formats them |
+| Left to API.6 | Whether the list is its own endpoint or a field of an existing document, and whether the bundle has one file per locale |
+| Not in API.5b2 | No locale field, argument or header handling |
