@@ -35,14 +35,6 @@ class AnalysisContext:
         return _effective_as_of(self.as_of, self.executed_at)
 
 
-def require_ticker(ticker: str) -> str:
-    """Normalize and require a nonblank ticker."""
-    normalized = ticker.strip().upper()
-    if not normalized:
-        raise ValueError("A nonblank ticker is required.")
-    return normalized
-
-
 class BaseAnalyzer[ResultT, *ConfigT](ABC):
     """Abstract base class for all self-describing quantitative analysis strategies.
 

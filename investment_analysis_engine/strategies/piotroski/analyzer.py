@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Final
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from investment_analysis_engine.analysis.shared.applicability import (
     Applicability,
     IndustryClass,
@@ -46,6 +46,7 @@ from investment_analysis_engine.analysis.shared.operating_metrics import compute
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.facts import FinancialField, InstantAbsence
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.financial.resolver import InputResolver
@@ -396,7 +397,7 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
         boundary = context.effective_as_of
         if boundary.utcoffset() is None:
             raise ValueError("Piotroski effective execution time must be timezone-aware.")
-        normalized = require_ticker(ticker)
+        normalized = normalize_ticker(ticker)
         validate_profile_ticker(
             ticker,
             context.instrument_profile,

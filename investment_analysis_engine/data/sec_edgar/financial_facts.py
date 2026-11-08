@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
@@ -419,7 +420,7 @@ class SecEdgarFinancialFactsAdapter:
 
     def create_analysis_snapshot(self, *, subject_id: str, as_of: datetime | None) -> SecEdgarAnalysisSnapshot:
         """Fetch and freeze one SEC payload pair and its effective taxonomy regime."""
-        ticker = subject_id.strip().upper()
+        ticker = normalize_ticker(subject_id)
         retrieved_at = self._clock()
         effective_as_of = as_of or retrieved_at
         try:
@@ -566,7 +567,11 @@ class SecEdgarFinancialFactsAdapter:
         snapshot = _ACTIVE_SNAPSHOT.get()
         if snapshot is None:
             return AsFiledSicResolution(reason=SicUnavailableReason.NO_ANALYSIS_SCOPE)
-        if snapshot.subject_id != ticker.strip().upper() or (as_of is not None and snapshot.as_of != as_of):
+        if (
+            not ticker.strip()
+            or snapshot.subject_id != normalize_ticker(ticker)
+            or (as_of is not None and snapshot.as_of != as_of)
+        ):
             return AsFiledSicResolution(reason=SicUnavailableReason.SCOPE_MISMATCH)
         return self.resolve_as_filed_sic(snapshot)
 
@@ -897,7 +902,7 @@ class SecEdgarFinancialFactsAdapter:
             anchor = max(eligible, key=lambda accession: eligible[accession], default=None)
             if anchor is None:
                 gap = self._annual_filing_gap(
-                    ticker=request.subject_id.strip().upper(),
+                    ticker=normalize_ticker(request.subject_id),
                     cik=cik,
                     acceptance=acceptance,
                     forms=forms,
@@ -1032,7 +1037,7 @@ class SecEdgarFinancialFactsAdapter:
         See ``_fetch_facts`` for the arguments.
         """
         facts = self._fetch_facts(request, effective_as_of=effective_as_of)
-        if request.subject_id.strip().upper() not in self._ticker_overrides:
+        if normalize_ticker(request.subject_id) not in self._ticker_overrides:
             return facts
         note = f"{CIK_SOURCE_NOTE}={CIK_SOURCE_OVERRIDE}"
         return tuple(replace(fact, notes=(*fact.notes, note)) for fact in facts)
@@ -1060,12 +1065,12 @@ class SecEdgarFinancialFactsAdapter:
                 raise
             # An overridden CIK the ticker file does not list has its tickers read from the submissions data instead.
             sensitive = request.field_name in _SEC_SECURITY_UNIT_SENSITIVE_COMPLETED_ANNUAL_FIELDS
-            ticker_text = request.subject_id.strip().upper()
+            ticker_text = normalize_ticker(request.subject_id)
             tickers_from_submissions = sensitive and ticker_text in self._ticker_overrides and not self._lists_cik(cik)
             if sensitive and not tickers_from_submissions and not self._has_single_ticker_identity(cik):
                 return ()
             snapshot = _ACTIVE_SNAPSHOT.get()
-            if snapshot is not None and snapshot.subject_id == request.subject_id.strip().upper():
+            if snapshot is not None and snapshot.subject_id == normalize_ticker(request.subject_id):
                 if snapshot.cik != cik:
                     return ()
                 if snapshot.after_boundary_message is not None:
@@ -1106,6 +1111,7 @@ class SecEdgarFinancialFactsAdapter:
                 if gap is not None:
                     raise FactsNotAvailableAsOf(gap)
                 submission_tickers = _submission_tickers(submissions)
+            # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
             if tickers_from_submissions and len({item.strip().upper() for item in submission_tickers}) != 1:
                 return ()
             taxonomy = snapshot.taxonomy if snapshot is not None and snapshot.taxonomy is not None else "us-gaap"
@@ -1430,6 +1436,7 @@ def _ticker_cik_map(payload: object) -> dict[str, str]:
         cik_text = str(cik).strip()
         if not cik_text.isdigit():
             continue
+        # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
         result[ticker.strip().upper()] = cik_text.zfill(10)
     return result
 
@@ -1445,6 +1452,7 @@ def _ambiguous_ticker_ciks(payload: object) -> dict[str, tuple[str, ...]]:
         ticker, cik = item.get("ticker"), item.get("cik_str")
         if not isinstance(ticker, str) or not isinstance(cik, (int, str)) or not str(cik).strip().isdigit():
             continue
+        # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
         found.setdefault(ticker.strip().upper(), set()).add(str(cik).strip().zfill(10))
     return {ticker: tuple(sorted(ciks)) for ticker, ciks in found.items() if len(ciks) > 1}
 
@@ -1463,6 +1471,7 @@ def _cik_tickers_map(payload: object) -> dict[str, frozenset[str]]:
         if not isinstance(ticker, str) or not isinstance(cik, (int, str)):
             continue
         cik_text = str(cik).strip()
+        # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
         ticker_text = ticker.strip().upper()
         if not cik_text.isdigit() or not ticker_text:
             continue
@@ -1484,6 +1493,7 @@ def _ticker_identity_map(payload: object, *, resolved_at: datetime) -> dict[str,
         cik = item.get("cik_str")
         if not isinstance(ticker, str) or not isinstance(title, str) or not isinstance(cik, (int, str)):
             continue
+        # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
         ticker_text = ticker.strip().upper()
         cik_text = str(cik).strip()
         if not ticker_text or not title.strip() or not cik_text.isdigit():

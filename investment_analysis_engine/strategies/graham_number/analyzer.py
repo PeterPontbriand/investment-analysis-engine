@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.graham_number.config import GrahamNumberConfig
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis, run_graham_number_analysis
@@ -19,7 +20,7 @@ class GrahamNumberAnalyzer(BaseAnalyzer[GrahamNumberAnalysis, GrahamNumberConfig
         """Return complete service evidence for the given ticker."""
         return run_graham_number_analysis(
             resolver=self._resolver,
-            ticker=require_ticker(ticker),
+            ticker=normalize_ticker(ticker),
             eps_override=config.eps_override,
             bvps_override=config.bvps_override,
             quote_override=config.quote_override,

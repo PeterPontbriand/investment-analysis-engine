@@ -12,11 +12,12 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
-from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer, require_ticker
+from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import DataColumns, TrendStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.resolution_trace import (
@@ -137,7 +138,7 @@ class MomentumAnalyzer(BaseAnalyzer[MomentumRun, MomentumConfig]):
         run without metrics, as is a history too short for the trend. Only a caller defect or a defect in the code
         raises.
         """
-        normalized_ticker = require_ticker(ticker)
+        normalized_ticker = normalize_ticker(ticker)
         resolver = MomentumInputResolver(self._market_data_provider, clock=lambda: context.executed_at)
         resolved = resolver.resolve(
             ticker=normalized_ticker,

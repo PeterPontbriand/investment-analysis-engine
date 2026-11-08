@@ -4,6 +4,7 @@ from datetime import datetime
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.tickers import is_normalized_ticker
 from tests.specimen.analyzer import SpecimenResult
 
 _FIELDS = frozenset({"ticker", "value", "multiplier", "scaled", "effective_as_of"})
@@ -33,7 +34,7 @@ def decode_specimen(payload: StrictJsonMapping) -> SpecimenResult:
     if set(payload) != _FIELDS:
         raise ValueError("Specimen evidence has unexpected keys.")
     ticker, stamp = payload["ticker"], payload["effective_as_of"]
-    if not isinstance(ticker, str) or not ticker or ticker != ticker.strip().upper():
+    if not isinstance(ticker, str) or not is_normalized_ticker(ticker):
         raise ValueError("Specimen requires a normalized ticker.")
     if not isinstance(stamp, str):
         raise ValueError("Specimen effective_as_of must be text.")

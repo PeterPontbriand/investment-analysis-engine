@@ -16,6 +16,7 @@ from investment_analysis_engine.analysis.run_models import (
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.core.metric_result import ReasonCode
+from investment_analysis_engine.core.tickers import is_normalized_ticker
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
 
 
@@ -30,7 +31,7 @@ class _MomentumEvidence(BaseModel):
     def _validate_context(self) -> "_MomentumEvidence":
         run = self.run
         ticker = run.ticker
-        if not ticker or ticker != ticker.strip().upper():
+        if not is_normalized_ticker(ticker):
             raise ValueError("Momentum evidence requires a normalized ticker.")
         if run.effective_as_of.utcoffset() is None:
             raise ValueError("Momentum timestamp must be timezone-aware.")

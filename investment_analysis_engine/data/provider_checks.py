@@ -430,6 +430,7 @@ def _probe_cik(ticker_map: object, spec: SecEdgarCheckSpec) -> str:
         msg = f"ticker map entries are missing fields: {', '.join(missing_fields)}"
         raise _wrong_shape(msg)
     for entry in ticker_map.values():
+        # A provider's own entry, which may be blank; compared, not validated.
         if isinstance(entry, Mapping) and str(entry.get("ticker", "")).strip().upper() == spec.probe_ticker:
             missing = [field for field in spec.ticker_entry_fields if field not in entry]
             if missing:

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol, runtime_checkable
 
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.provenance import (
     FinancialSubjectKind,
     ResolvedInput,
@@ -53,7 +54,7 @@ class ResolvedInputCacheKey:
     """Identity of a cached financial fact.
 
     Normalization (applied in ``__post_init__``):
-        - SECURITY ``subject_id``: ``.strip().upper()``
+        - SECURITY ``subject_id``: ``normalize_ticker``
         - MACRO ``subject_id``: ``.strip()`` (case preserved)
         - ``field_name``: ``.strip()``
         - ``basis``: ``.strip()`` if present; empty/whitespace-only rejected
@@ -87,7 +88,7 @@ class ResolvedInputCacheKey:
         """Normalize subject_id, field_name, basis, provider_id; validate as_of and schema_version."""
         # --- subject_id normalization ---
         if self.subject_kind is FinancialSubjectKind.SECURITY:
-            normalized_subject = self.subject_id.strip().upper()
+            normalized_subject = normalize_ticker(self.subject_id)
         else:
             normalized_subject = self.subject_id.strip()
 
@@ -238,7 +239,7 @@ class ResolvedInputSeriesCacheQuery:
     """Identity for discovering cached period-scoped financial facts.
 
     Normalization (applied in ``__post_init__``) mirrors ``ResolvedInputCacheKey``:
-        - SECURITY ``subject_id``: ``.strip().upper()``
+        - SECURITY ``subject_id``: ``normalize_ticker``
         - MACRO ``subject_id``: ``.strip()`` (case preserved)
         - ``field_name``: ``.strip()``
         - ``basis``: ``.strip()`` if present; empty/whitespace-only rejected
@@ -265,7 +266,7 @@ class ResolvedInputSeriesCacheQuery:
     def __post_init__(self) -> None:
         """Normalize identifiers and validate the series identity."""
         if self.subject_kind is FinancialSubjectKind.SECURITY:
-            normalized_subject = self.subject_id.strip().upper()
+            normalized_subject = normalize_ticker(self.subject_id)
         else:
             normalized_subject = self.subject_id.strip()
         if not normalized_subject:

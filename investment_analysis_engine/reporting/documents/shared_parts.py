@@ -22,6 +22,7 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_element import ProviderFailureInput
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessStatus
 from investment_analysis_engine.data.financial.resolution_trace import ResolutionTrace
@@ -206,9 +207,7 @@ def security_identity_part(ticker: str, resolution: SecurityIdentityResolution |
         ValueError: If the ticker is blank, or the resolved identity is for another ticker.
     """
     identity = resolution.identity if resolution is not None else None
-    normalized = ticker.strip().upper()
-    if not normalized:
-        raise ValueError("ticker must be a non-empty string.")
+    normalized = normalize_ticker(ticker)
     if identity is not None and identity.ticker != normalized:
         raise ValueError("Security identity ticker does not match the presented analysis ticker.")
     return SecurityIdentityPart(

@@ -27,6 +27,7 @@ from html.parser import HTMLParser
 from typing import Protocol, runtime_checkable
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.sec_edgar.filing_document import read_bounded
 
@@ -434,6 +435,7 @@ class _ReportParser(HTMLParser):
 
 def _symbol_key(symbol: str) -> str:
     """Return a trading symbol as compared: trimmed, upper-cased, with ``.``, ``-`` and ``/`` the same separator."""
+    # A filed trading symbol with its separators folded, which normalize_ticker does not do.
     return symbol.strip().upper().translate(_SEPARATORS)
 
 
@@ -569,7 +571,7 @@ def read_renamed_listing(  # noqa: PLR0911, PLR0913
     if len(anchor_lines) != 1 or len(latest_lines) != 1:
         return None
     before, after = anchor_lines[0], latest_lines[0]
-    wanted = ticker.strip().upper()
+    wanted = normalize_ticker(ticker)
     if not before.symbol or not after.symbol or _symbol_key(after.symbol) != _symbol_key(wanted):
         return None
     if _symbol_key(before.symbol) == _symbol_key(wanted) or after.exchange is None:
@@ -627,7 +629,7 @@ def read_cover_listing(  # noqa: PLR0911, PLR0913
     own = _own_securities(markup, form=form, issuer=issuer)
     if isinstance(own, CoverUnavailableReason):
         return ListingResolution(reason=own)
-    wanted = ticker.strip().upper()
+    wanted = normalize_ticker(ticker)
     wanted_key = _symbol_key(wanted)
     matches = [item for item in own if _symbol_key(item.symbol or "") == wanted_key]
     if any(item.exchange is None for item in matches):

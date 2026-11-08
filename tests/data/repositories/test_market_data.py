@@ -282,7 +282,7 @@ def test_complete_request_identity(
     ],
 )
 def test_invalid_request_identity(key: MarketDataCacheKey, field: str, value: Any) -> None:
-    with pytest.raises(ValueError, match="non-empty|calendar dates|precede|positive"):
+    with pytest.raises(ValueError, match="non-empty|must not be empty|calendar dates|precede|positive"):
         replace(key, **{field: value})
 
 

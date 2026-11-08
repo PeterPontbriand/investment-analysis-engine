@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Final
 
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
@@ -165,9 +166,10 @@ def profile_resolver(context: FixtureContext) -> Callable[[str], InstrumentProfi
         return None
 
     def resolve(ticker: str) -> InstrumentProfile:
-        if ticker.strip().upper() != profile.ticker:
+        normalized = normalize_ticker(ticker)
+        if normalized != profile.ticker:
             raise FixtureCompositionError(
-                f"Profile fixture for {profile.ticker!r} cannot satisfy ticker {ticker.strip().upper()!r}."
+                f"Profile fixture for {profile.ticker!r} cannot satisfy ticker {normalized!r}."
             )
         return profile
 
@@ -188,7 +190,7 @@ def require_fixture_evidence(case: Case, requirement: FixtureRequirement, *, tic
     """
     fixture_ids = frozenset(case.fixture_ids)
     has_matching_etf_profile = (
-        KNOWN_ETF_PROFILE_FIXTURE_ID in fixture_ids and ticker.strip().upper() == GOLDEN_ETF_TICKER
+        KNOWN_ETF_PROFILE_FIXTURE_ID in fixture_ids and normalize_ticker(ticker) == GOLDEN_ETF_TICKER
     )
     if requirement.etf_profile_exempt and has_matching_etf_profile:
         return

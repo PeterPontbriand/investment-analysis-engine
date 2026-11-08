@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict
 
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
 from investment_analysis_engine.core.strategy_errors import find
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.reporting.replay_inputs import (
     ReplayDocumentProjector,
     ReplayInputs,
@@ -72,7 +73,7 @@ SPECIMEN_RUN_STORE = SpecimenRunStore()
 def build_specimen_run(ticker: str, selection: SpecimenSelection, execution: SpecimenExecution) -> SpecimenRun:
     """Assemble the run for one execution, with the versions the specimen's descriptor declares."""
     return SpecimenRun(
-        ticker=ticker.strip().upper(),
+        ticker=normalize_ticker(ticker),
         analysis_id=ANALYSIS_ID,
         method_id=METHOD_ID,
         config_schema_version=CONFIG_SCHEMA_VERSION,

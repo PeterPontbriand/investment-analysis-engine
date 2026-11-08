@@ -19,6 +19,7 @@ from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvide
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.financial.resolution_trace import ResolutionTrace
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
@@ -370,7 +371,7 @@ class FCFEarningsGrowthResult:
                 raise ValueError(msg)
         self._validate_market_capitalization()
 
-        if self.instrument_profile is not None and self.instrument_profile.ticker != self.ticker.strip().upper():
+        if self.instrument_profile is not None and self.instrument_profile.ticker != normalize_ticker(self.ticker):
             msg = "Instrument profile ticker does not match the FCF & Earnings Growth result ticker."
             raise ValueError(msg)
         self._validate_not_applicable_result()

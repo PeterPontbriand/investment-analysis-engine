@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from investment_analysis_engine.core.tickers import normalize_ticker
+
 SEC_EDGAR_ALIAS = "sec_edgar"
 PROVIDER_SETTINGS_FOLDER = "providers"
 
@@ -29,10 +31,16 @@ class SecEdgarSettings(BaseModel):
         """Return the table with upper-case tickers and ten-digit CIKs, refusing an invalid or repeated entry."""
         normalized: dict[str, int | str] = {}
         for ticker, cik in value.items():
-            name = ticker.strip().upper()
             digits = str(cik).strip()
-            if not name or not digits.isascii() or not digits.isdigit() or int(digits) == 0 or len(digits) > 10:
+            if (
+                not ticker.strip()
+                or not digits.isascii()
+                or not digits.isdigit()
+                or int(digits) == 0
+                or len(digits) > 10
+            ):
                 raise ValueError(f"the override for {ticker!r} must be a ticker and a CIK of one to ten digits.")
+            name = normalize_ticker(ticker)
             if name in normalized:
                 raise ValueError(f"the ticker {name} is overridden more than once.")
             normalized[name] = digits.zfill(10)

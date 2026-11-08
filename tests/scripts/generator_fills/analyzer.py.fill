@@ -1,8 +1,8 @@
-from investment_analysis_engine.analysis.base_analyzer import require_ticker
+from investment_analysis_engine.core.tickers import normalize_ticker
 
 #: body CiProbeAnalyzer.run_analysis
 return CiProbeResult(
-    ticker=require_ticker(ticker),
+    ticker=normalize_ticker(ticker),
     requested_as_of=context.as_of,
     effective_as_of=context.effective_as_of,
     instrument_profile=context.instrument_profile,

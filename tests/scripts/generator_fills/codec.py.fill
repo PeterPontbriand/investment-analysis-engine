@@ -1,4 +1,5 @@
 from datetime import datetime
+from investment_analysis_engine.core.tickers import is_normalized_ticker
 
 #: body encode_ci_probe
 return {"ticker": evidence.ticker, "effective_as_of": evidence.effective_as_of.isoformat()}
@@ -7,7 +8,7 @@ return {"ticker": evidence.ticker, "effective_as_of": evidence.effective_as_of.i
 if set(payload) != _FIELDS:
     raise ValueError("CI Probe evidence has unexpected keys.")
 ticker, stamp = payload["ticker"], payload["effective_as_of"]
-if not isinstance(ticker, str) or not ticker or ticker != ticker.strip().upper():
+if not isinstance(ticker, str) or not is_normalized_ticker(ticker):
     raise ValueError("CI Probe requires a normalized ticker.")
 if not isinstance(stamp, str):
     raise ValueError("CI Probe effective_as_of must be text.")

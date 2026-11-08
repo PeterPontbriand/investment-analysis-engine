@@ -13,6 +13,7 @@ import pytest
 
 from investment_analysis_engine.core.package_root import PACKAGE_ROOT
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
+from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.sec_edgar import financial_facts
@@ -547,7 +548,7 @@ def test_a_dot_a_dash_and_a_slash_are_the_same_separator_in_the_requested_ticker
     evidence = _listing(_read("brk_fy2025"), ticker=ticker, cik=_BRK_CIK, accession=_BRK_ACCESSION).evidence
     assert evidence is not None
     assert (evidence.kind, evidence.title) == (SecurityKind.SHARE, "Class B Common Stock")
-    assert evidence.ticker == ticker.strip().upper()
+    assert evidence.ticker == normalize_ticker(ticker)
 
 
 def test_a_separator_is_never_removed_or_added() -> None:
