@@ -68,9 +68,9 @@ CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
         ),
         "CrossoverState": MappingProxyType(
             {
-                CrossoverState.BULLISH_CROSSOVER.value: "crossover",
-                CrossoverState.BEARISH_CROSSOVER.value: "crossover",
-                CrossoverState.NO_NEW_CROSSOVER.value: "crossover",
+                CrossoverState.BULLISH_CROSSOVER.value: "crossover-bullish",
+                CrossoverState.BEARISH_CROSSOVER.value: "crossover-bearish",
+                CrossoverState.NO_NEW_CROSSOVER.value: "crossover-none",
             }
         ),
     }

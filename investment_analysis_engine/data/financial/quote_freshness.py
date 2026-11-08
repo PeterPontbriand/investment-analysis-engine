@@ -89,12 +89,12 @@ def evaluate_quote_freshness(
 
 QUOTE_FRESHNESS_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
     {
-        "recent_retrieval": "quote-freshness",
-        "expired": "quote-freshness",
-        "unknown_retrieval_time": "quote-freshness",
-        "future_timestamp": "quote-freshness",
-        "user_supplied": "quote-freshness",
-        "historical": "quote-freshness",
+        "recent_retrieval": "quote-recent",
+        "expired": "quote-expired",
+        "unknown_retrieval_time": "quote-retrieval-unknown",
+        "future_timestamp": "quote-future-timestamp",
+        "user_supplied": "quote-user-supplied",
+        "historical": "quote-historical",
     }
 )
 """The glossary term that explains each quote-freshness status."""

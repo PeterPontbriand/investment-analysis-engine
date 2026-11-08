@@ -108,7 +108,7 @@ def trend_word(status: TrendStatus) -> str | None:
     """
     if status is TrendStatus.UNKNOWN:
         return None
-    return status.display_name(locale="en").removesuffix(" Trend")
+    return status.display_name().removesuffix(" Trend")
 
 
 def render_momentum(
@@ -162,7 +162,7 @@ def _concise_lines(p: MomentumPresentation) -> list[str]:
 
     lines = [
         f"{security_display_label(metrics.ticker, p.identity_resolution)} — Momentum",
-        f"Status: {metrics.status.display_name(locale='en')}",
+        f"Status: {metrics.status.display_name()}",
         f"Price used ({_close_label(p.market_data)}): {format_money(metrics.current_price, currency)}",
         f"{short_label}: {_optional_money(metrics.short_sma_val, currency)}",
         f"{long_label}: {_optional_money(metrics.long_sma_val, currency)}",

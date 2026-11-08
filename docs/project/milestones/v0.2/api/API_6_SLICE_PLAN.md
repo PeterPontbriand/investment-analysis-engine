@@ -21,7 +21,7 @@ when one is missing. The second serves the help content over HTTP and chooses th
   - the managed quality gate, with the Python 3.14 second pass, after each slice, and the project owner's approval before
     the next slice starts.
 - **Where the history lives:** decisions T1 to T15 are in [Appendix A](#appendix-a-decision-records), approved by the
-  project owner on 2026-11-07. API.6a implements T1 to T10 and the parts of T15 its changes touch; API.6b implements T11
+  project owner on 2026-11-07, and T16 to T19 are the review fixes of API.6a, approved the same day. API.6a implements T1 to T10 and the parts of T15 its changes touch; API.6b implements T11
   to T14 and the rest of T15.
 
 ## 2. Sequence and status
@@ -103,16 +103,17 @@ What changed, by area:
   in the selection schemas, which only changes how its two values are described.
 - **Conformance ([T2](#t2-what-must-name-a-term-2026-11-07), [T9](#t9-edit-site-2026-11-07)):**
   `tests/test_term_references.py` walks `openapi.json`, resolves each enumeration to its table through the hand-written
-  `SHARED_CODE_TERMS` in `tests/_term_tables.py` and the descriptors' `code_terms`, and fails on a value with no term, a
+  `SHARED_CODE_TERMS` in `investment_analysis_engine/api/term_references.py` and the descriptors' `code_terms`, and fails on a value with no term, a
   term the bundle does not hold, a table that names a component the description does not hold, and an enumeration that
   is neither named nor exempt. The four exemptions are a constant with a reason each. The same file checks each
   strategy's headline against its `headline_terms` and the bundle, each strategy term and selection `x-term` against the
   bundle, the shared meaning of the two status types, and the orphan rule. The "glossary terms" site (`glossary-terms`,
   kind `reviewed`) has its check, `site_glossary_terms`, in `scripts/strategy_conformance.py`.
-- **Glossary ([T3](#t3-how-values-map-to-terms-2026-11-07), [T10](#t10-new-entries-and-the-orphan-check-2026-11-07)):** 61
-  new entries: the new section "Outcomes, statuses and reasons" holds 42, and 19 are in the
-  sections of the concept they explain. Fourteen existing entries gained a paragraph: the Crossover entry names its three
-  states, and thirteen gained a "Related terms" paragraph so that no served term is an orphan. The help bundle is
+- **Glossary ([T3](#t3-how-values-map-to-terms-2026-11-07), [T10](#t10-new-entries-and-the-orphan-check-2026-11-07)):** 90
+  new entries: the new section "Outcomes, statuses and reasons" holds 50, and 40 are in the
+  sections of the concept they explain. Seventeen existing entries gained a paragraph: thirteen a "Related terms" paragraph so that no served term is an
+  orphan, and the Crossover entry and three more overviews a paragraph that links their per-value entries
+  ([T18](#t18-verdict-and-state-values-get-their-own-terms-2026-11-07)). The help bundle is
   regenerated.
 - **Generator:** the generated descriptor carries `term="<alias>-strategy"`, `headline_terms` and `code_terms`; the
   generated `vocabulary.py` declares both as empty; the generated selection carries the two `x-term` values; the
@@ -126,11 +127,11 @@ What changed, by area:
 
 Judgment calls, each a place where the decisions left a choice:
 
-- **Entries reused.** A value is mapped to an existing entry when that entry already explains it: the trend status to
-  `momentum-states`, the FCF classification to `fcf-classification`, the classification basis, forward policy, completeness
-  and unavailable test to their entries, the industry class to `industry-class`, and the crossover states to `crossover`,
-  whose body now names the three. This follows T3's reading that values which differ only in detail share an entry that
-  explains each.
+- **Entries reused.** The industry class maps to `industry-class`, the classification basis to `classification-basis`, the
+  forward policy to `forward-policy`, an unavailable test to `unavailable-test`, and `not_applicable` to `not-applicable`;
+  each of these entries already explains the values that map to it. The verdict and state sets of
+  [T18](#t18-verdict-and-state-values-get-their-own-terms-2026-11-07) have an entry for each value, and the combined entry
+  stays as their overview.
 - **`not_applicable` has one term.** The run outcome, the calculation status and the metric status each map `not_applicable`
   to the existing `not-applicable` entry. A provider failure code, a verdict and a failure kind share the term of the
   provider failure kind, and the failure codes `provider_error` and `invalid_input` share the status terms of the same names.
@@ -138,8 +139,8 @@ Judgment calls, each a place where the decisions left a choice:
   of [the mapping](#32-the-t3-mapping); `database_*` share `failure-database`, and the request-check codes share
   `failure-request-refused`.
 - **Some sets keep one entry for all values.** The values of the input source, reporting period, accounting scope,
-  capital-expenditure sign, instrument kind, share-count basis, split-adjustment window, price-comparison status,
-  quote-freshness, refresh event, headline-unavailable, growth trend, price basis and trend relationship differ in detail
+  capital-expenditure sign, instrument kind, share-count basis, split-adjustment window, refresh event,
+  headline-unavailable, price basis and trend relationship differ in detail
   of one concept, so each set has one entry that explains each value.
 - **Cells.** The FCF Growth CAGR cell maps to `cagr` whichever basis its label names, because a cell's term is by key and
   the label changes with the basis. `policy` names the strategy's term, `currency` has the new `reporting-currency` entry,
@@ -151,24 +152,30 @@ Judgment calls, each a place where the decisions left a choice:
   sections, instead of loading the packaged bundle, so the generator's copy of the repository is checked against its own
   glossary. `SiteContext.terms` lists terms a context treats as served though the glossary lacks them, which only the
   specimen uses.
-- **Where the tables are assembled.** The hand-written mapping from component name to shared table is test support
-  (`tests/_term_tables.py`). API.6b needs it at run time for `GET /v1/help/references` and moves it into `api`.
+- **Where the registry lives.** The hand-written registry of the shared code sets is
+  `investment_analysis_engine/api/term_references.py` from this slice, because API.6b serves it as
+  `GET /v1/help/references` ([T16](#t16-the-registry-of-the-shared-code-sets-lives-in-api-2026-11-07)). `api` therefore
+  imports `analysis` and `data`, which Architecture §13 now lists.
 - **Orphans.** Forty-one served terms were neither named by a table, cell, strategy or selection field nor linked from
   served content. Each is now linked from the entry of the concept it belongs to, in a "Related terms" paragraph, and no
   claim about how the terms relate was added.
+- **French names.** `TrendStatus.display_name` has no locale parameter and returns the English name; the French table and
+  `LocaleDictionary` are gone ([T17](#t17-trendstatus-has-one-english-display-name-2026-11-07)). Rendered text is unchanged.
+- **Per-value entries.** Under T18 the glossary gained 29 entries: three each for the trend status, the crossover state and
+  the FCF classification, five for the growth trend, three for the forward evidence status, two each for the test result,
+  the score completeness and the price comparison, and six for the quote freshness. The combined entries stay as overviews and
+  link both ways. The totals are now 90 new entries and 198 served terms.
 - **Date.** The sequence tables date API.6a with the day the branch was finished, 2026-11-07; the pull request, when
   opened, keeps that date unless it opens later.
 
 Noticed for later slices:
 
-- `TrendStatus` in `core/constants.py` carries French display names beside the English ones. It is a locale producer of the
-  kind [A.5](API_CONTRACT_AND_SLICE_PLAN.md#a5-locale-choice-2026-11-07) lists in its precondition.
 - A headline cell's label, a presenter's text and every failure message are English constants today. API.6b adds
   `Content-Language`, which is true only while they stay so.
 - 21 served terms have no body, only a definition, so a client must render an empty `body` as nothing.
 - A term table cannot yet say which terms a value's entry shares; `GET /v1/help/references` returns the term id and the
   client groups equal ids if it wants to.
-- `SHARED_CODE_TERMS` must gain a row whenever a shared code set is added to the API; the walk fails until it does.
+- `SHARED_CODE_TERMS` in `api/term_references.py` must gain a row whenever a shared code set is added to the API; the walk fails until it does.
 
 ### 3.2 The T3 mapping
 
@@ -196,17 +203,17 @@ description names them both as a document component and inside the selection sch
 | `CellStatusValue` | `input_unavailable` | `status-input-unavailable` |
 | `CellStatusValue` | `provider_error` | `status-provider-error` |
 | `CellStatusValue` | `unavailable` | `status-unavailable` |
-| `CheckOutcome` | `pass` | `test-result` |
-| `CheckOutcome` | `fail` | `test-result` |
+| `CheckOutcome` | `pass` | `test-passed` |
+| `CheckOutcome` | `fail` | `test-failed` |
 | `CheckOutcome` | `unavailable` | `unavailable-test` |
-| `Classification` | `pass` | `fcf-classification` |
-| `Classification` | `fail` | `fcf-classification` |
-| `Classification` | `indeterminate` | `fcf-classification` |
-| `Completeness` | `complete` | `complete-and-partial-score` |
-| `Completeness` | `partial` | `complete-and-partial-score` |
-| `CrossoverState` | `bullish_crossover` | `crossover` |
-| `CrossoverState` | `bearish_crossover` | `crossover` |
-| `CrossoverState` | `no_new_crossover` | `crossover` |
+| `Classification` | `pass` | `fcf-pass` |
+| `Classification` | `fail` | `fcf-fail` |
+| `Classification` | `indeterminate` | `fcf-indeterminate` |
+| `Completeness` | `complete` | `score-complete` |
+| `Completeness` | `partial` | `score-partial` |
+| `CrossoverState` | `bullish_crossover` | `crossover-bullish` |
+| `CrossoverState` | `bearish_crossover` | `crossover-bearish` |
+| `CrossoverState` | `no_new_crossover` | `crossover-none` |
 | `FCFClassificationBasis` | `total_fcf` | `classification-basis` |
 | `FCFClassificationBasis` | `fcf_per_share` | `classification-basis` |
 | `FCFGrowthSelection.FCFClassificationBasis` | `total_fcf` | `classification-basis` |
@@ -256,9 +263,9 @@ description names them both as a document component and inside the selection sch
 | `FailureReasonCode` | `port_unavailable` | `failure-port-unavailable` |
 | `FailureStatus` | `error` | `failure-category-error` |
 | `FailureStatus` | `input_unavailable` | `status-input-unavailable` |
-| `ForwardEvidenceStatus` | `complete` | `forward-evidence-status` |
-| `ForwardEvidenceStatus` | `partial` | `forward-evidence-status` |
-| `ForwardEvidenceStatus` | `unavailable` | `forward-evidence-status` |
+| `ForwardEvidenceStatus` | `complete` | `forward-evidence-complete` |
+| `ForwardEvidenceStatus` | `partial` | `forward-evidence-partial` |
+| `ForwardEvidenceStatus` | `unavailable` | `forward-evidence-unavailable` |
 | `ForwardPolicy` | `display_only` | `forward-policy` |
 | `ForwardPolicy` | `confirmation` | `forward-policy` |
 | `ForwardPolicy` | `hard_gate` | `forward-policy` |
@@ -289,8 +296,8 @@ description names them both as a document component and inside the selection sch
 | `PeriodKind` | `instant` | `period-kind` |
 | `PriceBasis` | `latest_adjusted_historical_close` | `price-basis` |
 | `PriceBasis` | `latest_historical_close` | `price-basis` |
-| `PriceComparisonStatus` | `available` | `price-comparison-status` |
-| `PriceComparisonStatus` | `unavailable` | `price-comparison-status` |
+| `PriceComparisonStatus` | `available` | `price-comparison-available` |
+| `PriceComparisonStatus` | `unavailable` | `price-comparison-unavailable` |
 | `ProviderCheckVerdict` | `healthy` | `provider-healthy` |
 | `ProviderCheckVerdict` | `unreachable` | `provider-unreachable` |
 | `ProviderCheckVerdict` | `rate_limited` | `provider-rate-limited` |
@@ -301,12 +308,12 @@ description names them both as a document component and inside the selection sch
 | `ProviderFailureKind` | `rate_limited` | `provider-rate-limited` |
 | `ProviderFailureKind` | `unexpected_response` | `provider-unexpected-response` |
 | `ProviderFailureKind` | `no_data` | `provider-no-data` |
-| `QuoteFreshnessStatus` | `recent_retrieval` | `quote-freshness` |
-| `QuoteFreshnessStatus` | `expired` | `quote-freshness` |
-| `QuoteFreshnessStatus` | `unknown_retrieval_time` | `quote-freshness` |
-| `QuoteFreshnessStatus` | `future_timestamp` | `quote-freshness` |
-| `QuoteFreshnessStatus` | `user_supplied` | `quote-freshness` |
-| `QuoteFreshnessStatus` | `historical` | `quote-freshness` |
+| `QuoteFreshnessStatus` | `recent_retrieval` | `quote-recent` |
+| `QuoteFreshnessStatus` | `expired` | `quote-expired` |
+| `QuoteFreshnessStatus` | `unknown_retrieval_time` | `quote-retrieval-unknown` |
+| `QuoteFreshnessStatus` | `future_timestamp` | `quote-future-timestamp` |
+| `QuoteFreshnessStatus` | `user_supplied` | `quote-user-supplied` |
+| `QuoteFreshnessStatus` | `historical` | `quote-historical` |
 | `ReasonCode` | `insufficient_history` | `reason-insufficient-history` |
 | `ReasonCode` | `non_contiguous_history` | `reason-insufficient-history` |
 | `ReasonCode` | `missing_fact` | `reason-missing-input` |
@@ -346,17 +353,17 @@ description names them both as a document component and inside the selection sch
 | `SourceKind` | `cache` | `source-kind` |
 | `SourceKind` | `provider` | `source-kind` |
 | `SourceKind` | `derived` | `source-kind` |
-| `TrendClassification` | `both_growing` | `growth-trend` |
-| `TrendClassification` | `fcf_growing_earnings_not` | `growth-trend` |
-| `TrendClassification` | `earnings_growing_fcf_not` | `growth-trend` |
-| `TrendClassification` | `neither_growing` | `growth-trend` |
-| `TrendClassification` | `insufficient_or_nonmeaningful_growth` | `growth-trend` |
+| `TrendClassification` | `both_growing` | `growth-trend-both` |
+| `TrendClassification` | `fcf_growing_earnings_not` | `growth-trend-fcf-only` |
+| `TrendClassification` | `earnings_growing_fcf_not` | `growth-trend-earnings-only` |
+| `TrendClassification` | `neither_growing` | `growth-trend-neither` |
+| `TrendClassification` | `insufficient_or_nonmeaningful_growth` | `growth-trend-insufficient` |
 | `TrendRelationship` | `short_above_long` | `trend-relationship` |
 | `TrendRelationship` | `short_below_long` | `trend-relationship` |
 | `TrendRelationship` | `short_equal_long` | `trend-relationship` |
-| `TrendStatus` | `BULLISH` | `momentum-states` |
-| `TrendStatus` | `BEARISH` | `momentum-states` |
-| `TrendStatus` | `UNKNOWN` | `momentum-states` |
+| `TrendStatus` | `BULLISH` | `trend-bullish` |
+| `TrendStatus` | `BEARISH` | `trend-bearish` |
+| `TrendStatus` | `UNKNOWN` | `trend-unknown` |
 
 ## 4. Scope limits and acceptance criteria
 
@@ -384,7 +391,8 @@ half; the conformance half touches every strategy, every code set and the genera
 
 ## Appendix A: Decision records
 
-T1 to T15 were approved by the project owner on 2026-11-07 and are recorded here as given.
+T1 to T15 were approved by the project owner on 2026-11-07 and are recorded here as given. T16 to T19 are the review fixes
+of API.6a, approved the same day.
 
 ### T1 API.6 is split in two (2026-11-07)
 
@@ -411,6 +419,8 @@ T1 to T15 were approved by the project owner on 2026-11-07 and are recorded here
 - Values that differ only in detail share one entry, and that entry explains each of them. Examples are the `database_*`
   failure codes and the request-check codes.
 - The slice plan lists the full mapping, from code set and value to term id.
+- Amended by [T18](#t18-verdict-and-state-values-get-their-own-terms-2026-11-07): the verdict and state sets listed there get a
+  term for each value.
 
 ### T4 Where the tables live (2026-11-07)
 
@@ -425,6 +435,8 @@ T1 to T15 were approved by the project owner on 2026-11-07 and are recorded here
 - In 6a, every user-facing code set that is an inline literal today becomes a named component. This includes
   `headline_unavailable` and the refresh event `kind`, and any other inline set the walk finds.
 - A label carries an inline `term`. A code never does.
+- Amended by [T16](#t16-the-registry-of-the-shared-code-sets-lives-in-api-2026-11-07): the registry lives in
+  `investment_analysis_engine/api/term_references.py` from API.6a.
 
 ### T6 Headline cells (2026-11-07)
 
@@ -500,3 +512,31 @@ T1 to T15 were approved by the project owner on 2026-11-07 and are recorded here
 - `docs/user/API.md` gains help, references and locale sections (6b).
 - Architecture §13 in `docs/project/ARCHITECTURE.md` changes in the same change that adds an import between units (6a and 6b
   each).
+
+### T16 The registry of the shared code sets lives in api (2026-11-07)
+
+- `SHARED_CODE_TERMS`, `EXEMPT_CODE_SETS` and `EXEMPT_LOCATIONS` move from `tests/_term_tables.py` into
+  `investment_analysis_engine/api/term_references.py`, with their docstrings, and `tests/_term_tables.py` is deleted.
+- That module is the single registry API.6b serves as `GET /v1/help/references`
+  ([T5](#t5-how-the-tables-are-served-2026-11-07)). Its module docstring says so.
+- `tests/test_term_references.py` imports the registry from that module.
+- Architecture §13 changes in the same commit for the imports the move adds ([T15](#t15-docs-2026-11-07)).
+
+### T17 TrendStatus has one English display name (2026-11-07)
+
+- `TrendStatus.display_name()` takes no locale and returns the English name. The French table, the locale narrowing and
+  `LocaleDictionary` are deleted, and the class docstring no longer claims localization.
+- Both callers in the Momentum presenter are updated, and rendered text stays byte-identical.
+
+### T18 Verdict and state values get their own terms (2026-11-07)
+
+- Each value of these code sets gets its own glossary entry, whose short definition says what the value means: the trend
+  status, the crossover state, the FCF classification, the growth trend, the check outcome (pass and fail), the score
+  completeness, the forward evidence status, the quote freshness status and the price comparison status.
+- A strategy's code set goes in the strategy's own section, and a shared one in "Outcomes, statuses and reasons". The
+  combined entry stays as the overview; each new entry links to it and it links to each new entry.
+- The term tables and the mapping in section 3.2 follow; every other shared term stays as it is.
+
+### T19 The review basis (2026-11-07)
+
+- The review relied on the pushed branch at commit 6f371ec. These fixes are a follow-up commit on the same branch.

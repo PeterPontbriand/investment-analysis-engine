@@ -876,7 +876,13 @@
         "ema",
         "macd",
         "price-basis",
-        "trend-relationship"
+        "trend-relationship",
+        "trend-bullish",
+        "trend-bearish",
+        "trend-unknown",
+        "crossover-bullish",
+        "crossover-bearish",
+        "crossover-none"
       ],
       "title": "Momentum Strategy terms"
     },
@@ -919,7 +925,18 @@
         "forward-policy",
         "forward-evidence-status",
         "historical-horizon",
-        "growth-trend"
+        "growth-trend",
+        "fcf-pass",
+        "fcf-fail",
+        "fcf-indeterminate",
+        "growth-trend-both",
+        "growth-trend-fcf-only",
+        "growth-trend-earnings-only",
+        "growth-trend-neither",
+        "growth-trend-insufficient",
+        "forward-evidence-complete",
+        "forward-evidence-partial",
+        "forward-evidence-unavailable"
       ],
       "title": "Free Cash Flow & Earnings Growth Strategy terms"
     },
@@ -935,7 +952,11 @@
         "gross-margin",
         "asset-turnover",
         "net-dilution",
-        "test-result"
+        "test-result",
+        "test-passed",
+        "test-failed",
+        "score-complete",
+        "score-partial"
       ],
       "title": "Piotroski F-Score Strategy terms"
     },
@@ -983,7 +1004,15 @@
         "reason-invalid-request",
         "reason-security-not-applicable",
         "reason-industry-class-unknown",
-        "reason-debt-not-visible"
+        "reason-debt-not-visible",
+        "quote-recent",
+        "quote-expired",
+        "quote-retrieval-unknown",
+        "quote-future-timestamp",
+        "quote-user-supplied",
+        "quote-historical",
+        "price-comparison-available",
+        "price-comparison-unavailable"
       ],
       "title": "Outcomes, statuses and reasons"
     }
@@ -1128,16 +1157,34 @@
       "name": "Common Shareholders' Equity"
     },
     "complete-and-partial-score": {
-      "body": "A partial score is shown with the unavailable tests named, the usual reading of high and low scores does not apply to it, and it never enters a ranking.",
+      "body": "A partial score is shown with the unavailable tests named, the usual reading of high and low scores does not apply to it, and it never enters a ranking.\n\nThe values are explained in [Complete Score](help:terms/score-complete), [Partial Score](help:terms/score-partial).",
       "definition": "A complete score rests on all nine tests. A partial score rests on six to eight, because the other tests are unavailable.",
       "group": "piotroski-f-score-strategy-terms",
       "name": "Complete Score / Partial Score"
     },
     "crossover": {
-      "body": "The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.\n\nBoth averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.\n\nThe latest signal is one of three states: a bullish crossover, where the short average moved above the long one; a bearish crossover, where it moved below; or no new crossover, where neither happened.",
+      "body": "The current implementation derives a binary `short_sma > long_sma` signal and differences it to identify transitions.\n\nBoth averages must exist at two consecutive observations. The first valid pair can establish trend but cannot establish a crossover. A zero crossover is a verified absence of transition, distinct from unavailable history.\n\nThe latest signal is one of three states: a bullish crossover, where the short average moved above the long one; a bearish crossover, where it moved below; or no new crossover, where neither happened.\n\nThe values are explained in [Bullish Crossover](help:terms/crossover-bullish), [Bearish Crossover](help:terms/crossover-bearish), [No New Crossover](help:terms/crossover-none).",
       "definition": "A change in which of the short and long moving averages is higher.",
       "group": "momentum-strategy-terms",
       "name": "Crossover"
+    },
+    "crossover-bearish": {
+      "body": "It needs two consecutive valid pairs of averages. See [Crossover](help:terms/crossover) for the whole set of values.",
+      "definition": "The relationship moved out of the bullish one since the previous observation: the short moving average stopped being above the long one.",
+      "group": "momentum-strategy-terms",
+      "name": "Bearish Crossover"
+    },
+    "crossover-bullish": {
+      "body": "It needs two consecutive valid pairs of averages. See [Crossover](help:terms/crossover) for the whole set of values.",
+      "definition": "The relationship moved into the bullish one since the previous observation: the short moving average rose above the long one.",
+      "group": "momentum-strategy-terms",
+      "name": "Bullish Crossover"
+    },
+    "crossover-none": {
+      "body": "It is a verified absence of transition, which differs from history too short to tell. See [Crossover](help:terms/crossover) for the whole set of values.",
+      "definition": "Neither a bullish nor a bearish transition happened at the latest observation.",
+      "group": "momentum-strategy-terms",
+      "name": "No New Crossover"
     },
     "current-aaa-yield": {
       "body": "It is a value you supply and is identified as such; a future provider-resolved value would additionally need series provenance and observation/publication dates.",
@@ -1326,16 +1373,34 @@
       "name": "Empty Watchlist"
     },
     "fcf-classification": {
-      "body": "`PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.",
+      "body": "`PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.\n\nThe values are explained in [FCF Pass](help:terms/fcf-pass), [FCF Fail](help:terms/fcf-fail), [FCF Indeterminate](help:terms/fcf-indeterminate).",
       "definition": "The growth screen's three outcomes: pass when required growth rates are positive, fail when complete evidence shows a nonpositive rate, indeterminate when no classification can be made.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "FCF Classification"
+    },
+    "fcf-fail": {
+      "body": "It is a screen result, not a valuation or a recommendation. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
+      "definition": "The growth screen fails: the required growth rates are meaningful and at least one is zero or negative.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "FCF Fail"
     },
     "fcf-growth-strategy": {
       "body": "It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.\n\nRelated terms: [total-company FCF](help:terms/total-company-fcf), [FCF per diluted share](help:terms/fcf-per-diluted-share), [weighted-average diluted shares](help:terms/weighted-average-diluted-shares), [operating cash flow](help:terms/operating-cash-flow).",
       "definition": "A historical screen asking whether free cash flow and diluted EPS both grew at positive, meaningful compound annual rates over one compatible period. It is not a valuation.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Free Cash Flow & Earnings Growth Strategy"
+    },
+    "fcf-indeterminate": {
+      "body": "It is not a failed screen: the engine cannot make the classification from the evidence it may use. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
+      "definition": "The screen cannot be decided, because required evidence is missing, incompatible, not consecutive or not meaningful.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "FCF Indeterminate"
+    },
+    "fcf-pass": {
+      "body": "It is a screen result, not a valuation or a recommendation. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
+      "definition": "The growth screen passes: the free cash flow and diluted EPS growth rates are both meaningful and above zero, and any forward hard gate is met.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "FCF Pass"
     },
     "fcf-per-diluted-share": {
       "body": "It reflects dilution and repurchases and can be selected as the controlling classification basis.",
@@ -1361,11 +1426,29 @@
       "group": "company-financial-measures",
       "name": "Fiscal Year"
     },
+    "forward-evidence-complete": {
+      "body": "See [Forward Evidence Status](help:terms/forward-evidence-status) for the whole set of values.",
+      "definition": "The latest actual EPS and both consensus estimates were found, and both growth intervals between them could be calculated.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Complete Forward Evidence"
+    },
+    "forward-evidence-partial": {
+      "body": "See [Forward Evidence Status](help:terms/forward-evidence-status) for the whole set of values.",
+      "definition": "At least one consensus estimate was found, but not enough to calculate both growth intervals.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Partial Forward Evidence"
+    },
     "forward-evidence-status": {
-      "body": "Forward evidence is optional. Whether it can change the result is set by the [forward policy](help:terms/forward-policy). See [analyst consensus estimate](help:terms/analyst-consensus-estimate).",
+      "body": "Forward evidence is optional. Whether it can change the result is set by the [forward policy](help:terms/forward-policy). See [analyst consensus estimate](help:terms/analyst-consensus-estimate).\n\nThe values are explained in [Complete Forward Evidence](help:terms/forward-evidence-complete), [Partial Forward Evidence](help:terms/forward-evidence-partial), [Unavailable Forward Evidence](help:terms/forward-evidence-unavailable).",
       "definition": "How complete the analyst-consensus evidence is: complete when every estimate was found, partial when only some were, unavailable when none was.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Forward Evidence Status"
+    },
+    "forward-evidence-unavailable": {
+      "body": "The engine has no approved source of consensus estimates yet, so this is the usual value. See [Forward Evidence Status](help:terms/forward-evidence-status) for the whole set of values.",
+      "definition": "No usable consensus estimate was found, so the forward evidence is empty.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Unavailable Forward Evidence"
     },
     "forward-policy": {
       "body": "The code values are `display_only`, `confirmation`, and `hard_gate`. Only `hard_gate` can alter an otherwise passing historical classification.",
@@ -1422,10 +1505,40 @@
       "name": "Growth Multiplier"
     },
     "growth-trend": {
-      "body": "The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](help:terms/free-cash-flow) and [CAGR](help:terms/cagr).",
+      "body": "The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](help:terms/free-cash-flow) and [CAGR](help:terms/cagr).\n\nThe values are explained in [Both Growing](help:terms/growth-trend-both), [Only Free Cash Flow Growing](help:terms/growth-trend-fcf-only), [Only Earnings Growing](help:terms/growth-trend-earnings-only), [Neither Growing](help:terms/growth-trend-neither), [Growth Insufficient](help:terms/growth-trend-insufficient).",
       "definition": "How free cash flow growth and earnings growth compare over the screened period: both growing, only one growing, neither growing, or too little meaningful data to say.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Growth Trend"
+    },
+    "growth-trend-both": {
+      "body": "See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
+      "definition": "Free cash flow and diluted EPS both increased over the measured period.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Both Growing"
+    },
+    "growth-trend-earnings-only": {
+      "body": "See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
+      "definition": "Diluted EPS increased over the measured period, but free cash flow did not.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Only Earnings Growing"
+    },
+    "growth-trend-fcf-only": {
+      "body": "See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
+      "definition": "Free cash flow increased over the measured period, but diluted EPS did not.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Only Free Cash Flow Growing"
+    },
+    "growth-trend-insufficient": {
+      "body": "A growth rate could not be calculated meaningfully from the evidence. See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
+      "definition": "Growth is insufficient or mathematically not meaningful for this screen.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Growth Insufficient"
+    },
+    "growth-trend-neither": {
+      "body": "See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
+      "definition": "Neither free cash flow nor diluted EPS increased over the measured period.",
+      "group": "free-cash-flow--earnings-growth-strategy-terms",
+      "name": "Neither Growing"
     },
     "growth-value-formula": {
       "body": "The project's explicitly identified secondary convention:\n\n```text\nnormalized_eps × (base_pe + growth_multiplier × g)\n× baseline_aaa_yield / current_aaa_yield\n```\n\nIt is a simplified, forecast-dependent growth-stock estimate. It is not the Graham Number and must not be presented as a precise or universally applicable intrinsic value.",
@@ -1530,7 +1643,7 @@
       "name": "Method"
     },
     "momentum-states": {
-      "body": "The run's status is then `input_unavailable`.",
+      "body": "The run's status is then `input_unavailable`.\n\nThe values are explained in [Bullish Trend](help:terms/trend-bullish), [Bearish Trend](help:terms/trend-bearish), [Unknown Trend](help:terms/trend-unknown).",
       "definition": "The trend a Momentum run reports: bullish when the short moving average is above the long one, bearish when it is not, unknown when they cannot be calculated.",
       "group": "momentum-strategy-terms",
       "name": "Bullish / Bearish / Unknown"
@@ -1625,11 +1738,23 @@
       "group": "momentum-strategy-terms",
       "name": "Price Basis"
     },
+    "price-comparison-available": {
+      "body": "See [Price Comparison Status](help:terms/price-comparison-status) for the whole set of values.",
+      "definition": "The method's value could be compared with the price, so a margin of safety was calculated.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Price Comparison Available"
+    },
     "price-comparison-status": {
-      "body": "An unavailable comparison leaves the [margin of safety](help:terms/margin-of-safety) without a value; it is never replaced by zero. See [price relationship](help:terms/price-relationship).",
+      "body": "An unavailable comparison leaves the [margin of safety](help:terms/margin-of-safety) without a value; it is never replaced by zero. See [price relationship](help:terms/price-relationship).\n\nThe values are explained in [Price Comparison Available](help:terms/price-comparison-available), [Price Comparison Unavailable](help:terms/price-comparison-unavailable).",
       "definition": "Whether a comparison between a method's value and the price could be made: available when it could, unavailable when it could not.",
       "group": "valuation-and-price-comparison",
       "name": "Price Comparison Status"
+    },
+    "price-comparison-unavailable": {
+      "body": "See [Price Comparison Status](help:terms/price-comparison-status) for the whole set of values.",
+      "definition": "The method's value could not be compared with the price, so no margin of safety is shown.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Price Comparison Unavailable"
     },
     "price-relationship": {
       "body": "It avoids requiring you to interpret the sign convention of the stored `margin_of_safety_percent` field. Another example is “89.57% above the Graham growth value.”\n\nRelated terms: [discount and premium](help:terms/discount-and-premium), [percentage point](help:terms/percentage-point).",
@@ -1679,11 +1804,47 @@
       "group": "outcomes-statuses-and-reasons",
       "name": "Provider Unreachable"
     },
+    "quote-expired": {
+      "body": "See [Quote Freshness](help:terms/quote-freshness) for the whole set of values.",
+      "definition": "A quote retrieved longer ago than the freshness limit, so it is no longer treated as current.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Expired Quote"
+    },
     "quote-freshness": {
-      "body": "A recently retrieved quote is younger than the freshness limit and an expired quote is older. A quote with no recorded retrieval time is unknown, and one dated after the time of the analysis is a future timestamp. A quote you supplied as an override is user supplied. A quote read for a past as-of date is historical. See [current quote](help:terms/current-quote) and [retrieved at](help:terms/retrieved-at).",
+      "body": "A recently retrieved quote is younger than the freshness limit and an expired quote is older. A quote with no recorded retrieval time is unknown, and one dated after the time of the analysis is a future timestamp. A quote you supplied as an override is user supplied. A quote read for a past as-of date is historical. See [current quote](help:terms/current-quote) and [retrieved at](help:terms/retrieved-at).\n\nThe values are explained in [Recently Retrieved Quote](help:terms/quote-recent), [Expired Quote](help:terms/quote-expired), [Quote With Unknown Retrieval Time](help:terms/quote-retrieval-unknown), [Future-Dated Quote](help:terms/quote-future-timestamp), [User-Supplied Quote](help:terms/quote-user-supplied), [Historical Quote](help:terms/quote-historical).",
       "definition": "How recent the price quote behind a comparison is: recently retrieved, expired, of unknown retrieval time, dated in the future, supplied by you, or historical.",
       "group": "market-data-and-timing",
       "name": "Quote Freshness"
+    },
+    "quote-future-timestamp": {
+      "body": "See [Quote Freshness](help:terms/quote-freshness) for the whole set of values.",
+      "definition": "The quote's retrieval or market time is later than the time of the analysis, so its freshness cannot be judged.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Future-Dated Quote"
+    },
+    "quote-historical": {
+      "body": "See [Quote Freshness](help:terms/quote-freshness) for the whole set of values.",
+      "definition": "The price was read for a past as-of date and not as a current quote, so no freshness limit applies.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Historical Quote"
+    },
+    "quote-recent": {
+      "body": "See [Quote Freshness](help:terms/quote-freshness) for the whole set of values.",
+      "definition": "A quote retrieved within the freshness limit, so it is treated as current.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Recently Retrieved Quote"
+    },
+    "quote-retrieval-unknown": {
+      "body": "See [Quote Freshness](help:terms/quote-freshness) for the whole set of values.",
+      "definition": "No retrieval time was recorded for the quote, so its age cannot be judged.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Quote With Unknown Retrieval Time"
+    },
+    "quote-user-supplied": {
+      "body": "See [Quote Freshness](help:terms/quote-freshness) for the whole set of values.",
+      "definition": "The price was supplied as an override, so no retrieval age applies.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "User-Supplied Quote"
     },
     "reason-ambiguous-fact": {
       "body": "Choosing one would be a guess. The value stays unavailable.",
@@ -1817,6 +1978,18 @@
       "group": "momentum-strategy-terms",
       "name": "RSI (Relative Strength Index)"
     },
+    "score-complete": {
+      "body": "See [Complete Score / Partial Score](help:terms/complete-and-partial-score) for the whole set of values.",
+      "definition": "A score that rests on all nine tests.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Complete Score"
+    },
+    "score-partial": {
+      "body": "See [Complete Score / Partial Score](help:terms/complete-and-partial-score) for the whole set of values.",
+      "definition": "A score that rests on six to eight tests, because the others are unavailable.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Partial Score"
+    },
     "sec": {
       "body": "The SEC's website is at [sec.gov](https://www.sec.gov/).",
       "definition": "The United States Securities and Exchange Commission, the federal securities regulator. The engine uses its public data as a source of company financial facts.",
@@ -1919,8 +2092,20 @@
       "group": "company-financial-measures",
       "name": "Tangible Book Value / Tangible BVPS"
     },
+    "test-failed": {
+      "body": "See [Test Result](help:terms/test-result) for the whole set of values.",
+      "definition": "A test of the score whose condition does not hold. It adds nothing to the F-Score.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Failed Test"
+    },
+    "test-passed": {
+      "body": "See [Test Result](help:terms/test-result) for the whole set of values.",
+      "definition": "A test of the score whose condition holds. It adds one to the F-Score.",
+      "group": "piotroski-f-score-strategy-terms",
+      "name": "Passed Test"
+    },
     "test-result": {
-      "body": "A test that cannot be decided is not a fail; it is an [unavailable test](help:terms/unavailable-test). The [F-Score](help:terms/f-score) counts the passes.",
+      "body": "A test that cannot be decided is not a fail; it is an [unavailable test](help:terms/unavailable-test). The [F-Score](help:terms/f-score) counts the passes.\n\nThe values are explained in [Passed Test](help:terms/test-passed), [Failed Test](help:terms/test-failed).",
       "definition": "The result of one test of the score: a pass when its condition holds and a fail when it does not.",
       "group": "piotroski-f-score-strategy-terms",
       "name": "Test Result"
@@ -1949,11 +2134,29 @@
       "group": "company-financial-measures",
       "name": "Total Debt"
     },
+    "trend-bearish": {
+      "body": "The averages can be equal, which is also read as bearish. See [Bullish / Bearish / Unknown](help:terms/momentum-states) for the whole set of values.",
+      "definition": "The short moving average is not above the long one at the latest observation, so the trend is read as bearish.",
+      "group": "momentum-strategy-terms",
+      "name": "Bearish Trend"
+    },
+    "trend-bullish": {
+      "body": "Only the latest observation counts; a bullish trend is not a new crossover. See [Bullish / Bearish / Unknown](help:terms/momentum-states) for the whole set of values.",
+      "definition": "The short moving average is above the long one at the latest observation, so the trend is read as bullish.",
+      "group": "momentum-strategy-terms",
+      "name": "Bullish Trend"
+    },
     "trend-relationship": {
       "body": "Above is the bullish reading of the [trend](help:terms/momentum-states); below or equal is the bearish reading. The relationship describes the latest observation, and a [crossover](help:terms/crossover) describes a change in it.",
       "definition": "How the short moving average stands against the long one: above it, below it or equal to it.",
       "group": "momentum-strategy-terms",
       "name": "Trend Relationship"
+    },
+    "trend-unknown": {
+      "body": "The run's status is then input unavailable. See [Bullish / Bearish / Unknown](help:terms/momentum-states) for the whole set of values.",
+      "definition": "The trend could not be calculated, because the moving averages are not available.",
+      "group": "momentum-strategy-terms",
+      "name": "Unknown Trend"
     },
     "ttm": {
       "body": "TTM EPS is a current-looking accounting measure but is not the same as one completed fiscal year's EPS or Graham's three-year average. No data source the application currently ships supplies it; the Graham strategies use three-year-average or fiscal-year EPS.",

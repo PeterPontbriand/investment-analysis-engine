@@ -5638,7 +5638,7 @@
         "type": "string"
       },
       "TrendStatus": {
-        "description": "Strongly-typed market trend indicators with localization support.\n\nAttributes:\n    BULLISH: Bullish market trend.\n    BEARISH: Bearish market trend.\n    UNKNOWN: Unknown or neutral market state.",
+        "description": "Strongly-typed market trend indicators.\n\nAttributes:\n    BULLISH: Bullish market trend.\n    BEARISH: Bearish market trend.\n    UNKNOWN: Unknown or neutral market state.",
         "enum": [
           "BULLISH",
           "BEARISH",

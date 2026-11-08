@@ -83,16 +83,16 @@ CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
     {
         "Classification": MappingProxyType(
             {
-                Classification.PASS.value: "fcf-classification",
-                Classification.FAIL.value: "fcf-classification",
-                Classification.INDETERMINATE.value: "fcf-classification",
+                Classification.PASS.value: "fcf-pass",
+                Classification.FAIL.value: "fcf-fail",
+                Classification.INDETERMINATE.value: "fcf-indeterminate",
             }
         ),
         "ForwardEvidenceStatus": MappingProxyType(
             {
-                ForwardEvidenceStatus.COMPLETE.value: "forward-evidence-status",
-                ForwardEvidenceStatus.PARTIAL.value: "forward-evidence-status",
-                ForwardEvidenceStatus.UNAVAILABLE.value: "forward-evidence-status",
+                ForwardEvidenceStatus.COMPLETE.value: "forward-evidence-complete",
+                ForwardEvidenceStatus.PARTIAL.value: "forward-evidence-partial",
+                ForwardEvidenceStatus.UNAVAILABLE.value: "forward-evidence-unavailable",
             }
         ),
         "HistoricalHorizon": MappingProxyType(
@@ -139,11 +139,11 @@ CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
         ),
         "TrendClassification": MappingProxyType(
             {
-                TrendClassification.BOTH_GROWING.value: "growth-trend",
-                TrendClassification.FCF_GROWING_EARNINGS_NOT.value: "growth-trend",
-                TrendClassification.EARNINGS_GROWING_FCF_NOT.value: "growth-trend",
-                TrendClassification.NEITHER_GROWING.value: "growth-trend",
-                TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH.value: "growth-trend",
+                TrendClassification.BOTH_GROWING.value: "growth-trend-both",
+                TrendClassification.FCF_GROWING_EARNINGS_NOT.value: "growth-trend-fcf-only",
+                TrendClassification.EARNINGS_GROWING_FCF_NOT.value: "growth-trend-earnings-only",
+                TrendClassification.NEITHER_GROWING.value: "growth-trend-neither",
+                TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH.value: "growth-trend-insufficient",
             }
         ),
     }

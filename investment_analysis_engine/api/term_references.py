@@ -1,9 +1,9 @@
-"""The term tables of the shared code sets, assembled by hand, and the code sets the term rule exempts.
+"""The registry of the shared code sets: the term table of each, and the code sets that name no term.
 
-``SHARED_CODE_TERMS`` names each shared OpenAPI component and the table that gives every value of it a glossary term.
-It is written out like ``STRATEGIES`` and never discovered: a code set added to the API is added here in the same
-change, and the conformance test fails until it is. A strategy's own code sets are reached through its descriptor's
-``code_terms``.
+This is the one registry API.6b serves as ``GET /v1/help/references``. ``SHARED_CODE_TERMS`` names each shared OpenAPI
+component and the table that gives every value of it a glossary term. It is written out like ``STRATEGIES`` and never
+discovered: a code set added to the API is added here in the same change, and the conformance test fails until it is. A
+strategy's own code sets are reached through its descriptor's ``code_terms``.
 """
 
 from collections.abc import Mapping

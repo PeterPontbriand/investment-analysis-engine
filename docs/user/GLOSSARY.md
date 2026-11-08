@@ -272,6 +272,8 @@ How recent the price quote behind a comparison is: recently retrieved, expired, 
 
 A recently retrieved quote is younger than the freshness limit and an expired quote is older. A quote with no recorded retrieval time is unknown, and one dated after the time of the analysis is a future timestamp. A quote you supplied as an override is user supplied. A quote read for a past as-of date is historical. See [current quote](#current-quote) and [retrieved at](#retrieved-at).
 
+The values are explained in [Recently Retrieved Quote](#quote-recent), [Expired Quote](#quote-expired), [Quote With Unknown Retrieval Time](#quote-retrieval-unknown), [Future-Dated Quote](#quote-future-timestamp), [User-Supplied Quote](#quote-user-supplied), [Historical Quote](#quote-historical).
+
 <a id="reporting-currency"></a>
 ### Reporting Currency
 The currency a company states its financial figures in, written as a three-letter ISO 4217 code such as USD.
@@ -522,6 +524,8 @@ Whether a comparison between a method's value and the price could be made: avail
 
 An unavailable comparison leaves the [margin of safety](#margin-of-safety) without a value; it is never replaced by zero. See [price relationship](#price-relationship).
 
+The values are explained in [Price Comparison Available](#price-comparison-available), [Price Comparison Unavailable](#price-comparison-unavailable).
+
 ---
 
 ## Momentum Strategy terms
@@ -552,11 +556,15 @@ Both averages must exist at two consecutive observations. The first valid pair c
 
 The latest signal is one of three states: a bullish crossover, where the short average moved above the long one; a bearish crossover, where it moved below; or no new crossover, where neither happened.
 
+The values are explained in [Bullish Crossover](#crossover-bullish), [Bearish Crossover](#crossover-bearish), [No New Crossover](#crossover-none).
+
 <a id="momentum-states"></a>
 ### Bullish / Bearish / Unknown
 The trend a Momentum run reports: bullish when the short moving average is above the long one, bearish when it is not, unknown when they cannot be calculated.
 
 The run's status is then `input_unavailable`.
+
+The values are explained in [Bullish Trend](#trend-bullish), [Bearish Trend](#trend-bearish), [Unknown Trend](#trend-unknown).
 
 <a id="rsi"></a>
 ### RSI (Relative Strength Index)
@@ -587,6 +595,42 @@ The basis shows which price series the averages and the RSI were calculated from
 How the short moving average stands against the long one: above it, below it or equal to it.
 
 Above is the bullish reading of the [trend](#momentum-states); below or equal is the bearish reading. The relationship describes the latest observation, and a [crossover](#crossover) describes a change in it.
+
+<a id="trend-bullish"></a>
+### Bullish Trend
+The short moving average is above the long one at the latest observation, so the trend is read as bullish.
+
+Only the latest observation counts; a bullish trend is not a new crossover. See [Bullish / Bearish / Unknown](#momentum-states) for the whole set of values.
+
+<a id="trend-bearish"></a>
+### Bearish Trend
+The short moving average is not above the long one at the latest observation, so the trend is read as bearish.
+
+The averages can be equal, which is also read as bearish. See [Bullish / Bearish / Unknown](#momentum-states) for the whole set of values.
+
+<a id="trend-unknown"></a>
+### Unknown Trend
+The trend could not be calculated, because the moving averages are not available.
+
+The run's status is then input unavailable. See [Bullish / Bearish / Unknown](#momentum-states) for the whole set of values.
+
+<a id="crossover-bullish"></a>
+### Bullish Crossover
+The relationship moved into the bullish one since the previous observation: the short moving average rose above the long one.
+
+It needs two consecutive valid pairs of averages. See [Crossover](#crossover) for the whole set of values.
+
+<a id="crossover-bearish"></a>
+### Bearish Crossover
+The relationship moved out of the bullish one since the previous observation: the short moving average stopped being above the long one.
+
+It needs two consecutive valid pairs of averages. See [Crossover](#crossover) for the whole set of values.
+
+<a id="crossover-none"></a>
+### No New Crossover
+Neither a bullish nor a bearish transition happened at the latest observation.
+
+It is a verified absence of transition, which differs from history too short to tell. See [Crossover](#crossover) for the whole set of values.
 
 ---
 
@@ -737,6 +781,8 @@ The growth screen's three outcomes: pass when required growth rates are positive
 
 `PASS` means required growth rates are positive; `FAIL` means complete, meaningful evidence includes a nonpositive required rate; `INDETERMINATE` means the required classification cannot be made from admissible evidence. These are distinct from software execution status.
 
+The values are explained in [FCF Pass](#fcf-pass), [FCF Fail](#fcf-fail), [FCF Indeterminate](#fcf-indeterminate).
+
 <a id="fcf-yield"></a>
 ### FCF Yield
 Latest completed annual free cash flow divided by market capitalization at the boundary, expressed as a percentage.
@@ -755,6 +801,8 @@ How complete the analyst-consensus evidence is: complete when every estimate was
 
 Forward evidence is optional. Whether it can change the result is set by the [forward policy](#forward-policy). See [analyst consensus estimate](#analyst-consensus-estimate).
 
+The values are explained in [Complete Forward Evidence](#forward-evidence-complete), [Partial Forward Evidence](#forward-evidence-partial), [Unavailable Forward Evidence](#forward-evidence-unavailable).
+
 <a id="historical-horizon"></a>
 ### Historical Horizon
 The number of elapsed years of history the growth screen looks back over: three, four or five, or the longest available.
@@ -766,6 +814,74 @@ The default picks the longest history available, up to five years. A longer hori
 How free cash flow growth and earnings growth compare over the screened period: both growing, only one growing, neither growing, or too little meaningful data to say.
 
 The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](#free-cash-flow) and [CAGR](#cagr).
+
+The values are explained in [Both Growing](#growth-trend-both), [Only Free Cash Flow Growing](#growth-trend-fcf-only), [Only Earnings Growing](#growth-trend-earnings-only), [Neither Growing](#growth-trend-neither), [Growth Insufficient](#growth-trend-insufficient).
+
+<a id="fcf-pass"></a>
+### FCF Pass
+The growth screen passes: the free cash flow and diluted EPS growth rates are both meaningful and above zero, and any forward hard gate is met.
+
+It is a screen result, not a valuation or a recommendation. See [FCF Classification](#fcf-classification) for the whole set of values.
+
+<a id="fcf-fail"></a>
+### FCF Fail
+The growth screen fails: the required growth rates are meaningful and at least one is zero or negative.
+
+It is a screen result, not a valuation or a recommendation. See [FCF Classification](#fcf-classification) for the whole set of values.
+
+<a id="fcf-indeterminate"></a>
+### FCF Indeterminate
+The screen cannot be decided, because required evidence is missing, incompatible, not consecutive or not meaningful.
+
+It is not a failed screen: the engine cannot make the classification from the evidence it may use. See [FCF Classification](#fcf-classification) for the whole set of values.
+
+<a id="growth-trend-both"></a>
+### Both Growing
+Free cash flow and diluted EPS both increased over the measured period.
+
+See [Growth Trend](#growth-trend) for the whole set of values.
+
+<a id="growth-trend-fcf-only"></a>
+### Only Free Cash Flow Growing
+Free cash flow increased over the measured period, but diluted EPS did not.
+
+See [Growth Trend](#growth-trend) for the whole set of values.
+
+<a id="growth-trend-earnings-only"></a>
+### Only Earnings Growing
+Diluted EPS increased over the measured period, but free cash flow did not.
+
+See [Growth Trend](#growth-trend) for the whole set of values.
+
+<a id="growth-trend-neither"></a>
+### Neither Growing
+Neither free cash flow nor diluted EPS increased over the measured period.
+
+See [Growth Trend](#growth-trend) for the whole set of values.
+
+<a id="growth-trend-insufficient"></a>
+### Growth Insufficient
+Growth is insufficient or mathematically not meaningful for this screen.
+
+A growth rate could not be calculated meaningfully from the evidence. See [Growth Trend](#growth-trend) for the whole set of values.
+
+<a id="forward-evidence-complete"></a>
+### Complete Forward Evidence
+The latest actual EPS and both consensus estimates were found, and both growth intervals between them could be calculated.
+
+See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
+
+<a id="forward-evidence-partial"></a>
+### Partial Forward Evidence
+At least one consensus estimate was found, but not enough to calculate both growth intervals.
+
+See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
+
+<a id="forward-evidence-unavailable"></a>
+### Unavailable Forward Evidence
+No usable consensus estimate was found, so the forward evidence is empty.
+
+The engine has no approved source of consensus estimates yet, so this is the usual value. See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
 
 ---
 
@@ -790,6 +906,8 @@ It is shown as “*x* of *n*” with *n* the tests that could be decided, and is
 A complete score rests on all nine tests. A partial score rests on six to eight, because the other tests are unavailable.
 
 A partial score is shown with the unavailable tests named, the usual reading of high and low scores does not apply to it, and it never enters a ranking.
+
+The values are explained in [Complete Score](#score-complete), [Partial Score](#score-partial).
 
 <a id="unavailable-test"></a>
 ### Unavailable Test
@@ -822,6 +940,32 @@ The F-Score's dilution test passes when the count did not rise.
 The result of one test of the score: a pass when its condition holds and a fail when it does not.
 
 A test that cannot be decided is not a fail; it is an [unavailable test](#unavailable-test). The [F-Score](#f-score) counts the passes.
+
+The values are explained in [Passed Test](#test-passed), [Failed Test](#test-failed).
+
+<a id="test-passed"></a>
+### Passed Test
+A test of the score whose condition holds. It adds one to the F-Score.
+
+See [Test Result](#test-result) for the whole set of values.
+
+<a id="test-failed"></a>
+### Failed Test
+A test of the score whose condition does not hold. It adds nothing to the F-Score.
+
+See [Test Result](#test-result) for the whole set of values.
+
+<a id="score-complete"></a>
+### Complete Score
+A score that rests on all nine tests.
+
+See [Complete Score / Partial Score](#complete-and-partial-score) for the whole set of values.
+
+<a id="score-partial"></a>
+### Partial Score
+A score that rests on six to eight tests, because the others are unavailable.
+
+See [Complete Score / Partial Score](#complete-and-partial-score) for the whole set of values.
 
 ---
 
@@ -1092,6 +1236,54 @@ The class comes from the as-filed SIC code. See [industry class](#industry-class
 Total debt cannot be determined from the filing: related debt is tagged but no usable component is shown, or the filing's debt mapping is not supported.
 
 An absent debt component counts as zero only when nothing related to it is tagged. Otherwise total debt is unavailable. See [total debt](#total-debt).
+
+<a id="quote-recent"></a>
+### Recently Retrieved Quote
+A quote retrieved within the freshness limit, so it is treated as current.
+
+See [Quote Freshness](#quote-freshness) for the whole set of values.
+
+<a id="quote-expired"></a>
+### Expired Quote
+A quote retrieved longer ago than the freshness limit, so it is no longer treated as current.
+
+See [Quote Freshness](#quote-freshness) for the whole set of values.
+
+<a id="quote-retrieval-unknown"></a>
+### Quote With Unknown Retrieval Time
+No retrieval time was recorded for the quote, so its age cannot be judged.
+
+See [Quote Freshness](#quote-freshness) for the whole set of values.
+
+<a id="quote-future-timestamp"></a>
+### Future-Dated Quote
+The quote's retrieval or market time is later than the time of the analysis, so its freshness cannot be judged.
+
+See [Quote Freshness](#quote-freshness) for the whole set of values.
+
+<a id="quote-user-supplied"></a>
+### User-Supplied Quote
+The price was supplied as an override, so no retrieval age applies.
+
+See [Quote Freshness](#quote-freshness) for the whole set of values.
+
+<a id="quote-historical"></a>
+### Historical Quote
+The price was read for a past as-of date and not as a current quote, so no freshness limit applies.
+
+See [Quote Freshness](#quote-freshness) for the whole set of values.
+
+<a id="price-comparison-available"></a>
+### Price Comparison Available
+The method's value could be compared with the price, so a margin of safety was calculated.
+
+See [Price Comparison Status](#price-comparison-status) for the whole set of values.
+
+<a id="price-comparison-unavailable"></a>
+### Price Comparison Unavailable
+The method's value could not be compared with the price, so no margin of safety is shown.
+
+See [Price Comparison Status](#price-comparison-status) for the whole set of values.
 
 ---
 

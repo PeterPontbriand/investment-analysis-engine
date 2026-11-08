@@ -179,8 +179,8 @@ def common_currency(*inputs: ResolvedInput | None) -> str | None:
 
 PRICE_COMPARISON_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
     {
-        "available": "price-comparison-status",
-        "unavailable": "price-comparison-status",
+        "available": "price-comparison-available",
+        "unavailable": "price-comparison-unavailable",
     }
 )
 """The glossary term that explains each price-comparison status."""

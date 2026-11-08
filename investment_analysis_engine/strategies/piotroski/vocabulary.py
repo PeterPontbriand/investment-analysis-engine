@@ -53,15 +53,15 @@ CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
     {
         "CheckOutcome": MappingProxyType(
             {
-                CheckOutcome.PASS.value: "test-result",
-                CheckOutcome.FAIL.value: "test-result",
+                CheckOutcome.PASS.value: "test-passed",
+                CheckOutcome.FAIL.value: "test-failed",
                 CheckOutcome.UNAVAILABLE.value: "unavailable-test",
             }
         ),
         "Completeness": MappingProxyType(
             {
-                Completeness.COMPLETE.value: "complete-and-partial-score",
-                Completeness.PARTIAL.value: "complete-and-partial-score",
+                Completeness.COMPLETE.value: "score-complete",
+                Completeness.PARTIAL.value: "score-partial",
             }
         ),
     }

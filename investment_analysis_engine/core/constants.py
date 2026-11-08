@@ -1,13 +1,11 @@
 """
-Centralized domain constants and localization registry.
+Centralized domain constants.
 
 This module provides strongly-typed constants for financial data agents, including:
-- Locale-specific translations (en/fr)
 - Market trend status vectors
 - Standardized DataFrame column definitions
 
 Classes:
-    LocaleDictionary(TypedDict): Dictionary structure for locale-based translations.
     TrendStatus(str, Enum): Strongly-typed market trend indicators.
     DataColumns: Standardized pandas DataFrame column definitions.
 """
@@ -15,32 +13,12 @@ Classes:
 from collections.abc import Mapping
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Final, Literal, TypedDict
-
-
-class LocaleDictionary(TypedDict):
-    """
-    Typed dictionary mapping locales to translation dictionaries.
-
-    Example:
-        {
-            "en": {"BULLISH": "Bullish Trend", ...},
-            "fr": {"BULLISH": "Tendance Haussière", ...}
-        }
-
-    Keys:
-        en: English translations
-        fr: French translations
-
-    """
-
-    en: dict[str, str]
-    fr: dict[str, str]
+from typing import Final
 
 
 class TrendStatus(StrEnum):
     """
-    Strongly-typed market trend indicators with localization support.
+    Strongly-typed market trend indicators.
 
     Attributes:
         BULLISH: Bullish market trend.
@@ -53,33 +31,24 @@ class TrendStatus(StrEnum):
     BEARISH = "BEARISH"
     UNKNOWN = "UNKNOWN"
 
-    def display_name(self, locale: str = "en") -> str:
+    def display_name(self) -> str:
         """
-        Return localized display name for the trend status.
-
-        Args:
-            locale: Language code ("en" or "fr"). Defaults to "en".
+        Return the English display name of the trend status.
 
         Returns:
-            Localized string representation of the trend status.
+            The English name: "Bullish Trend", "Bearish Trend" or "Unknown State".
 
         """
-        translations: Final[LocaleDictionary] = {
-            "en": {
-                "BULLISH": "Bullish Trend",
-                "BEARISH": "Bearish Trend",
-                "UNKNOWN": "Unknown State",
-            },
-            "fr": {
-                "BULLISH": "Tendance Haussière",
-                "BEARISH": "Tendance Baissière",
-                "UNKNOWN": "État Inconnu",
-            },
-        }
-        # Narrow the dynamic string to a literal valid key to make mypy happy
-        target_locale: Literal["en", "fr"] = "fr" if locale == "fr" else "en"
-        locale_set = translations[target_locale]
-        return locale_set.get(self.value, self.value)
+        return _DISPLAY_NAMES[self.value]
+
+
+_DISPLAY_NAMES: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        TrendStatus.BULLISH.value: "Bullish Trend",
+        TrendStatus.BEARISH.value: "Bearish Trend",
+        TrendStatus.UNKNOWN.value: "Unknown State",
+    }
+)
 
 
 class DataColumns:
@@ -96,9 +65,9 @@ class DataColumns:
 
 TREND_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
     {
-        TrendStatus.BULLISH.value: "momentum-states",
-        TrendStatus.BEARISH.value: "momentum-states",
-        TrendStatus.UNKNOWN.value: "momentum-states",
+        TrendStatus.BULLISH.value: "trend-bullish",
+        TrendStatus.BEARISH.value: "trend-bearish",
+        TrendStatus.UNKNOWN.value: "trend-unknown",
     }
 )
-"""The glossary term that explains each trend status; one entry explains all three."""
+"""The glossary term that explains each trend status; each value has its own entry."""

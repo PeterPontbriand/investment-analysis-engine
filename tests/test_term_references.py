@@ -13,6 +13,7 @@ from typing import Any, Final
 
 import pytest
 
+from investment_analysis_engine.api.term_references import EXEMPT_CODE_SETS, EXEMPT_LOCATIONS, SHARED_CODE_TERMS
 from investment_analysis_engine.help.bundle import TERM_LINK_PREFIX, HelpBundle, load_help_bundle
 from investment_analysis_engine.reporting.headline import CELL_STATUS_TERMS
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
@@ -20,7 +21,6 @@ from scripts.generate_openapi import openapi_description
 from scripts.repository_root import REPOSITORY_ROOT
 from scripts.strategy_conformance import PRODUCTION, SiteContext, site_glossary_terms
 from scripts.strategy_sites import strategy_names
-from tests._term_tables import EXEMPT_CODE_SETS, EXEMPT_LOCATIONS, SHARED_CODE_TERMS
 
 _SELECTION_DIRECTORY: Final = "schemas/selections"
 
