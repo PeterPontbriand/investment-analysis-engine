@@ -14,7 +14,7 @@ The exact formula is documented in [Financial Math](../FINANCE_MATH.md#graham-gr
 <!-- help:exclude -->
 
 ```bash
-uv run ian graham-growth KO \
+ian graham-growth KO \
     --expected-growth 5 \
     --aaa-yield 4.5
 ```
@@ -104,7 +104,7 @@ example, in PowerShell:
 $previousTtl = $env:IAN_FINANCIAL_CACHE_TTL_SECONDS
 try {
     $env:IAN_FINANCIAL_CACHE_TTL_SECONDS = "0"
-    uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5
+    ian graham-growth KO --expected-growth 5 --aaa-yield 4.5
 } finally {
     $env:IAN_FINANCIAL_CACHE_TTL_SECONDS = $previousTtl
 }
@@ -161,8 +161,8 @@ An override is recorded as an override rather than being presented as provider-v
 Examples:
 
 ```bash
-uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --eps 3.25
-uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --current-price 75
+ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --eps 3.25
+ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --current-price 75
 ```
 
 Use `--details` to inspect what financial values were used and `--diagnostics` to inspect how resolution proceeded.
@@ -210,7 +210,7 @@ Current-only quote providers do not manufacture historical quotes. A historical 
 `--as-of` sets the boundary:
 
 ```bash
-uv run ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --as-of 2025-12-31
+ian graham-growth KO --expected-growth 5 --aaa-yield 4.5 --as-of 2025-12-31
 ```
 
 ## Why another Graham growth-value calculator may disagree

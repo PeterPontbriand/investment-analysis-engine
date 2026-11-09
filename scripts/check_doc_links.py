@@ -28,9 +28,10 @@ An ``<a id="x"></a>`` line is also an anchor: a link to ``#x`` resolves when suc
 A link into either glossary (``GLOSSARY_PATHS``) must target such an id. A link to a glossary heading slug, which
 changes when a heading is reworded, is reported even though a heading produces it.
 
-Finally, a line inside a fenced code block of ``README.md`` or a Markdown file below ``docs/user/`` whose first word is
-``ian`` is reported: every command shown to a user starts with ``uv run``, because a bare ``ian`` is not recognized
-outside the installation's own Python environment.
+Finally, a line of ``README.md`` or of a Markdown file below ``docs/user/`` that holds ``uv run ian``, with or without
+``--`` flags between ``run`` and ``ian``, is reported, fenced or not: the user documentation shows the installed ``ian``
+command, which ``INSTALLATION.md`` explains how to make available. Fences follow CommonMark: a fence closes only on a
+line of the same character that is at least as long as the opening one.
 
 Only inline links (``[text](target)``) are recognized; reference-style links
 (``[text][ref]``) are not used anywhere in this repository's Markdown and are
@@ -44,6 +45,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 GLOSSARY_PATHS = ("docs/user/GLOSSARY.md", "docs/project/CONTRIBUTOR_GLOSSARY.md")
 """The two glossaries, as repository-relative paths; a link into either must target an entry's id."""
@@ -104,39 +106,73 @@ USER_DOCUMENT_PREFIX = "docs/user/"
 USER_README = "README.md"
 """The repository README, which is user-facing and so held to the same command rule as the user documentation."""
 
-_BARE_IAN_COMMAND_RE = re.compile(r"^\s*ian(\s|$)")
+_UV_RUN_IAN_RE = re.compile(r"\buv\s+run(?:\s+--\S+)*\s+ian(?![\w-])")
+_FENCE_CLOSE_RE = re.compile(r"^(`{3,}|~{3,})\s*$")
 
 
 @dataclass(frozen=True)
-class BareIanCommand:
-    """One line in a fenced code block that starts with ``ian`` and not ``uv run ian``."""
+class FenceLine:
+    """One line of a Markdown file with its place relative to fenced code blocks.
+
+    ``kind`` is ``"open"`` for a fence's opening line (``info`` then holds its info string), ``"close"`` for its
+    closing line, ``"inside"`` for a line within a fence and ``"outside"`` for any other line.
+    """
+
+    number: int
+    text: str
+    kind: Literal["open", "close", "inside", "outside"]
+    info: str = ""
+
+
+def classify_fence_lines(lines: list[str]) -> list[FenceLine]:
+    """Return every line with its fence role, following CommonMark's closing rule.
+
+    A fence closes only on a line whose fence uses the same character as the opening one, is at least as long, and has
+    nothing after it. A shorter or different fence inside the block is content, so a four-backtick block can hold a
+    three-backtick block.
+    """
+    result: list[FenceLine] = []
+    marker = ""
+    for index, line in enumerate(lines, start=1):
+        text = line.rstrip("\n")
+        stripped = text.strip()
+        if not marker:
+            opening = _FENCE_RE.match(stripped)
+            if opening is None:
+                result.append(FenceLine(index, text, "outside"))
+            else:
+                marker = opening.group(1)
+                result.append(FenceLine(index, text, "open", stripped[len(marker) :].strip()))
+            continue
+        closing = _FENCE_CLOSE_RE.match(stripped)
+        if closing is not None and closing.group(1)[0] == marker[0] and len(closing.group(1)) >= len(marker):
+            marker = ""
+            result.append(FenceLine(index, text, "close"))
+        else:
+            result.append(FenceLine(index, text, "inside"))
+    return result
+
+
+@dataclass(frozen=True)
+class UvRunIanLine:
+    """One line of user documentation that shows ``uv run ian`` where the installed ``ian`` command is meant."""
 
     source_file: Path
     line_number: int
 
     def __str__(self) -> str:
-        """Render as ``path:line: bare ian command -- ...``."""
-        return f"{self.source_file}:{self.line_number}: bare ian command -- use `uv run ian` instead of `ian`"
+        """Render as ``path:line: uv run ian -- ...``."""
+        return (
+            f"{self.source_file}:{self.line_number}: uv run ian -- write `ian`; INSTALLATION.md, "
+            '"Make the `ian` command available", explains the installed command'
+        )
 
 
-def find_bare_ian_commands_in_file(source_file: Path, lines: list[str]) -> list[BareIanCommand]:
-    """Return every line inside a fenced code block whose first word is ``ian``."""
-    found: list[BareIanCommand] = []
-    in_fence = False
-    fence_marker = ""
-    for index, line in enumerate(lines, start=1):
-        stripped = line.strip()
-        fence_match = _FENCE_RE.match(stripped)
-        if fence_match is not None:
-            if not in_fence:
-                in_fence = True
-                fence_marker = fence_match.group(1)[0] * 3
-            elif stripped.startswith(fence_marker):
-                in_fence = False
-            continue
-        if in_fence and _BARE_IAN_COMMAND_RE.match(line):
-            found.append(BareIanCommand(source_file, index))
-    return found
+def find_uv_run_ian_lines_in_file(source_file: Path, lines: list[str]) -> list[UvRunIanLine]:
+    """Return every line of one file, fenced or not, that holds ``uv run`` (with any flags) followed by ``ian``."""
+    return [
+        UvRunIanLine(source_file, index) for index, line in enumerate(lines, start=1) if _UV_RUN_IAN_RE.search(line)
+    ]
 
 
 @dataclass(frozen=True)
@@ -156,45 +192,16 @@ class MermaidBlock:
 
 def find_mermaid_blocks_in_file(source_file: Path, lines: list[str]) -> list[MermaidBlock]:
     """Return every opening fence in one file's lines whose language is ``mermaid``."""
-    found: list[MermaidBlock] = []
-    in_fence = False
-    fence_marker = ""
-    for index, line in enumerate(lines, start=1):
-        stripped = line.strip()
-        fence_match = _FENCE_RE.match(stripped)
-        if fence_match is None:
-            continue
-        if in_fence:
-            if stripped.startswith(fence_marker):
-                in_fence = False
-            continue
-        in_fence = True
-        fence_marker = fence_match.group(1)[0] * 3
-        info = stripped[len(fence_match.group(1)) :].strip().split(maxsplit=1)
-        if info and info[0].lower() == "mermaid":
-            found.append(MermaidBlock(source_file, index))
-    return found
+    return [
+        MermaidBlock(source_file, fence.number)
+        for fence in classify_fence_lines(lines)
+        if fence.kind == "open" and fence.info.lower().split()[:1] == ["mermaid"]
+    ]
 
 
 def iter_non_fenced_lines(lines: list[str]) -> list[tuple[int, str]]:
-    """Return ``(1-indexed line number, line)`` pairs, skipping fenced code blocks."""
-    result: list[tuple[int, str]] = []
-    in_fence = False
-    fence_marker = ""
-    for index, line in enumerate(lines, start=1):
-        stripped = line.rstrip("\n")
-        fence_match = _FENCE_RE.match(stripped.strip())
-        if fence_match:
-            if not in_fence:
-                in_fence = True
-                fence_marker = fence_match.group(1)[0] * 3
-            elif stripped.strip().startswith(fence_marker):
-                in_fence = False
-            continue
-        if in_fence:
-            continue
-        result.append((index, stripped))
-    return result
+    """Return ``(1-indexed line number, line)`` pairs, skipping fenced code blocks and their fence lines."""
+    return [(fence.number, fence.text) for fence in classify_fence_lines(lines) if fence.kind == "outside"]
 
 
 def file_heading_slugs(lines: list[str]) -> set[str]:
@@ -363,15 +370,15 @@ def check_repository_diagrams(repo_root: Path) -> list[MermaidBlock]:
     return found
 
 
-def check_repository_commands(repo_root: Path) -> list[BareIanCommand]:
-    """Return every bare ``ian`` command in the fenced blocks of the user documentation and README of ``repo_root``."""
-    found: list[BareIanCommand] = []
+def check_repository_uv_run_ian(repo_root: Path) -> list[UvRunIanLine]:
+    """Return every ``uv run ian`` line in the user documentation and README of ``repo_root``."""
+    found: list[UvRunIanLine] = []
     for markdown_file in list_tracked_markdown_files(repo_root):
         relative = markdown_file.relative_to(repo_root).as_posix()
         if relative != USER_README and not relative.startswith(USER_DOCUMENT_PREFIX):
             continue
         lines = markdown_file.read_text(encoding="utf-8").splitlines(keepends=True)
-        found.extend(find_bare_ian_commands_in_file(markdown_file, lines))
+        found.extend(find_uv_run_ian_lines_in_file(markdown_file, lines))
     return found
 
 
@@ -384,19 +391,19 @@ def main() -> int:
     )
     broken_links = check_repository(repo_root)
     mermaid_blocks = check_repository_diagrams(repo_root)
-    bare_commands = check_repository_commands(repo_root)
-    if not broken_links and not mermaid_blocks and not bare_commands:
-        print("check_doc_links: no broken local links or anchors, no Mermaid blocks and no bare ian commands found.")
+    uv_run_lines = check_repository_uv_run_ian(repo_root)
+    if not broken_links and not mermaid_blocks and not uv_run_lines:
+        print("check_doc_links: no broken local links or anchors, no Mermaid blocks and no uv run ian lines found.")
         return 0
     for broken in broken_links:
         print(broken)
     for block in mermaid_blocks:
         print(block)
-    for command in bare_commands:
-        print(command)
+    for uv_run_line in uv_run_lines:
+        print(uv_run_line)
     print(
         f"check_doc_links: {len(broken_links)} broken local link(s)/anchor(s), "
-        f"{len(mermaid_blocks)} Mermaid block(s) and {len(bare_commands)} bare ian command(s) found.",
+        f"{len(mermaid_blocks)} Mermaid block(s) and {len(uv_run_lines)} uv run ian line(s) found.",
         file=sys.stderr,
     )
     return 1

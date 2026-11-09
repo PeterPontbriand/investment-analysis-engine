@@ -19,7 +19,7 @@ The [Analysis Strategy Guides](docs/user/strategies/README.md) describe availabl
 A default [Graham Number](docs/user/GLOSSARY.md#graham-number) analysis resolves [EPS](docs/user/GLOSSARY.md#eps) and [BVPS](docs/user/GLOSSARY.md#bvps) from available financial evidence and can compare the resulting [maximum indicated price / screening ceiling](docs/user/GLOSSARY.md#maximum-indicated-price) with a [current market price](docs/user/GLOSSARY.md#current-quote), expressed as a [price relationship](docs/user/GLOSSARY.md#price-relationship):
 
 ```bash
-uv run ian graham-number KO
+ian graham-number KO
 ```
 
 A representative result captured on 2026-09-11 at 11:18 UTC looks like this:
@@ -46,9 +46,9 @@ The current share price — a [quote](docs/user/GLOSSARY.md#current-quote) — c
 Want to inspect more?
 
 ```bash
-uv run ian graham-number KO --details
-uv run ian graham-number KO --diagnostics
-uv run ian graham-number KO --json
+ian graham-number KO --details
+ian graham-number KO --diagnostics
+ian graham-number KO --json
 ```
 
 `--json` produces [machine-readable output](docs/user/GLOSSARY.md#machine-readable-output) in [JSON](docs/user/GLOSSARY.md#json), intended for another program rather than primarily for a person.
@@ -86,7 +86,7 @@ Direct deterministic analysis does **not** require Ollama or a GPU. Local-AI fea
 
 ## What you can analyze today
 
-Browse the [Analysis Strategy Guides](docs/user/strategies/README.md) for available strategies and methods. Run `uv run ian --help` to discover commands in your installed version, and use each command's `--help` for its supported options.
+Browse the [Analysis Strategy Guides](docs/user/strategies/README.md) for available strategies and methods. Run `ian --help` to discover commands in your installed version, and use each command's `--help` for its supported options.
 
 [`yfinance`](https://ranaroussi.github.io/yfinance/) is an independent open-source library that Investment Analysis Engine uses to access Yahoo Finance data. It is not affiliated with, endorsed by, or vetted by Yahoo.
 

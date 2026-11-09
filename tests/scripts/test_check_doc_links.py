@@ -9,12 +9,13 @@ import pytest
 
 from scripts.check_doc_links import (
     check_repository,
-    check_repository_commands,
     check_repository_diagrams,
+    check_repository_uv_run_ian,
+    classify_fence_lines,
     file_heading_slugs,
-    find_bare_ian_commands_in_file,
     find_broken_links_in_file,
     find_mermaid_blocks_in_file,
+    find_uv_run_ian_lines_in_file,
     list_tracked_markdown_files,
     slugify,
 )
@@ -241,37 +242,50 @@ class TestMermaidBlocks:
         assert check_repository_diagrams(REPOSITORY_ROOT) == []
 
 
-class TestBareIanCommands:
-    def test_accepts_a_uv_run_ian_line(self) -> None:
-        lines = ["```bash\n", "uv run ian db status\n", "```\n"]
-        assert find_bare_ian_commands_in_file(Path("doc.md"), lines) == []
+class TestUvRunIanLines:
+    def test_accepts_the_installed_command_and_the_installer_line(self) -> None:
+        lines = ["```bash\n", "ian db status\n", "uv run python -m scripts.install_command\n", "```\n"]
+        assert find_uv_run_ian_lines_in_file(Path("doc.md"), lines) == []
 
-    def test_reports_a_bare_ian_line_with_file_and_line(self) -> None:
-        lines = ["Text\n", "```bash\n", "ian db status\n", "```\n"]
-        found = find_bare_ian_commands_in_file(Path("doc.md"), lines)
-        assert [command.line_number for command in found] == [3]
-        assert "doc.md:3" in str(found[0])
-        assert "uv run ian" in str(found[0])
+    def test_reports_uv_run_ian_in_a_fenced_block_and_in_prose(self) -> None:
+        lines = ["Use `uv run ian --help` here.\n", "```bash\n", "uv run ian db status\n", "```\n"]
+        found = find_uv_run_ian_lines_in_file(Path("doc.md"), lines)
+        assert [line.line_number for line in found] == [1, 3]
+        assert "doc.md:3" in str(found[1])
+        assert "Make the `ian` command available" in str(found[1])
 
-    def test_reports_an_indented_bare_ian_line(self) -> None:
-        lines = ["```powershell\n", "    ian --help\n", "```\n"]
-        assert [command.line_number for command in find_bare_ian_commands_in_file(Path("doc.md"), lines)] == [2]
+    def test_reports_uv_run_with_flags_before_ian_in_both_places(self) -> None:
+        lines = ["```bash\n", "uv run --no-sync ian db status\n", "```\n", "Run `uv run --no-sync ian health`.\n"]
+        assert [line.line_number for line in find_uv_run_ian_lines_in_file(Path("doc.md"), lines)] == [2, 4]
 
-    def test_ignores_prose_and_other_words_that_start_with_ian(self) -> None:
-        lines = ["ian is mentioned in prose\n", "```text\n", "iana\n", "```\n"]
-        assert find_bare_ian_commands_in_file(Path("doc.md"), lines) == []
+    def test_ignores_other_uv_run_commands_and_longer_words(self) -> None:
+        lines = ["uv run --no-sync alembic upgrade head\n", "uv run python -m ian_tools\n", "uv run ian-extra\n"]
+        assert find_uv_run_ian_lines_in_file(Path("doc.md"), lines) == []
 
-    def test_check_repository_commands_covers_user_docs_and_readme_only(self, tmp_path: Path) -> None:
+    def test_check_repository_covers_user_docs_and_readme_only(self, tmp_path: Path) -> None:
         subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
-        block = "```bash\nian db status\n```\n"
-        (tmp_path / "docs" / "user").mkdir(parents=True)
+        text = "uv run ian db status\n"
+        (tmp_path / "docs" / "user" / "strategies").mkdir(parents=True)
         (tmp_path / "docs" / "project").mkdir(parents=True)
-        (tmp_path / "docs" / "user" / "GUIDE.md").write_text(block, encoding="utf-8")
-        (tmp_path / "README.md").write_text(block, encoding="utf-8")
-        (tmp_path / "docs" / "project" / "PLAN.md").write_text(block, encoding="utf-8")
+        (tmp_path / "docs" / "user" / "strategies" / "GUIDE.md").write_text(text, encoding="utf-8")
+        (tmp_path / "README.md").write_text(text, encoding="utf-8")
+        (tmp_path / "docs" / "project" / "PLAN.md").write_text(text, encoding="utf-8")
         subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
-        found = check_repository_commands(tmp_path)
-        assert sorted(command.source_file.name for command in found) == ["GUIDE.md", "README.md"]
+        found = check_repository_uv_run_ian(tmp_path)
+        assert sorted(line.source_file.name for line in found) == ["GUIDE.md", "README.md"]
 
-    def test_repository_documentation_has_no_bare_ian_commands(self) -> None:
-        assert check_repository_commands(REPOSITORY_ROOT) == []
+    def test_repository_documentation_has_no_uv_run_ian_lines(self) -> None:
+        assert check_repository_uv_run_ian(REPOSITORY_ROOT) == []
+
+
+class TestFenceLines:
+    def test_a_four_backtick_block_can_hold_a_three_backtick_block(self) -> None:
+        lines = ["````text\n", "```mermaid\n", "graph TD\n", "```\n", "````\n", "after\n"]
+        kinds = [fence.kind for fence in classify_fence_lines(lines)]
+        assert kinds == ["open", "inside", "inside", "inside", "close", "outside"]
+        assert find_mermaid_blocks_in_file(Path("doc.md"), lines) == []
+
+    def test_a_tilde_fence_is_not_closed_by_backticks_and_a_fence_with_text_does_not_close(self) -> None:
+        lines = ["~~~\n", "```\n", "~~~ text\n", "~~~\n", "x\n"]
+        kinds = [fence.kind for fence in classify_fence_lines(lines)]
+        assert kinds == ["open", "inside", "inside", "close", "outside"]

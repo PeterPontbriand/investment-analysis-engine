@@ -41,7 +41,7 @@ STRICT_TARGETS: Final = ("investment_analysis_engine", "tests", "scripts")
 """The folders of the guide's strict type check, which covers every file a strategy can break."""
 FILLS: Final = Path(__file__).resolve().parent / "generator_fills"
 
-COPIED_FOLDERS: Final = ("investment_analysis_engine", "scripts", "tests", "schemas", "docs")
+COPIED_FOLDERS: Final = ("investment_analysis_engine", "scripts", "launcher", "tests", "schemas", "docs")
 COPIED_FILES: Final = ("pyproject.toml", ALEMBIC_INI.name)
 EXCLUDED: Final = ("__pycache__", "*.pyc", ".mypy_cache", ".ruff_cache", ".pytest_cache", "htmlcov", "*.egg-info")
 PROXY_VARIABLES: Final = frozenset({"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "FTP_PROXY"})

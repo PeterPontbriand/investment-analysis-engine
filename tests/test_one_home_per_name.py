@@ -16,9 +16,14 @@ _SOURCE_FOLDERS = ("investment_analysis_engine", "tests", "scripts")
 # The one initializer that holds code: the settings themselves, not a re-export of its children.
 _INITIALIZER_WITH_CODE = "investment_analysis_engine/config/__init__.py"
 # Files that may count folders up from ``__file__``, once each: the definition of the package root, and the
-# script that runs before ``investment_analysis_engine`` is importable and so cannot import it.
+# script that runs before ``investment_analysis_engine`` is importable and so cannot import it. The launcher module is
+# the one file that runs without the application installed, so it cannot import ``PACKAGE_ROOT``.
 _FOLDER_COUNT_ALLOWED = frozenset(
-    {"investment_analysis_engine/core/package_root.py", "scripts/check_package_dependencies.py"}
+    {
+        "investment_analysis_engine/core/package_root.py",
+        "scripts/check_package_dependencies.py",
+        "launcher/ian_launcher.py",
+    }
 )
 
 # The repository root is defined once, for tests and scripts, in this file; nothing else derives it.

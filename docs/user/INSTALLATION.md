@@ -56,30 +56,35 @@ empty database automatically. Existing databases require explicit upgrades.
 For database location overrides, upgrades, backups, and recovery, see
 [Local Database Operations](DATABASE.md). Set any database override before the first analysis.
 
-Then check that the command is available:
+### Make the `ian` command available
+
+From the installation folder, run once:
 
 ```bash
-uv run ian --help
+uv run python -m scripts.install_command
 ```
+
+It prints where it put the `ian` command and which installation that command runs. Open a new terminal, then check:
+
+```bash
+ian --help
+```
+
+From then on, `ian` works in any folder and always runs this installation. Running the same command from another copy of the application points `ian` at that copy instead. To remove the command, run `uv tool uninstall ian-launcher`.
 
 If you see the Investment Analysis Engine help text, the command is available. Help
 does not open or verify the database.
 
-### How commands are run
-
-Every command in this documentation starts with `uv run`. `uv run` runs `ian` inside the installation's own Python environment, which `uv sync` set up, so run it from the installation folder. Typing `ian` on its own gives "not recognized" (or "command not found"), because the terminal does not know about that environment; see [the troubleshooting entry](#ian-is-not-recognized--command-not-found).
-
 ### Updating an existing installation
 
-To bring an existing installation up to date, run these three commands in order from the installation folder:
+If `ian` is not available yet, do [Make the `ian` command available](#make-the-ian-command-available) first. Then, from the installation folder, run these two commands in order:
 
 ```bash
 git pull
-uv sync
-uv run ian db status
+ian db status
 ```
 
-`git pull` downloads the latest version of the application. `uv sync` only brings the installation's own Python environment in line with the project, and it is safe to run again at any time. It never touches your settings, your database or your logs, which are kept outside the installation folder (see [Where the application keeps its files](#where-the-application-keeps-its-files)).
+`git pull` downloads the latest version of the application. The first `ian` command after an update may take a moment while it brings the installation's supporting software up to date. Updating never touches your settings, your database or your logs, which are kept outside the installation folder (see [Where the application keeps its files](#where-the-application-keeps-its-files)).
 
 Read the `State:` line of the status:
 
@@ -214,19 +219,19 @@ If you want to use optional local-AI orchestration/synthesis features, see [Hard
 First check the application itself:
 
 ```bash
-uv run ian --help
+ian --help
 ```
 
 If you configured `SEC_USER_AGENT`, a simple Graham analysis is a useful live-data check:
 
 ```bash
-uv run ian graham-number KO
+ian graham-number KO
 ```
 
 You can also verify the annual-fundamentals growth strategy:
 
 ```bash
-uv run ian fcf-growth MSFT
+ian fcf-growth MSFT
 ```
 
 Once installation is working, continue with the [Usage Guide](USAGE.md). The [Smoke Testing Commands](SMOKE_TESTING.md) provide a broader human-executed check.
@@ -238,9 +243,9 @@ Once installation is working, continue with the [Usage Guide](USAGE.md). The [Sm
 ### A database readiness error appears
 
 The message identifies the selected database and a next action without requiring
-`--diagnostics`. Inspect it with `uv run --no-sync ian db status`.
+`--diagnostics`. Inspect it with `ian db status`.
 For an upgrade-required error, stop application processes and back up existing
-data before `uv run --no-sync ian db upgrade` against the same target.
+data before `ian db upgrade` against the same target.
 Preserve incompatible or corrupt storage for inspection; do not delete it or
 stamp its revision. See [Local Database Operations](DATABASE.md) for error codes,
 target overrides, locking and recovery.
@@ -255,7 +260,7 @@ The corresponding prerequisite is either not installed or its executable is not 
 
 ### `ian` is "not recognized" / "command not found"
 
-You typed `ian` on its own. Add the `uv run` prefix (`uv run ian --help`) and run it from the installation folder, the folder `git clone` created. See [How commands are run](#how-commands-are-run).
+Do [Make the `ian` command available](#make-the-ian-command-available), then open a new terminal. If `ian` is still not recognized, the command folder the installer printed is not on the path: run `uv tool update-shell` and open a new terminal.
 
 ### `uv sync` fails
 

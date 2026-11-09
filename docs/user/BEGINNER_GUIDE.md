@@ -134,7 +134,7 @@ Want to try the software? If you are new to Git or Python, follow the [Installat
 After installation, run this from the project folder to try the same KO Graham Number example shown in the [root README](../../README.md#see-what-it-does-first):
 
 ```bash
-uv run ian graham-number KO
+ian graham-number KO
 ```
 
 The README's sample result is illustrative; live prices and newly published filings change over time.

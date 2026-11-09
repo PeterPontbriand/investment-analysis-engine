@@ -8,15 +8,15 @@ The Piotroski F-Score is a deterministic financial-strength screen. It runs nine
 <!-- help:exclude -->
 
 ```bash
-uv run ian piotroski AAPL
+ian piotroski AAPL
 ```
 
 Inspect the evidence or the machine-readable result:
 
 ```bash
-uv run ian piotroski AAPL --details
-uv run ian piotroski AAPL --diagnostics
-uv run ian piotroski AAPL --json
+ian piotroski AAPL --details
+ian piotroski AAPL --diagnostics
+ian piotroski AAPL --json
 ```
 
 ### Command options
@@ -30,7 +30,7 @@ uv run ian piotroski AAPL --json
 | `--json` | Emit the complete versioned typed result. |
 | `--save-run` | Persist this attempt as a durable Analysis Run. |
 
-The method has no tunable choice, so the strategy has no settings file and no watchlist options of its own. Run `uv run ian piotroski --help` for the command's current option help. The three presentation switches are mutually exclusive.
+The method has no tunable choice, so the strategy has no settings file and no watchlist options of its own. Run `ian piotroski --help` for the command's current option help. The three presentation switches are mutually exclusive.
 
 ## What the strategy calculates
 

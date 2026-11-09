@@ -9,13 +9,13 @@ All workspace commands read and write your local database (see [Local Database O
 Every direct analysis command accepts `--save-run` to persist that one attempt as a durable [Analysis Run](GLOSSARY.md#analysis-run), in addition to printing its normal output:
 
 ```bash
-uv run ian graham-number AAPL --save-run
+ian graham-number AAPL --save-run
 ```
 
 The saved run's ID is printed on a separate line so it never disturbs `--json` output:
 
 ```bash
-uv run ian graham-number AAPL --save-run --json > result.json
+ian graham-number AAPL --save-run --json > result.json
 ```
 
 The file is UTF-8, as all output is; see [`--json`](USAGE.md#--json--machine-readable-output).
@@ -29,13 +29,13 @@ Once a result is saved this way — or automatically by [refreshing a watchlist]
 A watchlist is a named, ordered list of [entries](GLOSSARY.md#entry) — each one a ticker paired with a [selection](GLOSSARY.md#selection) (an analysis method and its own configuration) — that you want to run and revisit as a group. There is no separate "list of tickers" and "list of methods": each entry stands on its own, so the same method can appear more than once, whether for different tickers or for the *same* ticker with different configuration (comparing Graham Number under two different overrides, for example).
 
 ```bash
-uv run ian watchlist create "Core Holdings"
+ian watchlist create "Core Holdings"
 ```
 
 An empty watchlist like this one has nothing to refresh yet. Add entries with `add-selection`, one method at a time across one or more tickers; the method is a subcommand of `add-selection`, named by the same alias as its direct command, and takes that command's own selection options:
 
 ```bash
-uv run ian watchlist add-selection momentum "Core Holdings" AAPL MSFT KO
+ian watchlist add-selection momentum "Core Holdings" AAPL MSFT KO
 ```
 
 Add `--json` to `create` to print only the created watchlist as the `watchlist show --json` document; a failure writes the failure document described in [USAGE](USAGE.md#--json--machine-readable-output) to standard output, and nothing is written to standard error.
@@ -43,13 +43,13 @@ Add `--json` to `create` to print only the created watchlist as the `watchlist s
 Each strategy's options are in the Watchlist options section of its guide, linked from the table below. A method that needs your own assumptions still needs them here: Graham Growth Value requires `--expected-growth`/`--aaa-yield` whether you run it directly or add it to a watchlist, and omitting either is a usage error from the command line (exit `2`), not a silently-unselected method:
 
 ```bash
-uv run ian watchlist add-selection graham-growth "Value Watch" AAPL --expected-growth 6.0 --aaa-yield 4.4
+ian watchlist add-selection graham-growth "Value Watch" AAPL --expected-growth 6.0 --aaa-yield 4.4
 ```
 
 ### Showing a watchlist
 
 ```bash
-uv run ian watchlist show "Core Holdings"
+ian watchlist show "Core Holdings"
 ```
 
 ```text
@@ -69,7 +69,7 @@ Entries are grouped by ticker by default; `--group-by method` groups them by met
 Add `--json` to `watchlist show` for the complete, machine-readable document — a flat, ordered list of entries, each carrying that same 1-based `index`:
 
 ```bash
-uv run ian watchlist show "Core Holdings" --json
+ian watchlist show "Core Holdings" --json
 ```
 
 The document is described by `schemas/watchlist.schema.json`, which `watchlist create --json` and `watchlist add-selection --json` share. Its first key is `schema_version` (currently `1`). Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`; its `as_of`, when set, is written the same way (`+00:00`; it was `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
@@ -77,8 +77,8 @@ The document is described by `schemas/watchlist.schema.json`, which `watchlist c
 List every watchlist you have:
 
 ```bash
-uv run ian watchlist list
-uv run ian watchlist list --json
+ian watchlist list
+ian watchlist list --json
 ```
 
 `watchlist list --json` prints one JSON object, described by `schemas/watchlist-list.schema.json`. Its keys are `schema_version` (currently `1`) and `items`, one entry per watchlist; the list is not paged. Each `created_at` and `updated_at` is written with its UTC offset, as `+00:00` (`updated_at` is `null` until the watchlist is first changed).
@@ -94,26 +94,26 @@ An empty store prints `{"schema_version": 1, "items": []}`. Before this object e
 Add one method across one or more tickers to an existing watchlist with `add-selection`:
 
 ```bash
-uv run ian watchlist add-selection graham-number "Core Holdings" AAPL MSFT
+ian watchlist add-selection graham-number "Core Holdings" AAPL MSFT
 ```
 
 Adding the same method again for a ticker that already has it with a different selection does not replace anything — it appends a second entry, so you can compare configurations side by side. An entry that repeats another, the same ticker and method with an equal selection, is refused with `TICKER must not duplicate an entry: AAPL is already listed for graham_number with an equal selection in the watchlist.` and nothing is written; the same rule refuses a ticker that appears twice in one `add-selection` command and an entry that the API's watchlist entries endpoint would repeat:
 
 ```bash
-uv run ian watchlist add-selection graham-number "Core Holdings" AAPL --bvps 12.5
+ian watchlist add-selection graham-number "Core Holdings" AAPL --bvps 12.5
 ```
 
 Remove one entry by the number `watchlist show` gives it. Removing an entry renumbers the entries after it, so the displayed numbers never skip:
 
 ```bash
-uv run ian watchlist remove-entry "Core Holdings" 3
+ian watchlist remove-entry "Core Holdings" 3
 ```
 
 Remove every entry for a ticker (across every method) or every entry for a method (across every ticker):
 
 ```bash
-uv run ian watchlist remove-ticker "Core Holdings" KO
-uv run ian watchlist remove-method "Core Holdings" --analysis graham-number
+ian watchlist remove-ticker "Core Holdings" KO
+ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
 
 Add `--json` to `add-selection` to print only the updated watchlist, as the `watchlist show --json` document, on standard output. Add `--json` to `remove-entry`, `remove-ticker` or `remove-method` to print the removal document, described by `schemas/watchlist-removal.schema.json`: `schema_version` (currently `1`), `removed` (the number of entries removed, 0 when nothing matched), `watchlist` (the watchlist read back, as the `watchlist show --json` document) and `unreadable`. After a removal the confirmation (`Removed 1 entry for KO from watchlist 'Core Holdings'.`, or `No entries for ZZZ in watchlist 'Core Holdings'.` when there was nothing to remove) goes to standard error, so standard output holds only the document. If the watchlist holds an entry saved by an earlier version that this version can no longer read, a removal still happens. Its confirmation goes to standard error and, with `--json`, standard output holds the removal document with `watchlist` set to `null` and `unreadable` naming the first such entry (`entry_number`, `ticker`, `method_id` as stored, and a `reason` that names no command), with exit `1`. Exactly one of `watchlist` and `unreadable` is set. Without `--json` the message that names the entry and the `remove-entry` command that removes it goes to standard error, with exit `1`. `add-selection` writes nothing to such a watchlist and reports the same failure. A rejected argument or a missing watchlist writes the failure document in every case.
@@ -123,7 +123,7 @@ Every command that removes entries starts with `remove-`, and text output names 
 ### Renaming a watchlist
 
 ```bash
-uv run ian watchlist rename "Core Holdings" "Long-Term Holdings"
+ian watchlist rename "Core Holdings" "Long-Term Holdings"
 ```
 
 Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the rename document, described by `schemas/watchlist-rename.schema.json`, whose keys are `schema_version` (currently `1`), `watchlist` (the `watchlist show --json` document) and `unreadable`; on a failure it prints the failure document described in [USAGE](USAGE.md#--json--machine-readable-output). The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is an `invalid_parameter` failure (exit `1`).
@@ -135,13 +135,13 @@ If the watchlist holds an entry saved by an earlier version that this version ca
 ### Deleting a watchlist
 
 ```bash
-uv run ian watchlist delete "Scratch"
+ian watchlist delete "Scratch"
 ```
 
 On an interactive terminal this shows the watchlist's name, ID and entry count and asks for confirmation; answering no deletes nothing and exits `1`. Anywhere else (a script, an agent, a pipe) there is no one to ask, so `--yes` is required and its absence is an `invalid_parameter` failure (exit `1`, the failure document with `--json`) before the database is opened:
 
 ```bash
-uv run ian watchlist delete "Scratch" --yes
+ian watchlist delete "Scratch" --yes
 ```
 
 Deleting removes the watchlist and its entries. **Saved Analysis Runs are kept**: each run carries its own snapshot of the watchlist's name and ID, so `runs list` and `runs show` still work afterward. Creating a new watchlist with the same name gives it a new ID; the old runs stay tied to the old one.
@@ -149,7 +149,7 @@ Deleting removes the watchlist and its entries. **Saved Analysis Runs are kept**
 An unknown name is exit `1`, like every other watchlist command. For idempotent cleanup, `--missing-ok` turns that into exit `0` with nothing deleted:
 
 ```bash
-uv run ian watchlist delete "Scratch" --yes --missing-ok
+ian watchlist delete "Scratch" --yes --missing-ok
 ```
 
 `--json` prints one document, with `watchlist` holding the same document `watchlist show --json` prints for the watchlist as it was just before deletion (or `null` when nothing was deleted). `deleted` is false only for `--missing-ok` on a name that does not exist; then `watchlist` and `unreadable` are both `null`:
@@ -184,7 +184,7 @@ Each strategy's flags and notes are in the Watchlist options section of its guid
 `refresh` runs every entry in one watchlist and, by default, saves each result as its own Analysis Run — automatically, every time, unlike the direct commands in [Saving a single result](#saving-a-single-result), which need an explicit `--save-run`. A watchlist is something you built on purpose, so refresh treats persisting its results as the point, not an extra step:
 
 ```bash
-uv run ian refresh "Core Holdings"
+ian refresh "Core Holdings"
 ```
 
 ```text
@@ -201,7 +201,7 @@ A Momentum entry whose price provider fails, whose data fails a quality check, o
 Add `--no-save` to preview current numbers across the watchlist without adding anything to its saved history — every entry still runs, but nothing is written to storage, so there is no Analysis Run ID to browse or replay afterward:
 
 ```bash
-uv run ian refresh "Core Holdings" --no-save
+ian refresh "Core Holdings" --no-save
 ```
 
 ```text
@@ -214,7 +214,7 @@ Counts: completed=2
 Nothing is printed until the whole refresh finishes (or is interrupted) — there is no per-ticker progress chatter to parse. `--json` emits one final document instead, with the refresh ID, every result in the same order, and the same counts:
 
 ```bash
-uv run ian refresh "Core Holdings" --json
+ian refresh "Core Holdings" --json
 ```
 
 The summary is described by `schemas/refresh-summary.schema.json`. Its first key is `schema_version` (currently `3`); it was unversioned before the `provider_rate_limited` code was added. Version 3 lets `watchlist_id` and `watchlist_name` be `null`, both together, for a refresh over a list of entries that belongs to no watchlist, which only the [API](API.md#refresh-jobs) starts; `ian refresh` always names a watchlist, so its output differs from version 2 only in `schema_version`. Its last key is `provider_check`: when a job failed on a provider, one test request per implicated provider runs after the batch ends (never inside it, and once per provider however many jobs failed), and the summary lists what it found as `provider_id` and `verdict` entries, one per provider; `null` when no job failed on a provider. See [After a provider failure](USAGE.md#after-a-provider-failure-the-first-line) for the six verdicts. `--no-provider-check` or `IAN_PROVIDER_CHECK=false` turns the request off, and the entries are then present with `not_checked`. Because the request is sent before the summary is written, a failed refresh can take up to 12 seconds longer for each implicated provider, which `--no-provider-check` avoids. Each result carries `error` (the one message the application wrote for the failure, or `null`; it is the message and the code a direct command gives the same failure, and the detail is in the log) and `reason_code`: the stable code of the failure when the job raised (`error` is set) or when its saved run, or its unsaved outcome, has the status `failed`, otherwise `null`. A failed run's code is the one stored on the run (`failure_reason_code`): a provider code (`provider_unreachable`, `provider_rate_limited`, `provider_unexpected_response`, `provider_no_data`, or `provider_error` when the adapter could not classify the failure), `invalid_input` or `execution_error`. A job whose status is `unavailable` or `not_applicable` (a Graham Number for a company with negative earnings, for example) is an analysis outcome, not a failure, and carries no code. Branch on `reason_code`; `error` is for people. The codes are the ones in the [failure document](USAGE.md#--json--machine-readable-output). A refresh that cannot start at all (an unknown watchlist, a watchlist with no entries, an unreadable stored entry, storage that needs attention) writes that failure document instead of this summary and exits `1`; without `--json` it prints the message on standard error.
@@ -242,7 +242,7 @@ changes the summary or the exit code. `--no-provider-check` or `IAN_PROVIDER_CHE
 `--workers N` (1–4, default 2) controls how many tickers refresh concurrently. A higher number can finish a large watchlist faster, at the cost of a proportionally higher burst of calls to your configured data source(s) at once.
 
 ```bash
-uv run ian refresh "Core Holdings" --workers 4
+ian refresh "Core Holdings" --workers 4
 ```
 
 Pressing Ctrl+C during a refresh stops starting new work; any ticker already in progress is left to finish and is still saved normally. A ticker that never started does not appear anywhere in the output — there is no placeholder "cancelled" row for work that never ran. The command then exits `130`.
@@ -283,7 +283,7 @@ This matters most if a data source charges or throttles you: re-running the *sam
 ## Browsing saved runs
 
 ```bash
-uv run ian runs list
+ian runs list
 ```
 
 ```text
@@ -294,10 +294,10 @@ uv run ian runs list
 Filter by ticker, analysis, outcome, or the refresh batch that produced a run. `--analysis` (or `-a`) takes the same names as the watchlist commands:
 
 ```bash
-uv run ian runs list --ticker AAPL --analysis graham-number
-uv run ian runs list --status unavailable
-uv run ian runs list --refresh-id 7c1a...
-uv run ian runs list --json
+ian runs list --ticker AAPL --analysis graham-number
+ian runs list --status unavailable
+ian runs list --refresh-id 7c1a...
+ian runs list --json
 ```
 
 `runs list --json` prints one JSON object, described by `schemas/runs-list.schema.json`. Its keys are `schema_version` (currently `1`), `has_more` and `items`, one entry per run on the page. `has_more` is `true` when at least one more run follows the page for the same filters, so a program pages with `--limit` and `--offset` until it is `false`. Each `completed_at` is written with its UTC offset, as `+00:00` (it was written as `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
@@ -311,10 +311,10 @@ A listing with no matching runs prints `{"schema_version": 1, "has_more": false,
 Show one saved run in full, exactly as it was originally captured — replaying a saved run never re-fetches data or recalculates anything, so it always shows the same result it showed the moment it was saved, even if your configuration or a data provider has since changed:
 
 ```bash
-uv run ian runs show 3f9b...
-uv run ian runs show 3f9b... --details
-uv run ian runs show 3f9b... --diagnostics
-uv run ian runs show 3f9b... --json
+ian runs show 3f9b...
+ian runs show 3f9b... --details
+ian runs show 3f9b... --diagnostics
+ian runs show 3f9b... --json
 ```
 
 `runs show --json` prints the saved run's own strategy document, described by that strategy's schema in `schemas/` (for example `schemas/momentum.schema.json`, or `schemas/graham-number.schema.json`); a failure is the [failure document](USAGE.md#--json--machine-readable-output). The document's `provider_check` element is always `null` here: replaying a saved run sends no test request, and the verdict is never stored. A direct command that failed on a provider and the replay of its saved run differ in that one key.
@@ -324,8 +324,8 @@ uv run ian runs show 3f9b... --json
 Every refresh records one refresh ID on the runs it saves, and `runs compare` shows those runs as one table: one row per ticker, in the order of the watchlist when it ran, and one column group per strategy, in the order of the strategy table above. Each group shows that strategy's headline numbers and the run's outcome, so you can read a watchlist across strategies without opening each run:
 
 ```bash
-uv run ian runs compare 7c1a...
-uv run ian runs compare 7c1a... --json
+ian runs compare 7c1a...
+ian runs compare 7c1a... --json
 ```
 
 ```text
