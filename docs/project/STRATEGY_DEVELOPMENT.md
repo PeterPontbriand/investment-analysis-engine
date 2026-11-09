@@ -137,7 +137,7 @@ After the generator, these three commands are your day-to-day feedback loop: the
 ```bash
 uv run python -m scripts.strategy_status <module_name>
 uv run python -m pytest tests/test_no_unfilled_stubs.py -q
-uv run python -m mypy --strict investment_analysis_engine tests scripts
+uv run python -m mypy --strict
 ```
 
 ### 2. Check the status command
