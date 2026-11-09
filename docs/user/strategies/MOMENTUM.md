@@ -12,7 +12,7 @@ It is a price-series analysis. It does not determine business quality, intrinsic
 <!-- help:exclude -->
 
 ```bash
-uv run ian momentum AAPL
+ian momentum AAPL
 ```
 
 ## Default windows
@@ -34,7 +34,7 @@ The short window must be smaller than the long window.
 Choose different valid windows when useful:
 
 ```bash
-uv run ian momentum AAPL \
+ian momentum AAPL \
     --short-window 10 \
     --long-window 30
 ```
@@ -82,8 +82,8 @@ Bypassing the cache affects the historical price cache only. A saved run stores 
 <!-- help:exclude -->
 
 ```bash
-uv run ian momentum AAPL --as-of 2025-12-31
-uv run ian momentum AAPL --no-cache
+ian momentum AAPL --as-of 2025-12-31
+ian momentum AAPL --no-cache
 ```
 
 | Option | Meaning |
@@ -99,7 +99,7 @@ With `--no-cache` and without `--save-run`, the command does not open or create 
 ### Default
 
 ```bash
-uv run ian momentum AAPL
+ian momentum AAPL
 ```
 
 Shows the current moving averages, their relationship, recent crossover information when applicable, data-source/freshness information, and the strategy limitation. When provider metadata supplies an instrument name, the heading shows `Instrument Name (TICKER)`; otherwise it uses the ticker alone.
@@ -107,7 +107,7 @@ Shows the current moving averages, their relationship, recent crossover informat
 ### `--details`
 
 ```bash
-uv run ian momentum AAPL --details
+ian momentum AAPL --details
 ```
 
 Explains the SMA windows, crossover requirement, simple-average RSI convention, price basis and observation coverage. It separates trend from a new crossover event and states the limits of historical date labels.
@@ -115,7 +115,7 @@ Explains the SMA windows, crossover requirement, simple-average RSI convention, 
 ### `--diagnostics`
 
 ```bash
-uv run ian momentum AAPL --diagnostics
+ian momentum AAPL --diagnostics
 ```
 
 Retains technical execution traces, original retrieval/cache evidence and identity/classification metadata. JSON retains the corresponding typed evidence.
@@ -123,7 +123,7 @@ Retains technical execution traces, original retrieval/cache evidence and identi
 ### `--json`
 
 ```bash
-uv run ian momentum AAPL --json
+ian momentum AAPL --json
 ```
 
 Produces [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON](../GLOSSARY.md#json), including an explicit nullable security-identity snapshot.

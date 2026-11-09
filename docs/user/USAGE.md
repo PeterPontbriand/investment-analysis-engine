@@ -7,7 +7,7 @@ This guide covers the common ways to use Investment Analysis Engine after instal
 Commands are run from the Investment Analysis Engine installation folder:
 
 ```text
-uv run ian ANALYSIS [arguments] [options]
+ian ANALYSIS [arguments] [options]
 ```
 
 An [analysis strategy](GLOSSARY.md#analysis-strategy) is a deterministic analytical capability with its own inputs, methods, and result semantics. A [method](GLOSSARY.md#method) is a particular calculation within a strategy when that strategy offers more than one approach.
@@ -15,22 +15,22 @@ An [analysis strategy](GLOSSARY.md#analysis-strategy) is a deterministic analyti
 See all available commands:
 
 ```bash
-uv run ian --help
+ian --help
 ```
 
 See help for a strategy:
 
 <!-- BEGIN GENERATED strategy-help-commands: written by uv run python -m scripts.generate_strategy_docs; generated, do not edit by hand. -->
 ```bash
-uv run ian momentum --help
-uv run ian graham-number --help
-uv run ian graham-growth --help
-uv run ian fcf-growth --help
-uv run ian piotroski --help
+ian momentum --help
+ian graham-number --help
+ian graham-growth --help
+ian fcf-growth --help
+ian piotroski --help
 ```
 <!-- END GENERATED strategy-help-commands -->
 
-Technical operators can also run the versioned Golden Suite with `uv run ian evaluate --help`. See [Golden Suite evaluation](#golden-suite-evaluation).
+Technical operators can also run the versioned Golden Suite with `ian evaluate --help`. See [Golden Suite evaluation](#golden-suite-evaluation).
 
 ## Orchestration reliability limits
 
@@ -67,20 +67,20 @@ for lower-level I/O timeouts and idempotent side effects.
 
 ## Available analysis strategies
 
-Browse the [Analysis Strategy Guides](strategies/README.md) for available strategies, methods, data sources, and limitations. Use `uv run ian --help` for the commands installed in your version. The examples below illustrate common invocation patterns; they are not an exhaustive strategy inventory.
+Browse the [Analysis Strategy Guides](strategies/README.md) for available strategies, methods, data sources, and limitations. Use `ian --help` for the commands installed in your version. The examples below illustrate common invocation patterns; they are not an exhaustive strategy inventory.
 
 ## Graham analysis
 
 Run the Graham Number earnings-and-book-value screen:
 
 ```bash
-uv run ian graham-number KO
+ian graham-number KO
 ```
 
 Select the separate Graham Growth Value method explicitly:
 
 ```bash
-uv run ian graham-growth KO \
+ian graham-growth KO \
     --expected-growth 5 \
     --aaa-yield 4.5
 ```
@@ -110,13 +110,13 @@ and their financial meanings are unchanged.
 ## Momentum analysis
 
 ```bash
-uv run ian momentum AAPL
+ian momentum AAPL
 ```
 
 With custom moving-average windows:
 
 ```bash
-uv run ian momentum AAPL \
+ian momentum AAPL \
     --short-window 10 \
     --long-window 30
 ```
@@ -124,7 +124,7 @@ uv run ian momentum AAPL \
 With a point-in-time boundary, bypassing the historical price cache:
 
 ```bash
-uv run ian momentum AAPL --as-of 2025-12-31 --no-cache
+ian momentum AAPL --as-of 2025-12-31 --no-cache
 ```
 
 See the [Momentum Strategy Guide](strategies/MOMENTUM.md).
@@ -132,7 +132,7 @@ See the [Momentum Strategy Guide](strategies/MOMENTUM.md).
 ## Free Cash Flow & Earnings Growth analysis
 
 ```bash
-uv run ian fcf-growth MSFT
+ian fcf-growth MSFT
 ```
 
 The default command selects the longest usable contiguous span—5, 4, then 3 elapsed years—and classifies growth using total-company FCF and diluted EPS. Both total-company and per-diluted-share FCF growth remain visible.
@@ -140,16 +140,16 @@ The default command selects the longest usable contiguous span—5, 4, then 3 el
 Request an exact historical span or select the per-share classification basis:
 
 ```bash
-uv run ian fcf-growth MSFT --growth-years 5
-uv run ian fcf-growth MSFT --classification-basis fcf-per-share
+ian fcf-growth MSFT --growth-years 5
+ian fcf-growth MSFT --classification-basis fcf-per-share
 ```
 
 Control how optional forward EPS evidence is treated:
 
 ```bash
-uv run ian fcf-growth MSFT --forward-policy display-only
-uv run ian fcf-growth MSFT --forward-policy confirmation
-uv run ian fcf-growth MSFT --forward-policy hard-gate
+ian fcf-growth MSFT --forward-policy display-only
+ian fcf-growth MSFT --forward-policy confirmation
+ian fcf-growth MSFT --forward-policy hard-gate
 ```
 
 The current production SEC provider may not supply forward analyst-consensus evidence. A hard gate therefore returns `INDETERMINATE` when that required evidence is unavailable. See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_GROWTH.md).
@@ -163,7 +163,7 @@ The strategies use a common progressive-disclosure convention.
 Omit presentation switches:
 
 ```bash
-uv run ian graham-number KO
+ian graham-number KO
 ```
 
 The default view emphasizes the result, its meaning, key source/freshness information, warnings, and limitations.
@@ -171,7 +171,7 @@ The default view emphasizes the result, its meaning, key source/freshness inform
 ### `--details` — inspect the financial evidence
 
 ```bash
-uv run ian graham-number KO --details
+ian graham-number KO --details
 ```
 
 Use this for an investor-readable explanation of inputs, measurement bases, calculations and material assumptions. Graham reports show compact input evidence and formulas; Momentum explains its observation windows and signals; FCF shows an annual calculation table. Displayed values are rounded while calculations retain full precision. Inferred values remain identified as assumptions, not reported facts.
@@ -179,7 +179,7 @@ Use this for an investor-readable explanation of inputs, measurement bases, calc
 ### `--diagnostics` — inspect software resolution behavior
 
 ```bash
-uv run ian graham-number KO --diagnostics
+ian graham-number KO --diagnostics
 ```
 
 Diagnostics retain complete technical provenance as well as resolution behavior: original provider fields, recursive component lineage, notes, retrieval/cache timing, identity metadata and share-context identifiers. Use this view or JSON to audit the evidence behind the shorter details report.
@@ -187,7 +187,7 @@ Diagnostics retain complete technical provenance as well as resolution behavior:
 ### `--json` — machine-readable output
 
 ```bash
-uv run ian graham-number KO --json
+ian graham-number KO --json
 ```
 
 Output is always written as UTF-8, on standard output and standard error, whether it goes to a terminal, a file or another program (Python 3.15 makes this its own default). A character outside ASCII, such as a company name, is written as it is, never as a `\uXXXX` escape. If you redirect output on Windows (`> result.json`) and a program then reads the file as cp1252, the Windows ANSI code page, it shows each non-ASCII character as garbled text; read the file as UTF-8 instead.
@@ -255,8 +255,8 @@ Response headers of the local API are not part of this contract, except `Content
 Where supported:
 
 ```bash
-uv run ian graham-number KO --as-of 2025-12-31
-uv run ian fcf-growth MSFT --as-of 2025-12-31
+ian graham-number KO --as-of 2025-12-31
+ian fcf-growth MSFT --as-of 2025-12-31
 ```
 
 `--as-of` creates an information boundary. Financial facts that had not yet been published by that date cannot be used merely because their reporting period ended earlier. See [`as_of`](GLOSSARY.md#as-of-date), [publication date](GLOSSARY.md#availability-date), and [look-ahead bias](GLOSSARY.md#look-ahead-bias).
@@ -270,8 +270,8 @@ An [override](GLOSSARY.md#override) explicitly supplies a value instead of accep
 Examples:
 
 ```bash
-uv run ian graham-number KO --eps 3.25 --bvps 8.10
-uv run ian graham-number KO --current-price 75
+ian graham-number KO --eps 3.25 --bvps 8.10
+ian graham-number KO --current-price 75
 ```
 
 Overrides are recorded as overrides rather than being presented as provider-verified evidence. See the strategy guide before overriding a value whose measurement basis matters.
@@ -350,9 +350,9 @@ same way as the others, control the check everywhere:
 ## Checking that Yahoo and SEC EDGAR still answer
 
 ```bash
-uv run ian health
-uv run ian health --provider yfinance
-uv run ian health --json
+ian health
+ian health --provider yfinance
+ian health --json
 ```
 
 `ian health` makes a few small requests to each online data provider and prints one line per provider: the
@@ -387,7 +387,7 @@ Local-AI orchestration/synthesis is an additional capability. The optional Golde
 The Golden Suite is a technical benchmark rather than an investor analysis strategy. Its default mode uses only tracked deterministic fixtures and does not contact Ollama or live financial-data providers:
 
 ```bash
-uv run ian evaluate --report artifacts/evaluations/deterministic.json
+ian evaluate --report artifacts/evaluations/deterministic.json
 ```
 
 Use `--case GRN-01` to run one stable case. The report path is required; add `--overwrite` only when you intentionally want to replace an existing report.
@@ -395,7 +395,7 @@ Use `--case GRN-01` to run one stable case. The report path is required; add `--
 Optional model-selection evaluation is explicitly opt-in and remains separate from deterministic financial verification:
 
 ```bash
-uv run ian evaluate --mode ollama --model MODEL_TAG --ollama-endpoint http://127.0.0.1:11434 --report artifacts/evaluations/ollama.json
+ian evaluate --mode ollama --model MODEL_TAG --ollama-endpoint http://127.0.0.1:11434 --report artifacts/evaluations/ollama.json
 ```
 
 The command returns a non-zero status when a requested benchmark case fails or is skipped. For report fields, failure interpretation, empirical repetitions, and fixture maintenance, see [Evaluations & Golden Suite](../EVALUATIONS.md).

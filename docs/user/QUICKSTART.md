@@ -15,7 +15,10 @@ This is the terse installation/configuration version. If any step is unfamiliar,
 git clone https://github.com/PeterPontbriand/investment-analysis-engine.git
 cd investment-analysis-engine
 uv sync
+uv run python -m scripts.install_command
 ```
+
+The last command makes `ian` available in any folder (see [Make the `ian` command available](INSTALLATION.md#make-the-ian-command-available)); open a new terminal afterwards.
 
 Fresh storage initializes automatically on first persistence use. Set
 `IAN_DATABASE_URL` before the first analysis if using a nondefault location. Existing
@@ -28,6 +31,15 @@ ian db upgrade
 
 The maintenance group is hidden from top-level help; use `db --help`. See
 [Local Database Operations](DATABASE.md) for upgrades, backups, and recovery.
+
+## Update
+
+```bash
+git pull
+ian db status
+```
+
+`ready` or `missing` means the update is done. See [Updating an existing installation](INSTALLATION.md#updating-an-existing-installation) for `upgrade_required` and other states.
 
 ## Configure SEC EDGAR
 
@@ -42,10 +54,10 @@ The settings folder is outside the repository, so the file cannot be committed. 
 ## Smoke test
 
 ```bash
-uv run ian --help
-uv run ian graham-number KO
-uv run ian momentum AAPL
-uv run ian fcf-growth MSFT
+ian --help
+ian graham-number KO
+ian momentum AAPL
+ian fcf-growth MSFT
 ```
 
 Commands that access SEC EDGAR require `SEC_USER_AGENT`. For a broader human-executed check, use the [Smoke Testing Commands](SMOKE_TESTING.md).

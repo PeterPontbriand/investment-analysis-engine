@@ -56,14 +56,42 @@ empty database automatically. Existing databases require explicit upgrades.
 For database location overrides, upgrades, backups, and recovery, see
 [Local Database Operations](DATABASE.md). Set any database override before the first analysis.
 
-Then check that the command is available:
+### Make the `ian` command available
+
+From the installation folder, run once:
 
 ```bash
-uv run ian --help
+uv run python -m scripts.install_command
 ```
 
-If you see the Investment Analysis Engine help text, the command is available. Help
-does not open or verify the database.
+It prints where it put the `ian` command and which installation that command runs. Open a new terminal, then check:
+
+```bash
+ian --help
+```
+
+If you see the Investment Analysis Engine help text, the command is available. Help does not open or verify the
+database.
+
+From then on, `ian` works in any folder and always runs this installation. Running the same command from another
+copy of the application points `ian` at that copy instead. To remove the command, run `uv tool uninstall ian-launcher`.
+
+### Updating an existing installation
+
+If `ian` is not available yet, do [Make the `ian` command available](#make-the-ian-command-available) first. Then, from the installation folder, run these two commands in order:
+
+```bash
+git pull
+ian db status
+```
+
+`git pull` downloads the latest version of the application. The first `ian` command after an update may take a moment while it brings the installation's supporting software up to date. Updating never touches your settings, your database or your logs, which are kept outside the installation folder (see [Where the application keeps its files](#where-the-application-keeps-its-files)).
+
+Read the `State:` line of the status:
+
+- `ready` or `missing`: the update is done. `missing` means this installation has not yet run an analysis, so there is no database yet (the command then exits with status 1, which is expected); it is created on first use.
+- `upgrade_required`: the new version needs an upgraded database. Stop any application processes, back up your data, and upgrade as [First use and explicit upgrades](DATABASE.md#first-use-and-explicit-upgrades) describes.
+- Any other state: use [Local Database Operations](DATABASE.md).
 
 ---
 
@@ -192,19 +220,19 @@ If you want to use optional local-AI orchestration/synthesis features, see [Hard
 First check the application itself:
 
 ```bash
-uv run ian --help
+ian --help
 ```
 
 If you configured `SEC_USER_AGENT`, a simple Graham analysis is a useful live-data check:
 
 ```bash
-uv run ian graham-number KO
+ian graham-number KO
 ```
 
 You can also verify the annual-fundamentals growth strategy:
 
 ```bash
-uv run ian fcf-growth MSFT
+ian fcf-growth MSFT
 ```
 
 Once installation is working, continue with the [Usage Guide](USAGE.md). The [Smoke Testing Commands](SMOKE_TESTING.md) provide a broader human-executed check.
@@ -216,9 +244,9 @@ Once installation is working, continue with the [Usage Guide](USAGE.md). The [Sm
 ### A database readiness error appears
 
 The message identifies the selected database and a next action without requiring
-`--diagnostics`. Inspect it with `uv run --no-sync ian db status`.
+`--diagnostics`. Inspect it with `ian db status`.
 For an upgrade-required error, stop application processes and back up existing
-data before `uv run --no-sync ian db upgrade` against the same target.
+data before `ian db upgrade` against the same target.
 Preserve incompatible or corrupt storage for inspection; do not delete it or
 stamp its revision. See [Local Database Operations](DATABASE.md) for error codes,
 target overrides, locking and recovery.
@@ -230,6 +258,14 @@ Check that `SEC_USER_AGENT` is present in the `.env` file in your settings folde
 ### `git`, `python`, or `uv` is "not recognized" / "command not found"
 
 The corresponding prerequisite is either not installed or its executable is not available to the terminal. Revisit the official installation link for that tool, then open a new terminal and try again.
+
+### `ian` is "not recognized" / "command not found"
+
+Do [Make the `ian` command available](#make-the-ian-command-available), then open a new terminal. If `ian` is still not recognized, the command folder the installer printed is not on the path: run `uv tool update-shell` and open a new terminal.
+
+### `ModuleNotFoundError: No module named 'ian_launcher'`
+
+The copy of the application that `ian` was installed from has been moved or deleted. Run `uv run python -m scripts.install_command` from the current copy to point `ian` at it, or run `uv tool uninstall ian-launcher` to remove the command.
 
 ### `uv sync` fails
 

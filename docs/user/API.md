@@ -11,7 +11,7 @@ every endpoint and response is [`schemas/openapi.json`](../../schemas/openapi.js
 ## Starting the server
 
 ```bash
-uv run ian serve
+ian serve
 ```
 
 | Option | Meaning |

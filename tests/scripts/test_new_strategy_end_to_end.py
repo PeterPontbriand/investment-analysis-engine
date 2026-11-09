@@ -37,11 +37,9 @@ MODULE: Final = "ci_probe"
 ALIAS: Final = "ci-probe"
 LABEL: Final = "CI Probe"
 TIMEOUT_SECONDS: Final = 300
-STRICT_TARGETS: Final = ("investment_analysis_engine", "tests", "scripts")
-"""The folders of the guide's strict type check, which covers every file a strategy can break."""
 FILLS: Final = Path(__file__).resolve().parent / "generator_fills"
 
-COPIED_FOLDERS: Final = ("investment_analysis_engine", "scripts", "tests", "schemas", "docs")
+COPIED_FOLDERS: Final = ("investment_analysis_engine", "scripts", "launcher", "tests", "schemas", "docs")
 COPIED_FILES: Final = ("pyproject.toml", ALEMBIC_INI.name)
 EXCLUDED: Final = ("__pycache__", "*.pyc", ".mypy_cache", ".ruff_cache", ".pytest_cache", "htmlcov", "*.egg-info")
 PROXY_VARIABLES: Final = frozenset({"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "FTP_PROXY"})
@@ -158,7 +156,7 @@ def _status(copy: Path) -> tuple[int, dict[str, tuple[str, list[str]]]]:
 
 def _assert_strict_types(copy: Path) -> None:
     """Type-check the whole copy with the command the contributor guide documents, not only the touched files."""
-    process = _run(copy, "-m", "mypy", "--strict", *STRICT_TARGETS)
+    process = _run(copy, "-m", "mypy", "--strict")
     assert process.returncode == 0, _output(process)
 
 

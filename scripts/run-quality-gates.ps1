@@ -213,10 +213,7 @@ try {
         "mypy",
         "--strict",
         "--cache-dir",
-        $mypyCache,
-        "investment_analysis_engine",
-        "tests",
-        "scripts"
+        $mypyCache
     )
     Invoke-Step -Name "pytest (Python $pythonVersion)" -Executable "uv" -Arguments (@(
             "run",

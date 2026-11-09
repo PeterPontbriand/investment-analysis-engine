@@ -368,7 +368,7 @@ Momentum, Graham, Free Cash Flow & Earnings Growth, and the Step 3.5 quantitativ
 Every Pull Request must pass the following automated GitHub Actions pipeline before merge approval. Dependabot pull requests are never merged: reapply the same version bump on a project branch, and Dependabot then closes its own pull request. Commits on `main` are authored by project contributors only.
 
 1. **Lint & Code Style:** `ruff check . && ruff format --check .`, plus the Markdown checks `scripts/check_doc_links.py`, `scripts/check_sequence_tables.py`, and `scripts/check_package_dependencies.py`
-2. **Strict Static Analysis:** `mypy --strict investment_analysis_engine tests scripts`
+2. **Strict Static Analysis:** `mypy --strict`, over the folders listed in the `[tool.mypy]` section of `pyproject.toml`
 3. **Unit Tests & Coverage:** `pytest --cov=investment_analysis_engine --cov-report=term-missing`
 4. **Security & Dependency Audit:** `uv audit` / `pip-audit` for known vulnerabilities.
 5. **Golden Agent Evaluation:** Headless deterministic execution of the Step 2.5 Golden Suite in its no-LLM/test mode. Optional real-local-Ollama evaluation is recorded separately and is not a mandatory CI dependency unless explicitly configured.

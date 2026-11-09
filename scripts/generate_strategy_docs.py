@@ -83,7 +83,7 @@ def render_edit_sites(sites: Sequence[Site] | None = None) -> str:
 
 
 def _help_command(alias: str) -> str:
-    return f"uv run ian {alias} --help"
+    return f"ian {alias} --help"
 
 
 def guide_name(descriptor: StrategyDescriptor) -> str:

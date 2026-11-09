@@ -104,7 +104,7 @@ def test_the_help_commands_list_one_line_per_strategy_in_tuple_order() -> None:
     lines = generator.render_help_commands().splitlines()
     assert lines[0] == "```bash"
     assert lines[-1] == "```"
-    assert lines[1:-1] == [f"uv run ian {item.alias} --help" for item in STRATEGIES]
+    assert lines[1:-1] == [f"ian {item.alias} --help" for item in STRATEGIES]
 
 
 def test_the_strategy_table_has_a_row_per_strategy_linking_its_watchlist_options() -> None:
@@ -122,7 +122,7 @@ def test_every_linked_watchlist_options_section_exists() -> None:
 
 
 def test_the_entry_detectors_match_whole_lines_only() -> None:
-    assert generator._lists_help_command("uv run ian momentum --help\n", "momentum")
-    assert not generator._lists_help_command("uv run ian momentum --help\n", "mom")
+    assert generator._lists_help_command("ian momentum --help\n", "momentum")
+    assert not generator._lists_help_command("ian momentum --help\n", "mom")
     assert generator._lists_table_row("| `momentum` | x |\n", "momentum")
     assert not generator._lists_table_row("| `momentum-x` | x |\n", "momentum")

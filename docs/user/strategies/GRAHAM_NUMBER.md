@@ -14,7 +14,7 @@ The exact formula is documented in [Financial Math](../FINANCE_MATH.md#graham-nu
 <!-- help:exclude -->
 
 ```bash
-uv run ian graham-number KO
+ian graham-number KO
 ```
 
 ## The Graham Number
@@ -94,7 +94,7 @@ example, in PowerShell:
 $previousTtl = $env:IAN_FINANCIAL_CACHE_TTL_SECONDS
 try {
     $env:IAN_FINANCIAL_CACHE_TTL_SECONDS = "0"
-    uv run ian graham-number KO
+    ian graham-number KO
 } finally {
     $env:IAN_FINANCIAL_CACHE_TTL_SECONDS = $previousTtl
 }
@@ -144,8 +144,8 @@ An override is recorded as an override rather than being presented as provider-v
 Examples:
 
 ```bash
-uv run ian graham-number KO --eps 3.25 --bvps 8.10
-uv run ian graham-number KO --current-price 75
+ian graham-number KO --eps 3.25 --bvps 8.10
+ian graham-number KO --current-price 75
 ```
 
 Use `--details` to inspect what financial values were used and `--diagnostics` to inspect how resolution proceeded.
@@ -199,7 +199,7 @@ Current-only quote providers do not manufacture historical quotes. A historical 
 `--as-of` sets the boundary:
 
 ```bash
-uv run ian graham-number KO --as-of 2025-12-31
+ian graham-number KO --as-of 2025-12-31
 ```
 
 ## Why another Graham Number calculator may disagree
