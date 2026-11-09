@@ -140,6 +140,7 @@ show_missing = true
 
 [tool.mypy]
 python_version = "3.12"
+files = ["investment_analysis_engine", "tests", "scripts", "launcher"]  # The one list of folders mypy checks
 mypy_path = "."  # Tells mypy to resolve namespace lookups directly from the repository root
 explicit_package_bases = true
 warn_return_any = true
