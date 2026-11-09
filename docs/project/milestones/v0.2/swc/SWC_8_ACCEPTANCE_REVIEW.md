@@ -15,7 +15,7 @@
 
 ## Review
 
-- **Problem:** Determine whether a contributor following `docs/TOOL_DEVELOPMENT.md` can generate a strategy, use its diagnostics, and identify every required edit site.
+- **Problem:** Determine whether a contributor following `docs/project/STRATEGY_DEVELOPMENT.md` can generate a strategy, use its diagnostics, and identify every required edit site.
 - **Decision:** The initial review failed because the strict type check failed immediately after generation; after the 2026-10-19 F1 re-check passed, the overall acceptance outcome is Pass.
 - **Scope:** The original review followed the guide in scratch worktrees and performed its omission trials. This follow-up re-ran only the generator and strict type check for F1; the already-passing omission trials were not repeated.
 - **Branch:** `chore/swc-8-acceptance-review`.
@@ -27,7 +27,7 @@
 
 | ID | Where | What happened | Severity | Outcome |
 | :--- | :--- | :--- | :--- | :--- |
-| F1 | Guide §3, strict type check; `tests/workspace/test_requests.py:508` | Initial review: after generating `swc8_probe`, the strict check failed because `Swc8ProbeSelection` was included in a union that the test helper treated as `FCFGrowthSelection`. Re-check (2026-10-19): generated `swc8_probe` on current `main`; the strict check passed with only the generated stubs in place, with no errors in files the generator did not write. | blocks | Fixed (2026-10-19). The former documented invocation `uv run mypy --strict investment_analysis_engine tests scripts` hit `error: uv trampoline failed to canonicalize script path` in the managed Windows environment. `uv run python -m mypy --strict investment_analysis_engine tests scripts` completed with `Success: no issues found in 522 source files`; `docs/TOOL_DEVELOPMENT.md` now documents that working form. |
+| F1 | Guide §3, strict type check; `tests/workspace/test_requests.py:508` | Initial review: after generating `swc8_probe`, the strict check failed because `Swc8ProbeSelection` was included in a union that the test helper treated as `FCFGrowthSelection`. Re-check (2026-10-19): generated `swc8_probe` on current `main`; the strict check passed with only the generated stubs in place, with no errors in files the generator did not write. | blocks | Fixed (2026-10-19). The former documented invocation `uv run mypy --strict investment_analysis_engine tests scripts` hit `error: uv trampoline failed to canonicalize script path` in the managed Windows environment. `uv run python -m mypy --strict investment_analysis_engine tests scripts` completed with `Success: no issues found in 522 source files`; `docs/project/STRATEGY_DEVELOPMENT.md` now documents that working form. |
 
 ### Part 1 — Follow the guide
 

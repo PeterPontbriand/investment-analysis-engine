@@ -26,8 +26,11 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyBehav
 from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import normalize_cli_output
 
-GUIDE: Final = REPOSITORY_ROOT / "docs" / "TOOL_DEVELOPMENT.md"
-OLD_GUIDE: Final = REPOSITORY_ROOT / "docs" / "project" / "ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md"
+GUIDE: Final = REPOSITORY_ROOT / "docs" / "project" / "STRATEGY_DEVELOPMENT.md"
+OLD_GUIDES: Final = (
+    REPOSITORY_ROOT / "docs" / "project" / "ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md",
+    REPOSITORY_ROOT / "docs" / "TOOL_DEVELOPMENT.md",
+)
 AGENTS: Final = REPOSITORY_ROOT / "AGENTS.md"
 MOMENTUM_PACKAGE: Final = REPOSITORY_ROOT / "investment_analysis_engine" / "strategies" / "momentum"
 GUIDE_SECTIONS: Final = (
@@ -54,8 +57,9 @@ def _section(text: str, heading_prefix: str) -> str:
 
 
 def test_the_contributor_guide_is_the_only_one_and_has_its_sections_in_order() -> None:
-    assert GUIDE.is_file(), "docs/TOOL_DEVELOPMENT.md is the contributor guide and must exist."
-    assert not OLD_GUIDE.exists(), "A second contributor guide was left at the old path."
+    assert GUIDE.is_file(), "docs/project/STRATEGY_DEVELOPMENT.md is the contributor guide and must exist."
+    left_behind = [path for path in OLD_GUIDES if path.exists()]
+    assert left_behind == [], f"A second contributor guide was left at an old path: {left_behind}"
     others = [path for path in (REPOSITORY_ROOT / "docs").rglob("*CONTRIBUTOR_GUIDE*") if path != GUIDE]
     assert others == [], f"Only one contributor guide may exist: {others}"
     headings = re.findall(r"^## (.+)$", GUIDE.read_text(encoding="utf-8"), flags=re.MULTILINE)

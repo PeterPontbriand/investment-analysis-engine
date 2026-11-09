@@ -1,6 +1,6 @@
 # SWC.7b — Independent Review of the Strategy Development Guide
 
-Records what a reviewer who knew only [`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md) found when following it
+Records what a reviewer who knew only [`docs/project/STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md) found when following it
 and when breaking one edit site at a time.
 
 ## At a glance
@@ -139,7 +139,7 @@ all 26 sites. Each trial broke one site, ran the status command and the named te
 
 ## Scope limits and acceptance
 
-- **Changed in this slice:** this record, `docs/TOOL_DEVELOPMENT.md`, the `fails` text of the `schema` row in
+- **Changed in this slice:** this record, `docs/project/STRATEGY_DEVELOPMENT.md`, the `fails` text of the `schema` row in
   `scripts/strategy_sites.toml`, diagnostic text in `scripts/strategy_status.py` and `scripts/strategy_conformance.py`,
   and the two plan tables.
 - **Not changed:** production code, the generator, and what any check or test enforces. The edits to

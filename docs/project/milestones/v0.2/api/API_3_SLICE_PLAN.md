@@ -64,7 +64,7 @@ watchlist actions and builds a selection from its model's fields, in two slices
     options and a call to the operation;
   - `application/`: `providers.py`, `analysis.py`, `tier.py`, `failures.py`, `provider_check.py` and `strategy_run.py`;
   - the CLI modules the moves touch, `cli_composition.py` and `cli_run_support.py` deleted;
-  - the scripts, templates and site data that name the moved files, Architecture §13, `docs/TOOL_DEVELOPMENT.md`, this
+  - the scripts, templates and site data that name the moved files, Architecture §13, `docs/project/STRATEGY_DEVELOPMENT.md`, this
     plan and the contract.
 - **Branch:** `feat/api-execution-composition`.
 - **Detail:** [Implementation record](#31-api3a-implementation-record).
@@ -157,7 +157,7 @@ What changed, by area:
   templates and adds an entry to the application tier; `scripts/strategy_sites.toml` and `scripts/strategy_conformance.py`
   have the `workspace`, `application` and `application-tier` sites and the application tier's closed-ness and fail-closed
   checks; `scripts/check_installed_package.py` imports from the new homes.
-- **Docs:** Architecture §13 (the rule and the `application` row), `docs/TOOL_DEVELOPMENT.md` (including the regenerated
+- **Docs:** Architecture §13 (the rule and the `application` row), `docs/project/STRATEGY_DEVELOPMENT.md` (including the regenerated
   edit-site table), this plan and the contract.
 
 The decisions as implemented, with the points that differ from the wording of the decision:
@@ -457,7 +457,7 @@ What changed, by area:
   - `cli_strategy_wiring.py`: `CliComposition` and `CliStrategy` hold `command`, `add_selection` and `selection_options` and lose `build`; `add_selection_commands` registers each strategy's subcommand with a summary generated from its label ([W38](#w38-help-for-the-new-and-changed-commands-2026-11-05)); the builder lookups are deleted. `cli_watchlist_flags.py` is deleted;
   - `cli_workspace.py`: `create` takes a name and `--json` only; `add-selection` is a group holding the subcommands.
 - **Scripts and data:** `scripts/generate_schemas.py` writes `schemas/selections/<alias>.schema.json` ([W35](#w35-how-the-selection-schemas-are-produced-2026-11-05)); `scripts/strategy_conformance.py` loses the Site 19 check and gains `selection_options_gaps` (T27: the two commands' options agree, the table covers every field, form types, descriptions, `selection_settings_fields`, duplicated defaults); `scripts/strategy_sites.toml` loses row 19 and `cli` defines `SELECTION_OPTIONS`, `add_selection` and `command`; the generator emits the new descriptor field, tier entry and `cli.py`/`selection.py` templates.
-- **Documents:** the Site 19 closures in SWC.1 H.10 and Step 3.5.3 B.3 and the removal of row 19; the exit-code sentence in `docs/user/USAGE.md`; `docs/user/WORKSPACE.md`, the five strategy guides and `docs/TOOL_DEVELOPMENT.md` for the new commands; the API.4 entry of the contract gains two requirements.
+- **Documents:** the Site 19 closures in SWC.1 H.10 and Step 3.5.3 B.3 and the removal of row 19; the exit-code sentence in `docs/user/USAGE.md`; `docs/user/WORKSPACE.md`, the five strategy guides and `docs/project/STRATEGY_DEVELOPMENT.md` for the new commands; the API.4 entry of the contract gains two requirements.
 
 User-visible changes:
 
@@ -609,7 +609,7 @@ A file directly inside a strategy package whose name is a unit belongs to that u
   the file name to the unit name directly, with no mapping table.
 - The template `execution.py.tmpl` is renamed `workspace.py.tmpl`, `application.py.tmpl` is added, and
   `scripts/new_strategy.py`, `scripts/strategy_sites.toml`, the conformance and status scripts, the generated strategy
-  docs and `docs/TOOL_DEVELOPMENT.md` follow.
+  docs and `docs/project/STRATEGY_DEVELOPMENT.md` follow.
 - Strategy-specific helpers in `cli_composition.py` move into the strategy they serve (`momentum_settings` to Momentum,
   `graham_growth_settings` to Graham Growth, the Graham resolver builder to the Graham strategies' `application.py`
   files, sharing one function between them only where the code is truly the same). The shared SEC adapter and provider

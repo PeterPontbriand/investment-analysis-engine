@@ -629,7 +629,7 @@ approval. Each slice makes its moves in the same change as the consumer it serve
 | SWC.5 | `feat/swc-5-site-data-and-status` | New: `scripts/strategy_sites.toml`, `scripts/strategy_sites.py`, `scripts/strategy_status.py`, `scripts/generate_strategy_docs.py`; `scripts/strategy_conformance.py` (extended); marked blocks in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`; the watchlist option rows move into the strategy guides; `FCF_EARNINGS_GROWTH.md` renamed; tests T25, T26. | The hand-written strategy lists and the watchlist option table in the two pages. | Site data and loader, then conformance functions in report mode, then the status command, then the generated lists and their drift test. |
 | SWC.6a | `feat/swc-6a-specimen` | New: `tests/specimen/` (the specimen strategy, its settings files, its two tier tuples and its site context). Edited: `scripts/strategy_sites.toml` (the `settings` site), `scripts/strategy_conformance.py` (the site context), `scripts/strategy_status.py`, tests (T7, T8, T11, T12 and T22 over the specimen; T27). | None. | Site context, then the specimen file by file, then the tests that run on it. |
 | SWC.6b | `feat/swc-6b-generator` | New: `scripts/new_strategy.py`, `scripts/strategy_templates/` (one template per role file), `investment_analysis_engine/core/strategy_stub.py`, tests T28 and T29 and the generator test fills (`tests/scripts/generator_fills/`); `AGENTS.md` §3 (stub exception). | None. | The generator, then its end-to-end test, then the stub rule. |
-| SWC.7 | `feat/swc-7-contributor-guide` | `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to `docs/TOOL_DEVELOPMENT.md` and extended (including the identifier rules in [§16](#16-step-35-fit-check) and the edit-site table, generated from the site data file); every link to it; the Step 3.5 contract plan's link to the edit-site table; `AGENTS.md` §3; `docs/project/DISCOVERY_WORKBOOK.md` open question 3; final conformance coverage; independent review. | None in code. | Guide, then authorization, then workbook, then final conformance. |
+| SWC.7 | `feat/swc-7-contributor-guide` | `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to `docs/project/STRATEGY_DEVELOPMENT.md` and extended (including the identifier rules in [§16](#16-step-35-fit-check) and the edit-site table, generated from the site data file); every link to it; the Step 3.5 contract plan's link to the edit-site table; `AGENTS.md` §3; `docs/project/DISCOVERY_WORKBOOK.md` open question 3; final conformance coverage; independent review. | None in code. | Guide, then authorization, then workbook, then final conformance. |
 
 Why the earlier slices are split. SWC.2a relocates every existing strategy module once, as pure moves, so
 every later slice creates its files in their final place; SWC.2b keeps the mechanical symbol moves apart
@@ -1088,7 +1088,7 @@ command, the generator and the specimen's completeness test. It is read with `to
 | `fails` | What else the check reports when the site is missing, beyond a missing file and the names in `defines`; may be empty. |
 
 The current list of edit sites is generated from this file into a marked block in the contributor guide
-(`docs/TOOL_DEVELOPMENT.md`,
+(`docs/project/STRATEGY_DEVELOPMENT.md`,
 which carries the block), by `scripts/generate_strategy_docs.py`; T25 compares the block with the table
 regenerated from this file. The design keeps no copy of the generated table: the table in
 [§17](#17-edit-sites-for-a-new-strategy) is design history. Only per-strategy site checks have a site; the

@@ -1,6 +1,8 @@
 # Analysis Strategy Development Guide
 
-How to add a deterministic financial analysis strategy to the engine, and how the code a strategy plugs into is organised. The workflow comes first; the explanation it relies on is under [Background](#background-how-a-strategy-fits-into-the-code).
+How to add a deterministic financial analysis strategy to the engine, and how the code a strategy plugs into is organized.
+
+**Start here:** read [Quick orientation](#quick-orientation), then follow the six steps of [the workflow](#add-a-strategy-the-workflow). The status command and the quality gate tell you how far you are. You do not need [Background](#background-how-a-strategy-fits-into-the-code) to add a strategy; read a part of it when a step sends you there or something fails that you want to understand.
 
 ## At a glance
 
@@ -8,7 +10,81 @@ How to add a deterministic financial analysis strategy to the engine, and how th
 - **What the tooling does:** a generator writes the typed wiring and leaves every unfilled body failing the test suite; a status command lists which edit sites are done and which are missing; conformance tests and the quality gate fail, naming the missing site, if any is left out.
 - **What stays yours:** the financial rules. A strategy owns its configuration, its inputs, its calculation and its result type. The generator writes no formula, classification, presentation text or settings file, and copies nothing from another strategy.
 - **What no strategy does:** register itself, load as a plugin or be discovered at run time. The set of strategies is one closed, statically declared tuple that the generator extends and a reviewer reads (`investment_analysis_engine/strategy_wiring.py`).
-- **Commands run from the repository root** through `uv run`, as [`AGENTS.md`](../AGENTS.md) describes.
+- **Commands run from the repository root** through `uv run`, as [`AGENTS.md`](../../AGENTS.md) describes.
+
+## Quick orientation
+
+### Words this guide uses
+
+The workflow uses these project terms. Each is explained in more depth under [Background](#background-how-a-strategy-fits-into-the-code), but one line is enough to follow the steps.
+
+| Term | What it means here |
+| :--- | :--- |
+| Descriptor | The strategy's one entry in `STRATEGIES` (`investment_analysis_engine/strategy_wiring.py`): its identifiers, versions, types and references to its functions. The generator writes it. |
+| Behavior | The bundle of the strategy's own functions that the descriptor carries (encode, decode, render, replay, headline and the like), so shared code can call the strategy without naming it. |
+| Tier | A small table that pairs each strategy with the functions one layer needs but cannot import by name: the CLI tier (`cli_strategy_wiring.py`), the application tier (`application/tier.py`) and the evaluation tier (`evaluation/strategy_fixtures.py`). The generator adds the strategy's row to each. |
+| Tool, tool name | Each strategy is also exposed to a local model as a tool; the tool name identifies it there and in the Golden cases. |
+| Selection | The stored, typed record of the parameters a run used (the `as_of` boundary, the cache choice and any strategy parameter). A watchlist entry holds one. |
+| Stored run, replay | A run saved with `--save-run` or by a watchlist refresh; replaying shows it again from the saved result, with no provider call or recalculation. |
+| Native status | The calculation status the strategy's own result reports (`ok`, `not_applicable`, `input_unavailable` and so on), which the shared code turns into the run's outcome. |
+| Envelope | The typed model of the strategy's `--json` document, with a published schema. |
+| Headline | The few cells the strategy contributes to the side-by-side table of stored runs. |
+| Golden case, fixture, catalog | A Golden case is a reviewed test of the strategy over fixtures (captured, offline evidence); the catalog lists every case in a fixed order under a suite version. |
+| Conformance test | A test that checks every declared strategy has every required piece; the status command runs the same checks for one strategy. |
+| Served content, help bundle | The parts of the user guides and glossary the engine serves to its clients (for example the desktop application), packed into a generated help bundle. Served sections may not contain command lines. |
+
+### What you write and what is supplied
+
+| You write | The generator or shared code supplies |
+| :--- | :--- |
+| The financial question, the formulas, the classifications and any policy | The identifiers, the tool name and the entries in the existing wiring files |
+| The result's own fields, after its common ones | The result's common fields: ticker, requested and effective boundaries, instrument profile, execution status, reason code and reason, input failure, warnings and diagnostics |
+| The analyzer's body, `compose_<module_name>`, the codec, the presenter, the replay projectors and headline function, and the evaluation `compose` | The direct command, `run`, the tool handler, the execution adapter and its normalizer, and run persistence |
+| The vocabulary's enumerations, the reason messages and the investor-facing guide | The shared document header and tail and the shared presentation helpers |
+| The settings model and its `settings.toml`, when the strategy has user-tunable defaults | Nothing: the generator writes no settings |
+| The Golden cases, fixtures and catalog entries, and a reading of every stored output | The status command, the conformance tests, the schema and list generators and the quality gate |
+
+### Role files the generator creates
+
+The generator writes these files into `investment_analysis_engine/strategies/<module_name>/`. Every function you must write calls `unfilled_stub(...)` until you replace it, and the test suite fails while any such call remains.
+
+| File | What it is for | What you do |
+| :--- | :--- | :--- |
+| `vocabulary.py` | The strategy's identifiers and its own enumerations | Keep the identifiers; add the enumerations the strategy needs, such as its classifications |
+| `analyzer.py` | The result type and the analyzer, and the configuration when there is one | Write the analyzer's body, and add the result's own fields after the common ones |
+| `evaluation.py` | How the evaluation tier builds the strategy over fixture data, and a sample selection | Write `compose` and choose the fixture ids. Do this early: see [step 3](#3-fill-the-stubs) |
+| `codec.py` | Saving a result and reading it back | Write the encoder, the decoder and the native-status function |
+| `application.py` | Building the analyzer and its providers (`compose_<module_name>`), and `run` | Write `compose_<module_name>`; leave `run` as generated |
+| `presenter.py` | The text output in each mode, and the `--json` document | Write both |
+| `replay.py` | Showing a stored run again, and the headline cells | Write the projectors and the headline function |
+| `envelope.py` | The `--json` document model and its version | Add the strategy's fields to its body |
+| `selection.py`, `tool.py`, `cli.py` | The stored parameters, the tool and the commands | Leave as generated; change them only to [add a selection parameter](#when-a-strategy-gains-a-selection-parameter) |
+| `workspace.py` | The execution adapter that runs the analyzer and hands its result to shared code | Leave as generated |
+
+### Copy structure, not rules
+
+Do not invent a file layout. Pick the existing strategy closer to yours and keep its files open beside yours while you fill the stubs. Take its shape and naming, never its financial rules.
+
+- **Piotroski** (`strategies/piotroski/`) has no configuration, which is the form the generator writes, and builds wholly on the shared SEC inputs.
+- **FCF & Earnings Growth** (`strategies/fcf_growth/`) has a configuration a user selects, and a resolver of its own for its annual series.
+
+| What you are writing | Open in Piotroski | Open in FCF & Earnings Growth |
+| :--- | :--- | :--- |
+| Result and analyzer | `analyzer.py` | `models.py` (result, configuration, policy) and `analyzer.py` |
+| The calculation | `calculation.py` | `calculators.py` |
+| Inputs | The shared assembly in `analysis/shared/metric_inputs.py`, called from `analyzer.py` | `input_resolver.py`, plus the shared market capitalization |
+| Building the analyzer | `compose_piotroski` in `application.py`, the generated form | `run` in `application.py`, which composes in place |
+| Saving, showing and replaying | `codec.py`, `presenter.py`, `replay.py` | The same three files |
+| The `--json` document | `envelope.py` | `envelope.py` |
+| Evaluation and Golden cases | `evaluation.py` and `evaluation/cases/piotroski.py` | `evaluation.py` and `evaluation/cases/fcf_growth.py` |
+| A selection parameter | (none) | `selection.py`, `cli.py` and `tool.py` |
+| The investor guide | `docs/user/strategies/PIOTROSKI.md` | `docs/user/strategies/FCF_GROWTH.md` |
+
+Neither has settings; for a `settings.toml`, open `strategies/momentum/settings.py` and `settings.toml`. [Existing strategy reference](#existing-strategy-reference-fcf--earnings-growth-and-piotroski) maps the two strategies concept by concept.
+
+### Decide early: shared metrics
+
+Before writing a resolver of the strategy's own, read [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs); its table is short. A strategy that needs SEC facts, a market capitalization or a common metric such as EBITDA calls the shared functions in `analysis/shared/`; a resolver of its own is only for evidence no shared entry supplies. Deciding this before you write the analyzer saves rewriting it.
 
 ## Add a strategy: the workflow
 
@@ -25,11 +101,11 @@ Do the steps in this order. Each one ends with something you can check.
 
 ### 1. Run the generator
 
-**Code written before the generator runs.** The generator refuses a package that already exists, and `test_t14_wiring_files_declare_no_discovery_or_registration` requires an `evaluation.py` in every strategy folder, so code that must land first cannot live in the future package.
+**Code written before the generator runs.** The generator refuses a package that already exists, and a conformance test (`test_t14_wiring_files_declare_no_discovery_or_registration`) requires an `evaluation.py` in every strategy folder, so code that must land first cannot live in the future package.
 
 - Put it in one module directly under `investment_analysis_engine/strategies/` (Piotroski's was `strategies/piotroski_calculation.py`), with no `__init__.py` and no `<module_name>/` directory. Only its tests import it.
 - Move it into the generated package as the first step after the generator runs.
-- That placement was approved for Piotroski ([3.5.3 slice plan A.3](project/milestones/v0.2/step-3.5/STEP_3_5_3_SLICE_PLAN.md#a3-authorization-of-the-calculators-location-2026-10-29)); ask before using it for another strategy, and if it breaks another check, stop and ask rather than adjust the check.
+- That placement was approved for Piotroski ([3.5.3 slice plan A.3](milestones/v0.2/step-3.5/STEP_3_5_3_SLICE_PLAN.md#a3-authorization-of-the-calculators-location-2026-10-29)); ask before using it for another strategy, and if it breaks another check, stop and ask rather than adjust the check.
 
 ```bash
 uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <alias>]
@@ -37,12 +113,12 @@ uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <
 
 - `<module_name>` is the snake-case package name. It gives the analysis identifier, the method identifier and the tool name. The alias defaults to the hyphenated module name.
 - It writes typed stubs for the role files into `investment_analysis_engine/strategies/<module_name>/`: `vocabulary`, `analyzer`, `tool`, `selection`, `codec`, `workspace`, `application`, `cli`, `presenter`, `envelope`, `replay` and `evaluation`.
-- It makes one insertion in each of six existing files: `strategy_wiring.py`, `orchestrator/tool_names.py`, `workspace/strategy_types.py`, `cli_strategy_wiring.py`, `application/tier.py` and `evaluation/strategy_fixtures.py`.
+- It makes one insertion in each of six existing files: the descriptor in `strategy_wiring.py`, the tool name in `orchestrator/tool_names.py`, the type lists in `workspace/strategy_types.py`, and the strategy's row in the CLI tier (`cli_strategy_wiring.py`), the application tier (`application/tier.py`) and the evaluation tier (`evaluation/strategy_fixtures.py`). You do not edit these by hand.
 - A label is at most 40 characters and a module name at most 40 (`MAX_LABEL_LENGTH` and `MAX_MODULE_NAME_LENGTH` in `scripts/new_strategy.py`), the lengths at which no generated line passes 120 characters, proven by `tests/scripts/test_new_strategy_label_limits.py`. A longer one is a usage error: the generator exits with code 2 and writes nothing. The longest name in the Step 3.5 specifications, "Cash-Flow Valuation Multiples", has 29.
 - It refuses to overwrite. If a target file exists, or the module name, alias, tool or method identifier is already used, it writes nothing and exits with code 2, listing the conflicts.
 - Every unfilled body calls `unfilled_stub(...)`. The generated files type-check as written, and the test suite fails while any such call remains under `investment_analysis_engine/`.
 - The generated descriptor has `settings_type=None` and `selection_settings_fields=()`; see [Strategy settings](#strategy-settings).
-- The analyzer stub is the form with no configuration, `BaseAnalyzer[<Name>Result]`; see [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter).
+- The analyzer stub is the form with no configuration, `BaseAnalyzer[<Name>Result]`. **If the strategy needs a parameter a user selects, read [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter) before filling the analyzer.**
 - It writes these bodies in full, from the helpers in [Execution capture and durable persistence](#execution-capture-and-durable-persistence), as Piotroski's files do:
   - `execute_<module_name>` composes the instrument profile with `compose_production_profile`, so an ETF is recognized, builds the context from the selection and calls the analyzer;
   - the direct command in `cli.py`, with `--details`, `--diagnostics`, `--json`, `--save-run` and `--no-provider-check`, which calls the direct-analysis operation, and, in `application.py`, `run`, which calls `compose_<module_name>` and serves a refresh job as well as a direct analysis;
@@ -56,6 +132,14 @@ uv run python -m scripts.new_strategy <module_name> --label "<Label>" [--alias <
   - the presenter;
   - the evaluation `compose`.
 
+After the generator, these three commands are your day-to-day feedback loop: the status command, the test that lists every remaining stub, and the strict type check. The gate in step 6 runs all of them and more.
+
+```bash
+uv run python -m scripts.strategy_status <module_name>
+uv run python -m pytest tests/test_no_unfilled_stubs.py -q
+uv run python -m mypy --strict
+```
+
 ### 2. Check the status command
 
 ```bash
@@ -66,17 +150,25 @@ uv run python -m scripts.strategy_status <module_name> [--alias <alias>]
 - It runs the same check functions as the conformance tests, so the two cannot disagree.
 - It does not run the type checker; the gate does.
 - `done` means the site exists, has the required names and calls no `unfilled_stub`. A new-file site whose file still calls `unfilled_stub` is `missing`, and its diagnostic names the file and the line of each call.
-- Right after the generator, expect `missing` on every site whose file has an unfilled body (`analyzer`, `codec`, `application`, `presenter`, `replay` and `evaluation`; `workspace`, `cli` and `tool` are `done`), on the reviewed sites you have not yet written, and on `schema` and `strategy-docs` until step 5. `codec`, `presenter` and `replay` run the strategy's stored run, which needs the `evaluation` file's sample selection; until that is written their diagnostic ends `not checked: depends on unfilled evaluation (<file>:<line>)`. Fill the site it names first.
+- Right after the generator, expect `missing` on every site whose file has an unfilled body (`analyzer`, `codec`, `application`, `presenter`, `replay` and `evaluation`; `workspace`, `cli` and `tool` are `done`), on the reviewed sites you have not yet written, and on `schema` and `strategy-docs` until step 5. The checks of `codec`, `presenter` and `replay` save a sample run and replay it, and that sample is built from the `evaluation` file; until that is written their diagnostic ends `not checked: depends on unfilled evaluation (<file>:<line>)`. Fill the site it names first.
 - If a strategy file was deleted or emptied, or a wiring entry removed, the package cannot be imported and no other site can be checked. The command matches the failing module or file against the site files and prints one `missing <site-id>` line with the file to change, and the original Python error on the next line; restore or write that site, and run the command again. An error that matches no site is printed as `missing  import` with the Python error.
 
 ### 3. Fill the stubs
 
-- Start from the financial question and the evidence it needs. Fill `vocabulary`, the models, `analyzer` and the resolver first, then the files that package the result: `codec`, `compose_<module_name>` in `application`, `presenter`, `replay` and the `compose` function of `evaluation`. Add fields to `envelope` for what the result reports. `selection`, `tool`, `workspace`, `cli` and the rest of `application` are complete as generated; edit them only when the strategy gains a parameter, as [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter) describes.
+Work in this order:
+
+1. Write down the financial question and the evidence it needs.
+2. Fill `vocabulary`, the models, `analyzer` and any resolver, after checking [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs).
+3. Fill `evaluation`: choose the fixture ids and write `compose`, which builds the analyzer over fixture data. Do it now, because the status command cannot check `codec`, `presenter` or `replay` until it exists: their checks save and replay a sample run built from this file.
+4. Fill the files that package the result: `codec`, `compose_<module_name>` in `application`, `presenter` and `replay`.
+5. Add the fields `envelope` needs for what the result reports.
+
+`selection`, `tool`, `workspace`, `cli` and the rest of `application` are complete as generated; edit them only when the strategy gains a parameter, as [When a strategy gains a selection parameter](#when-a-strategy-gains-a-selection-parameter) describes.
+
 - The status command lists every `unfilled_stub` call that remains in a site's file, with file and line, and `uv run python -m pytest tests/test_no_unfilled_stubs.py` lists them all. The strict type check is `uv run python -m mypy --strict`, which checks the folders listed in the `[tool.mypy]` section of `pyproject.toml`.
-- Financial math is deterministic Python. The authority for formula semantics is [Financial Math & Data Conventions](user/FINANCE_MATH.md); add the strategy's definitions there and in the [Glossary](user/GLOSSARY.md).
+- Financial math is deterministic Python. The authority for formula semantics is [Financial Math & Data Conventions](../user/FINANCE_MATH.md); add the strategy's definitions there and in the [Glossary](../user/GLOSSARY.md).
 - Keep missing, unavailable and not-applicable evidence explicit (`MetricResult`, reason codes, retained provenance). Never substitute zero.
 - Write a reason message in plain words: name an operand in words with its year-end ("Net income for 2025-12-31 is unavailable: ..."), never by its stored key (`net_income_t`). Piotroski's calculation receives the three year-ends in `PiotroskiInputs` for this purpose and spells any underscore-joined name in a provider's reason as words; the operand keys in the stored result are unchanged.
-- Before writing a resolver, check [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs).
 - Write tests for the rules, the unavailable-evidence cases and the edge cases as you go; see [Testing and quality expectations](#testing-and-quality-expectations).
 
 ### 4. Write the reviewed sites
@@ -94,16 +186,23 @@ The generator cannot write these. Each holds content a reviewer must judge, and 
 | `guide` | The investor-facing guide under `docs/user/strategies/`, with Finance Math and Glossary links | none; written by hand |
 | `glossary-terms` | The strategy's entry in its own section of `docs/user/GLOSSARY.md` (the id is `<alias>-strategy` unless the descriptor's `term` says otherwise), an entry for each headline cell and each value of each code set it defines that no entry explains yet, the cell terms in `HEADLINE_TERMS` and the value terms in `CODE_TERMS` of the strategy's `vocabulary.py`, and an `x-term` in the `Field` of each selection field that the generated selection does not already carry | `uv run python -m scripts.generate_help`, which regenerates the help bundle |
 
-What a Golden case, a fixture and a catalog entry must contain, and how their expected values are established, is in [Evaluations & Golden Suite](EVALUATIONS.md#5-golden-cases-and-fixtures) and its [maintenance rules](EVALUATIONS.md#10-maintenance-rules). For the shape of a `cases` module, a catalog entry, a guide or a settings file, open the file named in the edit-site table for an existing strategy (replace `{module}` with its package name); take the structure, not its rules.
+**The minimum bar for the hand-written sites**
+
+- **A Golden case** (`cases`) runs the strategy's tool over named fixtures at a fixed `as_of` boundary and asserts its outcome and its key numbers within a stated tolerance. The strategy needs at least one case that requires its tool. The expected values are worked out independently of the code under test, by hand from the captured filings or by a separate reference calculation, never by running the strategy's own calculator. Piotroski's `PIO-01` in `evaluation/cases/piotroski.py` is a model.
+- **The catalog** (`evaluation/catalog.py`) lists every case in a fixed order and carries the suite version and the fixture-set version that every evaluation report records. A new case changes what the suite measures, so give the suite version a new value (and the fixture-set version too when you add a fixture), so reports from before and after cannot be confused. `tests/evaluation/test_catalog.py` pins the exact list of case ids, so a case added, dropped or renamed without review fails.
+- **The investor guide** (`guide`) tells an investor what question the method answers, what its results mean, what evidence it needs and where it stops, and links the formulas in Finance Math and the terms in the Glossary. Class names, files and how the code computes things stay in the code and its docstrings. Its served sections contain no command lines; command-line material goes in a final excluded "On the command line" subsection ([`docs/project/README.md`](README.md#served-documents) has the rules, and `scripts/check_help_content.py` enforces them).
+- **Settings** (`settings`) exist only for a default a user may reasonably tune without changing what the method is, such as a window length. A settings file is wrong for a value that defines the method (Graham's 22.5), for a data-eligibility rule, and for a field that could only ever hold one value; those stay documented constants in code. [Strategy settings](#strategy-settings) has the full rule.
+
+What a Golden case, a fixture and a catalog entry must contain in full, and how their expected values are established, is in [Evaluations & Golden Suite](../EVALUATIONS.md#5-golden-cases-and-fixtures) and its [maintenance rules](../EVALUATIONS.md#10-maintenance-rules). For the shape of a `cases` module, a catalog entry, a guide or a settings file, open the file named in the edit-site table for an existing strategy (replace `{module}` with its package name); take the structure, not its rules.
 
 A data file that the evaluation tier reads must be listed, as an explicit path, in `[tool.setuptools.package-data]` of `pyproject.toml`, or the installed package lacks it; `tests/evaluation/test_package_data_coverage.py` fails naming any file that is not.
 
 **Notes on the reviewed sites**
 
 - `direct-output`: a strategy that builds its own provider reaches Yahoo (identity and instrument kind) unless the harness replaces the provider's Yahoo adapter. Patch the strategy's names in `enter_fixture_providers` of `tests/_direct_command_output.py`, as it does for Piotroski (its `ProductionFinancialFactsProvider`, given `_FixtureYahoo`) and for the others (their `YFinanceClient`). Otherwise regeneration calls the live service and stores its answer.
-- `catalog`: the patches in `tests/scripts/generator_fills/patches.toml` anchor on structural text (the end of a tuple and the definition after it), never on a strategy, a case id, a version or a count, and the generator's end-to-end test bumps the suite version and the case counts itself from the files as they stand. Adding a strategy or a Golden case therefore needs no `patches.toml` edit. A Golden case still moves the suite and fixture-set versions in `evaluation/catalog.py`, [`EVALUATIONS.md`](EVALUATIONS.md) and the case counts in `tests/evaluation/test_catalog.py` together; edit them by hand.
+- `catalog`: the patches in `tests/scripts/generator_fills/patches.toml` anchor on structural text (the end of a tuple and the definition after it), never on a strategy, a case id, a version or a count, and the generator's end-to-end test bumps the suite version and the case counts itself from the files as they stand. Adding a strategy or a Golden case therefore needs no `patches.toml` edit. A Golden case still moves the suite and fixture-set versions in `evaluation/catalog.py`, [`EVALUATIONS.md`](../EVALUATIONS.md) and the case counts in `tests/evaluation/test_catalog.py` together; edit them by hand.
 - A new failure: a class that declares a `reason_code` must be pinned in `tests/_failure_code_table.py`, which is written by hand and is not derived from the code.
-- The smoke test: a new strategy adds its own direct command to [`docs/user/SMOKE_TESTING.md`](user/SMOKE_TESTING.md), with that command's expectations, in the same pull request. No test checks it; the reviewer does.
+- The smoke test: a new strategy adds its own direct command to [`docs/user/SMOKE_TESTING.md`](../user/SMOKE_TESTING.md), with that command's expectations, in the same pull request. No test checks it; the reviewer does.
 
 **Regeneration commands**
 
@@ -126,6 +225,7 @@ uv run python -m scripts.generate_schemas
 uv run python -m scripts.generate_strategy_docs
 ```
 
+- Why: the published schemas and the generated lists are derived from the descriptors and the models, so any change to a descriptor, a selection, a result or a document model makes them stale. Run both after any such change, not only once.
 - The first writes the strategy's published schema under `schemas/` and rewrites the two watchlist schemas, which list every strategy. The second rewrites the strategy lists in `docs/user/USAGE.md` and `docs/user/WORKSPACE.md` and the edit-site table in this guide.
 - Add `--check` to either command to report what is out of date without writing. A current tree prints nothing and exits 0; a stale one prints each file and exits 1. Drift tests in the suite fail on stale output.
 - Run both as `uv run python -m scripts.<name>` from the repository root, the form every diagnostic and generated-block comment gives. Running `generate_schemas.py` or `generate_strategy_docs.py` by its file path fails with `ModuleNotFoundError: No module named 'scripts'`.
@@ -140,10 +240,42 @@ uv run python -m scripts.generate_strategy_docs
 bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 ```
 
-- Run the wrapper that matches your shell. It runs Ruff, the strict type check and the full test suite with coverage, and keeps its complete output in `gate-output.txt`; the last line it prints is that file's path. [`AGENTS.md`](../AGENTS.md) §10 has the details.
-- The gate fails while any `unfilled_stub` call remains, while any site is missing, and while a schema or generated list is stale. The conformance tests are in `tests/test_strategy_wiring_conformance.py`, one test per site and strategy, named `test_t25_every_site_is_done_for_every_declared_strategy[<strategy>-<site>]`; the pytest failure repeats the status command's diagnostic for that site.
+- Why: the day-to-day loop checks your strategy; the gate checks the whole repository. It catches what the status command and the type check cannot: a stored output of another strategy or command that your change altered, a conformance failure in another strategy, stale generated files, the help bundle and its served-content rules, Ruff lint and formatting, and coverage.
+- Run the wrapper that matches your shell; [`AGENTS.md`](../../AGENTS.md) §10 makes PowerShell the primary environment. It runs Ruff, the strict type check and the full test suite with coverage, and keeps its complete output in `gate-output.txt`; the last line it prints is that file's path. [`AGENTS.md`](../../AGENTS.md) §10 has the details.
+- The gate fails while any `unfilled_stub` call remains, while any site is missing, and while a schema or generated list is stale. The conformance tests (one per site and strategy) are in `tests/test_strategy_wiring_conformance.py`, one test per site and strategy, named `test_t25_every_site_is_done_for_every_declared_strategy[<strategy>-<site>]`; the pytest failure repeats the status command's diagnostic for that site.
 - If a strategy file is deleted or a wiring entry removed, pytest cannot collect the conformance test modules and reports the Python error (for example `ModuleNotFoundError` or `UndeclaredStrategyError`), followed by a line that says to run the status command. Run it: it names the site and the file to change, as in step 2.
 - A stale published schema fails the schema drift test, `tests/scripts/test_generate_schemas.py::test_published_schemas_are_current`, and the `schema` site; both end with `run uv run python -m scripts.generate_schemas`. The tier coverage test checks only that each strategy has a schema file.
+
+## Definition of done
+
+A strategy is ready for review when the tooling and a reader both agree.
+
+**The tooling checks:**
+
+- [ ] The status command reports no missing site.
+- [ ] The complete gate passes ([step 6](#6-run-the-complete-gate)). It fails on any `unfilled_stub` call, a strict type-check error, a missing site, a stale schema, generated list or help bundle, a served-content problem in the guide, a data file missing from package-data, and a failure class whose code is not pinned in `tests/_failure_code_table.py`.
+
+**You check, because no test can:**
+
+- [ ] Every stored output the regeneration commands wrote has been read, and `git diff --stat` shows no other strategy's file changed.
+- [ ] The Golden cases, fixtures and catalog entries follow [Evaluations & Golden Suite](../EVALUATIONS.md#5-golden-cases-and-fixtures), with expected values established as it describes.
+- [ ] The strategy's formulas are in [Financial Math & Data Conventions](../user/FINANCE_MATH.md) and its terms in the [Glossary](../user/GLOSSARY.md).
+- [ ] The strategy guide explains what the method shows and where it stops, with no command lines in its served sections ([the minimum bar](#4-write-the-reviewed-sites)).
+- [ ] Every reason message names its operands in plain words ([step 3](#3-fill-the-stubs)).
+- [ ] [`SMOKE_TESTING.md`](../user/SMOKE_TESTING.md) has the strategy's direct command and its expectations.
+
+## Common pitfalls
+
+| Symptom | Cause | Fix |
+| :--- | :--- | :--- |
+| The status command reports `not checked: depends on unfilled evaluation` for `codec`, `presenter` or `replay` | Those checks run a stored run, which needs the evaluation file's sample selection | Fill `evaluation.py` first |
+| Regenerating `direct-output` or `strategy-documents` reaches the live service | The harness does not replace the new strategy's provider | Patch its names in `enter_fixture_providers` of `tests/_direct_command_output.py` ([notes on the reviewed sites](#4-write-the-reviewed-sites)) |
+| Running a generator script fails with `ModuleNotFoundError: No module named 'scripts'` | It was run by its file path | Run it as `uv run python -m scripts.<name>` from the repository root |
+| `tests/evaluation/test_package_data_coverage.py` fails | A data file the evaluation tier reads is not in package-data | Add its explicit path under `[tool.setuptools.package-data]` in `pyproject.toml` |
+| The generator exits with code 2 | The name is too long, or the module name, alias, tool, method identifier or a target file is already taken | Choose a free, shorter name; the generator wrote nothing |
+| Every site is unchecked after a file or wiring entry was removed | The package cannot be imported | Run the status command; it names the site and the file to restore |
+| `test_every_exception_that_declares_a_code_is_in_the_pinned_table` fails | A new failure class declares a `reason_code` | Add its row by hand to `tests/_failure_code_table.py` |
+| A preliminary calculation module breaks another check | Code written before the generator runs ([step 1](#1-run-the-generator)) | Stop and ask; do not adjust the check |
 
 ## Edit sites of a strategy
 
@@ -212,7 +344,7 @@ Users override any subset of the keys in `strategies/<alias>.toml` in their sett
 
 Golden evaluation never reads a settings file: its composition passes fixed settings, so editing a file cannot change Golden results or the model prompt.
 
-The `settings` site is reviewed. It is done when the package has no `settings.py`, and when it has one only if a `settings.toml` sits beside it and the descriptor's `settings_type` is the model that file defines. A conformance test also checks that every declared model has a shipped file that validates, that every shipped file belongs to a descriptor, and that every model is frozen, forbids unknown keys and has no defaults. The [Architecture](project/ARCHITECTURE.md#6-analysis-strategies-the-boundary) gives the rationale.
+The `settings` site is reviewed. It is done when the package has no `settings.py`, and when it has one only if a `settings.toml` sits beside it and the descriptor's `settings_type` is the model that file defines. A conformance test also checks that every declared model has a shipped file that validates, that every shipped file belongs to a descriptor, and that every model is frozen, forbids unknown keys and has no defaults. The [Architecture](ARCHITECTURE.md#6-analysis-strategies-the-boundary) gives the rationale.
 
 ### When a strategy gains a selection parameter
 
@@ -222,14 +354,14 @@ The generator writes the form with no configuration. When the strategy gets a pa
 2. Add the `config` parameter to `run_analysis`, after `context`: `run_analysis(self, ticker, context, config)`.
 3. Add `<Name>Config` (`FCFEarningsGrowthConfig` in `models.py`) and `to_<name>_config()` on the selection (`to_fcf_config()` in `selection.py`), and the parameter itself as a field of the selection.
 4. Pass the config through every caller: the tool handler builds it from the validated arguments (`tool.py`), `execute_<name>` takes it as a parameter, and the direct command builds it from its options. `run` builds it from the selection with `stored_configuration(selection.to_<name>_config)`, for a refresh job as for a direct analysis.
-5. Bump `CONFIG_SCHEMA_VERSION` in `vocabulary.py`, because the persisted selection changed shape: runs stored under the older version are refused when read, with no migration, and the pull request lists the change among its user-visible changes ([`AGENTS.md`](../AGENTS.md) §4).
+5. Bump `CONFIG_SCHEMA_VERSION` in `vocabulary.py`, because the persisted selection changed shape: runs stored under the older version are refused when read, with no migration, and the pull request lists the change among its user-visible changes ([`AGENTS.md`](../../AGENTS.md) §4).
 6. Add the option as an `Annotated` alias in `cli.py` that both the direct command and `add_selection` use, a row for it in `SELECTION_OPTIONS`, and the argument to the tool arguments model; give the field a description in the selection; then regenerate the schemas and the stored outputs as in steps 4 and 5 of the workflow. A selection field that the strategy's settings supply is also named in the descriptor's `selection_settings_fields`.
 
 ## Testing and quality expectations
 
 Test the method's own meaning and boundaries: valid calculations, policy branches, time-boundary behavior, missing or incompatible evidence, and provenance. Deterministic tests should use fixtures or provider fakes rather than real external API or LLM calls. Test adapter outcome mapping and workspace persistence at their respective boundaries when those areas are touched.
 
-Follow the repository's established static checks and pytest practices described in the [project instructions](../AGENTS.md).
+Follow the repository's established static checks and pytest practices described in the [project instructions](../../AGENTS.md).
 
 ### Where tests and fixtures live
 
@@ -244,20 +376,20 @@ Follow the repository's established static checks and pytest practices described
 
 - **Which to use:** use the captured folders for a regression test of a shared metric or a strategy over real filings, and the frozen foreign-private-issuer documents when the case is the foreign-filer boundary itself (Form 20-F or 40-F, IFRS, the security unit).
 - **Merging:** a test that needs both the balance-sheet and the annual concepts of an issuer has to merge the two documents. `fixture_statements_adapter(fixture_id, clock_at=...)` in `evaluation/fixtures/sec_edgar_statements.py` does it: it merges the two Company Facts documents and the filings of both, serves the issuer's filing header, and returns the real SEC adapter, so Golden cases and tests run its own year-end discovery and series resolution with no network access.
-- **Point-in-time trimming:** a capture as of a past boundary keeps only the filings accepted by that boundary. Apple's keeps its fiscal 2024 report and the two before it, and its tests use the boundary 2024-11-15 ([input evidence](project/milestones/v0.2/step-3.5/STEP_3_5_3_INPUT_EVIDENCE.md#2-sources)).
+- **Point-in-time trimming:** a capture as of a past boundary keeps only the filings accepted by that boundary. Apple's keeps its fiscal 2024 report and the two before it, and its tests use the boundary 2024-11-15 ([input evidence](milestones/v0.2/step-3.5/STEP_3_5_3_INPUT_EVIDENCE.md#2-sources)).
 ## Background: how a strategy fits into the code
 
-The sections below explain the code the workflow relies on. They describe the current extension points; the [Architecture](project/ARCHITECTURE.md) documents the boundaries and the rationale.
+**You are here:** past the workflow. Nothing below is needed to add an ordinary strategy; each section explains code a workflow step relies on, for when you want to understand it or a check fails in a way the diagnostic does not explain. [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs) is the exception: read it before writing the analyzer. The [Architecture](ARCHITECTURE.md) documents the boundaries and the rationale.
 
 ### What an analysis strategy is
 
 An analysis strategy is a named, deterministic method that resolves the evidence it needs, applies explicit financial rules in Python, and returns a typed result. Strategies may have different inputs, policies, calculations, and result models while sharing application infrastructure.
 
-The [user-facing strategy guides](user/strategies/README.md) explain the behavior and limitations of implemented strategies. This guide focuses on how they fit into the code.
+The [user-facing strategy guides](../user/strategies/README.md) explain the behavior and limitations of implemented strategies. This guide focuses on how they fit into the code.
 
 ### The current analyzer contract
 
-[`BaseAnalyzer`](../investment_analysis_engine/analysis/base_analyzer.py) is one abstract generic class, `BaseAnalyzer[ResultT, *ConfigT]`. `ResultT` is the complete evidence type the strategy returns. `ConfigT` holds zero or one type; a class that gives more than one raises a `TypeError` naming it, and a configuration is never added to hold a single value. The argument order is `(ticker, context, config)` everywhere.
+[`BaseAnalyzer`](../../investment_analysis_engine/analysis/base_analyzer.py) is one abstract generic class, `BaseAnalyzer[ResultT, *ConfigT]`. `ResultT` is the complete evidence type the strategy returns. `ConfigT` holds zero or one type; a class that gives more than one raises a `TypeError` naming it, and a configuration is never added to hold a single value. The argument order is `(ticker, context, config)` everywhere.
 
 | Specialization | Method | Example |
 | :--- | :--- | :--- |
@@ -276,9 +408,9 @@ Every analyzer inherits from `BaseAnalyzer` with its own result type; Momentum, 
 - `use_cache` is the run-wide permission governing cache reads and writes used by the analysis.
 - `instrument_profile` carries the run's identity evidence. It is retained in results even when the calculation does not consult it.
 
-For the full clock model — which instant each kind of check compares against, the decision-clock/event-clock distinction, `utc_now()`, and why frozen-clock skew is tolerated only for live runs — see ARCHITECTURE.md's [*Time and the analysis boundary*](project/ARCHITECTURE.md#5-time-and-the-analysis-boundary) rather than this guide; duplicating those rules here would let the two drift.
+For the full clock model — which instant each kind of check compares against, the decision-clock/event-clock distinction, `utc_now()`, and why frozen-clock skew is tolerated only for live runs — see ARCHITECTURE.md's [*Time and the analysis boundary*](ARCHITECTURE.md#5-time-and-the-analysis-boundary) rather than this guide; duplicating those rules here would let the two drift.
 
-The workspace selections expose `to_analysis_context(executed_at, instrument_profile)` alongside method-specific config conversion. Direct execution adapters and orchestrator handlers construct this context at their execution boundary. See [`AnalysisSelection`](../investment_analysis_engine/workspace/strategy_types.py) and each strategy's `selection.py` under `investment_analysis_engine/strategies/` for its method-specific request model, and [`AnalysisRequest`](../investment_analysis_engine/workspace/requests.py) for the workspace request boundary. The [Architecture](project/ARCHITECTURE.md) documents broader boundaries and rationale.
+The workspace selections expose `to_analysis_context(executed_at, instrument_profile)` alongside method-specific config conversion. Direct execution adapters and orchestrator handlers construct this context at their execution boundary. See [`AnalysisSelection`](../../investment_analysis_engine/workspace/strategy_types.py) and each strategy's `selection.py` under `investment_analysis_engine/strategies/` for its method-specific request model, and [`AnalysisRequest`](../../investment_analysis_engine/workspace/requests.py) for the workspace request boundary. The [Architecture](ARCHITECTURE.md) documents broader boundaries and rationale.
 
 ### How a strategy runs
 
@@ -293,6 +425,8 @@ The strategy supplies its own configuration (when it has one), inputs, calculati
 **What the contributor owns:** strategy policy/configuration where there is any, required input semantics, deterministic calculations, typed result, tests, user-facing presentation where needed, and its execution-adapter integration. **What is shared:** provider/cache contracts, provenance values, the shared metrics and input assembly of [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs), the `analyze`/refresh persistence decision, workspace execution, run persistence, and shared financial conventions. Reuse the shared boundaries instead of rebuilding them inside a strategy.
 
 #### What happens during an FCF & Earnings Growth run
+
+*Optional reference: read this only to trace a configured strategy end to end, for example while debugging a run. Adding a strategy does not need it.*
 
 `analyze` (`investment_analysis_engine/application/analysis.py`) runs the strategy's run function from the application tier, marking the save stage so that a failure after the analysis finished is reported as a failure while saving. When `save` is false (no `--save-run`) the run function is called directly — the default direct-command path never touches `workspace.execute()`, opens no database, and builds no durable profile cache. Only when `save` is true does it open a database, build the capture closure, and call `execute()`. A watchlist refresh never goes through `analyze`; it reaches `workspace.execute()` through its own composition in `investment_analysis_engine/workspace/refresh.py`, following the same adapter/normalize contract.
 
@@ -345,7 +479,7 @@ The direct command and watchlist-refresh paths reuse the same method adapter, bu
 
 The strategy determines which financial capability its semantics require. FCF growth uses a `FinancialFactsProvider` through its production annual-series resolver, currently backed by SEC EDGAR for the required completed annual cash-flow and EPS facts; a strategy that needs other SEC evidence starts from the shared assembly functions in [Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs). The resolution layer can use an optional cache and returns typed inputs with source, period, availability, retrieval, and transformation lineage. Historical prices, company financial facts, quotes, and macro observations are distinct capabilities; do not treat one as a substitute for another.
 
-`use_cache` controls whether the resolver can use its configured resolved-input cache. Provider and cache composition belongs at the application boundary. Detailed financial definitions, conventions, and data limitations belong in [Financial Math & Data Conventions](user/FINANCE_MATH.md) and the relevant [strategy guide](user/strategies/FCF_GROWTH.md).
+`use_cache` controls whether the resolver can use its configured resolved-input cache. Provider and cache composition belongs at the application boundary. Detailed financial definitions, conventions, and data limitations belong in [Financial Math & Data Conventions](../user/FINANCE_MATH.md) and the relevant [strategy guide](../user/strategies/FCF_GROWTH.md).
 
 ### How inputs and provenance are handled
 
@@ -355,14 +489,16 @@ Keep missing, unavailable, and not-applicable evidence explicit. Preserve source
 
 ### Shared metrics and SEC inputs
 
-Before writing a private resolver, check whether a shared function already supplies the input. The shared code is under [`investment_analysis_engine/analysis/shared/`](../investment_analysis_engine/analysis/shared/); a strategy calls it and does not rebuild it.
+**On the critical path:** read this before writing the analyzer.
+
+Before writing a private resolver, check whether a shared function already supplies the input. The shared code is under [`investment_analysis_engine/analysis/shared/`](../../investment_analysis_engine/analysis/shared); a strategy calls it and does not rebuild it.
 
 | Entry point | Home | Call it when | Instead of |
 | :--- | :--- | :--- | :--- |
 | Pure shared metrics | Modules of `analysis/shared/`: `cash_flow`, `enterprise_value` (`compute_total_debt`, `compute_long_term_debt`, `compute_enterprise_value`), `invested_capital`, `market_cap` (`compute_market_cap`), `operating_metrics` (`compute_gross_profit`, `compute_ebit`, `compute_ebitda`), `split_adjustment` and `applicability` | The strategy needs a metric another strategy may share | Writing the formula again |
-| Assembly functions | [`analysis/shared/metric_inputs.py`](../investment_analysis_engine/analysis/shared/metric_inputs.py): `anchor_year_end_scope`, `resolve_market_cap_inputs`, `resolve_year_ends`, `resolve_balance_sheet_values` and `resolve_balance_sheet_values_at`, `resolve_annual_values` and `resolve_annual_values_at`, `resolve_share_count_series`, `resolve_industry_class` | The metric's inputs are needed at the anchor year-end or at several year-ends | A private resolver that fetches from the provider |
+| Assembly functions | [`analysis/shared/metric_inputs.py`](../../investment_analysis_engine/analysis/shared/metric_inputs.py): `anchor_year_end_scope`, `resolve_market_cap_inputs`, `resolve_year_ends`, `resolve_balance_sheet_values` and `resolve_balance_sheet_values_at`, `resolve_annual_values` and `resolve_annual_values_at`, `resolve_share_count_series`, `resolve_industry_class` | The metric's inputs are needed at the anchor year-end or at several year-ends | A private resolver that fetches from the provider |
 | Scope-bound source protocol | `AsFiledSicSource` in `metric_inputs.py` | The input is tied to the analysis scope, such as the industry class from the as-filed SIC code. The SEC adapter implements the protocol | Passing the resolver, which reaches the adapter only through the production provider |
-| Adapter builder | `build_sec_edgar_adapter` in [`application/providers.py`](../investment_analysis_engine/application/providers.py) | Composition needs the SEC adapter itself. It checks the declared identity and applies the ticker overrides | Constructing `SecEdgarFinancialFactsAdapter` by hand |
+| Adapter builder | `build_sec_edgar_adapter` in [`application/providers.py`](../../investment_analysis_engine/application/providers.py) | Composition needs the SEC adapter itself. It checks the declared identity and applies the ticker overrides | Constructing `SecEdgarFinancialFactsAdapter` by hand |
 
 - **Composition:** build the adapter once. `compose_piotroski` in `strategies/piotroski/application.py` wraps it in a `ProductionFinancialFactsProvider` for the resolver and passes the same adapter as the analyzer's `AsFiledSicSource`, so the industry class and the inputs are read from the same analysis scope.
 - **Failures:** the assembly functions never raise a provider failure. They return a `MetricInputsFailure` that carries the provider-failure record, and a strategy calls no metric after one. An input that is merely unavailable is returned as its reason, so the metric can report it.
@@ -376,17 +512,17 @@ Do not make the LLM responsible for financial calculations. Avoid copying formul
 
 ### How results become user-visible
 
-Direct analysis commands send a native typed result to the strategy's presentation function. FCF uses `render_fcf_earnings_growth`, with concise, details, diagnostics, and JSON modes built around the strategy's own model. Shared formatting utilities in [`investment_analysis_engine/reporting/presentation.py`](../investment_analysis_engine/reporting/presentation.py) provide common vocabulary; they do not homogenize strategy result types. Saved-run views project from the persisted evidence rather than rerunning providers or calculations.
+Direct analysis commands send a native typed result to the strategy's presentation function. FCF uses `render_fcf_earnings_growth`, with concise, details, diagnostics, and JSON modes built around the strategy's own model. Shared formatting utilities in [`investment_analysis_engine/reporting/presentation.py`](../../investment_analysis_engine/reporting/presentation.py) provide common vocabulary; they do not homogenize strategy result types. Saved-run views project from the persisted evidence rather than rerunning providers or calculations.
 
 Provide presentation behavior that makes the result, limitations, and relevant provenance understandable. Keep presentation-only wording out of financial calculations.
 
 ### Execution capture and durable persistence
 
-The FCF-specific `execute_fcf_growth` adapter composes the profile and `AnalysisContext`, and invokes the analyzer. It returns an `FCFGrowthCapture` with the native result and profile; the caller normalizes that capture to the common `ExecutionCapture`, which takes the result's `execution_status` and derives the `RunOutcome` through `RunOutcome.from_status`, the one rule every strategy shares. The common [`workspace.execute()`](../investment_analysis_engine/workspace/execution.py) invokes a capture callable, records its own `started_at` and `completed_at` envelope timestamps, encodes the native evidence, assembles the common run record, and inserts it into the provided repository. These persistence-envelope timestamps are separate from the analysis context's `executed_at`. [`AnalysisRun`](../investment_analysis_engine/workspace/runs.py) is the durable domain record for the request/configuration snapshot, timing, versions, status, result evidence, presentation inputs, and profile.
+The FCF-specific `execute_fcf_growth` adapter composes the profile and `AnalysisContext`, and invokes the analyzer. It returns an `FCFGrowthCapture` with the native result and profile; the caller normalizes that capture to the common `ExecutionCapture`, which takes the result's `execution_status` and derives the `RunOutcome` through `RunOutcome.from_status`, the one rule every strategy shares. The common [`workspace.execute()`](../../investment_analysis_engine/workspace/execution.py) invokes a capture callable, records its own `started_at` and `completed_at` envelope timestamps, encodes the native evidence, assembles the common run record, and inserts it into the provided repository. These persistence-envelope timestamps are separate from the analysis context's `executed_at`. [`AnalysisRun`](../../investment_analysis_engine/workspace/runs.py) is the durable domain record for the request/configuration snapshot, timing, versions, status, result evidence, presentation inputs, and profile.
 
 The adapter is strategy-specific integration work. The workspace execution service is shared infrastructure and must not become a second implementation of a strategy's semantics. Do not assume every adapter has the same signature or that `BaseAnalyzer` is a unified execution interface.
 
-The helpers that the 3.5.3 repetition review extracted are functions, not a base class or mixin ([review](project/milestones/v0.2/step-3.5/STEP_3_5_3_SLICE_PLAN.md#b4-repetition-review-353e1)). Use them in a strategy's files:
+The helpers that the 3.5.3 repetition review extracted are functions, not a base class or mixin ([review](milestones/v0.2/step-3.5/STEP_3_5_3_SLICE_PLAN.md#b4-repetition-review-353e1)). Use them in a strategy's files:
 
 | Helper | Home | What it does |
 | :--- | :--- | :--- |
@@ -425,24 +561,26 @@ FCF growth is a useful end-to-end example of the configured form because its res
 
 | Generic concept | FCF & Earnings Growth (configured form) | Piotroski (config-free form, shared SEC inputs) |
 | --- | --- | --- |
-| Strategy configuration | `FCFEarningsGrowthConfig` in [`models.py`](../investment_analysis_engine/strategies/fcf_growth/models.py), built from `FCFGrowthSelection.to_fcf_config()` in [`selection.py`](../investment_analysis_engine/strategies/fcf_growth/selection.py) | None; `PiotroskiSelection` in [`selection.py`](../investment_analysis_engine/strategies/piotroski/selection.py) holds `as_of` and `use_cache` only |
-| Strategy policy | `FCFEarningsGrowthPolicy` in [`models.py`](../investment_analysis_engine/strategies/fcf_growth/models.py), held by the config | The nine tests, fixed in code in [`calculation.py`](../investment_analysis_engine/strategies/piotroski/calculation.py) |
-| Strategy analyzer | `FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarningsGrowthConfig])` in [`analyzer.py`](../investment_analysis_engine/strategies/fcf_growth/analyzer.py) | `PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult])` in [`analyzer.py`](../investment_analysis_engine/strategies/piotroski/analyzer.py) |
-| Strategy result | `FCFEarningsGrowthResult` in [`models.py`](../investment_analysis_engine/strategies/fcf_growth/models.py) | `PiotroskiResult` in [`analyzer.py`](../investment_analysis_engine/strategies/piotroski/analyzer.py) |
-| Input resolution | `ProductionAnnualGrowthSeriesResolver` in [`input_resolver.py`](../investment_analysis_engine/strategies/fcf_growth/input_resolver.py) for the annual series, and the shared `anchor_year_end_scope` and `resolve_market_cap_inputs` for the market capitalization | The shared assembly functions of [`metric_inputs.py`](../investment_analysis_engine/analysis/shared/metric_inputs.py) over an `InputResolver`, with the SEC adapter as the `AsFiledSicSource`; no resolver of its own |
-| Execution adapter | `execute_fcf_growth` and `FCFGrowthCapture` in [`workspace.py`](../investment_analysis_engine/strategies/fcf_growth/workspace.py) | `execute_piotroski` and `PiotroskiCapture` in [`workspace.py`](../investment_analysis_engine/strategies/piotroski/workspace.py) |
-| Common execution context | `AnalysisContext` from [`base_analyzer.py`](../investment_analysis_engine/analysis/base_analyzer.py), constructed by the adapter from the run boundary, cache choice, and profile | The same, built by `PiotroskiSelection.to_analysis_context` |
-| Common request boundary | `AnalysisRequest` in [`requests.py`](../investment_analysis_engine/workspace/requests.py); `FCFGrowthSelection` and `to_fcf_config()` | `AnalysisRequest`; `PiotroskiSelection` |
-| Common execution and persistence | [`workspace.execute()`](../investment_analysis_engine/workspace/execution.py), [`AnalysisRun`](../investment_analysis_engine/workspace/runs.py), and the Analysis Run repository | The same |
-| Strategy presentation | `render_fcf_earnings_growth` in [`presenter.py`](../investment_analysis_engine/strategies/fcf_growth/presenter.py) | `render_piotroski` in [`presenter.py`](../investment_analysis_engine/strategies/piotroski/presenter.py) |
+| Strategy configuration | `FCFEarningsGrowthConfig` in [`models.py`](../../investment_analysis_engine/strategies/fcf_growth/models.py), built from `FCFGrowthSelection.to_fcf_config()` in [`selection.py`](../../investment_analysis_engine/strategies/fcf_growth/selection.py) | None; `PiotroskiSelection` in [`selection.py`](../../investment_analysis_engine/strategies/piotroski/selection.py) holds `as_of` and `use_cache` only |
+| Strategy policy | `FCFEarningsGrowthPolicy` in [`models.py`](../../investment_analysis_engine/strategies/fcf_growth/models.py), held by the config | The nine tests, fixed in code in [`calculation.py`](../../investment_analysis_engine/strategies/piotroski/calculation.py) |
+| Strategy analyzer | `FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarningsGrowthConfig])` in [`analyzer.py`](../../investment_analysis_engine/strategies/fcf_growth/analyzer.py) | `PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult])` in [`analyzer.py`](../../investment_analysis_engine/strategies/piotroski/analyzer.py) |
+| Strategy result | `FCFEarningsGrowthResult` in [`models.py`](../../investment_analysis_engine/strategies/fcf_growth/models.py) | `PiotroskiResult` in [`analyzer.py`](../../investment_analysis_engine/strategies/piotroski/analyzer.py) |
+| Input resolution | `ProductionAnnualGrowthSeriesResolver` in [`input_resolver.py`](../../investment_analysis_engine/strategies/fcf_growth/input_resolver.py) for the annual series, and the shared `anchor_year_end_scope` and `resolve_market_cap_inputs` for the market capitalization | The shared assembly functions of [`metric_inputs.py`](../../investment_analysis_engine/analysis/shared/metric_inputs.py) over an `InputResolver`, with the SEC adapter as the `AsFiledSicSource`; no resolver of its own |
+| Execution adapter | `execute_fcf_growth` and `FCFGrowthCapture` in [`workspace.py`](../../investment_analysis_engine/strategies/fcf_growth/workspace.py) | `execute_piotroski` and `PiotroskiCapture` in [`workspace.py`](../../investment_analysis_engine/strategies/piotroski/workspace.py) |
+| Common execution context | `AnalysisContext` from [`base_analyzer.py`](../../investment_analysis_engine/analysis/base_analyzer.py), constructed by the adapter from the run boundary, cache choice, and profile | The same, built by `PiotroskiSelection.to_analysis_context` |
+| Common request boundary | `AnalysisRequest` in [`requests.py`](../../investment_analysis_engine/workspace/requests.py); `FCFGrowthSelection` and `to_fcf_config()` | `AnalysisRequest`; `PiotroskiSelection` |
+| Common execution and persistence | [`workspace.execute()`](../../investment_analysis_engine/workspace/execution.py), [`AnalysisRun`](../../investment_analysis_engine/workspace/runs.py), and the Analysis Run repository | The same |
+| Strategy presentation | `render_fcf_earnings_growth` in [`presenter.py`](../../investment_analysis_engine/strategies/fcf_growth/presenter.py) | `render_piotroski` in [`presenter.py`](../../investment_analysis_engine/strategies/piotroski/presenter.py) |
 
-The policy remains strategy-owned. `FCFGrowthSelection` is the validated, persisted/request-facing snapshot and converts to the analyzer's `FCFEarningsGrowthConfig`; the adapter supplies the separate common `AnalysisContext`. Piotroski's selection converts to no configuration, only to the context. See the [FCF & Earnings Growth user guide](user/strategies/FCF_GROWTH.md) and the [Piotroski F-Score user guide](user/strategies/PIOTROSKI.md) for method semantics and limitations.
+The policy remains strategy-owned. `FCFGrowthSelection` is the validated, persisted/request-facing snapshot and converts to the analyzer's `FCFEarningsGrowthConfig`; the adapter supplies the separate common `AnalysisContext`. Piotroski's selection converts to no configuration, only to the context. See the [FCF & Earnings Growth user guide](../user/strategies/FCF_GROWTH.md) and the [Piotroski F-Score user guide](../user/strategies/PIOTROSKI.md) for method semantics and limitations.
 
 ### Ready to add a strategy?
 
 Start from the strategy's financial question and required evidence. Read the relevant financial conventions, identify the narrow provider and provenance needs, define strategy-owned policy and result semantics, then integrate through the existing composition and execution boundaries. Use the FCF example to trace those responsibilities in code for the configured form and the Piotroski example for the form with no configuration.
 
 ## Changing what every strategy provides
+
+> **Not part of adding a strategy.** This is the checklist for a platform change, which changes what every strategy must provide. If you are adding one strategy, you are done with this guide.
 
 This section is for a change to the strategy contract itself: a new member of the behavior bundle, a new edit site or a new required name in a strategy's file. A single strategy never makes such a change. Take the rows that apply, then run the [status command](#2-check-the-status-command) and the generator's end-to-end test.
 
@@ -469,7 +607,7 @@ This section is for a change to the strategy contract itself: a new member of th
 
 ## Deeper references
 
-- [Architecture](project/ARCHITECTURE.md) — system boundaries and rationale.
-- [Financial Math & Data Conventions](user/FINANCE_MATH.md) — shared financial semantics.
-- [Glossary](user/GLOSSARY.md) — project and finance terminology.
-- [Analysis Strategy Guides](user/strategies/README.md) — investor-facing strategy behavior.
+- [Architecture](ARCHITECTURE.md) — system boundaries and rationale.
+- [Financial Math & Data Conventions](../user/FINANCE_MATH.md) — shared financial semantics.
+- [Glossary](../user/GLOSSARY.md) — project and finance terminology.
+- [Analysis Strategy Guides](../user/strategies/README.md) — investor-facing strategy behavior.

@@ -188,7 +188,7 @@ either.
 - **Decision:** the documents that said an adapter maps a status to an outcome say that the strategy reports its status
   and the shared rule produces the outcome.
 - **Scope:**
-  - `docs/TOOL_DEVELOPMENT.md`: the `codec` and `execution` rows of the edit-site table, the `cli` row (it names
+  - `docs/project/STRATEGY_DEVELOPMENT.md`: the `codec` and `execution` rows of the edit-site table, the `cli` row (it names
     `exit_code_of`), steps 12 and 14 of the FCF walkthrough, and the paragraph on `execute_fcf_growth`. The table is
     generated from `scripts/strategy_sites.toml`, so the three rows change there and the guide is regenerated with
     `uv run python -m scripts.generate_strategy_docs`.

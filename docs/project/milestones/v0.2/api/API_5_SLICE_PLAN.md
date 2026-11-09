@@ -189,7 +189,7 @@ What changed, by area:
   `tests/scripts/test_served_content.py` reads the command names from the Typer application and pins one served guide per
   strategy ([H28](#h28-command-names-in-code-spans-2026-11-07)). No other test changed.
 - **Edit site:** the `guide` site in `scripts/strategy_sites.toml` says what a guide must do
-  ([H34](#h34-the-contributor-guides-guide-edit-site-2026-11-07)); the edit-site table in `docs/TOOL_DEVELOPMENT.md` is
+  ([H34](#h34-the-contributor-guides-guide-edit-site-2026-11-07)); the edit-site table in `docs/project/STRATEGY_DEVELOPMENT.md` is
   regenerated.
 
 Judgment calls, each a place where the decisions left a choice:
@@ -242,7 +242,7 @@ What changed, by area:
   ([H58](#h58-ci-checks-openapijson-for-drift-2026-11-07)). `docs/project/README.md` lists both among the gate's commands, names it for a change to a served
   document and says to regenerate the bundle after editing one ([H50](#h50-contributor-gate-and-docs-2026-11-07));
   `AGENTS.md` §7 points at that section; the `guide` site of `scripts/strategy_sites.toml` says the bundle is regenerated,
-  and the edit-site table in `docs/TOOL_DEVELOPMENT.md` is regenerated.
+  and the edit-site table in `docs/project/STRATEGY_DEVELOPMENT.md` is regenerated.
 - **Architecture:** §13 has a `help` row at layer 0 with no imports ([H53](#h53-architecture-2026-11-07)).
 - **Tests:** `tests/scripts/test_generate_help.py`, `tests/help/test_bundle.py` and an addition to
   `tests/scripts/test_check_installed_package.py` ([H52](#h52-tests-2026-11-07)).
@@ -591,7 +591,7 @@ For API.5b2.
 - In `scripts/strategy_sites.toml`, the `guide` site's `why` says that the guide is served in the help bundle, that its
   explanatory sections are interface-neutral, that command-line material goes in excluded sections (whole sections, or a final
   "On the command line" subsection), and that `scripts/check_help_content.py` and the H28 test enforce it.
-- The edit-site table in `docs/TOOL_DEVELOPMENT.md` is regenerated with `uv run python -m scripts.generate_strategy_docs`, not
+- The edit-site table in `docs/project/STRATEGY_DEVELOPMENT.md` is regenerated with `uv run python -m scripts.generate_strategy_docs`, not
   edited by hand.
 
 ### H35 Plan records (2026-11-07)
@@ -739,7 +739,7 @@ existing `guide_name` rule in `scripts/generate_strategy_docs.py`, imported, not
   pass the commands `docs/project/README.md`'s Quality gates section names for it, linking that section. No other `AGENTS.md`
   change.
 - `scripts/strategy_sites.toml`: the `guide` site's `why` also says the help bundle is regenerated after a guide changes. The
-  edit-site table in `docs/TOOL_DEVELOPMENT.md` is regenerated with the existing generator.
+  edit-site table in `docs/project/STRATEGY_DEVELOPMENT.md` is regenerated with the existing generator.
 
 ### H51 JSON text (2026-11-07)
 
