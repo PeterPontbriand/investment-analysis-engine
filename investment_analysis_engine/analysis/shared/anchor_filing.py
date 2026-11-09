@@ -31,8 +31,8 @@ class FormAllowance:
 
     Attributes:
         forms: The forms the allowance applies to.
-        year_end_from: The first fiscal year-end the allowance applies to; ``None`` for every year-end before the next
-            row's. Rows of one form are listed newest first.
+        year_end_from: The first fiscal year-end of the next report (the overdue one) the allowance applies to; ``None``
+            for every such year-end before the next row's. Rows of one form are listed newest first.
         months: Calendar months after the fiscal year-end.
         days: Days after those months.
     """
@@ -115,11 +115,11 @@ def _next_year_end(year_end: date) -> date:
         return date(year_end.year + 1, 3, 1)
 
 
-def _allowance(form: str, year_end: date) -> FormAllowance:
-    """Return the allowance for ``form`` at ``year_end``."""
+def _allowance(form: str, next_year_end: date) -> FormAllowance:
+    """Return the allowance for ``form`` for the report whose fiscal year ends ``next_year_end``."""
     normalized = form.strip().upper()
     for row in ALLOWANCES:
-        if normalized in row.forms and (row.year_end_from is None or year_end >= row.year_end_from):
+        if normalized in row.forms and (row.year_end_from is None or next_year_end >= row.year_end_from):
             return row
     raise ValueError(f"No annual-report allowance is declared for form {form!r}.")
 
@@ -130,8 +130,9 @@ def next_report_due(year_end: date, form: str) -> date:
     Raises:
         ValueError: If no allowance is declared for ``form``.
     """
-    allowance = _allowance(form, year_end)
-    shifted = _next_year_end(year_end) + timedelta(days=NEXT_REPORT_SLACK_DAYS)
+    next_year_end = _next_year_end(year_end)
+    allowance = _allowance(form, next_year_end)
+    shifted = next_year_end + timedelta(days=NEXT_REPORT_SLACK_DAYS)
     original = _add_months(shifted, allowance.months) + timedelta(days=allowance.days)
     for relief in RELIEF_PERIODS:
         if relief.original_due_from <= original <= relief.original_due_to:

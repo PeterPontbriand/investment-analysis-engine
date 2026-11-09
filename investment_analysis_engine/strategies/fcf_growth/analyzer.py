@@ -123,10 +123,11 @@ def _yield_outcome(
     )
 
 
-def _failure_yield(failure: MetricInputsFailure) -> _YieldOutcome:
+def _failure_yield(failure: MetricInputsFailure, anchor_filing: AnchorFilingEvidence | None = None) -> _YieldOutcome:
     """Return the outcome of a market-data failure: the yield is unavailable and the run is untouched.
 
-    The wording comes from the provider-failure record, never from the provider's own error text.
+    The wording comes from the provider-failure record, never from the provider's own error text. A failure after the
+    anchor was resolved keeps the anchor filing; one before it has none.
     """
     record = failure.provider_failure
     subject = failure.input_name.replace("_", " ")
@@ -135,7 +136,7 @@ def _failure_yield(failure: MetricInputsFailure) -> _YieldOutcome:
         if record is None
         else f"Provider {record.provider_id} failed ({record.kind.value}) while the {subject} was obtained."
     )
-    return _yield_outcome(None, _unavailable_metric(failure.reason_code, reason))
+    return _yield_outcome(None, _unavailable_metric(failure.reason_code, reason), anchor_filing)
 
 
 def _yield_of(
@@ -203,7 +204,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
             use_cache=context.use_cache,
         )
         if isinstance(inputs, MetricInputsFailure):
-            return _failure_yield(inputs)
+            return _failure_yield(inputs, anchor_filing)
         return _yield_of(latest, inputs.market_cap(), anchor_filing)
 
     def run_analysis(
@@ -260,10 +261,9 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
             reason = assembly.reason or "Required historical evidence is unavailable."
             trend = TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH
 
-        warnings: list[str] = []
+        warnings: list[str] = list(stale_anchor_warnings(yield_outcome.anchor_filing, boundary))
         if assembly.used_horizon_fallback:
             warnings.append("Automatic horizon selection fell back because five elapsed years were unavailable.")
-        warnings.extend(stale_anchor_warnings(yield_outcome.anchor_filing, boundary))
         warnings.extend(yield_outcome.warnings)
         if policy.forward_policy.value != "display_only":
             warnings.append("Forward consensus policy was selected, but approved consensus evidence is unavailable.")

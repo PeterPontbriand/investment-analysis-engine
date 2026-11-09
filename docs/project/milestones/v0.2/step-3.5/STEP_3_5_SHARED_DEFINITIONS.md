@@ -169,10 +169,10 @@ The boundary's date is the UTC date of `context.effective_as_of`.
   rule never warns early. The limitation is that a large accelerated filer, whose 10-K is due 60 days after year-end,
   gets up to 45 days of grace without a warning.
 
-The form's allowance, one declaration in code (`ALLOWANCES` in `analysis/shared/anchor_filing.py`) that a test compares
+The deadline that applies is the overdue report's, so the allowance is chosen by the next report's fiscal year-end (the anchor's `year_end` plus one calendar year, before the 7 days are added), not the anchor's. The form's allowance, one declaration in code (`ALLOWANCES` in `analysis/shared/anchor_filing.py`) that a test compares
 with this table:
 
-| Forms | Fiscal year-ends | Allowance |
+| Forms | Next fiscal year-end | Allowance |
 | :--- | :--- | :--- |
 | 10-K, 10-K/A | every | 105 days |
 | 20-F, 20-F/A | on or after 2011-12-15 | 4 calendar months + 15 days |
@@ -212,6 +212,7 @@ never warns early.
     clause ", filed {filing_date}" is dropped when the filing date is null. Dates are ISO dates. The message is also the
     first entry of the document's warnings.
   - Market cap at a stale anchor is `unavailable` with `stale_anchor` ([§4](#4-market-capitalization)).
+  - Once the anchor is resolved and assessed, the result reports it whatever happens afterwards: a provider-error result carries the element and, when the anchor is stale, the warning. A failure before the anchor is resolved gives null.
 
 ### Absent-component convention
 

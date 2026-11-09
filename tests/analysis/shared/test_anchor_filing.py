@@ -42,7 +42,12 @@ def _at(day: date) -> datetime:
         ("10-K", date(2023, 12, 31), date(2025, 4, 22)),
         ("10-K/A", date(2023, 12, 31), date(2025, 4, 22)),
         ("10-K", date(2020, 2, 29), date(2021, 6, 21)),
-        ("20-F", date(2011, 12, 14), date(2013, 7, 6)),
+        ("20-F", date(2011, 12, 14), date(2013, 5, 6)),
+        ("20-F", date(2010, 12, 14), date(2012, 7, 6)),
+        ("20-F", date(2010, 12, 15), date(2012, 5, 7)),
+        ("20-F/A", date(2010, 12, 14), date(2012, 7, 6)),
+        ("20-F", date(2012, 2, 29), date(2013, 7, 23)),
+        ("10-K", date(2012, 2, 29), date(2013, 6, 21)),
         ("20-F", date(2011, 12, 15), date(2013, 5, 7)),
         ("20-F/A", date(2011, 12, 15), date(2013, 5, 7)),
         ("20-F", date(2022, 10, 24), date(2024, 3, 15)),
@@ -60,10 +65,18 @@ def test_the_next_report_is_due_by_the_forms_allowance_and_the_day_after_it_the_
     assert (after.next_report_due, after.stale) == (due, True)
 
 
-def test_a_twenty_f_year_end_a_day_before_the_four_month_rule_keeps_six_months() -> None:
-    six = next_report_due(date(2011, 12, 14), "20-F")
-    four = next_report_due(date(2011, 12, 15), "20-F")
-    assert (six, four) == (date(2013, 7, 6), date(2013, 5, 7))
+def test_the_twenty_f_allowance_is_chosen_by_the_overdue_reports_year_end_not_the_anchors() -> None:
+    # The next year-end of a 2010-12-14 anchor is 2011-12-14, before the four-month rule: 6 months. A day later it is
+    # 2011-12-15: 4 months. An anchor of 2011-12-14 already has a next year-end of 2012-12-14: 4 months.
+    assert next_report_due(date(2010, 12, 14), "20-F") == date(2012, 7, 6)
+    assert next_report_due(date(2010, 12, 15), "20-F") == date(2012, 5, 7)
+    assert next_report_due(date(2011, 12, 14), "20-F") == date(2013, 5, 6)
+    assert next_report_due(date(2011, 12, 15), "20-F") == date(2013, 5, 7)
+
+
+def test_a_leap_day_year_end_gives_the_first_of_march_as_the_next_year_end() -> None:
+    # 2012-02-29 -> 2013-03-01, +7 days = 2013-03-08; +4 months = 2013-07-08, +15 days = 2013-07-23.
+    assert next_report_due(date(2012, 2, 29), "20-F") == date(2013, 7, 23)
 
 
 def test_a_month_end_clamps_to_the_last_day_of_a_shorter_month() -> None:
@@ -183,7 +196,7 @@ def _allowance_key(row: FormAllowance, rows: tuple[FormAllowance, ...]) -> tuple
 
 def test_the_allowance_table_in_the_code_is_the_table_in_the_shared_definitions() -> None:
     documented = []
-    for forms, condition, allowance in _table_rows("| Forms | Fiscal year-ends | Allowance |", 3):
+    for forms, condition, allowance in _table_rows("| Forms | Next fiscal year-end | Allowance |", 3):
         match = re.fullmatch(r"(?:(\d+) calendar months \+ )?(\d+) days", allowance)
         assert match is not None, allowance
         documented.append((tuple(forms.split(", ")), condition, int(match.group(1) or 0), int(match.group(2))))

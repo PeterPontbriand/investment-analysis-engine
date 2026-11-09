@@ -511,3 +511,33 @@ def test_an_amendment_of_an_older_year_accepted_after_the_anchor_leaves_the_scor
     # time, so that test is unavailable; every other test is scored at the anchor's year as before.
     assert outcomes(amended)[6] is UNAVAILABLE
     assert outcomes(amended)[:6] + outcomes(amended)[7:] == outcomes(baseline)[:6] + outcomes(baseline)[7:]
+
+
+class _HeaderDown(HeaderFetcher):
+    """A header fetcher that fails with a classified provider failure, after the anchor has been resolved."""
+
+    def __init__(self) -> None:
+        super().__init__("")
+
+    def __call__(self, url: str, **_kwargs: object) -> str:
+        del url
+        raise FinancialProviderError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
+
+
+def test_a_provider_failure_after_a_stale_anchor_still_reports_the_anchor_and_the_warning() -> None:
+    boundary = datetime(2026, 3, 1, tzinfo=UTC)
+    result = run("aapl", as_of=boundary, adapter=adapter_of("aapl", header=_HeaderDown()))
+    assert result.execution_status is CalculationStatus.PROVIDER_ERROR
+    assert result.f_score is None
+    assert result.anchor is not None
+    assert (result.anchor.year_end, result.anchor.stale) == (date(2024, 9, 28), True)
+    assert result.warnings == run("aapl", as_of=boundary).warnings
+    assert len(result.warnings) == 1
+
+
+def test_a_provider_failure_after_a_fresh_anchor_reports_the_anchor_and_no_warning() -> None:
+    result = run("aapl", as_of=AAPL_AS_OF, adapter=adapter_of("aapl", header=_HeaderDown()))
+    assert result.execution_status is CalculationStatus.PROVIDER_ERROR
+    assert result.anchor is not None
+    assert result.anchor.stale is False
+    assert result.warnings == ()

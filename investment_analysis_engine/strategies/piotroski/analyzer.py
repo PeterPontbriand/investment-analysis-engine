@@ -421,8 +421,18 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
             diagnostics=(),
         )
 
-    def _failure_result(self, failure: MetricInputsFailure, ticker: str, context: AnalysisContext) -> PiotroskiResult:
-        """Return the outcome of a provider failure: the failure and no tests."""
+    def _failure_result(
+        self,
+        failure: MetricInputsFailure,
+        ticker: str,
+        context: AnalysisContext,
+        filing: AnchorFilingEvidence | None = None,
+    ) -> PiotroskiResult:
+        """Return the outcome of a provider failure: the failure and no tests.
+
+        A failure after the anchor was resolved keeps the anchor filing and, when it is stale, the warning; a failure
+        before the anchor was resolved has neither.
+        """
         return PiotroskiResult(
             ticker=ticker,
             requested_as_of=context.as_of,
@@ -433,12 +443,12 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
             reason=failure.reason,
             industry_class=None,
             industry_class_unknown=None,
-            anchor=None,
+            anchor=filing,
             source_filings=(),
             taxonomy=None,
             f_score=None,
             input_failure=failure,
-            warnings=(),
+            warnings=stale_anchor_warnings(filing, context.effective_as_of),
             diagnostics=(f"The assembly stopped at the input {failure.input_name.replace('_', ' ')}.",),
         )
 
@@ -453,21 +463,21 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
         if isinstance(anchor, InputUnavailable):
             years = _Years(anchor, anchor, anchor)
         else:
+            filing = assess_anchor_filing(anchor, context.effective_as_of)
             year_ends = resolve_year_ends(self._resolver, anchor=anchor, ticker=ticker, as_of=context.as_of)
             if isinstance(year_ends, MetricInputsFailure):
-                return self._failure_result(year_ends, ticker, context)
+                return self._failure_result(year_ends, ticker, context, filing)
             if isinstance(year_ends, InputUnavailable):
                 years = _Years(anchor.year_end, year_ends, year_ends)
             else:
                 years = _Years(year_ends.year_end, year_ends.prior, year_ends.second_prior)
-            filing = assess_anchor_filing(anchor, context.effective_as_of)
             filing_dates = anchor.filing_dates
         classified = resolve_industry_class(self._industry_classes, ticker=ticker, as_of=context.as_of)
         if isinstance(classified, MetricInputsFailure):
-            return self._failure_result(classified, ticker, context)
+            return self._failure_result(classified, ticker, context, filing)
         read = self._read(ticker, years, context)
         if isinstance(read, MetricInputsFailure):
-            return self._failure_result(read, ticker, context)
+            return self._failure_result(read, ticker, context, filing)
         score = calculate_f_score(_inputs_of(years, read))
         reason = anchor if isinstance(anchor, InputUnavailable) else None
         return self._result(ticker, context, years, filing, filing_dates, classified, score, reason)

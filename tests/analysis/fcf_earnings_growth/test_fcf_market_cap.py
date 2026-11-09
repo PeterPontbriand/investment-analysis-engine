@@ -472,3 +472,38 @@ def test_a_stale_anchor_keeps_the_status_and_makes_the_market_cap_and_the_yield_
 def test_the_anchor_is_stale_the_day_after_the_due_date_and_not_on_it() -> None:
     assert _run_at(datetime(2026, 4, 23, 12, tzinfo=UTC)).fcf_yield.status is MetricStatus.OK
     assert _run_at(datetime(2026, 4, 24, 12, tzinfo=UTC)).fcf_yield.reason_code is ReasonCode.STALE_ANCHOR
+
+
+def test_a_market_data_failure_after_a_stale_anchor_still_reports_the_anchor_and_the_warning_first() -> None:
+    late = datetime(2026, 4, 24, 12, tzinfo=UTC)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
+    result = FCFEarningsGrowthAnalyzer(
+        _annual(), _dependencies(SpyProvider(), SplitFailsProvider(CLOCK, with_data=True))
+    ).run_analysis("acme", AnalysisContext(as_of=None, executed_at=late, use_cache=True), config)
+
+    assert result.anchor_filing is not None
+    assert result.anchor_filing.stale is True
+    assert result.fcf_yield.status is MetricStatus.UNAVAILABLE
+    assert result.warnings[0].startswith("The newest annual report filed by 2026-04-24")
+    assert any(warning.startswith("FCF yield is unavailable:") for warning in result.warnings[1:])
+
+
+def test_a_failure_before_the_anchor_is_resolved_gives_no_anchor_filing() -> None:
+    late = datetime(2026, 4, 24, 12, tzinfo=UTC)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
+    result = FCFEarningsGrowthAnalyzer(_annual(), _dependencies(ScopeFailsProvider())).run_analysis(
+        "acme", AnalysisContext(as_of=None, executed_at=late, use_cache=True), config
+    )
+    assert result.anchor_filing is None
+    assert not [warning for warning in result.warnings if "annual report" in warning]
+
+
+def test_the_stale_anchor_message_comes_before_the_horizon_fallback_warning() -> None:
+    late = datetime(2026, 4, 24, 12, tzinfo=UTC)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
+    result = FCFEarningsGrowthAnalyzer(_annual(range(2022, 2026)), _dependencies(SpyProvider())).run_analysis(
+        "acme", AnalysisContext(as_of=None, executed_at=late, use_cache=True), config
+    )
+    assert result.used_horizon_fallback is True
+    assert result.warnings[0].startswith("The newest annual report filed by 2026-04-24")
+    assert result.warnings[1] == ("Automatic horizon selection fell back because five elapsed years were unavailable.")
