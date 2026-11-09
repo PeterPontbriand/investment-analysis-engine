@@ -170,7 +170,7 @@ main() {
     run_step "generate_help --check" uv run --no-sync python -m scripts.generate_help --check
     run_step "ruff check" uv run --no-sync ruff check --no-cache .
     run_step "ruff format" uv run --no-sync ruff format --check .
-    run_step "mypy" uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" investment_analysis_engine tests scripts
+    run_step "mypy" uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache" investment_analysis_engine tests scripts launcher
     local default_coverage=("${coverage_args[@]}")
     if [ -n "$extra_python" ]; then
         default_coverage=()

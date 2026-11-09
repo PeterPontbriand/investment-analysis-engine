@@ -32,7 +32,6 @@ class ExecutedError(Exception):
 
 @pytest.fixture
 def installation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    (tmp_path / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
     monkeypatch.setattr(ian_launcher, "INSTALLATION_FOLDER", tmp_path)
     monkeypatch.setattr(shutil, "which", lambda _name: UV)
     return tmp_path
@@ -103,19 +102,6 @@ def test_a_missing_uv_writes_one_message_and_exits_one(
     assert captured.out == ""
     assert captured.err.count("\n") == 1
     assert "needs uv" in captured.err
-
-
-def test_a_moved_installation_names_the_folder_and_the_install_command(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setattr(ian_launcher, "INSTALLATION_FOLDER", tmp_path / "gone")
-    monkeypatch.setattr(shutil, "which", lambda _name: UV)
-    assert ian_launcher.run(ARGUMENTS) == 1
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert captured.err.count("\n") == 1
-    assert str(tmp_path / "gone") in captured.err
-    assert "uv run python -m scripts.install_command" in captured.err
 
 
 @pytest.mark.usefixtures("installation")

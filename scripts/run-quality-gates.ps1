@@ -216,7 +216,8 @@ try {
         $mypyCache,
         "investment_analysis_engine",
         "tests",
-        "scripts"
+        "scripts",
+        "launcher"
     )
     Invoke-Step -Name "pytest (Python $pythonVersion)" -Executable "uv" -Arguments (@(
             "run",

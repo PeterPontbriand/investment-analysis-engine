@@ -12,7 +12,7 @@ from pathlib import Path
 
 from scripts.repository_root import REPOSITORY_ROOT
 
-_SOURCE_FOLDERS = ("investment_analysis_engine", "tests", "scripts")
+_SOURCE_FOLDERS = ("investment_analysis_engine", "tests", "scripts", "launcher")
 # The one initializer that holds code: the settings themselves, not a re-export of its children.
 _INITIALIZER_WITH_CODE = "investment_analysis_engine/config/__init__.py"
 # Files that may count folders up from ``__file__``, once each: the definition of the package root, and the

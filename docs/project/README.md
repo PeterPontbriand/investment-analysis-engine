@@ -97,7 +97,7 @@ uv run python -m scripts.generate_openapi --check
 uv run python -m scripts.generate_help --check
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy --strict investment_analysis_engine tests scripts
+uv run mypy --strict investment_analysis_engine tests scripts launcher
 uv run pytest
 ```
 
@@ -136,7 +136,7 @@ When local repair is required, the recommended order is:
 ```bash
 uv run ruff check --fix .
 uv run ruff format .
-uv run mypy --strict investment_analysis_engine tests scripts
+uv run mypy --strict investment_analysis_engine tests scripts launcher
 uv run pytest
 ```
 

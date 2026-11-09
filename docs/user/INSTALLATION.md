@@ -70,10 +70,11 @@ It prints where it put the `ian` command and which installation that command run
 ian --help
 ```
 
-From then on, `ian` works in any folder and always runs this installation. Running the same command from another copy of the application points `ian` at that copy instead. To remove the command, run `uv tool uninstall ian-launcher`.
+If you see the Investment Analysis Engine help text, the command is available. Help does not open or verify the
+database.
 
-If you see the Investment Analysis Engine help text, the command is available. Help
-does not open or verify the database.
+From then on, `ian` works in any folder and always runs this installation. Running the same command from another
+copy of the application points `ian` at that copy instead. To remove the command, run `uv tool uninstall ian-launcher`.
 
 ### Updating an existing installation
 
@@ -261,6 +262,10 @@ The corresponding prerequisite is either not installed or its executable is not 
 ### `ian` is "not recognized" / "command not found"
 
 Do [Make the `ian` command available](#make-the-ian-command-available), then open a new terminal. If `ian` is still not recognized, the command folder the installer printed is not on the path: run `uv tool update-shell` and open a new terminal.
+
+### `ModuleNotFoundError: No module named 'ian_launcher'`
+
+The copy of the application that `ian` was installed from has been moved or deleted. Run `uv run python -m scripts.install_command` from the current copy to point `ian` at it, or run `uv tool uninstall ian-launcher` to remove the command.
 
 ### `uv sync` fails
 

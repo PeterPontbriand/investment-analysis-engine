@@ -22,12 +22,9 @@ INSTALLATION_FOLDER = Path(__file__).resolve().parent.parent
 IS_WINDOWS = os.name == "nt"
 """Whether the launcher runs on Windows, where it starts a child process instead of replacing itself."""
 
-INSTALL_COMMAND = "uv run python -m scripts.install_command"
-"""The command that points ``ian`` at a copy of the application."""
-
 
 def run(arguments: list[str]) -> int:
-    """Run ``ian`` of the installation with ``arguments`` and return the exit code; write a message on a failure.
+    """Run ``ian`` of the installation with ``arguments`` and return the exit code; write a message without ``uv``.
 
     On macOS and Linux this does not return when the command starts: the process is replaced by the command.
     """
@@ -35,14 +32,7 @@ def run(arguments: list[str]) -> int:
     if uv is None:
         sys.stderr.write("ian needs uv, which was not found on the path. Install uv and open a new terminal.\n")
         return 1
-    folder = INSTALLATION_FOLDER
-    if not (folder / "pyproject.toml").is_file():
-        sys.stderr.write(
-            f"The installation folder {folder} no longer holds the application. "
-            f"Run `{INSTALL_COMMAND}` from the current copy to point `ian` at it.\n"
-        )
-        return 1
-    command = [uv, "run", "--project", str(folder), "ian", *arguments]
+    command = [uv, "run", "--project", str(INSTALLATION_FOLDER), "ian", *arguments]
     if IS_WINDOWS:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         return subprocess.run(command, check=False).returncode
