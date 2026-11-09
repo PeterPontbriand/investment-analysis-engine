@@ -82,7 +82,7 @@ next begins.
 
 Issue 207 and issue 210 finish before API.1 ([A.14](#a14-353-sub-slices-and-scope-2026-10-29)), in that order, after 3.5.3e1c; API.1 starts after them.
 
-Once Step 3.5 closes, a person, not an AI agent, reviews [`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md); language and readability criticisms of the guide wait for that review.
+Once Step 3.5 closes, a person, not an AI agent, reviews [`docs/project/STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md); language and readability criticisms of the guide wait for that review.
 
 3.5.5 starts after work package API's API.6 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)),
 and 3.5.4 follows 3.5.5 ([A.15](#a15-355-before-354-2026-11-02)).
@@ -117,7 +117,7 @@ the standard `⚠ no slice plan yet` marker until its handoff is accepted. Here 
 "written immediately before the slice begins", not an omission.
 
 **Every strategy is added the same way.** Each strategy slice adds its strategy through the
-[edit-site table in `docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#edit-sites-of-a-strategy) (the table lists every site and file and is
+[edit-site table in `docs/project/STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md#edit-sites-of-a-strategy) (the table lists every site and file and is
 generated from one site data file; the original design is in [SWC.1 design §17](../swc/SWC_1_DESCRIPTOR_CONTRACT_DESIGN.md#17-edit-sites-for-a-new-strategy)): the analyzer package, the
 descriptor and its behavior bundle, the CLI-tier and evaluation-tier entries, and the strategy-owned files
 each of them references. That includes the orchestrator tool (a `ToolName` member, an arguments model, a
@@ -126,7 +126,7 @@ land, a slice starts from `scripts/new_strategy.py`, which writes the typed stub
 one-line edits, and tracks progress with `scripts/strategy_status.py`. Each slice plan names the table's
 sites it touches. The guide's workflow is the reference.
 
-Every Step 3.5 strategy slice records in its plan's implementation record every point where `docs/TOOL_DEVELOPMENT.md` fell short, and fixes the guide in the same slice where that is within its scope. 3.5.0b's own record of the points it met is
+Every Step 3.5 strategy slice records in its plan's implementation record every point where `docs/project/STRATEGY_DEVELOPMENT.md` fell short, and fixes the guide in the same slice where that is within its scope. 3.5.0b's own record of the points it met is
 [A.3 of the 3.5.0 slice plan](STEP_3_5_0_SLICE_PLAN.md#a3-350b-implementation-record-2026-10-25); 3.5.3's plan links it.
 
 **Repetition checkpoint.** Every strategy of this step reads SEC annual filings only and shares the same selection
@@ -607,7 +607,7 @@ Decided by the project owner while the [3.5.3 slice plan](STEP_3_5_3_SLICE_PLAN.
 | Checkpoint and guide (Q16, Q17) | Site 19 weighed in 3.5.3 | No change to the watchlist command syntax in Step 3.5; the guide is fixed where in scope and one issue is filed for the rest | Piotroski has no watchlist options of its own |
 | Split of 3.5.3b and evidence handling (U1 to U6) | 3.5.3b as one sub-slice | Two: 3.5.3b1 the shared functions that need no new evidence (long-term debt, industry class, multi-year balance-sheet and annual values), 3.5.3b2 year-end discovery, the share-count series, the Q5 measurement and the captured fixtures; evidence in `STEP_3_5_3_INPUT_EVIDENCE.md`; a stop threshold for Q5; capture only in 3.5.3b2; no new live-network check; a byte-identical proof of stored outputs | Reviewed code should not wait on a stop for live evidence; the plan's [A.5](STEP_3_5_3_SLICE_PLAN.md#a5-decisions-u1-to-u6-2026-10-29) holds the six decisions |
 | Repetition checkpoint split (E1, F11) | 3.5.3e as one sub-slice | Three: 3.5.3e1 the review, the extraction and the template changes (complete 2026-11-01); 3.5.3e1b one analyzer base, `BaseAnalyzer[ResultT, *ConfigT]`, replacing `BaseAnalyzer[ConfigT, ResultT]` and `ConfigFreeAnalyzer` (complete 2026-11-01); 3.5.3e2 the guide fixes, the Site 19 record and the issues (complete 2026-11-01) | The extraction and the analyzer base change code and stored nothing new; the guide and the records are documentation only, so each has its own gate |
-| Guide, Site 19 and issues (F1 to F10) | Guide fixes "where in scope", Site 19 weighed in 3.5.3 | Every B.2 fact placed in `docs/TOOL_DEVELOPMENT.md` or the one shortfall issue ([#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210)); stale facts corrected; Site 19 weighed with no change to the watchlist syntax and decided with API.3; issue [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) and #210 all finish before API.1, after 3.5.3e1c (generated bodies for the execution function, command, refresh and tool handler); every strategy slice records the guide's shortfalls and fixes the guide in the same slice where in scope | A reader of the guide is told each fact the work met; the order of the follow-up work is recorded where slice order lives |
+| Guide, Site 19 and issues (F1 to F10) | Guide fixes "where in scope", Site 19 weighed in 3.5.3 | Every B.2 fact placed in `docs/project/STRATEGY_DEVELOPMENT.md` or the one shortfall issue ([#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210)); stale facts corrected; Site 19 weighed with no change to the watchlist syntax and decided with API.3; issue [#207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) and #210 all finish before API.1, after 3.5.3e1c (generated bodies for the execution function, command, refresh and tool handler); every strategy slice records the guide's shortfalls and fixes the guide in the same slice where in scope | A reader of the guide is told each fact the work met; the order of the follow-up work is recorded where slice order lives |
 | Generated bodies (H1 to H6) | The templates wrote the signatures and flags of the execution function and the command, with stub bodies | Complete bodies for `execute_<name>`, the command, `refresh`, `build_selection` and the tool handler, through the shared helpers; five stubs remain (the analyzer, `compose_<name>(executed_at)`, `from_<name>_capture`, the presenter and the evaluation compose); `compose_piotroski` takes the same signature; `HELP_TARGETS` follows the declared strategies (complete 2026-11-01) | A new strategy starts with its invocation envelope written and only its own composition to fill, and the end-to-end generator test runs the generated bodies |
 
 ### A.15 3.5.5 before 3.5.4 (2026-11-02)

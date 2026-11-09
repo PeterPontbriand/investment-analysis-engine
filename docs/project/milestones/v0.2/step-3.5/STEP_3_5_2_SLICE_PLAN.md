@@ -1070,10 +1070,10 @@ network call.
   A field whose observations are all of one kind, and a field with a valid observation, are unchanged. Among several
   rejections of the same kind the earliest period end, then the lowest fact ID, is the one reported.
 
-### B.13 TOOL_DEVELOPMENT edit sites
+### B.13 STRATEGY_DEVELOPMENT edit sites
 
 No sub-slice adds a strategy, so none of the edit sites of
-[`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#edit-sites-of-a-strategy) is expected to be touched. 3.5.2b
+[`docs/project/STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md#edit-sites-of-a-strategy) is expected to be touched. 3.5.2b
 and 3.5.2e regenerate schemas, which is a use of the `schema` site's command, not an edit of the site. 3.5.2e changes an
 existing strategy's own files; the conformance tests are expected to pass unchanged, and a failure would mean a
 descriptor or wiring file was touched.

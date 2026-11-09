@@ -27,7 +27,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
     asks (Q15).
   - The managed quality gate after every sub-slice, and explicit authorization before the next begins.
 - **Where the detail lives:** the decisions are in [Appendix A](#appendix-a-decision-records); the implementation
-  record, including where `docs/TOOL_DEVELOPMENT.md` fell short, is in [Appendix B](#appendix-b-implementation-record);
+  record, including where `docs/project/STRATEGY_DEVELOPMENT.md` fell short, is in [Appendix B](#appendix-b-implementation-record);
   file inventories, tests and interfaces are in [Appendix C](#appendix-c-file-inventories),
   [Appendix D](#appendix-d-tests) and [Appendix E](#appendix-e-interfaces).
 
@@ -142,7 +142,7 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
 - **Scope:** analyzer, wiring, presenter, headline, tool, user guide, `FINANCE_MATH.md` and `GLOSSARY.md` entries,
   fixtures and the Golden cases for Apple (complete) and Monster (partial); the rest of the Golden cases wait for 3.5.7.
   Also, because they blocked the work: the generator's long-label fix and the config-free analyzer form with its shared
-  readers ([B.2](#b2-where-docstool_developmentmd-fell-short), [A.8](#a8-decisions-p1-to-p12-2026-10-31)).
+  readers ([B.2](#b2-where-docsprojectstrategy_developmentmd-fell-short), [A.8](#a8-decisions-p1-to-p12-2026-10-31)).
 - **Branch:** `feat/step-3-5-3d-piotroski-strategy`.
 - **Detail:** [decisions](#a8-decisions-p1-to-p12-2026-10-31), [files](#c5-353d-files), [tests](#d4-353d-tests),
   [the result](#e1-the-calculators-input-and-result) and [the summary](#b3-decisions-of-353b-to-353e).
@@ -185,7 +185,7 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
 
 ### 3.5.3e2 — Guide, issues and records
 
-- **Problem:** `docs/TOOL_DEVELOPMENT.md` fell short in the places [B.2](#b2-where-docstool_developmentmd-fell-short)
+- **Problem:** `docs/project/STRATEGY_DEVELOPMENT.md` fell short in the places [B.2](#b2-where-docsprojectstrategy_developmentmd-fell-short)
   lists, Site 19 has no recorded weighing, and the SEC-input entry of the guide's worked example is unfixed.
 - **Decision (Q16, Q17, [E7](#a9-decisions-e1-to-e8-2026-11-01)):** B.2 entries 1 to 6, 11 and 13 to 15 go into the
   guide; entries 8 to 10 are described in it (8 was fixed in 3.5.3d, 9 and 10 in 3.5.3e1); entries 7 and 12 go into one
@@ -245,7 +245,7 @@ b1 and b2 avoid renumbering 3.5.3c to 3.5.3e, which other records cite.
   and the regions left in place; the generator writes only the config-free form and an execution function and
   command that compose the profile; the U6 proof shows no stored output, schema, help snapshot or generated
   document changed.
-- **3.5.3e2:** the guide states each [B.2](#b2-where-docstool_developmentmd-fell-short) fact that [F1](#a10-decisions-f1-to-f11-2026-11-01) assigns to it,
+- **3.5.3e2:** the guide states each [B.2](#b2-where-docsprojectstrategy_developmentmd-fell-short) fact that [F1](#a10-decisions-f1-to-f11-2026-11-01) assigns to it,
   the shortfall issue and the Site 19 record exist, and the extraction of 3.5.3e1 is described where the guide
   names the shared helpers ([B.5](#b5-guide-changes-353e2)).
 - **3.5.3e1c:** a generated strategy has complete execution, command, refresh, selection-builder and tool-handler bodies
@@ -288,7 +288,7 @@ Approved by the project owner. Each is summarized in the sections above.
 | Q14 | Fixtures and Golden cases | Captured fixtures for Apple fiscal 2024 (with an `as_of` after its filing, checked independently against the worked example in the [Piotroski evidence record](STEP_3_5_PIOTROSKI_EVIDENCE.md#5-apple-recorded-values-and-worked-example)), Monster, one bank (JPMorgan) and one IFRS filer (SAP or Nutrien). Golden cases for Apple (complete) and Monster (partial) in 3.5.3d; the rest wait for 3.5.7. Expected values are computed independently from the captured facts, never by the calculator. |
 | Q15 | Envelope | No envelope change is planned. If one is needed, it is applied to every analyzer, so the sub-slice stops and asks. |
 | Q16 | Repetition checkpoint (3.5.3e) | The review and extraction are done as [contract §3](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#3-the-slices) states. Site 19: no change to the watchlist command syntax in Step 3.5, because Piotroski has no watchlist options of its own. The weighing is recorded in the implementation record, and an issue is filed so it is not lost. |
-| Q17 | `TOOL_DEVELOPMENT.md` shortfalls | Each sub-slice adds what it met to the implementation record in [Appendix B](#appendix-b-implementation-record), which links [A.3 of the 3.5.0 plan](STEP_3_5_0_SLICE_PLAN.md#a3-350b-implementation-record-2026-10-25). 3.5.3e fixes the guide where a fix is within its scope and files one issue for the rest. Already recorded: the guide's worked example sends a new contributor to FCF-Growth's private `ProductionAnnualGrowthSeriesResolver`. 3.5.3e repoints the guide at `analysis/shared/metric_inputs.py` as the entry for a new strategy's SEC inputs, keeping FCF-Growth as the example of wiring. |
+| Q17 | `STRATEGY_DEVELOPMENT.md` shortfalls | Each sub-slice adds what it met to the implementation record in [Appendix B](#appendix-b-implementation-record), which links [A.3 of the 3.5.0 plan](STEP_3_5_0_SLICE_PLAN.md#a3-350b-implementation-record-2026-10-25). 3.5.3e fixes the guide where a fix is within its scope and files one issue for the rest. Already recorded: the guide's worked example sends a new contributor to FCF-Growth's private `ProductionAnnualGrowthSeriesResolver`. 3.5.3e repoints the guide at `analysis/shared/metric_inputs.py` as the entry for a new strategy's SEC inputs, keeping FCF-Growth as the example of wiring. |
 
 ### A.2 Review of an external assessment (2026-10-29)
 
@@ -381,7 +381,7 @@ trailing comma. This holds for a single ID too.
 
 ### A.8 Decisions P1 to P12 (2026-10-31)
 
-Approved by the project owner before 3.5.3d began, with one wider authorization for the generator ([B.2](#b2-where-docstool_developmentmd-fell-short) item 8) and two on 2026-10-31 for the config-free form and the adapter composition (P4 and B.2 item 5). Q11 and U4 are amended above, in place.
+Approved by the project owner before 3.5.3d began, with one wider authorization for the generator ([B.2](#b2-where-docsprojectstrategy_developmentmd-fell-short) item 8) and two on 2026-10-31 for the config-free form and the adapter composition (P4 and B.2 item 5). Q11 and U4 are amended above, in place.
 
 | # | Topic | Decision and reason |
 | :--- | :--- | :--- |
@@ -404,7 +404,7 @@ Approved by the project owner before 3.5.3e1 began.
 
 | # | Topic | Decision and reason |
 | :--- | :--- | :--- |
-| E1 | Split | 3.5.3e is two sub-slices, each with its own branch, managed gate and authorization. 3.5.3e1 is the review, the extraction, every strategy adopting the helpers, and the template changes. 3.5.3e2 is the `docs/TOOL_DEVELOPMENT.md` fixes, the Site 19 record and its issue, and the Q17 issue. |
+| E1 | Split | 3.5.3e is two sub-slices, each with its own branch, managed gate and authorization. 3.5.3e1 is the review, the extraction, every strategy adopting the helpers, and the template changes. 3.5.3e2 is the `docs/project/STRATEGY_DEVELOPMENT.md` fixes, the Site 19 record and its issue, and the Q17 issue. |
 | E2 | The review | It compares the codec, execution, CLI, tool, replay, envelope, evaluation and selection files across the five strategies and lists every region identical apart from strategy names, identifiers or types. Two candidates were known, the codec's encode-by-revalidation with its identifier and version check, and the direct-command body, but the review is not limited to them. |
 | E3 | Adoption | Every strategy whose code matches a region in effect switches to the extracted helper, with no change of behavior or output. A region that differs in behavior for any strategy stays in that strategy, and the difference is recorded. |
 | E4 | Config-free templates | The generator templates write only the config-free form: no `<Name>Config`, no `to_<name>_config()` on the selection, and no config parameter on the analyzer, the tool handler or the execution function. Moving to the configured form when a strategy gains a selection parameter is documented in 3.5.3e2. |
@@ -423,7 +423,7 @@ Approved by the project owner before 3.5.3e1b began.
 
 | # | Topic | Decision and reason |
 | :--- | :--- | :--- |
-| F1 | Placement of the B.2 facts | Each [B.2](#b2-where-docstool_developmentmd-fell-short) fact is placed in `docs/TOOL_DEVELOPMENT.md`: Steps 1, 3 and 4; a new Background section, "Shared metrics and SEC inputs", for entries 2, 4, 5 and 7; the Testing section's "Where tests and fixtures live" table for 3, 6 and 13. Entries 8 and 15 are verified only. The helpers of 3.5.3e1 are described in "Execution capture", linking [B.4](#b4-repetition-review-353e1). |
+| F1 | Placement of the B.2 facts | Each [B.2](#b2-where-docsprojectstrategy_developmentmd-fell-short) fact is placed in `docs/project/STRATEGY_DEVELOPMENT.md`: Steps 1, 3 and 4; a new Background section, "Shared metrics and SEC inputs", for entries 2, 4, 5 and 7; the Testing section's "Where tests and fixtures live" table for 3, 6 and 13. Entries 8 and 15 are verified only. The helpers of 3.5.3e1 are described in "Execution capture", linking [B.4](#b4-repetition-review-353e1). |
 | F2 | The worked example and the reference table | The FCF-Growth run walkthrough stays, repointed at `analysis/shared/metric_inputs.py` and updated to the current helpers. The "Existing strategy reference" table gains a Piotroski column as the config-free form with shared SEC inputs. |
 | F3 | One analyzer base | `ConfigFreeAnalyzer` is removed and `BaseAnalyzer[ResultT, *ConfigT]` is the one base, with the argument order `(ticker, context, config)` ([3.5.3e1b](#353e1b--one-analyzer-base)). The guide describes the one class with its two specializations and adds the "When a strategy gains a selection parameter" checklist (in 3.5.3e2). |
 | F4 | The shortfalls of 3.5.0b | The guide states #4, #5 and #6 of A.3 of the 3.5.0 slice plan; #2 and #3 join the one shortfall issue. |
@@ -494,7 +494,7 @@ Each sub-slice adds what it met. The earlier record of the same kind is
 - Three tests used `piotroski` as their example of a name nothing declares. Declaring Piotroski in 3.5.3d would have
   broken them, so 3.5.3a renamed the example ([C.2](#c2-353a-files)).
 
-### B.2 Where `docs/TOOL_DEVELOPMENT.md` fell short
+### B.2 Where `docs/project/STRATEGY_DEVELOPMENT.md` fell short
 
 1. **Code before the generator.** The guide does not say how a strategy's code can land before the generator runs. The
    generator refuses a pre-existing package, and the T14 test requires an `evaluation.py` in every non-underscore
@@ -665,9 +665,9 @@ different values; `_normalized_required` in `data/security_identity.py` is impor
 
 ### B.5 Guide changes (3.5.3e2)
 
-Where each shortfall of [B.2](#b2-where-docstool_developmentmd-fell-short) and of
+Where each shortfall of [B.2](#b2-where-docsprojectstrategy_developmentmd-fell-short) and of
 [A.3 of the 3.5.0 plan](STEP_3_5_0_SLICE_PLAN.md#a3-350b-implementation-record-2026-10-25) now lives. The guide is
-[`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md); the one issue is [#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210).
+[`docs/project/STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md); the one issue is [#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210).
 
 | Entry | Where it lives |
 | :--- | :--- |
@@ -913,7 +913,7 @@ Written when 3.5.3d completed. Two commits: the generator fix, then the strategy
 
 - `scripts/new_strategy.py` and `scripts/strategy_templates/{cli,envelope,execution,presenter,replay,vocabulary}.py.tmpl`:
   the 40-character limits and the short summary lines.
-- `docs/TOOL_DEVELOPMENT.md` (the limits), `tests/scripts/test_new_strategy_label_limits.py`.
+- `docs/project/STRATEGY_DEVELOPMENT.md` (the limits), `tests/scripts/test_new_strategy_label_limits.py`.
 
 **The strategy**
 
@@ -1007,7 +1007,7 @@ Commits: the base and every analyzer and call of it, then the plan and document 
   `BaseAnalyzer[<Name>Result]`.
 
 **Documents**: `AGENTS.md` (the invocation-envelope bullet), `docs/project/ARCHITECTURE.md` (the analyzer section), the five
-places in `docs/TOOL_DEVELOPMENT.md` that named the old signature (the guide's section rewrite is 3.5.3e2's), and this plan.
+places in `docs/project/STRATEGY_DEVELOPMENT.md` that named the old signature (the guide's section rewrite is 3.5.3e2's), and this plan.
 The four the project owner listed are the contract paragraph naming `BaseAnalyzer[ConfigT, ResultT]` and
 `run_analysis(ticker, config, context)`, the FCF-Growth analyzer sentence, and the two table rows (the shared-contract row
 and the strategy-analyzer row); the fifth, found during the work and approved afterwards, is the step-7 row of the run
@@ -1022,7 +1022,7 @@ Commits: the guide and `ARCHITECTURE.md`, the Site 19 and sequence records, and 
 ([#210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210)) was filed before the commit that links it.
 No code, test, generated block or check changed.
 
-- `docs/TOOL_DEVELOPMENT.md`: step 1 (code before the generator, the generated execution function and command), step 3
+- `docs/project/STRATEGY_DEVELOPMENT.md`: step 1 (code before the generator, the generated execution function and command), step 3
   (plain reason messages), step 4 (notes on the reviewed sites, regeneration commands), the checklist "When a strategy
   gains a selection parameter", "Where tests and fixtures live", "Shared metrics and SEC inputs", the helper table in
   "Execution capture and durable persistence", the analyzer contract, the run walkthrough, and the reference table
@@ -1085,7 +1085,7 @@ Commits: the generator and its tests, then the plan and guide records.
 
 - `tests/_cli_help_output.py`, `tests/test_cli_help_output.py`, and the new `tests/expected_output/cli_help/piotroski.txt`.
 
-**Documents**: `docs/TOOL_DEVELOPMENT.md` (Steps 1 to 3, the `help-snapshot` row, and the regenerated edit-site table), this
+**Documents**: `docs/project/STRATEGY_DEVELOPMENT.md` (Steps 1 to 3, the `help-snapshot` row, and the regenerated edit-site table), this
 plan, and the contract's sequence table, summary, review note and A.14.
 
 Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/` apart from the one new file,
@@ -1124,8 +1124,8 @@ Changed:
 | `tests/analysis/test_base_analyzer_conformance.py` | "all four analyzers" | "every analyzer" |
 | `tests/scripts/generator_fills/deselected.toml`, `tests/scripts/test_new_strategy_end_to_end.py` | "the four production strategies" | "the production strategies" |
 | `tests/specimen/site_context.py` | "the four production commands" | "the production commands" |
-| `docs/TOOL_DEVELOPMENT.md` | the four strategies, and Momentum through `save_run_execution` | "Every direct command calls it" |
-| `docs/TOOL_DEVELOPMENT.md` | "differ in behavior, and issue 207 records the three differences" | "each reads, builds or composes something different" |
+| `docs/project/STRATEGY_DEVELOPMENT.md` | the four strategies, and Momentum through `save_run_execution` | "Every direct command calls it" |
+| `docs/project/STRATEGY_DEVELOPMENT.md` | "differ in behavior, and issue 207 records the three differences" | "each reads, builds or composes something different" |
 | `docs/project/ARCHITECTURE.md` | the same two sentences about the save path | "Every direct command reaches it" |
 | `docs/project/ARCHITECTURE.md` | Momentum's paths and the Graham and FCF-Growth helper | "each strategy's execution adapter" |
 
@@ -1149,7 +1149,7 @@ Kept, with the reason each matters:
 
 **Tests**: see [D.8](#d8-issue-207-tests).
 
-**Documents**: `AGENTS.md` (the subsection "Strategy counts and lists" of §2), `docs/TOOL_DEVELOPMENT.md`,
+**Documents**: `AGENTS.md` (the subsection "Strategy counts and lists" of §2), `docs/project/STRATEGY_DEVELOPMENT.md`,
 `docs/project/ARCHITECTURE.md`, this plan, and the contract's sequence table.
 
 Unchanged, and proved so ([U6](#a5-decisions-u1-to-u6-2026-10-29)): `tests/expected_output/`, `schemas/` and `docs/user/`.
@@ -1178,7 +1178,7 @@ Commits: the forwarding test, the patches and fills, then the guide and the reco
 
 **Documents**
 
-- `docs/TOOL_DEVELOPMENT.md`: the section "Changing what every strategy provides", the `catalog` note, the
+- `docs/project/STRATEGY_DEVELOPMENT.md`: the section "Changing what every strategy provides", the `catalog` note, the
   hand-forwarded-capability bullet, and Steps 1 to 3 (the result's common fields and the normalizer are written in full;
   `execution` is no longer a stub site).
 - `docs/project/milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md`: API.6's Detail.

@@ -673,13 +673,13 @@ version and result-schema version distinct and do not silently reinterpret histo
 
 - **Problem:** contributors need one guide for adding a strategy, the descriptor's authorization must outlive the
   temporary rule that grants it today, and an agent that runs `ian` by hand must not write to the real profile.
-- **Decision:** move the guide to `docs/TOOL_DEVELOPMENT.md`, restructure it around the workflow, and make the
+- **Decision:** move the guide to `docs/project/STRATEGY_DEVELOPMENT.md`, restructure it around the workflow, and make the
   descriptor's authorization permanent in `AGENTS.md` §3, with the manual-run rule in §10. Close Discovery Workbook
   question 3. Map each acceptance criterion to the check that enforces it instead of writing a second set
   ([B.23](#b23-swc7-split-and-the-guide-decisions-2026-10-18)).
 - **Scope:**
   - **One contributor guide.** `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` moved to
-    `docs/TOOL_DEVELOPMENT.md`: "At a glance", the six-step workflow (generator, status command, stubs, reviewed
+    `docs/project/STRATEGY_DEVELOPMENT.md`: "At a glance", the six-step workflow (generator, status command, stubs, reviewed
     sites, `scripts/generate_schemas.py` and `scripts/generate_strategy_docs.py`, the complete gate), the generated
     edit-site table, the strategy settings convention, and the existing explanatory content as background. Every
     link to the old path updated, no second guide left, and one line in `docs/README.md`.
@@ -704,7 +704,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   knows only the guide can add a strategy, or that omitting a site produces a useful diagnostic.
 - **Decision:** a fresh agent session that wrote none of the guide reviews it against the merged repository.
 - **Scope:**
-  - The reviewer gets only `docs/TOOL_DEVELOPMENT.md` and the repository.
+  - The reviewer gets only `docs/project/STRATEGY_DEVELOPMENT.md` and the repository.
   - In a scratch copy it omits one site of each kind (`new_file`, `edit`, `reviewed`, `command`) and records, for
     each, whether the status command and the gate name the problem and the fix.
   - Small findings are fixed in this slice; the others are filed as issues.
@@ -742,7 +742,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   - **#164.** A new-file site whose file calls `unfilled_stub` is `missing`, naming the file and line, using the scan of
     the stub test. A site whose check runs stored code reports
     `not checked: depends on unfilled <site> (<file>:<line>)` in place of a raw `UnfilledStubError`.
-  - **Guide and Step 3.5.** `docs/TOOL_DEVELOPMENT.md` describes the new behaviour and uses the module form; the Step 3.5
+  - **Guide and Step 3.5.** `docs/project/STRATEGY_DEVELOPMENT.md` describes the new behaviour and uses the module form; the Step 3.5
     contract records that whoever implements the first Step 3.5 strategy lists every point where the guide fell short.
   - No production behaviour changes beyond the one message.
 - **Acceptance (recorded here; done after this slice merges):** SWC.8 is complete only after an independent review by a
@@ -844,7 +844,7 @@ version and result-schema version distinct and do not silently reinterpret histo
   the user CLI or the published schemas, and the generator test is the end-to-end proof of the layers closed to it; the quality gate fails while any `unfilled_stub` call remains in `investment_analysis_engine/`.
 - **Generated lists:** the strategy lists in `USAGE.md` and `WORKSPACE.md` are generated from the
   descriptors and a drift test fails when they are stale.
-- **Contributor guide:** `docs/TOOL_DEVELOPMENT.md` is the only contributor guide for adding a
+- **Contributor guide:** `docs/project/STRATEGY_DEVELOPMENT.md` is the only contributor guide for adding a
   strategy. It replaces `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md`, keeps that guide's
   content, and identifies what the shared wiring owns and what remains strategy-specific, including
   calculator, source fixtures, presentation semantics and Golden cases. No link to the old path
@@ -1020,9 +1020,9 @@ A review before SWC.1 found three gaps in this plan. Each was decided:
   now makes dispatch fail closed. This is not a semantic change for any valid input. SWC.1 narrowed
   the claim: only `encode_evidence` falls through today; `decode_evidence` rejects an undeclared pair
   before its Momentum branch. Both still become table-driven.
-- **Two contributor guides.** SWC.5 planned a new `docs/TOOL_DEVELOPMENT.md` while
+- **Two contributor guides.** SWC.5 planned a new `docs/project/STRATEGY_DEVELOPMENT.md` while
   `docs/project/ANALYSIS_STRATEGY_CONTRIBUTOR_GUIDE.md` already covered the same ground. The
-  project owner decided on one guide, named `docs/TOOL_DEVELOPMENT.md`. SWC.5 moves and extends the
+  project owner decided on one guide, named `docs/project/STRATEGY_DEVELOPMENT.md`. SWC.5 moves and extends the
   existing guide; the move happens in SWC.5 because that slice owns the document.
 - **Authorization that expires.** The descriptor is permitted only by `AGENTS.md` §0, which Step
   3.5.1 removes, leaving §3's prohibition on registries as the only rule an agent would see. SWC.5
@@ -1819,10 +1819,10 @@ Approved by the project owner on 2026-10-18.
 
 - **Split.** SWC.7 became SWC.7a (the guide and the permanent rules) and SWC.7b (the independent review). The review
   is run against the merged guide by a fresh agent session that wrote none of it. The reviewer gets only
-  `docs/TOOL_DEVELOPMENT.md` and the repository; in a scratch copy it omits one site of each kind (`new_file`,
+  `docs/project/STRATEGY_DEVELOPMENT.md` and the repository; in a scratch copy it omits one site of each kind (`new_file`,
   `edit`, `reviewed`, `command`) and records whether the status command and the gate name the problem and the fix.
   Small findings are fixed in SWC.7b and the others filed as issues.
-- **The guide moves to `docs/TOOL_DEVELOPMENT.md`** ([B.4](#b4-pre-implementation-review-2026-10-02)), with every
+- **The guide moves to `docs/project/STRATEGY_DEVELOPMENT.md`** ([B.4](#b4-pre-implementation-review-2026-10-02)), with every
   link updated and no second guide left behind. Historical mentions of the old path in code spans (the B.4 and
   B.18 records, the SWC.1 design's slice table) are history and keep it.
 - **Structure.** "At a glance"; the workflow in order; the generated edit-site table; the strategy settings

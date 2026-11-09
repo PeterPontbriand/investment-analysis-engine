@@ -160,7 +160,7 @@ a silent runtime gap.
 one tuple) needs real design work this proposal deliberately doesn't do** — that's implementation,
 not scoping, and belongs to whichever slice plan eventually owns this if accepted.
 
-## 5. Proposed `docs/TOOL_DEVELOPMENT.md`
+## 5. Proposed `docs/project/STRATEGY_DEVELOPMENT.md`
 
 A new developer-facing guide, referenced from `docs/project/README.md`, walking through "how to add
 a new analysis strategy" as a single checklist against the `StrategyDescriptor` shape above:
@@ -192,5 +192,5 @@ Sequence: `IR` (IR.1, IR.2 and the slices added since; the Momentum series API, 
   not merely "sometime before."
 
 This document proposes scope only; sequencing is now decided (above). No code changes, no new file
-beyond this proposal and (once its own contract/slice plan is written) `docs/TOOL_DEVELOPMENT.md`'s
+beyond this proposal and (once its own contract/slice plan is written) `docs/project/STRATEGY_DEVELOPMENT.md`'s
 eventual authoring, have been made.

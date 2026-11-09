@@ -75,7 +75,7 @@ to it.
   - `WatchlistListDocument`, `schemas/watchlist-list.schema.json` and `ian watchlist list --json`;
   - the CLI's read commands call the operations inside `_workspace_failures`, and `_workspace_database`, used by the
     action commands, opens its connection with `application/database.py`;
-  - [Architecture](../../../ARCHITECTURE.md) §13 and §4, and the `docs/TOOL_DEVELOPMENT.md` row that names
+  - [Architecture](../../../ARCHITECTURE.md) §13 and §4, and the `docs/project/STRATEGY_DEVELOPMENT.md` row that names
     `cli_workspace.py` as the reader of `headline_for` ([A12](#a12-documents-api1b-updates-2026-11-01)).
 - **Branch:** `feat/api-application-read`.
 - **Detail:** [Implementation record](#32-api1b-implementation-record).
@@ -100,7 +100,7 @@ stores a run and checks that the document projection is an instance of the strat
 serializing it equals the `runs show --json` output, and which covers the generic replay's two paths, an unsupported
 projection version and an undeclared method on each.
 
-Files "Changing what every strategy provides" in [`TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#changing-what-every-strategy-provides)
+Files "Changing what every strategy provides" in [`STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md#changing-what-every-strategy-provides)
 missed, now in that section:
 
 - `investment_analysis_engine/workspace_documents/run_replay.py` and `investment_analysis_engine/reporting/replay_inputs.py`
@@ -262,7 +262,7 @@ mode were needed.
 
 ### A9 The compare columns move into application (2026-11-01)
 
-The compare columns built from `STRATEGIES` move into `application`. The row in `docs/TOOL_DEVELOPMENT.md` that
+The compare columns built from `STRATEGIES` move into `application`. The row in `docs/project/STRATEGY_DEVELOPMENT.md` that
 names `cli_workspace.py` as the generic reader of `headline_for` is updated.
 
 ### A10 A watchlist list document and --json (2026-11-01)
@@ -277,7 +277,7 @@ into `application` with the actions that use it.
 ### A12 Documents API.1b updates (2026-11-01)
 
 API.1b updates `docs/project/ARCHITECTURE.md` §13 (Module boundaries) and §4 (Composition roots), and the
-`docs/TOOL_DEVELOPMENT.md` row from A9. Historical milestone documents are not edited.
+`docs/project/STRATEGY_DEVELOPMENT.md` row from A9. Historical milestone documents are not edited.
 
 ### A13 Tests (2026-11-01)
 

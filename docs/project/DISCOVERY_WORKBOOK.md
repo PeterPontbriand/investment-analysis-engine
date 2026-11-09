@@ -525,7 +525,7 @@ Current documents:
 - `docs/project/ARCHITECTURE.md`
 - `docs/project/DISCOVERY_WORKBOOK.md`
 - `docs/EVALUATIONS.md` — Step 2.5 Golden Suite purpose, execution modes, scoring boundaries, fixtures, and maintenance rules;
-- `docs/TOOL_DEVELOPMENT.md` — the one guide for adding an analysis strategy;
+- `docs/project/STRATEGY_DEVELOPMENT.md` — the one guide for adding an analysis strategy;
 - `docs/user/FINANCE_MATH.md`
 - `docs/user/GLOSSARY.md`
 - `docs/user/HARDWARE.md`

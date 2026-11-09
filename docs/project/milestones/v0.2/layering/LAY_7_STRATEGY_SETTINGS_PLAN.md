@@ -46,7 +46,7 @@
 
 ## 3. The convention
 
-> **Note:** the implemented convention differs from this record: the shipped defaults are a `settings.toml` beside the settings model, and a user override is `strategies/<alias>.toml` in the settings folder. See [Strategy settings in `docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#strategy-settings) and [`AGENTS.md` §9](../../../../../AGENTS.md#9-heterogeneous-strategy-independence). The record below is unchanged.
+> **Note:** the implemented convention differs from this record: the shipped defaults are a `settings.toml` beside the settings model, and a user override is `strategies/<alias>.toml` in the settings folder. See [Strategy settings in `docs/project/STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md#strategy-settings) and [`AGENTS.md` §9](../../../../../AGENTS.md#9-heterogeneous-strategy-independence). The record below is unchanged.
 
 ### 3.1 One file per strategy
 

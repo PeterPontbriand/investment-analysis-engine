@@ -97,7 +97,7 @@ job: start, progress, stop.
   - `api`: the four routes, `refresh_documents.py`, the request body, the handlers, the status table;
   - `cli_serve.py` (shutdown) and `cli_workspace.py` (the refresh command calls both operations);
   - `scripts/new_strategy.py`, its template, `scripts/strategy_conformance.py`, `scripts/strategy_sites.toml`,
-    `scripts/generate_openapi.py`, `schemas/`, `docs/TOOL_DEVELOPMENT.md`, `docs/user/API.md`, `WORKSPACE.md`,
+    `scripts/generate_openapi.py`, `schemas/`, `docs/project/STRATEGY_DEVELOPMENT.md`, `docs/user/API.md`, `WORKSPACE.md`,
     `USAGE.md`, Architecture §13, this plan and the contract.
 - **Branch:** `feat/api-refresh-jobs`.
 - **Detail:** [Implementation record](#32-api4b-implementation-record).
@@ -279,7 +279,7 @@ What changed, by area:
   exit call ([J40](#j40-shutdown-2026-11-07)).
 - **Generator:** `scripts/new_strategy.py`, `scripts/strategy_templates/application.py.tmpl`,
   `scripts/strategy_sites.toml` and `scripts/strategy_conformance.py` no longer produce, require or probe a refresh
-  function; the conformance probes the run function and `analysis_runner_for` instead. `docs/TOOL_DEVELOPMENT.md` no
+  function; the conformance probes the run function and `analysis_runner_for` instead. `docs/project/STRATEGY_DEVELOPMENT.md` no
   longer describes a refresh function.
 - **Schemas:** `refresh-summary.schema.json` is version 3; `failure.schema.json` is version 13; every schema that embeds
   the shared code list (every strategy's document, the refresh summary and the database maintenance report) is
@@ -729,7 +729,7 @@ In `POST /v1/refreshes`:
   and checks the job ticker as `require_job_ticker` does today.
 - `coordinate_refresh` becomes generic over a job's result `T`, with a `capture_of: Callable[[T], ExecutionCapture]`
   argument. A finished event carries `T` in memory and never stores it.
-- `scripts/new_strategy.py`, its generated bodies and tests, and `docs/TOOL_DEVELOPMENT.md` stop producing or describing a
+- `scripts/new_strategy.py`, its generated bodies and tests, and `docs/project/STRATEGY_DEVELOPMENT.md` stop producing or describing a
   refresh function.
 
 ### J35 A finished event carries its analysis (2026-11-07)

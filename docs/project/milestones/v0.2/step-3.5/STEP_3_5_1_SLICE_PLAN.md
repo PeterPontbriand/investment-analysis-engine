@@ -204,7 +204,7 @@ own branch off `main`, named `feat/step-3-5-1<letter>-<topic>`, after the previo
 - No persistent cache of the header (see [A.1](#a1-decisions-f1-to-f10-2026-10-25), F3).
 - No dividend-adjusted price in market cap, and no count of stock dividends.
 - No absent-component or total-debt rule; those are 3.5.2.
-- No edit-site of `docs/TOOL_DEVELOPMENT.md` is touched ([B.12](#b12-tool_development-edit-sites)).
+- No edit-site of `docs/project/STRATEGY_DEVELOPMENT.md` is touched ([B.12](#b12-strategy_development-edit-sites)).
 - A mapping the evidence does not support is recorded as unsupported, not approximated.
 
 ## 5. Acceptance criteria
@@ -622,10 +622,10 @@ Piotroski needs. `NOT_APPLICABLE` becomes `MetricStatus.NOT_APPLICABLE` and `UNA
   rows; the pull request lists any further change it finds.
 - 3.5.1d: none expected; the pull request states any it finds.
 
-### B.12 TOOL_DEVELOPMENT edit sites
+### B.12 STRATEGY_DEVELOPMENT edit sites
 
 No sub-slice adds a strategy, so none of the edit sites of
-[`docs/TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#edit-sites-of-a-strategy) is touched. The `schema` site's
+[`docs/project/STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md#edit-sites-of-a-strategy) is touched. The `schema` site's
 regeneration command is run by 3.5.1a and 3.5.1b because the schemas they regenerate list the enumerations; that is a
 use of its command, not an edit of its site. The conformance tests (T7, T8, T15, T16, T20, T21) are expected to pass
 unchanged; a failure would mean a strategy file was touched.

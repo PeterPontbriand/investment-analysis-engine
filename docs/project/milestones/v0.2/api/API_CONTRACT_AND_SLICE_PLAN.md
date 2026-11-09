@@ -251,7 +251,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
     linked from served content ([H9](API_5_SLICE_PLAN.md#h9-boundary-with-api6-2026-11-07)).
 - **Branch:** `feat/api-term-references`.
 - **Detail:**
-  - It follows "Changing what every strategy provides" in [`TOOL_DEVELOPMENT.md`](../../../../TOOL_DEVELOPMENT.md#changing-what-every-strategy-provides)
+  - It follows "Changing what every strategy provides" in [`STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md#changing-what-every-strategy-provides)
     for the "glossary terms" edit site, and records any file that section missed in its implementation record.
   - [API.6 slice plan](API_6_SLICE_PLAN.md#31-api6a-implementation-record)
 

@@ -124,7 +124,7 @@ What changed, by area:
 - **Architecture:** the "Owns" cells of `core`, `analysis`, `data`, `reporting`, `strategies`, `strategy_wiring` and `api`
   say they hold term tables. No import between units is added, so the Imports cells are unchanged.
 - **Edit sites:** the "glossary terms" site is in `scripts/strategy_sites.toml` and the edit-site table is regenerated.
-  "Changing what every strategy provides" in `docs/TOOL_DEVELOPMENT.md` missed two files that this change had to touch,
+  "Changing what every strategy provides" in `docs/project/STRATEGY_DEVELOPMENT.md` missed two files that this change had to touch,
   and now lists them: `DESCRIPTOR_FIELDS` in `scripts/strategy_conformance.py`, and the specimen's `vocabulary.py` and
   `selection.py`. The workflow table of reviewed sites gains a `glossary-terms` row.
 
@@ -527,8 +527,8 @@ implementation decisions of API.6b, approved on 2026-11-08.
 - One new site, "glossary terms", of kind `reviewed`, covers the strategy's glossary entry, its headline cell terms, its
   selection-field terms and its code-set tables.
 - Its check function in `scripts/strategy_conformance.py` fails on a missing or unknown term.
-- The edit-site table in `docs/TOOL_DEVELOPMENT.md` is regenerated with `uv run python -m scripts.generate_strategy_docs`.
-- Follow "Changing what every strategy provides" in `docs/TOOL_DEVELOPMENT.md`, and record any file it missed in the
+- The edit-site table in `docs/project/STRATEGY_DEVELOPMENT.md` is regenerated with `uv run python -m scripts.generate_strategy_docs`.
+- Follow "Changing what every strategy provides" in `docs/project/STRATEGY_DEVELOPMENT.md`, and record any file it missed in the
   implementation record.
 
 ### T10 New entries and the orphan check (2026-11-07)
