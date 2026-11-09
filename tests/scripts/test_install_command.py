@@ -20,7 +20,7 @@ from scripts.install_command import (
 )
 from scripts.repository_root import REPOSITORY_ROOT
 
-BIN = Path("C:/Users/x/.local/bin")
+BIN = Path.home() / ".local" / "bin"
 
 
 class FakeUv:
