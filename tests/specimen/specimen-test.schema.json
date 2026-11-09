@@ -1,5 +1,55 @@
 {
   "$defs": {
+    "AnchorFilingPart": {
+      "additionalProperties": false,
+      "description": "The anchor annual filing, the date its next annual report was due and whether it is stale at the boundary.",
+      "properties": {
+        "accession": {
+          "title": "Accession",
+          "type": "string"
+        },
+        "filing_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Filing Date"
+        },
+        "form": {
+          "title": "Form",
+          "type": "string"
+        },
+        "next_report_due": {
+          "format": "date",
+          "title": "Next Report Due",
+          "type": "string"
+        },
+        "stale": {
+          "title": "Stale",
+          "type": "boolean"
+        },
+        "year_end": {
+          "format": "date",
+          "title": "Year End",
+          "type": "string"
+        }
+      },
+      "required": [
+        "year_end",
+        "form",
+        "accession",
+        "filing_date",
+        "next_report_due",
+        "stale"
+      ],
+      "title": "AnchorFilingPart",
+      "type": "object"
+    },
     "CalculationStatus": {
       "description": "Machine-readable outcome of a calculation attempt.\n\nPure calculators (Slice B) may return:\n\n- ``OK`` — required inputs resolved and calculation completed.\n- ``NOT_APPLICABLE`` — inputs are valid but the selected method is\n  inapplicable (e.g. non-positive EPS or BVPS for the Graham Number).\n- ``INVALID_INPUT`` — supplied value, unit, basis, or method/flag\n  combination is invalid.\n\nResolver/provider layers (Slice C and later) will additionally return:\n\n- ``INPUT_UNAVAILABLE`` — a required input could not be resolved under\n  the requested time boundary.\n- ``PROVIDER_ERROR`` — the configured provider failed in a way that\n  should be distinguished from an absent fact.",
       "enum": [
@@ -393,6 +443,16 @@
       "title": "Analysis",
       "type": "string"
     },
+    "anchor_filing": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnchorFilingPart"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "diagnostics": {
       "items": {
         "anyOf": [
@@ -507,6 +567,7 @@
     "provider_check",
     "requested_as_of",
     "effective_as_of",
+    "anchor_filing",
     "security_identity",
     "instrument_kind",
     "result",

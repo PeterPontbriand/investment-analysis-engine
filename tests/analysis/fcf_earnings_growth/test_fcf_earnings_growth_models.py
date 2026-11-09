@@ -398,12 +398,12 @@ class TestFCFEarningsGrowthResult:
 
     def test_fixed_identifiers(self) -> None:
         result = _make_result()
-        assert result.schema_version == 7
+        assert result.schema_version == 8
         assert result.strategy_id == "fcf_earnings_growth"
         assert result.method_id == "reported_fcf_eps_cagr"
-        assert result.method_version == 2
-        assert models_module.SCHEMA_VERSION == 7
-        assert models_module.METHOD_VERSION == 2
+        assert result.method_version == 3
+        assert models_module.SCHEMA_VERSION == 8
+        assert models_module.METHOD_VERSION == 3
 
     @pytest.mark.parametrize(
         ("field", "value"),
@@ -411,7 +411,7 @@ class TestFCFEarningsGrowthResult:
             ("schema_version", 2),
             ("strategy_id", "other_strategy"),
             ("method_id", "other_method"),
-            ("method_version", 2),
+            ("method_version", 3),
         ],
     )
     def test_fixed_identifiers_cannot_be_supplied(self, field: str, value: int | str) -> None:

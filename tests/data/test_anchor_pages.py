@@ -10,8 +10,10 @@ from investment_analysis_engine.core.provider_failure_kind import ProviderFailur
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.sec_edgar.cover_listing import CoverListingRequest, CoverUnavailableReason
 from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    _MAX_SUBMISSION_PAGES,
     SEC_PROVIDER_ID,
     AnchorYearEndRequest,
+    AnchorYearEndUnavailableReason,
     SecEdgarFinancialFactsAdapter,
 )
 from tests._sec_instants import NOW, FixtureFetcher, load
@@ -71,7 +73,7 @@ def test_a_boundary_before_the_newest_annual_filing_finds_the_prior_one_through_
     assert (anchor.accession, anchor.form, anchor.year_end) == (_PRIOR_10K, "10-K", date(2024, 12, 31))
     assert anchor.filing_date == date(2025, 2, 14)
     assert anchor.filing_dates[_PRIOR_10K] == date(2025, 2, 14)
-    # Pages 004 to 008 overlap the 400 days before the boundary and start by it; the 10-K is on the last of them.
+    # Pages 004 to 008 start by the boundary; the 10-K is on the last of them, and the search reads newest first.
     assert _pages_read(fetcher) == [_PAGE.format(number=number) for number in (4, 5, 6, 7, 8)]
     assert len(fetcher.calls) == _BASE_CALLS + 5
 
@@ -142,12 +144,13 @@ def test_a_page_is_read_once_per_adapter() -> None:
     assert len(pages) == len(set(pages)) == 5
 
 
-def test_the_window_bounds_the_pages_read() -> None:
+def test_a_page_that_starts_after_the_boundary_is_skipped_and_an_old_anchor_is_found_on_a_later_page() -> None:
     files = [
         {"name": _PAGE.format(number=1), "filingFrom": "2025-09-01", "filingTo": "2025-10-01"},
         {"name": _PAGE.format(number=2), "filingFrom": "2025-04-01", "filingTo": "2025-06-01"},
         {"name": _PAGE.format(number=3), "filingFrom": "2024-06-01", "filingTo": "2025-03-31"},
         {"name": _PAGE.format(number=4), "filingFrom": "2023-01-01", "filingTo": "2024-05-01"},
+        {"name": _PAGE.format(number=5), "filingFrom": "2020-01-01", "filingTo": "2022-12-31"},
     ]
     holds_annual = _block(("0000019617-24-000001", "10-K", "2024-02-16", "2023-12-31", "2024-02-16T12:00:00.000Z"))
     pages = {
@@ -155,13 +158,58 @@ def test_the_window_bounds_the_pages_read() -> None:
         _PAGE.format(number=2): _block(),
         _PAGE.format(number=3): _block(),
         _PAGE.format(number=4): holds_annual,
+        _PAGE.format(number=5): holds_annual,
     }
     fetcher = _synthetic(files, pages)
     snapshot = _snapshot_after(fetcher, _BOUNDARY)
-    # Page 1 starts after the boundary and page 4 ends before the 400 days: neither is read.
-    assert _pages_read(fetcher) == [_PAGE.format(number=2), _PAGE.format(number=3)]
-    assert snapshot.latest_annual_accession is None
+    # Page 1 starts after the boundary and is skipped; page 4 holds the anchor, which is over 400 days old, so page 5
+    # is not read.
+    assert _pages_read(fetcher) == [_PAGE.format(number=number) for number in (2, 3, 4)]
+    assert snapshot.latest_annual_accession == "0000019617-24-000001"
+    assert snapshot.report_dates["0000019617-24-000001"] == date(2023, 12, 31)
     assert snapshot.after_boundary_message is None
+    assert snapshot.anchor_search_message is None
+
+
+def test_the_search_stops_at_the_page_cap_and_the_message_states_how_far_it_reached() -> None:
+    count = _MAX_SUBMISSION_PAGES + 1
+    files = [
+        {
+            "name": _PAGE.format(number=number),
+            "filingFrom": f"{2025 - number}-01-01",
+            "filingTo": f"{2025 - number}-12-31",
+        }
+        for number in range(1, count + 1)
+    ]
+    fetcher = _synthetic(files, {item["name"]: _block() for item in files})
+    adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent="Synthetic test")
+    with adapter.analysis_scope(subject_id="JPM", provider_id=SEC_PROVIDER_ID, as_of=_BOUNDARY):
+        resolution = adapter.resolve_anchor_year_end(AnchorYearEndRequest("JPM", SEC_PROVIDER_ID))
+    assert len(_pages_read(fetcher)) == _MAX_SUBMISSION_PAGES
+    assert resolution.reason is AnchorYearEndUnavailableReason.NO_ANCHOR_FILING
+    assert resolution.message == (
+        "No original annual report accepted by the boundary 2025-06-30 was found: the search read the recent "
+        f"filings and {_MAX_SUBMISSION_PAGES} extra submissions pages, the most it reads, back to filings dated "
+        f"{2025 - _MAX_SUBMISSION_PAGES}-01-01."
+    )
+
+
+def test_an_anchor_on_the_last_page_the_cap_allows_is_found_without_the_cap_message() -> None:
+    files = [
+        {
+            "name": _PAGE.format(number=number),
+            "filingFrom": f"{2025 - number}-01-01",
+            "filingTo": f"{2025 - number}-12-31",
+        }
+        for number in range(1, _MAX_SUBMISSION_PAGES + 1)
+    ]
+    pages = {item["name"]: _block() for item in files}
+    pages[_PAGE.format(number=_MAX_SUBMISSION_PAGES)] = _block(
+        ("0000019617-13-000001", "10-K", "2013-02-16", "2012-12-31", "2013-02-16T12:00:00.000Z")
+    )
+    snapshot = _snapshot_after(_synthetic(files, pages), _BOUNDARY)
+    assert snapshot.latest_annual_accession == "0000019617-13-000001"
+    assert snapshot.anchor_search_message is None
 
 
 def test_a_page_that_is_not_the_issuers_own_is_ignored() -> None:
@@ -186,7 +234,7 @@ def test_a_page_whose_annual_filing_was_accepted_after_the_boundary_does_not_hol
     assert snapshot.latest_annual_accession is None
 
 
-def test_the_existing_outcome_stands_when_no_page_in_the_window_holds_an_annual_filing() -> None:
+def test_the_existing_outcome_stands_when_no_page_read_holds_an_annual_filing() -> None:
     files = [{"name": _PAGE.format(number=1), "filingFrom": "2025-01-01", "filingTo": "2025-06-01"}]
     fetcher = _synthetic(files, {_PAGE.format(number=1): _block()})
     adapter = SecEdgarFinancialFactsAdapter(json_fetcher=fetcher, clock=lambda: NOW, user_agent="Synthetic test")

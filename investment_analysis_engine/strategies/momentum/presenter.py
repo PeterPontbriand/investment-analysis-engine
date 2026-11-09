@@ -516,6 +516,7 @@ def build_momentum_document(p: MomentumPresentation) -> MomentumDocument:
         provider_check=p.provider_check,
         requested_as_of=p.requested_as_of,
         effective_as_of=p.effective_as_of,
+        anchor_filing=None,
         security_identity=security_identity_part(p.ticker, p.identity_resolution),
         instrument_kind=instrument_kind_part_of(p.instrument_profile),
         reason_code=p.reason_code,

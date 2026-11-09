@@ -116,7 +116,7 @@ The strategy scores only the latest annual report at the boundary. If that year'
 
 ## Industry class
 
-The industry class comes from the SIC code on the annual report the score rests on, as filed, never from the company's current code. The F-Score was designed for non-financial firms, so a financial issuer is scored with a warning: its gross-margin and current-ratio tests are typically unavailable. If the class cannot be established, the strategy still runs and a warning says why. An ETF is not scored: the run is reported as not applicable.
+The industry class comes from the SIC code on the annual report the score rests on, as filed, never from the company's current code. The F-Score was designed for non-financial firms, so a financial issuer is scored with a warning: its gross-margin and current-ratio tests are typically unavailable. If the class cannot be established, the strategy still runs and a warning says why. When the annual report is stale, the next one being overdue at the as-of date and none filed, the score and its status do not change; a warning gives the fiscal year, the form and the latest date the next report was due, and the anchor filing is shown with the result (see [anchor filing](../GLOSSARY.md#anchor-filing)). An ETF is not scored: the run is reported as not applicable.
 
 ## Presentation modes
 <!-- help:exclude -->

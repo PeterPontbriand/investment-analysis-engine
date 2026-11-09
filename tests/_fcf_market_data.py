@@ -20,8 +20,12 @@ from investment_analysis_engine.strategies.fcf_growth.models import (
     FCFEarningsGrowthResult,
 )
 
-CLOCK = datetime(2026, 10, 28, 12, tzinfo=UTC)
-"""The day the fixture quote is retrieved and the fixture split history is adjusted."""
+CLOCK = datetime(2026, 4, 1, 12, tzinfo=UTC)
+"""The day the fixture quote is retrieved and the fixture split history is adjusted.
+
+It is before 2026-04-23, the day after the next annual report of the fixture's anchor filing was due, so the anchor
+filing is not stale and the yield is available.
+"""
 
 
 def fcf_market_data(*, with_data: bool = False, now: datetime = CLOCK) -> MarketCapDependencies:

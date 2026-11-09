@@ -193,7 +193,16 @@ def test_the_json_document_holds_the_nine_tests_and_the_result_fields() -> None:
     assert document["available_count"] == 9
     assert [test["number"] for test in document["tests"]] == list(range(1, 10))
     assert document["tests"][2]["outcome"] == "fail"
-    assert document["anchor"]["accession"] == "0000320193-24-000123"
+    assert "anchor" not in document
+    assert document["anchor_filing"] == {
+        "year_end": "2024-09-28",
+        "form": "10-K",
+        "accession": "0000320193-24-000123",
+        "filing_date": "2024-11-01",
+        "next_report_due": "2026-01-18",
+        "stale": False,
+    }
+    assert list(document).index("anchor_filing") == list(document).index("effective_as_of") + 1
     assert document["industry_class"] == "manufacturer"
     assert document["taxonomy"] == "us-gaap"
     assert document["input_failure"] is None
@@ -245,7 +254,7 @@ def test_a_replay_calls_no_provider_resolver_clock_or_calculator(monkeypatch: py
 @pytest.mark.parametrize(
     "mutate",
     [
-        lambda payload: payload["result"].update({"method_version": 2}),
+        lambda payload: payload["result"].update({"method_version": 3}),
         lambda payload: payload["result"].update({"schema_version": "1"}),
         lambda payload: payload["result"].update({"strategy_id": "other"}),
         lambda payload: payload["result"].update({"unexpected": 1}),
@@ -337,3 +346,19 @@ def test_a_result_that_did_not_run_is_replayed_without_tests() -> None:
     assert restored == failure
     assert restored.f_score is not None
     assert restored.anchor is None
+
+
+def test_a_stale_anchor_is_a_warning_line_under_the_filing_and_class_lines_and_in_the_document_warnings() -> None:
+    result = run("aapl", as_of=datetime(2026, 3, 1, tzinfo=UTC))
+    message = result.warnings[0]
+    assert message.startswith("The newest annual report filed by 2026-03-01 is for the fiscal year ended 2024-09-28")
+
+    lines = render_piotroski(result, PresentationMode.CONCISE).splitlines()
+    assert lines[1].startswith("Fiscal year-end: 2024-09-28")
+    assert lines[2].startswith("Industry class:")
+    assert lines[3] == f"Warning: {message}"
+
+    document = json.loads(render_piotroski(result, PresentationMode.JSON))
+    assert document["warnings"][0] == message
+    assert document["anchor_filing"]["stale"] is True
+    assert document["status"] == "ok"

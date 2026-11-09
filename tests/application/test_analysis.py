@@ -73,7 +73,7 @@ _SELECTIONS: dict[str, SelectionMember] = {
     "graham-number": GrahamNumberSelection(use_cache=False),
     "graham-growth": GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5, use_cache=False),
     "fcf-growth": FCFGrowthSelection(use_cache=False),
-    "piotroski": PiotroskiSelection(use_cache=False),
+    "piotroski": PiotroskiSelection(use_cache=False, as_of=datetime(2025, 1, 15, 23, 59, 59, 999999, tzinfo=UTC)),
 }
 
 

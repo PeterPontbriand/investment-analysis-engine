@@ -4,6 +4,7 @@ Expected values are written here from the raw integers of the captured Company F
 calculation and the analyzer never produce them.
 """
 
+import copy
 import re
 from collections.abc import Mapping
 from dataclasses import replace
@@ -146,7 +147,7 @@ def test_apple_names_its_anchor_filing_class_taxonomy_and_source_filings() -> No
     assert result.taxonomy == "us-gaap"
     assert result.warnings == ()
     assert {item.accession for item in result.source_filings} == {"0000320193-23-000106", "0000320193-24-000123"}
-    assert (result.schema_version, result.method_version) == (1, 1)
+    assert (result.schema_version, result.method_version) == (2, 2)
 
 
 def test_monster_is_a_partial_score_of_five_of_six_with_net_income_tests_unavailable() -> None:
@@ -201,13 +202,13 @@ def test_a_financial_issuer_runs_and_carries_the_warning_while_other_classes_car
         ("duk", IndustryClass.UTILITY),
         ("sap", IndustryClass.OTHER),
     ):
-        other = run(stem)
+        other = run(stem, as_of=AAPL_AS_OF if stem == "aapl" else None)
         assert other.industry_class is expected
         assert other.warnings == ()
 
 
 def test_an_unknown_industry_class_runs_and_says_why() -> None:
-    result = run("aapl", adapter=adapter_of("aapl", header=HeaderFetcher("not a filing header")))
+    result = run("aapl", as_of=AAPL_AS_OF, adapter=adapter_of("aapl", header=HeaderFetcher("not a filing header")))
     assert result.industry_class is None
     assert result.industry_class_unknown is not None
     assert result.industry_class_unknown.reason_code is ReasonCode.INDUSTRY_CLASS_UNKNOWN
@@ -459,3 +460,54 @@ def test_a_reason_names_the_operand_in_plain_words_with_its_year_end() -> None:
     assert result.f_score.tests[0].reason == (
         "Net income for 2025-12-31 is unavailable: The filings report none for that fiscal year."
     )
+
+
+def test_a_stale_anchor_keeps_the_score_and_the_status_and_adds_the_element_and_the_warning() -> None:
+    fresh = run("aapl", as_of=AAPL_AS_OF)
+    stale = run("aapl", as_of=datetime(2026, 3, 1, tzinfo=UTC))
+
+    assert fresh.anchor is not None
+    assert (fresh.anchor.next_report_due, fresh.anchor.stale) == (date(2026, 1, 18), False)
+    assert stale.anchor is not None
+    assert stale.anchor == replace(fresh.anchor, stale=True)
+    assert stale.execution_status is fresh.execution_status is CalculationStatus.OK
+    assert stale.f_score is not None
+    assert fresh.f_score is not None
+    assert stale.f_score.score == fresh.f_score.score
+    assert outcomes(stale) == outcomes(fresh)
+    assert fresh.warnings == ()
+    assert stale.warnings == (
+        "The newest annual report filed by 2026-03-01 is for the fiscal year ended 2024-09-28 (10-K, filed "
+        "2024-11-01). The next one was due by 2026-01-18 at the latest, and none had been filed.",
+    )
+
+
+def test_the_anchor_is_stale_the_day_after_the_due_date_and_not_on_it() -> None:
+    assert run("aapl", as_of=datetime(2026, 1, 18, 12, tzinfo=UTC)).warnings == ()
+    assert len(run("aapl", as_of=datetime(2026, 1, 19, 12, tzinfo=UTC)).warnings) == 1
+
+
+def test_an_amendment_of_an_older_year_accepted_after_the_anchor_leaves_the_score_at_the_anchors_year() -> None:
+    """The earlier year is refiled as an amendment accepted after the anchor; it never becomes the anchor."""
+    fetcher = StatementsFetcher("aapl")
+    submissions = copy.deepcopy(fetcher.documents["/submissions/"])
+    assert isinstance(submissions, dict)
+    recent = submissions["filings"]["recent"]
+    row = recent["accessionNumber"].index("0000320193-23-000106")
+    assert recent["reportDate"][row] == "2023-09-30"
+    recent["form"][row] = "10-K/A"
+    recent["acceptanceDateTime"][row] = "2024-12-15T12:00:00.000Z"
+    fetcher.documents["/submissions/"] = submissions
+
+    baseline = run("aapl", as_of=AAPL_AS_OF)
+    amended = run("aapl", as_of=AAPL_AS_OF, adapter=adapter_of("aapl", fetcher=fetcher))
+
+    assert amended.anchor is not None
+    assert amended.anchor.accession == "0000320193-24-000123"
+    assert amended.anchor.year_end == date(2024, 9, 28)
+    assert amended.f_score is not None
+    assert baseline.f_score is not None
+    # The dilution test (test 7) needs both counts from one filing, and the refiled year now has its own acceptance
+    # time, so that test is unavailable; every other test is scored at the anchor's year as before.
+    assert outcomes(amended)[6] is UNAVAILABLE
+    assert outcomes(amended)[:6] + outcomes(amended)[7:] == outcomes(baseline)[:6] + outcomes(baseline)[7:]

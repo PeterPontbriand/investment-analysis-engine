@@ -10,6 +10,8 @@ hold, and each refusal has its code:
 - a listing check of the anchor filing's cover affirms the requested ticker as a share of the issuer (the check's own
   reason code); a ticker renamed since the anchor filing is affirmed when the anchor cover's one share line is the
   renamed line of the registrant's latest annual cover, and the check records both accessions and symbols;
+- the anchor filing is not stale (``stale_anchor``): its share count would pair the boundary's price with a count from
+  a filing that was overdue to be replaced;
 - a share count and a price are present (the input's own reason code). A year-end count must be dated at the fiscal
   year-end *t* (``incompatible_period``); several classes are valued as one combined count at the requested ticker's
   price, and per-class counts with no total arrive as an unavailable count;
@@ -25,6 +27,7 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final
 
+from investment_analysis_engine.analysis.shared.anchor_filing import stale_market_cap_reason
 from investment_analysis_engine.analysis.shared.metric_evidence import InputUnavailable
 from investment_analysis_engine.analysis.shared.split_adjustment import AppliedAdjustment, scale_share_count
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
@@ -210,6 +213,8 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
     price_date: date | None,
     split_events: Sequence[SplitEvent],
     adjustment_date: date,
+    anchor_stale: bool,
+    boundary: date,
 ) -> MarketCapEvidence:
     """Return market capitalization at the boundary, or why it is ``unavailable``.
 
@@ -227,6 +232,8 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
         price_date: The date of the price.
         split_events: The provider's split history.
         adjustment_date: The date up to which the provider adjusted the price.
+        anchor_stale: Whether the anchor filing is stale at the boundary.
+        boundary: The boundary's date, which a stale-anchor refusal names.
 
     Raises:
         ValueError: If a price is given without its ``price_date``.
@@ -263,6 +270,8 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
             listing_check.reason_code or ReasonCode.MISSING_FACT,
             listing_check.reason or "The listing check refused the ticker.",
         )
+    if anchor_stale:
+        return _refuse(base, ReasonCode.STALE_ANCHOR, stale_market_cap_reason(boundary))
     if isinstance(share_count, InputUnavailable):
         return _refuse(base, share_count.reason_code, share_count.reason)
     base = replace(base, share_count=share_count)

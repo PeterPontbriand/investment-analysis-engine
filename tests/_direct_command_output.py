@@ -54,7 +54,7 @@ _COMMANDS = {
         "--no-cache",
     ],
     "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
-    "piotroski": ["piotroski", "AAPL", "--no-cache"],
+    "piotroski": ["piotroski", "AAPL", "--no-cache", "--as-of", "2025-01-15"],
 }
 _MODES = {"text": [], "json": ["--json"]}
 

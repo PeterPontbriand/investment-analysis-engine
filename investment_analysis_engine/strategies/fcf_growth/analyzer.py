@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.analysis.shared.anchor_filing import (
+    AnchorFilingEvidence,
+    assess_anchor_filing,
+    stale_anchor_warnings,
+)
 from investment_analysis_engine.analysis.shared.cash_flow import compute_fcf_yield
 from investment_analysis_engine.analysis.shared.financial_resolution import is_known_etf, validate_profile_ticker
 from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence
@@ -99,13 +104,23 @@ class _YieldOutcome:
     market_capitalization: MarketCapEvidence | None
     fcf_yield: MetricResult
     warnings: tuple[str, ...] = ()
+    anchor_filing: AnchorFilingEvidence | None = None
 
 
-def _yield_outcome(market_capitalization: MarketCapEvidence | None, fcf_yield: MetricResult) -> _YieldOutcome:
+def _yield_outcome(
+    market_capitalization: MarketCapEvidence | None,
+    fcf_yield: MetricResult,
+    anchor_filing: AnchorFilingEvidence | None = None,
+) -> _YieldOutcome:
     """Return the outcome, with a warning stating why the yield is not a number."""
     if fcf_yield.status is MetricStatus.OK:
-        return _YieldOutcome(market_capitalization, fcf_yield)
-    return _YieldOutcome(market_capitalization, fcf_yield, (f"FCF yield is unavailable: {fcf_yield.reason}",))
+        return _YieldOutcome(market_capitalization, fcf_yield, anchor_filing=anchor_filing)
+    return _YieldOutcome(
+        market_capitalization,
+        fcf_yield,
+        (f"FCF yield is unavailable: {fcf_yield.reason}",),
+        anchor_filing,
+    )
 
 
 def _failure_yield(failure: MetricInputsFailure) -> _YieldOutcome:
@@ -123,14 +138,16 @@ def _failure_yield(failure: MetricInputsFailure) -> _YieldOutcome:
     return _yield_outcome(None, _unavailable_metric(failure.reason_code, reason))
 
 
-def _yield_of(latest: AnnualGrowthObservation, market_cap: MarketCapEvidence) -> _YieldOutcome:
+def _yield_of(
+    latest: AnnualGrowthObservation, market_cap: MarketCapEvidence, anchor_filing: AnchorFilingEvidence
+) -> _YieldOutcome:
     """Return the latest year's free cash flow over the market capitalization, or why there is no yield."""
     result = market_cap.result
     if result.status is not MetricStatus.OK or result.value is None:
         assert result.reason_code is not None  # a MetricResult that is not ok carries its code
         refusal = MetricResult.failure(result.status, result.reason_code, result.reason or "No market cap.")
-        return _yield_outcome(market_cap, refusal)
-    return _yield_outcome(market_cap, compute_fcf_yield(latest.free_cash_flow.value, result.value))
+        return _yield_outcome(market_cap, refusal, anchor_filing)
+    return _yield_outcome(market_cap, compute_fcf_yield(latest.free_cash_flow.value, result.value), anchor_filing)
 
 
 class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarningsGrowthConfig]):
@@ -166,12 +183,13 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
         self, anchor: AnchorYearEnd, ticker: str, latest: AnnualGrowthObservation, context: AnalysisContext
     ) -> _YieldOutcome:
         """Return the latest year's yield at the anchor year-end, which that year must end at (never an older year)."""
+        anchor_filing = assess_anchor_filing(anchor, context.effective_as_of)
         if latest.period_end.date() != anchor.year_end:
             reason = (
                 f"The latest free-cash-flow year ends {latest.period_end.date()}, not the anchor filing's fiscal "
                 f"year-end {anchor.year_end}; the yield is never computed from an older year."
             )
-            return _yield_outcome(None, _unavailable_metric(ReasonCode.INCOMPATIBLE_PERIOD, reason))
+            return _yield_outcome(None, _unavailable_metric(ReasonCode.INCOMPATIBLE_PERIOD, reason), anchor_filing)
         inputs = resolve_market_cap_inputs(
             self._market_data.resolver,
             self._market_data.split_history,
@@ -181,11 +199,12 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
             filing_currency=latest.free_cash_flow.currency,
             quote_provider_id=YFINANCE_PROVIDER_ID,
             as_of=context.as_of,
+            effective_as_of=context.effective_as_of,
             use_cache=context.use_cache,
         )
         if isinstance(inputs, MetricInputsFailure):
             return _failure_yield(inputs)
-        return _yield_of(latest, inputs.market_cap())
+        return _yield_of(latest, inputs.market_cap(), anchor_filing)
 
     def run_analysis(
         self, ticker: str, context: AnalysisContext, config: FCFEarningsGrowthConfig
@@ -244,6 +263,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
         warnings: list[str] = []
         if assembly.used_horizon_fallback:
             warnings.append("Automatic horizon selection fell back because five elapsed years were unavailable.")
+        warnings.extend(stale_anchor_warnings(yield_outcome.anchor_filing, boundary))
         warnings.extend(yield_outcome.warnings)
         if policy.forward_policy.value != "display_only":
             warnings.append("Forward consensus policy was selected, but approved consensus evidence is unavailable.")
@@ -269,6 +289,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
             eps_cagr=assembly.eps_cagr,
             trend_classification=trend,
             market_capitalization=yield_outcome.market_capitalization,
+            anchor_filing=yield_outcome.anchor_filing,
             fcf_yield=yield_outcome.fcf_yield,
             forward_evidence=forward,
             warnings=tuple(warnings),
