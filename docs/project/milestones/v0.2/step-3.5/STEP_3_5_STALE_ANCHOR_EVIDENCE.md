@@ -29,8 +29,8 @@ are written with sorted keys and no insignificant whitespace; their content is a
 
 | File | Source | SHA-256 |
 | :--- | :--- | :--- |
-| `wework_submissions.json` | `https://data.sec.gov/submissions/CIK0001813756.json` | `fa13cd09de82a8277e0f5bc54359115f45d5ac6e1a248032be204fdccfc34241` |
-| `wework_companyfacts.json` | `https://data.sec.gov/api/xbrl/companyfacts/CIK0001813756.json` | `87da4fdea64d919bc5f9a3d47589fcacd876fdccd5d8747905b674f90a71942c` |
+| `wework_submissions.json` | `https://data.sec.gov/submissions/CIK0001813756.json` | `04af226674b35603a47a83151bbfb313b15fd13ce8653f112ac6cead25128643` |
+| `wework_companyfacts.json` | `https://data.sec.gov/api/xbrl/companyfacts/CIK0001813756.json` | `f1cc2274d149a5f3eea288149aebee6831f92311fdd7aa176a7d7d45c9d3b426` |
 
 The SEC now lists the registrant under the name "20230930-DK-Butterfly-1, Inc." with no ticker, so the tests reach it
 through a ticker override (`WE`), as a user would.
