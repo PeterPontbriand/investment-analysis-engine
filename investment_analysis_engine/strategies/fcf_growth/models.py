@@ -15,6 +15,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from investment_analysis_engine.analysis.shared.anchor_filing import AnchorFilingEvidence
 from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
@@ -40,8 +41,8 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
 # Fixed identifiers (METHOD_VERSION and SCHEMA_VERSION)
 # ---------------------------------------------------------------------------
 
-METHOD_VERSION = 2
-SCHEMA_VERSION = 7
+METHOD_VERSION = 3
+SCHEMA_VERSION = 8
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +309,8 @@ class FCFEarningsGrowthResult:
         trend_classification: Historical relationship description.
         market_capitalization: Market capitalization at the boundary with the share count, price and splits behind
             it; ``None`` when the yield is not requested, no market data was requested, or none could be obtained.
+        anchor_filing: The anchor annual filing the yield was taken at, with its next due date and whether it is
+            stale; ``None`` when no anchor was resolved (no completed fiscal year, or the anchor was unavailable).
         fcf_yield: Informational free-cash-flow yield (percent); never affects classification.
         forward_evidence: Forward consensus evidence block.
         warnings: Material data-quality warnings for the run.
@@ -340,6 +343,7 @@ class FCFEarningsGrowthResult:
     eps_cagr: MetricResult
     trend_classification: TrendClassification
     market_capitalization: MarketCapEvidence | None = None
+    anchor_filing: AnchorFilingEvidence | None = None
     fcf_yield: MetricResult
     forward_evidence: ForwardEvidence
     warnings: tuple[str, ...] = ()

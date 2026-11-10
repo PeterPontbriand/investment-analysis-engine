@@ -13,6 +13,7 @@ from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from investment_analysis_engine.data.security_identity import SecurityIdentityResolution, security_display_label
 from investment_analysis_engine.reporting.documents.shared_parts import (
+    anchor_filing_part,
     identity_diagnostic_parts,
     instrument_kind_part_of,
     metric_result_part,
@@ -420,6 +421,7 @@ def _document(
         provider_check=provider_check,
         requested_as_of=result.requested_as_of,
         effective_as_of=result.effective_as_of,
+        anchor_filing=anchor_filing_part(result.anchor_filing),
         security_identity=security_identity_part(result.ticker, identity_resolution),
         instrument_kind=instrument_kind_part_of(profile),
         result_schema_version=result.schema_version,

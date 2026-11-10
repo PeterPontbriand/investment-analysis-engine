@@ -185,9 +185,13 @@ def _run(
 
 def _same_run(left: FCFEarningsGrowthResult, right: FCFEarningsGrowthResult) -> None:
     """Assert that everything but the yield and its evidence is equal."""
-    assert replace(left, market_capitalization=None, fcf_yield=right.fcf_yield, warnings=right.warnings) == replace(
-        right, market_capitalization=None
-    )
+    assert replace(
+        left,
+        market_capitalization=None,
+        anchor_filing=right.anchor_filing,
+        fcf_yield=right.fcf_yield,
+        warnings=right.warnings,
+    ) == replace(right, market_capitalization=None)
 
 
 def test_the_yield_is_the_latest_free_cash_flow_over_the_market_cap_at_the_year_end() -> None:
@@ -418,3 +422,88 @@ def test_a_spin_off_adjustment_between_the_filing_and_the_price_makes_the_yield_
     assert result.market_capitalization.scaled_share_count is None
     assert result.execution_status is CalculationStatus.OK
     assert any(warning.startswith("FCF yield is unavailable") for warning in result.warnings)
+
+
+def _run_at(executed_at: datetime) -> FCFEarningsGrowthResult:
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
+    return FCFEarningsGrowthAnalyzer(_annual(), _dependencies(SpyProvider())).run_analysis(
+        "acme", AnalysisContext(as_of=None, executed_at=executed_at, use_cache=True), config
+    )
+
+
+def test_the_anchor_filing_is_reported_and_is_not_stale_before_the_next_report_is_due() -> None:
+    result = _run_at(CLOCK)
+
+    assert result.anchor_filing is not None
+    assert (result.anchor_filing.year_end, result.anchor_filing.form) == (FCF_GROWTH_YEAR_END, "10-K")
+    assert result.anchor_filing.accession == FCF_GROWTH_ACCESSION
+    assert result.anchor_filing.filing_date == FCF_GROWTH_FILING_DATE
+    assert result.anchor_filing.next_report_due == date(2026, 4, 23)
+    assert result.anchor_filing.stale is False
+    assert not [warning for warning in result.warnings if "annual report" in warning]
+
+
+def test_a_stale_anchor_keeps_the_status_and_makes_the_market_cap_and_the_yield_unavailable() -> None:
+    fresh = _run_at(CLOCK)
+    late = datetime(2026, 4, 24, 12, tzinfo=UTC)
+    stale = _run_at(late)
+
+    assert stale.anchor_filing is not None
+    assert (stale.anchor_filing.next_report_due, stale.anchor_filing.stale) == (date(2026, 4, 23), True)
+    assert stale.execution_status is fresh.execution_status
+    assert stale.classification is fresh.classification
+    evidence = stale.market_capitalization
+    assert evidence is not None
+    assert evidence.result.status is MetricStatus.UNAVAILABLE
+    assert evidence.result.reason_code is ReasonCode.STALE_ANCHOR
+    assert evidence.result.reason == (
+        "Market cap unavailable: the anchor filing is stale, so its share count is not the count at 2026-04-24."
+    )
+    assert stale.fcf_yield.status is MetricStatus.UNAVAILABLE
+    assert stale.fcf_yield.reason_code is ReasonCode.STALE_ANCHOR
+    assert stale.warnings[0] == (
+        "The newest annual report filed by 2026-04-24 is for the fiscal year ended 2025-01-01 (10-K, filed "
+        f"{FCF_GROWTH_FILING_DATE.isoformat()}). The next one was due by 2026-04-23 at the latest, and none had "
+        "been filed."
+    )
+    assert any(warning.startswith("FCF yield is unavailable:") for warning in stale.warnings)
+
+
+def test_the_anchor_is_stale_the_day_after_the_due_date_and_not_on_it() -> None:
+    assert _run_at(datetime(2026, 4, 23, 12, tzinfo=UTC)).fcf_yield.status is MetricStatus.OK
+    assert _run_at(datetime(2026, 4, 24, 12, tzinfo=UTC)).fcf_yield.reason_code is ReasonCode.STALE_ANCHOR
+
+
+def test_a_market_data_failure_after_a_stale_anchor_still_reports_the_anchor_and_the_warning_first() -> None:
+    late = datetime(2026, 4, 24, 12, tzinfo=UTC)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
+    result = FCFEarningsGrowthAnalyzer(
+        _annual(), _dependencies(SpyProvider(), SplitFailsProvider(CLOCK, with_data=True))
+    ).run_analysis("acme", AnalysisContext(as_of=None, executed_at=late, use_cache=True), config)
+
+    assert result.anchor_filing is not None
+    assert result.anchor_filing.stale is True
+    assert result.fcf_yield.status is MetricStatus.UNAVAILABLE
+    assert result.warnings[0].startswith("The newest annual report filed by 2026-04-24")
+    assert any(warning.startswith("FCF yield is unavailable:") for warning in result.warnings[1:])
+
+
+def test_a_failure_before_the_anchor_is_resolved_gives_no_anchor_filing() -> None:
+    late = datetime(2026, 4, 24, 12, tzinfo=UTC)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
+    result = FCFEarningsGrowthAnalyzer(_annual(), _dependencies(ScopeFailsProvider())).run_analysis(
+        "acme", AnalysisContext(as_of=None, executed_at=late, use_cache=True), config
+    )
+    assert result.anchor_filing is None
+    assert not [warning for warning in result.warnings if "annual report" in warning]
+
+
+def test_the_stale_anchor_message_comes_before_the_horizon_fallback_warning() -> None:
+    late = datetime(2026, 4, 24, 12, tzinfo=UTC)
+    config = FCFEarningsGrowthConfig(policy=FCFEarningsGrowthPolicy(), currency="USD")
+    result = FCFEarningsGrowthAnalyzer(_annual(range(2022, 2026)), _dependencies(SpyProvider())).run_analysis(
+        "acme", AnalysisContext(as_of=None, executed_at=late, use_cache=True), config
+    )
+    assert result.used_horizon_fallback is True
+    assert result.warnings[0].startswith("The newest annual report filed by 2026-04-24")
+    assert result.warnings[1] == ("Automatic horizon selection fell back because five elapsed years were unavailable.")

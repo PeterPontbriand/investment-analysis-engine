@@ -1,7 +1,7 @@
 """The Piotroski F-Score strategy's ``--json`` document.
 
 It holds the document version and the typed model. The document is the complete result plus the shared header and
-tail: the nine tests with their ratios and operands, the score, the anchor filing, the industry class and the failure
+tail: the nine tests with their ratios and operands, the score, the industry class and the failure
 that stopped a run. The identifiers and enumerations it writes come from the strategy's ``vocabulary.py`` and the
 calculation.
 """
@@ -22,7 +22,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import (
 )
 from investment_analysis_engine.strategies.piotroski.vocabulary import AnalysisId, CheckOutcome, Completeness, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 2
+DOCUMENT_SCHEMA_VERSION: Final = 3
 
 
 class PiotroskiOperandPart(DocumentPart):
@@ -51,15 +51,6 @@ class PiotroskiTestPart(DocumentPart):
     diagnostics: tuple[str, ...]
     reason_code: ReasonCode | None
     reason: str | None
-
-
-class PiotroskiAnchorPart(DocumentPart):
-    """The anchor annual filing and its fiscal year-end."""
-
-    year_end: date
-    accession: str
-    form: str
-    filing_date: date | None
 
 
 class PiotroskiSourceFilingPart(DocumentPart):
@@ -92,7 +83,6 @@ class PiotroskiBody(DocumentPart):
     reason: str | None
     industry_class: IndustryClass | None
     industry_class_unknown: PiotroskiUnavailablePart | None
-    anchor: PiotroskiAnchorPart | None
     source_filings: tuple[PiotroskiSourceFilingPart, ...]
     taxonomy: str | None
     score: MetricResultPart | None

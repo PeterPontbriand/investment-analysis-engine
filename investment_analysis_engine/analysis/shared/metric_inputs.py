@@ -22,6 +22,7 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Final, Protocol
 
+from investment_analysis_engine.analysis.shared.anchor_filing import assess_anchor_filing, boundary_date
 from investment_analysis_engine.analysis.shared.applicability import IndustryClass, industry_class_of_sic
 from investment_analysis_engine.analysis.shared.financial_resolution import resolve_optional_quote
 from investment_analysis_engine.analysis.shared.market_cap import (
@@ -191,6 +192,8 @@ class MarketCapInputs:
     price_date: date | None
     split_events: tuple[SplitEvent, ...]
     adjustment_date: date
+    anchor_stale: bool
+    boundary: date
 
     def market_cap(self) -> MarketCapEvidence:
         """Return market capitalization at the boundary, or why it is ``unavailable``."""
@@ -207,6 +210,8 @@ class MarketCapInputs:
             price_date=self.price_date,
             split_events=self.split_events,
             adjustment_date=self.adjustment_date,
+            anchor_stale=self.anchor_stale,
+            boundary=self.boundary,
         )
 
 
@@ -474,6 +479,7 @@ def resolve_market_cap_inputs(  # noqa: PLR0913
     filing_currency: str | None,
     quote_provider_id: str,
     as_of: datetime | None,
+    effective_as_of: datetime,
     use_cache: bool,
 ) -> MarketCapInputs | MetricInputsFailure:
     """Return every input of ``compute_market_cap`` at the anchor year-end, or the provider failure that stopped it.
@@ -494,6 +500,7 @@ def resolve_market_cap_inputs(  # noqa: PLR0913
         filing_currency: The currency of the monetary facts at *t*, ``None`` when unknown.
         quote_provider_id: The provider that gives the current quote.
         as_of: The point-in-time boundary, ``None`` for a current run.
+        effective_as_of: The instant the analysis is evaluated at; its date decides whether the anchor filing is stale.
         use_cache: Whether stored responses may be reused.
     """
     subject = normalize_ticker(ticker)
@@ -525,6 +532,8 @@ def resolve_market_cap_inputs(  # noqa: PLR0913
         price_date=price.price_date,
         split_events=price.events,
         adjustment_date=price.adjustment_date,
+        anchor_stale=assess_anchor_filing(anchor, effective_as_of).stale,
+        boundary=boundary_date(effective_as_of),
     )
 
 

@@ -183,6 +183,56 @@
         "title": "AnalysisTextDocument",
         "type": "object"
       },
+      "AnchorFilingPart": {
+        "additionalProperties": false,
+        "description": "The anchor annual filing, the date its next annual report was due and whether it is stale at the boundary.",
+        "properties": {
+          "accession": {
+            "title": "Accession",
+            "type": "string"
+          },
+          "filing_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filing Date"
+          },
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "next_report_due": {
+            "format": "date",
+            "title": "Next Report Due",
+            "type": "string"
+          },
+          "stale": {
+            "title": "Stale",
+            "type": "boolean"
+          },
+          "year_end": {
+            "format": "date",
+            "title": "Year End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "year_end",
+          "form",
+          "accession",
+          "filing_date",
+          "next_report_due",
+          "stale"
+        ],
+        "title": "AnchorFilingPart",
+        "type": "object"
+      },
       "BaseModel": {
         "properties": {},
         "title": "BaseModel",
@@ -627,6 +677,16 @@
             "title": "Analysis",
             "type": "string"
           },
+          "anchor_filing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnchorFilingPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "annual_observations": {
             "items": {
               "$ref": "#/components/schemas/FCFObservationPart"
@@ -853,6 +913,7 @@
           "provider_check",
           "requested_as_of",
           "effective_as_of",
+          "anchor_filing",
           "security_identity",
           "instrument_kind",
           "result_schema_version",
@@ -2099,6 +2160,16 @@
             "title": "Analysis",
             "type": "string"
           },
+          "anchor_filing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnchorFilingPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "diagnostics": {
             "items": {
               "anyOf": [
@@ -2243,6 +2314,7 @@
           "provider_check",
           "requested_as_of",
           "effective_as_of",
+          "anchor_filing",
           "security_identity",
           "instrument_kind",
           "price_comparison",
@@ -2453,6 +2525,16 @@
             "title": "Analysis",
             "type": "string"
           },
+          "anchor_filing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnchorFilingPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "diagnostics": {
             "items": {
               "anyOf": [
@@ -2594,6 +2676,7 @@
           "provider_check",
           "requested_as_of",
           "effective_as_of",
+          "anchor_filing",
           "security_identity",
           "instrument_kind",
           "price_comparison",
@@ -3351,6 +3434,16 @@
             "title": "Analysis",
             "type": "string"
           },
+          "anchor_filing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AnchorFilingPart"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "data_resolution": {
             "anyOf": [
               {
@@ -3509,6 +3602,7 @@
           "provider_check",
           "requested_as_of",
           "effective_as_of",
+          "anchor_filing",
           "security_identity",
           "instrument_kind",
           "reason_code",
@@ -3818,45 +3912,6 @@
         "title": "PeriodKind",
         "type": "string"
       },
-      "PiotroskiAnchorPart": {
-        "additionalProperties": false,
-        "description": "The anchor annual filing and its fiscal year-end.",
-        "properties": {
-          "accession": {
-            "title": "Accession",
-            "type": "string"
-          },
-          "filing_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Filing Date"
-          },
-          "form": {
-            "title": "Form",
-            "type": "string"
-          },
-          "year_end": {
-            "format": "date",
-            "title": "Year End",
-            "type": "string"
-          }
-        },
-        "required": [
-          "year_end",
-          "accession",
-          "form",
-          "filing_date"
-        ],
-        "title": "PiotroskiAnchorPart",
-        "type": "object"
-      },
       "PiotroskiDocument": {
         "additionalProperties": false,
         "description": "The Piotroski F-Score document, version 1.\n\n``piotroski --json`` and a replay write it.",
@@ -3866,10 +3921,10 @@
             "title": "Analysis",
             "type": "string"
           },
-          "anchor": {
+          "anchor_filing": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PiotroskiAnchorPart"
+                "$ref": "#/components/schemas/AnchorFilingPart"
               },
               {
                 "type": "null"
@@ -4109,6 +4164,7 @@
           "provider_check",
           "requested_as_of",
           "effective_as_of",
+          "anchor_filing",
           "security_identity",
           "instrument_kind",
           "result_schema_version",
@@ -4117,7 +4173,6 @@
           "reason",
           "industry_class",
           "industry_class_unknown",
-          "anchor",
           "source_filings",
           "taxonomy",
           "score",
@@ -4683,6 +4738,7 @@
           "incompatible_scope",
           "ambiguous_fact",
           "not_available_as_of",
+          "stale_anchor",
           "nonpositive_beginning",
           "nonpositive_ending",
           "sign_change",

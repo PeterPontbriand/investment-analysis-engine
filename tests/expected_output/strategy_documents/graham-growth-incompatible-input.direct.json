@@ -22,6 +22,7 @@
   ],
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
+  "anchor_filing": null,
   "security_identity": {
     "ticker": "INCOMPATIBLE",
     "instrument_name": null,

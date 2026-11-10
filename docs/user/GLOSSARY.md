@@ -320,6 +320,12 @@ A company's twelve-month accounting period, which may differ from the calendar y
 
 Annual EPS observations must therefore retain their fiscal-period dates.
 
+<a id="anchor-filing"></a>
+### Anchor Filing
+The annual report an analysis rests on: the newest annual report the company had filed by the as-of date, for its newest completed fiscal year. Its fiscal year-end is the date every input is taken at.
+
+The engine reads the annual reports filed by the as-of date from the newest. The first original report (not an amendment) fixes the fiscal year, and the anchor filing is the newest filing for that year, so an amendment of that year can be the anchor and an amendment of an older year never is. The anchor filing is **stale** when the next annual report was overdue at the as-of date and none had been filed: the as-of date is after the latest date it was due, counted from the fiscal year-end and never from the filing date. The engine never warns early. See [fiscal year](#fiscal-year), [as-of date](#as-of-date) and [stale anchor](#reason-stale-anchor).
+
 <a id="reporting-period"></a>
 ### Reporting Period
 The span or date a financial fact applies to, such as a fiscal year, a quarter, a trailing twelve-month interval or a balance-sheet date.
@@ -1188,6 +1194,12 @@ Choosing one would be a guess. The value stays unavailable.
 An input was not yet available on the as-of date, for example because it was filed or published after it.
 
 The engine never uses information from after the boundary. See [as-of date](#as-of-date) and [look-ahead bias](#look-ahead-bias).
+
+<a id="reason-stale-anchor"></a>
+### Stale Anchor
+The market capitalization is not calculated: the newest annual report was overdue for replacement at the as-of date and none was filed.
+
+The share count in that report is not the count at the as-of date. The run keeps its status and a warning states the fiscal year, the form and the date the next report was due. See [anchor filing](#anchor-filing).
 
 <a id="reason-growth-not-meaningful"></a>
 ### Growth Not Meaningful

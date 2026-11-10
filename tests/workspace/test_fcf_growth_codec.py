@@ -211,8 +211,8 @@ def _run(result: FCFEarningsGrowthResult | None = None) -> AnalysisRun:
         requested_config=FCFGrowthSelection(),
         started_at=STAMP,
         completed_at=STAMP,
-        method_version=2,
-        result_schema_version=7,
+        method_version=3,
+        result_schema_version=8,
         evidence_codec_version=4,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(result or _result()),
@@ -227,7 +227,7 @@ def test_full_native_result_round_trip() -> None:
     assert restored == original
     assert restored.diagnostics == original.diagnostics
     assert restored.annual_observations[0].free_cash_flow is not original.annual_observations[0].free_cash_flow
-    assert (restored.method_version, restored.schema_version) == (2, 7)
+    assert (restored.method_version, restored.schema_version) == (3, 8)
     assert encode_native(restored) == run.result_evidence
 
 

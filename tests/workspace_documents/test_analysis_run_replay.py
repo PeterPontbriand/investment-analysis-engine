@@ -823,8 +823,8 @@ def _fcf_run(
         requested_config=FCFGrowthSelection(),
         started_at=NOW,
         completed_at=NOW,
-        method_version=2,
-        result_schema_version=7,
+        method_version=3,
+        result_schema_version=8,
         evidence_codec_version=4,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(result),
@@ -898,7 +898,7 @@ def test_fcf_project_run_json_matches_the_stored_result() -> None:
     run = _fcf_run()
     payload = _document_payload(run)
     assert payload["ticker"] == "KO"
-    assert payload["result_schema_version"] == 7
+    assert payload["result_schema_version"] == 8
 
 
 def test_fcf_project_run_defaults_to_concise() -> None:

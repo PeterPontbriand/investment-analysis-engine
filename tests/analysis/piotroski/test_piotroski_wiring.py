@@ -77,7 +77,7 @@ def test_the_descriptor_declares_the_strategy_without_a_config_or_settings() -> 
     descriptor = BY_ALIAS["piotroski"]
     assert descriptor.label == "Piotroski F-Score"
     assert descriptor.settings_type is None
-    assert (descriptor.method_version, descriptor.result_schema_version, descriptor.evidence_codec_version) == (1, 1, 1)
+    assert (descriptor.method_version, descriptor.result_schema_version, descriptor.evidence_codec_version) == (2, 2, 1)
     assert descriptor.config_schema_version == 1
 
 

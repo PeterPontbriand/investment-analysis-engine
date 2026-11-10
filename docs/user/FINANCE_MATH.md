@@ -324,7 +324,7 @@ fcf_yield_percent =
     latest_completed_fiscal_year_fcf / market_capitalization_at_the_boundary * 100
 ```
 
-The numerator is annual and the denominator is the market capitalization at the boundary, so both dates remain visible. The yield is computed only when the latest completed fiscal year ends at the anchor filing's fiscal year-end *t*, which the market capitalization is also taken at; otherwise it is `unavailable` with `incompatible_period`, and an older year is never used. When market capitalization is `unavailable`, the yield is `unavailable` with its reason code, and a market-data failure makes it `unavailable` with `provider_error`. FCF yield is informational only and has no pass threshold in the current method version.
+The numerator is annual and the denominator is the market capitalization at the boundary, so both dates remain visible. A yield at a stale anchor filing is `unavailable` with `stale_anchor`, because its market capitalization is. The yield is computed only when the latest completed fiscal year ends at the anchor filing's fiscal year-end *t*, which the market capitalization is also taken at; otherwise it is `unavailable` with `incompatible_period`, and an older year is never used. When market capitalization is `unavailable`, the yield is `unavailable` with its reason code, and a market-data failure makes it `unavailable` with `provider_error`. FCF yield is informational only and has no pass threshold in the current method version.
 
 ### Optional forward EPS evidence
 
@@ -338,7 +338,7 @@ See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_GROWTH.
 
 This implementation follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal, because issuance cannot be established reliably from structured filings.
 
-The strategy runs nine pass/fail tests on one company's reported statements at three consecutive fiscal year-ends and counts the tests passed. Year *t* is the fiscal year of the anchor annual filing, the latest at the boundary; *t−1* is the day before the start of the completed annual period that ends at *t*, and *t−2* is derived the same way from the period that ends at *t−1*. A year-end is never taken from a filing date, and an older year is never scored in place of *t*.
+The strategy runs nine pass/fail tests on one company's reported statements at three consecutive fiscal year-ends and counts the tests passed. Year *t* is the fiscal year of the anchor annual filing, the latest at the boundary (see [the anchor filing](#the-anchor-filing)); *t−1* is the day before the start of the completed annual period that ends at *t*, and *t−2* is derived the same way from the period that ends at *t−1*. A year-end is never taken from a filing date, and an older year is never scored in place of *t*.
 
 ### The nine tests
 
@@ -392,6 +392,14 @@ See the [Piotroski F-Score Strategy Guide](strategies/PIOTROSKI.md).
 
 These metrics are defined once and used by every strategy that needs them. Each is a pure calculation over resolved inputs; every result is a typed outcome that is either `ok` with a finite number or `unavailable` with a reason code and a reason. Nothing missing becomes zero, neutral or `NaN`, except the absent components named below. Balance-sheet values are instants at the anchor fiscal year-end *t*; annual values are those of the fiscal year ending at *t*. Free cash flow and the FCF yield keep their entries under [Free Cash Flow & Earnings Growth Strategy](#free-cash-flow--earnings-growth-strategy).
 
+### The anchor filing
+
+The anchor filing is the annual report every input of an analysis rests on. The annual reports (10-K, 20-F, 40-F, and their amendments) accepted at or before the boundary are read from the newest. The first original report fixes the fiscal year, matched on the report date. The anchor filing is the newest filing for that fiscal year: an amendment of that year can be the anchor, and an amendment of an older year never is.
+
+The anchor filing is **stale** when the next annual report was overdue at the boundary and none had been filed. The latest due date is the fiscal year-end plus one year, plus 7 days for a 53-week year, plus the form's longest regular allowance with its automatic extension: 105 days for a 10-K; 4 calendar months and 15 days for a 20-F, or 6 calendar months and 15 days when the overdue report's fiscal year ends before 2011-12-15; 120 days for a 40-F. A report whose original due date fell from 2020-03-01 to 2020-07-01 gets 45 more days, for the regulators' relief of that spring, applied to every filer. The boundary's date must be after the due date; on the due date itself the anchor is not stale. Age is counted from the fiscal year-end, never from the filing date.
+
+A stale anchor filing does not change a result's status. The result reports the filing, its due date for the next report and a warning, and the market capitalization is `unavailable` with `stale_anchor`, so everything built on it is unavailable too. The rule never warns early: a large accelerated filer, whose 10-K is due 60 days after the year-end, gets up to 45 days of grace without a warning.
+
 ### Market capitalization
 
 ```text
@@ -403,11 +411,12 @@ scaled_share_count = share_count * product of the ratios of the provider split a
 - **Share count:** the common shares outstanding at fiscal year-end *t*, reported directly or as shares issued minus treasury shares at the same date. When no balance-sheet path gives a count at *t*, the single non-dimensional cover-page count of the anchor filing is used and the result says so. A year-end count dated other than *t* (an older year's count) is `unavailable` with `incompatible_period` and is never substituted. Conflicting counts, and per-class counts with no total, are `unavailable`. One combined count for several share classes is valued at the requested ticker's price.
 - **Price:** the split-adjusted close, without dividend adjustment, on the last trading day on or before the boundary.
 - **Provider split adjustments:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. The provider's split history reports splits and other adjustments alike (a spin-off appears as a ratio such as 0.9535), and only a split changes the share count, so the events apply in two windows. An event after the price date is always applied, whatever its ratio: it undoes the provider's adjustment of the historical close and never changes the market cap at the boundary. An event after `after` and not after the price date is applied only when its ratio is a recognizable split ratio: *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q*, or the reciprocal of one. Any other ratio, such as a spin-off or a stock dividend of 1.05, makes market cap `unavailable` with `ambiguous_fact`, naming the event. Without an as-of date the price date is the quote's date, so every event after the count's date is in the second window. A filing restates its counts for a split effective before it is issued, so such a split is not applied again.
-- **Availability:** market cap is available only when all four hold, and each refusal has its reason code.
+- **Availability:** market cap is available only when all of these hold, and each refusal has its reason code.
   1. The anchor annual filing is a 10-K or a 10-K/A (`incompatible_scope`). A 20-F or 40-F filer, or an amendment of either, is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show.
   2. The quote currency equals the filing currency (`incompatible_currency`). When either is unknown, market cap is `unavailable`.
   3. A listing check on the anchor 10-K's cover affirms the requested ticker, under the issuer's CIK, on a registered title that is a share of the issuer. A depositary share, unit, warrant or preferred security is refused (`incompatible_units`), and a missing or unreadable cover is `unavailable` (`missing_fact`).
-  4. A share count and a price are present (the code of the missing input).
+  4. The anchor filing is not stale (`stale_anchor`): the next annual report was not overdue at the boundary. Otherwise the share count is that of a filing that was due to be replaced, so it is not the count at the boundary.
+  5. A share count and a price are present (the code of the missing input).
 - **Limitations:** buybacks and issuance between the fiscal year-end and the price date are not reflected. A split announced before the filing but effective just after it is assumed not to be reflected in the filing. A spin-off or stock dividend between the count and the price makes market cap unavailable. A ticker renamed after the anchor filing does not match the cover and is `unavailable`.
 - **Critical inputs:** the share count and the price.
 

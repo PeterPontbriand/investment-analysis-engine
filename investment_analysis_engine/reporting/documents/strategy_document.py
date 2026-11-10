@@ -30,6 +30,10 @@ The header's key order is part of the contract:
     The point in time the user asked for; null means now.
 ``effective_as_of``
     The instant the analysis was evaluated at: ``requested_as_of`` when given, else the execution time.
+``anchor_filing``
+    The anchor annual filing the run was taken at, with the date its next annual report was due and whether it is
+    stale at the boundary, as :class:`~investment_analysis_engine.reporting.documents.shared_parts.AnchorFilingPart`;
+    null for a strategy that does not report it and on replay of a run stored before it was added.
 ``security_identity``, ``instrument_kind``
     The identity and instrument-kind evidence the run retained.
 
@@ -47,6 +51,7 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem, require_check_matches_failure
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
 from investment_analysis_engine.reporting.documents.shared_parts import (
+    AnchorFilingPart,
     DiagnosticEntry,
     DocumentPart,
     InstrumentKindPart,
@@ -64,6 +69,7 @@ HEADER_KEYS: tuple[str, ...] = (
     "provider_check",
     "requested_as_of",
     "effective_as_of",
+    "anchor_filing",
     "security_identity",
     "instrument_kind",
 )
@@ -85,6 +91,7 @@ class StrategyDocumentHeader[AnalysisIdT: str, MethodIdT: str](DocumentPart):
     provider_check: tuple[ProviderCheckItem, ...] | None
     requested_as_of: DocumentTimestamp | None
     effective_as_of: DocumentTimestamp
+    anchor_filing: AnchorFilingPart | None
     security_identity: SecurityIdentityPart
     instrument_kind: InstrumentKindPart | None
 

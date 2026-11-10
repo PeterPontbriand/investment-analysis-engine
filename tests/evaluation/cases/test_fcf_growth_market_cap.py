@@ -19,7 +19,7 @@ from investment_analysis_engine.evaluation.composition import dispatch_fixture_c
 from investment_analysis_engine.evaluation.models import Case
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
 
-EXECUTED_AT = datetime(2026, 8, 31, 18, 30, tzinfo=UTC)
+EXECUTED_AT = datetime(2026, 4, 1, 18, 30, tzinfo=UTC)
 
 NUMERICAL = {
     "FCF-01": {

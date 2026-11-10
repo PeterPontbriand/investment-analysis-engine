@@ -21,6 +21,7 @@ def build_specimen_document(result: SpecimenResult) -> SpecimenDocument:
         provider_check=None,
         requested_as_of=None,
         effective_as_of=result.effective_as_of,
+        anchor_filing=None,
         security_identity=SecurityIdentityPart(
             ticker=result.ticker,
             instrument_name=None,

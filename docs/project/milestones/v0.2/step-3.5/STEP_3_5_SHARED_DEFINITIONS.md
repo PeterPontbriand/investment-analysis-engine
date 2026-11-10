@@ -70,6 +70,8 @@ introduced.
   `unsupported_mapping`; `after_boundary` gives `not_available_as_of`; `basis_mismatch` gives `incompatible_scope`.
   3.5.3a adds `nonpositive_denominator`, for a denominator that is not positive, and `insufficient_tests`, for a
   Piotroski score with fewer than six tests available.
+  The stale-anchor slice ([A.17](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a17-stale-anchor-filing-and-the-anchor-rule-2026-11-09))
+  adds `stale_anchor`, for a market cap refused because the anchor filing is stale ([§3](#stale-anchor)).
 - No value is ever `NaN` or `Inf`. A ratio with a zero or non-positive denominator is `unavailable`
   or `not_applicable` with a reason code, as each definition below states.
 - **What is not a `MetricResult`:** strategy-level scores, zones, bands, completeness and
@@ -118,9 +120,19 @@ boundary, or when the data-quality check fails; `provider_error` when the market
 
 ### Period alignment
 
-- **Anchor year:** year *t* is the newest completed fiscal year available at the boundary. If its
-  inputs are missing, the affected metrics are `unavailable`. A strategy never steps back to an
+- **Anchor year:** year *t* is the fiscal year of the anchor annual filing, the newest completed fiscal year available
+  at the boundary. If its inputs are missing, the affected metrics are `unavailable`. A strategy never steps back to an
   older year to produce a complete-looking result.
+- **Anchor filing:** the annual filings accepted at or before the boundary are read newest first by acceptance time. The
+  first original annual report read (a 10-K, 20-F or 40-F, not an amendment) fixes the anchor's fiscal year, matched on
+  the filing's report date. The anchor is the newest filing for that fiscal year, so it is an amendment of that year when
+  one was accepted after the original. An amendment for an older fiscal year never becomes the anchor, however recently it
+  was filed: it restates a year that is no longer the newest, and taking its year-end would step back to an older year.
+  The rule rests on original annual reports being filed in fiscal-year order. Fiscal years are matched on the report
+  date, never on `fy` or `frame` labels. When the recent block of the registrant's submissions holds no original annual
+  report at or before the boundary, the adapter reads the older submissions pages newest first, skipping a page that
+  starts after the boundary, until one does, at most `_MAX_SUBMISSION_PAGES` pages. When that many pages hold none, the
+  anchor is `no_anchor_filing` and its message states the earliest filing date the pages reached.
 - **Actual dates decide:** periods are matched on their reported start and end dates. The
   Company Facts `fy` and `frame` labels describe the filing an observation appeared in, not the
   period it measures, and are never used to align years.
@@ -141,6 +153,66 @@ boundary, or when the data-quality check fails; `provider_error` when the market
   filing, on the same taxonomy and currency. Every such value passes the same boundary check.
 - **Conflicts:** two eligible values of equal priority that disagree make the input `unavailable`.
 - **One basis:** a run never mixes us-gaap with ifrs-full, or two reporting currencies.
+
+### Stale anchor
+
+The anchor filing is **stale** when the next annual report was overdue at the boundary and none had been filed by it.
+The boundary's date is the UTC date of `context.effective_as_of`.
+
+- **Age:** it runs from the anchor's fiscal year-end, never from its filing date.
+- **Due date:** `next_report_due` is the anchor's `year_end` plus one calendar year (29 February becomes 1 March), plus
+  7 days so a 53-week fiscal year is never judged late, plus the form's allowance below, extended by any relief period
+  below that its original due date falls in. A calendar-month allowance is added to the date after the 7 days, and a
+  month's end clamps to the last day of a shorter month.
+- **Stale:** the boundary's date is after `next_report_due`. On the due date itself the anchor is not stale.
+- **Never early:** every allowance is the most generous regular deadline for the form plus any automatic extension, so the
+  rule never warns early. The limitation is that a large accelerated filer, whose 10-K is due 60 days after year-end,
+  gets up to 45 days of grace without a warning.
+
+The deadline that applies is the overdue report's, so the allowance is chosen by the next report's fiscal year-end (the anchor's `year_end` plus one calendar year, before the 7 days are added), not the anchor's. The form's allowance, one declaration in code (`ALLOWANCES` in `analysis/shared/anchor_filing.py`) that a test compares
+with this table:
+
+| Forms | Next fiscal year-end | Allowance |
+| :--- | :--- | :--- |
+| 10-K, 10-K/A | every | 105 days |
+| 20-F, 20-F/A | on or after 2011-12-15 | 4 calendar months + 15 days |
+| 20-F, 20-F/A | before 2011-12-15 | 6 calendar months + 15 days |
+| 40-F, 40-F/A | every | 120 days |
+
+- **10-K:** 90 days after year-end is the deadline of the most generous filer category (General Instruction A of Form
+  10-K: 60, 75 or 90 days), and 15 calendar days more are the extension of Rule 12b-25 (17 CFR 240.12b-25(b)(2)(ii)).
+  The text of both was read.
+- **20-F:** Release 33-8959 (2008) set the deadline at four months after the fiscal year-end for fiscal years ending on or
+  after 2011-12-15 (General Instruction A.(b) of Form 20-F); the earlier deadline was six months, which is what 17 CFR
+  249.220f(b) shows in the republication read (Cornell LII). Rule 12b-25 adds 15 calendar days to either. The four-month
+  deadline rests on the Release as the project owner gave it; its text was not read.
+- **40-F:** the filing is due when the Canadian annual documents are, which National Instrument 51-102 sets at 90 days
+  after year-end, or 120 days for a venture issuer; 120 days is the longest regular deadline. Rule 12b-25 does not list
+  Form 40-F, so no extension is added. The General Instructions of Form 40-F state no due date of their own; the figure
+  rests on the instrument as the project owner gave it, and its text was not read.
+
+Relief periods, one declaration in code (`RELIEF_PERIODS`) that a test compares with this table. A report whose original
+due date (the date above before any relief) falls inside a window gets its extra days, whatever the form:
+
+| Original due dates | Extra days | Source |
+| :--- | :--- | :--- |
+| 2020-03-01 to 2020-07-01 | 45 | SEC COVID-19 order (March 2020; Release 34-88465), for 10-K and 20-F; the Canadian securities regulators' blanket 45-day relief (March 2020), for the Canadian annual filings a 40-F follows |
+
+The SEC relief required the filer to give notice, which the engine cannot check. It is applied to every filer, so the rule
+never warns early.
+
+- **Effect, one rule for every strategy:** a result built only from filing evidence keeps its status and carries the
+  anchor filing element and the warning message; no strategy decides this itself.
+  - The element is `anchor_filing` in the common strategy-document header, after `effective_as_of`, with `year_end`,
+    `form`, `accession`, `filing_date` (null when the submissions data does not date the filing), `next_report_due` and
+    `stale`. It is null for a strategy that does not report the anchor filing and on replay of a run stored before it
+    existed.
+  - The warning message is: "The newest annual report filed by {boundary date} is for the fiscal year ended {year_end}
+    ({form}, filed {filing_date}). The next one was due by {next_report_due} at the latest, and none had been filed." The
+    clause ", filed {filing_date}" is dropped when the filing date is null. Dates are ISO dates. The message is also the
+    first entry of the document's warnings.
+  - Market cap at a stale anchor is `unavailable` with `stale_anchor` ([§4](#4-market-capitalization)).
+  - Once the anchor is resolved and assessed, the result reports it whatever happens afterwards: a provider-error result carries the element and, when the anchor is stale, the warning. A failure before the anchor is resolved gives null.
 
 ### Absent-component convention
 
@@ -213,8 +285,8 @@ in which an absent element yields a number.
   provider's retroactive adjustment ([§3](#3-data-sources-periods-and-point-in-time)).
 - **Availability, security unit and currency:** the market cap does not use the security-unit rule of Graham
   (`evaluate_security_unit_compatibility`): that rule refuses every run with `as_of`, every filer other than a us-gaap
-  10-K filer, and any cover with more than one class title (Alphabet). The market cap is available only when all four
-  hold:
+  10-K filer, and any cover with more than one class title (Alphabet). The market cap is available only when all of
+  these hold:
   1. **The anchor annual filing is a 10-K or 10-K/A** (`incompatible_scope` otherwise). A 20-F or 40-F filer is a foreign private
      issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show. SAP's market cap
      is therefore `unavailable`.
@@ -235,6 +307,11 @@ in which an absent element yields a number.
      ([vocabulary and evidence](STEP_3_5_2_LISTING_EVIDENCE.md#6-the-title-vocabulary)).
   4. **The share-count rule for several classes below holds:** Alphabet's single combined count is valued at the
      requested ticker's price, and per-class counts with no total are `unavailable`.
+  5. **The anchor filing is not stale** ([stale anchor](#stale-anchor)): otherwise the market cap is `unavailable` with
+     `stale_anchor` and the message "Market cap unavailable: the anchor filing is stale, so its share count is not the
+     count at {boundary date}." The share count is that of a filing that was overdue to be replaced, so pairing it with
+     the boundary's price would not give the market cap at the boundary. Everything built on market cap follows through
+     the existing propagation, with no per-strategy code.
 - **Limitation, stated in the guides:** a ticker renamed after the anchor filing is affirmed only by the rename rule
   of item 3; any other renamed ticker does not match the cover and is `unavailable`.
 - **Critical inputs:** shares and price.

@@ -13,10 +13,12 @@ from "not written" and the generated schema lists every key. Instants are
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, WithJsonSchema
 
+from investment_analysis_engine.analysis.shared.anchor_filing import AnchorFilingEvidence
 from investment_analysis_engine.analysis.shared.financial_resolution import PriceComparison, PriceComparisonStatus
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
@@ -71,6 +73,17 @@ class InstrumentKindPart(DocumentPart):
     provider_value: str
     provider_id: str
     resolved_at: DocumentTimestamp
+
+
+class AnchorFilingPart(DocumentPart):
+    """The anchor annual filing, the date its next annual report was due and whether it is stale at the boundary."""
+
+    year_end: date
+    form: str
+    accession: str
+    filing_date: date | None
+    next_report_due: date
+    stale: bool
 
 
 class DiagnosticPart(DocumentPart):
@@ -218,6 +231,20 @@ def security_identity_part(ticker: str, resolution: SecurityIdentityResolution |
         instrument_identifier=identity.instrument_identifier if identity is not None else None,
         provider_id=identity.provider_id if identity is not None else None,
         resolved_at=identity.resolved_at if identity is not None else None,
+    )
+
+
+def anchor_filing_part(evidence: AnchorFilingEvidence | None) -> AnchorFilingPart | None:
+    """Return the anchor filing part for ``evidence``, or ``None`` for a strategy or a run that has none."""
+    if evidence is None:
+        return None
+    return AnchorFilingPart(
+        year_end=evidence.year_end,
+        form=evidence.form,
+        accession=evidence.accession,
+        filing_date=evidence.filing_date,
+        next_report_due=evidence.next_report_due,
+        stale=evidence.stale,
     )
 
 

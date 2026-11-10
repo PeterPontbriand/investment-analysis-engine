@@ -19,10 +19,10 @@ METHOD_ID: Final[MethodId] = "piotroski"
 ConfigSchemaVersion = Literal[1]
 CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 1
 
-METHOD_VERSION: Final = 1
-"""The version of the method's semantics: the nine tests, their operands and the score's rule."""
+METHOD_VERSION: Final = 2
+"""The version of the method's semantics: the nine tests, their operands, the score's rule and the anchor rule."""
 
-RESULT_SCHEMA_VERSION: Final = 1
+RESULT_SCHEMA_VERSION: Final = 2
 """The version of the stored result's shape."""
 
 

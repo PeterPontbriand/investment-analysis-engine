@@ -1290,16 +1290,20 @@ class _Sec:
         self.header_urls: list[str] = []
         self.document_urls: list[str] = []
         self._cover = cover if cover is not None else _read("jpm_fy2025")
+        # An amendment is the anchor only when the original of its fiscal year was accepted before it.
+        rows = [("0000000000-26-000001", "10-K", "2026-02-01T12:00:00.000Z"), (accession, form, accepted)]
+        rows = rows if form.endswith("/A") else rows[1:]
         self.submissions: dict[str, Any] = {
             "cik": cik.zfill(10),
             "tickers": [ticker],
             "filings": {
                 "recent": {
-                    "accessionNumber": [accession],
-                    "form": [form],
-                    "filingDate": [accepted[:10]],
-                    "acceptanceDateTime": [accepted],
-                    "primaryDocument": ["x.htm"],
+                    "accessionNumber": [row[0] for row in rows],
+                    "form": [row[1] for row in rows],
+                    "filingDate": [row[2][:10] for row in rows],
+                    "reportDate": ["2025-12-31" for _ in rows],
+                    "acceptanceDateTime": [row[2] for row in rows],
+                    "primaryDocument": ["x.htm" for _ in rows],
                 }
             },
         }

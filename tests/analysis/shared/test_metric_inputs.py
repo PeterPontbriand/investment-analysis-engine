@@ -104,6 +104,7 @@ def _inputs(  # noqa: PLR0913
             filing_currency=filing_currency,
             quote_provider_id="yfinance",
             as_of=as_of,
+            effective_as_of=as_of or LIVE_NOW,
             use_cache=False,
         )
     assert isinstance(result, MarketCapInputs)
@@ -154,6 +155,7 @@ def test_the_year_end_is_found_once_per_scope_and_every_input_is_taken_at_it() -
             filing_currency="USD",
             quote_provider_id="yfinance",
             as_of=None,
+            effective_as_of=LIVE_NOW,
             use_cache=False,
         )
         balance = resolve_balance_sheet_values(
@@ -373,6 +375,7 @@ def test_a_count_whose_source_filing_is_not_dated_is_unavailable() -> None:
             filing_currency="USD",
             quote_provider_id="yfinance",
             as_of=None,
+            effective_as_of=LIVE_NOW,
             use_cache=False,
         )
     assert isinstance(result, MarketCapInputs)
@@ -403,6 +406,7 @@ def _nvidia(as_of: datetime, history: SplitStub | None = None) -> tuple[MarketCa
         filing_currency="USD",
         quote_provider_id="yfinance",
         as_of=as_of,
+        effective_as_of=as_of or LIVE_NOW,
         use_cache=False,
     )
     assert isinstance(result, MarketCapInputs)
@@ -504,6 +508,7 @@ def test_the_margin_keeps_the_last_session_before_a_weekend_filing_date_in_range
         filing_currency="USD",
         quote_provider_id="yfinance",
         as_of=datetime(2024, 3, 16, 20, tzinfo=UTC),
+        effective_as_of=datetime(2024, 3, 16, 20, tzinfo=UTC) or LIVE_NOW,
         use_cache=False,
     )
     assert isinstance(result, MarketCapInputs)
@@ -837,6 +842,7 @@ def _run(chosen: Rig, splits: SplitStub, *, as_of: datetime | None) -> Any:
             filing_currency="USD",
             quote_provider_id="yfinance",
             as_of=as_of,
+            effective_as_of=as_of or LIVE_NOW,
             use_cache=False,
         )
 
@@ -861,6 +867,7 @@ def test_a_share_count_failure_is_returned_not_raised() -> None:
         filing_currency="USD",
         quote_provider_id="yfinance",
         as_of=None,
+        effective_as_of=LIVE_NOW,
         use_cache=False,
     )
     _failure(outcome, "common_shares_outstanding", ProviderFailureKind.UNREACHABLE, "sec_edgar")
@@ -946,6 +953,7 @@ def test_nothing_after_the_boundary_is_used_apart_from_the_splits_that_undo_the_
             filing_currency="USD",
             quote_provider_id="yfinance",
             as_of=boundary,
+            effective_as_of=boundary or LIVE_NOW,
             use_cache=False,
         )
     assert (anchor.accession, anchor.year_end) == ("0000104169-25-000021", date(2025, 1, 31))
@@ -975,6 +983,7 @@ def test_the_listing_check_of_a_filing_accepted_after_the_boundary_is_not_used()
             filing_currency="USD",
             quote_provider_id="yfinance",
             as_of=boundary,
+            effective_as_of=boundary or LIVE_NOW,
             use_cache=False,
         )
     assert isinstance(inputs, MarketCapInputs)
@@ -1048,6 +1057,7 @@ def test_a_renamed_ticker_is_affirmed_through_the_assembly_by_the_rename_rule() 
             filing_currency="USD",
             quote_provider_id="yfinance",
             as_of=boundary,
+            effective_as_of=boundary or LIVE_NOW,
             use_cache=False,
         )
     assert (anchor.accession, anchor.year_end) == (_META_FY2020, date(2020, 12, 31))
@@ -1087,6 +1097,7 @@ def test_a_year_end_count_with_no_accession_in_its_provenance_is_unavailable() -
         filing_currency="USD",
         quote_provider_id="yfinance",
         as_of=None,
+        effective_as_of=LIVE_NOW,
         use_cache=False,
     )
     assert isinstance(outcome, MarketCapInputs)
@@ -1105,6 +1116,7 @@ def test_a_cover_page_count_failure_is_returned_not_raised() -> None:
         filing_currency="USD",
         quote_provider_id="yfinance",
         as_of=None,
+        effective_as_of=LIVE_NOW,
         use_cache=False,
     )
     _failure(outcome, "common_shares_outstanding", ProviderFailureKind.UNREACHABLE, "sec_edgar")
@@ -1132,3 +1144,34 @@ def test_a_boundary_before_the_newest_annual_filing_uses_the_anchor_found_on_the
 def test_a_year_end_share_count_requires_an_accession() -> None:
     with pytest.raises(ValueError, match="accession"):
         YearEndShareCount(synthetic("shares", 100.0), " ", ShareCountPath.DIRECT)
+
+
+def _wmt_inputs_at(effective_as_of: datetime) -> MarketCapInputs:
+    """Return WMT's market-cap inputs with the execution time at ``effective_as_of`` (a current run)."""
+    chosen = rig("WMT", quotes=FactsStub(quote=_QUOTE))
+    with anchor_year_end_scope(chosen.resolver, ticker="WMT", as_of=None) as anchor:
+        assert isinstance(anchor, AnchorYearEnd)
+        inputs = resolve_market_cap_inputs(
+            chosen.resolver,
+            SplitStub(captured_history("wmt")),
+            chosen.production,
+            anchor=anchor,
+            ticker="WMT",
+            filing_currency="USD",
+            quote_provider_id="yfinance",
+            as_of=None,
+            effective_as_of=effective_as_of,
+            use_cache=False,
+        )
+    assert isinstance(inputs, MarketCapInputs)
+    return inputs
+
+
+def test_market_cap_is_refused_exactly_when_the_anchor_filing_is_stale_at_the_effective_time() -> None:
+    # WMT's anchor year-end is 2026-01-31, so its next report is due by 2027-05-23.
+    fresh = _wmt_inputs_at(datetime(2027, 5, 23, 12, tzinfo=UTC))
+    stale = _wmt_inputs_at(datetime(2027, 5, 24, 12, tzinfo=UTC))
+    assert (fresh.anchor_stale, fresh.boundary) == (False, date(2027, 5, 23))
+    assert (stale.anchor_stale, stale.boundary) == (True, date(2027, 5, 24))
+    assert stale.market_cap().result.reason_code is ReasonCode.STALE_ANCHOR
+    assert fresh.market_cap().result.reason_code is not ReasonCode.STALE_ANCHOR

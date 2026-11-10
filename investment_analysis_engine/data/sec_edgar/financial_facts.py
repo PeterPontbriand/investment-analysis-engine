@@ -126,10 +126,6 @@ _SUBMISSION_PAGE_URL = "https://data.sec.gov/submissions/{name}"
 # An extra page names one stretch of an issuer's filings (about a month for the most frequent filers). A balance-sheet
 # series reads at most this many of them, so the cost of an issuer that files constantly stays bounded.
 _MAX_SUBMISSION_PAGES = 12
-# The anchor annual filing is looked for in the extra pages only within this many days before the boundary: an issuer
-# files an annual report every year, so the newest one at the boundary was filed inside a year plus the slack of a late
-# filer. Pages older than that window cannot hold the anchor.
-_ANCHOR_WINDOW_DAYS = 400
 _OVERRIDE_FILE = "providers/sec_edgar.toml in the settings folder"
 _OVERRIDE_EXAMPLE = "[ticker_overrides] {ticker} = {cik}"
 _SUBMISSION_PAGE_NAME = re.compile(r"^CIK(\d{10})-submissions-\d{3}\.json$")
@@ -356,6 +352,8 @@ class SecEdgarAnalysisSnapshot:
     cik_source: str = CIK_SOURCE_TICKER_FILE
     after_boundary_message: str | None = None
     """Set when the registrant's annual filings all came after the boundary: the message to show."""
+    anchor_search_message: str | None = None
+    """Set when the search for an original annual report reached the page cap without finding one: the message."""
 
 
 _ACTIVE_SNAPSHOT: ContextVar[SecEdgarAnalysisSnapshot | None] = ContextVar("sec_edgar_analysis_snapshot", default=None)
@@ -443,7 +441,7 @@ class SecEdgarFinancialFactsAdapter:
         accession_taxonomies = _accession_taxonomies(company_facts_raw)
         pages = _submission_pages(submissions_raw, cik)
         filings = _FilingColumns(submissions_raw)
-        self._add_anchor_pages(filings, cik=cik, pages=pages, boundary=effective_as_of)
+        anchor_search_message = self._add_anchor_pages(filings, cik=cik, pages=pages, boundary=effective_as_of)
         acceptance_by_accession = filings.acceptance
         eligible_accessions = _eligible_from(filings.forms, acceptance_by_accession, effective_as_of)
         filing_dates = filings.filing_dates
@@ -457,7 +455,9 @@ class SecEdgarFinancialFactsAdapter:
             company_facts=company_facts_raw,
             boundary=effective_as_of,
         )
-        latest_accession = eligible_accessions[0] if eligible_accessions else None
+        latest_accession = _anchor_accession(
+            filings.forms, acceptance_by_accession, filings.report_dates, effective_as_of
+        )
         namespaces = accession_taxonomies.get(latest_accession, frozenset()) if latest_accession else frozenset()
         taxonomy = next(iter(namespaces)) if len(namespaces) == 1 else None
         return SecEdgarAnalysisSnapshot(
@@ -479,36 +479,48 @@ class SecEdgarFinancialFactsAdapter:
             submission_pages=pages,
             cik_source=self._cik_source(ticker),
             after_boundary_message=after_boundary_message,
+            anchor_search_message=anchor_search_message,
         )
 
     def _add_anchor_pages(
         self, filings: _FilingColumns, *, cik: str, pages: tuple[SubmissionPage, ...], boundary: datetime
-    ) -> None:
-        """Add the filings of the extra pages that can hold the anchor, when the recent block holds none.
+    ) -> str | None:
+        """Add the filings of the extra pages that can hold the anchor, when the recent block holds no original.
 
-        The anchor is the newest annual filing accepted at or before the boundary. When the recent block of the
-        submissions data has none (a frequent filer's annual report is pushed off it by later filings), the pages whose
-        filing range overlaps the ``_ANCHOR_WINDOW_DAYS`` before the boundary are read, newest first, each once per
-        adapter and at most ``_MAX_SUBMISSION_PAGES``, and the reading stops at the first page that holds one. Every
-        filing on the pages read is added, so the anchor's form, report date, filing date, acceptance time and primary
-        document come from the page. Nothing is read when the recent block suffices or no page is in the window.
+        The anchor is found from the newest original annual report accepted at or before the boundary
+        (``_anchor_accession``). When the recent block of the submissions data has none (a frequent filer's annual
+        report is pushed off it by later filings, or an issuer stopped filing years ago), the extra pages that start
+        by the boundary are read, newest first, each once per adapter and at most ``_MAX_SUBMISSION_PAGES``, and the
+        reading stops at the first page that holds one. Every filing on the pages read is added, so the anchor's form,
+        report date, filing date, acceptance time and primary document come from the page. Nothing is read when the
+        recent block suffices or no page starts by the boundary.
+
+        Returns:
+            ``None``, or when the cap was reached without finding an original annual report, the message that states
+            the earliest filing date the pages read reached.
         """
-        if filings.eligible(boundary):
-            return
+        if filings.has_original(boundary):
+            return None
         day = boundary.date()
-        window = sorted(
-            (
-                page
-                for page in pages
-                if page.filing_to >= day - timedelta(days=_ANCHOR_WINDOW_DAYS) and page.filing_from <= day
-            ),
+        candidates = sorted(
+            (page for page in pages if page.filing_from <= day),
             key=lambda page: (page.filing_to, page.filing_from),
             reverse=True,
         )
-        for page in window[:_MAX_SUBMISSION_PAGES]:
+        read: list[SubmissionPage] = []
+        for page in candidates[:_MAX_SUBMISSION_PAGES]:
             filings.add({"filings": {"recent": self._submission_page(cik, page)}})
-            if filings.eligible(boundary):
-                return
+            read.append(page)
+            if filings.has_original(boundary):
+                return None
+        if len(read) < _MAX_SUBMISSION_PAGES:
+            return None
+        earliest = min(page.filing_from for page in read)
+        return (
+            f"No original annual report accepted by the boundary {day.isoformat()} was found: the search read the "
+            f"recent filings and {len(read)} extra submissions pages, the most it reads, back to filings dated "
+            f"{earliest.isoformat()}."
+        )
 
     def resolve_as_filed_sic(self, snapshot: SecEdgarAnalysisSnapshot) -> AsFiledSicResolution:
         """Resolve the SIC code the anchor filing's SEC header assigns to the issuer.
@@ -602,7 +614,8 @@ class SecEdgarFinancialFactsAdapter:
         if snapshot.cik is None or accession is None:
             return AnchorYearEndResolution(
                 reason=AnchorYearEndUnavailableReason.NO_ANCHOR_FILING,
-                message=f"SEC EDGAR has no annual filing accepted by the boundary for {request.ticker}.",
+                message=snapshot.anchor_search_message
+                or f"SEC EDGAR has no annual filing accepted by the boundary for {request.ticker}.",
             )
         form = snapshot.filing_forms.get(accession)
         if not form:
@@ -1091,12 +1104,13 @@ class SecEdgarFinancialFactsAdapter:
                 submissions = self._fetch_registrant_document(_SUBMISSIONS_URL.format(cik=cik), ticker_text, cik)
                 acceptance_by_accession = _acceptance_times(submissions)
                 provider_now = self._clock()
-                eligible_accessions = _eligible_annual_accessions(
-                    submissions,
-                    acceptance_by_accession=acceptance_by_accession,
-                    as_of=request.as_of or effective_as_of,
+                recent_filings = _FilingColumns(submissions)
+                anchor_accession = _anchor_accession(
+                    recent_filings.forms,
+                    acceptance_by_accession,
+                    recent_filings.report_dates,
+                    request.as_of or effective_as_of,
                 )
-                anchor_accession = eligible_accessions[0] if eligible_accessions else None
                 pages = _submission_pages(submissions, cik)
                 gap = self._annual_filing_gap(
                     ticker=ticker_text,
@@ -1738,9 +1752,9 @@ class _FilingColumns:
         self.report_dates.update(_submission_report_dates(payload))
         self.primary_documents.update(_submission_strings(payload, "primaryDocument"))
 
-    def eligible(self, boundary: datetime) -> tuple[str, ...]:
-        """Return the annual accessions accepted at or before ``boundary``, latest first."""
-        return _eligible_from(self.forms, self.acceptance, boundary)
+    def has_original(self, boundary: datetime) -> bool:
+        """Return whether an original annual report (not an amendment) was accepted at or before ``boundary``."""
+        return _anchor_accession(self.forms, self.acceptance, self.report_dates, boundary) is not None
 
 
 def _eligible_from(
@@ -1757,14 +1771,28 @@ def _eligible_from(
     return tuple(accession for _, accession in sorted(eligible, reverse=True))
 
 
-def _eligible_annual_accessions(
-    payload: object,
-    *,
+def _anchor_accession(
+    forms: Mapping[str, str],
     acceptance_by_accession: Mapping[str, datetime],
+    report_dates: Mapping[str, date],
     as_of: datetime,
-) -> tuple[str, ...]:
-    """Return annual accessions publicly available at ``as_of``, latest first."""
-    return _eligible_from(_submission_strings(payload, "form"), acceptance_by_accession, as_of)
+) -> str | None:
+    """Return the anchor annual filing's accession at ``as_of``, or ``None`` when no original annual report exists.
+
+    The annual filings accepted at or before ``as_of`` are read newest first. The first original (a form that is not an
+    amendment) fixes the anchor's fiscal year, matched on the filing's report date. The anchor is the newest filing of
+    that fiscal year, so it is an amendment of that year when one was accepted after the original. An amendment of an
+    older fiscal year is never the anchor, however recently it was filed. An original with no report date is the anchor
+    itself, because no amendment can be matched to it.
+    """
+    eligible = _eligible_from(forms, acceptance_by_accession, as_of)
+    original = next((accession for accession in eligible if not forms[accession].endswith("/A")), None)
+    if original is None:
+        return None
+    year_end = report_dates.get(original)
+    if year_end is None:
+        return original
+    return next(accession for accession in eligible if report_dates.get(accession) == year_end)
 
 
 def _enforce_snapshot_regime(

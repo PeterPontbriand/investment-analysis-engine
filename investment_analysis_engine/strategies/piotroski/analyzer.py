@@ -15,6 +15,11 @@ from datetime import date, datetime
 from typing import Final
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
+from investment_analysis_engine.analysis.shared.anchor_filing import (
+    AnchorFilingEvidence,
+    assess_anchor_filing,
+    stale_anchor_warnings,
+)
 from investment_analysis_engine.analysis.shared.applicability import (
     Applicability,
     IndustryClass,
@@ -103,23 +108,6 @@ _ANNUAL_FIELDS: Final = (
 
 
 @dataclass(frozen=True)
-class AnchorFiling:
-    """The anchor annual filing: the fiscal year-end *t* every operand is taken at, and the filing it comes from.
-
-    Attributes:
-        year_end: The fiscal year-end *t*.
-        accession: The filing's accession.
-        form: The filing's form, such as ``10-K``.
-        filing_date: The filing date, when the submissions data dates it.
-    """
-
-    year_end: date
-    accession: str
-    form: str
-    filing_date: date | None
-
-
-@dataclass(frozen=True)
 class SourceFiling:
     """A filing an operand was taken from and the date it was filed.
 
@@ -152,7 +140,8 @@ class PiotroskiResult:
         reason: A non-empty explanation exactly when ``reason_code`` is set.
         industry_class: The class of the as-filed SIC code, ``None`` when it is unknown or was not resolved.
         industry_class_unknown: Why the class is unknown (``industry_class_unknown``); ``None`` otherwise.
-        anchor: The anchor filing, ``None`` when it was not found or the run did not get that far.
+        anchor: The anchor filing with its next due date and whether it is stale, ``None`` when it was not found or the
+            run did not get that far.
         source_filings: The filings the operands were taken from, by accession, each with its filing date when the
             submissions data gives one.
         taxonomy: The taxonomy every resolved operand shares, ``us-gaap`` or ``ifrs-full``; ``None`` when they
@@ -172,7 +161,7 @@ class PiotroskiResult:
     reason: str | None
     industry_class: IndustryClass | None
     industry_class_unknown: InputUnavailable | None
-    anchor: AnchorFiling | None
+    anchor: AnchorFilingEvidence | None
     source_filings: tuple[SourceFiling, ...]
     taxonomy: str | None
     f_score: PiotroskiScoreResult | None
@@ -432,8 +421,18 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
             diagnostics=(),
         )
 
-    def _failure_result(self, failure: MetricInputsFailure, ticker: str, context: AnalysisContext) -> PiotroskiResult:
-        """Return the outcome of a provider failure: the failure and no tests."""
+    def _failure_result(
+        self,
+        failure: MetricInputsFailure,
+        ticker: str,
+        context: AnalysisContext,
+        filing: AnchorFilingEvidence | None = None,
+    ) -> PiotroskiResult:
+        """Return the outcome of a provider failure: the failure and no tests.
+
+        A failure after the anchor was resolved keeps the anchor filing and, when it is stale, the warning; a failure
+        before the anchor was resolved has neither.
+        """
         return PiotroskiResult(
             ticker=ticker,
             requested_as_of=context.as_of,
@@ -444,12 +443,12 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
             reason=failure.reason,
             industry_class=None,
             industry_class_unknown=None,
-            anchor=None,
+            anchor=filing,
             source_filings=(),
             taxonomy=None,
             f_score=None,
             input_failure=failure,
-            warnings=(),
+            warnings=stale_anchor_warnings(filing, context.effective_as_of),
             diagnostics=(f"The assembly stopped at the input {failure.input_name.replace('_', ' ')}.",),
         )
 
@@ -459,26 +458,26 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
         """Assemble the inputs at the open scope's anchor, or run the calculation on the anchor's reason."""
         if isinstance(anchor, MetricInputsFailure):
             return self._failure_result(anchor, ticker, context)
-        filing: AnchorFiling | None = None
+        filing: AnchorFilingEvidence | None = None
         filing_dates: Mapping[str, date] = {}
         if isinstance(anchor, InputUnavailable):
             years = _Years(anchor, anchor, anchor)
         else:
+            filing = assess_anchor_filing(anchor, context.effective_as_of)
             year_ends = resolve_year_ends(self._resolver, anchor=anchor, ticker=ticker, as_of=context.as_of)
             if isinstance(year_ends, MetricInputsFailure):
-                return self._failure_result(year_ends, ticker, context)
+                return self._failure_result(year_ends, ticker, context, filing)
             if isinstance(year_ends, InputUnavailable):
                 years = _Years(anchor.year_end, year_ends, year_ends)
             else:
                 years = _Years(year_ends.year_end, year_ends.prior, year_ends.second_prior)
-            filing = AnchorFiling(anchor.year_end, anchor.accession, anchor.form, anchor.filing_date)
             filing_dates = anchor.filing_dates
         classified = resolve_industry_class(self._industry_classes, ticker=ticker, as_of=context.as_of)
         if isinstance(classified, MetricInputsFailure):
-            return self._failure_result(classified, ticker, context)
+            return self._failure_result(classified, ticker, context, filing)
         read = self._read(ticker, years, context)
         if isinstance(read, MetricInputsFailure):
-            return self._failure_result(read, ticker, context)
+            return self._failure_result(read, ticker, context, filing)
         score = calculate_f_score(_inputs_of(years, read))
         reason = anchor if isinstance(anchor, InputUnavailable) else None
         return self._result(ticker, context, years, filing, filing_dates, classified, score, reason)
@@ -509,7 +508,7 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
         ticker: str,
         context: AnalysisContext,
         years: _Years,
-        filing: AnchorFiling | None,
+        filing: AnchorFilingEvidence | None,
         filing_dates: Mapping[str, date],
         classified: IndustryClassResolution,
         score: PiotroskiScoreResult,
@@ -520,7 +519,7 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
         When the anchor itself was unavailable the run's reason is the anchor's, which says more than the score's.
         """
         applicability = applicability_of(PIOTROSKI_SECTOR_GATE, classified.industry_class)
-        warnings: list[str] = []
+        warnings: list[str] = list(stale_anchor_warnings(filing, context.effective_as_of))
         if applicability.outcome is Applicability.APPLIES_WITH_WARNING:
             warnings.append(_FINANCIAL_WARNING)
         if classified.unknown is not None:

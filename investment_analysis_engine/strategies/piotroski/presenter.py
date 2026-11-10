@@ -17,6 +17,7 @@ from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.security_identity import SecurityIdentityResolution, security_display_label
 from investment_analysis_engine.reporting.documents.shared_parts import (
     DiagnosticPart,
+    anchor_filing_part,
     identity_diagnostic_parts,
     instrument_kind_part_of,
     metric_result_part,
@@ -31,7 +32,6 @@ from investment_analysis_engine.strategies.piotroski.analyzer import PiotroskiRe
 from investment_analysis_engine.strategies.piotroski.calculation import PiotroskiTestResult
 from investment_analysis_engine.strategies.piotroski.envelope import (
     DOCUMENT_SCHEMA_VERSION,
-    PiotroskiAnchorPart,
     PiotroskiDocument,
     PiotroskiInputFailurePart,
     PiotroskiOperandPart,
@@ -302,7 +302,6 @@ def _document(
 ) -> PiotroskiDocument:
     """Build the typed document; validation of the model is the output boundary."""
     score = result.f_score
-    anchor = result.anchor
     unknown = result.industry_class_unknown
     failure = result.input_failure
     return PiotroskiDocument(
@@ -315,6 +314,7 @@ def _document(
         provider_check=provider_check,
         requested_as_of=result.requested_as_of,
         effective_as_of=result.effective_as_of,
+        anchor_filing=anchor_filing_part(result.anchor),
         security_identity=security_identity_part(result.ticker, identity_resolution),
         instrument_kind=instrument_kind_part_of(profile),
         result_schema_version=result.schema_version,
@@ -326,13 +326,6 @@ def _document(
             None
             if unknown is None
             else PiotroskiUnavailablePart(reason_code=unknown.reason_code, reason=unknown.reason)
-        ),
-        anchor=(
-            None
-            if anchor is None
-            else PiotroskiAnchorPart(
-                year_end=anchor.year_end, accession=anchor.accession, form=anchor.form, filing_date=anchor.filing_date
-            )
         ),
         source_filings=tuple(
             PiotroskiSourceFilingPart(accession=item.accession, filing_date=item.filing_date)

@@ -351,6 +351,7 @@
         "incompatible_scope",
         "ambiguous_fact",
         "not_available_as_of",
+        "stale_anchor",
         "nonpositive_beginning",
         "nonpositive_ending",
         "sign_change",

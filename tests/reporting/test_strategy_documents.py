@@ -95,8 +95,8 @@ def test_the_document_version_the_method_version_and_the_result_schema_version_a
     """FCF Growth's document writes three unrelated versions; each is read from its own declaration."""
     document = json.loads(expected_path("fcf-growth-success.direct").read_bytes())
     assert document["schema_version"] == fcf_envelope.DOCUMENT_SCHEMA_VERSION == 11
-    assert document["method_version"] == FCF_GROWTH.method_version == 2
-    assert document["result_schema_version"] == FCF_GROWTH.result_schema_version == 7
+    assert document["method_version"] == FCF_GROWTH.method_version == 3
+    assert document["result_schema_version"] == FCF_GROWTH.result_schema_version == 8
     assert len({document["schema_version"], document["method_version"], document["result_schema_version"]}) == 3
 
 

@@ -8,6 +8,7 @@
   "provider_check": null,
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
+  "anchor_filing": null,
   "security_identity": {
     "ticker": "CIPR",
     "instrument_name": null,

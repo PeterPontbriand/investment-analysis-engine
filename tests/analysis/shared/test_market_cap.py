@@ -51,6 +51,8 @@ def _cap(**changes: Any) -> MarketCapEvidence:
         "price_date": date(2025, 12, 31),
         "split_events": (),
         "adjustment_date": _ADJUSTED,
+        "anchor_stale": False,
+        "boundary": date(2026, 10, 26),
     }
     arguments.update(changes)
     return compute_market_cap(**arguments)
@@ -401,3 +403,28 @@ def test_the_live_path_puts_every_event_after_the_count_in_the_second_window() -
         adjustment_date=date(2026, 10, 28),
     )
     assert spin_off.result.reason_code is ReasonCode.AMBIGUOUS_FACT
+
+
+def test_a_stale_anchor_filing_refuses_the_market_cap_with_its_own_code_and_names_the_boundary() -> None:
+    evidence = _cap(anchor_stale=True, boundary=date(2026, 6, 1))
+    _refused(evidence, ReasonCode.STALE_ANCHOR)
+    assert evidence.result.reason == (
+        "Market cap unavailable: the anchor filing is stale, so its share count is not the count at 2026-06-01."
+    )
+    assert evidence.share_count is None
+    assert evidence.price is None
+
+
+def test_a_stale_anchor_filing_is_refused_after_the_form_the_currency_and_the_listing_checks() -> None:
+    _refused(_cap(anchor_stale=True, form="20-F"), ReasonCode.INCOMPATIBLE_SCOPE)
+    _refused(_cap(anchor_stale=True, quote_currency="EUR"), ReasonCode.INCOMPATIBLE_CURRENCY)
+    refused_listing = ListingCheck(
+        affirmed=False, accession="0000000000-26-000001", reason_code=ReasonCode.MISSING_FACT, reason="Not listed."
+    )
+    _refused(_cap(anchor_stale=True, listing_check=refused_listing), ReasonCode.MISSING_FACT)
+
+
+def test_a_stale_anchor_filing_is_refused_before_a_missing_share_count_or_price() -> None:
+    gone = InputUnavailable(ReasonCode.MISSING_FACT, "No share count.")
+    _refused(_cap(anchor_stale=True, share_count=gone), ReasonCode.STALE_ANCHOR)
+    _refused(_cap(anchor_stale=True, price=gone, price_date=None), ReasonCode.STALE_ANCHOR)
