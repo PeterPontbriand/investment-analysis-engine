@@ -35,7 +35,6 @@ from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureSplitHistoryProvider,
     annual_series,
 )
-from investment_analysis_engine.evaluation.fixtures.graham import NOW as GRAHAM_NOW
 from investment_analysis_engine.evaluation.fixtures.graham import SECURITY_ID
 from investment_analysis_engine.evaluation.fixtures.market_data import FixtureMarketDataProvider, momentum_success_frame
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_statements import (
@@ -47,12 +46,14 @@ from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_n
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "direct_commands"
 
 _WALL_CLOCK_FIELDS = re.compile(rb'("(?:resolved_at|effective_as_of|analysis_timestamp|retrieved_at)": ")[^"]+')
+GRAHAM_AS_OF = "2025-07-01"
+"""The run date of the Graham commands, the date of the Graham fixture's own clock, pinned through ``--as-of``."""
 _COMMANDS = {
     "momentum": ["momentum", "BTC-USD", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--no-cache"],
-    "graham-number": ["graham-number", SECURITY_ID, "--no-cache"],
+    "graham-number": ["graham-number", SECURITY_ID, "--no-cache", "--as-of", GRAHAM_AS_OF],
     "graham-growth": [
         *("graham-growth", SECURITY_ID, "--expected-growth", "5", "--aaa-yield", "4.5"),
-        "--no-cache",
+        *("--no-cache", "--as-of", GRAHAM_AS_OF),
     ],
     "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
     "piotroski": ["piotroski", "AAPL", "--no-cache", "--as-of", "2025-01-15"],
@@ -120,10 +121,6 @@ def enter_fixture_providers(stack: ExitStack, command: str) -> None:
     production composition gives them.
     """
     resolver = sec_labeled_growth_resolver() if command == "graham-growth" else sec_labeled_number_resolver()
-    if command in ("graham-number", "graham-growth"):
-        # The synthetic issuer's annual reports are fixed, so on any later real day its anchor filing would be stale
-        # and every run would state that day. The Graham commands execute at the fixtures' own clock.
-        stack.enter_context(patch("investment_analysis_engine.application.analysis.utc_now", return_value=GRAHAM_NOW))
     for graham in ("graham_number", "graham_growth"):
         stack.enter_context(
             patch(

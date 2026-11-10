@@ -24,6 +24,7 @@ from tests.analysis.graham_value._anchored import (
     LATE,
     ScriptedProvider,
     anchor_for,
+    equity_profile,
     etf_profile,
     no_anchor,
     provider_failure,
@@ -99,7 +100,11 @@ def test_m2_with_no_anchor_for_any_reason_the_result_is_input_unavailable_with_t
     assembly = _assembly(growth, provider)
     assert assembly.status is CalculationStatus.INPUT_UNAVAILABLE
     assert assembly.reason == f"The anchor filing is unavailable: {reason.value}."
-    assert assembly.specific_reason
+    assert assembly.reason_code is (
+        ReasonCode.NOT_AVAILABLE_AS_OF
+        if reason is AnchorYearEndUnavailableReason.ACCEPTED_AFTER_BOUNDARY
+        else ReasonCode.MISSING_FACT
+    )
     assert assembly.anchor_filing is None
     assert assembly.eps is None
     assert provider.fact_requests == [], "the newest facts are never used in place of the anchor"
@@ -129,7 +134,7 @@ def test_m4_eps_that_does_not_end_on_the_anchors_year_end_is_unavailable_and_nev
         "eps: The newest fiscal year of diluted EPS ends 2024-06-30, not the anchor filing's fiscal year-end "
         f"2025-06-30; the {METHOD[growth]} is never calculated from an older year."
     )
-    assert assembly.specific_reason
+    assert assembly.reason_code is ReasonCode.INCOMPATIBLE_PERIOD
     assert assembly.eps is None
 
 
@@ -142,7 +147,7 @@ def test_m4_book_value_that_does_not_end_on_the_anchors_year_end_is_unavailable(
         "bvps: The newest book value per common share is for the fiscal year ended 2023-06-30, not the anchor "
         "filing's fiscal year-end 2024-06-30; the Graham Number is never calculated from an older year."
     )
-    assert assembly.specific_reason
+    assert assembly.reason_code is ReasonCode.INCOMPATIBLE_PERIOD
     assert assembly.bvps is None
     assert assembly.eps is not None, "the aligned EPS stays resolved"
 
@@ -180,7 +185,7 @@ def test_m5_three_eps_years_with_a_gap_are_unavailable_and_the_missing_year_is_n
         "eps: The fiscal years of diluted EPS are not consecutive: none ends 2022-06-30, between the years ended "
         "2021-06-30 and 2023-06-30."
     )
-    assert assembly.specific_reason
+    assert assembly.reason_code is ReasonCode.MISSING_FACT
     assert assembly.eps is None
 
 
@@ -201,13 +206,13 @@ def test_m7_an_overridden_eps_is_exempt_but_the_book_value_still_resolves_the_an
     assert assembly.reason.startswith("bvps: The newest book value per common share is for the fiscal year ended")
 
 
-def test_m7_with_both_filing_inputs_overridden_no_sec_request_is_made_and_the_anchor_is_null() -> None:
+def test_m7_with_both_filing_inputs_overridden_no_anchor_is_requested_and_it_is_null() -> None:
     provider = ScriptedProvider()
     analysis = run_number(provider, eps_override=3.0, bvps_override=10.0)
     assert analysis.assembly.status is CalculationStatus.OK
     assert analysis.assembly.anchor_filing is None
     assert provider.anchor_requests == 0
-    assert provider.scopes_opened == 0
+    assert provider.scopes_opened == 1, "the plain analysis scope stays open"
     assert FinancialField.EPS not in requested_fields(provider)
     assert FinancialField.BVPS not in requested_fields(provider)
 
@@ -218,7 +223,7 @@ def test_m7_graham_growth_with_eps_overridden_makes_no_anchor_request() -> None:
     assert analysis.assembly.status is CalculationStatus.OK
     assert analysis.assembly.anchor_filing is None
     assert provider.anchor_requests == 0
-    assert provider.scopes_opened == 0
+    assert provider.scopes_opened == 1
 
 
 def test_m7_an_override_without_a_year_is_not_a_year_mismatch_for_graham_growth() -> None:
@@ -277,7 +282,7 @@ def test_m10_an_eps_series_short_because_of_a_restatement_names_each_left_out_ye
     assert assembly.reason is not None
     assert "found 2 distinct period(s), need 3" in assembly.reason
     assert f"FY2022 (ended 2022-06-30): {EARLIER_BASIS_MESSAGE}" in assembly.reason
-    assert assembly.specific_reason
+    assert assembly.reason_code is ReasonCode.EARLIER_BASIS
     assert assembly.left_out_years == (
         LeftOutYear("eps", 2022, date(2022, 6, 30), ReasonCode.EARLIER_BASIS, EARLIER_BASIS_MESSAGE),
     )
@@ -309,3 +314,24 @@ def test_a_cached_run_at_the_same_anchor_still_hits_the_cache(growth: bool) -> N
     assembly = _assembly(growth, second, cache=cache)
     assert assembly.status is CalculationStatus.OK
     assert FinancialField.EPS not in requested_fields(second)
+
+
+# --- a fully overridden run keeps share-unit verification ------------------------------------------------------------
+
+
+def test_a_fully_overridden_graham_number_run_with_a_quote_verifies_the_share_unit_inside_a_snapshot() -> None:
+    provider = ScriptedProvider()
+    analysis = run_number(provider, eps_override=3.0, bvps_override=10.0, profile=equity_profile())
+    assert analysis.assembly.status is CalculationStatus.OK
+    assert analysis.assembly.anchor_filing is None
+    assert provider.anchor_requests == 0
+    assert provider.unit_requests == [True], "the plain analysis scope is open when the share unit is verified"
+
+
+def test_a_fully_overridden_graham_growth_run_with_a_quote_verifies_the_share_unit_inside_a_snapshot() -> None:
+    provider = ScriptedProvider()
+    analysis = run_growth(provider, eps_override=3.0, profile=equity_profile())
+    assert analysis.assembly.status is CalculationStatus.OK
+    assert analysis.assembly.anchor_filing is None
+    assert provider.anchor_requests == 0
+    assert provider.unit_requests == [True], "the plain analysis scope is open when the share unit is verified"

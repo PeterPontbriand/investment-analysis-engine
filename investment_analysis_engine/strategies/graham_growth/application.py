@@ -123,7 +123,7 @@ def run(
             )
         reason = (
             assembly.reason
-            if assembly.specific_reason
+            if assembly.reason_code is not None
             else friendly_valuation_failure(ticker, assembly.status, assembly.reason)
         )
         return GrahamGrowthPresentation(

@@ -14,6 +14,7 @@ from investment_analysis_engine.analysis.shared.financial_resolution import (
 )
 from investment_analysis_engine.analysis.shared.metric_evidence import LeftOutYear, left_out_years_of
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
@@ -23,7 +24,6 @@ from investment_analysis_engine.data.financial.resolver import InputResolutionRe
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, AnchorYearEnd
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies._graham.anchor_years import (
-    AnchorYearRule,
     GrahamFilingInput,
     resolve_aligned,
 )
@@ -32,8 +32,8 @@ from investment_analysis_engine.strategies.graham_number.vocabulary import METHO
 _EPS_BASIS: Final = "three_year_average"
 """The one EPS basis Graham Number resolves: the average of the last three fiscal years."""
 
-_YEAR_RULE: Final = AnchorYearRule("Graham Number")
-"""How the year messages name the method."""
+_METHOD_NAME: Final = "Graham Number"
+"""The method's name as the year messages state it."""
 
 
 @dataclass(frozen=True)
@@ -74,8 +74,9 @@ class GrahamNumberInputAssembly:
             filing input overridden).
         left_out_years: The years of EPS left out of the three-year series, with the reason of each; empty unless the
             series came up short because years were left out.
-        specific_reason: Whether ``reason`` already states its cause in investor wording, so a presenter shows it as
-            it is and does not replace it with the general text of its status.
+        reason_code: The code of the cause ``reason`` names (an input year that is not the anchor's, a gap in the
+            EPS years, years left out, or no anchor); ``None`` for a failure with no such code. The presenters show
+            a reason that has one as written. It is internal and is not served.
     """
 
     status: CalculationStatus
@@ -92,7 +93,7 @@ class GrahamNumberInputAssembly:
     quote_provider_failure: ProviderFailureRecord | None = None
     anchor_filing: AnchorFilingEvidence | None = None
     left_out_years: tuple[LeftOutYear, ...] = ()
-    specific_reason: bool = False
+    reason_code: ReasonCode | None = None
 
     def __post_init__(self) -> None:
         """Keep each recorded provider failure tied to the provider-error status it explains."""
@@ -100,8 +101,8 @@ class GrahamNumberInputAssembly:
             raise ValueError("provider_failure requires a provider_error assembly.")
         if self.quote_provider_failure is not None and self.quote_status is not CalculationStatus.PROVIDER_ERROR:
             raise ValueError("quote_provider_failure requires a provider_error quote status.")
-        if self.specific_reason and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
-            raise ValueError("specific_reason requires an input_unavailable assembly.")
+        if self.reason_code is not None and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
+            raise ValueError("reason_code requires an input_unavailable assembly.")
 
 
 @dataclass(frozen=True)
@@ -244,7 +245,7 @@ class GrahamNumberInputResolver(InputResolver):
                 use_cache=use_cache,
             ),
             anchor=anchor,
-            rule=_YEAR_RULE,
+            method_name=_METHOD_NAME,
             which=GrahamFilingInput.EPS,
             overridden=eps_override is not None,
         )
@@ -256,7 +257,7 @@ class GrahamNumberInputResolver(InputResolver):
                 resolution_trace=trace,
                 provider_failure=_recorded(eps_result, "eps"),
                 left_out_years=left_out_years_of("eps", eps_result.left_out),
-                specific_reason=eps_result.specific_reason,
+                reason_code=eps_result.reason_code,
             )
         eps_input = eps_result.resolved_input
 
@@ -271,7 +272,7 @@ class GrahamNumberInputResolver(InputResolver):
             self,
             lambda: self.resolve_bvps(bvps_request, override=bvps_override, use_cache=use_cache),
             anchor=anchor,
-            rule=_YEAR_RULE,
+            method_name=_METHOD_NAME,
             which=GrahamFilingInput.BVPS,
             overridden=bvps_override is not None,
         )
@@ -283,7 +284,7 @@ class GrahamNumberInputResolver(InputResolver):
                 reason=f"bvps: {bvps_result.reason}",
                 resolution_trace=trace,
                 provider_failure=_recorded(bvps_result, "bvps"),
-                specific_reason=bvps_result.specific_reason,
+                reason_code=bvps_result.reason_code,
             )
         bvps_input = bvps_result.resolved_input
         assert bvps_input is not None

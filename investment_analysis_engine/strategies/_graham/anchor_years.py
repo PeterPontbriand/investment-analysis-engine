@@ -14,6 +14,7 @@ from enum import StrEnum
 from investment_analysis_engine.analysis.shared.metric_evidence import InputUnavailable
 from investment_analysis_engine.analysis.shared.metric_inputs import MetricInputsFailure, resolve_at_anchor_year
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.data.financial.provenance import SourceKind
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
@@ -34,23 +35,12 @@ class GrahamFilingInput(StrEnum):
         return "The newest book value per common share is for the fiscal year ended"
 
 
-@dataclass(frozen=True)
-class AnchorYearRule:
-    """What a strategy's year messages name.
-
-    Attributes:
-        method_name: The method's name as the message states it, such as ``Graham Number``.
-    """
-
-    method_name: str
-
-
 def year_mismatch_reason(
-    rule: AnchorYearRule, which: GrahamFilingInput, *, newest_end: date | None, anchor_year_end: date
+    method_name: str, which: GrahamFilingInput, *, newest_end: date | None, anchor_year_end: date
 ) -> str:
     """Return the reason for an input whose newest year does not end at the anchor filing's fiscal year-end."""
     anchor = f"the anchor filing's fiscal year-end {anchor_year_end.isoformat()}"
-    never = f"the {rule.method_name} is never calculated from an older year."
+    never = f"the {method_name} is never calculated from an older year."
     if newest_end is None:
         return f"The newest {which.value.upper()} carries no period end, so it is not {anchor}; {never}"
     return f"{which.newest_year} {newest_end.isoformat()}, not {anchor}; {never}"
@@ -61,7 +51,7 @@ def resolve_aligned(  # noqa: PLR0913
     resolve: Callable[[], InputResolutionResult],
     *,
     anchor: AnchorYearEnd | None,
-    rule: AnchorYearRule,
+    method_name: str,
     which: GrahamFilingInput,
     overridden: bool,
 ) -> InputResolutionResult:
@@ -86,9 +76,9 @@ def resolve_aligned(  # noqa: PLR0913
         return result
     return InputResolutionResult(
         status=CalculationStatus.INPUT_UNAVAILABLE,
-        reason=year_mismatch_reason(rule, which, newest_end=newest_end, anchor_year_end=anchor.year_end),
+        reason=year_mismatch_reason(method_name, which, newest_end=newest_end, anchor_year_end=anchor.year_end),
         resolution_trace=result.resolution_trace,
-        specific_reason=True,
+        reason_code=ReasonCode.INCOMPATIBLE_PERIOD,
     )
 
 
@@ -101,14 +91,13 @@ class AnchorStop:
         reason: The explanation; the anchor's own message when there is no anchor.
         provider_failure: The failure recorded against ``anchor_year_end``; ``None`` for an unclassified failure and
             when there is no failure.
-        specific_reason: Whether ``reason`` is shown to an investor as it is: the anchor's message is, a provider
-            failure's is not.
+        reason_code: The anchor's own reason code when there is no anchor; ``None`` for a provider failure.
     """
 
     status: CalculationStatus
     reason: str
     provider_failure: ProviderFailureRecord | None
-    specific_reason: bool
+    reason_code: ReasonCode | None
 
 
 def anchor_stop(anchor: InputUnavailable | MetricInputsFailure) -> AnchorStop:
@@ -119,6 +108,6 @@ def anchor_stop(anchor: InputUnavailable | MetricInputsFailure) -> AnchorStop:
     """
     if isinstance(anchor, MetricInputsFailure):
         return AnchorStop(
-            CalculationStatus.PROVIDER_ERROR, f"{anchor.input_name}: {anchor.reason}", anchor.provider_failure, False
+            CalculationStatus.PROVIDER_ERROR, f"{anchor.input_name}: {anchor.reason}", anchor.provider_failure, None
         )
-    return AnchorStop(CalculationStatus.INPUT_UNAVAILABLE, anchor.reason, None, True)
+    return AnchorStop(CalculationStatus.INPUT_UNAVAILABLE, anchor.reason, None, anchor.reason_code)

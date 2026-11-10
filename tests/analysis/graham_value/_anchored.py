@@ -29,6 +29,11 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     AnchorYearEndResolution,
     AnchorYearEndUnavailableReason,
 )
+from investment_analysis_engine.data.security_unit import (
+    SecurityUnitRequest,
+    SecurityUnitResolution,
+    SecurityUnitResolutionReason,
+)
 from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW,
     SECURITY_ID,
@@ -85,13 +90,25 @@ class ScriptedProvider(FixtureFinancialFactsProvider):
         self.fact_requests: list[FinancialFactRequest] = []
         self.anchor_requests = 0
         self.scopes_opened = 0
+        self.in_scope = False
+        self.unit_requests: list[bool] = []
+
+    def resolve_security_unit(self, request: SecurityUnitRequest) -> SecurityUnitResolution:
+        """Record whether an analysis scope was open when share-unit verification was asked for."""
+        del request
+        self.unit_requests.append(self.in_scope)
+        return SecurityUnitResolution(SecurityUnitResolutionReason.PROVIDER_UNSUPPORTED)
 
     @contextmanager
     def analysis_scope(self, *, subject_id: str, provider_id: str, as_of: datetime | None) -> Iterator[None]:
         """Count the scopes opened, then behave as the fixture does."""
         self.scopes_opened += 1
-        with super().analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of):
-            yield
+        self.in_scope = True
+        try:
+            with super().analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of):
+                yield
+        finally:
+            self.in_scope = False
 
     def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
         """Return the scripted anchor, raise the scripted failure, or answer as the fixture does."""
@@ -172,6 +189,13 @@ def no_anchor(reason: AnchorYearEndUnavailableReason, message: str) -> AnchorYea
 def provider_failure(provider_id: str = "sec_edgar") -> FinancialProviderError:
     """Return a classified provider failure."""
     return FinancialProviderError("simulated outage", kind=ProviderFailureKind.UNREACHABLE, provider_id=provider_id)
+
+
+def equity_profile(ticker: str = SECURITY_ID) -> InstrumentProfile:
+    """Return an instrument profile that classifies the instrument as an equity."""
+    return InstrumentProfile(
+        ticker, None, InstrumentKindEvidence(ticker, InstrumentKind.EQUITY, "EQUITY", "yfinance", NOW), ()
+    )
 
 
 def etf_profile(ticker: str = SECURITY_ID) -> InstrumentProfile:

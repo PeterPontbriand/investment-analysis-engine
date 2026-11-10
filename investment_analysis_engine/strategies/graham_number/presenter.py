@@ -290,7 +290,7 @@ def _number_reason(  # noqa: PLR0911
     fallback: str,
 ) -> str:
     """Translate retained input and applicability evidence without exposing raw errors."""
-    if presentation.assembly.specific_reason:
+    if presentation.assembly.reason_code is not None:
         return fallback
     if status is CalculationStatus.INPUT_UNAVAILABLE:
         assembly = presentation.assembly

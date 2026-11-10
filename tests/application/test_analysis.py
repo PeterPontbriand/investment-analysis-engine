@@ -68,10 +68,14 @@ _MODE_NAMES = {
 }
 
 _TICKERS = {"momentum": "BTC-USD", "graham-number": SECURITY_ID, "graham-growth": SECURITY_ID}
+_GRAHAM_AS_OF = datetime(2025, 7, 1, 23, 59, 59, 999999, tzinfo=UTC)
+"""The run date the Graham commands are pinned to, as the direct-command harness does with ``--as-of``."""
 _SELECTIONS: dict[str, SelectionMember] = {
     "momentum": MomentumSelection(short_window=2, long_window=3, rsi_period=3, use_cache=False),
-    "graham-number": GrahamNumberSelection(use_cache=False),
-    "graham-growth": GrahamGrowthSelection(expected_growth=5.0, aaa_yield_override=4.5, use_cache=False),
+    "graham-number": GrahamNumberSelection(use_cache=False, as_of=_GRAHAM_AS_OF),
+    "graham-growth": GrahamGrowthSelection(
+        expected_growth=5.0, aaa_yield_override=4.5, use_cache=False, as_of=_GRAHAM_AS_OF
+    ),
     "fcf-growth": FCFGrowthSelection(use_cache=False),
     "piotroski": PiotroskiSelection(use_cache=False, as_of=datetime(2025, 1, 15, 23, 59, 59, 999999, tzinfo=UTC)),
 }

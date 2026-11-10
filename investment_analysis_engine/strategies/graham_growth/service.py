@@ -15,6 +15,7 @@ from investment_analysis_engine.analysis.shared.financial_resolution import (
 )
 from investment_analysis_engine.analysis.shared.metric_inputs import anchor_year_end_scope
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.data.financial.facts import financial_facts_analysis_scope
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, complete_security_unit_profile
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, AnchorYearEnd
 from investment_analysis_engine.data.security_unit import SecurityUnitRequest
@@ -113,9 +114,13 @@ def run_graham_growth_analysis(  # noqa: PLR0913
             )
 
         if eps_override is not None:
-            # EPS is overridden, so no SEC request is made and there is no anchor to report.
-            assembly = assemble(None)
-            instrument_profile = completed(instrument_profile, assembly)
+            # EPS is overridden, so no anchor is requested and there is none to report. The plain analysis scope is
+            # still open, so the share-unit check of a run with a quote reads the latest annual filing.
+            with financial_facts_analysis_scope(
+                resolver.provider, subject_id=ticker, provider_id=SEC_PROVIDER_ID, as_of=as_of
+            ):
+                assembly = assemble(None)
+                instrument_profile = completed(instrument_profile, assembly)
         else:
             with anchor_year_end_scope(resolver, ticker=ticker, as_of=as_of) as anchor:
                 if isinstance(anchor, AnchorYearEnd):
@@ -127,7 +132,7 @@ def run_graham_growth_analysis(  # noqa: PLR0913
                         status=stop.status,
                         reason=stop.reason,
                         provider_failure=stop.provider_failure,
-                        specific_reason=stop.specific_reason,
+                        reason_code=stop.reason_code,
                     )
     if assembly.status is CalculationStatus.OK and not has_provider_backed_evidence(
         assembly.eps, assembly.current_price

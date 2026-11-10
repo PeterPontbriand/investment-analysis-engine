@@ -13,6 +13,7 @@ from typing import Final
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.clock import effective_as_of
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.cache import ResolvedInputCacheKey, ResolvedInputCacheProtocol
 from investment_analysis_engine.data.financial.facts import (
@@ -282,8 +283,8 @@ class InputResolutionResult:
         left_out: The observations of a series the provider reported that are not in it because they were reported
             only on an earlier basis or their latest versions disagree, each with the reason. Set only by the
             three-year-average EPS resolution, and only when it comes up short of three years.
-        specific_reason: Whether ``reason`` names its cause in wording fit to show an investor as it is, so a presenter
-            does not replace it with the general text of its status.
+        reason_code: The code of a cause the resolution names itself (a gap in the years, or years left out), shown
+            with its message as written; ``None`` otherwise. Present only with ``INPUT_UNAVAILABLE``.
     """
 
     status: CalculationStatus
@@ -293,7 +294,7 @@ class InputResolutionResult:
     quote_freshness: QuoteFreshnessEvidence | None = None
     provider_failure: ProviderFailureRecord | None = None
     left_out: tuple[LeftOutObservation, ...] = ()
-    specific_reason: bool = False
+    reason_code: ReasonCode | None = None
 
     def __post_init__(self) -> None:
         """Enforce status/value invariants."""
@@ -302,6 +303,9 @@ class InputResolutionResult:
             raise ValueError(msg)
         if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
             msg = "InputResolutionResult: provider_failure requires status PROVIDER_ERROR."
+            raise ValueError(msg)
+        if self.reason_code is not None and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
+            msg = "InputResolutionResult: reason_code requires status INPUT_UNAVAILABLE."
             raise ValueError(msg)
         if self.status is CalculationStatus.OK:
             if self.resolved_input is None:
@@ -1127,7 +1131,7 @@ class InputResolver:
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=reason,
                 left_out=tuple(left_out),
-                specific_reason=bool(left_out),
+                reason_code=_left_out_code(left_out),
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1169,7 +1173,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=gap_reason,
-                specific_reason=True,
+                reason_code=ReasonCode.MISSING_FACT,
                 resolution_trace=_derivation_error_trace(trace, field_name, gap_reason, now=resolver_now),
             )
 
@@ -2185,6 +2189,13 @@ def _validate_provider_response(
         as_of=request.as_of,
     )
     return (CalculationStatus.INPUT_UNAVAILABLE, error) if error is not None else None
+
+
+def _left_out_code(left_out: list[LeftOutObservation]) -> ReasonCode | None:
+    """Return the code of the newest left-out year, which is the last of the list: none when no year was left out."""
+    if not left_out:
+        return None
+    return ReasonCode.EARLIER_BASIS if left_out[-1].why is LeftOutReason.EARLIER_BASIS else ReasonCode.AMBIGUOUS_FACT
 
 
 def _left_out_message(left_out: list[LeftOutObservation]) -> str:

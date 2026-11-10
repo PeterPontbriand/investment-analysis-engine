@@ -15,7 +15,7 @@
     ]
   },
   "provider_check": null,
-  "requested_as_of": null,
+  "requested_as_of": "2025-07-01T23:59:59.999999+00:00",
   "effective_as_of": "<wall-clock>",
   "anchor_filing": {
     "year_end": "2024-06-30",
