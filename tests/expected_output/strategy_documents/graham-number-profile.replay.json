@@ -1,5 +1,5 @@
 {
-  "schema_version": 10,
+  "schema_version": 11,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "SYNTH",
@@ -8,7 +8,14 @@
   "provider_check": null,
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
-  "anchor_filing": null,
+  "anchor_filing": {
+    "year_end": "2024-06-30",
+    "form": "10-K",
+    "accession": "0000000001-24-000001",
+    "filing_date": "2024-09-13",
+    "next_report_due": "2025-10-20",
+    "stale": false
+  },
   "security_identity": {
     "ticker": "SYNTH",
     "instrument_name": "Fixture Holdings Inc.",
@@ -153,9 +160,9 @@
       "provider_id": "sec_edgar",
       "provider_field": "fx_bvps",
       "observation_period_start": null,
-      "observation_period_end": "2024-12-31T00:00:00+00:00",
+      "observation_period_end": "2024-06-30T00:00:00+00:00",
       "observed_at": null,
-      "available_at": "2025-02-10T00:00:00+00:00",
+      "available_at": "2024-09-13T00:00:00+00:00",
       "as_of": null,
       "retrieved_at": "<wall-clock>",
       "resolved_at": "<wall-clock>",
@@ -189,6 +196,7 @@
       "lineage": null
     }
   },
+  "left_out_years": [],
   "quote": {
     "status": "ok",
     "reason": null,

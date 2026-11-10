@@ -14,9 +14,9 @@ needs the year-end can be called after it. A registrant with no annual report at
 the analysis scope opens, and the same function returns it as a ``MetricInputsFailure``.
 """
 
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from types import MappingProxyType
@@ -61,6 +61,7 @@ from investment_analysis_engine.data.financial.facts import (
 from investment_analysis_engine.data.financial.provenance import (
     FinancialSubjectKind,
     ResolvedInput,
+    SourceKind,
 )
 from investment_analysis_engine.data.financial.resolver import (
     AnnualSeriesResolution,
@@ -308,6 +309,37 @@ def _anchor_in_scope(resolver: InputResolver, ticker: str) -> AnchorYearEnd | In
     return _unavailable_year_end(resolution.reason, resolution.message)
 
 
+def resolve_at_anchor_year(
+    resolver: InputResolver, resolve: Callable[[], InputResolutionResult], *, year_end: date
+) -> InputResolutionResult:
+    """Return ``resolve()``, asking the provider once more when the cache served an input of another fiscal year.
+
+    A live run's cache key has no boundary and the cache has no time limit by default, so an input cached for an older
+    fiscal year could be served for as long as the entry lives, whatever the anchor filing is. When the answer came
+    from the cache and its period ends on a day other than ``year_end``, that entry is set aside, ``resolve`` runs once
+    more with cache reads suspended so the answer comes from the provider, and that answer replaces the entry. If the
+    provider's year still differs, the caller's own year rule applies to it. An answer that did not come from the cache,
+    has no period end, or ends at ``year_end`` is returned as it is.
+
+    Args:
+        resolver: The resolver whose cache reads are suspended for the second call.
+        resolve: Resolves the one input, with the caller's own request and cache use; it is called once or twice.
+        year_end: The anchor's fiscal year-end.
+    """
+    result = resolve()
+    held = result.resolved_input
+    if (
+        held is None
+        or held.source_kind is not SourceKind.CACHE
+        or held.observation_period_end is None
+        or held.observation_period_end.date() == year_end
+    ):
+        return result
+    with resolver.cache_reads_suspended():
+        fresh = resolve()
+    return replace(fresh, resolution_trace=result.resolution_trace.extend(fresh.resolution_trace))
+
+
 def _accessions(count: ResolvedInput) -> frozenset[str]:
     """Return the accessions the notes of ``count`` name."""
     return frozenset(
@@ -352,7 +384,11 @@ def _resolve_share_count(  # noqa: PLR0911
     ``incompatible_period`` and an older year's count is never substituted.
     """
     default_filing_date = anchor.filing_date or anchor.year_end
-    year_end = resolver.resolve(_count_request(ticker, _YEAR_END_BASIS, as_of), use_cache=use_cache)
+    year_end = resolve_at_anchor_year(
+        resolver,
+        lambda: resolver.resolve(_count_request(ticker, _YEAR_END_BASIS, as_of), use_cache=use_cache),
+        year_end=anchor.year_end,
+    )
     if year_end.status not in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE):
         return _resolution_failure("common_shares_outstanding", year_end)
     held = year_end.resolved_input

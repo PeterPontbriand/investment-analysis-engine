@@ -765,7 +765,7 @@
           },
           "left_out_years": {
             "items": {
-              "$ref": "#/components/schemas/FCFLeftOutYearPart"
+              "$ref": "#/components/schemas/LeftOutYearPart"
             },
             "title": "Left Out Years",
             "type": "array"
@@ -1118,41 +1118,6 @@
         ],
         "title": "HistoricalHorizon",
         "type": "string"
-      },
-      "FCFLeftOutYearPart": {
-        "additionalProperties": false,
-        "description": "One fiscal year of one field left out of the series, with the reason.",
-        "properties": {
-          "field": {
-            "title": "Field",
-            "type": "string"
-          },
-          "fiscal_year": {
-            "title": "Fiscal Year",
-            "type": "integer"
-          },
-          "period_end": {
-            "format": "date",
-            "title": "Period End",
-            "type": "string"
-          },
-          "reason": {
-            "title": "Reason",
-            "type": "string"
-          },
-          "reason_code": {
-            "$ref": "#/components/schemas/ReasonCode"
-          }
-        },
-        "required": [
-          "field",
-          "fiscal_year",
-          "period_end",
-          "reason_code",
-          "reason"
-        ],
-        "title": "FCFLeftOutYearPart",
-        "type": "object"
       },
       "FCFLineagePart": {
         "additionalProperties": false,
@@ -2246,6 +2211,13 @@
               }
             ]
           },
+          "left_out_years": {
+            "items": {
+              "$ref": "#/components/schemas/LeftOutYearPart"
+            },
+            "title": "Left Out Years",
+            "type": "array"
+          },
           "limitations": {
             "items": {
               "type": "string"
@@ -2364,6 +2336,7 @@
           "reason",
           "result",
           "inputs",
+          "left_out_years",
           "method_assumptions",
           "quote",
           "warnings",
@@ -2611,6 +2584,13 @@
               }
             ]
           },
+          "left_out_years": {
+            "items": {
+              "$ref": "#/components/schemas/LeftOutYearPart"
+            },
+            "title": "Left Out Years",
+            "type": "array"
+          },
           "limitations": {
             "items": {
               "type": "string"
@@ -2726,6 +2706,7 @@
           "reason",
           "result",
           "inputs",
+          "left_out_years",
           "quote",
           "warnings",
           "limitations",
@@ -3303,6 +3284,41 @@
         "type": "object"
       },
       "JsonValue": {},
+      "LeftOutYearPart": {
+        "additionalProperties": false,
+        "description": "One fiscal year of one field left out of a series, with the reason.",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "fiscal_year": {
+            "title": "Fiscal Year",
+            "type": "integer"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reason_code": {
+            "$ref": "#/components/schemas/ReasonCode"
+          }
+        },
+        "required": [
+          "field",
+          "fiscal_year",
+          "period_end",
+          "reason_code",
+          "reason"
+        ],
+        "title": "LeftOutYearPart",
+        "type": "object"
+      },
       "LineagePart": {
         "additionalProperties": false,
         "description": "How a derived input was composed from other inputs.",

@@ -10,7 +10,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import HEA
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from tests._strategy_document_output import cases, expected_path
 
-_REPORTING = {"piotroski", "fcf-growth"}
+_REPORTING = {"piotroski", "fcf-growth", "graham-number", "graham-growth"}
 
 
 def _documents(alias: str) -> list[tuple[str, dict[str, Any]]]:
@@ -66,3 +66,20 @@ def test_a_strategy_that_reports_the_anchor_writes_the_same_element_direct_and_r
 def test_no_strategy_document_keeps_a_second_anchor_part() -> None:
     document = json.loads(expected_path("piotroski-success.direct").read_bytes())
     assert "anchor" not in document
+
+
+@pytest.mark.parametrize("alias", ["graham-number", "graham-growth"])
+@pytest.mark.parametrize("route", ["direct", "replay"])
+def test_a_graham_strategy_writes_the_element_when_it_resolved_the_anchor_and_null_for_an_etf(
+    alias: str, route: str
+) -> None:
+    element = json.loads(expected_path(f"{alias}-success.{route}").read_bytes())["anchor_filing"]
+    assert element == {
+        "year_end": "2024-06-30",
+        "form": "10-K",
+        "accession": "0000000001-24-000001",
+        "filing_date": "2024-09-13",
+        "next_report_due": "2025-10-20",
+        "stale": False,
+    }
+    assert json.loads(expected_path(f"{alias}-etf.{route}").read_bytes())["anchor_filing"] is None

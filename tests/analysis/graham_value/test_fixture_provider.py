@@ -33,7 +33,11 @@ from investment_analysis_engine.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PROVIDER_ID,
+    AnchorYearEnd,
+    AnchorYearEndRequest,
+)
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.evaluation.fixtures.graham import (
     AAA_YIELD_VALUE,
@@ -578,6 +582,13 @@ class TestOverrideCachePrecedence:
 # ===========================================================================
 
 
+def _anchor_of(provider: FixtureFinancialFactsProvider) -> AnchorYearEnd:
+    """Return the anchor annual filing the fixture issuer has at the fixture clock."""
+    anchor = provider.resolve_anchor_year_end(AnchorYearEndRequest(SECURITY_ID, SEC_PROVIDER_ID)).anchor
+    assert anchor is not None
+    return anchor
+
+
 class TestC2DAssembly:
     """Prove the fixture works through both C2D method-level assembly paths."""
 
@@ -587,6 +598,7 @@ class TestC2DAssembly:
         resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
         result = resolver.assemble_graham_number(
+            anchor=_anchor_of(provider),
             security_subject_id=SECURITY_ID,
         )
 
@@ -617,6 +629,7 @@ class TestC2DAssembly:
 
         expected_growth = 12.0  # explicit override-only
         result = resolver.assemble_growth_value(
+            anchor=_anchor_of(provider),
             security_subject_id=SECURITY_ID,
             eps_basis="three_year_average",
             expected_growth=expected_growth,

@@ -136,9 +136,9 @@ def _run(analysis: GrahamGrowthAnalysis | None = None) -> AnalysisRun:
         requested_config=GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4),
         started_at=STAMP,
         completed_at=STAMP,
-        method_version=1,
+        method_version=2,
         result_schema_version=4,
-        evidence_codec_version=4,
+        evidence_codec_version=5,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis or _analysis()),
     )
@@ -395,3 +395,12 @@ def test_mismatched_dispatch_pair_is_unsupported() -> None:
 
     with pytest.raises(UnsupportedRunVersionError):
         decode_evidence(run, codecs_with_decode(unexpected_decode))
+
+
+@pytest.mark.parametrize(("method_version", "evidence_codec_version"), [(1, 5), (2, 4), (1, 4)])
+def test_a_run_stored_under_the_versions_before_the_anchor_years_is_refused_by_version_never_misread(
+    method_version: int, evidence_codec_version: int
+) -> None:
+    run = _run().model_copy(update={"method_version": method_version, "evidence_codec_version": evidence_codec_version})
+    with pytest.raises(UnsupportedRunVersionError):
+        decode_evidence(run, EVIDENCE_BY_KEY)

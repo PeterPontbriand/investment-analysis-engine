@@ -14,10 +14,11 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 
 from investment_analysis_engine.analysis.shared.anchor_filing import AnchorFilingEvidence
 from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence
+from investment_analysis_engine.analysis.shared.metric_evidence import LeftOutYear
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
@@ -65,31 +66,6 @@ _FIELD_LABELS = {
 
 _FIELD_ORDER = tuple(_FIELD_LABELS)
 _OBSERVED = "reported only before a later filing restated other years (for example after a stock split)"
-
-
-@dataclass(frozen=True)
-class LeftOutYear:
-    """One fiscal year of one field that was left out of the series, with the reason.
-
-    Attributes:
-        field: The field's name, such as ``eps``.
-        fiscal_year: The calendar year containing the period end, which is how a fiscal year is labelled.
-        period_end: The end of the period that was left out.
-        reason_code: The served reason code: ``earlier_basis``, or ``ambiguous_fact`` for a year whose filings
-            filed together give different values.
-        reason: The explanation.
-    """
-
-    field: str
-    fiscal_year: int
-    period_end: date
-    reason_code: ReasonCode
-    reason: str
-
-    def __post_init__(self) -> None:
-        """Require the fiscal year to be the year of the period end."""
-        if self.fiscal_year != self.period_end.year:
-            raise ValueError("A left-out year's fiscal year is the year of its period end.")
 
 
 def _field_rank(field: str) -> tuple[int, str]:

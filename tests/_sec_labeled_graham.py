@@ -6,10 +6,12 @@ replaced resolver returns must then carry the provider ids a production composit
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime
 
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, ProviderFact
+from investment_analysis_engine.data.sec_edgar.financial_facts import AnchorYearEndRequest, AnchorYearEndResolution
 from investment_analysis_engine.evaluation.fixtures.graham import NOW, FixtureFinancialFactsProvider
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
@@ -28,6 +30,16 @@ class SecLabeledGrahamProvider:
 
     def __init__(self) -> None:
         self._delegate = FixtureFinancialFactsProvider()
+
+    def analysis_scope(
+        self, *, subject_id: str, provider_id: str, as_of: datetime | None
+    ) -> AbstractContextManager[None]:
+        """Hold the analysis boundary for the anchor filing, as the fixture provider does."""
+        return self._delegate.analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of)
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
+        """Return the fixture issuer's anchor annual filing."""
+        return self._delegate.resolve_anchor_year_end(request)
 
     def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         """Return the fixture facts, each labelled with the provider the request names."""

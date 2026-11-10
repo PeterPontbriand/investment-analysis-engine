@@ -7,6 +7,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 from investment_analysis_engine.analysis.shared.cash_flow import compute_free_cash_flow
+from investment_analysis_engine.analysis.shared.metric_evidence import LeftOutYear, left_out_years_of
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
@@ -55,7 +56,6 @@ from investment_analysis_engine.strategies.fcf_growth.calculators import compute
 from investment_analysis_engine.strategies.fcf_growth.models import (
     AnnualGrowthObservation,
     FCFEarningsGrowthPolicy,
-    LeftOutYear,
     earlier_basis_shortfall,
 )
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
@@ -591,27 +591,6 @@ def _entry_failure(field: FinancialField, answer: AnnualSeriesResolution) -> _Fi
     return _FieldResolution(reason_code=code, reason=reason)
 
 
-def _earlier_basis_years(field: FinancialField, left_out: Sequence[LeftOutObservation]) -> tuple[LeftOutYear, ...]:
-    """Return the years of ``field`` the shared entry left out as earlier-basis or conflicting, oldest first."""
-    codes = {
-        LeftOutReason.EARLIER_BASIS: ReasonCode.EARLIER_BASIS,
-        LeftOutReason.CONFLICTING_VERSIONS: ReasonCode.AMBIGUOUS_FACT,
-    }
-    years = []
-    for item in left_out:
-        if item.why in codes and item.observation_period_end is not None:
-            years.append(
-                LeftOutYear(
-                    field=field.value,
-                    fiscal_year=item.observation_period_end.year,
-                    period_end=item.observation_period_end.date(),
-                    reason_code=codes[item.why],
-                    reason=item.reason,
-                )
-            )
-    return tuple(sorted(years, key=lambda year: year.period_end))
-
-
 def _resolve_field(  # noqa: PLR0913
     *,
     field: FinancialField,
@@ -684,7 +663,7 @@ def _resolve_field(  # noqa: PLR0913
         resolved_at,
         answer.left_out,
     )
-    resolution = replace(resolution, left_out_years=_earlier_basis_years(field, answer.left_out))
+    resolution = replace(resolution, left_out_years=left_out_years_of(field.value, answer.left_out))
     if resolution.reason_code is not None:
         return resolution, trace.append(
             _event(

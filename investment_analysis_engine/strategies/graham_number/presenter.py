@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import datetime
 
+from investment_analysis_engine.analysis.shared.anchor_filing import stale_anchor_warnings
 from investment_analysis_engine.analysis.shared.financial_resolution import PriceComparison
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.failure_classification import provider_failure_of
@@ -14,6 +15,8 @@ from investment_analysis_engine.data.financial.resolution_trace import Resolutio
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from investment_analysis_engine.data.security_identity import SecurityIdentityResolution
 from investment_analysis_engine.reporting.documents.shared_parts import (
+    LeftOutYearPart,
+    anchor_filing_part,
     identity_diagnostic_parts,
     instrument_kind_part_of,
     price_comparison_part,
@@ -264,7 +267,8 @@ def _bvps_basis_label(value: ResolvedInput) -> str:
 
 
 def _number_warnings(p: GrahamNumberPresentation) -> list[str]:
-    warnings = override_warnings((p.assembly.eps, p.assembly.bvps, p.assembly.current_price))
+    warnings = list(stale_anchor_warnings(p.assembly.anchor_filing, p.effective_as_of))
+    warnings.extend(override_warnings((p.assembly.eps, p.assembly.bvps, p.assembly.current_price)))
     status, _ = effective_status_and_reason(
         p.assembly.status,
         p.assembly.reason,
@@ -286,6 +290,8 @@ def _number_reason(  # noqa: PLR0911
     fallback: str,
 ) -> str:
     """Translate retained input and applicability evidence without exposing raw errors."""
+    if presentation.assembly.specific_reason:
+        return fallback
     if status is CalculationStatus.INPUT_UNAVAILABLE:
         assembly = presentation.assembly
         if assembly.eps is None:
@@ -351,7 +357,7 @@ def build_graham_number_document(p: GrahamNumberPresentation) -> GrahamNumberDoc
         provider_check=p.provider_check,
         requested_as_of=p.as_of,
         effective_as_of=p.effective_as_of,
-        anchor_filing=None,
+        anchor_filing=anchor_filing_part(p.assembly.anchor_filing),
         security_identity=security_identity_part(p.ticker, p.identity_resolution),
         instrument_kind=instrument_kind_part_of(p.instrument_profile),
         price_comparison=price_comparison_part(p.price_comparison),
@@ -363,6 +369,9 @@ def build_graham_number_document(p: GrahamNumberPresentation) -> GrahamNumberDoc
             eps=resolved_input_part(p.assembly.eps),
             bvps=resolved_input_part(p.assembly.bvps),
             current_price=resolved_input_part(p.assembly.current_price),
+        ),
+        left_out_years=tuple(
+            LeftOutYearPart.model_validate(item, from_attributes=True) for item in p.assembly.left_out_years
         ),
         quote=quote_part(
             p.assembly.current_price,

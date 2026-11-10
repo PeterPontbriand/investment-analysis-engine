@@ -43,6 +43,16 @@ Expected growth and both yields are expressed in **percentage points**. For exam
 
 This method is forecast-dependent. It is not the Graham Number and should not be interpreted as a universally precise intrinsic value.
 
+### The fiscal year of the earnings
+
+The earnings come from the [anchor filing](../GLOSSARY.md#anchor-filing), the newest annual report filed by the analysis date. The newest fiscal year of the earnings must end on that report's fiscal year-end, on exactly that date. When it ends on another day, the growth value is unavailable and says which dates differ. The engine never steps back to an older year to produce a number.
+
+With the three-year average, the three earnings years must also be consecutive fiscal years. When one is missing, the growth value is unavailable and names the missing year. When a [stock split](../GLOSSARY.md#reason-earlier-basis) or conflicting filings left years out of the series and that is why fewer than three years are left, the message names each year left out and why, and the JSON lists them in `left_out_years`.
+
+A value saved from an earlier run is not reused when it is for an older fiscal year: the engine asks the provider again, once, and keeps the answer. An EPS you supply yourself has no year and is not checked, and then no filing is read and no anchor filing is reported.
+
+When the anchor filing is stale, because the next annual report was overdue at the analysis date and none had been filed, the status does not change. The result names the filing and the date the next report was due, and a warning says so; it is the first warning shown.
+
 ### Required user-supplied values
 
 At present the user must supply:

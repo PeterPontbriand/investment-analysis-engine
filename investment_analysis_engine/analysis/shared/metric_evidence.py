@@ -6,12 +6,14 @@ capitalization has its own result type (``analysis/shared/market_cap.py``) becau
 price and the splits applied.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
 
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.data.financial.facts import InstantAbsence, InstantAbsenceReason
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
+from investment_analysis_engine.data.financial.resolver import LeftOutObservation, LeftOutReason
 
 # A balance-sheet value at a fiscal year-end *t*: what the instant series reports, or why it reports none.
 BalanceSheetValue = ResolvedInput | InstantAbsence
@@ -106,3 +108,54 @@ def absent_input(name: str, absence: InstantAbsence) -> MetricEvidence:
 def missing_annual(name: str) -> MetricEvidence:
     """Return the ``unavailable`` result of a metric whose annual input ``name`` is reported as none."""
     return unavailable(ReasonCode.MISSING_FACT, f"{name} is not reported for the fiscal year.")
+
+
+@dataclass(frozen=True)
+class LeftOutYear:
+    """One fiscal year of one field that was left out of the series, with the reason.
+
+    Attributes:
+        field: The field's name, such as ``eps``.
+        fiscal_year: The calendar year containing the period end, which is how a fiscal year is labelled.
+        period_end: The end of the period that was left out.
+        reason_code: The served reason code: ``earlier_basis``, or ``ambiguous_fact`` for a year whose filings
+            filed together give different values.
+        reason: The explanation.
+    """
+
+    field: str
+    fiscal_year: int
+    period_end: date
+    reason_code: ReasonCode
+    reason: str
+
+    def __post_init__(self) -> None:
+        """Require the fiscal year to be the year of the period end."""
+        if self.fiscal_year != self.period_end.year:
+            raise ValueError("A left-out year's fiscal year is the year of its period end.")
+
+
+_LEFT_OUT_CODES: Mapping[LeftOutReason, ReasonCode] = {
+    LeftOutReason.EARLIER_BASIS: ReasonCode.EARLIER_BASIS,
+    LeftOutReason.CONFLICTING_VERSIONS: ReasonCode.AMBIGUOUS_FACT,
+}
+
+
+def left_out_years_of(field: str, left_out: Sequence[LeftOutObservation]) -> tuple[LeftOutYear, ...]:
+    """Return the years of ``field`` left out as earlier-basis or conflicting, oldest first.
+
+    An observation left out for another reason (after the boundary, or failing a quality check) is not a left-out
+    year: its reason is not a served code of this record.
+    """
+    years = [
+        LeftOutYear(
+            field=field,
+            fiscal_year=item.observation_period_end.year,
+            period_end=item.observation_period_end.date(),
+            reason_code=_LEFT_OUT_CODES[item.why],
+            reason=item.reason,
+        )
+        for item in left_out
+        if item.why in _LEFT_OUT_CODES and item.observation_period_end is not None
+    ]
+    return tuple(sorted(years, key=lambda year: year.period_end))

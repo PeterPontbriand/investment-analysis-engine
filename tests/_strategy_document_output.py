@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import tempfile
 from collections.abc import Callable, Iterator
-from contextlib import ExitStack
+from contextlib import AbstractContextManager, ExitStack
 from dataclasses import dataclass, fields, replace
 from datetime import datetime
 from functools import cache
@@ -56,7 +56,11 @@ from investment_analysis_engine.data.instrument_profile import (
 )
 from investment_analysis_engine.data.market_data import HistoricalMarketData
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PROVIDER_ID,
+    AnchorYearEndRequest,
+    AnchorYearEndResolution,
+)
 from investment_analysis_engine.data.security_identity import SecurityIdentity, SecurityIdentityRequest
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
 from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
@@ -319,6 +323,42 @@ class _FailingQuoteProvider:
         return self._delegate.fetch_facts(request, effective_as_of=effective_as_of)
 
 
+class _GrahamFixtureAnchor:
+    """The anchor capabilities of the Graham fixture provider, for a wrapper around it.
+
+    A wrapper has them only when the provider it wraps does, and the capability check reads the class, so the
+    Graham wrappers take them from this base and the FCF wrapper, whose provider has none, does not.
+    """
+
+    _anchors: SecLabeledGrahamProvider
+
+    def analysis_scope(
+        self, *, subject_id: str, provider_id: str, as_of: datetime | None
+    ) -> AbstractContextManager[None]:
+        """Hold the analysis boundary for the anchor filing."""
+        return self._anchors.analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of)
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
+        """Return the fixture issuer's anchor annual filing."""
+        return self._anchors.resolve_anchor_year_end(request)
+
+
+class _GrahamClassifyingProvider(_GrahamFixtureAnchor, _ClassifyingProvider):
+    """The classifying wrapper around the Graham fixture provider."""
+
+    def __init__(self, kind: ProviderFailureKind | None) -> None:
+        self._anchors = SecLabeledGrahamProvider()
+        super().__init__(self._anchors, kind)
+
+
+class _GrahamFailingQuoteProvider(_GrahamFixtureAnchor, _FailingQuoteProvider):
+    """The failing-quote wrapper around the Graham fixture provider."""
+
+    def __init__(self, kind: ProviderFailureKind) -> None:
+        self._anchors = SecLabeledGrahamProvider()
+        super().__init__(self._anchors, kind)
+
+
 def _fcf_provider(case: Case, yahoo: type[_FixtureYahoo]) -> ProductionFinancialFactsProvider:
     """Compose the FCF command's provider from the case's annual facts, relabeled as SEC EDGAR."""
     facts = (case.fcf_facts or _fcf_success_facts)()
@@ -341,9 +381,9 @@ def _enter_providers(stack: ExitStack, case: Case) -> None:
     wrapper: FinancialFactsProvider | None = None
     if case.command != "fcf-growth":
         if case.failure_kind is not None or case.unclassified:
-            wrapper = _ClassifyingProvider(SecLabeledGrahamProvider(), case.failure_kind)
+            wrapper = _GrahamClassifyingProvider(case.failure_kind)
         elif case.quote_failure_kind is not None:
-            wrapper = _FailingQuoteProvider(SecLabeledGrahamProvider(), case.quote_failure_kind)
+            wrapper = _GrahamFailingQuoteProvider(case.quote_failure_kind)
     if wrapper is not None:
         resolver_type = GrahamGrowthInputResolver if case.command == "graham-growth" else GrahamNumberInputResolver
         resolver = resolver_type(wrapper, clock=lambda: NOW)

@@ -8,7 +8,7 @@ Price comparison: unavailable (share-unit evidence is unsupported by this provid
 Basis: 3-year average EPS + BVPS basis unspecified
 EPS (3-year average): 3.23 USD
 Book value per common share: 18.50 USD
-Sources / freshness: EPS — derived from SEC EDGAR (available 2024-09-13); BVPS — provider (SEC EDGAR) (available 2025-02-10)
+Sources / freshness: EPS — derived from SEC EDGAR (available 2024-09-13); BVPS — provider (SEC EDGAR) (available 2024-09-13)
 Limitation: The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation.
 
 Details
@@ -83,9 +83,9 @@ BVPS: 18.500000
   provider: SEC EDGAR
   provider field: fx_bvps
   period start: not applicable — fiscal-year-end snapshot
-  period end: 2024-12-31
+  period end: 2024-06-30
   observed at: not applicable — annual financial statement
-  available at: 2025-02-10 00:00 UTC
+  available at: 2024-09-13 00:00 UTC
   retrieved at: 2025-06-30 17:00 UTC
   notes: fixture: book value per share
 Current price: 52.300000

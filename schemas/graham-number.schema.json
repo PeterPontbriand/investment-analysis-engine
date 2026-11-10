@@ -262,6 +262,41 @@
       "title": "InstrumentKindPart",
       "type": "object"
     },
+    "LeftOutYearPart": {
+      "additionalProperties": false,
+      "description": "One fiscal year of one field left out of a series, with the reason.",
+      "properties": {
+        "field": {
+          "title": "Field",
+          "type": "string"
+        },
+        "fiscal_year": {
+          "title": "Fiscal Year",
+          "type": "integer"
+        },
+        "period_end": {
+          "format": "date",
+          "title": "Period End",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/ReasonCode"
+        }
+      },
+      "required": [
+        "field",
+        "fiscal_year",
+        "period_end",
+        "reason_code",
+        "reason"
+      ],
+      "title": "LeftOutYearPart",
+      "type": "object"
+    },
     "LineagePart": {
       "additionalProperties": false,
       "description": "How a derived input was composed from other inputs.",
@@ -605,6 +640,42 @@
       ],
       "title": "QuotePart",
       "type": "object"
+    },
+    "ReasonCode": {
+      "description": "Machine-readable reasons shared by deterministic metric results.",
+      "enum": [
+        "insufficient_history",
+        "non_contiguous_history",
+        "missing_fact",
+        "incompatible_period",
+        "incompatible_units",
+        "incompatible_currency",
+        "incompatible_scope",
+        "ambiguous_fact",
+        "not_available_as_of",
+        "stale_anchor",
+        "earlier_basis",
+        "nonpositive_beginning",
+        "nonpositive_ending",
+        "sign_change",
+        "fcf_not_growing",
+        "eps_not_growing",
+        "fcf_and_eps_not_growing",
+        "forward_growth_not_confirmed",
+        "consensus_unavailable",
+        "market_cap_unavailable",
+        "provider_error",
+        "invalid_request",
+        "instrument_kind_not_applicable",
+        "industry_class_not_applicable",
+        "industry_class_unknown",
+        "unsupported_mapping",
+        "debt_not_visible",
+        "nonpositive_denominator",
+        "insufficient_tests"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
     },
     "ResolvedInputPart": {
       "additionalProperties": false,
@@ -1110,6 +1181,13 @@
         }
       ]
     },
+    "left_out_years": {
+      "items": {
+        "$ref": "#/$defs/LeftOutYearPart"
+      },
+      "title": "Left Out Years",
+      "type": "array"
+    },
     "limitations": {
       "items": {
         "type": "string"
@@ -1225,6 +1303,7 @@
     "reason",
     "result",
     "inputs",
+    "left_out_years",
     "quote",
     "warnings",
     "limitations",

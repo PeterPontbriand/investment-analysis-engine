@@ -86,6 +86,16 @@ class AnchorFilingPart(DocumentPart):
     stale: bool
 
 
+class LeftOutYearPart(DocumentPart):
+    """One fiscal year of one field left out of a series, with the reason."""
+
+    field: str
+    fiscal_year: int
+    period_end: date
+    reason_code: ReasonCode
+    reason: str
+
+
 class DiagnosticPart(DocumentPart):
     """One diagnostics entry that names no provider: a resolver event or the legacy identity entry."""
 

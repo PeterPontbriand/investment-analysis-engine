@@ -18,8 +18,10 @@ The provider satisfies the ``FinancialFactsProvider`` protocol:
 
 from __future__ import annotations
 
-from dataclasses import replace
-from datetime import UTC, datetime
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime
 from typing import Final
 
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
@@ -33,7 +35,13 @@ from investment_analysis_engine.data.financial.facts import (
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.resolver import DEFAULT_CACHE_SCHEMA_VERSION
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PROVIDER_ID,
+    AnchorYearEnd,
+    AnchorYearEndRequest,
+    AnchorYearEndResolution,
+    AnchorYearEndUnavailableReason,
+)
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 
 GRAHAM_FACTS_FIXTURE_ID: Final = "graham_facts"
@@ -74,9 +82,9 @@ FY2024_AVAIL = datetime(2024, 9, 13, tzinfo=UTC)
 FY2025_START = datetime(2024, 7, 1, tzinfo=UTC)
 FY2025_END = datetime(2025, 6, 30, tzinfo=UTC)
 
-# BVPS
-BVPS_PERIOD_END = datetime(2024, 12, 31, tzinfo=UTC)
-BVPS_AVAIL = datetime(2025, 2, 10, tzinfo=UTC)
+# BVPS: the balance sheet of the same annual report as the latest EPS year, so both inputs come from one filing
+BVPS_PERIOD_END = FY2024_END
+BVPS_AVAIL = FY2024_AVAIL
 
 # Quote
 QUOTE_OBSERVED = datetime(2025, 6, 30, 16, 0, tzinfo=UTC)
@@ -127,6 +135,7 @@ def precedence_bvps_cache() -> InMemoryResolvedInputCache:
         available_at=BVPS_AVAIL,
         as_of=NOW,
         retrieved_at=RETRIEVED_AT,
+        observation_period_end=BVPS_PERIOD_END,
     )
     cache.put(
         ResolvedInputCacheKey(
@@ -142,6 +151,22 @@ def precedence_bvps_cache() -> InMemoryResolvedInputCache:
     )
     return cache
 
+
+@dataclass(frozen=True)
+class _SyntheticAnnualReport:
+    """One synthetic annual report of the fixture issuer: its fiscal year-end and when it was filed."""
+
+    year_end: date
+    filed: datetime
+    accession: str
+
+
+_ANNUAL_REPORTS: Final = (
+    _SyntheticAnnualReport(FY2024_END.date(), FY2024_AVAIL, "0000000001-24-000001"),
+    _SyntheticAnnualReport(FY2023_END.date(), FY2023_AVAIL, "0000000001-23-000001"),
+    _SyntheticAnnualReport(FY2022_END.date(), FY2022_AVAIL, "0000000001-22-000001"),
+)
+"""The synthetic annual reports, newest first. Each fiscal year's EPS and book value come from its report."""
 
 # ---------------------------------------------------------------------------
 # Adverse-case subject IDs
@@ -178,6 +203,48 @@ class FixtureFinancialFactsProvider:
     def __init__(self, *, quote_retrieved_at: datetime = NOW) -> None:
         """Anchor synthetic current-quote responses to the injected evaluation clock."""
         self._quote_retrieved_at = quote_retrieved_at
+        self._scope_as_of: datetime | None = None
+
+    @contextmanager
+    def analysis_scope(
+        self,
+        *,
+        subject_id: str,  # noqa: ARG002
+        provider_id: str,  # noqa: ARG002
+        as_of: datetime | None,
+    ) -> Iterator[None]:
+        """Hold the analysis boundary for the anchor filing, as the production adapter's snapshot does."""
+        self._scope_as_of = as_of
+        try:
+            yield
+        finally:
+            self._scope_as_of = None
+
+    def resolve_anchor_year_end(
+        self,
+        request: AnchorYearEndRequest,  # noqa: ARG002
+    ) -> AnchorYearEndResolution:
+        """Return the newest synthetic annual report filed on or before the boundary, as the anchor.
+
+        The boundary is the scope's ``as_of``, or the injected evaluation clock without one. Every subject has the
+        same synthetic filings, so a scenario differs only in the facts it returns.
+        """
+        boundary = self._scope_as_of or self._quote_retrieved_at
+        for report in _ANNUAL_REPORTS:
+            if report.filed <= boundary:
+                return AnchorYearEndResolution(
+                    anchor=AnchorYearEnd(
+                        year_end=report.year_end,
+                        accession=report.accession,
+                        form="10-K",
+                        filing_date=report.filed.date(),
+                        filing_dates={item.accession: item.filed.date() for item in _ANNUAL_REPORTS},
+                    )
+                )
+        return AnchorYearEndResolution(
+            reason=AnchorYearEndUnavailableReason.ACCEPTED_AFTER_BOUNDARY,
+            message="Every annual filing of the synthetic issuer was accepted after the boundary.",
+        )
 
     def fetch_facts(
         self,

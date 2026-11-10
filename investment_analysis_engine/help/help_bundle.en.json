@@ -244,6 +244,12 @@
           "markdown": "```text\nBVPS = common shareholders' equity / period-end common shares outstanding\n```\n\nA provider-reported BVPS is usable only when its definition is understood. Investment Analysis Engine's SEC calculation derives fiscal-year-end BVPS from compatible accounting evidence when a safe direct value is unavailable.\n\nTangible BVPS is a different measure and is not silently substituted."
         },
         {
+          "heading": "Fiscal year of the inputs",
+          "id": "fiscal-year-of-the-inputs",
+          "level": 3,
+          "markdown": "Both inputs are taken at the fiscal year-end *t* of the [anchor filing](help:documents/finance-math#the-anchor-filing). The newest of the three EPS years and the balance sheet behind BVPS must each end on *t*, exactly: there is no tolerance, because the report date of every captured filer, 52- and 53-week filers included, equals its fiscal year-end. An input whose newest year ends on another day is `input_unavailable`, and the method never uses an older year. The three EPS years must be *t*, *t−1* and *t−2*: each period starts the day after the previous one ends, and a missing year makes the input unavailable. A cached input for another fiscal year is set aside and the provider asked once. An overridden input has no year and is exempt, and when both inputs are overridden no filing is read. A stale anchor filing leaves the status unchanged and is reported with a warning."
+        },
+        {
           "heading": "Applicability",
           "id": "applicability",
           "level": 3,
@@ -266,6 +272,12 @@
           "id": "eps-basis",
           "level": 3,
           "markdown": "- Graham Number always uses three-year-average diluted EPS; it has no EPS-basis option.\n- Graham Growth uses three-year-average diluted EPS by default, for every provider. The production tool boundary also supports an explicit single completed fiscal-year EPS basis for reviewed workflows.\n\nAn unsupported basis is rejected rather than silently transformed into a different calculation.\n\nSEC IFRS support does not include BVPS or preferred-zero inference. Filing\nper-share values are compared with quotes only when ordinary-share 1:1 unit\nevidence and matching currencies are affirmative. ADR/ADS and currency\nconversion are not performed."
+        },
+        {
+          "heading": "Fiscal year of the EPS",
+          "id": "fiscal-year-of-the-eps",
+          "level": 3,
+          "markdown": "EPS is taken at the fiscal year-end *t* of the [anchor filing](help:documents/finance-math#the-anchor-filing). Its newest year must end on *t*, exactly, with no tolerance, and the three-year average needs the years *t*, *t−1* and *t−2*, each starting the day after the previous one ends. EPS for another year is `input_unavailable`; the method never uses an older year. A cached EPS for another fiscal year is set aside and the provider asked once. An overridden EPS has no year and is exempt. A stale anchor filing leaves the status unchanged and is reported with a warning."
         },
         {
           "heading": "Expected growth",
@@ -442,6 +454,12 @@
           "markdown": "The implemented convention is:\n\n```text\ngrowth value = normalized EPS\n    × (base P/E + growth multiplier × expected growth)\n    × baseline AAA yield / current AAA yield\n```\n\nCurrent configurable conventional constants are:\n\n```text\nbase P/E = 8.5\ngrowth multiplier = 2.0\nbaseline AAA yield = 4.4\n```\n\nThey ship with the application and may be overridden key by key in the strategy's settings file, which is read each time an analysis runs; the keys are `base_pe`, `growth_multiplier` and `baseline_aaa_yield`.\n\nExpected growth and both yields are expressed in **percentage points**. For example, an expected growth of 5 means 5%, not `0.05`.\n\nThis method is forecast-dependent. It is not the Graham Number and should not be interpreted as a universally precise intrinsic value."
         },
         {
+          "heading": "The fiscal year of the earnings",
+          "id": "the-fiscal-year-of-the-earnings",
+          "level": 3,
+          "markdown": "The earnings come from the [anchor filing](help:terms/anchor-filing), the newest annual report filed by the analysis date. The newest fiscal year of the earnings must end on that report's fiscal year-end, on exactly that date. When it ends on another day, the growth value is unavailable and says which dates differ. The engine never steps back to an older year to produce a number.\n\nWith the three-year average, the three earnings years must also be consecutive fiscal years. When one is missing, the growth value is unavailable and names the missing year. When a [stock split](help:terms/reason-earlier-basis) or conflicting filings left years out of the series and that is why fewer than three years are left, the message names each year left out and why, and the JSON lists them in `left_out_years`.\n\nA value saved from an earlier run is not reused when it is for an older fiscal year: the engine asks the provider again, once, and keeps the answer. An EPS you supply yourself has no year and is not checked, and then no filing is read and no anchor filing is reported.\n\nWhen the anchor filing is stale, because the next annual report was overdue at the analysis date and none had been filed, the status does not change. The result names the filing and the date the next report was due, and a warning says so; it is the first warning shown."
+        },
+        {
           "heading": "Required user-supplied values",
           "id": "required-user-supplied-values",
           "level": 3,
@@ -560,6 +578,12 @@
           "id": "book-value-per-common-share",
           "level": 3,
           "markdown": "The implemented convention is:\n\n```text\nBVPS = common shareholders' equity / period-end common shares outstanding\n```\n\nWhen using [SEC](help:terms/sec) [EDGAR](help:terms/edgar) data, Investment Analysis Engine derives BVPS conservatively from eligible fiscal-year-end accounting facts rather than pretending that EDGAR provides one universal BVPS field.\n\nIf the evidence required for a defensible calculation is unavailable, the result reports that limitation rather than guessing."
+        },
+        {
+          "heading": "The fiscal year of the inputs",
+          "id": "the-fiscal-year-of-the-inputs",
+          "level": 3,
+          "markdown": "Both inputs come from the same annual report: the [anchor filing](help:terms/anchor-filing), the newest annual report filed by the analysis date. The newest of the three years of earnings and the balance sheet that gives book value must both end on that report's fiscal year-end, on exactly that date. When one ends on another day, the Graham Number is unavailable and says which input it is and which dates differ. The engine never steps back to an older year to produce a number.\n\nThe three earnings years must also be consecutive fiscal years. When one is missing, the Graham Number is unavailable and names the missing year. When a [stock split](help:terms/reason-earlier-basis) or conflicting filings left years out of the series and that is why fewer than three years are left, the message names each year left out and why, and the JSON lists them in `left_out_years`.\n\nA value saved from an earlier run is not reused when it is for an older fiscal year: the engine asks the provider again, once, and keeps the answer. An EPS or book value you supply yourself has no year and is not checked. If you supply both, no filing is read and no anchor filing is reported.\n\nWhen the anchor filing is stale, because the next annual report was overdue at the analysis date and none had been filed, the status does not change. The result names the filing and the date the next report was due, and a warning says so; it is the first warning shown."
         },
         {
           "heading": "Applicability",

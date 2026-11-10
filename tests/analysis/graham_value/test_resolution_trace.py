@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -25,6 +25,7 @@ from investment_analysis_engine.data.financial.resolution_trace import (
 )
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from tests.analysis.graham_value._anchored import anchor_for
 
 NOW = datetime(2026, 8, 22, 16, 0, tzinfo=UTC)
 PERIOD_END = datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC)
@@ -256,6 +257,7 @@ def test_graham_number_assembly_aggregates_field_traces_in_resolution_order() ->
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
     assembly = resolver.assemble_graham_number(
+        anchor=None,
         security_subject_id="NDAQ",
         eps_override=5.0,
         bvps_override=10.0,
@@ -296,6 +298,7 @@ def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
         currency="USD",
         provider_id=SEC_PROVIDER_ID,
     )
+    bvps = replace(bvps, observation_period_end=datetime(2025, 12, 31, 23, 59, 59, tzinfo=UTC))
     provider = RecordingProvider(
         {
             FinancialField.EPS: eps_facts,
@@ -305,6 +308,7 @@ def test_optional_quote_unavailability_is_retained_in_method_trace() -> None:
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
     assembly = resolver.assemble_graham_number(
+        anchor=anchor_for(date(2025, 12, 31)).anchor,
         security_subject_id="NDAQ",
     )
 

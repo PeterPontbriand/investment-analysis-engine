@@ -24,7 +24,12 @@ from investment_analysis_engine.data.financial.provenance import (
     PeriodKind,
     SourceKind,
 )
-from investment_analysis_engine.reporting.documents.shared_parts import DocumentPart, JsonNumber, MetricResultPart
+from investment_analysis_engine.reporting.documents.shared_parts import (
+    DocumentPart,
+    JsonNumber,
+    LeftOutYearPart,
+    MetricResultPart,
+)
 from investment_analysis_engine.reporting.documents.strategy_document import (
     StrategyDocumentHeader,
     StrategyDocumentTail,
@@ -106,16 +111,6 @@ class FCFObservationPart(DocumentPart):
     free_cash_flow_per_diluted_share: FCFResolvedInputPart | None
 
 
-class FCFLeftOutYearPart(DocumentPart):
-    """One fiscal year of one field left out of the series, with the reason."""
-
-    field: str
-    fiscal_year: int
-    period_end: date
-    reason_code: ReasonCode
-    reason: str
-
-
 class FCFForwardEvidencePart(DocumentPart):
     """The analyst-consensus forward evidence for the next two fiscal years."""
 
@@ -190,7 +185,7 @@ class FCFBody(DocumentPart):
     period_start: DocumentTimestamp | None
     period_end: DocumentTimestamp | None
     annual_observations: tuple[FCFObservationPart, ...]
-    left_out_years: tuple[FCFLeftOutYearPart, ...]
+    left_out_years: tuple[LeftOutYearPart, ...]
     fcf_cagr: MetricResultPart
     fcf_per_share_cagr: MetricResultPart
     eps_cagr: MetricResultPart
@@ -212,7 +207,6 @@ __all__ = [
     "FCFBody",
     "FCFDocument",
     "FCFForwardEvidencePart",
-    "FCFLeftOutYearPart",
     "FCFLineagePart",
     "FCFListingCheckPart",
     "FCFListingRenamePart",

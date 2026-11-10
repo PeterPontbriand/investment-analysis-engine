@@ -1,5 +1,5 @@
 {
-  "schema_version": 10,
+  "schema_version": 11,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "ERROR",
@@ -17,7 +17,14 @@
   "provider_check": null,
   "requested_as_of": null,
   "effective_as_of": "<wall-clock>",
-  "anchor_filing": null,
+  "anchor_filing": {
+    "year_end": "2024-06-30",
+    "form": "10-K",
+    "accession": "0000000001-24-000001",
+    "filing_date": "2024-09-13",
+    "next_report_due": "2025-10-20",
+    "stale": false
+  },
   "security_identity": {
     "ticker": "ERROR",
     "instrument_name": null,
@@ -47,6 +54,7 @@
     "current_aaa_yield": null,
     "current_price": null
   },
+  "left_out_years": [],
   "method_assumptions": {
     "base_pe": 8.5,
     "growth_multiplier": 2.0,

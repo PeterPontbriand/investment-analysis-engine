@@ -18,6 +18,7 @@ from investment_analysis_engine.evaluation.cases.graham_number import GRAHAM_NUM
 from investment_analysis_engine.evaluation.composition import dispatch_fixture_case
 from investment_analysis_engine.evaluation.fixtures.graham import (
     BVPS_AVAIL,
+    BVPS_PERIOD_END,
     FIELD_BVPS,
     NOW,
     RETRIEVED_AT,
@@ -66,6 +67,7 @@ def _seeded_precedence_resolver() -> GrahamNumberInputResolver:
         available_at=BVPS_AVAIL,
         as_of=NOW,
         retrieved_at=RETRIEVED_AT,
+        observation_period_end=BVPS_PERIOD_END,
     )
     cache.put(
         ResolvedInputCacheKey(

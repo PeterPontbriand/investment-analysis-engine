@@ -128,6 +128,8 @@ class FilingFixture:
                     "form": ["10-K"],
                     "acceptanceDateTime": ["2026-02-20T14:46:00Z"],
                     "primaryDocument": ["ko-20251231.htm"],
+                    "filingDate": ["2026-02-20"],
+                    "reportDate": ["2025-12-31"],
                 }
             },
         }

@@ -165,6 +165,7 @@ The boundary's date is the UTC date of `context.effective_as_of`.
   below that its original due date falls in. A calendar-month allowance is added to the date after the 7 days, and a
   month's end clamps to the last day of a shorter month.
 - **Stale:** the boundary's date is after `next_report_due`. On the due date itself the anchor is not stale.
+- **Every strategy:** the rule applies to Piotroski, FCF Growth, the Graham strategies and every strategy built on the shared assembly. Graham Number and Graham Growth Value take the year from the anchor too: each filing input they resolve must end on the anchor's `year_end`, with no tolerance and no step back to an older year ([A.19](STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a19-graham-input-years-follow-the-shared-anchor-issue-245-2026-11-09)). An overridden input has no year and is exempt.
 - **Never early:** every allowance is the most generous regular deadline for the form plus any automatic extension, so the
   rule never warns early. The limitation is that a large accelerated filer, whose 10-K is due 60 days after year-end,
   gets up to 45 days of grace without a warning.
