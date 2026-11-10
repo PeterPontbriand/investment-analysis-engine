@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 from investment_analysis_engine.analysis.shared.cash_flow import compute_free_cash_flow
@@ -41,6 +41,8 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionTrace,
 )
 from investment_analysis_engine.data.financial.resolver import (
+    CONFLICTING_VERSIONS_MESSAGE,
+    EARLIER_BASIS_MESSAGE,
     AnnualSeriesResolution,
     InputResolver,
     LeftOutObservation,
@@ -50,10 +52,15 @@ from investment_analysis_engine.data.quality import QualityContext, QualityDecis
 from investment_analysis_engine.data.quality_reporting import publish_quality
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies.fcf_growth.calculators import compute_cagr, compute_fcf_per_diluted_share
-from investment_analysis_engine.strategies.fcf_growth.models import AnnualGrowthObservation, FCFEarningsGrowthPolicy
+from investment_analysis_engine.strategies.fcf_growth.models import (
+    AnnualGrowthObservation,
+    FCFEarningsGrowthPolicy,
+    LeftOutYear,
+    earlier_basis_shortfall,
+)
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
-CACHE_SCHEMA_VERSION = 3
+CACHE_SCHEMA_VERSION = 4
 _ANNUAL_FIELDS = (
     FinancialField.OPERATING_CASH_FLOW,
     FinancialField.CAPITAL_EXPENDITURES,
@@ -163,6 +170,7 @@ class AnnualGrowthSeriesAssembly:
     selection: SeriesSelection
     resolution_trace: ResolutionTrace
     provider_failure: ProviderFailureRecord | None = None
+    left_out_years: tuple[LeftOutYear, ...] = ()
 
     def __post_init__(self) -> None:
         """Enforce success/failure and selected-span invariants."""
@@ -199,6 +207,7 @@ class _FieldResolution:
     reason: str | None = None
     provider_error: bool = False
     provider_failure: ProviderFailureRecord | None = None
+    left_out_years: tuple[LeftOutYear, ...] = ()
 
 
 def _event(
@@ -238,6 +247,7 @@ def _failure_assembly(  # noqa: PLR0913
     longest_count: int,
     trace: ResolutionTrace,
     provider_failure: ProviderFailureRecord | None = None,
+    left_out_years: tuple[LeftOutYear, ...] = (),
 ) -> AnnualGrowthSeriesAssembly:
     selection = SeriesSelection(
         requested=policy.historical_horizon,
@@ -261,6 +271,7 @@ def _failure_assembly(  # noqa: PLR0913
         selection=selection,
         resolution_trace=trace,
         provider_failure=provider_failure,
+        left_out_years=left_out_years,
     )
 
 
@@ -404,7 +415,8 @@ def _no_selection_reason(
     An observation that was available at the boundary but failed one of this strategy's own checks gives that check's
     reason; among several, the one with the earliest period end, then the lowest fact ID. Otherwise the field is
     ``not_available_as_of``: with the message for an observation that was not available at the boundary when any was
-    (left out by the shared entry, or rejected here), and with the quality message otherwise.
+    (left out by the shared entry, or rejected here); an observation reported only on an earlier basis gives
+    ``earlier_basis`` with its message; and with the quality message otherwise.
     """
     own = [item for item in rejections if item.code is not ReasonCode.NOT_AVAILABLE_AS_OF]
     if own:
@@ -415,6 +427,10 @@ def _no_selection_reason(
     )
     if not_available:
         return ReasonCode.NOT_AVAILABLE_AS_OF, _NOT_AVAILABLE_AT_BOUNDARY
+    if any(item.why is LeftOutReason.EARLIER_BASIS for item in left_out):
+        return ReasonCode.EARLIER_BASIS, EARLIER_BASIS_MESSAGE
+    if any(item.why is LeftOutReason.CONFLICTING_VERSIONS for item in left_out):
+        return ReasonCode.AMBIGUOUS_FACT, CONFLICTING_VERSIONS_MESSAGE
     if rejections or left_out:
         return ReasonCode.NOT_AVAILABLE_AS_OF, _LATER_THAN_BOUNDARY
     return ReasonCode.MISSING_FACT, f"No usable {field.value} facts were returned."
@@ -575,6 +591,27 @@ def _entry_failure(field: FinancialField, answer: AnnualSeriesResolution) -> _Fi
     return _FieldResolution(reason_code=code, reason=reason)
 
 
+def _earlier_basis_years(field: FinancialField, left_out: Sequence[LeftOutObservation]) -> tuple[LeftOutYear, ...]:
+    """Return the years of ``field`` the shared entry left out as earlier-basis or conflicting, oldest first."""
+    codes = {
+        LeftOutReason.EARLIER_BASIS: ReasonCode.EARLIER_BASIS,
+        LeftOutReason.CONFLICTING_VERSIONS: ReasonCode.AMBIGUOUS_FACT,
+    }
+    years = []
+    for item in left_out:
+        if item.why in codes and item.observation_period_end is not None:
+            years.append(
+                LeftOutYear(
+                    field=field.value,
+                    fiscal_year=item.observation_period_end.year,
+                    period_end=item.observation_period_end.date(),
+                    reason_code=codes[item.why],
+                    reason=item.reason,
+                )
+            )
+    return tuple(sorted(years, key=lambda year: year.period_end))
+
+
 def _resolve_field(  # noqa: PLR0913
     *,
     field: FinancialField,
@@ -647,6 +684,7 @@ def _resolve_field(  # noqa: PLR0913
         resolved_at,
         answer.left_out,
     )
+    resolution = replace(resolution, left_out_years=_earlier_basis_years(field, answer.left_out))
     if resolution.reason_code is not None:
         return resolution, trace.append(
             _event(
@@ -784,6 +822,41 @@ def _assemble_common(
     return tuple(observations), None, None
 
 
+def _earlier_basis_shortfall(
+    policy: FCFEarningsGrowthPolicy,
+    candidates: Sequence[int],
+    resolved_fields: Mapping[FinancialField, tuple[ResolvedInput, ...]],
+    left_out: Sequence[LeftOutYear],
+    common: Sequence[AnnualGrowthObservation],
+) -> str | None:
+    """Return the reason an explicitly requested span is unmet because of earlier-basis years, if that is why.
+
+    The span needs the fiscal years from *elapsed* years before the newest common year to the newest common year. It is
+    unmet because of earlier-basis years when a needed year is not common, and every needed year would be if the years
+    left out of the EPS series were counted. A policy that picks the span itself has no requested span.
+    """
+    if policy.historical_horizon is HistoricalHorizon.LONGEST_AVAILABLE or not common or not left_out:
+        return None
+    elapsed = candidates[0]
+    last = common[-1].period_end.year
+    needed = set(range(last - elapsed, last + 1))
+    have = {item.period_end.year for item in common}
+    other_years = [
+        {item.observation_period_end.year for item in resolved_fields[field] if item.observation_period_end is not None}
+        for field in (FinancialField.OPERATING_CASH_FLOW, FinancialField.CAPITAL_EXPENDITURES)
+    ]
+    left_out = [item for item in left_out if item.reason_code is ReasonCode.EARLIER_BASIS]
+    eps_left_out = {item.fiscal_year for item in left_out if item.field == FinancialField.EPS.value}
+    possible = set.intersection(*other_years) & (have | eps_left_out)
+    if needed <= have or not needed <= possible:
+        return None
+    shown_fields = {FinancialField.EPS.value}
+    if policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE:
+        shown_fields.add(FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES.value)
+    shown = [item for item in left_out if item.fiscal_year in needed and item.field in shown_fields]
+    return earlier_basis_shortfall(shown, elapsed, (last - elapsed, last))
+
+
 def _has_span_sign_change(values: Sequence[float]) -> bool:
     return any(value == 0 for value in values) or any(
         left * right < 0 for left, right in zip(values, values[1:], strict=False)
@@ -857,6 +930,7 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
     trace = ResolutionTrace()
     resolver = InputResolver(provider, clock=clock)
     resolved_fields: dict[FinancialField, tuple[ResolvedInput, ...]] = {}
+    left_out_years: list[LeftOutYear] = []
     for field in _ANNUAL_FIELDS:
         resolution, field_trace = _resolve_field(
             field=field,
@@ -894,6 +968,8 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
                 else resolution.provider_failure.for_input(field.value),
             )
         resolved_fields[field] = resolution.inputs
+        left_out_years.extend(resolution.left_out_years)
+    left_out = tuple(left_out_years)
     common, code, reason = _assemble_common(resolved_fields, now, as_of)
     if code is not None:
         return _failure_assembly(
@@ -905,9 +981,27 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             longest_count=0,
             trace=trace,
         )
-    if policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE and any(
-        item.free_cash_flow_per_diluted_share is None for item in common
-    ):
+    pool = tuple(
+        item
+        for item in common
+        if policy.classification_basis is not FCFClassificationBasis.FCF_PER_SHARE
+        or item.free_cash_flow_per_diluted_share is not None
+    )
+    longest_count = _longest_contiguous_count(tuple(item.free_cash_flow for item in pool))
+    selected: tuple[AnnualGrowthObservation, ...] = ()
+    selected_years: int | None = None
+    for elapsed in candidates:
+        if len(pool) < elapsed + 1:
+            continue
+        candidate = pool[-(elapsed + 1) :]
+        if all(
+            _periods_are_contiguous(left.period_end, right.period_start)
+            for left, right in zip(candidate, candidate[1:], strict=False)
+        ):
+            selected = candidate
+            selected_years = elapsed
+            break
+    if selected_years is None and len(pool) < len(common):
         return _failure_assembly(
             status=CalculationStatus.INPUT_UNAVAILABLE,
             code=ReasonCode.INCOMPATIBLE_SCOPE,
@@ -916,21 +1010,8 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             common_count=len(common),
             longest_count=_longest_contiguous_count(tuple(item.free_cash_flow for item in common)),
             trace=trace,
+            left_out_years=left_out,
         )
-    longest_count = _longest_contiguous_count(tuple(item.free_cash_flow for item in common))
-    selected: tuple[AnnualGrowthObservation, ...] = ()
-    selected_years: int | None = None
-    for elapsed in candidates:
-        if len(common) < elapsed + 1:
-            continue
-        candidate = common[-(elapsed + 1) :]
-        if all(
-            _periods_are_contiguous(left.period_end, right.period_start)
-            for left, right in zip(candidate, candidate[1:], strict=False)
-        ):
-            selected = candidate
-            selected_years = elapsed
-            break
     if selected_years is None:
         too_few_contiguous_observations = len(common) < min(candidates) + 1 and longest_count == len(common)
         code = ReasonCode.INSUFFICIENT_HISTORY if too_few_contiguous_observations else ReasonCode.NON_CONTIGUOUS_HISTORY
@@ -939,6 +1020,9 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             if code is ReasonCode.INSUFFICIENT_HISTORY
             else "The most recent common annual history is not contiguous."
         )
+        earlier = _earlier_basis_shortfall(policy, candidates, resolved_fields, left_out, pool)
+        if earlier is not None:
+            code, reason = ReasonCode.EARLIER_BASIS, earlier
         return _failure_assembly(
             status=CalculationStatus.INPUT_UNAVAILABLE,
             code=code,
@@ -947,6 +1031,7 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             common_count=len(common),
             longest_count=longest_count,
             trace=trace,
+            left_out_years=left_out,
         )
     fcf_values = [item.free_cash_flow.value for item in selected]
     eps_values = [item.diluted_eps.value for item in selected]
@@ -991,6 +1076,7 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
         selected_horizon_years=selected_years,
         selected_observation_count=len(selected),
         used_horizon_fallback=fallback,
+        left_out_years=left_out,
         fcf_cagr=fcf_cagr,
         fcf_per_share_cagr=fcf_per_share_cagr,
         eps_cagr=eps_cagr,

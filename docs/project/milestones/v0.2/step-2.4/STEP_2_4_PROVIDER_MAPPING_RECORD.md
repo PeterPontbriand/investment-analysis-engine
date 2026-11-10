@@ -163,8 +163,8 @@ any attempt to synthesize the total by summing cash-flow-statement lines.
 | Mapping field | Approved candidate rule |
 | :--- | :--- |
 | Provider and capability | `sec_edgar` / annual capital expenditures |
-| Exact source concept | `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment` only |
-| Selection precedence | No alternate concept; exact concept or unavailable |
+| Exact source concept | `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment`, or the broader `us-gaap:PaymentsToAcquireProductiveAssets` under the selection rule below |
+| Selection precedence | One concept per request, never both: the one that covers the longer run of the newest annual periods; a tie goes to PP&E |
 | Financial meaning | Cash paid to acquire long-lived physical PP&E used in operations, including construction of self-constructed assets |
 | Included | Acquisitions and capital improvements within the exact taxonomy concept |
 | Excluded | Acquired businesses, financial investments, proceeds from asset sales, leases without cash purchase evidence, working capital, and separately tagged intangible/software expenditure not included by the filer in the exact PP&E concept |
@@ -178,15 +178,30 @@ any attempt to synthesize the total by summing cash-flow-statement lines.
 Zero is valid. A negative raw value contradicts this concept's cash-outflow
 mapping and is rejected as ambiguous; `abs()` is prohibited.
 
+`PaymentsToAcquireProductiveAssets` is the second US-GAAP concept. It has the
+same sign rule (`positive_expenditure`; a negative raw value is rejected), and
+the same period, unit, scope and availability rules as the PP&E concept. Its
+definition can include software and other intangible assets the filer reports
+with property and equipment, so it is not identical to the physical-PP&E
+definition, and a run that uses it carries a limitation saying so. Each
+concept's run is the number of consecutive annual periods it covers, counted
+back from the newest annual period either concept reports. Only the facts of
+the concept with the longer run are returned; on a tie, the PP&E concept's.
+Facts of both concepts are never returned for one request.
+
+NVDA tags capital expenditures only as `PaymentsToAcquireProductiveAssets`
+for the periods ending 2022 to 2026, and its PP&E concept stops at 2012, so
+the productive-assets concept is returned. Apple's history is the reason the
+concepts are never mixed in one series: it reported
+`PaymentsToAcquireProductiveAssets` for older periods and switched to the PP&E
+concept for newer ones, and the two definitions differ, so the newer concept's
+run is returned alone.
+
 Explicitly unsupported CapEx shapes include
-`PaymentsToAcquireProductiveAssets`,
 `PaymentsToAcquireOtherPropertyPlantAndEquipment`, custom issuer extensions,
 precomputed provider free cash flow, and any sum of plausible acquisition or
-investment concepts. Apple's older `PaymentsToAcquireProductiveAssets` history
-illustrates why concept substitution is unsafe: its definition can include
-software and other intangible assets, so it is not identical to the selected
-physical-PP&E definition. A period without the exact approved concept has
-unavailable CapEx and therefore unavailable derived FCF.
+investment concepts. A period without an approved concept has unavailable CapEx
+and therefore unavailable derived FCF. The IFRS mapping is unchanged.
 
 ## 5. Annual diluted-EPS mapping and split reconciliation
 
@@ -224,10 +239,28 @@ For a selected CAGR span:
 4. require every EPS period in the span to have been reported or re-presented
    on or after that boundary.
 
-If an older endpoint was not re-presented on the common basis, the requested
-span is unavailable rather than mixing pre-split and post-split EPS. Identical
-repeated values are duplicates, not remeasurements. The project applies no
-independent arithmetic split adjustment.
+If an older endpoint was not re-presented on the common basis, the series is
+the longest run of the newest periods that satisfies steps 1 to 4, each judged
+on that run's own events and not on the full requested span. The run is never
+empty for a requested span whose newest period is reported, and the bases are
+never mixed. Each period of the requested span left out of the run because it
+was reported only before a later filing restated other years is reported to the
+resolver as left out for the reason `earlier_basis`, as its latest version.
+Identical repeated values are duplicates, not remeasurements. The project
+applies no independent arithmetic split adjustment.
+
+NVDA shows why. A 10-K carries three fiscal years, so its 10-for-1 split of
+June 2024 restated the periods ending 2023, 2024 and 2025 (FY2023 `1.74`
+became `0.17` in the FY2025 10-K) and not the older ones, which were last filed
+before it. Of six requested periods the series is the four newest, and the
+two older are left out as `earlier_basis`. The weighted-average diluted-share
+series is reconciled the same way.
+
+Considered alternative: a split-adjusted view (derived), which would extend
+the history by dividing earlier-basis years by the split ratio. It is not
+part of this rule, which does no split arithmetic. It is recorded as an opt-in
+for a later decision in
+[issue 248](https://github.com/PeterPontbriand/investment-analysis-engine/issues/248).
 
 This rule is intentionally conservative. If deterministic D3 fixtures show
 that the provider payload cannot implement it without ambiguity, D3 must stop
@@ -266,7 +299,15 @@ After common eligibility filtering:
 4. when equally ranked facts have identical normalized values, select by the
    lexically stable accession/provider fact identifier and retain the duplicate
    count in lineage; and
-5. when equally ranked facts disagree, return `ambiguous_fact`.
+5. when equally ranked facts disagree, return `ambiguous_fact`. For the EPS and
+   weighted-average diluted-share series (Section 5.1), a period whose latest
+   versions disagree does not empty the series: if it is the newest requested
+   period, the series is `ambiguous_fact`; if it is an older one, that period and
+   every older one are dropped, the run is the newer periods judged by the rules
+   above, and the dropped period is reported as left out with `ambiguous_fact` and
+   the reason "Filings filed together give different values for this year; not
+   used." A period older than the conflicting one is reported only when it is
+   also left out as `earlier_basis`.
 
 Later 10-K and 10-K/A comparative facts are restatements or re-presentations,
 not separate fiscal years. The exact period dates, not Company Facts `fy`, are
@@ -278,8 +319,7 @@ precedes its availability.
 | Shape | Disposition | Reason |
 | :--- | :--- | :--- |
 | Exact three concepts, one-ticker CIK, compatible annual USD facts | Supported candidate | Meets the narrow mapping and compatibility rules |
-| Missing exact PP&E concept | Unavailable | No broad CapEx substitution or summation |
-| `PaymentsToAcquireProductiveAssets` | Unavailable | Broader definition can include software/intangibles |
+| Missing exact PP&E concept | `PaymentsToAcquireProductiveAssets` when it covers the longer run, otherwise unavailable | One concept per request, never a sum; the broader concept is disclosed as a limitation |
 | Continuing-operations OCF concept | Unavailable | Not definition-identical to the selected all-operating-activities total |
 | Provider/company precomputed FCF | Unavailable | Definition and lineage are not proven identical |
 | 10-Q, YTD, quarterly, TTM, or instant fact | Unavailable | Not a completed annual duration |
@@ -441,7 +481,9 @@ For a candidate CAGR span:
    `ambiguous_fact` for equally ranked disagreement.
 
 The project applies no independent stock-split arithmetic. An older period not
-re-presented on the common basis is unavailable. A dimensional, class-specific,
+re-presented on the common basis is left out of the series, which is the
+longest run of the newest periods on one basis (Section 5.1), and is reported
+as left out for the reason `earlier_basis`. A dimensional, class-specific,
 or custom share fact is unsupported. The one-ticker-CIK rule is the initial
 proof that the entity-wide denominator is applicable to the requested security;
 E1 does not claim support for dual-class or preferred/common allocations.

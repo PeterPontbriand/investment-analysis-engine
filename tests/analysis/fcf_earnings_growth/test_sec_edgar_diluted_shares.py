@@ -96,7 +96,7 @@ def test_returns_exact_positive_share_fact() -> None:
     assert fact.provider_field == SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD
 
 
-def test_uses_common_post_split_basis_and_rejects_unrepresented_endpoint() -> None:
+def test_uses_common_post_split_basis_and_shortens_the_series_at_an_unrepresented_endpoint() -> None:
     complete = [
         _observation(5_000, "2018", "2017-10-01", "2018-09-29", "2018-11-05"),
         _observation(20_000, "2020-r18", "2017-10-01", "2018-09-29", "2020-10-30"),
@@ -105,7 +105,8 @@ def test_uses_common_post_split_basis_and_rejects_unrepresented_endpoint() -> No
         _observation(17_000, "2020", "2019-09-29", "2020-09-26", "2020-10-30"),
     ]
     assert [fact.value for fact in _facts(complete, 3)] == pytest.approx([20_000, 18_000, 17_000])
-    assert _facts([complete[0], complete[2], complete[3], complete[4]], 3) == ()
+    shortened = _facts([complete[0], complete[2], complete[3], complete[4]], 3)
+    assert [fact.value for fact in shortened] == pytest.approx([18_000, 17_000])
 
 
 def test_rejects_nonpositive_share_count() -> None:

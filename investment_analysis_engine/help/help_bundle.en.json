@@ -118,6 +118,12 @@
           "markdown": "The automatic policy tries these spans in order:\n\n| Elapsed years | Required annual observations |\n|---:|---:|\n| 5 | 6 |\n| 4 | 5 |\n| 3 | 4 |\n\nFor example, FY2020 through FY2025 contains six observations and five elapsed annual intervals. The observations must be compatible and contiguous. If the automatic policy falls back to a shorter span, the result discloses that fallback.\n\nAn exact span can be requested instead.\n\nAn explicit span is strict. If the required history is unavailable, the strategy returns `INDETERMINATE` rather than silently choosing a shorter span."
         },
         {
+          "heading": "Years reported only before a restatement",
+          "id": "years-reported-only-before-a-restatement",
+          "level": 3,
+          "markdown": "A company restates earlier years when something such as a stock split changes the per-share figures. The filings that restate them usually cover only the latest three years, so older years can remain on the earlier basis. Diluted EPS and the weighted-average diluted shares of those older years are not comparable with the restated years, and the engine does not convert them.\n\nIt uses the newest run of years that share one basis and leaves the older years out. The result names each year left out, for which figure, and why: its `left_out_years` list in the JSON output, and a warning in the text output such as \"Diluted EPS for FY2020–FY2021 was reported only before a later filing restated other years (for example after a stock split); those years are left out.\" The reason code is `earlier_basis`. When nothing is left out the list is empty.\n\nA year is also left out when the filings that report it, filed together, give different values. The reason code is `ambiguous_fact`, the warning says that year has different values in filings filed together, and every year older than it is left out with it. If that is the newest year, the result is `INDETERMINATE` with `ambiguous_fact`.\n\nLeaving years out can shorten the history. The automatic policy then uses the longest span that remains and discloses the fallback. An explicit span that needs the years left out is `INDETERMINATE` with the reason `earlier_basis`, and its reason names those years and the years the span needs.\n\nWith the FCF-per-share basis, the span is chosen from the years that have a per-share value, so years whose diluted shares were left out do not stop a shorter span from being used."
+        },
+        {
           "heading": "Classification",
           "id": "classification",
           "level": 2,
@@ -145,7 +151,7 @@
           "heading": "Data sources and provenance",
           "id": "data-sources-and-provenance",
           "level": 2,
-          "markdown": "The current production analysis resolves annual financial facts from SEC EDGAR. Required evidence includes:\n\n- net cash provided by operating activities;\n- capital expenditures, normalized to a positive expenditure amount;\n- diluted EPS; and\n- weighted-average diluted shares.\n\nEligible annual forms are `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and\n`40-F/A` for the reviewed duration fields. US-GAAP uses the existing exact\nconcept mappings. IFRS support is deliberately limited to exact diluted EPS,\ndiluted weighted-average shares, operating cash flow, and physical-PP&E CapEx\nconcepts. Broader combined investing concepts, custom extensions, fuzzy\nmatches, negative-to-positive CapEx normalization, and missing-value\nsubstitution remain unsupported.\n\nIssuer-level operating cash flow, CapEx, and derived FCF can remain valid even\nwhen per-share or quote-unit evidence is unavailable. ADR/ADS conversion and\ncurrency conversion are not performed.\n\nA three-letter ISO 4217 reporting currency can be required, and annual facts must then be compatible with it.\n\nThe calculation does not accept a provider's precomputed “free cash flow” solely because its label matches. It derives FCF from the resolved components and retains their provider fields, period dates, publication/availability dates, retrieval times, units, currency, and derivation lineage.\n\nThe resolver rejects incompatible facts instead of combining values with mismatched fiscal periods, units, currency, or measurement bases. Amendments and restatements are handled by deterministic selection rules."
+          "markdown": "The current production analysis resolves annual financial facts from SEC EDGAR. Required evidence includes:\n\n- net cash provided by operating activities;\n- capital expenditures, normalized to a positive expenditure amount: purchases of property and equipment or, for a filer that reports only the broader purchases of productive assets, that concept (the result then states a limitation, because the broader concept includes intangible assets);\n- diluted EPS; and\n- weighted-average diluted shares.\n\nEligible annual forms are `10-K`, `10-K/A`, `20-F`, `20-F/A`, `40-F`, and\n`40-F/A` for the reviewed duration fields. US-GAAP uses the existing exact\nconcept mappings. IFRS support is deliberately limited to exact diluted EPS,\ndiluted weighted-average shares, operating cash flow, and physical-PP&E CapEx\nconcepts. Broader combined investing concepts, custom extensions, fuzzy\nmatches, negative-to-positive CapEx normalization, and missing-value\nsubstitution remain unsupported.\n\nIssuer-level operating cash flow, CapEx, and derived FCF can remain valid even\nwhen per-share or quote-unit evidence is unavailable. ADR/ADS conversion and\ncurrency conversion are not performed.\n\nA three-letter ISO 4217 reporting currency can be required, and annual facts must then be compatible with it.\n\nThe calculation does not accept a provider's precomputed “free cash flow” solely because its label matches. It derives FCF from the resolved components and retains their provider fields, period dates, publication/availability dates, retrieval times, units, currency, and derivation lineage.\n\nThe resolver rejects incompatible facts instead of combining values with mismatched fiscal periods, units, currency, or measurement bases. Amendments and restatements are handled by deterministic selection rules."
         },
         {
           "heading": "Why another calculator may disagree",
@@ -301,7 +307,7 @@
           "heading": "Annual measures",
           "id": "annual-measures",
           "level": 3,
-          "markdown": "For each eligible completed fiscal year:\n\n```text\nfree_cash_flow = operating_cash_flow - normalized_capital_expenditures\n\nfree_cash_flow_per_diluted_share =\n    free_cash_flow / weighted_average_diluted_shares\n```\n\nOperating cash flow is net cash provided by operating activities. Capital expenditures are normalized to a positive expenditure amount before subtraction because providers may report cash outflows with different sign conventions. The normalization and original provider field remain in provenance.\n\nWeighted-average diluted shares must be positive and compatible with the same completed fiscal year. Ending shares outstanding are not silently substituted. A provider's precomputed “free cash flow” is not accepted merely because its label matches; the strategy derives FCF from its resolved components."
+          "markdown": "For each eligible completed fiscal year:\n\n```text\nfree_cash_flow = operating_cash_flow - normalized_capital_expenditures\n\nfree_cash_flow_per_diluted_share =\n    free_cash_flow / weighted_average_diluted_shares\n```\n\nOperating cash flow is net cash provided by operating activities. Capital expenditures are normalized to a positive expenditure amount before subtraction because providers may report cash outflows with different sign conventions. The normalization and original provider field remain in provenance.\n\nThe SEC concept for capital expenditures is property, plant and equipment purchases. Some filers, such as NVIDIA, report only the broader purchases of productive assets, which includes intangible assets such as software. For each company the engine uses one of the two, never both: the one the filer reports for the longer run of consecutive recent years, and property and equipment when they tie. When the broader concept is used, the result says so in a limitation, because free cash flow can then be lower than with property and equipment alone.\n\nWeighted-average diluted shares must be positive and compatible with the same completed fiscal year. Ending shares outstanding are not silently substituted. A provider's precomputed “free cash flow” is not accepted merely because its label matches; the strategy derives FCF from its resolved components."
         },
         {
           "heading": "Historical horizon",
@@ -1005,6 +1011,7 @@
         "reason-ambiguous-fact",
         "reason-not-available-as-of",
         "reason-stale-anchor",
+        "reason-earlier-basis",
         "reason-growth-not-meaningful",
         "reason-not-growing",
         "reason-forward-not-confirmed",
@@ -1153,7 +1160,7 @@
       "name": "Capital Expenditure Sign"
     },
     "capital-expenditures": {
-      "body": "Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.",
+      "body": "Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.\n\nFrom SEC filings the engine uses purchases of property and equipment, or, for a filer that reports only the broader purchases of productive assets, that concept. It uses one of the two for a company, never both. The broader concept includes intangible assets such as software, and a result that uses it says so.",
       "definition": "Cash spent to acquire or improve long-lived productive assets.",
       "group": "company-financial-measures",
       "name": "Capital Expenditures (CapEx)"
@@ -1871,6 +1878,12 @@
       "definition": "Total debt cannot be determined from the filing: related debt is tagged but no usable component is shown, or the filing's debt mapping is not supported.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Debt Not Visible"
+    },
+    "reason-earlier-basis": {
+      "body": "The restated years and the older years are on different bases, so the engine never combines them and does no split arithmetic to convert one to the other. It uses the newest run of years that share one basis and names the years it left out. A year whose filings, filed together, give different values is left out too, with the reason [ambiguous fact](help:terms/reason-ambiguous-fact), and so is every year older than it. When a requested history needs those years, the result is indeterminate with this reason. See [stock split adjustment](help:terms/stock-split-adjustment) and [fiscal year](help:terms/fiscal-year).",
+      "definition": "A year is left out because the company reported it only before a later filing restated other years, for example after a stock split.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Earlier Basis"
     },
     "reason-forward-not-confirmed": {
       "body": "See [forward policy](help:terms/forward-policy) and [analyst consensus estimate](help:terms/analyst-consensus-estimate).",

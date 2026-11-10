@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "fcf_earnings_growth",
   "method": "reported_fcf_eps_cagr",
   "ticker": "ACME",
@@ -24,7 +24,7 @@
     "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
-  "result_schema_version": 8,
+  "result_schema_version": 9,
   "method_version": 3,
   "policy": {
     "historical_horizon": "longest_available",
@@ -2051,6 +2051,7 @@
       }
     }
   ],
+  "left_out_years": [],
   "fcf_cagr": {
     "status": "ok",
     "value": 10.197228772148016,

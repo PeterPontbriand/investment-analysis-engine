@@ -56,13 +56,20 @@ class FakeSecFetcher:
         raise AssertionError(msg)
 
 
-def _observation(value: float, *, accession: str, start: str = "2024-07-01", end: str = "2025-06-30") -> dict[str, Any]:
+def _observation(  # noqa: PLR0913
+    value: float,
+    *,
+    accession: str,
+    start: str = "2024-07-01",
+    end: str = "2025-06-30",
+    filed: str = "2025-07-29",
+) -> dict[str, Any]:
     return {
         "val": value,
         "start": start,
         "end": end,
         "accn": accession,
-        "filed": "2025-07-29",
+        "filed": filed,
         "fy": 2025,
         "fp": "FY",
         "form": "10-K",
@@ -136,13 +143,9 @@ def test_accepts_zero_and_rejects_negative_without_absolute_value_normalization(
     assert [fact.value for fact in facts] == pytest.approx([0.0])
 
 
-def test_does_not_substitute_productive_assets_or_other_ppe_concepts() -> None:
+def test_does_not_substitute_other_ppe_concepts() -> None:
     alternates = {
-        concept: {"units": {"USD": [_observation(99.0, accession=concept)]}}
-        for concept in (
-            "PaymentsToAcquireProductiveAssets",
-            "PaymentsToAcquireOtherPropertyPlantAndEquipment",
-        )
+        "PaymentsToAcquireOtherPropertyPlantAndEquipment": {"units": {"USD": [_observation(99.0, accession="other")]}}
     }
 
     assert _adapter(_payload(extra_concepts=alternates)).fetch_facts(_request(), effective_as_of=NOW) == ()
@@ -161,3 +164,87 @@ def test_rejects_unsupported_period_unit_and_request_shapes() -> None:
         )
         == ()
     )
+
+
+# ---------------------------------------------------------------------------
+# One capital-expenditure concept per request: the one that covers the longer run of the newest periods.
+# ---------------------------------------------------------------------------
+
+_PPE = "PaymentsToAcquirePropertyPlantAndEquipment"
+_PRODUCTIVE = "PaymentsToAcquireProductiveAssets"
+_NVDA_ENDS = (
+    ("2021-02-01", "2022-01-30", 976e6),
+    ("2022-01-31", "2023-01-29", 1833e6),
+    ("2023-01-30", "2024-01-28", 1069e6),
+    ("2024-01-29", "2025-01-26", 3236e6),
+    ("2025-01-27", "2026-01-25", 6042e6),
+)
+
+
+def _concept(name: str, rows: list[tuple[str, str, float]]) -> dict[str, object]:
+    return {
+        name: {
+            "units": {
+                "USD": [
+                    _observation(value, accession=f"{name}-{end}", start=start, end=end, filed="2026-02-25")
+                    for start, end, value in rows
+                ]
+            }
+        }
+    }
+
+
+def _capex(concepts: Mapping[str, object]) -> tuple[Any, ...]:
+    return _adapter(_payload(extra_concepts=concepts)).fetch_facts(_request(), effective_as_of=NOW)
+
+
+def test_an_nvda_shaped_issuer_whose_ppe_concept_stops_early_gets_productive_assets_only() -> None:
+    ppe = [
+        ("2009-01-26", "2010-01-31", 77_601_000.0),
+        ("2010-02-01", "2011-01-30", 97_890_000.0),
+        ("2011-01-31", "2012-01-29", 138_735_000.0),
+    ]
+
+    facts = _capex({**_concept(_PPE, ppe), **_concept(_PRODUCTIVE, list(_NVDA_ENDS))})
+
+    assert [fact.value for fact in facts] == pytest.approx([row[2] for row in _NVDA_ENDS])
+    assert {fact.provider_field for fact in facts} == {"us-gaap:PaymentsToAcquireProductiveAssets"}
+    assert {fact.capital_expenditure_sign for fact in facts} == {CapitalExpenditureSign.POSITIVE_EXPENDITURE}
+
+
+def test_an_apple_shaped_switch_to_ppe_returns_ppe_only() -> None:
+    productive = [("2017-10-01", "2018-09-29", 14e9), ("2018-09-30", "2019-09-28", 10e9)]
+    ppe = [
+        ("2019-09-29", "2020-09-26", 7e9),
+        ("2020-09-27", "2021-09-25", 11e9),
+        ("2021-09-26", "2022-09-24", 10e9),
+    ]
+
+    facts = _capex({**_concept(_PRODUCTIVE, productive), **_concept(_PPE, ppe)})
+
+    assert [fact.value for fact in facts] == pytest.approx([7e9, 11e9, 10e9])
+    assert {fact.provider_field for fact in facts} == {"us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"}
+
+
+def test_a_tie_returns_ppe() -> None:
+    rows = [("2022-01-31", "2023-01-29", 1.0), ("2023-01-30", "2024-01-28", 2.0)]
+    other = [("2022-01-31", "2023-01-29", 9.0), ("2023-01-30", "2024-01-28", 8.0)]
+
+    facts = _capex({**_concept(_PRODUCTIVE, other), **_concept(_PPE, rows)})
+
+    assert [fact.value for fact in facts] == [1.0, 2.0]
+    assert {fact.provider_field for fact in facts} == {"us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"}
+
+
+def test_the_broader_concept_wins_only_by_a_longer_run_and_the_two_are_never_combined() -> None:
+    ppe = [("2024-01-29", "2025-01-26", 5.0)]
+    productive = [(start, end, value) for start, end, value in _NVDA_ENDS[-3:]]
+
+    facts = _capex({**_concept(_PPE, ppe), **_concept(_PRODUCTIVE, productive)})
+
+    assert len(facts) == 3
+    assert {fact.provider_field for fact in facts} == {"us-gaap:PaymentsToAcquireProductiveAssets"}
+
+
+def test_a_negative_productive_assets_value_is_rejected() -> None:
+    assert _capex(_concept(_PRODUCTIVE, [("2024-01-29", "2025-01-26", -5.0)])) == ()

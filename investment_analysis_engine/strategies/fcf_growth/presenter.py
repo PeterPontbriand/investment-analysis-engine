@@ -11,6 +11,7 @@ from investment_analysis_engine.core.metric_result import MetricResult, MetricSt
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, profile_identity_resolution
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD
 from investment_analysis_engine.data.security_identity import SecurityIdentityResolution, security_display_label
 from investment_analysis_engine.reporting.documents.shared_parts import (
     anchor_filing_part,
@@ -34,6 +35,7 @@ from investment_analysis_engine.strategies.fcf_growth.envelope import (
     DOCUMENT_SCHEMA_VERSION,
     FCFDocument,
     FCFForwardEvidencePart,
+    FCFLeftOutYearPart,
     FCFMarketCapPart,
     FCFObservationPart,
     FCFPolicyPart,
@@ -52,6 +54,21 @@ _LIMITATION = (
     "Historical financial strength does not establish market opportunity, scarcity, durability of moat, "
     "or an investment recommendation."
 )
+
+
+_INTANGIBLES_LIMITATION = (
+    "Capital expenditures include purchases of intangible assets, which the filer reports together with property "
+    "and equipment, so free cash flow may be lower than with property and equipment alone."
+)
+
+
+def _limitations(result: FCFEarningsGrowthResult) -> tuple[str, ...]:
+    """Return the limitations: the standing one, and the intangible-assets one when capex is the broader concept."""
+    broader = any(
+        item.normalized_capital_expenditures.provider_field == SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD
+        for item in result.annual_observations
+    )
+    return (_LIMITATION, _INTANGIBLES_LIMITATION) if broader else (_LIMITATION,)
 
 
 _TREND_LABELS = {
@@ -176,7 +193,7 @@ def _concise(
         )
     lines.append(_source_summary(result))
     lines.extend(f"Warning: {warning}" for warning in result.warnings)
-    lines.append(f"Limitation: {_LIMITATION}")
+    lines.extend(f"Limitation: {limitation}" for limitation in _limitations(result))
     return lines
 
 
@@ -438,6 +455,9 @@ def _document(
         annual_observations=tuple(
             FCFObservationPart.model_validate(item, from_attributes=True) for item in result.annual_observations
         ),
+        left_out_years=tuple(
+            FCFLeftOutYearPart.model_validate(item, from_attributes=True) for item in result.left_out_years
+        ),
         fcf_cagr=metric_result_part(result.fcf_cagr),
         fcf_per_share_cagr=metric_result_part(result.fcf_per_share_cagr),
         eps_cagr=metric_result_part(result.eps_cagr),
@@ -450,7 +470,7 @@ def _document(
         fcf_yield=metric_result_part(result.fcf_yield),
         forward_evidence=FCFForwardEvidencePart.model_validate(result.forward_evidence, from_attributes=True),
         warnings=result.warnings,
-        limitations=(_LIMITATION,),
+        limitations=_limitations(result),
         diagnostics=(
             *trace_parts(result.diagnostics),
             *profile_diagnostic_parts(profile),

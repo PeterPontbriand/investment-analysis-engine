@@ -422,6 +422,8 @@ Cash spent to acquire or improve long-lived productive assets.
 
 Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.
 
+From SEC filings the engine uses purchases of property and equipment, or, for a filer that reports only the broader purchases of productive assets, that concept. It uses one of the two for a company, never both. The broader concept includes intangible assets such as software, and a result that uses it says so.
+
 <a id="free-cash-flow"></a>
 ### Free Cash Flow (FCF)
 The cash a company's operations generate in a year, minus what it spends on long-lived assets such as equipment.
@@ -1200,6 +1202,12 @@ The engine never uses information from after the boundary. See [as-of date](#as-
 The market capitalization is not calculated: the newest annual report was overdue for replacement at the as-of date and none was filed.
 
 The share count in that report is not the count at the as-of date. The run keeps its status and a warning states the fiscal year, the form and the date the next report was due. See [anchor filing](#anchor-filing).
+
+<a id="reason-earlier-basis"></a>
+### Earlier Basis
+A year is left out because the company reported it only before a later filing restated other years, for example after a stock split.
+
+The restated years and the older years are on different bases, so the engine never combines them and does no split arithmetic to convert one to the other. It uses the newest run of years that share one basis and names the years it left out. A year whose filings, filed together, give different values is left out too, with the reason [ambiguous fact](#reason-ambiguous-fact), and so is every year older than it. When a requested history needs those years, the result is indeterminate with this reason. See [stock split adjustment](#stock-split-adjustment) and [fiscal year](#fiscal-year).
 
 <a id="reason-growth-not-meaningful"></a>
 ### Growth Not Meaningful

@@ -41,7 +41,7 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 11
+DOCUMENT_SCHEMA_VERSION: Final = 12
 
 
 class FCFResolvedInputPart(DocumentPart):
@@ -104,6 +104,16 @@ class FCFObservationPart(DocumentPart):
     diluted_eps: FCFResolvedInputPart
     weighted_average_diluted_shares: FCFResolvedInputPart | None
     free_cash_flow_per_diluted_share: FCFResolvedInputPart | None
+
+
+class FCFLeftOutYearPart(DocumentPart):
+    """One fiscal year of one field left out of the series, with the reason."""
+
+    field: str
+    fiscal_year: int
+    period_end: date
+    reason_code: ReasonCode
+    reason: str
 
 
 class FCFForwardEvidencePart(DocumentPart):
@@ -180,6 +190,7 @@ class FCFBody(DocumentPart):
     period_start: DocumentTimestamp | None
     period_end: DocumentTimestamp | None
     annual_observations: tuple[FCFObservationPart, ...]
+    left_out_years: tuple[FCFLeftOutYearPart, ...]
     fcf_cagr: MetricResultPart
     fcf_per_share_cagr: MetricResultPart
     eps_cagr: MetricResultPart
@@ -190,7 +201,7 @@ class FCFBody(DocumentPart):
 
 
 class FCFDocument(StrategyDocumentTail, FCFBody, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The FCF Growth document, version 10, as ``fcf-growth --json`` and ``runs show --json`` write it.
+    """The FCF Growth document, as ``fcf-growth --json`` and ``runs show --json`` write it.
 
     The shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.
     """
@@ -201,6 +212,7 @@ __all__ = [
     "FCFBody",
     "FCFDocument",
     "FCFForwardEvidencePart",
+    "FCFLeftOutYearPart",
     "FCFLineagePart",
     "FCFListingCheckPart",
     "FCFListingRenamePart",

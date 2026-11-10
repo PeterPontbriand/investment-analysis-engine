@@ -8,6 +8,8 @@ from datetime import datetime
 
 from investment_analysis_engine.data.financial.facts import (
     AnalysisScopedFinancialFactsProvider,
+    AnnualSeriesFacts,
+    AnnualSeriesProvider,
     FinancialFactRequest,
     FinancialFactsProvider,
     InstantAbsence,
@@ -75,6 +77,15 @@ class ProductionFinancialFactsProvider:
         if provider is None:
             return ()
         return provider.fetch_facts(request, effective_as_of=effective_as_of)
+
+    def fetch_annual_series(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> AnnualSeriesFacts:
+        """Dispatch an annual series to the requested provider, which reports earlier-basis periods only if it can."""
+        provider = self._providers.get(request.provider_id)
+        if provider is None:
+            return AnnualSeriesFacts()
+        if isinstance(provider, AnnualSeriesProvider):
+            return provider.fetch_annual_series(request, effective_as_of=effective_as_of)
+        return AnnualSeriesFacts(provider.fetch_facts(request, effective_as_of=effective_as_of))
 
     def fetch_instant_series(self, request: InstantSeriesRequest, *, effective_as_of: datetime) -> InstantSeriesFacts:
         """Dispatch a balance-sheet series to the requested provider, or report every year-end unsupported."""

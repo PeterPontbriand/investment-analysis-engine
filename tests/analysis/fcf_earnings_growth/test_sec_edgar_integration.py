@@ -137,8 +137,23 @@ def test_real_sec_adapter_composes_a_complete_provenanced_series() -> None:
     )
 
 
-def test_unsupported_productive_assets_shape_remains_typed_unavailable() -> None:
+def test_an_issuer_that_tags_only_productive_assets_composes_a_series_from_that_concept() -> None:
     result = _resolver(_company_facts(capex_concept="PaymentsToAcquireProductiveAssets")).resolve(
+        policy=FCFEarningsGrowthPolicy(),
+        subject_id="MSFT",
+        currency="USD",
+        as_of=NOW,
+        effective_as_of=NOW,
+    )
+
+    assert result.status is CalculationStatus.OK, result.reason
+    assert {item.normalized_capital_expenditures.provider_field for item in result.observations} == {
+        "us-gaap:PaymentsToAcquireProductiveAssets"
+    }
+
+
+def test_an_issuer_that_tags_neither_capex_concept_is_typed_unavailable() -> None:
+    result = _resolver(_company_facts(capex_concept="PaymentsToAcquireOtherPropertyPlantAndEquipment")).resolve(
         policy=FCFEarningsGrowthPolicy(),
         subject_id="MSFT",
         currency="USD",

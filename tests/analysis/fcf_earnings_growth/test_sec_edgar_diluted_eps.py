@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
 
+from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, FinancialUnit
 from investment_analysis_engine.data.financial.provenance import AccountingScope, FinancialSubjectKind, PeriodKind
+from investment_analysis_engine.data.financial.resolver import (
+    CONFLICTING_VERSIONS_MESSAGE,
+    EARLIER_BASIS_MESSAGE,
+    InputResolver,
+    LeftOutReason,
+)
 from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_EPS_FIELD,
     SEC_PROVIDER_ID,
@@ -139,15 +146,34 @@ def test_uses_one_common_split_basis_for_an_apple_like_span() -> None:
         assert fact.provider_fact_id.split(":", maxsplit=1)[0] == expected_accession
 
 
-def test_rejects_span_when_oldest_period_was_not_represented_after_split() -> None:
+def test_returns_the_shorter_span_when_oldest_period_was_not_represented_after_split() -> None:
     observations = [
         _observation(9.21, accession="2017-original", start="2016-09-25", end="2017-09-30", filed="2017-11-03"),
         _observation(11.91, accession="2018-original", start="2017-10-01", end="2018-09-29", filed="2018-11-05"),
         _observation(2.98, accession="2020-represented-2018", start="2017-10-01", end="2018-09-29", filed="2020-10-30"),
         _observation(3.28, accession="2020-current", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
     ]
+    adapter = _adapter(_payload(observations))
 
-    assert _adapter(_payload(observations)).fetch_facts(_request(), effective_as_of=NOW) == ()
+    assert [fact.value for fact in adapter.fetch_facts(_request(), effective_as_of=NOW)] == pytest.approx([2.98, 3.28])
+    answer = adapter.fetch_annual_series(_request(), effective_as_of=NOW)
+    assert [fact.value for fact in answer.facts] == pytest.approx([2.98, 3.28])
+    assert [fact.value for fact in answer.earlier_basis] == pytest.approx([9.21])
+    assert [fact.observation_period_end.date() for fact in answer.earlier_basis if fact.observation_period_end] == [
+        date(2017, 9, 30)
+    ]
+
+
+def test_a_series_that_is_all_on_one_basis_reports_no_earlier_basis_period() -> None:
+    observations = [
+        _observation(2.98, accession="2020-represented-2018", start="2017-10-01", end="2018-09-29", filed="2020-10-30"),
+        _observation(3.28, accession="2020-current", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
+    ]
+
+    answer = _adapter(_payload(observations)).fetch_annual_series(_request(), effective_as_of=NOW)
+
+    assert len(answer.facts) == 2
+    assert answer.earlier_basis == ()
 
 
 def test_respects_historical_boundary_before_remeasurement() -> None:
@@ -185,4 +211,291 @@ def test_rejects_conflicting_equal_rank_and_unsupported_shapes() -> None:
             _request(observation_count=1), effective_as_of=NOW
         )
         == ()
+    )
+
+
+# ---------------------------------------------------------------------------
+# An NVDA-shaped issuer: late-January year ends, a 4-for-1 split in 2021 and a 10-for-1 split in 2024.
+# Each tuple is (period start, period end, value, accession, filed); a 10-K carries three years, so the years the
+# 2024 split restated are the three newest and the older ones were last filed before it.
+# ---------------------------------------------------------------------------
+
+_NVDA_CIK = 1045810
+_NVDA_PERIODS = (
+    ("2020-01-27", "2021-01-31"),
+    ("2021-02-01", "2022-01-30"),
+    ("2022-01-31", "2023-01-29"),
+    ("2023-01-30", "2024-01-28"),
+    ("2024-01-29", "2025-01-26"),
+    ("2025-01-27", "2026-01-25"),
+)
+_NVDA_FILINGS = {
+    "21": ("0001045810-21-000010", "2021-02-26"),
+    "22": ("0001045810-22-000036", "2022-03-18"),
+    "23": ("0001045810-23-000017", "2023-02-24"),
+    "24": ("0001045810-24-000029", "2024-02-21"),
+    "25": ("0001045810-25-000023", "2025-02-26"),
+    "26": ("0001045810-26-000021", "2026-02-25"),
+}
+# Period index -> the value each filing year reported for it.
+_NVDA_EPS = {
+    0: {"21": 6.9, "22": 1.73, "23": 1.73},
+    1: {"22": 3.85, "23": 3.85, "24": 3.85},
+    2: {"23": 1.74, "24": 1.74, "25": 0.17},
+    3: {"24": 11.93, "25": 1.19, "26": 1.19},
+    4: {"25": 2.94, "26": 2.94},
+    5: {"26": 4.9},
+}
+_NVDA_SHARES = {
+    0: {"21": 628e6, "22": 2510e6, "23": 2510e6},
+    1: {"22": 2535e6, "23": 2535e6, "24": 2535e6},
+    2: {"23": 2507e6, "24": 2507e6, "25": 25070e6},
+    3: {"24": 2494e6, "25": 24940e6, "26": 24940e6},
+    4: {"25": 24804e6, "26": 24804e6},
+    5: {"26": 24514e6},
+}
+
+
+def _nvda_observations(series: Mapping[int, Mapping[str, float]]) -> list[dict[str, Any]]:
+    return [
+        _observation(
+            value,
+            accession=_NVDA_FILINGS[year][0],
+            start=_NVDA_PERIODS[index][0],
+            end=_NVDA_PERIODS[index][1],
+            filed=_NVDA_FILINGS[year][1],
+        )
+        for index, by_year in series.items()
+        for year, value in by_year.items()
+    ]
+
+
+def _nvda_payload() -> dict[str, Any]:
+    return {
+        "cik": _NVDA_CIK,
+        "entityName": "NVIDIA",
+        "facts": {
+            "us-gaap": {
+                "EarningsPerShareDiluted": {"units": {"USD/shares": _nvda_observations(_NVDA_EPS)}},
+                "WeightedAverageNumberOfDilutedSharesOutstanding": {
+                    "units": {"shares": _nvda_observations(_NVDA_SHARES)}
+                },
+            }
+        },
+    }
+
+
+def _nvda_adapter() -> SecEdgarFinancialFactsAdapter:
+    rows = {"0": {"cik_str": _NVDA_CIK, "ticker": "NVDA", "title": "NVIDIA"}}
+    return _adapter(_nvda_payload(), ticker_rows=rows)
+
+
+def _nvda_request(field: FinancialField) -> FinancialFactRequest:
+    return FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id="NVDA",
+        field_name=field,
+        provider_id=SEC_PROVIDER_ID,
+        basis="fiscal_year",
+        observation_count=6,
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "expected"),
+    [
+        (FinancialField.EPS, [0.17, 1.19, 2.94, 4.9]),
+        (FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES, [25070e6, 24940e6, 24804e6, 24514e6]),
+    ],
+)
+def test_nvda_series_is_the_four_years_on_the_latest_basis(field: FinancialField, expected: list[float]) -> None:
+    answer = _nvda_adapter().fetch_annual_series(_nvda_request(field), effective_as_of=NOW)
+
+    assert [fact.value for fact in answer.facts] == pytest.approx(expected)
+    assert [fact.observation_period_end.year for fact in answer.facts if fact.observation_period_end] == [
+        2023,
+        2024,
+        2025,
+        2026,
+    ]
+    assert [fact.observation_period_end.year for fact in answer.earlier_basis if fact.observation_period_end] == [
+        2021,
+        2022,
+    ]
+    assert [fact.value for fact in answer.earlier_basis] == pytest.approx(
+        [1.73, 3.85] if field is FinancialField.EPS else [2510e6, 2535e6]
+    )
+
+
+def test_nvda_series_through_the_resolver_names_the_years_left_out() -> None:
+    resolver = InputResolver(_nvda_adapter(), clock=lambda: NOW)
+
+    resolution = resolver.resolve_annual_series(_nvda_request(FinancialField.EPS))
+
+    assert resolution.status is CalculationStatus.OK
+    assert [item.observation_period_end.year for item in resolution.inputs if item.observation_period_end] == [
+        2023,
+        2024,
+        2025,
+        2026,
+    ]
+    assert [(item.why, item.reason) for item in resolution.left_out] == [
+        (LeftOutReason.EARLIER_BASIS, EARLIER_BASIS_MESSAGE)
+    ] * 2
+    assert [item.observation_period_end.year for item in resolution.left_out if item.observation_period_end] == [
+        2021,
+        2022,
+    ]
+    assert resolution.resolution_trace.events[-1].message == (
+        "4 fiscal-year observation(s) resolved; 2 left out as reported only on an earlier basis."
+    )
+
+
+def test_a_boundary_before_the_second_split_keeps_every_year_on_the_first_basis() -> None:
+    boundary = datetime(2024, 6, 1, tzinfo=UTC)
+    request = FinancialFactRequest(
+        subject_kind=FinancialSubjectKind.SECURITY,
+        subject_id="NVDA",
+        field_name=FinancialField.EPS,
+        provider_id=SEC_PROVIDER_ID,
+        basis="fiscal_year",
+        as_of=boundary,
+        observation_count=3,
+    )
+
+    answer = _nvda_adapter().fetch_annual_series(request, effective_as_of=boundary)
+
+    assert [fact.value for fact in answer.facts] == pytest.approx([3.85, 1.74, 11.93])
+    assert answer.earlier_basis == ()
+
+
+def test_the_three_year_average_reads_the_nvda_series_on_its_latest_basis() -> None:
+    request = _nvda_request(FinancialField.EPS)
+    request = FinancialFactRequest(
+        subject_kind=request.subject_kind,
+        subject_id=request.subject_id,
+        field_name=request.field_name,
+        provider_id=request.provider_id,
+        basis=request.basis,
+        observation_count=3,
+    )
+
+    result = InputResolver(_nvda_adapter(), clock=lambda: NOW).resolve_three_year_average_eps(request, use_cache=False)
+
+    assert result.status is CalculationStatus.OK
+    assert result.resolved_input is not None
+    assert result.resolved_input.value == pytest.approx((1.19 + 2.94 + 4.9) / 3)
+
+
+def test_the_three_year_average_says_how_many_periods_a_shortened_series_has() -> None:
+    observations = [
+        _observation(9.21, accession="2017-original", start="2016-09-25", end="2017-09-30", filed="2017-11-03"),
+        _observation(11.91, accession="2018-original", start="2017-10-01", end="2018-09-29", filed="2018-11-05"),
+        _observation(2.98, accession="2020-represented-2018", start="2017-10-01", end="2018-09-29", filed="2020-10-30"),
+        _observation(3.28, accession="2020-current", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
+    ]
+
+    result = InputResolver(_adapter(_payload(observations)), clock=lambda: NOW).resolve_three_year_average_eps(
+        _request(), use_cache=False
+    )
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason == "Insufficient eligible fiscal-year EPS observations: found 2 distinct period(s), need 3."
+
+
+# ---------------------------------------------------------------------------
+# A period whose latest versions disagree.
+# ---------------------------------------------------------------------------
+
+
+def _shares_payload(observations: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "cik": CIK,
+        "entityName": "Apple",
+        "facts": {"us-gaap": {"WeightedAverageNumberOfDilutedSharesOutstanding": {"units": {"shares": observations}}}},
+    }
+
+
+def _conflict_series() -> list[dict[str, Any]]:
+    """Four periods: 2017 only as first filed, 2018 re-presented twice with different values, 2019 and 2020 clean."""
+    return [
+        _observation(9.21, accession="2017-original", start="2016-09-25", end="2017-09-30", filed="2017-11-03"),
+        _observation(11.91, accession="2018-original", start="2017-10-01", end="2018-09-29", filed="2018-11-05"),
+        _observation(2.98, accession="2020-a", start="2017-10-01", end="2018-09-29", filed="2020-10-30"),
+        _observation(2.99, accession="2020-b", start="2017-10-01", end="2018-09-29", filed="2020-10-30"),
+        _observation(11.89, accession="2019-original", start="2018-09-30", end="2019-09-28", filed="2019-10-31"),
+        _observation(2.97, accession="2020-represented-2019", start="2018-09-30", end="2019-09-28", filed="2020-10-30"),
+        _observation(3.28, accession="2020-current", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
+    ]
+
+
+def _years(facts: Any) -> list[int]:
+    return [fact.observation_period_end.year for fact in facts if fact.observation_period_end]
+
+
+@pytest.mark.parametrize("field", [FinancialField.EPS, FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES])
+def test_a_conflict_in_an_older_period_drops_it_and_the_older_ones_and_reports_it(field: FinancialField) -> None:
+    observations = _conflict_series()
+    payload = _payload(observations) if field is FinancialField.EPS else _shares_payload(observations)
+    request = _request(observation_count=4)
+    if field is not FinancialField.EPS:
+        request = FinancialFactRequest(
+            subject_kind=request.subject_kind,
+            subject_id=request.subject_id,
+            field_name=field,
+            provider_id=request.provider_id,
+            basis=request.basis,
+            observation_count=4,
+        )
+
+    answer = _adapter(payload).fetch_annual_series(request, effective_as_of=NOW)
+
+    assert _years(answer.facts) == [2019, 2020]
+    assert _years(answer.conflicting) == [2018]
+    # 2017 was filed only before the run's boundary, so it also qualifies as earlier-basis.
+    assert _years(answer.earlier_basis) == [2017]
+
+
+def test_an_older_period_beyond_a_conflict_is_not_reported_unless_it_is_also_earlier_basis() -> None:
+    observations = [
+        *_conflict_series(),
+        _observation(2.30, accession="2020-represented-2017", start="2016-09-25", end="2017-09-30", filed="2020-10-30"),
+    ]
+
+    answer = _adapter(_payload(observations)).fetch_annual_series(_request(observation_count=4), effective_as_of=NOW)
+
+    assert _years(answer.facts) == [2019, 2020]
+    assert _years(answer.conflicting) == [2018]
+    assert answer.earlier_basis == ()
+
+
+def test_a_conflict_in_the_newest_period_empties_the_series_and_the_resolver_does_not_say_no_data() -> None:
+    observations = [
+        _observation(2.98, accession="2020-represented-2019", start="2018-09-30", end="2019-09-28", filed="2020-10-30"),
+        _observation(3.28, accession="2020-a", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
+        _observation(3.29, accession="2020-b", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
+    ]
+    adapter = _adapter(_payload(observations))
+
+    assert adapter.fetch_facts(_request(), effective_as_of=NOW) == ()
+    assert _years(adapter.fetch_annual_series(_request(), effective_as_of=NOW).conflicting) == [2020]
+    resolution = InputResolver(adapter, clock=lambda: NOW).resolve_annual_series(_request())
+    assert resolution.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert resolution.reason == f"No eps observation is usable: {CONFLICTING_VERSIONS_MESSAGE}"
+    assert [item.why for item in resolution.left_out] == [LeftOutReason.CONFLICTING_VERSIONS]
+
+
+def test_the_resolver_records_the_conflicting_period_and_counts_it_in_the_trace() -> None:
+    resolution = InputResolver(_adapter(_payload(_conflict_series())), clock=lambda: NOW).resolve_annual_series(
+        _request(observation_count=4)
+    )
+
+    assert resolution.status is CalculationStatus.OK
+    assert [(item.why, item.reason) for item in resolution.left_out] == [
+        (LeftOutReason.EARLIER_BASIS, EARLIER_BASIS_MESSAGE),
+        (LeftOutReason.CONFLICTING_VERSIONS, CONFLICTING_VERSIONS_MESSAGE),
+    ]
+    assert resolution.resolution_trace.events[-1].message == (
+        "2 fiscal-year observation(s) resolved; 1 left out as reported only on an earlier basis; "
+        "1 left out as having different values in filings filed together."
     )
