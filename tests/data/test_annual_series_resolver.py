@@ -10,6 +10,7 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
 from investment_analysis_engine.data.financial.facts import (
+    AnnualSeriesFacts,
     FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
@@ -24,7 +25,12 @@ from investment_analysis_engine.data.financial.provenance import (
     SourceKind,
 )
 from investment_analysis_engine.data.financial.resolution_trace import ResolutionOutcome, ResolutionStage
-from investment_analysis_engine.data.financial.resolver import AnnualSeriesResolution, InputResolver
+from investment_analysis_engine.data.financial.resolver import (
+    EARLIER_BASIS_MESSAGE,
+    AnnualSeriesResolution,
+    InputResolver,
+    LeftOutReason,
+)
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from tests._sec_instants import ANNUAL_FIXTURES, NOW, FixtureFetcher, adapter_for
 
@@ -247,3 +253,60 @@ def test_the_sec_adapter_series_passes_the_checks_on_a_captured_issuer() -> None
     ends = [item.observation_period_end for item in result.inputs if item.observation_period_end is not None]
     assert ends == sorted(ends)
     assert date(2026, 1, 31) in {end.date() for end in ends}
+
+
+class _SeriesProvider(_Provider):
+    """A provider that also reports the periods it left on an earlier basis."""
+
+    def __init__(self, facts: tuple[ProviderFact, ...], earlier_basis: tuple[ProviderFact, ...]) -> None:
+        super().__init__(facts)
+        self.earlier_basis = earlier_basis
+
+    def fetch_annual_series(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> AnnualSeriesFacts:
+        self.requests.append((request, effective_as_of))
+        assert isinstance(self.answer, tuple)
+        return AnnualSeriesFacts(self.answer, self.earlier_basis)
+
+
+def test_an_earlier_basis_period_is_left_out_with_its_reason_and_counted_in_the_trace() -> None:
+    provider = _SeriesProvider((_fact(2024), _fact(2023)), (_fact(2021), _fact(2022)))
+    result = _resolver(provider).resolve_annual_series(_request())
+    assert result.status is CalculationStatus.OK
+    assert [item.fiscal_year for item in result.inputs] == [2023, 2024]
+    assert [(item.why, item.reason, item.observation_period_end) for item in result.left_out] == [
+        (LeftOutReason.EARLIER_BASIS, EARLIER_BASIS_MESSAGE, datetime(year, 12, 31, tzinfo=UTC))
+        for year in (2021, 2022)
+    ]
+    assert result.resolution_trace.events[-1].message == (
+        "2 fiscal-year observation(s) resolved; 2 left out as reported only on an earlier basis."
+    )
+    assert len(provider.requests) == 1
+
+
+def test_the_trace_keeps_the_ineligible_count_beside_the_earlier_basis_count() -> None:
+    provider = _SeriesProvider((_fact(2024), _fact(2025, available_days=900)), (_fact(2022),))
+    result = _resolver(provider).resolve_annual_series(_request(as_of=datetime(2025, 6, 30, tzinfo=UTC)))
+    assert [item.why for item in result.left_out] == [
+        LeftOutReason.NOT_AVAILABLE_AT_BOUNDARY,
+        LeftOutReason.EARLIER_BASIS,
+    ]
+    assert result.resolution_trace.events[-1].message == (
+        "1 fiscal-year observation(s) resolved; 1 left out as ineligible; "
+        "1 left out as reported only on an earlier basis."
+    )
+
+
+def test_a_provider_that_returned_only_earlier_basis_periods_does_not_report_no_data() -> None:
+    result = _resolver(_SeriesProvider((), (_fact(2022),))).resolve_annual_series(_request())
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason == f"No net_income observation is on the latest basis: {EARLIER_BASIS_MESSAGE}"
+    assert result.reason is not None
+    assert "no data" not in result.reason
+    assert [item.why for item in result.left_out] == [LeftOutReason.EARLIER_BASIS]
+
+
+def test_an_earlier_basis_fact_that_does_not_answer_the_request_rejects_the_answer() -> None:
+    provider = _SeriesProvider((_fact(2024),), (_fact(2022, subject_id="OTHER"),))
+    result = _resolver(provider).resolve_annual_series(_request())
+    assert result.status is CalculationStatus.PROVIDER_ERROR
+    assert result.inputs == ()

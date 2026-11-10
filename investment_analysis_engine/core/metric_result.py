@@ -31,6 +31,7 @@ class ReasonCode(StrEnum):
     AMBIGUOUS_FACT = "ambiguous_fact"
     NOT_AVAILABLE_AS_OF = "not_available_as_of"
     STALE_ANCHOR = "stale_anchor"
+    EARLIER_BASIS = "earlier_basis"
     NONPOSITIVE_BEGINNING = "nonpositive_beginning"
     NONPOSITIVE_ENDING = "nonpositive_ending"
     SIGN_CHANGE = "sign_change"
@@ -110,6 +111,7 @@ REASON_CODE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
         ReasonCode.AMBIGUOUS_FACT.value: "reason-ambiguous-fact",
         ReasonCode.NOT_AVAILABLE_AS_OF.value: "reason-not-available-as-of",
         ReasonCode.STALE_ANCHOR.value: "reason-stale-anchor",
+        ReasonCode.EARLIER_BASIS.value: "reason-earlier-basis",
         ReasonCode.NONPOSITIVE_BEGINNING.value: "reason-growth-not-meaningful",
         ReasonCode.NONPOSITIVE_ENDING.value: "reason-growth-not-meaningful",
         ReasonCode.SIGN_CHANGE.value: "reason-growth-not-meaningful",

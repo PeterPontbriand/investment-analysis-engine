@@ -12,8 +12,9 @@ timezone-aware (inherited from the shared provenance contract).
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 from investment_analysis_engine.analysis.shared.anchor_filing import AnchorFilingEvidence
 from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence
@@ -21,6 +22,7 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.core.tickers import normalize_ticker
+from investment_analysis_engine.data.financial.facts import FinancialField
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.financial.resolution_trace import ResolutionTrace
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
@@ -42,12 +44,114 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
 # ---------------------------------------------------------------------------
 
 METHOD_VERSION = 3
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Years left out of a series
+# ---------------------------------------------------------------------------
+
+
+_FIELD_LABELS = {
+    FinancialField.EPS.value: "diluted EPS",
+    FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES.value: "weighted-average diluted shares",
+}
+"""How the series that can be left out are named in a message; every other series is named by its field."""
+
+_FIELD_ORDER = tuple(_FIELD_LABELS)
+_OBSERVED = "reported only before a later filing restated other years (for example after a stock split)"
+
+
+@dataclass(frozen=True)
+class LeftOutYear:
+    """One fiscal year of one field that was left out of the series, with the reason.
+
+    Attributes:
+        field: The field's name, such as ``eps``.
+        fiscal_year: The calendar year containing the period end, which is how a fiscal year is labelled.
+        period_end: The end of the period that was left out.
+        reason_code: The served reason code; ``earlier_basis`` is the only one a year is left out for.
+        reason: The explanation.
+    """
+
+    field: str
+    fiscal_year: int
+    period_end: date
+    reason_code: ReasonCode
+    reason: str
+
+    def __post_init__(self) -> None:
+        """Require the fiscal year to be the year of the period end."""
+        if self.fiscal_year != self.period_end.year:
+            raise ValueError("A left-out year's fiscal year is the year of its period end.")
+
+
+def _field_rank(field: str) -> tuple[int, str]:
+    return (_FIELD_ORDER.index(field) if field in _FIELD_ORDER else len(_FIELD_ORDER), field)
+
+
+def _label(field: str) -> str:
+    return _FIELD_LABELS.get(field, field.replace("_", " "))
+
+
+def _range_text(first: int, last: int) -> str:
+    return f"FY{first}" if first == last else f"FY{first}–FY{last}"
+
+
+def _runs(years: Iterable[int]) -> list[tuple[int, int]]:
+    """Return the runs of consecutive years in ``years``, oldest first."""
+    runs: list[tuple[int, int]] = []
+    for year in sorted(set(years)):
+        if runs and runs[-1][1] + 1 == year:
+            runs[-1] = (runs[-1][0], year)
+        else:
+            runs.append((year, year))
+    return runs
+
+
+def _clauses(left_out: Sequence[LeftOutYear]) -> list[str]:
+    """Return one clause for each range of years, naming the fields that share it, oldest range first."""
+    fields = sorted({item.field for item in left_out}, key=_field_rank)
+    shared: dict[tuple[int, int], list[str]] = {}
+    for name in fields:
+        for run in _runs(item.fiscal_year for item in left_out if item.field == name):
+            shared.setdefault(run, []).append(name)
+    clauses = []
+    for run in sorted(shared):
+        names = [_label(name) for name in shared[run]]
+        subject = f"{', '.join(names[:-1])} and {names[-1]}" if len(names) > 1 else names[0]
+        verb = "were" if len(names) > 1 else "was"
+        clauses.append(f"{subject} for {_range_text(*run)} {verb} {_OBSERVED}")
+    return clauses
+
+
+def _message(clauses: Sequence[str], ending: str) -> str:
+    text = "; ".join(clauses)
+    return f"{text[:1].upper()}{text[1:]}; {ending}"
+
+
+def earlier_basis_warnings(left_out: Sequence[LeftOutYear]) -> tuple[str, ...]:
+    """Return the one warning that names every year left out, or nothing when none was."""
+    if not left_out:
+        return ()
+    return (_message(_clauses(left_out), "those years are left out."),)
+
+
+def earlier_basis_shortfall(left_out: Sequence[LeftOutYear], elapsed_years: int, needed: tuple[int, int]) -> str:
+    """Return the reason a requested span cannot be met because of the years in ``left_out``.
+
+    Args:
+        left_out: The left-out years inside the span the request needs.
+        elapsed_years: The elapsed years the request asked for.
+        needed: The first and last fiscal year the request needs.
+    """
+    ending = f"{elapsed_years} elapsed years need {_range_text(*needed)}."
+    return _message(_clauses(left_out), ending)
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +408,8 @@ class FCFEarningsGrowthResult:
         period_start: Timezone-aware start of the selected span, if any.
         period_end: Timezone-aware end of the selected span, if any.
         annual_observations: Raw annual observations preserving every value.
+        left_out_years: The years of the EPS and diluted-share series left out because they were reported only on an
+            earlier basis; empty when none was.
         fcf_cagr: Free-cash-flow compound annual growth (percent).
         eps_cagr: Diluted-EPS compound annual growth (percent).
         trend_classification: Historical relationship description.
@@ -338,6 +444,7 @@ class FCFEarningsGrowthResult:
     period_start: datetime | None = None
     period_end: datetime | None = None
     annual_observations: tuple[AnnualGrowthObservation, ...] = ()
+    left_out_years: tuple[LeftOutYear, ...] = ()
     fcf_cagr: MetricResult
     fcf_per_share_cagr: MetricResult
     eps_cagr: MetricResult

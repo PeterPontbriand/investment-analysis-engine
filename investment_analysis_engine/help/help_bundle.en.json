@@ -118,6 +118,12 @@
           "markdown": "The automatic policy tries these spans in order:\n\n| Elapsed years | Required annual observations |\n|---:|---:|\n| 5 | 6 |\n| 4 | 5 |\n| 3 | 4 |\n\nFor example, FY2020 through FY2025 contains six observations and five elapsed annual intervals. The observations must be compatible and contiguous. If the automatic policy falls back to a shorter span, the result discloses that fallback.\n\nAn exact span can be requested instead.\n\nAn explicit span is strict. If the required history is unavailable, the strategy returns `INDETERMINATE` rather than silently choosing a shorter span."
         },
         {
+          "heading": "Years reported only before a restatement",
+          "id": "years-reported-only-before-a-restatement",
+          "level": 3,
+          "markdown": "A company restates earlier years when something such as a stock split changes the per-share figures. The filings that restate them usually cover only the latest three years, so older years can remain on the earlier basis. Diluted EPS and the weighted-average diluted shares of those older years are not comparable with the restated years, and the engine does not convert them.\n\nIt uses the newest run of years that share one basis and leaves the older years out. The result names each year left out, for which figure, and why: its `left_out_years` list in the JSON output, and a warning in the text output such as \"Diluted EPS for FY2020–FY2021 was reported only before a later filing restated other years (for example after a stock split); those years are left out.\" The reason code is `earlier_basis`. When nothing is left out the list is empty.\n\nLeaving years out can shorten the history. The automatic policy then uses the longest span that remains and discloses the fallback. An explicit span that needs the years left out is `INDETERMINATE` with the reason `earlier_basis`, and its reason names those years and the years the span needs."
+        },
+        {
           "heading": "Classification",
           "id": "classification",
           "level": 2,
@@ -1005,6 +1011,7 @@
         "reason-ambiguous-fact",
         "reason-not-available-as-of",
         "reason-stale-anchor",
+        "reason-earlier-basis",
         "reason-growth-not-meaningful",
         "reason-not-growing",
         "reason-forward-not-confirmed",
@@ -1871,6 +1878,12 @@
       "definition": "Total debt cannot be determined from the filing: related debt is tagged but no usable component is shown, or the filing's debt mapping is not supported.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Debt Not Visible"
+    },
+    "reason-earlier-basis": {
+      "body": "The restated years and the older years are on different bases, so the engine never combines them and does no split arithmetic to convert one to the other. It uses the newest run of years that share one basis and names the years it left out. When a requested history needs those years, the result is indeterminate with this reason. See [stock split adjustment](help:terms/stock-split-adjustment) and [fiscal year](help:terms/fiscal-year).",
+      "definition": "A year is left out because the company reported it only before a later filing restated other years, for example after a stock split.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Earlier Basis"
     },
     "reason-forward-not-confirmed": {
       "body": "See [forward policy](help:terms/forward-policy) and [analyst consensus estimate](help:terms/analyst-consensus-estimate).",

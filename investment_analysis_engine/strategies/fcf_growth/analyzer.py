@@ -38,6 +38,7 @@ from investment_analysis_engine.strategies.fcf_growth.models import (
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
     ForwardEvidence,
+    earlier_basis_warnings,
 )
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     Classification,
@@ -262,6 +263,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
             trend = TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH
 
         warnings: list[str] = list(stale_anchor_warnings(yield_outcome.anchor_filing, boundary))
+        warnings.extend(earlier_basis_warnings(assembly.left_out_years))
         if assembly.used_horizon_fallback:
             warnings.append("Automatic horizon selection fell back because five elapsed years were unavailable.")
         warnings.extend(yield_outcome.warnings)
@@ -284,6 +286,7 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
             period_start=assembly.observations[0].period_start if assembly.observations else None,
             period_end=assembly.observations[-1].period_end if assembly.observations else None,
             annual_observations=assembly.observations,
+            left_out_years=assembly.left_out_years,
             fcf_cagr=assembly.fcf_cagr,
             fcf_per_share_cagr=assembly.fcf_per_share_cagr,
             eps_cagr=assembly.eps_cagr,

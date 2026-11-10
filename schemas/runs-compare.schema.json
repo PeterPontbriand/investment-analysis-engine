@@ -352,6 +352,7 @@
         "ambiguous_fact",
         "not_available_as_of",
         "stale_anchor",
+        "earlier_basis",
         "nonpositive_beginning",
         "nonpositive_ending",
         "sign_change",

@@ -34,6 +34,7 @@ from investment_analysis_engine.strategies.fcf_growth.envelope import (
     DOCUMENT_SCHEMA_VERSION,
     FCFDocument,
     FCFForwardEvidencePart,
+    FCFLeftOutYearPart,
     FCFMarketCapPart,
     FCFObservationPart,
     FCFPolicyPart,
@@ -437,6 +438,9 @@ def _document(
         period_end=result.period_end,
         annual_observations=tuple(
             FCFObservationPart.model_validate(item, from_attributes=True) for item in result.annual_observations
+        ),
+        left_out_years=tuple(
+            FCFLeftOutYearPart.model_validate(item, from_attributes=True) for item in result.left_out_years
         ),
         fcf_cagr=metric_result_part(result.fcf_cagr),
         fcf_per_share_cagr=metric_result_part(result.fcf_per_share_cagr),

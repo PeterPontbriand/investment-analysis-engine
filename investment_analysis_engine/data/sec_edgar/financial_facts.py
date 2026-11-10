@@ -21,6 +21,7 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     COVER_PAGE_BASIS,
+    AnnualSeriesFacts,
     FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialField,
@@ -1049,14 +1050,35 @@ class SecEdgarFinancialFactsAdapter:
 
         See ``_fetch_facts`` for the arguments.
         """
-        facts = self._fetch_facts(request, effective_as_of=effective_as_of)
+        return self._with_override_note(request, self._fetch_facts(request, effective_as_of=effective_as_of))
+
+    def fetch_annual_series(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> AnnualSeriesFacts:
+        """Return what ``fetch_facts`` returns and, for EPS and diluted shares, the periods left on an earlier basis.
+
+        The earlier-basis facts are reported only when the series itself is not empty.
+        """
+        earlier: list[ProviderFact] = []
+        facts = self._fetch_facts(request, effective_as_of=effective_as_of, earlier_basis=earlier)
+        return AnnualSeriesFacts(
+            facts=self._with_override_note(request, facts),
+            earlier_basis=self._with_override_note(request, tuple(earlier)) if facts else (),
+        )
+
+    def _with_override_note(
+        self, request: FinancialFactRequest, facts: tuple[ProviderFact, ...]
+    ) -> tuple[ProviderFact, ...]:
+        """Return ``facts``, each stating that its ticker's CIK came from an override when it did."""
         if normalize_ticker(request.subject_id) not in self._ticker_overrides:
             return facts
         note = f"{CIK_SOURCE_NOTE}={CIK_SOURCE_OVERRIDE}"
         return tuple(replace(fact, notes=(*fact.notes, note)) for fact in facts)
 
     def _fetch_facts(  # noqa: PLR0911, PLR0912, PLR0915
-        self, request: FinancialFactRequest, *, effective_as_of: datetime
+        self,
+        request: FinancialFactRequest,
+        *,
+        effective_as_of: datetime,
+        earlier_basis: list[ProviderFact] | None = None,
     ) -> tuple[ProviderFact, ...]:
         """Return supported SEC facts, or explicit unavailability.
 
@@ -1065,6 +1087,8 @@ class SecEdgarFinancialFactsAdapter:
             effective_as_of: The resolved point-in-time eligibility boundary for
                 annual-candidate and balance-sheet-fact filtering. Independent of
                 this adapter's own retrieval clock (used only to stamp ``retrieved_at``).
+            earlier_basis: When given, receives one fact for each requested EPS or diluted-share period left out
+                because it was reported only on an earlier basis.
         """
         if not self._supports(request):
             return ()
@@ -1181,7 +1205,9 @@ class SecEdgarFinancialFactsAdapter:
                     retrieved_at=provider_now,
                     taxonomy=taxonomy,
                 )
-                facts = _reconcile_annual_eps(candidates, request=request, now=effective_as_of)
+                facts = _reconcile_annual_eps(
+                    candidates, request=request, now=effective_as_of, earlier_basis=earlier_basis
+                )
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES:
                 candidates = _annual_diluted_share_candidates(
@@ -1192,7 +1218,9 @@ class SecEdgarFinancialFactsAdapter:
                     retrieved_at=provider_now,
                     taxonomy=taxonomy,
                 )
-                facts = _reconcile_annual_eps(candidates, request=request, now=effective_as_of)
+                facts = _reconcile_annual_eps(
+                    candidates, request=request, now=effective_as_of, earlier_basis=earlier_basis
+                )
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
 
             if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING:
@@ -3029,14 +3057,19 @@ def _reconcile_annual_eps(
     *,
     request: FinancialFactRequest,
     now: datetime,
+    earlier_basis: list[ProviderFact] | None = None,
 ) -> tuple[ProviderFact, ...]:
-    """Return the newest requested EPS periods only when they share one basis.
+    """Return the longest run of the newest requested periods that share one basis.
 
     A changed value for an exact period is evidence of a remeasurement event,
-    such as a split-adjusted comparative amount. The latest event in the
-    requested span establishes the earliest acceptable filing boundary for
-    every period. This deliberately returns no series when an older endpoint
-    was not re-presented on that basis.
+    such as a split-adjusted comparative amount. The latest event among the
+    periods of a run establishes the earliest acceptable filing boundary for
+    every period of that run. The full requested span is tried first; when an
+    older period was not re-presented on the run's basis, the oldest period is
+    dropped and the shorter run is judged on its own events, so the bases are
+    never mixed. Each dropped period is appended, as its latest version, to
+    ``earlier_basis`` when that list is given. A period whose latest versions
+    disagree makes the series empty.
     """
     eligible = _eligible_annual_candidates(facts, request=request, now=now)
     by_period: dict[tuple[datetime, datetime], list[ProviderFact]] = {}
@@ -3046,11 +3079,34 @@ def _reconcile_annual_eps(
         by_period.setdefault((fact.observation_period_start, fact.observation_period_end), []).append(fact)
 
     selected_periods = sorted(by_period, key=lambda period: (period[1], period[0]))[-request.observation_count :]
-    if not selected_periods:
-        return ()
+    for first in range(len(selected_periods)):
+        run = selected_periods[first:]
+        boundary = _common_basis_boundary(by_period, run)
+        selected: list[ProviderFact] = []
+        for period in run:
+            candidates = [
+                fact for fact in by_period[period] if boundary is None or cast(datetime, fact.available_at) >= boundary
+            ]
+            if not candidates:
+                break
+            latest_time = max(cast(datetime, fact.available_at) for fact in candidates)
+            latest = [fact for fact in candidates if fact.available_at == latest_time]
+            if len({fact.value for fact in latest}) != 1:
+                return ()
+            selected.append(min(latest, key=lambda fact: fact.provider_fact_id or ""))
+        else:
+            if earlier_basis is not None:
+                earlier_basis.extend(_latest_version(by_period[period]) for period in selected_periods[:first])
+            return tuple(selected)
+    return ()
 
-    common_basis_boundary: datetime | None = None
-    for period in selected_periods:
+
+def _common_basis_boundary(
+    by_period: Mapping[tuple[datetime, datetime], list[ProviderFact]], run: Sequence[tuple[datetime, datetime]]
+) -> datetime | None:
+    """Return the filing time of the latest remeasurement event among the periods of ``run``, if any."""
+    boundary: datetime | None = None
+    for period in run:
         ordered = sorted(
             by_period[period],
             key=lambda fact: (cast(datetime, fact.available_at), fact.provider_fact_id or ""),
@@ -3059,24 +3115,17 @@ def _reconcile_annual_eps(
         for fact in ordered[1:]:
             if fact.value != prior_value:
                 event_time = cast(datetime, fact.available_at)
-                common_basis_boundary = (
-                    event_time if common_basis_boundary is None else max(common_basis_boundary, event_time)
-                )
+                boundary = event_time if boundary is None else max(boundary, event_time)
             prior_value = fact.value
+    return boundary
 
-    selected: list[ProviderFact] = []
-    for period in selected_periods:
-        candidates = by_period[period]
-        if common_basis_boundary is not None:
-            candidates = [fact for fact in candidates if cast(datetime, fact.available_at) >= common_basis_boundary]
-        if not candidates:
-            return ()
-        latest_time = max(cast(datetime, fact.available_at) for fact in candidates)
-        latest = [fact for fact in candidates if fact.available_at == latest_time]
-        if len({fact.value for fact in latest}) != 1:
-            return ()
-        selected.append(min(latest, key=lambda fact: fact.provider_fact_id or ""))
-    return tuple(selected)
+
+def _latest_version(facts: Sequence[ProviderFact]) -> ProviderFact:
+    """Return the version of a period filed last, the lowest fact ID among versions filed together."""
+    latest_time = max(cast(datetime, fact.available_at) for fact in facts)
+    return min(
+        (fact for fact in facts if fact.available_at == latest_time), key=lambda fact: fact.provider_fact_id or ""
+    )
 
 
 def _select_latest_balance_sheet_fact(

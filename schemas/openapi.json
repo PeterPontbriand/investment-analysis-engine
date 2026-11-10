@@ -670,7 +670,7 @@
       },
       "FCFDocument": {
         "additionalProperties": false,
-        "description": "The FCF Growth document, version 10, as ``fcf-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+        "description": "The FCF Growth document, as ``fcf-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
         "properties": {
           "analysis": {
             "const": "fcf_earnings_growth",
@@ -762,6 +762,13 @@
                 "type": "null"
               }
             ]
+          },
+          "left_out_years": {
+            "items": {
+              "$ref": "#/components/schemas/FCFLeftOutYearPart"
+            },
+            "title": "Left Out Years",
+            "type": "array"
           },
           "limitations": {
             "items": {
@@ -928,6 +935,7 @@
           "period_start",
           "period_end",
           "annual_observations",
+          "left_out_years",
           "fcf_cagr",
           "fcf_per_share_cagr",
           "eps_cagr",
@@ -1110,6 +1118,41 @@
         ],
         "title": "HistoricalHorizon",
         "type": "string"
+      },
+      "FCFLeftOutYearPart": {
+        "additionalProperties": false,
+        "description": "One fiscal year of one field left out of the series, with the reason.",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "fiscal_year": {
+            "title": "Fiscal Year",
+            "type": "integer"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reason_code": {
+            "$ref": "#/components/schemas/ReasonCode"
+          }
+        },
+        "required": [
+          "field",
+          "fiscal_year",
+          "period_end",
+          "reason_code",
+          "reason"
+        ],
+        "title": "FCFLeftOutYearPart",
+        "type": "object"
       },
       "FCFLineagePart": {
         "additionalProperties": false,
@@ -4739,6 +4782,7 @@
           "ambiguous_fact",
           "not_available_as_of",
           "stale_anchor",
+          "earlier_basis",
           "nonpositive_beginning",
           "nonpositive_ending",
           "sign_change",

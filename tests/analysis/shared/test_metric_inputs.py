@@ -17,6 +17,7 @@ from investment_analysis_engine.analysis.shared.metric_inputs import (
     MetricInputsFailure,
     ShareCountPath,
     YearEndShareCount,
+    _left_out_at,
     anchor_year_end_scope,
     resolve_annual_values,
     resolve_balance_sheet_values,
@@ -38,7 +39,12 @@ from investment_analysis_engine.data.financial.facts import (
 )
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput
-from investment_analysis_engine.data.financial.resolver import InputResolver
+from investment_analysis_engine.data.financial.resolver import (
+    EARLIER_BASIS_MESSAGE,
+    InputResolver,
+    LeftOutObservation,
+    LeftOutReason,
+)
 from investment_analysis_engine.data.market_data import SplitEvent
 from investment_analysis_engine.data.sec_edgar.cover_listing import ListingEvidence, ListingResolution, SecurityKind
 from investment_analysis_engine.data.sec_edgar.financial_facts import (
@@ -1175,3 +1181,19 @@ def test_market_cap_is_refused_exactly_when_the_anchor_filing_is_stale_at_the_ef
     assert (stale.anchor_stale, stale.boundary) == (True, date(2027, 5, 24))
     assert stale.market_cap().result.reason_code is ReasonCode.STALE_ANCHOR
     assert fresh.market_cap().result.reason_code is not ReasonCode.STALE_ANCHOR
+
+
+def test_a_year_left_out_as_earlier_basis_is_unavailable_with_that_code_for_every_strategy() -> None:
+    year_end = datetime(2024, 1, 28, 23, 59, 59, tzinfo=UTC)
+    left_out = (
+        LeftOutObservation(year_end, LeftOutReason.EARLIER_BASIS, EARLIER_BASIS_MESSAGE),
+        LeftOutObservation(datetime(2023, 1, 29, tzinfo=UTC), LeftOutReason.NOT_AVAILABLE_AT_BOUNDARY, "late"),
+        LeftOutObservation(datetime(2022, 1, 30, tzinfo=UTC), LeftOutReason.FAILED_QUALITY_CHECK, "bad"),
+    )
+
+    assert _left_out_at(left_out, date(2024, 1, 28)) == InputUnavailable(
+        ReasonCode.EARLIER_BASIS, EARLIER_BASIS_MESSAGE
+    )
+    assert _left_out_at(left_out, date(2023, 1, 29)) == InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, "late")
+    assert _left_out_at(left_out, date(2022, 1, 30)) is None
+    assert _left_out_at(left_out, date(2021, 1, 31)) is None

@@ -121,6 +121,14 @@ An exact span can be requested instead.
 
 An explicit span is strict. If the required history is unavailable, the strategy returns `INDETERMINATE` rather than silently choosing a shorter span.
 
+### Years reported only before a restatement
+
+A company restates earlier years when something such as a stock split changes the per-share figures. The filings that restate them usually cover only the latest three years, so older years can remain on the earlier basis. Diluted EPS and the weighted-average diluted shares of those older years are not comparable with the restated years, and the engine does not convert them.
+
+It uses the newest run of years that share one basis and leaves the older years out. The result names each year left out, for which figure, and why: its `left_out_years` list in the JSON output, and a warning in the text output such as "Diluted EPS for FY2020–FY2021 was reported only before a later filing restated other years (for example after a stock split); those years are left out." The reason code is `earlier_basis`. When nothing is left out the list is empty.
+
+Leaving years out can shorten the history. The automatic policy then uses the longest span that remains and discloses the fallback. An explicit span that needs the years left out is `INDETERMINATE` with the reason `earlier_basis`, and its reason names those years and the years the span needs.
+
 ### On the command line
 <!-- help:exclude -->
 

@@ -1201,6 +1201,12 @@ The market capitalization is not calculated: the newest annual report was overdu
 
 The share count in that report is not the count at the as-of date. The run keeps its status and a warning states the fiscal year, the form and the date the next report was due. See [anchor filing](#anchor-filing).
 
+<a id="reason-earlier-basis"></a>
+### Earlier Basis
+A year is left out because the company reported it only before a later filing restated other years, for example after a stock split.
+
+The restated years and the older years are on different bases, so the engine never combines them and does no split arithmetic to convert one to the other. It uses the newest run of years that share one basis and names the years it left out. When a requested history needs those years, the result is indeterminate with this reason. See [stock split adjustment](#stock-split-adjustment) and [fiscal year](#fiscal-year).
+
 <a id="reason-growth-not-meaningful"></a>
 ### Growth Not Meaningful
 A growth rate or ratio cannot be calculated meaningfully, because a base value is zero or negative or the sign changed across the period.

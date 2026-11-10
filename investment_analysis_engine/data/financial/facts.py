@@ -484,6 +484,21 @@ class InstantSeriesFacts:
             raise ValueError("A requested date is either present or absent, once.")
 
 
+@dataclass(frozen=True)
+class AnnualSeriesFacts:
+    """What a provider reports for an annual series: the observations on its one basis and those left on an earlier one.
+
+    Attributes:
+        facts: The observations the provider returns, as ``fetch_facts`` would.
+        earlier_basis: One fact for each period of the requested span the provider left out because it was reported
+            only before a later filing restated other years (for example after a stock split), oldest period first.
+            Empty when no period was.
+    """
+
+    facts: tuple[ProviderFact, ...] = ()
+    earlier_basis: tuple[ProviderFact, ...] = ()
+
+
 # ---------------------------------------------------------------------------
 # ProviderFact
 # ---------------------------------------------------------------------------
@@ -749,6 +764,24 @@ class InstantSeriesProvider(Protocol):
 
         Raises:
             FinancialProviderError: On an operational provider failure.
+        """
+        ...
+
+
+@runtime_checkable
+class AnnualSeriesProvider(Protocol):
+    """Optional provider capability: an annual series that reports the periods it left on an earlier basis."""
+
+    def fetch_annual_series(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> AnnualSeriesFacts:
+        """Return the facts ``fetch_facts`` returns, and the periods left out because they are on an earlier basis.
+
+        Args:
+            request: The provider-neutral fact request.
+            effective_as_of: The resolved point-in-time cutoff, as for ``fetch_facts``.
+
+        Raises:
+            FinancialProviderError: On an operational provider failure.
+            FactsNotAvailableAsOf: As ``fetch_facts`` does.
         """
         ...
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "fcf_earnings_growth",
   "method": "reported_fcf_eps_cagr",
   "ticker": "KO",
@@ -24,7 +24,7 @@
     "provider_id": "yfinance",
     "resolved_at": "<wall-clock>"
   },
-  "result_schema_version": 8,
+  "result_schema_version": 9,
   "method_version": 3,
   "policy": {
     "historical_horizon": "longest_available",
@@ -40,6 +40,7 @@
   "period_start": null,
   "period_end": null,
   "annual_observations": [],
+  "left_out_years": [],
   "fcf_cagr": {
     "status": "unavailable",
     "value": null,

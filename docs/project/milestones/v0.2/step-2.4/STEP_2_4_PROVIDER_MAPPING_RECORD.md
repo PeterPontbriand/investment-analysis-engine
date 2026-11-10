@@ -224,10 +224,28 @@ For a selected CAGR span:
 4. require every EPS period in the span to have been reported or re-presented
    on or after that boundary.
 
-If an older endpoint was not re-presented on the common basis, the requested
-span is unavailable rather than mixing pre-split and post-split EPS. Identical
-repeated values are duplicates, not remeasurements. The project applies no
-independent arithmetic split adjustment.
+If an older endpoint was not re-presented on the common basis, the series is
+the longest run of the newest periods that satisfies steps 1 to 4, each judged
+on that run's own events and not on the full requested span. The run is never
+empty for a requested span whose newest period is reported, and the bases are
+never mixed. Each period of the requested span left out of the run because it
+was reported only before a later filing restated other years is reported to the
+resolver as left out for the reason `earlier_basis`, as its latest version.
+Identical repeated values are duplicates, not remeasurements. The project
+applies no independent arithmetic split adjustment.
+
+NVDA shows why. A 10-K carries three fiscal years, so its 10-for-1 split of
+June 2024 restated the periods ending 2023, 2024 and 2025 (FY2023 `1.74`
+became `0.17` in the FY2025 10-K) and not the older ones, which were last filed
+before it. Of six requested periods the series is the four newest, and the
+two older are left out as `earlier_basis`. The weighted-average diluted-share
+series is reconciled the same way.
+
+Considered alternative: a split-adjusted view (derived), which would extend
+the history by dividing earlier-basis years by the split ratio. It is not
+part of this rule, which does no split arithmetic. It is recorded as an opt-in
+for a later decision in
+[issue 248](https://github.com/PeterPontbriand/investment-analysis-engine/issues/248).
 
 This rule is intentionally conservative. If deterministic D3 fixtures show
 that the provider payload cannot implement it without ambiguity, D3 must stop
@@ -441,7 +459,9 @@ For a candidate CAGR span:
    `ambiguous_fact` for equally ranked disagreement.
 
 The project applies no independent stock-split arithmetic. An older period not
-re-presented on the common basis is unavailable. A dimensional, class-specific,
+re-presented on the common basis is left out of the series, which is the
+longest run of the newest periods on one basis (Section 5.1), and is reported
+as left out for the reason `earlier_basis`. A dimensional, class-specific,
 or custom share fact is unsupported. The one-ticker-CIK rule is the initial
 proof that the entity-wide denominator is applicable to the requested security;
 E1 does not claim support for dual-class or preferred/common allocations.

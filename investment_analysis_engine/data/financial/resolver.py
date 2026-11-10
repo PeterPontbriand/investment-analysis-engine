@@ -7,6 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import StrEnum
+from typing import Final
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.clock import effective_as_of
@@ -15,6 +16,8 @@ from investment_analysis_engine.data.financial.cache import ResolvedInputCacheKe
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
     INSTANT_SERIES_FIELDS,
+    AnnualSeriesFacts,
+    AnnualSeriesProvider,
     FactsNotAvailableAsOf,
     FinancialFactRequest,
     FinancialFactsProvider,
@@ -178,6 +181,14 @@ class LeftOutReason(StrEnum):
 
     NOT_AVAILABLE_AT_BOUNDARY = "not_available_at_boundary"
     FAILED_QUALITY_CHECK = "failed_quality_check"
+    EARLIER_BASIS = "earlier_basis"
+
+
+EARLIER_BASIS_MESSAGE: Final = (
+    "Reported only before a later filing restated other years (for example after a stock split); "
+    "not combined with the restated years."
+)
+"""The reason of an observation left out as ``LeftOutReason.EARLIER_BASIS``, which states only what was observed."""
 
 
 @dataclass(frozen=True)
@@ -463,7 +474,9 @@ class InputResolver:
             ),
         )
 
-    def resolve_annual_series(self, request: FinancialFactRequest) -> AnnualSeriesResolution:
+    def resolve_annual_series(  # noqa: PLR0911, PLR0912
+        self, request: FinancialFactRequest
+    ) -> AnnualSeriesResolution:
         """Resolve one completed-annual field as the series of fiscal years the provider reports.
 
         The provider is called once. An answer that does not coherently answer the request (another subject, field,
@@ -492,7 +505,12 @@ class InputResolver:
             now=self._clock(),
         )
         try:
-            facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
+            boundary = effective_as_of(request.as_of, self._clock())
+            if isinstance(self._provider, AnnualSeriesProvider):
+                answer = self._provider.fetch_annual_series(request, effective_as_of=boundary)
+            else:
+                answer = AnnualSeriesFacts(self._provider.fetch_facts(request, effective_as_of=boundary))
+            facts = answer.facts
         except FactsNotAvailableAsOf as exc:
             return self._annual_failure(
                 request, trace, CalculationStatus.INPUT_UNAVAILABLE, str(exc), not_available_as_of=True
@@ -538,12 +556,25 @@ class InputResolver:
                         reason=validation[1],
                     )
                 )
-        if not kept:
-            reason = (
-                "Provider returned no data for the requested field."
-                if not facts
-                else f"No {field_name} observation is eligible at the boundary: {left_out[0].reason}"
+        earlier_basis, rejected_earlier = _earlier_basis_left_out(request, answer.earlier_basis, resolved_at)
+        if rejected_earlier is not None:
+            return self._annual_failure(
+                request,
+                trace,
+                CalculationStatus.PROVIDER_ERROR,
+                rejected_earlier,
+                failure=_rejected_answer(request),
+                outcome=ResolutionOutcome.REJECTED,
             )
+        left_out.extend(earlier_basis)
+        earlier_basis_count = len(earlier_basis)
+        if not kept:
+            if not facts and not left_out:
+                reason = "Provider returned no data for the requested field."
+            elif left_out[0].why is LeftOutReason.EARLIER_BASIS:
+                reason = f"No {field_name} observation is on the latest basis: {left_out[0].reason}"
+            else:
+                reason = f"No {field_name} observation is eligible at the boundary: {left_out[0].reason}"
             return self._annual_failure(
                 request, trace, CalculationStatus.INPUT_UNAVAILABLE, reason, left_out=tuple(left_out)
             )
@@ -560,7 +591,7 @@ class InputResolver:
                     field_name,
                     ResolutionStage.PROVIDER,
                     ResolutionOutcome.SUCCESS,
-                    f"{len(inputs)} fiscal-year observation(s) resolved; {len(left_out)} left out as ineligible.",
+                    _resolved_message(len(inputs), len(left_out) - earlier_basis_count, earlier_basis_count),
                     now=self._clock(),
                 )
             ),
@@ -1700,6 +1731,42 @@ def _resolved_from_fact(
         provider_fact_id=fact.provider_fact_id,
         lineage=_provider_lineage(fact, resolved_at=resolved_at, as_of=as_of),
     )
+
+
+def _earlier_basis_left_out(
+    request: FinancialFactRequest, facts: tuple[ProviderFact, ...], resolved_at: datetime
+) -> tuple[list[LeftOutObservation], str | None]:
+    """Return the left-out record of each earlier-basis fact, or why the provider's answer is rejected as a whole.
+
+    A fact that would be left out for another reason is not an earlier-basis observation and is not recorded.
+    """
+    left_out: list[LeftOutObservation] = []
+    for fact in facts:
+        rejected = _annual_fact_error(fact)
+        validation = _validate_provider_response(request, fact, resolved_at)
+        if rejected is None and validation is not None and validation[0] is CalculationStatus.PROVIDER_ERROR:
+            rejected = validation[1]
+        if rejected is not None:
+            return [], rejected
+        if validation is None:
+            left_out.append(
+                LeftOutObservation(
+                    observation_period_end=fact.observation_period_end,
+                    why=LeftOutReason.EARLIER_BASIS,
+                    reason=EARLIER_BASIS_MESSAGE,
+                )
+            )
+    return left_out, None
+
+
+def _resolved_message(resolved: int, ineligible: int, earlier_basis: int) -> str:
+    """Return the closing trace message of an annual series: what resolved and what was left out, and why."""
+    clauses = []
+    if ineligible or not earlier_basis:
+        clauses.append(f"{ineligible} left out as ineligible")
+    if earlier_basis:
+        clauses.append(f"{earlier_basis} left out as reported only on an earlier basis")
+    return f"{resolved} fiscal-year observation(s) resolved; {'; '.join(clauses)}."
 
 
 def _annual_fact_error(fact: ProviderFact) -> str | None:

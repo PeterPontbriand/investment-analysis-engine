@@ -963,14 +963,22 @@ def resolve_industry_class(
 
 
 def _left_out_at(left_out: Sequence[LeftOutObservation], year_end: date) -> InputUnavailable | None:
-    """Return ``not_available_as_of`` when the observation that ends at ``year_end`` was filed after the boundary."""
+    """Return why the observation that ends at ``year_end`` was left out, when the reason is a served code.
+
+    An observation filed after the boundary is ``not_available_as_of``; one reported only on an earlier basis is
+    ``earlier_basis``. Any other reason gives ``None``.
+    """
+    codes = {
+        LeftOutReason.NOT_AVAILABLE_AT_BOUNDARY: ReasonCode.NOT_AVAILABLE_AS_OF,
+        LeftOutReason.EARLIER_BASIS: ReasonCode.EARLIER_BASIS,
+    }
     for item in left_out:
         if (
-            item.why is LeftOutReason.NOT_AVAILABLE_AT_BOUNDARY
+            item.why in codes
             and item.observation_period_end is not None
             and item.observation_period_end.date() == year_end
         ):
-            return InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, item.reason)
+            return InputUnavailable(codes[item.why], item.reason)
     return None
 
 

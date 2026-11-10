@@ -132,7 +132,7 @@ def test_the_json_document_holds_the_whole_evidence() -> None:
         "rename": None,
     }
     assert document["fcf_yield"]["value"] == pytest.approx(10.0)
-    assert (document["schema_version"], document["result_schema_version"]) == (11, 8)
+    assert (document["schema_version"], document["result_schema_version"]) == (12, 9)
 
 
 def test_the_json_document_holds_both_accessions_of_a_renamed_ticker() -> None:
