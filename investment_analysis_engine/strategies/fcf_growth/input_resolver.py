@@ -41,6 +41,7 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionTrace,
 )
 from investment_analysis_engine.data.financial.resolver import (
+    CONFLICTING_VERSIONS_MESSAGE,
     EARLIER_BASIS_MESSAGE,
     AnnualSeriesResolution,
     InputResolver,
@@ -59,7 +60,7 @@ from investment_analysis_engine.strategies.fcf_growth.models import (
 )
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import FCFClassificationBasis, HistoricalHorizon
 
-CACHE_SCHEMA_VERSION = 3
+CACHE_SCHEMA_VERSION = 4
 _ANNUAL_FIELDS = (
     FinancialField.OPERATING_CASH_FLOW,
     FinancialField.CAPITAL_EXPENDITURES,
@@ -428,6 +429,8 @@ def _no_selection_reason(
         return ReasonCode.NOT_AVAILABLE_AS_OF, _NOT_AVAILABLE_AT_BOUNDARY
     if any(item.why is LeftOutReason.EARLIER_BASIS for item in left_out):
         return ReasonCode.EARLIER_BASIS, EARLIER_BASIS_MESSAGE
+    if any(item.why is LeftOutReason.CONFLICTING_VERSIONS for item in left_out):
+        return ReasonCode.AMBIGUOUS_FACT, CONFLICTING_VERSIONS_MESSAGE
     if rejections or left_out:
         return ReasonCode.NOT_AVAILABLE_AS_OF, _LATER_THAN_BOUNDARY
     return ReasonCode.MISSING_FACT, f"No usable {field.value} facts were returned."
@@ -589,16 +592,20 @@ def _entry_failure(field: FinancialField, answer: AnnualSeriesResolution) -> _Fi
 
 
 def _earlier_basis_years(field: FinancialField, left_out: Sequence[LeftOutObservation]) -> tuple[LeftOutYear, ...]:
-    """Return the years of ``field`` the shared entry left out as reported only on an earlier basis, oldest first."""
+    """Return the years of ``field`` the shared entry left out as earlier-basis or conflicting, oldest first."""
+    codes = {
+        LeftOutReason.EARLIER_BASIS: ReasonCode.EARLIER_BASIS,
+        LeftOutReason.CONFLICTING_VERSIONS: ReasonCode.AMBIGUOUS_FACT,
+    }
     years = []
     for item in left_out:
-        if item.why is LeftOutReason.EARLIER_BASIS and item.observation_period_end is not None:
+        if item.why in codes and item.observation_period_end is not None:
             years.append(
                 LeftOutYear(
                     field=field.value,
                     fiscal_year=item.observation_period_end.year,
                     period_end=item.observation_period_end.date(),
-                    reason_code=ReasonCode.EARLIER_BASIS,
+                    reason_code=codes[item.why],
                     reason=item.reason,
                 )
             )
@@ -838,6 +845,7 @@ def _earlier_basis_shortfall(
         {item.observation_period_end.year for item in resolved_fields[field] if item.observation_period_end is not None}
         for field in (FinancialField.OPERATING_CASH_FLOW, FinancialField.CAPITAL_EXPENDITURES)
     ]
+    left_out = [item for item in left_out if item.reason_code is ReasonCode.EARLIER_BASIS]
     eps_left_out = {item.fiscal_year for item in left_out if item.field == FinancialField.EPS.value}
     possible = set.intersection(*other_years) & (have | eps_left_out)
     if needed <= have or not needed <= possible:
@@ -973,9 +981,27 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             longest_count=0,
             trace=trace,
         )
-    if policy.classification_basis is FCFClassificationBasis.FCF_PER_SHARE and any(
-        item.free_cash_flow_per_diluted_share is None for item in common
-    ):
+    pool = tuple(
+        item
+        for item in common
+        if policy.classification_basis is not FCFClassificationBasis.FCF_PER_SHARE
+        or item.free_cash_flow_per_diluted_share is not None
+    )
+    longest_count = _longest_contiguous_count(tuple(item.free_cash_flow for item in pool))
+    selected: tuple[AnnualGrowthObservation, ...] = ()
+    selected_years: int | None = None
+    for elapsed in candidates:
+        if len(pool) < elapsed + 1:
+            continue
+        candidate = pool[-(elapsed + 1) :]
+        if all(
+            _periods_are_contiguous(left.period_end, right.period_start)
+            for left, right in zip(candidate, candidate[1:], strict=False)
+        ):
+            selected = candidate
+            selected_years = elapsed
+            break
+    if selected_years is None and len(pool) < len(common):
         return _failure_assembly(
             status=CalculationStatus.INPUT_UNAVAILABLE,
             code=ReasonCode.INCOMPATIBLE_SCOPE,
@@ -986,20 +1012,6 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             trace=trace,
             left_out_years=left_out,
         )
-    longest_count = _longest_contiguous_count(tuple(item.free_cash_flow for item in common))
-    selected: tuple[AnnualGrowthObservation, ...] = ()
-    selected_years: int | None = None
-    for elapsed in candidates:
-        if len(common) < elapsed + 1:
-            continue
-        candidate = common[-(elapsed + 1) :]
-        if all(
-            _periods_are_contiguous(left.period_end, right.period_start)
-            for left, right in zip(candidate, candidate[1:], strict=False)
-        ):
-            selected = candidate
-            selected_years = elapsed
-            break
     if selected_years is None:
         too_few_contiguous_observations = len(common) < min(candidates) + 1 and longest_count == len(common)
         code = ReasonCode.INSUFFICIENT_HISTORY if too_few_contiguous_observations else ReasonCode.NON_CONTIGUOUS_HISTORY
@@ -1008,7 +1020,7 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
             if code is ReasonCode.INSUFFICIENT_HISTORY
             else "The most recent common annual history is not contiguous."
         )
-        earlier = _earlier_basis_shortfall(policy, candidates, resolved_fields, left_out, common)
+        earlier = _earlier_basis_shortfall(policy, candidates, resolved_fields, left_out, pool)
         if earlier is not None:
             code, reason = ReasonCode.EARLIER_BASIS, earlier
         return _failure_assembly(

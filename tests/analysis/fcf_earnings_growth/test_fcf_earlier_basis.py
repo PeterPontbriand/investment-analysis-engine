@@ -15,11 +15,15 @@ from investment_analysis_engine.data.financial.facts import (
     ProviderFact,
 )
 from investment_analysis_engine.data.financial.resolver import EARLIER_BASIS_MESSAGE, LeftOutObservation, LeftOutReason
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD,
+    SEC_PROVIDER_ID,
+)
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
 )
+from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from investment_analysis_engine.strategies.fcf_growth.codec import decode_fcf_growth, encode_fcf_growth
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import (
@@ -31,7 +35,10 @@ from investment_analysis_engine.strategies.fcf_growth.models import (
     FCFEarningsGrowthPolicy,
     FCFEarningsGrowthResult,
 )
-from investment_analysis_engine.strategies.fcf_growth.presenter import build_fcf_growth_document
+from investment_analysis_engine.strategies.fcf_growth.presenter import (
+    build_fcf_growth_document,
+    render_fcf_earnings_growth,
+)
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     Classification,
     FCFClassificationBasis,
@@ -45,31 +52,55 @@ _OBSERVED = f"reported only before a later filing{_RESTATED}"
 
 
 class _EarlierBasisProvider(FixtureAnnualFinancialFactsProvider):
-    """The fixture series, with the EPS and diluted-share years before a cutoff reported as earlier basis."""
+    """The fixture series, with some EPS and diluted-share years reported as left out.
 
-    def __init__(self, facts: tuple[ProviderFact, ...], cutoffs: dict[FinancialField, int]) -> None:
+    A year before a field's cutoff is earlier-basis. A year in a field's conflict set is conflicting, and every year
+    before the newest conflicting one is dropped with it.
+    """
+
+    def __init__(
+        self,
+        facts: tuple[ProviderFact, ...],
+        cutoffs: dict[FinancialField, int],
+        conflicts: dict[FinancialField, set[int]] | None = None,
+    ) -> None:
         super().__init__(facts)
         self.cutoffs = cutoffs
+        self.conflicts = conflicts or {}
 
     def fetch_annual_series(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> AnnualSeriesFacts:
         facts = self.fetch_facts(request, effective_as_of=effective_as_of)
-        cutoff = self.cutoffs.get(request.field_name)
-        if cutoff is None:
-            return AnnualSeriesFacts(facts)
+        cutoff = self.cutoffs.get(request.field_name, 0)
+        conflict = self.conflicts.get(request.field_name, set())
+        newest_conflict = max(conflict, default=0)
+
+        def year(fact: ProviderFact) -> int:
+            return fact.fiscal_year or 0
+
         return AnnualSeriesFacts(
-            tuple(fact for fact in facts if (fact.fiscal_year or 0) >= cutoff),
-            tuple(fact for fact in facts if (fact.fiscal_year or 0) < cutoff),
+            tuple(fact for fact in facts if year(fact) >= cutoff and year(fact) > newest_conflict),
+            tuple(fact for fact in facts if year(fact) < cutoff and year(fact) not in conflict),
+            tuple(fact for fact in facts if year(fact) in conflict),
         )
 
 
 def _run(
     cutoffs: dict[FinancialField, int],
     *,
+    conflicts: dict[FinancialField, set[int]] | None = None,
+    broader_capex: bool = False,
     horizon: HistoricalHorizon = HistoricalHorizon.LONGEST_AVAILABLE,
     basis: FCFClassificationBasis = FCFClassificationBasis.TOTAL_FCF,
 ) -> FCFEarningsGrowthResult:
     facts = tuple(replace(fact, provider_id=SEC_PROVIDER_ID) for fact in annual_series(_YEARS))
-    provider = _EarlierBasisProvider(facts, cutoffs)
+    if broader_capex:
+        facts = tuple(
+            replace(fact, provider_field=SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD)
+            if fact.field_name is FinancialField.CAPITAL_EXPENDITURES
+            else fact
+            for fact in facts
+        )
+    provider = _EarlierBasisProvider(facts, cutoffs, conflicts)
     annual = ProductionAnnualGrowthSeriesResolver(provider, clock=lambda: CLOCK)
     policy = FCFEarningsGrowthPolicy(historical_horizon=horizon, classification_basis=basis)
     return FCFEarningsGrowthAnalyzer(annual, fcf_market_data()).run_analysis(
@@ -224,3 +255,82 @@ def test_the_year_must_be_the_year_of_its_period_end() -> None:
 
     with pytest.raises(ValueError, match="year of its period end"):
         replace(year, fiscal_year=year.fiscal_year + 1)
+
+
+_SHARES = FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES
+_CONFLICT_ONE = "Diluted EPS for FY2021 has different values in filings filed together; that year is left out."
+
+
+def test_a_conflicting_year_is_recorded_with_ambiguous_fact_and_warned_about_alone() -> None:
+    result = _run({}, conflicts={FinancialField.EPS: {2021}})
+
+    conflicting = [item for item in result.left_out_years if item.reason_code is ReasonCode.AMBIGUOUS_FACT]
+    assert [(item.field, item.fiscal_year, item.reason) for item in conflicting] == [
+        ("eps", 2021, "Filings filed together give different values for this year; not used.")
+    ]
+    assert result.warnings[0] == _CONFLICT_ONE
+    assert [item.period_end.year for item in result.annual_observations] == [2022, 2023, 2024, 2025]
+
+
+def test_the_conflict_warning_follows_the_earlier_basis_warning() -> None:
+    result = _run({FinancialField.EPS: 2022}, conflicts={FinancialField.EPS: {2021}})
+
+    assert result.warnings[:2] == (
+        f"Diluted EPS for FY2020 was {_OBSERVED}; that year is left out.",
+        _CONFLICT_ONE,
+    )
+
+
+def test_conflicting_years_of_two_fields_share_one_clause_and_one_ending() -> None:
+    result = _run({}, conflicts={FinancialField.EPS: {2021}, _SHARES: {2021}})
+
+    assert result.warnings[0] == (
+        "Diluted EPS and weighted-average diluted shares for FY2021 have different values in filings filed "
+        "together; that year is left out."
+    )
+
+
+def test_the_per_share_basis_chooses_its_horizon_from_the_periods_that_have_a_per_share_value() -> None:
+    result = _run({_SHARES: 2022}, basis=FCFClassificationBasis.FCF_PER_SHARE)
+
+    assert result.execution_status is CalculationStatus.OK
+    assert (result.selected_horizon_years, result.selected_observation_count) == (3, 4)
+    assert [item.period_end.year for item in result.annual_observations] == [2022, 2023, 2024, 2025]
+    assert all(item.free_cash_flow_per_diluted_share is not None for item in result.annual_observations)
+    assert {item.field for item in result.left_out_years} == {"weighted_average_diluted_shares"}
+
+
+def test_the_per_share_basis_fails_with_incompatible_scope_when_too_few_periods_have_a_per_share_value() -> None:
+    result = _run({_SHARES: 2024}, basis=FCFClassificationBasis.FCF_PER_SHARE)
+
+    assert result.classification_reason_code is ReasonCode.INCOMPATIBLE_SCOPE
+    assert result.classification_reason == (
+        "Compatible same-accession diluted-share evidence is unavailable for every annual period."
+    )
+
+
+def test_the_total_basis_ignores_the_missing_per_share_periods() -> None:
+    result = _run({_SHARES: 2024})
+
+    assert result.execution_status is CalculationStatus.OK
+    assert result.selected_observation_count == 6
+
+
+def test_the_intangible_assets_limitation_appears_only_when_the_broader_capex_concept_is_used() -> None:
+    narrow, broad = _run({}), _run({}, broader_capex=True)
+    line = (
+        "Limitation: Capital expenditures include purchases of intangible assets, which the filer reports together "
+        "with property and equipment, so free cash flow may be lower than with property and equipment alone."
+    )
+
+    for mode in (PresentationMode.CONCISE, PresentationMode.DETAILS):
+        assert line not in render_fcf_earnings_growth(narrow, mode).splitlines()
+        lines = render_fcf_earnings_growth(broad, mode).splitlines()
+        assert line in lines
+        assert lines[lines.index(line) - 1].startswith("Limitation: Historical financial strength")
+    assert len(build_fcf_growth_document(narrow).limitations) == 1
+    document = build_fcf_growth_document(broad)
+    assert document.limitations[1] == line.removeprefix("Limitation: ")
+    assert {item.normalized_capital_expenditures.provider_field for item in document.annual_observations} == {
+        SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD
+    }

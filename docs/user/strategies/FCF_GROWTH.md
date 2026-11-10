@@ -127,7 +127,11 @@ A company restates earlier years when something such as a stock split changes th
 
 It uses the newest run of years that share one basis and leaves the older years out. The result names each year left out, for which figure, and why: its `left_out_years` list in the JSON output, and a warning in the text output such as "Diluted EPS for FY2020–FY2021 was reported only before a later filing restated other years (for example after a stock split); those years are left out." The reason code is `earlier_basis`. When nothing is left out the list is empty.
 
+A year is also left out when the filings that report it, filed together, give different values. The reason code is `ambiguous_fact`, the warning says that year has different values in filings filed together, and every year older than it is left out with it. If that is the newest year, the result is `INDETERMINATE` with `ambiguous_fact`.
+
 Leaving years out can shorten the history. The automatic policy then uses the longest span that remains and discloses the fallback. An explicit span that needs the years left out is `INDETERMINATE` with the reason `earlier_basis`, and its reason names those years and the years the span needs.
+
+With the FCF-per-share basis, the span is chosen from the years that have a per-share value, so years whose diluted shares were left out do not stop a shorter span from being used.
 
 ### On the command line
 <!-- help:exclude -->
@@ -222,7 +226,7 @@ When supported provider evidence supplies an instrument name, the heading shows 
 The current production analysis resolves annual financial facts from SEC EDGAR. Required evidence includes:
 
 - net cash provided by operating activities;
-- capital expenditures, normalized to a positive expenditure amount;
+- capital expenditures, normalized to a positive expenditure amount: purchases of property and equipment or, for a filer that reports only the broader purchases of productive assets, that concept (the result then states a limitation, because the broader concept includes intangible assets);
 - diluted EPS; and
 - weighted-average diluted shares.
 

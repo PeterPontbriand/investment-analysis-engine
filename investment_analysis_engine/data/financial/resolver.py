@@ -182,6 +182,7 @@ class LeftOutReason(StrEnum):
     NOT_AVAILABLE_AT_BOUNDARY = "not_available_at_boundary"
     FAILED_QUALITY_CHECK = "failed_quality_check"
     EARLIER_BASIS = "earlier_basis"
+    CONFLICTING_VERSIONS = "conflicting_versions"
 
 
 EARLIER_BASIS_MESSAGE: Final = (
@@ -189,6 +190,9 @@ EARLIER_BASIS_MESSAGE: Final = (
     "not combined with the restated years."
 )
 """The reason of an observation left out as ``LeftOutReason.EARLIER_BASIS``, which states only what was observed."""
+
+CONFLICTING_VERSIONS_MESSAGE: Final = "Filings filed together give different values for this year; not used."
+"""The reason of an observation left out as ``LeftOutReason.CONFLICTING_VERSIONS``."""
 
 
 @dataclass(frozen=True)
@@ -556,23 +560,30 @@ class InputResolver:
                         reason=validation[1],
                     )
                 )
-        earlier_basis, rejected_earlier = _earlier_basis_left_out(request, answer.earlier_basis, resolved_at)
-        if rejected_earlier is not None:
-            return self._annual_failure(
-                request,
-                trace,
-                CalculationStatus.PROVIDER_ERROR,
-                rejected_earlier,
-                failure=_rejected_answer(request),
-                outcome=ResolutionOutcome.REJECTED,
-            )
-        left_out.extend(earlier_basis)
-        earlier_basis_count = len(earlier_basis)
+        reported: dict[LeftOutReason, list[LeftOutObservation]] = {}
+        for why, message, dropped in (
+            (LeftOutReason.EARLIER_BASIS, EARLIER_BASIS_MESSAGE, answer.earlier_basis),
+            (LeftOutReason.CONFLICTING_VERSIONS, CONFLICTING_VERSIONS_MESSAGE, answer.conflicting),
+        ):
+            records, rejected_dropped = _reported_left_out(request, dropped, resolved_at, why, message)
+            if rejected_dropped is not None:
+                return self._annual_failure(
+                    request,
+                    trace,
+                    CalculationStatus.PROVIDER_ERROR,
+                    rejected_dropped,
+                    failure=_rejected_answer(request),
+                    outcome=ResolutionOutcome.REJECTED,
+                )
+            reported[why] = records
+            left_out.extend(records)
         if not kept:
             if not facts and not left_out:
                 reason = "Provider returned no data for the requested field."
             elif left_out[0].why is LeftOutReason.EARLIER_BASIS:
                 reason = f"No {field_name} observation is on the latest basis: {left_out[0].reason}"
+            elif left_out[0].why is LeftOutReason.CONFLICTING_VERSIONS:
+                reason = f"No {field_name} observation is usable: {left_out[0].reason}"
             else:
                 reason = f"No {field_name} observation is eligible at the boundary: {left_out[0].reason}"
             return self._annual_failure(
@@ -591,7 +602,12 @@ class InputResolver:
                     field_name,
                     ResolutionStage.PROVIDER,
                     ResolutionOutcome.SUCCESS,
-                    _resolved_message(len(inputs), len(left_out) - earlier_basis_count, earlier_basis_count),
+                    _resolved_message(
+                        len(inputs),
+                        len(left_out) - sum(len(records) for records in reported.values()),
+                        len(reported[LeftOutReason.EARLIER_BASIS]),
+                        len(reported[LeftOutReason.CONFLICTING_VERSIONS]),
+                    ),
                     now=self._clock(),
                 )
             ),
@@ -1733,12 +1749,16 @@ def _resolved_from_fact(
     )
 
 
-def _earlier_basis_left_out(
-    request: FinancialFactRequest, facts: tuple[ProviderFact, ...], resolved_at: datetime
+def _reported_left_out(  # noqa: PLR0913, PLR0917
+    request: FinancialFactRequest,
+    facts: tuple[ProviderFact, ...],
+    resolved_at: datetime,
+    why: LeftOutReason,
+    message: str,
 ) -> tuple[list[LeftOutObservation], str | None]:
-    """Return the left-out record of each earlier-basis fact, or why the provider's answer is rejected as a whole.
+    """Return the left-out record of each fact the provider reported as left out, or why its answer is rejected.
 
-    A fact that would be left out for another reason is not an earlier-basis observation and is not recorded.
+    A fact that would be left out for another reason is not recorded here.
     """
     left_out: list[LeftOutObservation] = []
     for fact in facts:
@@ -1752,20 +1772,22 @@ def _earlier_basis_left_out(
             left_out.append(
                 LeftOutObservation(
                     observation_period_end=fact.observation_period_end,
-                    why=LeftOutReason.EARLIER_BASIS,
-                    reason=EARLIER_BASIS_MESSAGE,
+                    why=why,
+                    reason=message,
                 )
             )
     return left_out, None
 
 
-def _resolved_message(resolved: int, ineligible: int, earlier_basis: int) -> str:
+def _resolved_message(resolved: int, ineligible: int, earlier_basis: int, conflicting: int) -> str:
     """Return the closing trace message of an annual series: what resolved and what was left out, and why."""
     clauses = []
-    if ineligible or not earlier_basis:
+    if ineligible or not (earlier_basis or conflicting):
         clauses.append(f"{ineligible} left out as ineligible")
     if earlier_basis:
         clauses.append(f"{earlier_basis} left out as reported only on an earlier basis")
+    if conflicting:
+        clauses.append(f"{conflicting} left out as having different values in filings filed together")
     return f"{resolved} fiscal-year observation(s) resolved; {'; '.join(clauses)}."
 
 

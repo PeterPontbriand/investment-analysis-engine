@@ -303,7 +303,7 @@ def _equity_request() -> FinancialFactRequest:
 
 def test_the_financial_fact_cache_version_was_bumped_where_it_is_set() -> None:
     assert DEFAULT_CACHE_SCHEMA_VERSION == 2
-    assert CACHE_SCHEMA_VERSION == 3
+    assert CACHE_SCHEMA_VERSION == 4
     assert InputResolver(_Equity(), clock=lambda: NOW)._schema_version == DEFAULT_CACHE_SCHEMA_VERSION
 
 

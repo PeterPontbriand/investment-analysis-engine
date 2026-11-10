@@ -493,10 +493,13 @@ class AnnualSeriesFacts:
         earlier_basis: One fact for each period of the requested span the provider left out because it was reported
             only before a later filing restated other years (for example after a stock split), oldest period first.
             Empty when no period was.
+        conflicting: One fact for each period of the requested span the provider left out because the filings
+            that latest report it give different values, oldest period first. Empty when no period was.
     """
 
     facts: tuple[ProviderFact, ...] = ()
     earlier_basis: tuple[ProviderFact, ...] = ()
+    conflicting: tuple[ProviderFact, ...] = ()
 
 
 # ---------------------------------------------------------------------------

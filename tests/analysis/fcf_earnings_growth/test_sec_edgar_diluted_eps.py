@@ -12,7 +12,12 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, FinancialUnit
 from investment_analysis_engine.data.financial.provenance import AccountingScope, FinancialSubjectKind, PeriodKind
-from investment_analysis_engine.data.financial.resolver import EARLIER_BASIS_MESSAGE, InputResolver, LeftOutReason
+from investment_analysis_engine.data.financial.resolver import (
+    CONFLICTING_VERSIONS_MESSAGE,
+    EARLIER_BASIS_MESSAGE,
+    InputResolver,
+    LeftOutReason,
+)
 from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_EPS_FIELD,
     SEC_PROVIDER_ID,
@@ -396,3 +401,101 @@ def test_the_three_year_average_says_how_many_periods_a_shortened_series_has() -
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.reason == "Insufficient eligible fiscal-year EPS observations: found 2 distinct period(s), need 3."
+
+
+# ---------------------------------------------------------------------------
+# A period whose latest versions disagree.
+# ---------------------------------------------------------------------------
+
+
+def _shares_payload(observations: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "cik": CIK,
+        "entityName": "Apple",
+        "facts": {"us-gaap": {"WeightedAverageNumberOfDilutedSharesOutstanding": {"units": {"shares": observations}}}},
+    }
+
+
+def _conflict_series() -> list[dict[str, Any]]:
+    """Four periods: 2017 only as first filed, 2018 re-presented twice with different values, 2019 and 2020 clean."""
+    return [
+        _observation(9.21, accession="2017-original", start="2016-09-25", end="2017-09-30", filed="2017-11-03"),
+        _observation(11.91, accession="2018-original", start="2017-10-01", end="2018-09-29", filed="2018-11-05"),
+        _observation(2.98, accession="2020-a", start="2017-10-01", end="2018-09-29", filed="2020-10-30"),
+        _observation(2.99, accession="2020-b", start="2017-10-01", end="2018-09-29", filed="2020-10-30"),
+        _observation(11.89, accession="2019-original", start="2018-09-30", end="2019-09-28", filed="2019-10-31"),
+        _observation(2.97, accession="2020-represented-2019", start="2018-09-30", end="2019-09-28", filed="2020-10-30"),
+        _observation(3.28, accession="2020-current", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
+    ]
+
+
+def _years(facts: Any) -> list[int]:
+    return [fact.observation_period_end.year for fact in facts if fact.observation_period_end]
+
+
+@pytest.mark.parametrize("field", [FinancialField.EPS, FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES])
+def test_a_conflict_in_an_older_period_drops_it_and_the_older_ones_and_reports_it(field: FinancialField) -> None:
+    observations = _conflict_series()
+    payload = _payload(observations) if field is FinancialField.EPS else _shares_payload(observations)
+    request = _request(observation_count=4)
+    if field is not FinancialField.EPS:
+        request = FinancialFactRequest(
+            subject_kind=request.subject_kind,
+            subject_id=request.subject_id,
+            field_name=field,
+            provider_id=request.provider_id,
+            basis=request.basis,
+            observation_count=4,
+        )
+
+    answer = _adapter(payload).fetch_annual_series(request, effective_as_of=NOW)
+
+    assert _years(answer.facts) == [2019, 2020]
+    assert _years(answer.conflicting) == [2018]
+    # 2017 was filed only before the run's boundary, so it also qualifies as earlier-basis.
+    assert _years(answer.earlier_basis) == [2017]
+
+
+def test_an_older_period_beyond_a_conflict_is_not_reported_unless_it_is_also_earlier_basis() -> None:
+    observations = [
+        *_conflict_series(),
+        _observation(2.30, accession="2020-represented-2017", start="2016-09-25", end="2017-09-30", filed="2020-10-30"),
+    ]
+
+    answer = _adapter(_payload(observations)).fetch_annual_series(_request(observation_count=4), effective_as_of=NOW)
+
+    assert _years(answer.facts) == [2019, 2020]
+    assert _years(answer.conflicting) == [2018]
+    assert answer.earlier_basis == ()
+
+
+def test_a_conflict_in_the_newest_period_empties_the_series_and_the_resolver_does_not_say_no_data() -> None:
+    observations = [
+        _observation(2.98, accession="2020-represented-2019", start="2018-09-30", end="2019-09-28", filed="2020-10-30"),
+        _observation(3.28, accession="2020-a", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
+        _observation(3.29, accession="2020-b", start="2019-09-29", end="2020-09-26", filed="2020-10-30"),
+    ]
+    adapter = _adapter(_payload(observations))
+
+    assert adapter.fetch_facts(_request(), effective_as_of=NOW) == ()
+    assert _years(adapter.fetch_annual_series(_request(), effective_as_of=NOW).conflicting) == [2020]
+    resolution = InputResolver(adapter, clock=lambda: NOW).resolve_annual_series(_request())
+    assert resolution.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert resolution.reason == f"No eps observation is usable: {CONFLICTING_VERSIONS_MESSAGE}"
+    assert [item.why for item in resolution.left_out] == [LeftOutReason.CONFLICTING_VERSIONS]
+
+
+def test_the_resolver_records_the_conflicting_period_and_counts_it_in_the_trace() -> None:
+    resolution = InputResolver(_adapter(_payload(_conflict_series())), clock=lambda: NOW).resolve_annual_series(
+        _request(observation_count=4)
+    )
+
+    assert resolution.status is CalculationStatus.OK
+    assert [(item.why, item.reason) for item in resolution.left_out] == [
+        (LeftOutReason.EARLIER_BASIS, EARLIER_BASIS_MESSAGE),
+        (LeftOutReason.CONFLICTING_VERSIONS, CONFLICTING_VERSIONS_MESSAGE),
+    ]
+    assert resolution.resolution_trace.events[-1].message == (
+        "2 fiscal-year observation(s) resolved; 1 left out as reported only on an earlier basis; "
+        "1 left out as having different values in filings filed together."
+    )

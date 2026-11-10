@@ -98,7 +98,7 @@ def _stored(field: FinancialField, year: int) -> tuple[ResolvedInputCacheKey, Re
         basis="fiscal_year",
         provider_id=SEC_PROVIDER_ID,
         analysis_as_of=None,
-        schema_version=3,
+        schema_version=4,
         observation_period_start=start,
         observation_period_end=end,
     )
@@ -187,7 +187,7 @@ def test_an_entry_stored_before_the_shared_entry_is_reused_unchanged() -> None:
     result = _resolve(_ForbiddenProvider(), cache)
     assert result.status is CalculationStatus.OK
     assert [item.fiscal_year for item in result.observations] == list(YEARS)
-    assert CACHE_SCHEMA_VERSION == 3
+    assert CACHE_SCHEMA_VERSION == 4
     reused = {
         FinancialField.OPERATING_CASH_FLOW: [item.operating_cash_flow for item in result.observations],
         FinancialField.CAPITAL_EXPENDITURES: [item.normalized_capital_expenditures for item in result.observations],
@@ -199,13 +199,13 @@ def test_an_entry_stored_before_the_shared_entry_is_reused_unchanged() -> None:
                 _stored(field, year)[1],
                 source_kind=SourceKind.CACHE,
                 origin_source_kind=SourceKind.PROVIDER,
-                cache_schema_version=3,
+                cache_schema_version=4,
             )
             for year in YEARS
         ]
         assert inputs == expected
     for field in FIELDS:
-        assert _series(cache, field, 3) == tuple(_stored(field, year)[1] for year in YEARS)
+        assert _series(cache, field, 4) == tuple(_stored(field, year)[1] for year in YEARS)
 
 
 def test_a_miss_fetches_each_field_once_and_stores_the_entries_in_the_stored_form() -> None:
@@ -214,7 +214,7 @@ def test_a_miss_fetches_each_field_once_and_stores_the_entries_in_the_stored_for
     assert _resolve(provider, cache).status is CalculationStatus.OK
     assert [request.field_name for request in provider.requests] == list(FIELDS)
     for field in FIELDS:
-        assert _series(cache, field, 3) == tuple(_stored(field, year)[1] for year in YEARS)
+        assert _series(cache, field, 4) == tuple(_stored(field, year)[1] for year in YEARS)
     provider.requests.clear()
     assert _resolve(provider, cache).status is CalculationStatus.OK
     assert provider.requests == []
@@ -229,7 +229,7 @@ def test_an_entry_under_another_schema_version_is_refused_and_fetched_again() ->
     provider = FixtureAnnualFinancialFactsProvider(_facts())
     assert _resolve(provider, cache).status is CalculationStatus.OK
     assert [request.field_name for request in provider.requests] == list(FIELDS)
-    assert _series(cache, FinancialField.OPERATING_CASH_FLOW, 3) == tuple(
+    assert _series(cache, FinancialField.OPERATING_CASH_FLOW, 4) == tuple(
         _stored(FinancialField.OPERATING_CASH_FLOW, year)[1] for year in YEARS
     )
 

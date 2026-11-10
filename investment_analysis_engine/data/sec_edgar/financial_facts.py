@@ -106,6 +106,7 @@ SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
 SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD = "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding"
 SEC_OPERATING_CASH_FLOW_FIELD = "us-gaap:NetCashProvidedByUsedInOperatingActivities"
 SEC_CAPITAL_EXPENDITURES_FIELD = "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
+SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD = "us-gaap:PaymentsToAcquireProductiveAssets"
 SEC_IFRS_EPS_FIELD = "ifrs-full:DilutedEarningsLossPerShare"
 SEC_IFRS_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD = "ifrs-full:AdjustedWeightedAverageShares"
 SEC_IFRS_OPERATING_CASH_FLOW_FIELD = "ifrs-full:CashFlowsFromUsedInOperatingActivities"
@@ -231,6 +232,14 @@ class _AnnualEpsParseContext:
     acceptance_by_accession: Mapping[str, datetime]
     retrieved_at: datetime
     provider_field: str
+
+
+@dataclass
+class _SeriesLeftOut:
+    """The requested periods of an EPS or diluted-share series that the reconciliation left out, by reason."""
+
+    earlier_basis: list[ProviderFact] = field(default_factory=list)
+    conflicting: list[ProviderFact] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -1055,13 +1064,15 @@ class SecEdgarFinancialFactsAdapter:
     def fetch_annual_series(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> AnnualSeriesFacts:
         """Return what ``fetch_facts`` returns and, for EPS and diluted shares, the periods left on an earlier basis.
 
-        The earlier-basis facts are reported only when the series itself is not empty.
+        The earlier-basis facts are reported only when the series itself is not empty; the conflicting period is
+        reported whether or not it is.
         """
-        earlier: list[ProviderFact] = []
-        facts = self._fetch_facts(request, effective_as_of=effective_as_of, earlier_basis=earlier)
+        left_out = _SeriesLeftOut()
+        facts = self._fetch_facts(request, effective_as_of=effective_as_of, left_out=left_out)
         return AnnualSeriesFacts(
             facts=self._with_override_note(request, facts),
-            earlier_basis=self._with_override_note(request, tuple(earlier)) if facts else (),
+            earlier_basis=self._with_override_note(request, tuple(left_out.earlier_basis)) if facts else (),
+            conflicting=self._with_override_note(request, tuple(left_out.conflicting)),
         )
 
     def _with_override_note(
@@ -1078,7 +1089,7 @@ class SecEdgarFinancialFactsAdapter:
         request: FinancialFactRequest,
         *,
         effective_as_of: datetime,
-        earlier_basis: list[ProviderFact] | None = None,
+        left_out: _SeriesLeftOut | None = None,
     ) -> tuple[ProviderFact, ...]:
         """Return supported SEC facts, or explicit unavailability.
 
@@ -1087,8 +1098,8 @@ class SecEdgarFinancialFactsAdapter:
             effective_as_of: The resolved point-in-time eligibility boundary for
                 annual-candidate and balance-sheet-fact filtering. Independent of
                 this adapter's own retrieval clock (used only to stamp ``retrieved_at``).
-            earlier_basis: When given, receives one fact for each requested EPS or diluted-share period left out
-                because it was reported only on an earlier basis.
+            left_out: When given, receives one fact for each requested EPS or diluted-share period left out, by
+                reason: reported only on an earlier basis, or latest versions that disagree.
         """
         if not self._supports(request):
             return ()
@@ -1186,15 +1197,24 @@ class SecEdgarFinancialFactsAdapter:
                 facts = _eligible_annual_candidates(candidates, request=request, now=effective_as_of)
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.CAPITAL_EXPENDITURES:
-                candidates = _annual_capital_expenditure_candidates(
-                    company_facts,
-                    request=request,
-                    cik=cik,
-                    acceptance_by_accession=acceptance_by_accession,
-                    retrieved_at=provider_now,
-                    taxonomy=taxonomy,
+                facts = _longest_capital_expenditure_run(
+                    [
+                        _eligible_annual_candidates(
+                            _annual_capital_expenditure_candidates(
+                                company_facts,
+                                request=request,
+                                cik=cik,
+                                acceptance_by_accession=acceptance_by_accession,
+                                retrieved_at=provider_now,
+                                taxonomy=taxonomy,
+                                productive_assets=productive_assets,
+                            ),
+                            request=request,
+                            now=effective_as_of,
+                        )
+                        for productive_assets in ((False, True) if taxonomy == "us-gaap" else (False,))
+                    ]
                 )
-                facts = _eligible_annual_candidates(candidates, request=request, now=effective_as_of)
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.EPS:
                 candidates = _annual_eps_candidates(
@@ -1205,9 +1225,7 @@ class SecEdgarFinancialFactsAdapter:
                     retrieved_at=provider_now,
                     taxonomy=taxonomy,
                 )
-                facts = _reconcile_annual_eps(
-                    candidates, request=request, now=effective_as_of, earlier_basis=earlier_basis
-                )
+                facts = _reconcile_annual_eps(candidates, request=request, now=effective_as_of, left_out=left_out)
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
             if request.field_name is FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES:
                 candidates = _annual_diluted_share_candidates(
@@ -1218,9 +1236,7 @@ class SecEdgarFinancialFactsAdapter:
                     retrieved_at=provider_now,
                     taxonomy=taxonomy,
                 )
-                facts = _reconcile_annual_eps(
-                    candidates, request=request, now=effective_as_of, earlier_basis=earlier_basis
-                )
+                facts = _reconcile_annual_eps(candidates, request=request, now=effective_as_of, left_out=left_out)
                 return _enforce_snapshot_regime(facts, request=request, snapshot=snapshot)
 
             if request.field_name is FinancialField.COMMON_SHARES_OUTSTANDING:
@@ -1618,7 +1634,7 @@ _ANNUAL_CONCEPT_NAMES: Mapping[FinancialField, Mapping[str, tuple[str, ...]]] = 
         "ifrs-full": ("CashFlowsFromUsedInOperatingActivities",),
     },
     FinancialField.CAPITAL_EXPENDITURES: {
-        "us-gaap": ("PaymentsToAcquirePropertyPlantAndEquipment",),
+        "us-gaap": ("PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"),
         "ifrs-full": ("PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",),
     },
     FinancialField.EPS: {"us-gaap": ("EarningsPerShareDiluted",), "ifrs-full": ("DilutedEarningsLossPerShare",)},
@@ -2019,7 +2035,7 @@ def _annual_operating_cash_flow_candidates(  # noqa: PLR0913
     return tuple(result)
 
 
-def _annual_capital_expenditure_candidates(  # noqa: PLR0913
+def _annual_capital_expenditure_candidates(  # noqa: PLR0912, PLR0913
     payload: object,
     *,
     request: FinancialFactRequest,
@@ -2027,8 +2043,12 @@ def _annual_capital_expenditure_candidates(  # noqa: PLR0913
     acceptance_by_accession: Mapping[str, datetime],
     retrieved_at: datetime,
     taxonomy: str = "us-gaap",
+    productive_assets: bool = False,
 ) -> tuple[ProviderFact, ...]:
-    """Parse exact-concept completed-annual PP&E acquisition payments."""
+    """Parse exact-concept completed-annual capital-expenditure payments of one concept.
+
+    The US-GAAP concept is property and equipment unless ``productive_assets`` asks for the broader concept.
+    """
     if not isinstance(payload, Mapping):
         msg = "SEC Company Facts payload is not an object."
         raise ValueError(msg)
@@ -2041,12 +2061,15 @@ def _annual_capital_expenditure_candidates(  # noqa: PLR0913
     namespace = facts.get(taxonomy)
     if not isinstance(namespace, Mapping):
         return ()
-    concept_name = (
-        "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"
-        if taxonomy == "ifrs-full"
-        else "PaymentsToAcquirePropertyPlantAndEquipment"
-    )
-    provider_field = SEC_IFRS_CAPITAL_EXPENDITURES_FIELD if taxonomy == "ifrs-full" else SEC_CAPITAL_EXPENDITURES_FIELD
+    if taxonomy == "ifrs-full":
+        concept_name = "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"
+        provider_field = SEC_IFRS_CAPITAL_EXPENDITURES_FIELD
+    elif productive_assets:
+        concept_name = "PaymentsToAcquireProductiveAssets"
+        provider_field = SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD
+    else:
+        concept_name = "PaymentsToAcquirePropertyPlantAndEquipment"
+        provider_field = SEC_CAPITAL_EXPENDITURES_FIELD
     concept = namespace.get(concept_name)
     if not isinstance(concept, Mapping):
         return ()
@@ -2167,6 +2190,16 @@ def _parse_operating_cash_flow_observation(  # noqa: PLR0911
     )
 
 
+_CAPEX_DEFINITIONS: Mapping[str, str] = {
+    SEC_CAPITAL_EXPENDITURES_FIELD: "definition=cash paid to acquire property, plant, and equipment; "
+    "non-negative raw value preserved",
+    SEC_IFRS_CAPITAL_EXPENDITURES_FIELD: "definition=cash paid to acquire property, plant, and equipment; "
+    "non-negative raw value preserved",
+    SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD: "definition=cash paid to acquire productive assets, which can "
+    "include intangible assets the filer reports with property and equipment; non-negative raw value preserved",
+}
+
+
 def _parse_capital_expenditure_observation(  # noqa: PLR0911
     observation: Mapping[object, object],
     *,
@@ -2235,7 +2268,7 @@ def _parse_capital_expenditure_observation(  # noqa: PLR0911
             if isinstance(provider_fy, (int, str))
             else "provider_fiscal_year=unknown",
             "fiscal_year_source=calendar year containing exact SEC period end",
-            "definition=cash paid to acquire property, plant, and equipment; non-negative raw value preserved",
+            _CAPEX_DEFINITIONS[context.provider_field],
             availability_note,
         ),
         fiscal_year=period_end.year,
@@ -2244,6 +2277,42 @@ def _parse_capital_expenditure_observation(  # noqa: PLR0911
         capital_expenditure_sign=CapitalExpenditureSign.POSITIVE_EXPENDITURE,
         provider_fact_id=provider_fact_id,
     )
+
+
+def _concept_run(facts: Sequence[ProviderFact], newest_end: date) -> int:
+    """Return how many consecutive annual periods ``facts`` cover, counting back from the one ending ``newest_end``."""
+    starts_by_end: dict[date, set[date]] = {}
+    for fact in facts:
+        assert fact.observation_period_start is not None
+        assert fact.observation_period_end is not None
+        starts_by_end.setdefault(fact.observation_period_end.date(), set()).add(fact.observation_period_start.date())
+    run = 0
+    end = newest_end
+    while end in starts_by_end:
+        run += 1
+        previous = {start - timedelta(days=1) for start in starts_by_end[end]}
+        earlier_ends = [day for day in previous if day in starts_by_end]
+        if not earlier_ends:
+            break
+        end = max(earlier_ends)
+    return run
+
+
+def _longest_capital_expenditure_run(
+    concepts: Sequence[tuple[ProviderFact, ...]],
+) -> tuple[ProviderFact, ...]:
+    """Return the facts of the one capital-expenditure concept that covers the longer run of the newest periods.
+
+    ``concepts`` are in priority order; the first wins a tie. The run counts the consecutive annual periods a concept
+    covers back from the newest annual period either concept reports. Facts of two concepts are never returned
+    together, because the broader concept can include intangible assets the narrower one excludes.
+    """
+    newest = [cast(datetime, fact.observation_period_end).date() for facts in concepts for fact in facts]
+    if not newest:
+        return ()
+    newest_end = max(newest)
+    runs = [_concept_run(facts, newest_end) for facts in concepts]
+    return concepts[runs.index(max(runs))]
 
 
 def _is_completed_annual_period(period_start: datetime, period_end: datetime) -> bool:
@@ -3057,19 +3126,22 @@ def _reconcile_annual_eps(
     *,
     request: FinancialFactRequest,
     now: datetime,
-    earlier_basis: list[ProviderFact] | None = None,
+    left_out: _SeriesLeftOut | None = None,
 ) -> tuple[ProviderFact, ...]:
-    """Return the longest run of the newest requested periods that share one basis.
+    """Return the longest run of the newest requested periods that share one basis and have one value each.
 
     A changed value for an exact period is evidence of a remeasurement event,
     such as a split-adjusted comparative amount. The latest event among the
     periods of a run establishes the earliest acceptable filing boundary for
     every period of that run. The full requested span is tried first; when an
-    older period was not re-presented on the run's basis, the oldest period is
-    dropped and the shorter run is judged on its own events, so the bases are
-    never mixed. Each dropped period is appended, as its latest version, to
-    ``earlier_basis`` when that list is given. A period whose latest versions
-    disagree makes the series empty.
+    older period was not re-presented on the run's basis, or its latest
+    versions disagree, the oldest period is dropped and the shorter run is
+    judged on its own events, so the bases are never mixed. When the newest
+    period itself has disagreeing latest versions the series is empty.
+
+    ``left_out``, when given, receives each dropped period as its latest version: as ``earlier_basis`` when it was
+    reported only before the run's boundary, as ``conflicting`` when its latest versions disagree. A period older
+    than a conflicting one is dropped with it and is reported only when it is also earlier-basis.
     """
     eligible = _eligible_annual_candidates(facts, request=request, now=now)
     by_period: dict[tuple[datetime, datetime], list[ProviderFact]] = {}
@@ -3078,27 +3150,52 @@ def _reconcile_annual_eps(
         assert fact.observation_period_end is not None
         by_period.setdefault((fact.observation_period_start, fact.observation_period_end), []).append(fact)
 
-    selected_periods = sorted(by_period, key=lambda period: (period[1], period[0]))[-request.observation_count :]
-    for first in range(len(selected_periods)):
-        run = selected_periods[first:]
+    periods = sorted(by_period, key=lambda period: (period[1], period[0]))[-request.observation_count :]
+    failures: dict[int, bool] = {}  # index of a period that failed its run -> whether its versions conflict
+    for first in range(len(periods)):
+        run = periods[first:]
         boundary = _common_basis_boundary(by_period, run)
         selected: list[ProviderFact] = []
-        for period in run:
+        for offset, period in enumerate(run):
             candidates = [
                 fact for fact in by_period[period] if boundary is None or cast(datetime, fact.available_at) >= boundary
             ]
             if not candidates:
+                failures[first + offset] = False
                 break
             latest_time = max(cast(datetime, fact.available_at) for fact in candidates)
             latest = [fact for fact in candidates if fact.available_at == latest_time]
             if len({fact.value for fact in latest}) != 1:
-                return ()
+                failures[first + offset] = True
+                break
             selected.append(min(latest, key=lambda fact: fact.provider_fact_id or ""))
         else:
-            if earlier_basis is not None:
-                earlier_basis.extend(_latest_version(by_period[period]) for period in selected_periods[:first])
+            if left_out is not None:
+                _record_dropped(by_period, periods, first, boundary, failures, left_out)
             return tuple(selected)
+    if left_out is not None and failures.get(len(periods) - 1):
+        left_out.conflicting.append(_latest_version(by_period[periods[-1]]))
     return ()
+
+
+def _record_dropped(  # noqa: PLR0913, PLR0917
+    by_period: Mapping[tuple[datetime, datetime], list[ProviderFact]],
+    periods: Sequence[tuple[datetime, datetime]],
+    first: int,
+    boundary: datetime | None,
+    failures: Mapping[int, bool],
+    left_out: _SeriesLeftOut,
+) -> None:
+    """Report the periods before ``first`` that a run starting at ``first`` dropped, by reason."""
+    newest_conflict = max((index for index in range(first) if failures.get(index)), default=-1)
+    for index in range(first):
+        versions = by_period[periods[index]]
+        if failures.get(index):
+            left_out.conflicting.append(_latest_version(versions))
+        elif index > newest_conflict or (
+            boundary is not None and all(cast(datetime, fact.available_at) < boundary for fact in versions)
+        ):
+            left_out.earlier_basis.append(_latest_version(versions))
 
 
 def _common_basis_boundary(

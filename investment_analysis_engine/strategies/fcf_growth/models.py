@@ -75,7 +75,8 @@ class LeftOutYear:
         field: The field's name, such as ``eps``.
         fiscal_year: The calendar year containing the period end, which is how a fiscal year is labelled.
         period_end: The end of the period that was left out.
-        reason_code: The served reason code; ``earlier_basis`` is the only one a year is left out for.
+        reason_code: The served reason code: ``earlier_basis``, or ``ambiguous_fact`` for a year whose filings
+            filed together give different values.
         reason: The explanation.
     """
 
@@ -114,8 +115,14 @@ def _runs(years: Iterable[int]) -> list[tuple[int, int]]:
     return runs
 
 
-def _clauses(left_out: Sequence[LeftOutYear]) -> list[str]:
-    """Return one clause for each range of years, naming the fields that share it, oldest range first."""
+_CONFLICTING = "different values in filings filed together"
+
+
+def _clauses(left_out: Sequence[LeftOutYear], observed: str, plural: str) -> list[str]:
+    """Return one clause for each range of years, naming the fields that share it, oldest range first.
+
+    ``observed`` is what was observed of a single field's years; ``plural`` is the same for several fields.
+    """
     fields = sorted({item.field for item in left_out}, key=_field_rank)
     shared: dict[tuple[int, int], list[str]] = {}
     for name in fields:
@@ -125,8 +132,7 @@ def _clauses(left_out: Sequence[LeftOutYear]) -> list[str]:
     for run in sorted(shared):
         names = [_label(name) for name in shared[run]]
         subject = f"{', '.join(names[:-1])} and {names[-1]}" if len(names) > 1 else names[0]
-        verb = "were" if len(names) > 1 else "was"
-        clauses.append(f"{subject} for {_range_text(*run)} {verb} {_OBSERVED}")
+        clauses.append(f"{subject} for {_range_text(*run)} {plural if len(names) > 1 else observed}")
     return clauses
 
 
@@ -135,11 +141,28 @@ def _message(clauses: Sequence[str], ending: str) -> str:
     return f"{text[:1].upper()}{text[1:]}; {ending}"
 
 
-def earlier_basis_warnings(left_out: Sequence[LeftOutYear]) -> tuple[str, ...]:
-    """Return the one warning that names every year left out, or nothing when none was."""
-    if not left_out:
+def _left_out_ending(left_out: Sequence[LeftOutYear]) -> str:
+    """Return the closing words of a warning: one year left out is "that year", several are "those years"."""
+    if len({item.fiscal_year for item in left_out}) == 1:
+        return "that year is left out."
+    return "those years are left out."
+
+
+def _warnings(left_out: Sequence[LeftOutYear], code: ReasonCode, observed: str, plural: str) -> tuple[str, ...]:
+    years = [item for item in left_out if item.reason_code is code]
+    if not years:
         return ()
-    return (_message(_clauses(left_out), "those years are left out."),)
+    return (_message(_clauses(years, observed, plural), _left_out_ending(years)),)
+
+
+def earlier_basis_warnings(left_out: Sequence[LeftOutYear]) -> tuple[str, ...]:
+    """Return the one warning that names every year left out as earlier-basis, or nothing when none was."""
+    return _warnings(left_out, ReasonCode.EARLIER_BASIS, f"was {_OBSERVED}", f"were {_OBSERVED}")
+
+
+def conflicting_warnings(left_out: Sequence[LeftOutYear]) -> tuple[str, ...]:
+    """Return the one warning that names every year left out because its filings disagree, or nothing."""
+    return _warnings(left_out, ReasonCode.AMBIGUOUS_FACT, f"has {_CONFLICTING}", f"have {_CONFLICTING}")
 
 
 def earlier_basis_shortfall(left_out: Sequence[LeftOutYear], elapsed_years: int, needed: tuple[int, int]) -> str:
@@ -151,7 +174,7 @@ def earlier_basis_shortfall(left_out: Sequence[LeftOutYear], elapsed_years: int,
         needed: The first and last fiscal year the request needs.
     """
     ending = f"{elapsed_years} elapsed years need {_range_text(*needed)}."
-    return _message(_clauses(left_out), ending)
+    return _message(_clauses(left_out, f"was {_OBSERVED}", f"were {_OBSERVED}"), ending)
 
 
 # ---------------------------------------------------------------------------

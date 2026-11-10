@@ -279,6 +279,8 @@ free_cash_flow_per_diluted_share =
 
 Operating cash flow is net cash provided by operating activities. Capital expenditures are normalized to a positive expenditure amount before subtraction because providers may report cash outflows with different sign conventions. The normalization and original provider field remain in provenance.
 
+The SEC concept for capital expenditures is property, plant and equipment purchases. Some filers, such as NVIDIA, report only the broader purchases of productive assets, which includes intangible assets such as software. For each company the engine uses one of the two, never both: the one the filer reports for the longer run of consecutive recent years, and property and equipment when they tie. When the broader concept is used, the result says so in a limitation, because free cash flow can then be lower than with property and equipment alone.
+
 Weighted-average diluted shares must be positive and compatible with the same completed fiscal year. Ending shares outstanding are not silently substituted. A provider's precomputed “free cash flow” is not accepted merely because its label matches; the strategy derives FCF from its resolved components.
 
 ### Historical horizon
