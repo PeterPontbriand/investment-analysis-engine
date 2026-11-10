@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "RefreshOutcomeCountsDocument": {
+      "additionalProperties": false,
+      "description": "How many of a refresh's stored runs ended in each outcome; one count for every outcome.",
+      "properties": {
+        "completed": {
+          "description": "Stored runs that ended completed.",
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "failed": {
+          "description": "Stored runs that ended failed.",
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "not_applicable": {
+          "description": "Stored runs that ended not applicable.",
+          "minimum": 0,
+          "title": "Not Applicable",
+          "type": "integer"
+        },
+        "unavailable": {
+          "description": "Stored runs that ended unavailable.",
+          "minimum": 0,
+          "title": "Unavailable",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "completed",
+        "unavailable",
+        "not_applicable",
+        "failed"
+      ],
+      "title": "RefreshOutcomeCountsDocument",
+      "type": "object"
+    },
+    "RefreshSummaryItemDocument": {
+      "additionalProperties": false,
+      "description": "One refresh, summarized from its stored runs.",
+      "properties": {
+        "first_completed_at": {
+          "description": "When the refresh's earliest stored run completed.",
+          "format": "date-time",
+          "title": "First Completed At",
+          "type": "string"
+        },
+        "last_completed_at": {
+          "description": "When the refresh's latest stored run completed.",
+          "format": "date-time",
+          "title": "Last Completed At",
+          "type": "string"
+        },
+        "outcome_counts": {
+          "$ref": "#/$defs/RefreshOutcomeCountsDocument"
+        },
+        "refresh_id": {
+          "format": "uuid",
+          "title": "Refresh Id",
+          "type": "string"
+        },
+        "run_count": {
+          "description": "The number of stored runs; a stopped refresh stores fewer.",
+          "minimum": 1,
+          "title": "Run Count",
+          "type": "integer"
+        },
+        "watchlist_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The watchlist the refresh ran, as recorded when it ran; null for a refresh of a list of entries.",
+          "title": "Watchlist Id"
+        },
+        "watchlist_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The watchlist's name when the refresh ran, not its current name; null when watchlist_id is null.",
+          "title": "Watchlist Name"
+        }
+      },
+      "required": [
+        "refresh_id",
+        "watchlist_id",
+        "watchlist_name",
+        "first_completed_at",
+        "last_completed_at",
+        "run_count",
+        "outcome_counts"
+      ],
+      "title": "RefreshSummaryItemDocument",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The whole ``runs refreshes --json`` output: one page of refreshes, most recently completed first.",
+  "properties": {
+    "has_more": {
+      "description": "True when at least one more refresh follows this page for the same filter.",
+      "title": "Has More",
+      "type": "boolean"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/RefreshSummaryItemDocument"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "has_more",
+    "items"
+  ],
+  "title": "RefreshesListDocument",
+  "type": "object"
+}

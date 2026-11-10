@@ -5010,6 +5010,44 @@
         "title": "RefreshJobDocument",
         "type": "object"
       },
+      "RefreshOutcomeCountsDocument": {
+        "additionalProperties": false,
+        "description": "How many of a refresh's stored runs ended in each outcome; one count for every outcome.",
+        "properties": {
+          "completed": {
+            "description": "Stored runs that ended completed.",
+            "minimum": 0,
+            "title": "Completed",
+            "type": "integer"
+          },
+          "failed": {
+            "description": "Stored runs that ended failed.",
+            "minimum": 0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "not_applicable": {
+            "description": "Stored runs that ended not applicable.",
+            "minimum": 0,
+            "title": "Not Applicable",
+            "type": "integer"
+          },
+          "unavailable": {
+            "description": "Stored runs that ended unavailable.",
+            "minimum": 0,
+            "title": "Unavailable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "completed",
+          "unavailable",
+          "not_applicable",
+          "failed"
+        ],
+        "title": "RefreshOutcomeCountsDocument",
+        "type": "object"
+      },
       "RefreshRequest": {
         "additionalProperties": false,
         "description": "The body that starts a refresh job: a watchlist or a list of entries, exactly one.",
@@ -5230,6 +5268,74 @@
         "title": "RefreshSummaryDocument",
         "type": "object"
       },
+      "RefreshSummaryItemDocument": {
+        "additionalProperties": false,
+        "description": "One refresh, summarized from its stored runs.",
+        "properties": {
+          "first_completed_at": {
+            "description": "When the refresh's earliest stored run completed.",
+            "format": "date-time",
+            "title": "First Completed At",
+            "type": "string"
+          },
+          "last_completed_at": {
+            "description": "When the refresh's latest stored run completed.",
+            "format": "date-time",
+            "title": "Last Completed At",
+            "type": "string"
+          },
+          "outcome_counts": {
+            "$ref": "#/components/schemas/RefreshOutcomeCountsDocument"
+          },
+          "refresh_id": {
+            "format": "uuid",
+            "title": "Refresh Id",
+            "type": "string"
+          },
+          "run_count": {
+            "description": "The number of stored runs; a stopped refresh stores fewer.",
+            "minimum": 1,
+            "title": "Run Count",
+            "type": "integer"
+          },
+          "watchlist_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The watchlist the refresh ran, as recorded when it ran; null for a refresh of a list of entries.",
+            "title": "Watchlist Id"
+          },
+          "watchlist_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The watchlist's name when the refresh ran, not its current name; null when watchlist_id is null.",
+            "title": "Watchlist Name"
+          }
+        },
+        "required": [
+          "refresh_id",
+          "watchlist_id",
+          "watchlist_name",
+          "first_completed_at",
+          "last_completed_at",
+          "run_count",
+          "outcome_counts"
+        ],
+        "title": "RefreshSummaryItemDocument",
+        "type": "object"
+      },
       "RefreshTotalsDocument": {
         "additionalProperties": false,
         "description": "How far the refresh has come.",
@@ -5259,6 +5365,36 @@
           "remaining"
         ],
         "title": "RefreshTotalsDocument",
+        "type": "object"
+      },
+      "RefreshesListDocument": {
+        "additionalProperties": false,
+        "description": "The whole ``runs refreshes --json`` output: one page of refreshes, most recently completed first.",
+        "properties": {
+          "has_more": {
+            "description": "True when at least one more refresh follows this page for the same filter.",
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefreshSummaryItemDocument"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "has_more",
+          "items"
+        ],
+        "title": "RefreshesListDocument",
         "type": "object"
       },
       "RemoveMethodRequest": {
@@ -7575,6 +7711,230 @@
       }
     },
     "/v1/refreshes": {
+      "get": {
+        "operationId": "list_refreshes",
+        "parameters": [
+          {
+            "description": "Only refreshes that ran this watchlist.",
+            "in": "query",
+            "name": "watchlist_id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Maximum rows (1 to 100); 20 when absent.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Rows to skip; 0 when absent.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "pattern": "^-?[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshesListDocument"
+                }
+              }
+            },
+            "description": "The document.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List past refreshes, most recently completed first."
+      },
       "post": {
         "operationId": "start_refresh",
         "parameters": [],

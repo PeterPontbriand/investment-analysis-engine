@@ -424,6 +424,8 @@ analysis_runs = sa.Table(
     sa.Column("evidence_codec_version", sa.INTEGER(), nullable=False),
     sa.Column("projection_version", sa.INTEGER(), nullable=False),
     sa.Column("envelope_json", sa.TEXT(), nullable=False),
+    sa.Column("watchlist_id", sa.TEXT(), nullable=True),
+    sa.Column("watchlist_name", sa.TEXT(), nullable=True),
     sa.PrimaryKeyConstraint("analysis_run_id", name="pk_analysis_runs"),
     sa.CheckConstraint("length(trim(analysis_run_id)) > 0", name="ck_analysis_runs_analysis_run_id_nonempty"),
     sa.CheckConstraint(
@@ -461,6 +463,10 @@ analysis_runs = sa.Table(
     sa.CheckConstraint(
         "json_valid(envelope_json) AND json_type(envelope_json) = 'object'",
         name="ck_analysis_runs_envelope_json_object",
+    ),
+    sa.CheckConstraint(
+        "(watchlist_id IS NULL) = (watchlist_name IS NULL)",
+        name="ck_analysis_runs_watchlist_pair",
     ),
 )
 
@@ -544,4 +550,5 @@ sa.Index("ix_analysis_runs_method_id", analysis_runs.c.method_id)
 sa.Index("ix_analysis_runs_outcome", analysis_runs.c.outcome)
 sa.Index("ix_analysis_runs_completed", analysis_runs.c.completed_at, analysis_runs.c.analysis_run_id)
 sa.Index("ix_analysis_runs_refresh", analysis_runs.c.refresh_id, analysis_runs.c.batch_position)
+sa.Index("ix_analysis_runs_watchlist", analysis_runs.c.watchlist_id)
 sa.Index("ix_instrument_profiles_ticker", instrument_profiles.c.ticker)

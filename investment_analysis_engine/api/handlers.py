@@ -74,10 +74,13 @@ from investment_analysis_engine.application.refresh import (
 )
 from investment_analysis_engine.application.refresh_jobs import RefreshJob, RefreshJobs, RefreshJobView
 from investment_analysis_engine.application.runs import (
+    RefreshQueryNames,
     RunQueryNames,
+    build_refresh_query,
     build_run_query,
     compare_refresh_runs,
     declared_method_id,
+    list_refreshes,
     list_runs,
     parse_refresh_id,
     replay_run_document,
@@ -108,6 +111,7 @@ from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
 from investment_analysis_engine.workspace.strategy_types import SelectionMember
 from investment_analysis_engine.workspace.watchlists import WatchlistId
+from investment_analysis_engine.workspace_documents.refreshes import build_refreshes_list_document
 from investment_analysis_engine.workspace_documents.runs import build_runs_list_document
 from investment_analysis_engine.workspace_documents.watchlist import (
     build_delete_document,
@@ -125,6 +129,7 @@ UNEXPECTED_FAILURE_MESSAGE = "The request failed unexpectedly."
 _RUN_QUERY_NAMES = RunQueryNames(
     ticker="ticker", method="method_id", status="status", refresh_id="refresh_id", limit="limit", offset="offset"
 )
+_REFRESH_QUERY_NAMES = RefreshQueryNames(watchlist="watchlist_id", limit="limit", offset="offset")
 _TEXT_MODES: Mapping[str, TextPresentationMode] = {
     "concise": PresentationMode.CONCISE,
     "details": PresentationMode.DETAILS,
@@ -307,6 +312,17 @@ def _runs(context: ApplicationContext, parameters: RequestParameters) -> BaseMod
     )
     page = list_runs(context, query)
     return build_runs_list_document(page.summaries, has_more=page.has_more)
+
+
+def _refreshes(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+    query = build_refresh_query(
+        names=_REFRESH_QUERY_NAMES,
+        watchlist_id=parameters.query.get("watchlist_id"),
+        limit=_integer(parameters, "limit", DEFAULT_RUNS_LIMIT),
+        offset=_integer(parameters, "offset", DEFAULT_RUNS_OFFSET),
+    )
+    page = list_refreshes(context, query)
+    return build_refreshes_list_document(page.summaries, has_more=page.has_more)
 
 
 def _run(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
@@ -544,6 +560,7 @@ def operations(settings: ProjectSettings, refresh_jobs: RefreshJobsOfServer) -> 
         "list_watchlists": _watchlists,
         "get_watchlist": _watchlist,
         "list_runs": _runs,
+        "list_refreshes": _refreshes,
         "get_run": _run,
         "get_run_text": _run_text,
         "compare_refresh": _compare,

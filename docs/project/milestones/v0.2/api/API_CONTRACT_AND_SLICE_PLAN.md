@@ -55,7 +55,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.5b2 | [Help content: the bundle](#api5b2--help-content-the-bundle) | Complete | 2026-11-07 |
 | API.6a | [Term references](API_6_SLICE_PLAN.md#api6a--term-references) | Complete | 2026-11-07 |
 | API.6b | [Help endpoints and locales](API_6_SLICE_PLAN.md#api6b--help-endpoints-and-locales) | Complete | 2026-11-08 |
-| API.7 | [Refreshes list](#api7--refreshes-list) | Next | |
+| API.7 | [Refreshes list](#api7--refreshes-list) | Complete | 2026-11-10 |
 
 ## 3. The slices
 

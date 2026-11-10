@@ -319,6 +319,22 @@ ian runs show 3f9b... --json
 
 `runs show --json` prints the saved run's own strategy document, described by that strategy's schema in `schemas/` (for example `schemas/momentum.schema.json`, or `schemas/graham-number.schema.json`); a failure is the [failure document](USAGE.md#--json--machine-readable-output). The document's `provider_check` element is always `null` here: replaying a saved run sends no test request, and the verdict is never stored. A direct command that failed on a provider and the replay of its saved run differ in that one key.
 
+### Listing past refreshes
+
+`runs refreshes` lists the refreshes your saved runs came from, most recently completed first. Each line gives the refresh ID, when its last run completed, the watchlist it ran (or `list of entries`), the number of runs and how many ended in each outcome:
+
+```bash
+ian runs refreshes
+ian runs refreshes --watchlist 5d0c... --limit 10
+ian runs refreshes --json
+```
+
+```text
+7c1a...  2026-09-19T14:02:12+00:00  Core Holdings: 4 runs (3 completed, 1 unavailable)
+```
+
+`--watchlist` takes the full watchlist ID that `watchlist list` shows and keeps only the refreshes of that watchlist; an ID that matches nothing, including a deleted watchlist's, prints `No matching refreshes.` The name shown is the one the watchlist had when the refresh ran. Counts come from the saved runs only: a refresh that was stopped shows fewer runs, a refresh run with `--no-save` does not appear, and nothing says whether a refresh was stopped. `--limit` (1 to 100, default 20) and `--offset` page the list. `--json` prints one object described by `schemas/refreshes-list.schema.json`, with `schema_version` (currently `1`), `has_more` and `items`, the same document the [local API](API.md#refreshes-list) serves. Pass a refresh ID from here to `runs list --refresh-id` or `runs compare`.
+
 ### Comparing a refresh side by side
 
 Every refresh records one refresh ID on the runs it saves, and `runs compare` shows those runs as one table: one row per ticker, in the order of the watchlist when it ran, and one column group per strategy, in the order of the strategy table above. Each group shows that strategy's headline numbers and the run's outcome, so you can read a watchlist across strategies without opening each run:
