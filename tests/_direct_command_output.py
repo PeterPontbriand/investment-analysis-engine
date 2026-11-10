@@ -46,12 +46,14 @@ from tests._sec_labeled_graham import sec_labeled_growth_resolver, sec_labeled_n
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "direct_commands"
 
 _WALL_CLOCK_FIELDS = re.compile(rb'("(?:resolved_at|effective_as_of|analysis_timestamp|retrieved_at)": ")[^"]+')
+GRAHAM_AS_OF = "2025-07-01"
+"""The run date of the Graham commands, the date of the Graham fixture's own clock, pinned through ``--as-of``."""
 _COMMANDS = {
     "momentum": ["momentum", "BTC-USD", "--short-window", "2", "--long-window", "3", "--rsi-period", "3", "--no-cache"],
-    "graham-number": ["graham-number", SECURITY_ID, "--no-cache"],
+    "graham-number": ["graham-number", SECURITY_ID, "--no-cache", "--as-of", GRAHAM_AS_OF],
     "graham-growth": [
         *("graham-growth", SECURITY_ID, "--expected-growth", "5", "--aaa-yield", "4.5"),
-        "--no-cache",
+        *("--no-cache", "--as-of", GRAHAM_AS_OF),
     ],
     "fcf-growth": ["fcf-growth", "ACME", "--no-cache"],
     "piotroski": ["piotroski", "AAPL", "--no-cache", "--as-of", "2025-01-15"],

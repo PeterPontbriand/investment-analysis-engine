@@ -23,10 +23,11 @@ def friendly_graham_assembly[AssemblyT: (GrahamNumberInputAssembly, GrowthValueI
     """Replace a genuine failure's raw reason with the live command's investor-facing text.
 
     Mirrors the Graham commands' failure output exactly: a successful or NOT_APPLICABLE assembly's reason is
-    already safe to show verbatim (or, for OK, is None); any other status carries a raw resolver reason at
+    already safe to show verbatim (or, for OK, is None), as is a reason that states its own cause
+    (``reason_code``); any other status carries a raw resolver reason at
     capture time that the live command only ever displays after `friendly_valuation_failure` normalizes it.
     """
-    if assembly.status in _REASON_ALREADY_SAFE:
+    if assembly.status in _REASON_ALREADY_SAFE or assembly.reason_code is not None:
         return assembly
     return replace(assembly, reason=friendly_valuation_failure(ticker, assembly.status, assembly.reason))
 

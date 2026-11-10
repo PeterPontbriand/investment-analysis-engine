@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Iterator
+from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -20,7 +21,11 @@ from investment_analysis_engine.data.financial.facts import FinancialFactRequest
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.financial_facts import (
+    SEC_PROVIDER_ID,
+    AnchorYearEndRequest,
+    AnchorYearEndResolution,
+)
 from investment_analysis_engine.evaluation.fixtures.fcf_earnings_growth import (
     FixtureAnnualFinancialFactsProvider,
     annual_series,
@@ -38,6 +43,17 @@ class GrahamProvider:
         """Track fact calls and allow unexpected refetches to fail loudly."""
         self.calls = 0
         self.fail = False
+        self._anchors = FixtureFinancialFactsProvider()
+
+    def analysis_scope(
+        self, *, subject_id: str, provider_id: str, as_of: datetime | None
+    ) -> AbstractContextManager[None]:
+        """Hold the analysis boundary for the anchor filing, which costs no fact request."""
+        return self._anchors.analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of)
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
+        """Return the fixture issuer's anchor annual filing."""
+        return self._anchors.resolve_anchor_year_end(request)
 
     def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         """Return original fixture provenance with the requested provider identity."""

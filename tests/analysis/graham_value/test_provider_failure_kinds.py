@@ -31,7 +31,9 @@ from investment_analysis_engine.data.financial.resolver import (
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from tests.analysis.graham_value._anchored import anchor_for
 from tests.analysis.graham_value.test_resolver import (
+    FY2024_END,
     NOW,
     PERIOD_END,
     PERIOD_START,
@@ -242,6 +244,7 @@ def test_a_non_finite_bvps_quotient_is_reachable_from_finite_components() -> Non
 def _number_assembly(answers: dict[FinancialField, Any]) -> Any:
     resolver = GrahamNumberInputResolver(_Provider(answers), clock=lambda: NOW)
     return resolver.assemble_graham_number(
+        anchor=anchor_for(FY2024_END.date()).anchor,
         security_subject_id=SUBJECT_ID,
         use_cache=False,
     )
@@ -250,6 +253,7 @@ def _number_assembly(answers: dict[FinancialField, Any]) -> Any:
 def _growth_assembly(answers: dict[FinancialField, Any]) -> Any:
     resolver = GrahamGrowthInputResolver(_Provider(answers), clock=lambda: NOW)
     return resolver.assemble_growth_value(
+        anchor=anchor_for(FY2024_END.date()).anchor,
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=5.0,

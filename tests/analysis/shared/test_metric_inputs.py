@@ -18,6 +18,8 @@ from investment_analysis_engine.analysis.shared.metric_inputs import (
     ShareCountPath,
     YearEndShareCount,
     _left_out_at,
+    _resolve_share_count,
+    _ShareCount,
     anchor_year_end_scope,
     resolve_annual_values,
     resolve_balance_sheet_values,
@@ -26,6 +28,7 @@ from investment_analysis_engine.analysis.shared.metric_inputs import (
 from investment_analysis_engine.analysis.shared.split_adjustment import AdjustmentWindow, AppliedAdjustment
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
+from investment_analysis_engine.data.financial.cache import InMemoryResolvedInputCache
 from investment_analysis_engine.data.financial.facts import (
     COVER_PAGE_BASIS,
     FactsNotAvailableAsOf,
@@ -38,7 +41,7 @@ from investment_analysis_engine.data.financial.facts import (
     InstantSeriesRequest,
 )
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
-from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.resolver import (
     EARLIER_BASIS_MESSAGE,
     InputResolver,
@@ -1197,3 +1200,56 @@ def test_a_year_left_out_as_earlier_basis_is_unavailable_with_that_code_for_ever
     assert _left_out_at(left_out, date(2023, 1, 29)) == InputUnavailable(ReasonCode.NOT_AVAILABLE_AS_OF, "late")
     assert _left_out_at(left_out, date(2022, 1, 30)) is None
     assert _left_out_at(left_out, date(2021, 1, 31)) is None
+
+
+# --- a cached count of another fiscal year is never served at the anchor (A.19, M6) ----------------------------------
+
+
+def _anchor_of(year_end: date, accession: str, filed: date) -> AnchorYearEnd:
+    return AnchorYearEnd(year_end, accession, "10-K", filed, {accession: filed})
+
+
+def test_a_cached_year_end_count_of_an_older_year_is_set_aside_and_the_providers_replaces_it() -> None:
+    cache = InMemoryResolvedInputCache(clock=lambda: LIVE_NOW)
+    stub = FactsStub(counts={_YEAR_END_BASIS: (100.0, date(2024, 12, 31), "0000000001-25-000001")})
+    resolver = InputResolver(stub, cache=cache, clock=lambda: LIVE_NOW)
+    older = _anchor_of(date(2024, 12, 31), "0000000001-25-000001", date(2025, 2, 10))
+    first = _resolve_share_count(resolver, older, ticker="XYZ", as_of=None, use_cache=True)
+    assert isinstance(first, _ShareCount)
+    assert isinstance(first.count, ResolvedInput)
+    assert first.count.value == 100.0
+
+    stub.counts[_YEAR_END_BASIS] = (120.0, date(2025, 12, 31), "0000000001-26-000001")
+    newer = _anchor_of(date(2025, 12, 31), "0000000001-26-000001", date(2026, 2, 12))
+    stub.requests.clear()
+    second = _resolve_share_count(resolver, newer, ticker="XYZ", as_of=None, use_cache=True)
+    assert isinstance(second, _ShareCount)
+    assert isinstance(second.count, ResolvedInput)
+    assert (second.basis, second.count.value, second.filing_date) == (
+        ShareCountBasis.YEAR_END,
+        120.0,
+        date(2026, 2, 12),
+    )
+    assert second.count.source_kind is not SourceKind.CACHE
+    assert [request.basis for request in stub.requests] == [_YEAR_END_BASIS], "the provider is asked once"
+
+    stub.requests.clear()
+    third = _resolve_share_count(resolver, newer, ticker="XYZ", as_of=None, use_cache=True)
+    assert isinstance(third, _ShareCount)
+    assert isinstance(third.count, ResolvedInput)
+    assert (third.count.value, third.count.source_kind) == (120.0, SourceKind.CACHE), "the answer replaced the entry"
+    assert stub.requests == []
+
+
+def test_a_cached_year_end_count_of_the_anchors_year_is_served_from_the_cache() -> None:
+    cache = InMemoryResolvedInputCache(clock=lambda: LIVE_NOW)
+    stub = FactsStub(counts={_YEAR_END_BASIS: (100.0, date(2024, 12, 31), "0000000001-25-000001")})
+    resolver = InputResolver(stub, cache=cache, clock=lambda: LIVE_NOW)
+    anchor = _anchor_of(date(2024, 12, 31), "0000000001-25-000001", date(2025, 2, 10))
+    _resolve_share_count(resolver, anchor, ticker="XYZ", as_of=None, use_cache=True)
+    stub.requests.clear()
+    again = _resolve_share_count(resolver, anchor, ticker="XYZ", as_of=None, use_cache=True)
+    assert isinstance(again, _ShareCount)
+    assert isinstance(again.count, ResolvedInput)
+    assert again.count.source_kind is SourceKind.CACHE
+    assert stub.requests == []

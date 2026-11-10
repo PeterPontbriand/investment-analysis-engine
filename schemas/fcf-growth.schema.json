@@ -206,41 +206,6 @@
       "title": "FCFForwardEvidencePart",
       "type": "object"
     },
-    "FCFLeftOutYearPart": {
-      "additionalProperties": false,
-      "description": "One fiscal year of one field left out of the series, with the reason.",
-      "properties": {
-        "field": {
-          "title": "Field",
-          "type": "string"
-        },
-        "fiscal_year": {
-          "title": "Fiscal Year",
-          "type": "integer"
-        },
-        "period_end": {
-          "format": "date",
-          "title": "Period End",
-          "type": "string"
-        },
-        "reason": {
-          "title": "Reason",
-          "type": "string"
-        },
-        "reason_code": {
-          "$ref": "#/$defs/ReasonCode"
-        }
-      },
-      "required": [
-        "field",
-        "fiscal_year",
-        "period_end",
-        "reason_code",
-        "reason"
-      ],
-      "title": "FCFLeftOutYearPart",
-      "type": "object"
-    },
     "FCFLineagePart": {
       "additionalProperties": false,
       "description": "How a derived input was composed from other inputs.",
@@ -1032,6 +997,41 @@
       "title": "InstrumentKindPart",
       "type": "object"
     },
+    "LeftOutYearPart": {
+      "additionalProperties": false,
+      "description": "One fiscal year of one field left out of a series, with the reason.",
+      "properties": {
+        "field": {
+          "title": "Field",
+          "type": "string"
+        },
+        "fiscal_year": {
+          "title": "Fiscal Year",
+          "type": "integer"
+        },
+        "period_end": {
+          "format": "date",
+          "title": "Period End",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/ReasonCode"
+        }
+      },
+      "required": [
+        "field",
+        "fiscal_year",
+        "period_end",
+        "reason_code",
+        "reason"
+      ],
+      "title": "LeftOutYearPart",
+      "type": "object"
+    },
     "MetricResultPart": {
       "additionalProperties": false,
       "description": "One metric: its status, its value when the status is ok, and the reason it has none otherwise.",
@@ -1491,7 +1491,7 @@
     },
     "left_out_years": {
       "items": {
-        "$ref": "#/$defs/FCFLeftOutYearPart"
+        "$ref": "#/$defs/LeftOutYearPart"
       },
       "title": "Left Out Years",
       "type": "array"

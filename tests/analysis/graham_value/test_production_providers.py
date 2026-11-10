@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from investment_analysis_engine.analysis.shared.metric_inputs import anchor_year_end_scope
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.financial.facts import (
@@ -21,6 +22,7 @@ from investment_analysis_engine.data.financial.provenance import FinancialSubjec
 from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
     SEC_STOCKHOLDERS_EQUITY_FIELD,
+    AnchorYearEnd,
     SecEdgarFinancialFactsAdapter,
 )
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
@@ -241,6 +243,9 @@ def _submissions_payload() -> object:
                     "2025-01-15T18:00:00Z",
                     "2025-10-31T18:00:00Z",
                 ],
+                "form": ["10-K", "10-K", "10-K/A", "10-K"],
+                "filingDate": ["2023-11-03", "2024-11-01", "2025-01-15", "2025-10-31"],
+                "reportDate": ["2023-09-30", "2024-09-28", "2024-09-28", "2025-09-27"],
             }
         }
     }
@@ -594,9 +599,12 @@ def test_graham_number_assembly_can_use_sec_eps_and_yahoo_quote() -> None:
     provider = ProductionFinancialFactsProvider(sec_edgar=sec, yfinance=yahoo)
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
 
-    result = resolver.assemble_graham_number(
-        security_subject_id="AAPL",
-    )
+    with anchor_year_end_scope(resolver, ticker="AAPL", as_of=None) as anchor:
+        assert isinstance(anchor, AnchorYearEnd)
+        result = resolver.assemble_graham_number(
+            anchor=anchor,
+            security_subject_id="AAPL",
+        )
 
     assert result.status is CalculationStatus.OK
     assert result.eps is not None

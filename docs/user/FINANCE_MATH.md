@@ -149,6 +149,10 @@ A provider-reported BVPS is usable only when its definition is understood. Inves
 
 Tangible BVPS is a different measure and is not silently substituted.
 
+### Fiscal year of the inputs
+
+Both inputs are taken at the fiscal year-end *t* of the [anchor filing](#the-anchor-filing). The newest of the three EPS years and the balance sheet behind BVPS must each end on *t*, exactly: there is no tolerance, because the report date of every captured filer, 52- and 53-week filers included, equals its fiscal year-end. An input whose newest year ends on another day is `input_unavailable`, and the method never uses an older year. The three EPS years must be *t*, *t−1* and *t−2*: each period starts the day after the previous one ends, and a missing year makes the input unavailable. A cached input for another fiscal year is set aside and the provider asked once. An overridden input has no year and is exempt, and when both inputs are overridden no filing is read. A stale anchor filing leaves the status unchanged and is reported with a warning.
+
 ### Applicability
 
 Positive EPS and BVPS are required for the Graham Number. Non-positive EPS or BVPS means the method is not applicable rather than producing a zero or complex-number valuation.
@@ -195,6 +199,10 @@ SEC IFRS support does not include BVPS or preferred-zero inference. Filing
 per-share values are compared with quotes only when ordinary-share 1:1 unit
 evidence and matching currencies are affirmative. ADR/ADS and currency
 conversion are not performed.
+
+### Fiscal year of the EPS
+
+EPS is taken at the fiscal year-end *t* of the [anchor filing](#the-anchor-filing). Its newest year must end on *t*, exactly, with no tolerance, and the three-year average needs the years *t*, *t−1* and *t−2*, each starting the day after the previous one ends. EPS for another year is `input_unavailable`; the method never uses an older year. A cached EPS for another fiscal year is set aside and the provider asked once. An overridden EPS has no year and is exempt. A stale anchor filing leaves the status unchanged and is reported with a warning.
 
 ### Expected growth
 

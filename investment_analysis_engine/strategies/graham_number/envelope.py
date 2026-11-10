@@ -9,6 +9,7 @@ from typing import Final
 
 from investment_analysis_engine.reporting.documents.shared_parts import (
     DocumentPart,
+    LeftOutYearPart,
     PriceComparisonPart,
     QuotePart,
     ResolvedInputPart,
@@ -19,7 +20,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import (
 )
 from investment_analysis_engine.strategies.graham_number.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 10
+DOCUMENT_SCHEMA_VERSION: Final = 11
 
 
 class GrahamNumberResultPart(DocumentPart):
@@ -44,6 +45,7 @@ class GrahamNumberBody(DocumentPart):
     reason: str | None
     result: GrahamNumberResultPart
     inputs: GrahamNumberInputsPart
+    left_out_years: tuple[LeftOutYearPart, ...]
     quote: QuotePart
 
 

@@ -7,11 +7,14 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Final
 
+from investment_analysis_engine.analysis.shared.anchor_filing import AnchorFilingEvidence
 from investment_analysis_engine.analysis.shared.financial_resolution import (
     resolve_normalized_eps,
     resolve_optional_quote,
 )
+from investment_analysis_engine.analysis.shared.metric_evidence import LeftOutYear, left_out_years_of
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
@@ -23,9 +26,16 @@ from investment_analysis_engine.data.financial.resolution_trace import (
     single_event_trace,
 )
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, AnchorYearEnd
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.strategies._graham.anchor_years import (
+    GrahamFilingInput,
+    resolve_aligned,
+)
 from investment_analysis_engine.strategies.graham_growth.vocabulary import METHOD_ID, MethodId
+
+_METHOD_NAME: Final = "Graham Growth Value"
+"""The method's name as the year messages state it."""
 
 
 @dataclass(frozen=True)
@@ -60,6 +70,13 @@ class GrowthValueInputAssembly:
         method: Always ``"graham_growth_value"``.
         provider_failure: The kind and provider of the input whose provider failed, recorded against that input,
             when ``status`` is ``PROVIDER_ERROR`` and the adapter classified the failure.
+        anchor_filing: The anchor annual filing EPS was taken at, with its next due date and whether it is stale at
+            the boundary; ``None`` when it was not resolved (an ETF, a failure before it, or EPS overridden).
+        left_out_years: The years of EPS left out of the three-year series, with the reason of each; empty unless the
+            series came up short because years were left out.
+        reason_code: The code of the cause ``reason`` names (an input year that is not the anchor's, a gap in the
+            EPS years, years left out, or no anchor); ``None`` for a failure with no such code. The presenters show
+            a reason that has one as written. It is internal and is not served.
     """
 
     status: CalculationStatus
@@ -75,6 +92,9 @@ class GrowthValueInputAssembly:
     method: MethodId = field(init=False, default=METHOD_ID)
     provider_failure: ProviderFailureRecord | None = None
     quote_provider_failure: ProviderFailureRecord | None = None
+    anchor_filing: AnchorFilingEvidence | None = None
+    left_out_years: tuple[LeftOutYear, ...] = ()
+    reason_code: ReasonCode | None = None
 
     def __post_init__(self) -> None:
         """Keep each recorded provider failure tied to the provider-error status it explains."""
@@ -82,6 +102,8 @@ class GrowthValueInputAssembly:
             raise ValueError("provider_failure requires a provider_error assembly.")
         if self.quote_provider_failure is not None and self.quote_status is not CalculationStatus.PROVIDER_ERROR:
             raise ValueError("quote_provider_failure requires a provider_error quote status.")
+        if self.reason_code is not None and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
+            raise ValueError("reason_code requires an input_unavailable assembly.")
 
 
 @dataclass(frozen=True)
@@ -273,6 +295,7 @@ class GrahamGrowthInputResolver(InputResolver):
         self,
         *,
         security_subject_id: str,
+        anchor: AnchorYearEnd | None,
         eps_basis: str,
         eps_override: float | None = None,
         expected_growth: float | None = None,
@@ -281,7 +304,25 @@ class GrahamGrowthInputResolver(InputResolver):
         as_of: datetime | None = None,
         use_cache: bool = True,
     ) -> GrowthValueInputAssembly:
-        """Assemble the inputs required by the Graham Growth Value method."""
+        """Assemble the inputs required by the Graham Growth Value method.
+
+        Args:
+            security_subject_id: The ticker.
+            anchor: The anchor annual filing's year-end; EPS read from a filing must end at it. ``None`` only when
+                EPS is overridden, so no filing input is read.
+            eps_basis: ``three_year_average`` or ``fiscal_year``.
+            eps_override: An explicit EPS, which has no year and is exempt from the year rule.
+            expected_growth: The expected growth rate in percentage points.
+            aaa_yield_override: The current AAA yield in percentage points.
+            quote_override: An explicit current price.
+            as_of: The point-in-time boundary, or ``None`` for now.
+            use_cache: Whether the resolved-input cache may be used.
+
+        Raises:
+            ValueError: If ``anchor`` is ``None`` while EPS is read from a filing.
+        """
+        if anchor is None and eps_override is None:
+            raise ValueError("An input read from a filing is assembled only at the anchor filing.")
         if not eps_basis.strip():
             reason = "eps_basis must be a non-empty string."
             return GrowthValueInputAssembly(
@@ -295,14 +336,21 @@ class GrahamGrowthInputResolver(InputResolver):
                 ),
             )
 
-        eps_result = resolve_normalized_eps(
+        eps_result = resolve_aligned(
             self,
-            security_subject_id=security_subject_id,
-            security_provider_id=SEC_PROVIDER_ID,
-            eps_basis=eps_basis,
-            eps_override=eps_override,
-            as_of=as_of,
-            use_cache=use_cache,
+            lambda: resolve_normalized_eps(
+                self,
+                security_subject_id=security_subject_id,
+                security_provider_id=SEC_PROVIDER_ID,
+                eps_basis=eps_basis,
+                eps_override=eps_override,
+                as_of=as_of,
+                use_cache=use_cache,
+            ),
+            anchor=anchor,
+            method_name=_METHOD_NAME,
+            which=GrahamFilingInput.EPS,
+            overridden=eps_override is not None,
         )
         trace = eps_result.resolution_trace
         if eps_result.status is not CalculationStatus.OK:
@@ -311,6 +359,8 @@ class GrahamGrowthInputResolver(InputResolver):
                 reason=f"eps: {eps_result.reason}",
                 resolution_trace=trace,
                 provider_failure=_recorded(eps_result, "eps"),
+                left_out_years=left_out_years_of("eps", eps_result.left_out),
+                reason_code=eps_result.reason_code,
             )
         eps_input = eps_result.resolved_input
 

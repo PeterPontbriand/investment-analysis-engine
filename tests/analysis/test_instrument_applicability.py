@@ -20,6 +20,7 @@ from investment_analysis_engine.data.instrument_profile import (
 )
 from investment_analysis_engine.data.security_identity import SecurityIdentity
 from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
+from investment_analysis_engine.evaluation.fixtures.graham import FixtureFinancialFactsProvider
 from investment_analysis_engine.strategies.fcf_growth.analyzer import FCFEarningsGrowthAnalyzer
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthCalculationPolicy
@@ -152,6 +153,7 @@ def test_known_etf_short_circuits_company_fcf_before_annual_fact_resolution() ->
 
 def test_unreviewed_kind_fails_open_to_existing_graham_resolution() -> None:
     resolver = MagicMock()
+    resolver.provider = FixtureFinancialFactsProvider()
     resolver.assemble_graham_number.return_value = GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
         reason="Fixture facts are unavailable.",
@@ -176,6 +178,7 @@ def test_unreviewed_kind_fails_open_to_existing_graham_resolution() -> None:
 
 def test_known_equity_continues_existing_graham_resolution() -> None:
     resolver = MagicMock()
+    resolver.provider = FixtureFinancialFactsProvider()
     resolver.assemble_graham_number.return_value = GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
         reason="Fixture facts are unavailable.",
@@ -199,6 +202,7 @@ def test_known_equity_continues_existing_graham_resolution() -> None:
 
 def test_kind_provider_error_fails_open_to_existing_graham_resolution() -> None:
     resolver = MagicMock()
+    resolver.provider = FixtureFinancialFactsProvider()
     resolver.assemble_graham_number.return_value = GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
         reason="Fixture facts are unavailable.",

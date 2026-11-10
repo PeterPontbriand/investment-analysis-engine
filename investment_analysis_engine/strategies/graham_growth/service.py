@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import datetime
 
+from investment_analysis_engine.analysis.shared.anchor_filing import assess_anchor_filing
 from investment_analysis_engine.analysis.shared.financial_resolution import (
     PriceComparison,
     evaluate_price_comparison,
@@ -12,11 +13,13 @@ from investment_analysis_engine.analysis.shared.financial_resolution import (
     is_known_etf,
     validate_profile_ticker,
 )
+from investment_analysis_engine.analysis.shared.metric_inputs import anchor_year_end_scope
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.facts import financial_facts_analysis_scope
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, complete_security_unit_profile
-from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, AnchorYearEnd
 from investment_analysis_engine.data.security_unit import SecurityUnitRequest
+from investment_analysis_engine.strategies._graham.anchor_years import anchor_stop
 from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthCalculationPolicy,
     GrahamGrowthInputResolver,
@@ -74,14 +77,12 @@ def run_graham_growth_analysis(  # noqa: PLR0913
             reason=_etf_not_applicable_reason("Graham growth-value method"),
         )
     else:
-        with financial_facts_analysis_scope(
-            resolver.provider,
-            subject_id=ticker,
-            provider_id=SEC_PROVIDER_ID,
-            as_of=as_of,
-        ):
-            assembly = resolver.assemble_growth_value(
+
+        def assemble(anchor: AnchorYearEnd | None) -> GrowthValueInputAssembly:
+            """Assemble the inputs at the anchor, and report the anchor whatever the outcome."""
+            assembled = resolver.assemble_growth_value(
                 security_subject_id=ticker,
+                anchor=anchor,
                 eps_basis=eps_basis,
                 eps_override=eps_override,
                 expected_growth=expected_growth,
@@ -90,22 +91,49 @@ def run_graham_growth_analysis(  # noqa: PLR0913
                 as_of=as_of,
                 use_cache=use_cache,
             )
-            if (
-                instrument_profile is not None
-                and assembly.status is CalculationStatus.OK
-                and assembly.current_price is not None
+            if anchor is not None:
+                assembled = replace(assembled, anchor_filing=assess_anchor_filing(anchor, effective_as_of))
+            return assembled
+
+        def completed(
+            profile: InstrumentProfile | None, assembled: GrowthValueInputAssembly
+        ) -> InstrumentProfile | None:
+            """Complete the profile's security-unit evidence from a successful assembly."""
+            if profile is None or assembled.status is not CalculationStatus.OK or assembled.current_price is None:
+                return profile
+            return complete_security_unit_profile(
+                profile,
+                resolver.provider,
+                SecurityUnitRequest(
+                    ticker,
+                    SEC_PROVIDER_ID,
+                    as_of,
+                    tuple(value for value in (assembled.eps,) if value is not None),
+                    assembled.current_price,
+                ),
+            )
+
+        if eps_override is not None:
+            # EPS is overridden, so no anchor is requested and there is none to report. The plain analysis scope is
+            # still open, so the share-unit check of a run with a quote reads the latest annual filing.
+            with financial_facts_analysis_scope(
+                resolver.provider, subject_id=ticker, provider_id=SEC_PROVIDER_ID, as_of=as_of
             ):
-                instrument_profile = complete_security_unit_profile(
-                    instrument_profile,
-                    resolver.provider,
-                    SecurityUnitRequest(
-                        ticker,
-                        SEC_PROVIDER_ID,
-                        as_of,
-                        tuple(value for value in (assembly.eps,) if value is not None),
-                        assembly.current_price,
-                    ),
-                )
+                assembly = assemble(None)
+                instrument_profile = completed(instrument_profile, assembly)
+        else:
+            with anchor_year_end_scope(resolver, ticker=ticker, as_of=as_of) as anchor:
+                if isinstance(anchor, AnchorYearEnd):
+                    assembly = assemble(anchor)
+                    instrument_profile = completed(instrument_profile, assembly)
+                else:
+                    stop = anchor_stop(anchor)
+                    assembly = GrowthValueInputAssembly(
+                        status=stop.status,
+                        reason=stop.reason,
+                        provider_failure=stop.provider_failure,
+                        reason_code=stop.reason_code,
+                    )
     if assembly.status is CalculationStatus.OK and not has_provider_backed_evidence(
         assembly.eps, assembly.current_price
     ):

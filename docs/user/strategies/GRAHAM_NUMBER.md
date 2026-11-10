@@ -47,6 +47,16 @@ When using [SEC](../GLOSSARY.md#sec) [EDGAR](../GLOSSARY.md#edgar) data, Investm
 
 If the evidence required for a defensible calculation is unavailable, the result reports that limitation rather than guessing.
 
+### The fiscal year of the inputs
+
+Both inputs come from the same annual report: the [anchor filing](../GLOSSARY.md#anchor-filing), the newest annual report filed by the analysis date. The newest of the three years of earnings and the balance sheet that gives book value must both end on that report's fiscal year-end, on exactly that date. When one ends on another day, the Graham Number is unavailable and says which input it is and which dates differ. The engine never steps back to an older year to produce a number.
+
+The three earnings years must also be consecutive fiscal years. When one is missing, the Graham Number is unavailable and names the missing year. When a [stock split](../GLOSSARY.md#reason-earlier-basis) or conflicting filings left years out of the series and that is why fewer than three years are left, the message names each year left out and why, and the JSON lists them in `left_out_years`.
+
+A value saved from an earlier run is not reused when it is for an older fiscal year: the engine asks the provider again, once, and keeps the answer. An EPS or book value you supply yourself has no year and is not checked. If you supply both, no filing is read and no anchor filing is reported.
+
+When the anchor filing is stale, because the next annual report was overdue at the analysis date and none had been filed, the status does not change. The result names the filing and the date the next report was due, and a warning says so; it is the first warning shown.
+
 ### Applicability
 
 Positive EPS and BVPS are required. If either is non-positive, the method reports that it is not applicable rather than forcing a zero, complex number, or misleading price estimate.

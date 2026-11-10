@@ -1,21 +1,21 @@
-SYNTH — Graham Number (maximum indicated price): 36.69 USD
+SYNTH — Graham Number (maximum indicated price) as of 2025-07-01: 36.69 USD
 Latest available quote: 52.30 USD
 Quote retrieved: 2025-07-01 12:00 UTC
 Quote response age: 0 seconds
 Market observation: 2025-06-30 16:00 UTC
-Price comparison: unavailable (share-unit evidence is unsupported by this provider)
+Price comparison: unavailable (historical share-unit evidence is unsupported)
 
 Basis: 3-year average EPS + BVPS basis unspecified
 EPS (3-year average): 3.23 USD
 Book value per common share: 18.50 USD
-Sources / freshness: EPS — derived from SEC EDGAR (available 2024-09-13); BVPS — provider (SEC EDGAR) (available 2025-02-10)
+Sources / freshness: EPS — derived from SEC EDGAR (available 2024-09-13); BVPS — provider (SEC EDGAR) (available 2024-09-13)
 Limitation: The Graham Number is a maximum indicated price / screening ceiling, not a complete intrinsic-value conclusion or investment recommendation.
 
 Details
 -------
 Security identity: unavailable
 Instrument kind: unavailable
-Price comparison status: unavailable (provider_unsupported)
+Price comparison status: unavailable (unsupported_temporal_evidence)
 EPS: 3.233333
   basis: 3-year average
   units: currency per share
@@ -83,9 +83,9 @@ BVPS: 18.500000
   provider: SEC EDGAR
   provider field: fx_bvps
   period start: not applicable — fiscal-year-end snapshot
-  period end: 2024-12-31
+  period end: 2024-06-30
   observed at: not applicable — annual financial statement
-  available at: 2025-02-10 00:00 UTC
+  available at: 2024-09-13 00:00 UTC
   retrieved at: 2025-06-30 17:00 UTC
   notes: fixture: book value per share
 Current price: 52.300000
@@ -121,5 +121,5 @@ current_price: provider -> success — Provider fact passed resolver validation 
 security_identity: sec_edgar/unsupported — Provider 'sec_edgar' does not expose security identity metadata.
 security_identity: yfinance/unavailable — Provider 'yfinance' returned no security identity metadata.
 instrument_kind: yfinance/unavailable — Provider 'yfinance' returned no instrument-kind metadata.
-security_unit: sec_edgar/unavailable — Share-unit evidence: provider_unsupported.
-Price comparison status: unavailable (provider_unsupported)
+security_unit: sec_edgar/unavailable — Share-unit evidence: unsupported_temporal_evidence.
+Price comparison status: unavailable (unsupported_temporal_evidence)

@@ -1,14 +1,21 @@
 {
-  "schema_version": 10,
+  "schema_version": 11,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "SYNTH",
   "status": "not_applicable",
   "provider_failure": null,
   "provider_check": null,
-  "requested_as_of": null,
+  "requested_as_of": "2025-07-01T23:59:59.999999+00:00",
   "effective_as_of": "<wall-clock>",
-  "anchor_filing": null,
+  "anchor_filing": {
+    "year_end": "2024-06-30",
+    "form": "10-K",
+    "accession": "0000000001-24-000001",
+    "filing_date": "2024-09-13",
+    "next_report_due": "2025-10-20",
+    "stale": false
+  },
   "security_identity": {
     "ticker": "SYNTH",
     "instrument_name": null,
@@ -24,7 +31,7 @@
     "reason": "calculation_unavailable",
     "percent": null,
     "quote_freshness": {
-      "status": "recent_retrieval",
+      "status": "historical",
       "evaluated_at": "2025-07-01T12:00:00+00:00",
       "retrieved_at": "<wall-clock>",
       "retrieval_age_seconds": 0.0,
@@ -54,7 +61,7 @@
       "observation_period_end": null,
       "observed_at": null,
       "available_at": null,
-      "as_of": null,
+      "as_of": "2025-07-01T23:59:59.999999+00:00",
       "retrieved_at": null,
       "resolved_at": "<wall-clock>",
       "cache_schema_version": null,
@@ -72,10 +79,10 @@
       "provider_id": "sec_edgar",
       "provider_field": "fx_bvps",
       "observation_period_start": null,
-      "observation_period_end": "2024-12-31T00:00:00+00:00",
+      "observation_period_end": "2024-06-30T00:00:00+00:00",
       "observed_at": null,
-      "available_at": "2025-02-10T00:00:00+00:00",
-      "as_of": null,
+      "available_at": "2024-09-13T00:00:00+00:00",
+      "as_of": "2025-07-01T23:59:59.999999+00:00",
       "retrieved_at": "<wall-clock>",
       "resolved_at": "<wall-clock>",
       "cache_schema_version": null,
@@ -89,7 +96,7 @@
       "value": 52.3,
       "source_kind": "provider",
       "origin_source_kind": null,
-      "basis": "latest_provider_quote",
+      "basis": null,
       "units": "currency_per_share",
       "currency": "USD",
       "provider_id": "yfinance",
@@ -98,7 +105,7 @@
       "observation_period_end": null,
       "observed_at": "2025-06-30T16:00:00+00:00",
       "available_at": "2025-06-30T16:00:00+00:00",
-      "as_of": null,
+      "as_of": "2025-07-01T23:59:59.999999+00:00",
       "retrieved_at": "<wall-clock>",
       "resolved_at": "<wall-clock>",
       "cache_schema_version": null,
@@ -108,6 +115,7 @@
       "lineage": null
     }
   },
+  "left_out_years": [],
   "quote": {
     "status": "ok",
     "reason": null,
@@ -199,7 +207,7 @@
       "field_name": "security_unit",
       "stage": "provider",
       "outcome": "unavailable",
-      "message": "Share-unit evidence: provider_unsupported.",
+      "message": "Share-unit evidence: unsupported_temporal_evidence.",
       "provider_id": "sec_edgar"
     }
   ]

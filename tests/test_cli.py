@@ -3,6 +3,7 @@
 import json
 import re
 from collections.abc import Iterator
+from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -23,6 +24,7 @@ from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField, ProviderFact
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.market_data import MarketDataContext
+from investment_analysis_engine.data.sec_edgar.financial_facts import AnchorYearEndRequest, AnchorYearEndResolution
 from investment_analysis_engine.evaluation.fixtures.graham import (
     NOW,
     SECURITY_ID,
@@ -99,6 +101,16 @@ class QuoteUnavailableProvider:
     def __init__(self) -> None:
         """Initialize the deterministic fixture delegate."""
         self._delegate = SecLabeledGrahamProvider()
+
+    def analysis_scope(
+        self, *, subject_id: str, provider_id: str, as_of: datetime | None
+    ) -> AbstractContextManager[None]:
+        """Hold the analysis boundary for the anchor filing."""
+        return self._delegate.analysis_scope(subject_id=subject_id, provider_id=provider_id, as_of=as_of)
+
+    def resolve_anchor_year_end(self, request: AnchorYearEndRequest) -> AnchorYearEndResolution:
+        """Return the fixture issuer's anchor annual filing."""
+        return self._delegate.resolve_anchor_year_end(request)
 
     def fetch_facts(self, request: FinancialFactRequest, *, effective_as_of: datetime) -> tuple[ProviderFact, ...]:
         if request.field_name is FinancialField.CURRENT_PRICE:
@@ -534,7 +546,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 10
+    assert payload["schema_version"] == 11
     assert payload["analysis"] == "graham_number"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID
@@ -805,6 +817,7 @@ def test_cli_graham_conflicting_positional_and_option_tickers_are_an_invalid_par
 
 def test_cli_graham_unexpected_failure_does_not_leak_exception_text() -> None:
     resolver = MagicMock(spec=GrahamNumberInputResolver)
+    resolver.provider = SecLabeledGrahamProvider()
     resolver.assemble_graham_number.side_effect = RuntimeError("secret provider implementation detail")
 
     with patch(

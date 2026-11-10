@@ -14,6 +14,7 @@ from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PRODUCTIVE_ASSETS_CAPITAL_EXPENDITURES_FIELD
 from investment_analysis_engine.data.security_identity import SecurityIdentityResolution, security_display_label
 from investment_analysis_engine.reporting.documents.shared_parts import (
+    LeftOutYearPart,
     anchor_filing_part,
     identity_diagnostic_parts,
     instrument_kind_part_of,
@@ -35,7 +36,6 @@ from investment_analysis_engine.strategies.fcf_growth.envelope import (
     DOCUMENT_SCHEMA_VERSION,
     FCFDocument,
     FCFForwardEvidencePart,
-    FCFLeftOutYearPart,
     FCFMarketCapPart,
     FCFObservationPart,
     FCFPolicyPart,
@@ -456,7 +456,7 @@ def _document(
             FCFObservationPart.model_validate(item, from_attributes=True) for item in result.annual_observations
         ),
         left_out_years=tuple(
-            FCFLeftOutYearPart.model_validate(item, from_attributes=True) for item in result.left_out_years
+            LeftOutYearPart.model_validate(item, from_attributes=True) for item in result.left_out_years
         ),
         fcf_cagr=metric_result_part(result.fcf_cagr),
         fcf_per_share_cagr=metric_result_part(result.fcf_per_share_cagr),

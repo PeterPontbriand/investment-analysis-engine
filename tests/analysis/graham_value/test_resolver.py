@@ -36,6 +36,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVID
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from tests.analysis.graham_value._anchored import anchor_for
 
 # ---------------------------------------------------------------------------
 # Fixed datetimes
@@ -1249,6 +1250,8 @@ FY2022_START = datetime(2022, 1, 1, tzinfo=UTC)
 FY2021_START = datetime(2021, 1, 1, tzinfo=UTC)
 FY2020_START = datetime(2020, 1, 1, tzinfo=UTC)
 
+_ANCHOR = anchor_for(FY2024_END.date()).anchor
+
 
 def _fy_fact(  # noqa: PLR0913
     value: float,
@@ -1797,6 +1800,7 @@ def _bvps_fact(value: float = 50.0) -> ProviderFact:
         retrieved_at=RETRIEVED_AT,
         basis=None,
         currency="USD",
+        observation_period_end=FY2024_END,
     )
 
 
@@ -1828,6 +1832,7 @@ def _single_eps_fact(value: float = 8.0) -> ProviderFact:
         retrieved_at=RETRIEVED_AT,
         basis="fiscal_year",
         currency="USD",
+        observation_period_end=FY2024_END,
     )
 
 
@@ -1847,6 +1852,7 @@ def test_c2d_graham_number_three_year_avg_success() -> None:
     )
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
     )
     assert result.status is CalculationStatus.OK
@@ -1879,6 +1885,7 @@ def test_c2d_graham_number_override_bypasses_eps_provider() -> None:
     )
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
         eps_override=10.0,
     )
@@ -1907,6 +1914,7 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
     )
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
     )
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
@@ -1932,6 +1940,7 @@ def test_c2d_growth_value_success() -> None:
     )
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=12.0,
@@ -1974,6 +1983,7 @@ def test_c2d_growth_value_missing_growth() -> None:
     )
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         # expected_growth intentionally omitted (defaults to None)
@@ -2002,6 +2012,7 @@ def test_c2d_growth_value_non_finite_growth() -> None:
     )
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=inf,
@@ -2029,6 +2040,7 @@ def test_c2d_graham_number_quote_unavailable_still_ok() -> None:
     )
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
     )
     assert result.status is CalculationStatus.OK
@@ -2262,6 +2274,7 @@ def test_c2d_graham_number_quote_provider_error_non_fatal() -> None:
     )
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
     )
     assert result.status is CalculationStatus.OK
@@ -2288,6 +2301,7 @@ def test_c2d_graham_number_quote_override_invalid() -> None:
     )
     resolver = GrahamNumberInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_graham_number(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
         quote_override=-5.0,
     )
@@ -2315,6 +2329,7 @@ def test_c2d_growth_value_aaa_yield_override() -> None:
     )
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
     result = resolver.assemble_growth_value(
+        anchor=_ANCHOR,
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=12.0,
@@ -2358,6 +2373,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
         basis="fiscal_year",
         currency="USD",
         available_at=hist_available,
+        observation_period_end=hist_as_of,
     )
     price_fact = ProviderFact(
         subject_kind=FinancialSubjectKind.SECURITY,
@@ -2383,6 +2399,7 @@ def test_c2d_growth_value_no_cache_historical_as_of_propagation() -> None:
     resolver = GrahamGrowthInputResolver(provider=provider, cache=cache, clock=lambda: NOW)
 
     result = resolver.assemble_growth_value(
+        anchor=anchor_for(hist_as_of.date()).anchor,
         security_subject_id=SUBJECT_ID,
         eps_basis="fiscal_year",
         expected_growth=12.0,

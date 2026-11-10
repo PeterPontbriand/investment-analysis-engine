@@ -105,7 +105,11 @@ def run(
                 instrument_profile=profile,
                 provider_check=element,
             )
-        reason = friendly_valuation_failure(ticker, assembly.status, assembly.reason)
+        reason = (
+            assembly.reason
+            if assembly.reason_code is not None
+            else friendly_valuation_failure(ticker, assembly.status, assembly.reason)
+        )
         return GrahamNumberPresentation(
             ticker=ticker,
             assembly=number_with_public_quote_reason(replace(assembly, reason=reason)),

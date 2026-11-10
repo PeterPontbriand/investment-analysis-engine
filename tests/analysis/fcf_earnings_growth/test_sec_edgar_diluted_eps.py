@@ -400,7 +400,13 @@ def test_the_three_year_average_says_how_many_periods_a_shortened_series_has() -
     )
 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
-    assert result.reason == "Insufficient eligible fiscal-year EPS observations: found 2 distinct period(s), need 3."
+    assert result.reason == (
+        "Insufficient eligible fiscal-year EPS observations: found 2 distinct period(s), need 3. "
+        f"Years left out: FY2017 (ended 2017-09-30): {EARLIER_BASIS_MESSAGE}"
+    )
+    assert [
+        (item.why, item.observation_period_end.date()) for item in result.left_out if item.observation_period_end
+    ] == [(LeftOutReason.EARLIER_BASIS, date(2017, 9, 30))]
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 {
-  "schema_version": 10,
+  "schema_version": 11,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "KO",
@@ -227,6 +227,7 @@
       "lineage": null
     }
   },
+  "left_out_years": [],
   "method_assumptions": {
     "base_pe": 1.5,
     "growth_multiplier": 1.0,

@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Final
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.clock import effective_as_of
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.cache import ResolvedInputCacheKey, ResolvedInputCacheProtocol
 from investment_analysis_engine.data.financial.facts import (
@@ -277,6 +280,11 @@ class InputResolutionResult:
         reason: Non-empty explanation when status is not ``OK``.
         resolution_trace: Ordered resolver events actually observed for this resolution.
         provider_failure: The kind and provider of a ``PROVIDER_ERROR`` outcome.
+        left_out: The observations of a series the provider reported that are not in it because they were reported
+            only on an earlier basis or their latest versions disagree, each with the reason. Set only by the
+            three-year-average EPS resolution, and only when it comes up short of three years.
+        reason_code: The code of a cause the resolution names itself (a gap in the years, or years left out), shown
+            with its message as written; ``None`` otherwise. Present only with ``INPUT_UNAVAILABLE``.
     """
 
     status: CalculationStatus
@@ -285,6 +293,8 @@ class InputResolutionResult:
     resolution_trace: ResolutionTrace = field(default_factory=ResolutionTrace, compare=False)
     quote_freshness: QuoteFreshnessEvidence | None = None
     provider_failure: ProviderFailureRecord | None = None
+    left_out: tuple[LeftOutObservation, ...] = ()
+    reason_code: ReasonCode | None = None
 
     def __post_init__(self) -> None:
         """Enforce status/value invariants."""
@@ -293,6 +303,9 @@ class InputResolutionResult:
             raise ValueError(msg)
         if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
             msg = "InputResolutionResult: provider_failure requires status PROVIDER_ERROR."
+            raise ValueError(msg)
+        if self.reason_code is not None and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
+            msg = "InputResolutionResult: reason_code requires status INPUT_UNAVAILABLE."
             raise ValueError(msg)
         if self.status is CalculationStatus.OK:
             if self.resolved_input is None:
@@ -321,6 +334,14 @@ class InputResolutionResult:
 DEFAULT_CACHE_SCHEMA_VERSION = 2
 
 _FISCAL_YEAR_BASIS = "fiscal_year"
+
+_CACHE_SET_ASIDE = (
+    "The cached entry was set aside because its period is not the anchor filing's; the provider's answer replaces it."
+)
+
+_CACHE_READS_SUSPENDED: ContextVar[bool] = ContextVar("financial_cache_reads_suspended", default=False)
+"""Whether resolutions in this context skip reading the cache. Writes still happen, so the provider's answer replaces
+the entry that was set aside."""
 
 
 class InputResolver:
@@ -642,6 +663,20 @@ class InputResolver:
             ),
         )
 
+    @staticmethod
+    @contextmanager
+    def cache_reads_suspended() -> Iterator[None]:
+        """Resolve from the provider only inside the block, and let each answer replace its cache entry.
+
+        A caller uses it when an entry the cache holds is for the wrong period: the entry is set aside, the provider
+        is asked once, and the answer is stored in its place.
+        """
+        token = _CACHE_READS_SUSPENDED.set(True)
+        try:
+            yield
+        finally:
+            _CACHE_READS_SUSPENDED.reset(token)
+
     @property
     def provider(self) -> FinancialFactsProvider:
         """Return the injected provider for optional sibling capabilities.
@@ -729,6 +764,16 @@ class InputResolver:
                     ResolutionStage.CACHE,
                     ResolutionOutcome.NOT_USED,
                     "No resolved-input cache is configured.",
+                    now=self._clock(),
+                )
+            )
+        elif _CACHE_READS_SUSPENDED.get():
+            trace = trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.CACHE,
+                    ResolutionOutcome.NOT_USED,
+                    _CACHE_SET_ASIDE,
                     now=self._clock(),
                 )
             )
@@ -898,6 +943,16 @@ class InputResolver:
                     now=self._clock(),
                 )
             )
+        elif _CACHE_READS_SUSPENDED.get():
+            trace = trace.append(
+                _event(
+                    field_name,
+                    ResolutionStage.CACHE,
+                    ResolutionOutcome.NOT_USED,
+                    _CACHE_SET_ASIDE,
+                    now=self._clock(),
+                )
+            )
         else:
             key = self._build_derived_cache_key(request)
             entry = self._cache.get(key)
@@ -952,7 +1007,12 @@ class InputResolver:
             )
         )
         try:
-            facts = self._provider.fetch_facts(request, effective_as_of=effective_as_of(request.as_of, self._clock()))
+            boundary = effective_as_of(request.as_of, self._clock())
+            if isinstance(self._provider, AnnualSeriesProvider):
+                answer = self._provider.fetch_annual_series(request, effective_as_of=boundary)
+            else:
+                answer = AnnualSeriesFacts(self._provider.fetch_facts(request, effective_as_of=boundary))
+            facts = answer.facts
         except FactsNotAvailableAsOf as exc:
             reason = str(exc)
             return InputResolutionResult(
@@ -1040,13 +1100,38 @@ class InputResolver:
         sorted_ends = sorted(by_period_end.keys(), reverse=True)
 
         if len(sorted_ends) < 3:
+            left_out: list[LeftOutObservation] = []
+            for why, message, dropped in (
+                (LeftOutReason.EARLIER_BASIS, EARLIER_BASIS_MESSAGE, answer.earlier_basis),
+                (LeftOutReason.CONFLICTING_VERSIONS, CONFLICTING_VERSIONS_MESSAGE, answer.conflicting),
+            ):
+                records, rejected_dropped = _reported_left_out(request, dropped, resolver_now, why, message)
+                if rejected_dropped is not None:
+                    return InputResolutionResult(
+                        status=CalculationStatus.PROVIDER_ERROR,
+                        reason=rejected_dropped,
+                        provider_failure=_rejected_answer(request),
+                        resolution_trace=trace.append(
+                            _event(
+                                field_name,
+                                ResolutionStage.PROVIDER,
+                                ResolutionOutcome.REJECTED,
+                                f"Rejected provider candidate before composition: {rejected_dropped}",
+                                now=self._clock(),
+                            )
+                        ),
+                    )
+                left_out.extend(records)
+            left_out.sort(key=lambda item: item.observation_period_end or resolver_now)
             reason = (
                 "Insufficient eligible fiscal-year EPS observations: "
                 f"found {len(sorted_ends)} distinct period(s), need 3."
-            )
+            ) + _left_out_message(left_out)
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=reason,
+                left_out=tuple(left_out),
+                reason_code=_left_out_code(left_out),
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1081,6 +1166,16 @@ class InputResolver:
                 )
 
         selected_facts = [by_period_end[end][0] for end in selected_ends]
+
+        # --- 6b. The three years are consecutive, by their reported dates ---
+        gap_reason = _consecutive_years_reason(selected_facts)
+        if gap_reason is not None:
+            return InputResolutionResult(
+                status=CalculationStatus.INPUT_UNAVAILABLE,
+                reason=gap_reason,
+                reason_code=ReasonCode.MISSING_FACT,
+                resolution_trace=_derivation_error_trace(trace, field_name, gap_reason, now=resolver_now),
+            )
 
         # --- 7. Selected-series compatibility ---
         common_units = selected_facts[0].units
@@ -2094,6 +2189,50 @@ def _validate_provider_response(
         as_of=request.as_of,
     )
     return (CalculationStatus.INPUT_UNAVAILABLE, error) if error is not None else None
+
+
+def _left_out_code(left_out: list[LeftOutObservation]) -> ReasonCode | None:
+    """Return the code of the newest left-out year, which is the last of the list: none when no year was left out."""
+    if not left_out:
+        return None
+    return ReasonCode.EARLIER_BASIS if left_out[-1].why is LeftOutReason.EARLIER_BASIS else ReasonCode.AMBIGUOUS_FACT
+
+
+def _left_out_message(left_out: list[LeftOutObservation]) -> str:
+    """Return the message that names each left-out year with its reason, or nothing when none was left out."""
+    named = [
+        f"FY{item.observation_period_end.year} (ended {item.observation_period_end.date().isoformat()}): {item.reason}"
+        for item in left_out
+        if item.observation_period_end is not None
+    ]
+    return f" Years left out: {' '.join(named)}" if named else ""
+
+
+def _consecutive_years_reason(facts: list[ProviderFact]) -> str | None:
+    """Return why the periods are not consecutive fiscal years, or ``None`` when they are.
+
+    A period that does not start the day after the previous one ends leaves a year between them; the year that is
+    missing is named by the day before the later period starts.
+    """
+    ordered = sorted(facts, key=_period_end)
+    for previous, following in zip(ordered, ordered[1:], strict=False):
+        assert following.observation_period_start is not None
+        previous_end = _period_end(previous).date()
+        following_start = following.observation_period_start.date()
+        if following_start != previous_end + timedelta(days=1):
+            missing = following_start - timedelta(days=1)
+            return (
+                "The fiscal years of diluted EPS are not consecutive: none ends "
+                f"{missing.isoformat()}, between the years ended {previous_end.isoformat()} and "
+                f"{_period_end(following).date().isoformat()}."
+            )
+    return None
+
+
+def _period_end(fact: ProviderFact) -> datetime:
+    """Return the end of a fact's period, which every validated annual candidate has."""
+    assert fact.observation_period_end is not None
+    return fact.observation_period_end
 
 
 def _earnings_compatibility_reason(facts: list[ProviderFact]) -> str | None:
