@@ -34,7 +34,7 @@ Placement among other work packages: [milestone plan](../IMPLEMENTATION_PLAN.md#
 
 ## 2. Sequence and status
 
-Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and its issues 207 and 210 are complete ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.5 starts after API.6b merges
+Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and its issues 207 and 210 are complete ([Step 3.5 order](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and 3.5.5 starts after API.7 merges
 ([milestone plan](../IMPLEMENTATION_PLAN.md#sequence-and-status)).
 
 | Slice | Scope | Status | Completed |
@@ -55,6 +55,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.5b2 | [Help content: the bundle](#api5b2--help-content-the-bundle) | Complete | 2026-11-07 |
 | API.6a | [Term references](API_6_SLICE_PLAN.md#api6a--term-references) | Complete | 2026-11-07 |
 | API.6b | [Help endpoints and locales](API_6_SLICE_PLAN.md#api6b--help-endpoints-and-locales) | Complete | 2026-11-08 |
+| API.7 | [Refreshes list](#api7--refreshes-list) | Next | |
 
 ## 3. The slices
 
@@ -272,6 +273,22 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-help`.
 - **Detail:** [API.6 slice plan](API_6_SLICE_PLAN.md#33-api6b-implementation-record)
 
+### API.7 — Refreshes list
+
+- **Problem:** the desktop application needs a read-only screen of past refreshes, and the API cannot list them: a
+  refresh is only the `analysis_runs` rows that share a `refresh_id`, and the watchlist it ran is stored only inside
+  each row's `envelope_json`.
+- **Decision:** migration `0006` copies the watchlist's id and name from the envelope into two nullable columns of
+  `analysis_runs`, and a grouped, paged read over summary columns serves `GET /v1/refreshes` and `ian runs refreshes`
+  through one application-layer function ([A.6](#a6-refreshes-list-2026-11-10)).
+- **Scope:** migration `0006` with its backfill and index, and the matching `schema.py` change; the insert filling the
+  two columns; the repository read; the application-layer function; `GET /v1/refreshes`, its versioned document, its
+  JSON Schema and the regenerated `openapi.json`; `ian runs refreshes` with `--watchlist`, `--limit`, `--offset` and
+  `--json`; term references for the new fields; `docs/user/API.md`, `docs/user/WORKSPACE.md` and one smoke-test step;
+  tests.
+- **Branch:** `feat/api-refreshes-list`.
+- **Detail:** no separate slice plan; decisions in [A.6](#a6-refreshes-list-2026-11-10).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -289,7 +306,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   [Step 3.6](../IMPLEMENTATION_PLAN.md#412-step-36--light-mode-support).
 - Database maintenance, provider health, evaluation and settings editing through the API.
 - A change to any stored shape, formula or classification, or to existing CLI output, except the two list documents
-  of [S3](API_2_SLICE_PLAN.md#s3-the-list-documents-are-versioned-objects-2026-11-03).
+  of [S3](API_2_SLICE_PLAN.md#s3-the-list-documents-are-versioned-objects-2026-11-03) and the two summary columns that
+  API.7's migration adds to `analysis_runs` ([A.6](#a6-refreshes-list-2026-11-10), L3).
 
 ## 5. Acceptance criteria
 
@@ -308,6 +326,13 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - API.6b: every glossary term and served section is reachable through the help endpoints, and no served text contains an
   `ian` command.
 - The help bundle is regenerated and compared in the managed gate; a drift fails it.
+- API.7: `GET /v1/refreshes` and `ian runs refreshes` return the same refreshes through one application-layer function,
+  newest first by `last_completed_at` then `refresh_id` descending, paged by `limit` and `offset` with `has_more`, filtered
+  by `watchlist_id` as L8 says, with counts of stored runs only; the read uses summary columns and never decodes an
+  envelope; migration `0006` upgrades with its backfill (a watchlist run, a list-of-entries run and an unreadable
+  envelope) and downgrades; the document's JSON Schema is in `schemas/` and `openapi.json` is regenerated, both compared
+  in the managed gate; the new fields pass the API.6a conformance test; `docs/user/API.md`, `docs/user/WORKSPACE.md` and
+  the smoke test describe it; existing CLI output is unchanged.
 
 ## 6. Background
 
@@ -405,3 +430,23 @@ Approved by the project owner on 2026-11-07. Recorded as
 | Left to API.6 | Whether the list is its own endpoint or a field of an existing document, and whether the bundle has one file per locale |
 | Not in API.5b2 | No locale field, argument or header handling |
 | Precondition for a new locale | Before any locale beyond the default is added, every producer of labels, rendered text and messages takes the locale first, because a response that states a locale in `Content-Language` is true only while all of its text follows it ([T14](API_6_SLICE_PLAN.md#t14-api6b-negotiation-2026-11-07)). Where a translation's source documents live is decided with the first added locale ([T33](API_6_SLICE_PLAN.md#t33-bundle-file-and-packaging-2026-11-08)) |
+
+### A.6 Refreshes list (2026-11-10)
+
+Approved by the project owner on 2026-11-10. That approval includes the database migration in L3, as `AGENTS.md` §11
+requires.
+
+| # | Decision |
+| :--- | :--- |
+| L1 | Where it is planned: a new slice API.7, Refreshes list, added to the API work package's sequence table, with its section in the API contract plan and no separate slice plan (it is one pull request). These decisions are recorded in a new Appendix A.6 of that plan. |
+| L2 | Sequencing: API.7 is IAN's next slice, ahead of further Step 3.5 work, because the desktop application's GUI.2b waits for it. Branch `feat/api-refreshes-list`. |
+| L3 | Storage: migration `0006` adds nullable `watchlist_id` and `watchlist_name` columns to `analysis_runs`. New runs fill them from the envelope at insert. Existing rows are backfilled in SQL with `json_extract` on `envelope_json`; a row whose envelope has no watchlist, or cannot be read, stays null. An index on `watchlist_id` is added. The envelope remains the source of truth; the columns are copies of immutable envelope fields, like `ticker`. Rejected: `json_extract` at query time (reads every envelope on every list, and breaks the rule that listing never depends on envelopes); a new `refreshes` table (a larger change, a second write path at refresh start, and the same backfill). |
+| L4 | Endpoint: `GET /v1/refreshes`, with query parameters `watchlist_id`, `limit` (1 to 100, default 20) and `offset` (default 0); the same paging as `/v1/runs`, with `has_more` and no total. It is an addition inside `/v1` under S4. |
+| L5 | Document: a new versioned refreshes-list document, `{schema_version, items, has_more}`. Each item has `refresh_id`, `watchlist_id` and `watchlist_name` (both null for a refresh of a list of entries or an unreadable envelope), `first_completed_at`, `last_completed_at`, `run_count`, and `outcome_counts` with one integer for each `RunOutcome` value. Its JSON Schema is in `schemas/`, and `openapi.json` is regenerated. |
+| L6 | Ordering: newest first by `last_completed_at`, then by `refresh_id` descending. |
+| L7 | Watchlist name: an item carries the name recorded when the refresh ran, not the current name, as the compare document does. A client that wants the current name reads `/v1/watchlists/{id}`. A deleted watchlist's refreshes keep appearing with their recorded name. |
+| L8 | Filter: a `watchlist_id` that matches nothing, including a deleted watchlist, returns an empty list, not 404. A malformed id is `invalid_parameter`. Refreshes of a list of entries appear only when no filter is given. |
+| L9 | Counts: counts are of stored runs only. A stopped refresh shows fewer runs, and a refresh run with saving off does not appear. There is no stopped or complete flag, because storage does not record one. `docs/user/API.md` says so. |
+| L10 | Command line: `ian runs refreshes`, with `--watchlist`, `--limit`, `--offset` and `--json`, through the same application-layer function as the endpoint. |
+| L11 | Term references: the new fields go through the API.6a conformance test. Outcome values already name terms. If the test requires a term for a new label, it is added to the investor glossary in the same pull request. |
+| L12 | Documentation and tests: `docs/user/API.md` (endpoint row and a short section), `docs/user/WORKSPACE.md` (the new command) and one smoke-test step. Tests: migration upgrade with backfill (a watchlist run, a list-of-entries run, an unreadable envelope) and downgrade; repository grouping, ordering, filter and paging; in-process endpoint tests; CLI text and `--json`. The managed gate runs as usual. |
