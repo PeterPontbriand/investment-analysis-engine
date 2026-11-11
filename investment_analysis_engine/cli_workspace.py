@@ -68,6 +68,8 @@ from investment_analysis_engine.workspace.refresh import DEFAULT_WORKERS, MAX_WO
 from investment_analysis_engine.workspace.repositories.watchlists import DeletedWatchlist, RemovedEntries
 from investment_analysis_engine.workspace.runs import (
     AnalysisRunSummary,
+    RefreshPage,
+    RefreshQuery,
     RefreshSummary,
     WatchlistSummary,
 )
@@ -427,7 +429,8 @@ def runs_refreshes(
     watchlist: Annotated[
         str | None,
         typer.Option(
-            "--watchlist", help="Only refreshes that ran this watchlist (the full ID shown by 'watchlist list')."
+            "--watchlist",
+            help="Only refreshes that ran this watchlist: its full ID, or its current name.",
         ),
     ] = None,
     limit: Annotated[int, typer.Option("--limit", help="Maximum rows (1-100).")] = 20,
@@ -438,9 +441,10 @@ def runs_refreshes(
 ) -> None:
     """List past refreshes, most recently completed first, counted from their stored runs."""
     with parameter_failures(json_output=json_output):
-        query = build_refresh_query(names=_REFRESH_QUERY_NAMES, watchlist_id=watchlist, limit=limit, offset=offset)
+        query = build_refresh_query(names=_REFRESH_QUERY_NAMES, watchlist_id=None, limit=limit, offset=offset)
     with workspace_failures("runs refreshes", json_output=json_output):
-        page = list_refreshes(ApplicationContext(settings=settings), query)
+        context = ApplicationContext(settings=settings)
+        page = _refreshes_of(context, query, watchlist)
     summaries = page.summaries
     if json_output:
         typer.echo(document_json(build_refreshes_list_document(summaries, has_more=page.has_more)))
@@ -450,6 +454,24 @@ def runs_refreshes(
         return
     for item in summaries:
         typer.echo(_refresh_summary_line(item))
+
+
+def _refreshes_of(context: ApplicationContext, query: RefreshQuery, watchlist: str | None) -> RefreshPage:
+    """Return the refreshes page for ``query``, narrowed to ``watchlist`` given as a full ID or a current name.
+
+    A value that parses as a UUID is the watchlist ID, which also finds a deleted watchlist's refreshes. Any other
+    value is resolved as a current watchlist name; a name no watchlist has matches no refresh.
+    """
+    if watchlist is None:
+        return list_refreshes(context, query)
+    try:
+        watchlist_id = UUID(watchlist)
+    except ValueError:
+        try:
+            watchlist_id = get_watchlist_summary(context, WatchlistName(watchlist)).watchlist_id
+        except WatchlistNotFoundError:
+            return RefreshPage(summaries=(), has_more=False)
+    return list_refreshes(context, query.model_copy(update={"watchlist_id": watchlist_id}))
 
 
 @runs_app.command("show")

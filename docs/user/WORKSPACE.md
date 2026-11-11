@@ -325,7 +325,7 @@ ian runs show 3f9b... --json
 
 ```bash
 ian runs refreshes
-ian runs refreshes --watchlist 5d0c... --limit 10
+ian runs refreshes --watchlist "Core Holdings" --limit 10
 ian runs refreshes --json
 ```
 
@@ -333,7 +333,7 @@ ian runs refreshes --json
 7c1a...  2026-09-19T14:02:12+00:00  Core Holdings: 4 runs (3 completed, 1 unavailable)
 ```
 
-`--watchlist` takes the full watchlist ID that `watchlist list` shows and keeps only the refreshes of that watchlist; an ID that matches nothing, including a deleted watchlist's, prints `No matching refreshes.` The name shown is the one the watchlist had when the refresh ran. Counts come from the saved runs only: a refresh that was stopped shows fewer runs, a refresh run with `--no-save` does not appear, and nothing says whether a refresh was stopped. `--limit` (1 to 100, default 20) and `--offset` page the list. `--json` prints one object described by `schemas/refreshes-list.schema.json`, with `schema_version` (currently `1`), `has_more` and `items`, the same document the [local API](API.md#refreshes-list) serves. Pass a refresh ID from here to `runs list --refresh-id` or `runs compare`.
+`--watchlist` takes a watchlist's current name or its full ID, as `watchlist list` shows them, and keeps only the refreshes of that watchlist. A value that is a full ID is used as the ID, which also finds the refreshes of a deleted watchlist; any other value is read as a current name. A name or ID that matches nothing prints `No matching refreshes.` The name shown is the one the watchlist had when the refresh ran. Counts come from the saved runs only: a refresh that was stopped shows fewer runs, a refresh run with `--no-save` does not appear, and nothing says whether a refresh was stopped. `--limit` (1 to 100, default 20) and `--offset` page the list. `--json` prints one object described by `schemas/refreshes-list.schema.json`, with `schema_version` (currently `1`), `has_more` and `items`, the same document the [local API](API.md#refreshes-list) serves. Pass a refresh ID from here to `runs list --refresh-id` or `runs compare`.
 
 ### Comparing a refresh side by side
 

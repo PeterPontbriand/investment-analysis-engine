@@ -197,7 +197,8 @@ class SQLiteAnalysisRunRepository:
         columns are read, so no envelope is decoded. Results order by the latest completion descending then refresh
         ID descending. A watchlist filter keeps the refreshes whose recorded watchlist ID matches, so a refresh of a
         list of entries appears only when there is no filter, and a filter that matches nothing returns an empty
-        page. Counts are of stored runs only.
+        page. The filter selects refreshes by the watchlist index, then every stored run of a selected refresh is
+        counted, including one whose own watchlist columns are empty. Counts are of stored runs only.
         """
         counts = [
             func.coalesce(func.sum(case((analysis_runs.c.outcome == outcome.value, 1), else_=0)), 0).label(
@@ -223,7 +224,12 @@ class SQLiteAnalysisRunRepository:
             .offset(query.offset)
         )
         if query.watchlist_id is not None:
-            statement = statement.having(func.max(analysis_runs.c.watchlist_id) == str(query.watchlist_id))
+            matching = analysis_runs.alias("matching")
+            statement = statement.where(
+                analysis_runs.c.refresh_id.in_(
+                    select(matching.c.refresh_id).where(matching.c.watchlist_id == str(query.watchlist_id))
+                )
+            )
         with self._database.read() as connection:
             rows = connection.execute(statement).mappings().all()
         summaries = tuple(

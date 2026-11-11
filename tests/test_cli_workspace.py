@@ -731,10 +731,36 @@ def test_runs_refreshes_filters_by_watchlist_and_pages(isolated_cli_settings: Pr
     assert ([item["refresh_id"] for item in paged["items"]], paged["has_more"]) == ([str(named)], False)
 
 
+def test_runs_refreshes_filters_by_current_watchlist_name_or_id(isolated_cli_settings: ProjectSettings) -> None:
+    _create("Core Holdings")
+    listed = json.loads(runner.invoke(app, ["watchlist", "list", "--json"]).output)["items"]
+    watchlist_id = UUID(listed[0]["watchlist_id"])
+    refresh_id = UUID("cccccccc-0000-4000-8000-000000000001")
+    other_id = UUID("cccccccc-0000-4000-8000-000000000002")
+    database = SQLiteDatabase(isolated_cli_settings)
+    try:
+        repository = SQLiteAnalysisRunRepository(database)
+        repository.insert(refresh_run(refresh_id, 0, at(0), watchlist=(watchlist_id, "Earlier name")))
+        repository.insert(refresh_run(other_id, 0, at(1)))
+    finally:
+        database.close()
+
+    def listed_ids(value: str) -> list[str]:
+        result = runner.invoke(app, ["runs", "refreshes", "--watchlist", value, "--json"])
+        assert result.exit_code == 0, result.output
+        return [item["refresh_id"] for item in json.loads(result.output)["items"]]
+
+    assert listed_ids(str(watchlist_id)) == [str(refresh_id)]
+    assert listed_ids("Core Holdings") == [str(refresh_id)]
+    assert listed_ids("  core holdings ") == [str(refresh_id)]
+    assert listed_ids("No Such List") == []
+    unknown = runner.invoke(app, ["runs", "refreshes", "--watchlist", "No Such List"])
+    assert (unknown.exit_code, unknown.output.strip()) == (0, "No matching refreshes.")
+
+
 @pytest.mark.parametrize(
     ("arguments", "message"),
     [
-        (["--watchlist", "not-a-uuid"], "--watchlist 'not-a-uuid' is not a valid watchlist ID."),
         (["--limit", "0"], "--limit must be between 1 and 100."),
         (["--offset", "-1"], "--offset must be 0 or greater."),
     ],
