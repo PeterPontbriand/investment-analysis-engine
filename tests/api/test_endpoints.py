@@ -9,6 +9,7 @@ from uuid import uuid4
 import pytest
 from typer.testing import CliRunner
 
+from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.api.documents import API_VERSIONS
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
@@ -16,16 +17,19 @@ from investment_analysis_engine.application.runs import compare_refresh_runs, re
 from investment_analysis_engine.application.watchlists import get_watchlist_by_name, watchlist_repository
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.help.locales import LOCALES
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
+from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.watchlists import WatchlistName, WatchlistSpec
 from investment_analysis_engine.workspace_documents.watchlist import (
     build_watchlist_document,
     build_watchlist_list_document,
 )
+from tests._refresh_runs import CORE_ID, VALUE_ID, at, refresh_run
 from tests._runs_compare_refresh import MOMENTUM, refresh
 from tests.api._support import AUTH, client_for, runs_by_alias, store
 
@@ -233,3 +237,54 @@ def test_a_response_body_is_compact_utf_8_json_in_field_order(isolated_cli_setti
     assert response.content == b'{"schema_version":1,"has_more":false,"items":[]}'
     assert response.headers["content-type"] == "application/json"
     assert response.headers["cache-control"] == "no-store"
+
+
+def test_the_refreshes_list_groups_filters_and_pages_like_the_command(isolated_cli_settings: ProjectSettings) -> None:
+    database = SQLiteDatabase(isolated_cli_settings)
+    try:
+        repository = SQLiteAnalysisRunRepository(database)
+        older, newer, entries = uuid4(), uuid4(), uuid4()
+        repository.insert(refresh_run(older, 0, at(0), watchlist=(CORE_ID, "Core")))
+        repository.insert(refresh_run(older, 1, at(1), watchlist=(CORE_ID, "Core"), status=RunOutcome.FAILED))
+        repository.insert(refresh_run(newer, 0, at(5), watchlist=(VALUE_ID, "Value")))
+        repository.insert(refresh_run(entries, 0, at(9)))
+        repository.insert(refresh_run(None, 0, at(20)))
+    finally:
+        database.close()
+
+    with client_for(isolated_cli_settings) as client:
+        everything = client.get("/v1/refreshes", headers=AUTH)
+        core = client.get("/v1/refreshes", params={"watchlist_id": str(CORE_ID)}, headers=AUTH)
+        deleted = client.get("/v1/refreshes", params={"watchlist_id": str(uuid4())}, headers=AUTH)
+        page = client.get("/v1/refreshes", params={"limit": 1, "offset": 1}, headers=AUTH)
+        malformed = client.get("/v1/refreshes", params={"watchlist_id": "not-an-id"}, headers=AUTH)
+        bad_limit = client.get("/v1/refreshes", params={"limit": 0}, headers=AUTH)
+        bad_offset = client.get("/v1/refreshes", params={"offset": -1}, headers=AUTH)
+    cli_listing = json.loads(runner.invoke(app, ["runs", "refreshes", "--json"]).stdout)
+
+    document = everything.json()
+    assert list(document) == ["schema_version", "has_more", "items"]
+    assert [item["refresh_id"] for item in document["items"]] == [str(entries), str(newer), str(older)]
+    assert document == cli_listing
+    assert document["items"][2]["outcome_counts"] == {
+        "completed": 1,
+        "unavailable": 0,
+        "not_applicable": 0,
+        "failed": 1,
+    }
+    assert [item["watchlist_name"] for item in document["items"]] == [None, "Value", "Core"]
+    assert [item["refresh_id"] for item in core.json()["items"]] == [str(older)]
+    assert deleted.json() == {"schema_version": 1, "has_more": False, "items": []}
+    assert [item["refresh_id"] for item in page.json()["items"]] == [str(newer)]
+    assert page.json()["has_more"] is True
+    for response, name in ((malformed, "watchlist_id"), (bad_limit, "limit"), (bad_offset, "offset")):
+        assert response.status_code == 400
+        assert response.json()["reason_code"] == "invalid_parameter"
+        assert response.json()["parameters"] == [name]
+
+
+def test_an_empty_store_lists_no_refreshes(isolated_cli_settings: ProjectSettings) -> None:
+    with client_for(isolated_cli_settings) as client:
+        response = client.get("/v1/refreshes", headers=AUTH)
+
+    assert response.json() == {"schema_version": 1, "has_more": False, "items": []}

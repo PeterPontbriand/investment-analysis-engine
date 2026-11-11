@@ -34,6 +34,7 @@ from investment_analysis_engine.api.request_bodies import (
 from investment_analysis_engine.api.selection_forms import SelectionFormDocument
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.strategy_wiring import STRATEGIES
+from investment_analysis_engine.workspace_documents.refreshes import RefreshesListDocument
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
 from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
 from investment_analysis_engine.workspace_documents.watchlist import (
@@ -234,6 +235,22 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
             _query("mode", "The presentation mode.", ("enum", list(TEXT_MODES)), required=True),
         ),
         _responses((ReplayTextDocument,), lookup=True, database=True),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/refreshes",
+        "list_refreshes",
+        "List past refreshes, most recently completed first.",
+        (
+            _query("watchlist_id", "Only refreshes that ran this watchlist.", ("format", "uuid")),
+            _query(
+                "limit",
+                f"Maximum rows (1 to 100); {DEFAULT_RUNS_LIMIT} when absent.",
+                ("pattern", "^-?[0-9]+$"),
+            ),
+            _query("offset", f"Rows to skip; {DEFAULT_RUNS_OFFSET} when absent.", ("pattern", "^-?[0-9]+$")),
+        ),
+        _responses((RefreshesListDocument,), lookup=False, database=True),
     ),
     RouteSpec(
         "GET",

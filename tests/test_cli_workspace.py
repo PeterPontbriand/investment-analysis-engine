@@ -34,6 +34,7 @@ from investment_analysis_engine.workspace.watchlists import WatchlistNotFoundErr
 from tests._cli_helpers import normalize_cli_output
 from tests._migrated_database import alembic_config
 from tests._native_status import NATIVE_STATUS_OF_OUTCOME
+from tests._refresh_runs import CORE_ID, at, refresh_run
 from tests._wiring import encode_native
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
@@ -682,6 +683,93 @@ def test_runs_list_json_and_text_render_real_persisted_summaries(isolated_cli_se
     assert len(payload) == 1
     assert payload[0]["analysis_run_id"] == str(run.analysis_run_id)
     assert payload[0]["ticker"] == "AAPL"
+
+
+def _store_refreshes(settings: ProjectSettings) -> tuple[UUID, UUID]:
+    """Store a watchlist refresh of two runs, then a refresh of a list of entries; return their IDs."""
+    named = UUID("bbbbbbbb-0000-4000-8000-000000000001")
+    entries = UUID("bbbbbbbb-0000-4000-8000-000000000002")
+    database = SQLiteDatabase(settings)
+    try:
+        repository = SQLiteAnalysisRunRepository(database)
+        repository.insert(refresh_run(named, 0, at(0), watchlist=(CORE_ID, "Core")))
+        repository.insert(refresh_run(named, 1, at(1), watchlist=(CORE_ID, "Core"), status=RunOutcome.FAILED))
+        repository.insert(refresh_run(entries, 0, at(5)))
+    finally:
+        database.close()
+    return named, entries
+
+
+def test_runs_refreshes_reports_no_matches_then_text_and_json(isolated_cli_settings: ProjectSettings) -> None:
+    empty = runner.invoke(app, ["runs", "refreshes"])
+    assert (empty.exit_code, empty.output.strip()) == (0, "No matching refreshes.")
+    named, entries = _store_refreshes(isolated_cli_settings)
+
+    text = runner.invoke(app, ["runs", "refreshes"])
+    assert text.exit_code == 0
+    assert text.output.splitlines() == [
+        f"{entries}  2026-11-01T10:05:00+00:00  list of entries: 1 run (1 completed)",
+        f"{named}  2026-11-01T10:01:00+00:00  Core: 2 runs (1 completed, 1 failed)",
+    ]
+
+    document = json.loads(runner.invoke(app, ["runs", "refreshes", "--json"]).output)
+    assert list(document) == ["schema_version", "has_more", "items"]
+    assert [item["refresh_id"] for item in document["items"]] == [str(entries), str(named)]
+    assert document["items"][1]["watchlist_id"] == str(CORE_ID)
+    assert document["items"][1]["outcome_counts"]["failed"] == 1
+
+
+def test_runs_refreshes_filters_by_watchlist_and_pages(isolated_cli_settings: ProjectSettings) -> None:
+    named, _entries = _store_refreshes(isolated_cli_settings)
+
+    filtered = json.loads(runner.invoke(app, ["runs", "refreshes", "--watchlist", str(CORE_ID), "--json"]).output)
+    unknown = json.loads(runner.invoke(app, ["runs", "refreshes", "--watchlist", str(UUID(int=1)), "--json"]).output)
+    paged = json.loads(runner.invoke(app, ["runs", "refreshes", "--limit", "1", "--offset", "1", "--json"]).output)
+
+    assert [item["refresh_id"] for item in filtered["items"]] == [str(named)]
+    assert unknown["items"] == []
+    assert ([item["refresh_id"] for item in paged["items"]], paged["has_more"]) == ([str(named)], False)
+
+
+def test_runs_refreshes_filters_by_current_watchlist_name_or_id(isolated_cli_settings: ProjectSettings) -> None:
+    _create("Core Holdings")
+    listed = json.loads(runner.invoke(app, ["watchlist", "list", "--json"]).output)["items"]
+    watchlist_id = UUID(listed[0]["watchlist_id"])
+    refresh_id = UUID("cccccccc-0000-4000-8000-000000000001")
+    other_id = UUID("cccccccc-0000-4000-8000-000000000002")
+    database = SQLiteDatabase(isolated_cli_settings)
+    try:
+        repository = SQLiteAnalysisRunRepository(database)
+        repository.insert(refresh_run(refresh_id, 0, at(0), watchlist=(watchlist_id, "Earlier name")))
+        repository.insert(refresh_run(other_id, 0, at(1)))
+    finally:
+        database.close()
+
+    def listed_ids(value: str) -> list[str]:
+        result = runner.invoke(app, ["runs", "refreshes", "--watchlist", value, "--json"])
+        assert result.exit_code == 0, result.output
+        return [item["refresh_id"] for item in json.loads(result.output)["items"]]
+
+    assert listed_ids(str(watchlist_id)) == [str(refresh_id)]
+    assert listed_ids("Core Holdings") == [str(refresh_id)]
+    assert listed_ids("  core holdings ") == [str(refresh_id)]
+    assert listed_ids("No Such List") == []
+    unknown = runner.invoke(app, ["runs", "refreshes", "--watchlist", "No Such List"])
+    assert (unknown.exit_code, unknown.output.strip()) == (0, "No matching refreshes.")
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        (["--limit", "0"], "--limit must be between 1 and 100."),
+        (["--offset", "-1"], "--offset must be 0 or greater."),
+    ],
+)
+def test_runs_refreshes_rejects_invalid_options_as_invalid_parameters(arguments: list[str], message: str) -> None:
+    result = runner.invoke(app, ["runs", "refreshes", *arguments])
+
+    assert result.exit_code == 1
+    assert message in normalize_cli_output(result.output)
 
 
 def test_workspace_commands_report_a_sanitized_readiness_error(tmp_path: Path) -> None:

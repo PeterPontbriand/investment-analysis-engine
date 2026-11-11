@@ -39,7 +39,7 @@ EXPECTED_COLUMNS = {
     "analysis_runs": (
         "analysis_run_id refresh_id batch_position ticker analysis_id method_id outcome completed_at "
         "run_schema_version config_schema_version method_version result_schema_version evidence_codec_version "
-        "projection_version envelope_json"
+        "projection_version envelope_json watchlist_id watchlist_name"
     ),
     "instrument_profiles": (
         "profile_id ticker identity_anchor cached_at refreshed_at superseded_at superseded_reason "
@@ -199,6 +199,7 @@ def base_row(table: str) -> dict[str, object]:
         ("analysis_runs", "completed_at", "not-a-timestamp"),
         ("analysis_runs", "envelope_json", "[]"),
         ("analysis_runs", "refresh_id", "batch-without-position"),
+        ("analysis_runs", "watchlist_id", "watchlist-without-name"),
         ("instrument_profiles", "ticker", " "),
         ("instrument_profiles", "identity_anchor", " "),
         ("instrument_profiles", "schema_version", 0),
@@ -340,6 +341,7 @@ def test_analysis_run_indexes_and_refresh_pair(migrated_database: SQLiteDatabase
             "ix_analysis_runs_outcome",
             "ix_analysis_runs_refresh",
             "ix_analysis_runs_ticker",
+            "ix_analysis_runs_watchlist",
         }
 
 

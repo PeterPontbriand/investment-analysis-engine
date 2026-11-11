@@ -136,6 +136,7 @@ The endpoints that read use `GET`; the actions are below.
 | `/v1/runs` | `ticker`, `method_id`, `status`, `refresh_id`, `limit`, `offset` | the runs list document |
 | `/v1/runs/{analysis_run_id}` | none | the saved run's own strategy document |
 | `/v1/runs/{analysis_run_id}/text` | `mode` (required): `concise`, `details` or `diagnostics` | `schema_version`, `mode` and `text` |
+| `/v1/refreshes` | `watchlist_id`, `limit`, `offset` | the refreshes list document (see [Refreshes list](#refreshes-list)) |
 | `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document |
 | `/v1/strategies/{method_id}/selection` | none | `schema_version`, `schema` and `defaults` (see [Selection forms](#selection-forms)) |
 | `/v1/help` | none | the help index document (see [Help](#help)) |
@@ -147,6 +148,23 @@ The endpoints that read use `GET`; the actions are below.
 
 On `/v1/runs`, `limit` is 1 to 100 and defaults to 20, and `offset` defaults to 0. `method_id` is the `method` value of
 an item in `/v1/strategies` (for example `sma_crossover`). The document says whether more rows follow with `has_more`; there is no total.
+
+### Refreshes list
+
+`GET /v1/refreshes` lists past refreshes, most recently completed first (ties by refresh ID, descending). A refresh is the
+saved runs that share a refresh ID, so everything the document says is counted from stored runs: a refresh that was stopped
+shows fewer runs, a refresh run with saving off does not appear, and there is no stopped or complete flag, because storage
+does not record one. The document is `{schema_version, has_more, items}`, paged like `/v1/runs` (`limit` 1 to 100, default 20,
+`offset` default 0, no total). Each item has `refresh_id`, `watchlist_id`, `watchlist_name`, `first_completed_at`,
+`last_completed_at`, `run_count` and `outcome_counts`, which holds one integer for each run outcome (`completed`,
+`unavailable`, `not_applicable` and `failed`).
+
+`watchlist_name` is the name the watchlist had when the refresh ran, not its current name; read `/v1/watchlists/{watchlist_id}`
+for the current one. A refresh of a list of entries, and a refresh whose stored runs name no watchlist, have a null
+`watchlist_id` and `watchlist_name`; they appear only when `watchlist_id` is not given. A `watchlist_id` that matches nothing,
+including a deleted watchlist's, returns an empty list rather than 404, and a malformed one is `invalid_parameter`. A deleted
+watchlist's refreshes keep appearing, with their recorded name. The command line writes the same document with
+`ian runs refreshes --json`.
 
 ### Actions
 

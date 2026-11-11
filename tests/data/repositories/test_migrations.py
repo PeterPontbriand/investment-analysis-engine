@@ -63,7 +63,7 @@ def test_cli_schema_lifecycle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
                 )
                 assert set(tables) == expected
                 versions = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalars().all()
-                assert versions == ([] if operation == "downgrade" else ["0005_remove_cancelled_outcome"])
+                assert versions == ([] if operation == "downgrade" else ["0006_run_watchlist_columns"])
         finally:
             database.close()
     assert not unused.exists()
@@ -96,7 +96,7 @@ def test_workspace_revision_downgrade_retains_predecessor_data(tmp_path: Path) -
         command.upgrade(config, "head")
         with database.read() as connection:
             assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
-                "0005_remove_cancelled_outcome"
+                "0006_run_watchlist_columns"
             )
     finally:
         database.close()
@@ -222,7 +222,7 @@ def test_borrowed_transaction_is_not_committed_or_closed(tmp_path: Path) -> None
             assert not connection.closed
             assert connection.in_transaction()
             revision = connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one()
-            assert revision == "0005_remove_cancelled_outcome"
+            assert revision == "0006_run_watchlist_columns"
             raise RuntimeError("outer rollback")
 
     try:
@@ -350,7 +350,7 @@ def test_outcome_revision_keeps_runs_and_rejects_cancelled(tmp_path: Path, monke
             real_drop_table(name, *args, **kwargs)
 
         monkeypatch.setattr(op, "drop_table", record_enforcement)
-        command.upgrade(config, "head")
+        command.upgrade(config, "0005_remove_cancelled_outcome")
         assert enforcement == [1]
         with database.read() as connection:
             assert _tables_referencing(connection, "analysis_runs") == []
@@ -371,7 +371,6 @@ def test_outcome_revision_keeps_runs_and_rejects_cancelled(tmp_path: Path, monke
                 "ix_analysis_runs_completed",
                 "ix_analysis_runs_refresh",
             } <= indexes
-        assert ensure_database_ready(database) is ReadinessOutcome.READY
         with pytest.raises(IntegrityError), database.transaction() as connection:
             _insert_run(connection, "run-cancelled", "cancelled")
         command.downgrade(config, "0004_instrument_profiles")
@@ -394,11 +393,75 @@ def test_outcome_revision_refuses_to_drop_a_stored_cancelled_run(tmp_path: Path)
         with database.transaction() as connection:
             _insert_run(connection, "run-cancelled", "cancelled")
         with pytest.raises(RuntimeError, match="'cancelled'"):
-            command.upgrade(config, "head")
+            command.upgrade(config, "0005_remove_cancelled_outcome")
         with database.read() as connection:
             assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
                 "0004_instrument_profiles"
             )
             assert connection.exec_driver_sql("SELECT outcome FROM analysis_runs").scalar_one() == "cancelled"
+    finally:
+        database.close()
+
+
+_WATCHLIST_ID = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b"
+
+
+def _insert_run_with_envelope(connection: Any, run_id: str, envelope: str) -> None:
+    connection.exec_driver_sql(
+        f"INSERT INTO analysis_runs {_RUN_COLUMNS} VALUES "  # noqa: S608
+        f"('{run_id}', 'KO', 'momentum', 'sma_crossover', 'completed', '2026-09-15T12:00:00.000000Z', "
+        f"1, 1, 1, 1, 1, 1, '{envelope}')"
+    )
+
+
+def test_watchlist_columns_revision_backfills_from_envelopes_and_downgrades(tmp_path: Path) -> None:
+    path = tmp_path / "watchlist-columns.sqlite3"
+    config = migration_config(path)
+    command.upgrade(config, "0005_remove_cancelled_outcome")
+    database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
+    try:
+        with database.transaction() as connection:
+            _insert_run_with_envelope(
+                connection, "run-watchlist", f'{{"watchlist_id":"{_WATCHLIST_ID}","watchlist_name":"Core"}}'
+            )
+            _insert_run_with_envelope(connection, "run-entries", "{}")
+            _insert_run_with_envelope(connection, "run-half", f'{{"watchlist_id":"{_WATCHLIST_ID}"}}')
+            _insert_run_with_envelope(connection, "run-unreadable", '{"watchlist_id":7,"watchlist_name":null}')
+        command.upgrade(config, "head")
+        with database.read() as connection:
+            rows = connection.exec_driver_sql(
+                "SELECT analysis_run_id, watchlist_id, watchlist_name FROM analysis_runs ORDER BY 1"
+            ).all()
+            assert [tuple(row) for row in rows] == [
+                ("run-entries", None, None),
+                ("run-half", None, None),
+                ("run-unreadable", None, None),
+                ("run-watchlist", _WATCHLIST_ID, "Core"),
+            ]
+            indexes = set(
+                connection.exec_driver_sql(
+                    "SELECT name FROM sqlite_schema WHERE type='index' AND tbl_name='analysis_runs'"
+                )
+                .scalars()
+                .all()
+            )
+            assert {"ix_analysis_runs_watchlist", "ix_analysis_runs_refresh", "ix_analysis_runs_completed"} <= indexes
+        assert ensure_database_ready(database) is ReadinessOutcome.READY
+        with pytest.raises(IntegrityError), database.transaction() as connection:
+            connection.exec_driver_sql("UPDATE analysis_runs SET watchlist_name = NULL WHERE watchlist_id IS NOT NULL")
+        command.downgrade(config, "0005_remove_cancelled_outcome")
+        with database.read() as connection:
+            columns = [row[1] for row in connection.exec_driver_sql("PRAGMA table_info('analysis_runs')")]
+            assert "watchlist_id" not in columns
+            assert "watchlist_name" not in columns
+            assert connection.exec_driver_sql("SELECT count(*) FROM analysis_runs").scalar_one() == 4
+            indexes = set(
+                connection.exec_driver_sql(
+                    "SELECT name FROM sqlite_schema WHERE type='index' AND tbl_name='analysis_runs'"
+                )
+                .scalars()
+                .all()
+            )
+            assert "ix_analysis_runs_watchlist" not in indexes
     finally:
         database.close()

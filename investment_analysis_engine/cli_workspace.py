@@ -23,9 +23,12 @@ import typer
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.refresh import prepare_refresh, run_refresh
 from investment_analysis_engine.application.runs import (
+    RefreshQueryNames,
     RunQueryNames,
+    build_refresh_query,
     build_run_query,
     compare_refresh_runs,
+    list_refreshes,
     list_runs,
     parse_refresh_id,
     replay_run_document,
@@ -65,6 +68,9 @@ from investment_analysis_engine.workspace.refresh import DEFAULT_WORKERS, MAX_WO
 from investment_analysis_engine.workspace.repositories.watchlists import DeletedWatchlist, RemovedEntries
 from investment_analysis_engine.workspace.runs import (
     AnalysisRunSummary,
+    RefreshPage,
+    RefreshQuery,
+    RefreshSummary,
     WatchlistSummary,
 )
 from investment_analysis_engine.workspace.watchlists import (
@@ -73,6 +79,7 @@ from investment_analysis_engine.workspace.watchlists import (
     WatchlistNotFoundError,
     WatchlistRef,
 )
+from investment_analysis_engine.workspace_documents.refreshes import build_refreshes_list_document
 from investment_analysis_engine.workspace_documents.runs import build_runs_list_document
 from investment_analysis_engine.workspace_documents.runs_compare import render_runs_compare_text
 from investment_analysis_engine.workspace_documents.watchlist import (
@@ -108,6 +115,9 @@ _RUN_QUERY_NAMES = RunQueryNames(
     offset="--offset",
 )
 """The runs-list options, spelled as the command declares them."""
+
+_REFRESH_QUERY_NAMES = RefreshQueryNames(watchlist="--watchlist", limit="--limit", offset="--offset")
+"""The refreshes-list options, spelled as the command declares them."""
 
 
 _CREATE_PARAMETERS = {"name": "NAME"}
@@ -413,6 +423,57 @@ def runs_list(  # noqa: PLR0913
         typer.echo(_run_summary_line(item))
 
 
+@runs_app.command("refreshes")
+def runs_refreshes(
+    *,
+    watchlist: Annotated[
+        str | None,
+        typer.Option(
+            "--watchlist",
+            help="Only refreshes that ran this watchlist: its full ID, or its current name.",
+        ),
+    ] = None,
+    limit: Annotated[int, typer.Option("--limit", help="Maximum rows (1-100).")] = 20,
+    offset: Annotated[int, typer.Option("--offset", help="Rows to skip.")] = 0,
+    json_output: Annotated[
+        bool, typer.Option("--json", help="Emit one JSON object holding a page of refresh summaries.")
+    ] = False,
+) -> None:
+    """List past refreshes, most recently completed first, counted from their stored runs."""
+    with parameter_failures(json_output=json_output):
+        query = build_refresh_query(names=_REFRESH_QUERY_NAMES, watchlist_id=None, limit=limit, offset=offset)
+    with workspace_failures("runs refreshes", json_output=json_output):
+        context = ApplicationContext(settings=settings)
+        page = _refreshes_of(context, query, watchlist)
+    summaries = page.summaries
+    if json_output:
+        typer.echo(document_json(build_refreshes_list_document(summaries, has_more=page.has_more)))
+        return
+    if not summaries:
+        typer.echo("No matching refreshes.")
+        return
+    for item in summaries:
+        typer.echo(_refresh_summary_line(item))
+
+
+def _refreshes_of(context: ApplicationContext, query: RefreshQuery, watchlist: str | None) -> RefreshPage:
+    """Return the refreshes page for ``query``, narrowed to ``watchlist`` given as a full ID or a current name.
+
+    A value that parses as a UUID is the watchlist ID, which also finds a deleted watchlist's refreshes. Any other
+    value is resolved as a current watchlist name; a name no watchlist has matches no refresh.
+    """
+    if watchlist is None:
+        return list_refreshes(context, query)
+    try:
+        watchlist_id = UUID(watchlist)
+    except ValueError:
+        try:
+            watchlist_id = get_watchlist_summary(context, WatchlistName(watchlist)).watchlist_id
+        except WatchlistNotFoundError:
+            return RefreshPage(summaries=(), has_more=False)
+    return list_refreshes(context, query.model_copy(update={"watchlist_id": watchlist_id}))
+
+
 @runs_app.command("show")
 def runs_show(
     run_id: Annotated[str, typer.Argument(help="Analysis Run ID (the full UUID shown by 'runs list').")],
@@ -455,6 +516,16 @@ def _parse_run_id(value: str, *, field: str) -> UUID:
             "by 'runs list' or 'refresh' — not a shortened or partial value.",
             parameters=(field,),
         ) from exc
+
+
+def _refresh_summary_line(summary: RefreshSummary) -> str:
+    counts = ", ".join(f"{count} {outcome.value}" for outcome, count in summary.outcome_counts.items() if count)
+    source = "list of entries" if summary.watchlist_name is None else summary.watchlist_name
+    plural = "" if summary.run_count == 1 else "s"
+    return (
+        f"{summary.refresh_id}  {summary.last_completed_at.isoformat()}  {source}: "
+        f"{summary.run_count} run{plural} ({counts})"
+    )
 
 
 def _run_summary_line(summary: AnalysisRunSummary) -> str:

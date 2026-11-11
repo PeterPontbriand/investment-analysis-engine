@@ -101,7 +101,7 @@ sequencing meaning.
 | 12 | [Strategy wiring consolidation (SWC)](swc/SWC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-19 |
 | 14B | [Pattern cleanup before Step 3.5 (PC)](pattern-cleanup/PC_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-10-21 |
 | 14A | [Gate reliability (GR)](gate-reliability/GR_GATE_RELIABILITY_PLAN.md#2-sequence-and-status) | Complete | 2026-10-21 |
-| 15A | [Local HTTP API for the GUI application (API)](api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-11-08 |
+| 15A | [Local HTTP API for the GUI application (API)](api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-11-10 |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |

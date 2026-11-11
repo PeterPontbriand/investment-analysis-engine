@@ -38,10 +38,12 @@ The command initializes fresh storage, upgrades a structurally valid recognized
 ancestor, or succeeds without changes when already ready. It does not prompt for
 confirmation. Unknown/newer revisions, unversioned nonempty storage and schema
 drift require inspection with matching application code, not a blind upgrade.
-The bundle holds five revisions, `0001_persistence` to `0005_remove_cancelled_outcome`,
-and a database at any earlier one upgrades in place. The last revision rebuilds the
+The bundle holds six revisions, `0001_persistence` to `0006_run_watchlist_columns`,
+and a database at any earlier one upgrades in place. The fifth rebuilds the
 run table without the `cancelled` outcome that no run ever had; it stops and changes
-nothing if a stored run somehow holds that outcome. Upgrade behavior is tested with
+nothing if a stored run somehow holds that outcome. The last adds the watchlist's ID
+and name to the run table, copied from each stored run's record, so that refreshes can
+be listed; a run that names no watchlist keeps them empty. Upgrade behavior is tested with
 synthetic migration history.
 
 Both maintenance commands accept `--database-url` and `--json`. An override is

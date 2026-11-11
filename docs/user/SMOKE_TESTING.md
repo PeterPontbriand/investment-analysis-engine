@@ -238,7 +238,16 @@ ian refresh "Smoke Test" --json
 
 Expect one JSON document that parses and carries an integer `schema_version`, the refresh ID, the counts and one result for each entry. This refresh saves a new set of runs; the earlier ones stay.
 
-B10. Delete the watchlist:
+B10. List the refreshes:
+
+```powershell
+ian runs refreshes
+ian runs refreshes --json
+```
+
+Expect two refreshes, most recently completed first, each headed by its refresh ID and named `Smoke Test`, with the number of stored runs and the count of each outcome. The refresh from B9 comes first and the one from B5 second, and the refresh ID of B5 matches. The JSON form is one document that parses and carries an integer `schema_version`, `has_more` set to `false` and one item for each refresh.
+
+B11. Delete the watchlist:
 
 ```powershell
 ian watchlist delete "Smoke Test" --yes
@@ -254,7 +263,7 @@ When the test is finished, close the terminal you used for it, which discards th
 - Investor-facing output uses readable statuses, warnings, and limitations.
 - Successful text reports begin with the instrument name/ticker and analysis heading. Routine cache rejection or refresh must not print an internal quality warning before that heading; diagnostic evidence remains available in `--diagnostics` and JSON.
 - Detail and diagnostic views retain provider, period, freshness, and resolution evidence.
-- JSON output parses as JSON and uses `null`, never non-standard numeric sentinels. Every JSON document carries an integer `schema_version`. If a runtime failure occurs during any command run with `--json` (S5, A5, A7 and B9), stdout must still contain a versioned failure document with `result: null` and a reason; `$LASTEXITCODE` must be nonzero. Historical numeric-quality failures should identify affected fields/dates without dumping raw payloads or secrets. Do not manufacture a live provider failure merely to complete this smoke test.
+- JSON output parses as JSON and uses `null`, never non-standard numeric sentinels. Every JSON document carries an integer `schema_version`. If a runtime failure occurs during any command run with `--json` (S5, A5, A7, B9 and B10), stdout must still contain a versioned failure document with `result: null` and a reason; `$LASTEXITCODE` must be nonzero. Historical numeric-quality failures should identify affected fields/dates without dumping raw payloads or secrets. Do not manufacture a live provider failure merely to complete this smoke test.
 - Historical requests do not use information published after the requested boundary.
 - Optional quote failure does not discard an otherwise valid Graham calculation.
 - If a text run does fail on a provider (do not manufacture one), its first line says what a test request to that provider found, or that it was not checked; the seven wordings are explained in [Installation, troubleshooting](INSTALLATION.md#4-troubleshooting). `--json` output carries no such line.
@@ -302,6 +311,7 @@ B7:
 B8:
 B9:
 B10:
+B11:
 
 Issues filed for failures:
 ```

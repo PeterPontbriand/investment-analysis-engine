@@ -1,0 +1,5 @@
+exit 0
+--- stdout
+<uuid> <time> Seeded: 2 runs (2 completed) <uuid> <time> Seeded: 2 runs (2 completed)
+--- stderr
+

@@ -27,6 +27,8 @@ from investment_analysis_engine.workspace.runs import (
     RUN_QUERY_MIN_LIMIT,
     AnalysisRun,
     AnalysisRunNotFoundError,
+    RefreshPage,
+    RefreshQuery,
     RunPage,
     RunQuery,
 )
@@ -49,6 +51,15 @@ class RunQueryNames:
     method: str
     status: str
     refresh_id: str
+    limit: str
+    offset: str
+
+
+@dataclass(frozen=True)
+class RefreshQueryNames:
+    """How a caller spells each refreshes-list parameter, so a rejection names the parameter the caller used."""
+
+    watchlist: str
     limit: str
     offset: str
 
@@ -135,6 +146,36 @@ def build_run_query(  # noqa: PLR0913
     )
 
 
+def build_refresh_query(*, names: RefreshQueryNames, watchlist_id: str | None, limit: int, offset: int) -> RefreshQuery:
+    """Check the raw values of a refreshes-list request, in the order the parameters are listed, and build the query.
+
+    Args:
+        names: The caller's spelling of each parameter, used in every message and in ``parameters``.
+        watchlist_id: The raw watchlist ID filter, or ``None``.
+        limit: The row limit.
+        offset: The number of rows to skip.
+
+    Raises:
+        InvalidParameterError: If any value is rejected; the first rejected parameter is reported.
+    """
+    watchlist = None
+    if watchlist_id is not None:
+        try:
+            watchlist = UUID(watchlist_id)
+        except ValueError as exc:
+            raise InvalidParameterError(
+                f"{names.watchlist} {watchlist_id!r} is not a valid watchlist ID.", parameters=(names.watchlist,)
+            ) from exc
+    if not RUN_QUERY_MIN_LIMIT <= limit <= RUN_QUERY_MAX_LIMIT:
+        raise InvalidParameterError(
+            f"{names.limit} must be between {RUN_QUERY_MIN_LIMIT} and {RUN_QUERY_MAX_LIMIT}.",
+            parameters=(names.limit,),
+        )
+    if offset < 0:
+        raise InvalidParameterError(f"{names.offset} must be 0 or greater.", parameters=(names.offset,))
+    return RefreshQuery(watchlist_id=watchlist, limit=limit, offset=offset)
+
+
 def _compare_columns() -> tuple[CompareColumn, ...]:
     """Return the declared strategies as table columns, in the order the strategies are declared."""
     return tuple(
@@ -181,6 +222,16 @@ def list_runs(context: ApplicationContext, query: RunQuery) -> RunPage:
         return SQLiteAnalysisRunRepository(database).list(query)
 
 
+def list_refreshes(context: ApplicationContext, query: RefreshQuery) -> RefreshPage:
+    """Return the page of refresh summaries matching ``query``, most recently completed first, and whether more follow.
+
+    A refresh is the stored runs that share a refresh ID, so the counts are of stored runs only: a stopped refresh
+    shows fewer runs, and a refresh run without saving does not appear.
+    """
+    with open_database(context) as database:
+        return SQLiteAnalysisRunRepository(database).list_refreshes(query)
+
+
 def replay_run_text(context: ApplicationContext, run_id: UUID, mode: TextPresentationMode) -> str:
     """Replay one stored run as text in ``mode``, using only its own captured evidence.
 
@@ -223,10 +274,13 @@ def compare_refresh_runs(context: ApplicationContext, refresh_id: UUID) -> RunsC
 
 
 __all__ = [
+    "RefreshQueryNames",
     "RunQueryNames",
+    "build_refresh_query",
     "build_run_query",
     "compare_refresh_runs",
     "declared_method_id",
+    "list_refreshes",
     "list_runs",
     "parse_refresh_id",
     "replay_run_document",

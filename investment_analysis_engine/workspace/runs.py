@@ -9,6 +9,7 @@ or adapter behavior is introduced here. Selection values reuse B1's discriminate
 identifiers and finite-value guarantees.
 """
 
+from collections.abc import Mapping
 from datetime import date
 from typing import ClassVar, Literal
 from uuid import UUID
@@ -178,6 +179,38 @@ class RunPage(_FrozenModel):
     has_more: bool
 
 
+class RefreshQuery(_FrozenModel):
+    """Bounded filter set for querying refresh summaries."""
+
+    watchlist_id: UUID | None = None
+    limit: int = Field(default=20, ge=RUN_QUERY_MIN_LIMIT, le=RUN_QUERY_MAX_LIMIT)
+    offset: int = Field(default=0, ge=0)
+
+
+class RefreshSummary(_FrozenModel):
+    """One refresh as its stored runs show it: when it ran, which watchlist it ran, and how its runs ended.
+
+    The watchlist fields are the id and name recorded when the refresh ran, both ``None`` for a refresh of a list of
+    entries or one whose stored envelopes name no watchlist. ``outcome_counts`` has one count for every outcome and
+    counts stored runs only.
+    """
+
+    refresh_id: UUID
+    watchlist_id: UUID | None = None
+    watchlist_name: str | None = None
+    first_completed_at: AwareDatetime
+    last_completed_at: AwareDatetime
+    run_count: int = Field(ge=1)
+    outcome_counts: Mapping[RunOutcome, int]
+
+
+class RefreshPage(_FrozenModel):
+    """One page of refresh summaries and whether more rows follow it for the same filter."""
+
+    summaries: tuple[RefreshSummary, ...]
+    has_more: bool
+
+
 class WatchlistEntry(_FrozenModel):
     """One (ticker, selection) pair within a watchlist, addressed by its own position.
 
@@ -239,6 +272,9 @@ __all__ = [
     "AnalysisRun",
     "AnalysisRunNotFoundError",
     "AnalysisRunSummary",
+    "RefreshPage",
+    "RefreshQuery",
+    "RefreshSummary",
     "RunPage",
     "RunQuery",
     "Watchlist",
