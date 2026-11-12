@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from enum import StrEnum
+from types import MappingProxyType
 from typing import Final
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
@@ -283,8 +284,7 @@ class InputResolutionResult:
         left_out: The observations of a series the provider reported that are not in it because they were reported
             only on an earlier basis or their latest versions disagree, each with the reason. Set only by the
             three-year-average EPS resolution, and only when it comes up short of three years.
-        reason_code: The code of a cause the resolution names itself (a gap in the years, or years left out), shown
-            with its message as written; ``None`` otherwise. Present only with ``INPUT_UNAVAILABLE``.
+        reason_code: The code of why the input is unavailable; set exactly when status is ``INPUT_UNAVAILABLE``.
     """
 
     status: CalculationStatus
@@ -306,6 +306,9 @@ class InputResolutionResult:
             raise ValueError(msg)
         if self.reason_code is not None and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
             msg = "InputResolutionResult: reason_code requires status INPUT_UNAVAILABLE."
+            raise ValueError(msg)
+        if self.status is CalculationStatus.INPUT_UNAVAILABLE and self.reason_code is None:
+            msg = "InputResolutionResult: status INPUT_UNAVAILABLE requires a reason_code."
             raise ValueError(msg)
         if self.status is CalculationStatus.OK:
             if self.resolved_input is None:
@@ -706,6 +709,7 @@ class InputResolver:
                 reason=f"Quote response timing is unusable: {evidence.status}.",
                 resolution_trace=result.resolution_trace,
                 quote_freshness=evidence,
+                reason_code=ReasonCode.QUOTE_TIMING_UNUSABLE,
             )
         return replace(result, quote_freshness=evidence)
 
@@ -1018,6 +1022,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=reason,
+                reason_code=ReasonCode.NOT_AVAILABLE_AS_OF,
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1148,12 +1153,13 @@ class InputResolver:
         for end in selected_ends:
             if len(by_period_end[end]) > 1:
                 reason = (
-                    f"Ambiguous: {len(by_period_end[end])} candidates share "
-                    f"observation_period_end={end.isoformat()} in a selected period."
+                    f"{len(by_period_end[end])} reported values share the period ending {end.isoformat()}, "
+                    "so none of them is used."
                 )
                 return InputResolutionResult(
                     status=CalculationStatus.INPUT_UNAVAILABLE,
                     reason=reason,
+                    reason_code=ReasonCode.AMBIGUOUS_FACT,
                     resolution_trace=trace.append(
                         _event(
                             field_name,
@@ -1180,11 +1186,13 @@ class InputResolver:
         # --- 7. Selected-series compatibility ---
         common_units = selected_facts[0].units
         common_currency = selected_facts[0].currency
-        compatibility_reason = _earnings_compatibility_reason(selected_facts)
-        if compatibility_reason is not None:
+        compatibility_failure = _earnings_compatibility_failure(selected_facts)
+        if compatibility_failure is not None:
+            compatibility_code, compatibility_reason = compatibility_failure
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=compatibility_reason,
+                reason_code=compatibility_code,
                 resolution_trace=_derivation_error_trace(trace, field_name, compatibility_reason, now=resolver_now),
             )
 
@@ -1325,11 +1333,13 @@ class InputResolver:
         preferred = preferred_result.resolved_input
         assert preferred is not None
 
-        alignment_error = _bvps_component_alignment_error(equity, preferred, shares)
-        if alignment_error is not None:
+        alignment_failure = _bvps_component_alignment_failure(equity, preferred, shares)
+        if alignment_failure is not None:
+            alignment_code, alignment_error = alignment_failure
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=alignment_error,
+                reason_code=alignment_code,
                 resolution_trace=_derivation_outcome_trace(
                     trace,
                     FinancialField.BVPS.value,
@@ -1339,13 +1349,11 @@ class InputResolver:
                 ),
             )
         if preferred.value > 0:
-            reason = (
-                "BVPS unavailable: stockholders_equity cannot be treated as common shareholders' equity "
-                "because same-period preferred_shares_outstanding is non-zero."
-            )
+            reason = "The company has preferred shares, so stockholders' equity is not common shareholders' equity."
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=reason,
+                reason_code=ReasonCode.INCOMPATIBLE_SCOPE,
                 resolution_trace=_derivation_outcome_trace(
                     trace,
                     FinancialField.BVPS.value,
@@ -1675,6 +1683,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=reason,
+                reason_code=ReasonCode.NOT_AVAILABLE_AS_OF,
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1707,6 +1716,7 @@ class InputResolver:
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=reason,
+                reason_code=ReasonCode.MISSING_FACT,
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1749,6 +1759,7 @@ class InputResolver:
                 status=status,
                 reason=reason,
                 provider_failure=_rejected_answer(request) if status is CalculationStatus.PROVIDER_ERROR else None,
+                reason_code=ReasonCode.NOT_AVAILABLE_AS_OF if status is CalculationStatus.INPUT_UNAVAILABLE else None,
                 resolution_trace=trace.append(
                     _event(
                         field_name,
@@ -1780,6 +1791,7 @@ class InputResolver:
                     status=CalculationStatus.INPUT_UNAVAILABLE,
                     reason=f"Quote response timing is unusable: {timing.status}.",
                     quote_freshness=timing,
+                    reason_code=ReasonCode.QUOTE_TIMING_UNUSABLE,
                     resolution_trace=trace.append(
                         _event(
                             field_name,
@@ -2071,6 +2083,15 @@ def _bvps_component_request(request: FinancialFactRequest, field_name: Financial
     )
 
 
+_BVPS_COMPONENT_LABELS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "stockholders_equity": "Stockholders' equity",
+        "common_shares_outstanding": "The common share count",
+        "preferred_shares_outstanding": "The preferred share count",
+    }
+)
+
+
 def _bvps_component_failure(
     name: str,
     result: InputResolutionResult,
@@ -2079,7 +2100,9 @@ def _bvps_component_failure(
     now: datetime,
 ) -> InputResolutionResult:
     """Wrap a component-resolution failure with BVPS derivation context."""
-    reason = f"BVPS unavailable: required {name} component could not be resolved: {result.reason}"
+    reason = f"{_BVPS_COMPONENT_LABELS[name]} could not be resolved: {result.reason}"
+    if name == "preferred_shares_outstanding" and result.status is CalculationStatus.INPUT_UNAVAILABLE:
+        reason += " Missing preferred-share data is not assumed to be zero."
     outcome = {
         CalculationStatus.PROVIDER_ERROR: ResolutionOutcome.ERROR,
         CalculationStatus.INVALID_INPUT: ResolutionOutcome.INVALID,
@@ -2088,6 +2111,7 @@ def _bvps_component_failure(
         status=result.status,
         reason=reason,
         provider_failure=result.provider_failure,
+        reason_code=result.reason_code,
         resolution_trace=_derivation_outcome_trace(
             trace,
             FinancialField.BVPS.value,
@@ -2098,29 +2122,29 @@ def _bvps_component_failure(
     )
 
 
-def _bvps_component_alignment_error(
+def _bvps_component_alignment_failure(
     equity: ResolvedInput,
     preferred: ResolvedInput,
     shares: ResolvedInput,
-) -> str | None:
-    """Return a reason when BVPS derivation components are not safely compatible."""
+) -> tuple[ReasonCode, str] | None:
+    """Return the code and message when BVPS derivation components are not safely compatible, else ``None``."""
     components = (equity, preferred, shares)
     period_ends = {component.observation_period_end for component in components}
     if None in period_ends or len(period_ends) != 1:
-        return "BVPS unavailable: equity and share-count components do not share one reporting-period end."
+        return (ReasonCode.INCOMPATIBLE_PERIOD, "Equity and the share counts are not for one reporting-period end.")
     if equity.currency is None:
-        return "BVPS unavailable: stockholders_equity component has no currency."
+        return (ReasonCode.INCOMPATIBLE_CURRENCY, "Stockholders' equity has no currency.")
     if equity.units != FinancialUnit.CURRENCY.value:
-        return "BVPS unavailable: stockholders_equity component is not a currency amount."
+        return (ReasonCode.INCOMPATIBLE_UNITS, "Stockholders' equity is not a currency amount.")
     if preferred.units != FinancialUnit.SHARES.value or shares.units != FinancialUnit.SHARES.value:
-        return "BVPS unavailable: share-count components are not expressed in shares."
+        return (ReasonCode.INCOMPATIBLE_UNITS, "A share count is not expressed in shares.")
 
-    error = None
+    failure = None
     if preferred.value < 0:
-        error = "BVPS unavailable: preferred_shares_outstanding is negative."
+        failure = (ReasonCode.AMBIGUOUS_FACT, "The reported preferred share count is negative.")
     elif shares.value <= 0:
-        error = "BVPS unavailable: common_shares_outstanding must be strictly positive."
-    return error
+        failure = (ReasonCode.AMBIGUOUS_FACT, "The reported common share count is not greater than zero.")
+    return failure
 
 
 def _boundary_error(request: FinancialFactRequest, fact: ProviderFact) -> str | None:
@@ -2191,10 +2215,13 @@ def _validate_provider_response(
     return (CalculationStatus.INPUT_UNAVAILABLE, error) if error is not None else None
 
 
-def _left_out_code(left_out: list[LeftOutObservation]) -> ReasonCode | None:
-    """Return the code of the newest left-out year, which is the last of the list: none when no year was left out."""
+def _left_out_code(left_out: list[LeftOutObservation]) -> ReasonCode:
+    """Return the code of the newest left-out year, which is the last of the list.
+
+    Returns ``insufficient_history`` when no year was left out.
+    """
     if not left_out:
-        return None
+        return ReasonCode.INSUFFICIENT_HISTORY
     return ReasonCode.EARLIER_BASIS if left_out[-1].why is LeftOutReason.EARLIER_BASIS else ReasonCode.AMBIGUOUS_FACT
 
 
@@ -2235,8 +2262,8 @@ def _period_end(fact: ProviderFact) -> datetime:
     return fact.observation_period_end
 
 
-def _earnings_compatibility_reason(facts: list[ProviderFact]) -> str | None:
-    """Return why annual EPS observations cannot safely form one series."""
+def _earnings_compatibility_failure(facts: list[ProviderFact]) -> tuple[ReasonCode, str] | None:
+    """Return the code and message of why annual EPS observations cannot safely form one series, or ``None``."""
     first = facts[0]
     expected = (
         first.provider_id,
@@ -2260,13 +2287,18 @@ def _earnings_compatibility_reason(facts: list[ProviderFact]) -> str | None:
             _note_value(fact.notes, "split_treatment"),
         )
         if actual != expected:
+            if fact.currency != first.currency:
+                return (ReasonCode.INCOMPATIBLE_CURRENCY, "The years of EPS are reported in different currencies.")
+            if fact.units != first.units:
+                return (ReasonCode.INCOMPATIBLE_UNITS, "The years of EPS are reported in different units.")
             return (
-                "Annual EPS observations are incompatible across provider concept, diluted/basic basis, "
-                "share class, currency, units, fiscal basis, or split treatment."
+                ReasonCode.INCOMPATIBLE_SCOPE,
+                "The years of EPS differ in concept, diluted or basic basis, share class, fiscal basis or "
+                "split treatment.",
             )
     fiscal_years = [fact.fiscal_year for fact in facts]
     if all(year is not None for year in fiscal_years) and len(set(fiscal_years)) != len(fiscal_years):
-        return "Annual EPS observations do not represent distinct fiscal years."
+        return (ReasonCode.AMBIGUOUS_FACT, "Two EPS values are for the same fiscal year.")
     return None
 
 

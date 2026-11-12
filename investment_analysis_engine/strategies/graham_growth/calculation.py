@@ -445,6 +445,7 @@ class GrahamGrowthInputResolver(InputResolver):
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
                 reason=reason,
+                reason_code=ReasonCode.MISSING_FACT,
                 resolution_trace=single_event_trace(
                     field_name,
                     ResolutionStage.OVERRIDE,

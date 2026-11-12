@@ -1034,6 +1034,7 @@
         "reason-incompatible-inputs",
         "reason-ambiguous-fact",
         "reason-not-available-as-of",
+        "reason-quote-timing-unusable",
         "reason-stale-anchor",
         "reason-earlier-basis",
         "reason-growth-not-meaningful",
@@ -1968,6 +1969,12 @@
       "definition": "A required growth rate is not positive, so a growth screen does not pass: free cash flow, earnings or both did not grow.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Not Growing"
+    },
+    "reason-quote-timing-unusable": {
+      "body": "See [quote freshness](help:terms/quote-freshness).",
+      "definition": "A price quote cannot be used because the time it was retrieved is unknown, it is dated in the future, or it is older than the quote freshness rules allow.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Quote Timing Unusable"
     },
     "reason-security-not-applicable": {
       "body": "A strategy built for company financial statements does not cover every instrument or every industry. See [instrument kind](help:terms/instrument-kind), [industry class](help:terms/industry-class) and [not applicable](help:terms/not-applicable).",

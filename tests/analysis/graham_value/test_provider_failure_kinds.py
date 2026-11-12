@@ -8,12 +8,13 @@ propagates.
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import (
     FactsNotAvailableAsOf,
@@ -23,10 +24,11 @@ from investment_analysis_engine.data.financial.facts import (
     FinancialUnit,
     ProviderFact,
 )
-from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind, ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.resolver import (
     InputResolutionResult,
     InputResolver,
+    _bvps_component_alignment_failure,
 )
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
@@ -159,6 +161,7 @@ def test_a_failure_kind_requires_a_provider_error_status() -> None:
         InputResolutionResult(
             status=CalculationStatus.INPUT_UNAVAILABLE,
             reason="unavailable",
+            reason_code=ReasonCode.MISSING_FACT,
             provider_failure=_record(ProviderFailureKind.NO_DATA),
         )
 
@@ -207,14 +210,14 @@ def _components(equity: float, shares: float) -> dict[FinancialField, Any]:
     }
 
 
-@pytest.mark.parametrize(
-    "failed",
-    [
-        FinancialField.STOCKHOLDERS_EQUITY,
-        FinancialField.COMMON_SHARES_OUTSTANDING,
-        FinancialField.PREFERRED_SHARES_OUTSTANDING,
-    ],
-)
+_BVPS_LABELS = {
+    FinancialField.STOCKHOLDERS_EQUITY: "Stockholders' equity",
+    FinancialField.COMMON_SHARES_OUTSTANDING: "The common share count",
+    FinancialField.PREFERRED_SHARES_OUTSTANDING: "The preferred share count",
+}
+
+
+@pytest.mark.parametrize("failed", list(_BVPS_LABELS))
 @pytest.mark.parametrize("kind", sorted(_FAILED))
 def test_a_component_failure_passes_its_kind_through_the_bvps_derivation(
     failed: FinancialField, kind: ProviderFailureKind
@@ -225,7 +228,7 @@ def test_a_component_failure_passes_its_kind_through_the_bvps_derivation(
 
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert result.provider_failure == _record(kind)
-    assert failed.value in (result.reason or "")
+    assert _BVPS_LABELS[failed] in (result.reason or "")
 
 
 def test_a_non_finite_bvps_quotient_is_reachable_from_finite_components() -> None:
@@ -236,6 +239,160 @@ def test_a_non_finite_bvps_quotient_is_reachable_from_finite_components() -> Non
     assert result.status is CalculationStatus.PROVIDER_ERROR
     assert "non-finite" in (result.reason or "")
     assert result.provider_failure == _record(ProviderFailureKind.UNEXPECTED_RESPONSE)
+
+
+# --- the code of an unavailable BVPS derivation ------------------------------------------------------------------
+
+
+def _part(field: FinancialField, value: float, *, units: FinancialUnit, currency: str | None) -> ResolvedInput:
+    return ResolvedInput(
+        field.value,
+        value,
+        SourceKind.PROVIDER,
+        NOW,
+        units=units.value,
+        currency=currency,
+        provider_id=PROVIDER_ID,
+        retrieved_at=RETRIEVED_AT,
+        observation_period_end=PERIOD_END,
+    )
+
+
+def _equity(*, units: FinancialUnit = FinancialUnit.CURRENCY, currency: str | None = "USD") -> ResolvedInput:
+    return _part(FinancialField.STOCKHOLDERS_EQUITY, 100.0, units=units, currency=currency)
+
+
+def _preferred(value: float = 0.0, units: FinancialUnit = FinancialUnit.SHARES) -> ResolvedInput:
+    return _part(FinancialField.PREFERRED_SHARES_OUTSTANDING, value, units=units, currency=None)
+
+
+def _common(value: float = 10.0, units: FinancialUnit = FinancialUnit.SHARES) -> ResolvedInput:
+    return _part(FinancialField.COMMON_SHARES_OUTSTANDING, value, units=units, currency=None)
+
+
+@pytest.mark.parametrize(
+    ("equity", "preferred", "common", "code", "message"),
+    [
+        (
+            _equity(),
+            _preferred(),
+            replace(_common(), observation_period_end=PERIOD_END - timedelta(days=365)),
+            ReasonCode.INCOMPATIBLE_PERIOD,
+            "Equity and the share counts are not for one reporting-period end.",
+        ),
+        (
+            _equity(currency=None),
+            _preferred(),
+            _common(),
+            ReasonCode.INCOMPATIBLE_CURRENCY,
+            "Stockholders' equity has no currency.",
+        ),
+        (
+            _equity(units=FinancialUnit.CURRENCY_PER_SHARE),
+            _preferred(),
+            _common(),
+            ReasonCode.INCOMPATIBLE_UNITS,
+            "Stockholders' equity is not a currency amount.",
+        ),
+        (
+            _equity(),
+            _preferred(),
+            _common(units=FinancialUnit.CURRENCY),
+            ReasonCode.INCOMPATIBLE_UNITS,
+            "A share count is not expressed in shares.",
+        ),
+        (
+            _equity(),
+            _preferred(-1.0),
+            _common(),
+            ReasonCode.AMBIGUOUS_FACT,
+            "The reported preferred share count is negative.",
+        ),
+        (
+            _equity(),
+            _preferred(),
+            _common(0.0),
+            ReasonCode.AMBIGUOUS_FACT,
+            "The reported common share count is not greater than zero.",
+        ),
+    ],
+)
+def test_components_that_cannot_be_aligned_carry_the_code_of_the_cause(
+    equity: ResolvedInput, preferred: ResolvedInput, common: ResolvedInput, code: ReasonCode, message: str
+) -> None:
+    assert _bvps_component_alignment_failure(equity, preferred, common) == (code, message)
+
+
+def test_aligned_components_have_no_alignment_failure() -> None:
+    assert _bvps_component_alignment_failure(_equity(), _preferred(), _common()) is None
+
+
+def test_components_for_two_period_ends_make_the_derived_bvps_unavailable_with_the_period_code() -> None:
+    answers = _components(100.0, 10.0)
+    shifted = replace(
+        _component_fact(FinancialField.COMMON_SHARES_OUTSTANDING, 10.0),
+        observation_period_start=PERIOD_START - timedelta(days=365),
+        observation_period_end=PERIOD_END - timedelta(days=365),
+    )
+    answers[FinancialField.COMMON_SHARES_OUTSTANDING] = (shifted,)
+
+    result = _resolver(answers).resolve_bvps(_bvps_request(), use_cache=False)
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.INCOMPATIBLE_PERIOD
+    assert result.reason == "Equity and the share counts are not for one reporting-period end."
+
+
+def test_a_company_with_preferred_shares_has_no_common_equity_and_carries_the_scope_code() -> None:
+    answers = _components(100.0, 10.0)
+    answers[FinancialField.PREFERRED_SHARES_OUTSTANDING] = (
+        _component_fact(FinancialField.PREFERRED_SHARES_OUTSTANDING, 5.0),
+    )
+
+    result = _resolver(answers).resolve_bvps(_bvps_request(), use_cache=False)
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.INCOMPATIBLE_SCOPE
+    assert (
+        result.reason == "The company has preferred shares, so stockholders' equity is not common shareholders' equity."
+    )
+
+
+@pytest.mark.parametrize("failed", list(_BVPS_LABELS))
+def test_an_unavailable_component_passes_its_code_through_the_bvps_derivation(failed: FinancialField) -> None:
+    label = _BVPS_LABELS[failed]
+    answers = _components(100.0, 10.0) | {failed: FactsNotAvailableAsOf("filed after the boundary")}
+
+    result = _resolver(answers).resolve_bvps(_bvps_request(), use_cache=False)
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.NOT_AVAILABLE_AS_OF
+    assert (result.reason or "").startswith(f"{label} could not be resolved: filed after the boundary")
+    assert (result.reason or "").endswith("is not assumed to be zero.") is (
+        failed is FinancialField.PREFERRED_SHARES_OUTSTANDING
+    )
+
+
+def test_missing_preferred_share_data_is_not_assumed_to_be_zero() -> None:
+    answers = _components(100.0, 10.0) | {FinancialField.PREFERRED_SHARES_OUTSTANDING: ()}
+
+    result = _resolver(answers).resolve_bvps(_bvps_request(), use_cache=False)
+
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.MISSING_FACT
+    assert result.reason == (
+        "The preferred share count could not be resolved: Provider returned no data for the requested field. "
+        "Missing preferred-share data is not assumed to be zero."
+    )
+
+
+def test_a_component_provider_error_carries_no_reason_code() -> None:
+    answers = _components(100.0, 10.0) | {FinancialField.STOCKHOLDERS_EQUITY: _error(None)}
+
+    result = _resolver(answers).resolve_bvps(_bvps_request(), use_cache=False)
+
+    assert result.status is CalculationStatus.PROVIDER_ERROR
+    assert result.reason_code is None
 
 
 # --- the Graham assemblies record the failure against the input ---------------------------------------------------
@@ -315,3 +472,4 @@ def test_a_not_available_as_of_signal_is_an_unavailable_input_not_a_provider_fai
         assert result.status is CalculationStatus.INPUT_UNAVAILABLE
         assert result.provider_failure is None
         assert result.reason == "first annual report on 2020-02-01; set an override"
+        assert result.reason_code is ReasonCode.NOT_AVAILABLE_AS_OF

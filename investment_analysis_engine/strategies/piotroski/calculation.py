@@ -272,9 +272,9 @@ def _evidence_figure(inputs: PiotroskiInputs, name: str, evidence: MetricEvidenc
     result = evidence.result
     if result.status is not MetricStatus.OK or result.value is None:
         status = result.status.value.replace("_", " ")
-        return _Gap(
-            result.reason_code or ReasonCode.MISSING_FACT, f"{label} is {status}: {_plain(result.reason or '')}"
-        )
+        assert result.reason_code is not None  # a MetricResult that is not ok carries its code
+        assert result.reason is not None  # and its reason
+        return _Gap(result.reason_code, f"{label} is {status}: {_plain(result.reason)}")
     operands = tuple(Operand(f"{name}:{item.name}", item.input) for item in evidence.operands)
     return _Figure(name, label, Fraction(result.value), operands, True, evidence.diagnostics)
 

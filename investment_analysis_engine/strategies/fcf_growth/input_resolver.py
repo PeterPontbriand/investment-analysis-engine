@@ -730,11 +730,9 @@ def _assemble_common(
             return (), ReasonCode.INCOMPATIBLE_CURRENCY, "Aligned cash-flow facts have incompatible currencies."
         metric = compute_free_cash_flow(ocf.value, capex.value)
         if metric.status is not MetricStatus.OK or metric.value is None:
-            return (
-                (),
-                metric.reason_code or ReasonCode.INVALID_REQUEST,
-                metric.reason or "Free cash flow could not be derived.",
-            )
+            assert metric.reason_code is not None  # a MetricResult that is not ok carries its code
+            assert metric.reason is not None  # and its reason
+            return (), metric.reason_code, metric.reason
         available = max(item.available_at for item in (ocf, capex) if item.available_at is not None)
         retrieved = max(item.retrieved_at for item in (ocf, capex) if item.retrieved_at is not None)
         fcf = ResolvedInput(

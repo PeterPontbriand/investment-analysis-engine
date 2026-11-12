@@ -251,7 +251,8 @@ def test_generic_missing_preferred_tag_with_direct_common_shares_remains_unavail
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
     assert result.reason is not None
-    assert "preferred_shares_outstanding" in result.reason
+    assert "The preferred share count could not be resolved" in result.reason
+    assert "Missing preferred-share data is not assumed to be zero." in result.reason
 
 
 def test_non_neutral_preferred_equity_concept_blocks_inferred_zero() -> None:

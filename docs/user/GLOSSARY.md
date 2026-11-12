@@ -1197,6 +1197,12 @@ An input was not yet available on the as-of date, for example because it was fil
 
 The engine never uses information from after the boundary. See [as-of date](#as-of-date) and [look-ahead bias](#look-ahead-bias).
 
+<a id="reason-quote-timing-unusable"></a>
+### Quote Timing Unusable
+A price quote cannot be used because the time it was retrieved is unknown, it is dated in the future, or it is older than the quote freshness rules allow.
+
+See [quote freshness](#quote-freshness).
+
 <a id="reason-stale-anchor"></a>
 ### Stale Anchor
 The market capitalization is not calculated: the newest annual report was overdue for replacement at the as-of date and none was filed.

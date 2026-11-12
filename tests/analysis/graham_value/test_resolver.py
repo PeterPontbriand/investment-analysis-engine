@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.cache import (
     InMemoryResolvedInputCache,
     ResolvedInputCacheEntry,
@@ -31,7 +32,12 @@ from investment_analysis_engine.data.financial.provenance import (
     ResolvedInput,
     SourceKind,
 )
-from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
+from investment_analysis_engine.data.financial.resolver import (
+    InputResolutionResult,
+    InputResolver,
+    _earnings_compatibility_failure,
+    _left_out_code,
+)
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_growth.calculation import GrahamGrowthInputResolver
@@ -768,6 +774,7 @@ def test_empty_provider_tuple_input_unavailable() -> None:
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
     assert result.reason is not None
+    assert result.reason_code is ReasonCode.MISSING_FACT
 
 
 # ===========================================================================
@@ -895,6 +902,7 @@ def test_historical_fact_no_available_at() -> None:
 
     result = resolver.resolve(_make_request(as_of=AS_OF), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.NOT_AVAILABLE_AS_OF
     assert cache.put_count == 0
 
 
@@ -911,6 +919,7 @@ def test_historical_fact_future_available_at() -> None:
 
     result = resolver.resolve(_make_request(as_of=AS_OF), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.NOT_AVAILABLE_AS_OF
     assert cache.put_count == 0
 
 
@@ -961,6 +970,7 @@ def test_current_fact_future_available_at_rejected() -> None:
 
     result = resolver.resolve(_make_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.NOT_AVAILABLE_AS_OF
     assert cache.put_count == 0
 
 
@@ -1220,8 +1230,22 @@ def test_result_invalid_requires_none_input_and_reason() -> None:
 
 
 def test_result_input_unavailable_valid() -> None:
-    r = InputResolutionResult(status=CalculationStatus.INPUT_UNAVAILABLE, resolved_input=None, reason="no data")
+    r = InputResolutionResult(
+        status=CalculationStatus.INPUT_UNAVAILABLE,
+        resolved_input=None,
+        reason="no data",
+        reason_code=ReasonCode.MISSING_FACT,
+    )
     assert r.status is CalculationStatus.INPUT_UNAVAILABLE
+
+
+def test_result_input_unavailable_requires_a_reason_code() -> None:
+    with pytest.raises(ValueError, match="requires a reason_code"):
+        InputResolutionResult(status=CalculationStatus.INPUT_UNAVAILABLE, resolved_input=None, reason="no data")
+
+
+def test_the_code_of_no_left_out_year_is_insufficient_history() -> None:
+    assert _left_out_code([]) is ReasonCode.INSUFFICIENT_HISTORY
 
 
 def test_result_provider_error_valid() -> None:
@@ -1523,6 +1547,10 @@ def test_c2c_duplicate_in_selected_period_is_unavailable() -> None:
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.AMBIGUOUS_FACT
+    assert (
+        result.reason == "2 reported values share the period ending 2024-12-31T00:00:00+00:00, so none of them is used."
+    )
 
 
 def test_c2c_duplicate_in_unselected_period_harmless() -> None:
@@ -1560,6 +1588,7 @@ def test_c2c_incompatible_provider_field_is_unavailable() -> None:
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.INCOMPATIBLE_SCOPE
 
 
 def test_c2c_incompatible_currency_is_unavailable() -> None:
@@ -1573,6 +1602,75 @@ def test_c2c_incompatible_currency_is_unavailable() -> None:
     resolver = _make_resolver(provider=provider)
     result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.INCOMPATIBLE_CURRENCY
+    assert result.reason == "The years of EPS are reported in different currencies."
+
+
+def test_c2c_incompatible_units_is_unavailable() -> None:
+    """Different units make the EPS series unavailable."""
+    facts = [
+        _fy_fact(2.0, FY2022_START, FY2022_END),
+        _fy_fact(3.0, FY2023_START, FY2023_END),
+        _fy_fact(4.0, FY2024_START, FY2024_END),
+    ]
+    # A provider fact cannot be built with other units than its field's, so the units are set on the built fact.
+    object.__setattr__(facts[0], "units", FinancialUnit.CURRENCY)
+    assert _earnings_compatibility_failure(facts) == (
+        ReasonCode.INCOMPATIBLE_UNITS,
+        "The years of EPS are reported in different units.",
+    )
+
+
+def test_c2c_two_values_for_one_fiscal_year_are_unavailable() -> None:
+    """Two periods that carry one fiscal-year label make the EPS series unavailable."""
+    facts = tuple(
+        replace(_fy_fact(value, start, end), fiscal_year=fiscal_year, period_kind=PeriodKind.COMPLETED_ANNUAL)
+        for value, start, end, fiscal_year in (
+            (2.0, FY2022_START, FY2022_END, 2023),
+            (3.0, FY2023_START, FY2023_END, 2023),
+            (4.0, FY2024_START, FY2024_END, 2024),
+        )
+    )
+    resolver = _make_resolver(provider=FakeProvider(facts=facts))
+    result = resolver.resolve_three_year_average_eps(_c2c_request(), use_cache=True)
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.AMBIGUOUS_FACT
+    assert result.reason == "Two EPS values are for the same fiscal year."
+
+
+def test_a_quote_that_is_not_recent_is_unusable_from_the_provider() -> None:
+    """A provider quote older than the freshness limit is unavailable with the quote-timing code."""
+    stale = _make_fact(field=FinancialField.CURRENT_PRICE, value=100.0, retrieved_at=NOW - timedelta(days=2))
+    resolver = _make_resolver(provider=FakeProvider(facts=(stale,)))
+    result = resolver.resolve(_make_request(field=FinancialField.CURRENT_PRICE), use_cache=False)
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.QUOTE_TIMING_UNUSABLE
+    assert result.reason == "Quote response timing is unusable: expired."
+
+
+def test_a_resolved_quote_whose_timing_is_unusable_is_unavailable_with_the_quote_timing_code() -> None:
+    """The gate of ``resolve`` replaces a resolved quote that is no longer recent with the quote-timing code."""
+
+    class _StaleQuoteResolver(InputResolver):
+        def _resolve(
+            self,
+            request: FinancialFactRequest,  # noqa: ARG002
+            *,
+            override: float | None = None,  # noqa: ARG002
+            use_cache: bool,  # noqa: ARG002
+        ) -> InputResolutionResult:
+            quote = _make_provider_input(
+                field_name="current_price", value=100.0, retrieved_at=NOW - timedelta(days=2), available_at=None
+            )
+            return InputResolutionResult(status=CalculationStatus.OK, resolved_input=quote)
+
+    result = _StaleQuoteResolver(FakeProvider(), clock=_fixed_clock()).resolve(
+        _make_request(field=FinancialField.CURRENT_PRICE), use_cache=False
+    )
+    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
+    assert result.reason_code is ReasonCode.QUOTE_TIMING_UNUSABLE
+    assert result.quote_freshness is not None
+    assert result.quote_freshness.status == "expired"
 
 
 # ---------------------------------------------------------------------------

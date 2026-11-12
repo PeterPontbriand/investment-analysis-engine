@@ -618,6 +618,7 @@
         "incompatible_scope",
         "ambiguous_fact",
         "not_available_as_of",
+        "quote_timing_unusable",
         "stale_anchor",
         "earlier_basis",
         "nonpositive_beginning",

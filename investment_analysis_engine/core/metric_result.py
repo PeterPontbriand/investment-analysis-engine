@@ -30,6 +30,7 @@ class ReasonCode(StrEnum):
     INCOMPATIBLE_SCOPE = "incompatible_scope"
     AMBIGUOUS_FACT = "ambiguous_fact"
     NOT_AVAILABLE_AS_OF = "not_available_as_of"
+    QUOTE_TIMING_UNUSABLE = "quote_timing_unusable"
     STALE_ANCHOR = "stale_anchor"
     EARLIER_BASIS = "earlier_basis"
     NONPOSITIVE_BEGINNING = "nonpositive_beginning"
@@ -110,6 +111,7 @@ REASON_CODE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
         ReasonCode.INCOMPATIBLE_SCOPE.value: "reason-incompatible-inputs",
         ReasonCode.AMBIGUOUS_FACT.value: "reason-ambiguous-fact",
         ReasonCode.NOT_AVAILABLE_AS_OF.value: "reason-not-available-as-of",
+        ReasonCode.QUOTE_TIMING_UNUSABLE.value: "reason-quote-timing-unusable",
         ReasonCode.STALE_ANCHOR.value: "reason-stale-anchor",
         ReasonCode.EARLIER_BASIS.value: "reason-earlier-basis",
         ReasonCode.NONPOSITIVE_BEGINNING.value: "reason-growth-not-meaningful",
