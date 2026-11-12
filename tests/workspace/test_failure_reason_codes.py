@@ -16,6 +16,7 @@ from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.failure_classification import failure_reason_code, provider_failure_of
 from investment_analysis_engine.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
@@ -74,7 +75,10 @@ def _number(
     status: CalculationStatus, failure: ProviderFailureRecord | None = None, *, result: CalculationStatus | None = None
 ) -> GrahamNumberAnalysis:
     assembly = GrahamNumberInputAssembly(
-        status=status, reason=None if status is CalculationStatus.OK else "eps: failed", provider_failure=failure
+        status=status,
+        reason=None if status is CalculationStatus.OK else "failed",
+        provider_failure=failure,
+        reason_code=None if status is CalculationStatus.OK else ReasonCode.INVALID_REQUEST,
     )
     result_status = result or status
     return GrahamNumberAnalysis(
@@ -82,7 +86,12 @@ def _number(
         as_of=None,
         effective_as_of=NOW,
         assembly=assembly,
-        result=GrahamNumberResult(status=result_status, reason="failed"),
+        result=GrahamNumberResult(
+            status=result_status,
+            reason=None if result_status is CalculationStatus.OK else "failed",
+            reason_code=None if result_status is CalculationStatus.OK else ReasonCode.INVALID_REQUEST,
+            **({"maximum_indicated_price": 1.0} if result_status is CalculationStatus.OK else {}),
+        ),
         margin_of_safety_percent=None,
     )
 
@@ -90,13 +99,15 @@ def _number(
 def _growth(status: CalculationStatus, failure: ProviderFailureRecord | None = None) -> GrahamGrowthAnalysis:
     from tests.workspace_documents.test_analysis_run_replay import _GROWTH_POLICY  # noqa: PLC0415
 
-    assembly = GrowthValueInputAssembly(status=status, reason="eps: failed", provider_failure=failure)
+    assembly = GrowthValueInputAssembly(
+        status=status, reason="failed", provider_failure=failure, reason_code=ReasonCode.INVALID_REQUEST
+    )
     return GrahamGrowthAnalysis(
         ticker="KO",
         as_of=None,
         effective_as_of=NOW,
         assembly=assembly,
-        result=GrahamGrowthValueResult(status=status, reason="failed"),
+        result=GrahamGrowthValueResult(status=status, reason="failed", reason_code=ReasonCode.INVALID_REQUEST),
         policy=_GROWTH_POLICY,
         margin_of_safety_percent=None,
     )

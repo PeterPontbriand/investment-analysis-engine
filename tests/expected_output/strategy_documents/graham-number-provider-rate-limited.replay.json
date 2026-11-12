@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "ERROR",
@@ -43,6 +43,7 @@
     "security_unit_evidence": null,
     "provenance": null
   },
+  "reason_code": "provider_error",
   "reason": "Unable to analyze ERROR: the configured provider could not retrieve required security data.",
   "result": {
     "maximum_indicated_price": null,

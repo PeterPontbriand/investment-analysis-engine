@@ -1,5 +1,6 @@
 """Deterministic service equivalence and resource ownership for Graham wrappers."""
 
+import math
 from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Literal, overload
@@ -205,6 +206,11 @@ def test_borrowed_resources_cache_reuse_and_bypass(growth: bool) -> None:
 @pytest.mark.parametrize("value", [0.0, -1.0, float("nan"), float("inf"), float("-inf")])
 def test_numeric_edge_cases_match_service(growth: bool, field: str, value: float) -> None:
     config = _config(growth, **{field: value})
+    if growth and field == "expected_growth" and not math.isfinite(value):
+        # The selection rules out a non-finite growth, so reaching the resolver with one is a programming error.
+        with pytest.raises(ValueError, match="finite"):
+            _analyzer(growth, _resolver(growth)).run_analysis(SECURITY_ID, _context(), config)
+        return
     kwargs = config.model_dump()
     kwargs.update(as_of=NOW, effective_as_of=NOW, use_cache=True, instrument_profile=None)
     if growth:

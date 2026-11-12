@@ -9,6 +9,7 @@ import pytest
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.analysis.shared.financial_resolution import PriceComparison
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.quote_freshness import QuoteFreshnessEvidence
 from investment_analysis_engine.data.financial.resolution_trace import (
@@ -127,13 +128,13 @@ def _run(analysis: GrahamNumberAnalysis | None = None) -> AnalysisRun:
         ticker="KO",
         analysis_id="graham_number",
         method_id="graham_number",
-        config_schema_version=3,
+        config_schema_version=4,
         requested_config=GrahamNumberSelection(),
         started_at=STAMP,
         completed_at=STAMP,
         method_version=2,
         result_schema_version=4,
-        evidence_codec_version=5,
+        evidence_codec_version=6,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis or _analysis()),
     )
@@ -165,8 +166,10 @@ def test_non_success_keeps_reason_and_partial_evidence(status: CalculationStatus
     reason = "Required evidence unavailable or method inapplicable."
     analysis = replace(
         original,
-        assembly=replace(original.assembly, status=status, reason=reason, bvps=None),
-        result=GrahamNumberResult(status, reason=reason),
+        assembly=replace(
+            original.assembly, status=status, reason=reason, bvps=None, reason_code=ReasonCode.MISSING_FACT
+        ),
+        result=GrahamNumberResult(status, reason=reason, reason_code=ReasonCode.MISSING_FACT),
         margin_of_safety_percent=None,
         price_comparison=PriceComparison("unavailable", "calculation_unavailable"),
     )
@@ -180,8 +183,12 @@ def test_etf_and_missing_profile_round_trip() -> None:
     )
     analysis = replace(
         original,
-        assembly=GrahamNumberInputAssembly(CalculationStatus.NOT_APPLICABLE, reason="ETF"),
-        result=GrahamNumberResult(CalculationStatus.NOT_APPLICABLE, reason="ETF"),
+        assembly=GrahamNumberInputAssembly(
+            CalculationStatus.NOT_APPLICABLE, reason="ETF", reason_code=ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE
+        ),
+        result=GrahamNumberResult(
+            CalculationStatus.NOT_APPLICABLE, reason="ETF", reason_code=ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE
+        ),
         margin_of_safety_percent=None,
         price_comparison=None,
         instrument_profile=profile,
@@ -322,7 +329,7 @@ def test_failed_assembly_requires_reason_and_consistent_result() -> None:
         decode_evidence(run, EVIDENCE_BY_KEY)
 
 
-@pytest.mark.parametrize(("method_version", "evidence_codec_version"), [(1, 5), (2, 4), (1, 4)])
+@pytest.mark.parametrize(("method_version", "evidence_codec_version"), [(1, 6), (2, 5), (1, 5)])
 def test_a_run_stored_under_the_versions_before_the_anchor_years_is_refused_by_version_never_misread(
     method_version: int, evidence_codec_version: int
 ) -> None:

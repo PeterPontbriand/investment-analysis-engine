@@ -5,8 +5,12 @@ they are declared; this module imports nothing else from the package.
 The same model backs a direct command and a ``runs show`` replay, which write the same document.
 """
 
-from typing import Final
+from typing import Final, Self
 
+from pydantic import model_validator
+
+from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.reporting.documents.shared_parts import (
     DocumentPart,
     LeftOutYearPart,
@@ -20,7 +24,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import (
 )
 from investment_analysis_engine.strategies.graham_growth.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 11
+DOCUMENT_SCHEMA_VERSION: Final = 12
 
 
 class GrahamGrowthResultPart(DocumentPart):
@@ -51,6 +55,7 @@ class GrahamGrowthBody(DocumentPart):
     """The keys only the Graham Growth document writes."""
 
     price_comparison: PriceComparisonPart | None
+    reason_code: ReasonCode | None
     reason: str | None
     result: GrahamGrowthResultPart
     inputs: GrahamGrowthInputsPart
@@ -60,10 +65,17 @@ class GrahamGrowthBody(DocumentPart):
 
 
 class GrahamGrowthDocument(StrategyDocumentTail, GrahamGrowthBody, StrategyDocumentHeader[AnalysisId, MethodId]):
-    """The Graham Growth document, version 9, as ``graham-growth --json`` and ``runs show --json`` write it.
+    """The Graham Growth document, version 12, as ``graham-growth --json`` and ``runs show --json`` write it.
 
     The shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.
     """
+
+    @model_validator(mode="after")
+    def _check_reason_code_follows_status(self) -> Self:
+        """Require ``reason_code`` to be null exactly when ``status`` is ``ok``."""
+        if (self.reason_code is None) is (self.status is not CalculationStatus.OK):
+            raise ValueError("reason_code is null exactly when status is ok.")
+        return self
 
 
 __all__ = [

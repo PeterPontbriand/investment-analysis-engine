@@ -273,7 +273,7 @@ def test_a_year_filed_only_after_the_boundary_is_not_available_as_of_not_absent(
     for name in (F.SALES, F.OPERATING_INCOME):
         late = _unavailable(values[name])
         assert late.reason_code is ReasonCode.NOT_AVAILABLE_AS_OF
-        assert "later than request as_of" in late.reason
+        assert late.reason == "This value became public on 2026-03-13, after the as-of date 2026-03-05."
     assert values[F.NET_INCOME] is None  # only another year was filed late
 
 

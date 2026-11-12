@@ -10,6 +10,22 @@ The Graham Number asks whether a market price is above or below a conservative e
 
 The exact formula is documented in [Financial Math](../FINANCE_MATH.md#graham-number-strategy).
 
+## Reason codes
+
+Whenever the status is anything other than `ok`, the analysis also gives a reason code and a message that says the same thing in words. A script or the desktop app can act on the code; the message is for reading. A successful analysis has no code. These are the codes this strategy can give, with when each happens:
+
+- [Missing input](../GLOSSARY.md#reason-missing-input): the data provider has no value for earnings per share or book value per share, or for the anchor filing.
+- [Not available as of](../GLOSSARY.md#reason-not-available-as-of): a value exists, but it was not public at the as-of date, or the provider gave no date when it became public.
+- [Insufficient history](../GLOSSARY.md#reason-insufficient-history): fewer than three fiscal years of earnings are available and none was left out for a reason of its own.
+- [Earlier basis](../GLOSSARY.md#reason-earlier-basis): the earnings of the older years are on a different basis from the newest, so the engine does not combine them.
+- [Ambiguous fact](../GLOSSARY.md#reason-ambiguous-fact): the filings give two values for one fiscal year, or share counts that cannot be used.
+- [Incompatible inputs](../GLOSSARY.md#reason-incompatible-inputs): the book value inputs are not for one period end, not in one currency or in shares, or carry preferred shares; or the earnings years differ in currency or units.
+- [Provider error](../GLOSSARY.md#status-provider-error): the data provider could not be reached or its answer was rejected.
+- [Security not applicable](../GLOSSARY.md#reason-security-not-applicable): the security is an ETF, and the method is a company-level valuation.
+- [Override only](../GLOSSARY.md#reason-override-only): every input was supplied as an override and none came from a data provider, so the analysis is not run.
+- [Invalid request](../GLOSSARY.md#reason-invalid-request): the product of the earnings and book value is too large to compute.
+- [Nonpositive input](../GLOSSARY.md#reason-nonpositive-input): earnings per share or book value per share is zero or negative, so the Graham Number does not apply to this company.
+
 ## Quick start
 <!-- help:exclude -->
 

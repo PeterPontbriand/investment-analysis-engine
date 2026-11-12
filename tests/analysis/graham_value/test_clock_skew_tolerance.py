@@ -207,7 +207,9 @@ def test_live_quote_stamped_after_executed_at_from_the_provider(stamp: str, offs
     else:
         assert result.status is CalculationStatus.INPUT_UNAVAILABLE
         assert result.reason is not None
-        assert "later than the analysis boundary" in result.reason or "future_timestamp" in result.reason
+        assert (
+            "later than the analysis boundary" in result.reason or "the quote is dated in the future" in result.reason
+        )
 
 
 @pytest.mark.parametrize(

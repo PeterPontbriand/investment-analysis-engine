@@ -11,7 +11,7 @@ import pytest
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.metric_result import MetricResult
+from investment_analysis_engine.core.metric_result import MetricResult, ReasonCode
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import (
@@ -165,13 +165,13 @@ def _graham_run(
         ticker=analysis.ticker,
         analysis_id="graham_number",
         method_id="graham_number",
-        config_schema_version=3,
+        config_schema_version=4,
         requested_config=GrahamNumberSelection(),
         started_at=NOW,
         completed_at=NOW,
         method_version=2,
         result_schema_version=4,
-        evidence_codec_version=5,
+        evidence_codec_version=6,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis),
         instrument_profile=profile,
@@ -352,41 +352,36 @@ def test_graham_project_run_defaults_to_concise() -> None:
 def _graham_invalid_input_analysis() -> GrahamNumberAnalysis:
     """A deterministic Graham Number run whose stored evidence is an invalid-input failure.
 
-    ``reason`` is deliberately a raw/technical resolver message, matching what
-    `execute_graham_number` actually persists (the CLI's investor-facing
-    normalization is a presentation-time step, never applied before storage),
-    so tests can prove replay reapplies it rather than showing the raw text.
+    The stored ``reason`` is the message written where its code is set, so replay shows it as written.
     """
-    raw_reason = "eps: resolved value failed strict finite validation"
+    raw_reason = "Share price is invalid: Override value must be finite (received nan)."
     assembly = GrahamNumberInputAssembly(
         status=CalculationStatus.INVALID_INPUT,
         eps=ResolvedInput("eps", 4.0, SourceKind.PROVIDER, NOW, provider_id="sec_edgar", as_of=NOW),
         bvps=ResolvedInput("book_value_per_share", 10.0, SourceKind.OVERRIDE, NOW, as_of=NOW),
         reason=raw_reason,
+        reason_code=ReasonCode.INVALID_REQUEST,
     )
     return GrahamNumberAnalysis(
         ticker="KO",
         as_of=NOW,
         effective_as_of=NOW,
         assembly=assembly,
-        result=GrahamNumberResult(status=CalculationStatus.INVALID_INPUT, reason=raw_reason),
+        result=GrahamNumberResult(
+            status=CalculationStatus.INVALID_INPUT, reason=raw_reason, reason_code=ReasonCode.INVALID_REQUEST
+        ),
         margin_of_safety_percent=None,
     )
 
 
 def test_graham_project_run_invalid_input_renders_stored_failure_without_recalculation() -> None:
-    """Replay normalizes the stored raw reason to the live command's investor-facing text.
-
-    Proves the retroactive E2 fix: replay must reapply `friendly_graham_failure` to a
-    genuine failure's stored raw reason, exactly as `cli._number_failure_output` does,
-    rather than leaking the resolver's technical text. It also proves no Graham Number
-    value is fabricated for a failed analysis.
-    """
+    """Replay shows the stored failure message as written, and fabricates no Graham Number value."""
     run = _graham_run(analysis=_graham_invalid_input_analysis())
     evidence = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(evidence, GrahamNumberAnalysis)
     assert evidence.assembly.status is CalculationStatus.INVALID_INPUT
-    assert evidence.assembly.reason == "eps: resolved value failed strict finite validation"
+    assert evidence.assembly.reason == "Share price is invalid: Override value must be finite (received nan)."
+    assert evidence.assembly.reason_code is ReasonCode.INVALID_REQUEST
     assert evidence.result.status is CalculationStatus.INVALID_INPUT
     assert evidence.margin_of_safety_percent is None
 
@@ -395,10 +390,8 @@ def test_graham_project_run_invalid_input_renders_stored_failure_without_recalcu
     )
     assert "KO" in rendered
     assert "Status: invalid input" in rendered
-    # The raw resolver reason is normalized to the live command's investor-facing message...
-    assert "Unable to analyze KO: the requested inputs are invalid. Review the method and overrides." in rendered
-    # ...and the raw technical string must never leak through.
-    assert "resolved value failed strict finite validation" not in rendered
+    assert "Share price is invalid: Override value must be finite (received nan)." in rendered
+    assert "Unable to analyze KO: the requested inputs are invalid" not in rendered
     assert "Graham Number (maximum indicated price)" not in rendered
 
 
@@ -452,13 +445,21 @@ def _graham_etf_not_applicable_analysis() -> GrahamNumberAnalysis:
         "Graham Number is a company-level valuation method and does not apply directly to an ETF. "
         "No constituent-level or aggregate ETF valuation was performed."
     )
-    assembly = GrahamNumberInputAssembly(status=CalculationStatus.NOT_APPLICABLE, reason=reason)
+    assembly = GrahamNumberInputAssembly(
+        status=CalculationStatus.NOT_APPLICABLE,
+        reason=reason,
+        reason_code=ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
+    )
     return GrahamNumberAnalysis(
         ticker="FLSW",
         as_of=NOW,
         effective_as_of=NOW,
         assembly=assembly,
-        result=GrahamNumberResult(status=CalculationStatus.NOT_APPLICABLE, reason=reason),
+        result=GrahamNumberResult(
+            status=CalculationStatus.NOT_APPLICABLE,
+            reason=reason,
+            reason_code=ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
+        ),
         margin_of_safety_percent=None,
     )
 
@@ -567,13 +568,13 @@ def _growth_run(
         ticker=analysis.ticker,
         analysis_id="graham_growth_value",
         method_id="graham_growth_value",
-        config_schema_version=2,
+        config_schema_version=3,
         requested_config=GrahamGrowthSelection(expected_growth=6.0, aaa_yield_override=4.4),
         started_at=NOW,
         completed_at=NOW,
         method_version=2,
         result_schema_version=4,
-        evidence_codec_version=5,
+        evidence_codec_version=6,
         status=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis),
         instrument_profile=profile,
@@ -662,36 +663,39 @@ def test_growth_project_run_comparison_unavailable_renders_stored_result_without
 def _growth_invalid_input_analysis() -> GrahamGrowthAnalysis:
     """A deterministic Graham Growth run whose stored evidence is an invalid-input failure.
 
-    ``reason`` is deliberately a raw/technical resolver message, matching what
-    `execute_graham_growth` actually persists, so tests can prove replay reapplies
-    `friendly_graham_failure` rather than showing the raw text.
+    The stored ``reason`` is the message written where its code is set, so replay shows it as written.
     """
-    raw_reason = "expected_growth: override value failed strict finite validation"
-    assembly = GrowthValueInputAssembly(status=CalculationStatus.INVALID_INPUT, reason=raw_reason)
+    raw_reason = "AAA yield is invalid: Override value must be finite (received nan)."
+    assembly = GrowthValueInputAssembly(
+        status=CalculationStatus.INVALID_INPUT, reason=raw_reason, reason_code=ReasonCode.INVALID_REQUEST
+    )
     return GrahamGrowthAnalysis(
         ticker="KO",
         as_of=NOW,
         effective_as_of=NOW,
         assembly=assembly,
-        result=GrahamGrowthValueResult(status=CalculationStatus.INVALID_INPUT, reason=raw_reason),
+        result=GrahamGrowthValueResult(
+            status=CalculationStatus.INVALID_INPUT, reason=raw_reason, reason_code=ReasonCode.INVALID_REQUEST
+        ),
         policy=_GROWTH_POLICY,
         margin_of_safety_percent=None,
     )
 
 
-def test_growth_project_run_invalid_input_renders_normalized_reason() -> None:
-    """Replay normalizes the stored raw reason to the live command's investor-facing text."""
+def test_growth_project_run_invalid_input_renders_the_stored_reason_as_written() -> None:
+    """Replay shows the stored failure message as written."""
     run = _growth_run(analysis=_growth_invalid_input_analysis())
     evidence = decode_evidence(run, EVIDENCE_BY_KEY)
     assert isinstance(evidence, GrahamGrowthAnalysis)
-    assert evidence.assembly.reason == "expected_growth: override value failed strict finite validation"
+    assert evidence.assembly.reason == "AAA yield is invalid: Override value must be finite (received nan)."
+    assert evidence.assembly.reason_code is ReasonCode.INVALID_REQUEST
 
     rendered = project_run(
         run, ReplayOptions(mode=PresentationMode.CONCISE), codecs=EVIDENCE_BY_KEY, replays=REPLAYS_BY_KEY
     )
     assert "KO" in rendered
-    assert "Unable to analyze KO: the requested inputs are invalid. Review the method and overrides." in rendered
-    assert "override value failed strict finite validation" not in rendered
+    assert "AAA yield is invalid: Override value must be finite (received nan)." in rendered
+    assert "Unable to analyze KO: the requested inputs are invalid" not in rendered
 
 
 def _growth_etf_not_applicable_analysis() -> GrahamGrowthAnalysis:
@@ -700,13 +704,21 @@ def _growth_etf_not_applicable_analysis() -> GrahamGrowthAnalysis:
         "Graham growth value is a company-level valuation method and does not apply directly to an ETF. "
         "No constituent-level or aggregate ETF valuation was performed."
     )
-    assembly = GrowthValueInputAssembly(status=CalculationStatus.NOT_APPLICABLE, reason=reason)
+    assembly = GrowthValueInputAssembly(
+        status=CalculationStatus.NOT_APPLICABLE,
+        reason=reason,
+        reason_code=ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
+    )
     return GrahamGrowthAnalysis(
         ticker="FLSW",
         as_of=NOW,
         effective_as_of=NOW,
         assembly=assembly,
-        result=GrahamGrowthValueResult(status=CalculationStatus.NOT_APPLICABLE, reason=reason),
+        result=GrahamGrowthValueResult(
+            status=CalculationStatus.NOT_APPLICABLE,
+            reason=reason,
+            reason_code=ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
+        ),
         policy=_GROWTH_POLICY,
         margin_of_safety_percent=None,
     )

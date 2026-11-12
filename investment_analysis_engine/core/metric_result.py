@@ -51,6 +51,8 @@ class ReasonCode(StrEnum):
     DEBT_NOT_VISIBLE = "debt_not_visible"
     NONPOSITIVE_DENOMINATOR = "nonpositive_denominator"
     INSUFFICIENT_TESTS = "insufficient_tests"
+    NONPOSITIVE_INPUT = "nonpositive_input"
+    OVERRIDE_ONLY = "override_only"
 
 
 @dataclass(frozen=True)
@@ -132,6 +134,8 @@ REASON_CODE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
         ReasonCode.DEBT_NOT_VISIBLE.value: "reason-debt-not-visible",
         ReasonCode.NONPOSITIVE_DENOMINATOR.value: "reason-growth-not-meaningful",
         ReasonCode.INSUFFICIENT_TESTS.value: "reason-insufficient-tests",
+        ReasonCode.NONPOSITIVE_INPUT.value: "reason-nonpositive-input",
+        ReasonCode.OVERRIDE_ONLY.value: "reason-override-only",
     }
 )
 """The glossary term that explains each metric reason code; codes that differ only in detail share a term."""

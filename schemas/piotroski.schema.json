@@ -638,7 +638,9 @@
         "unsupported_mapping",
         "debt_not_visible",
         "nonpositive_denominator",
-        "insufficient_tests"
+        "insufficient_tests",
+        "nonpositive_input",
+        "override_only"
       ],
       "title": "ReasonCode",
       "type": "string"

@@ -16,11 +16,13 @@ from investment_analysis_engine.analysis.shared.financial_resolution import (
 )
 from investment_analysis_engine.analysis.shared.metric_inputs import anchor_year_end_scope
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.facts import financial_facts_analysis_scope
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, complete_security_unit_profile
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, AnchorYearEnd
 from investment_analysis_engine.data.security_unit import SecurityUnitRequest
 from investment_analysis_engine.strategies._graham.anchor_years import anchor_stop
+from investment_analysis_engine.strategies._graham.outcome import served_reason_code
 from investment_analysis_engine.strategies.graham_number.calculation import (
     GrahamNumberInputAssembly,
     GrahamNumberInputResolver,
@@ -48,6 +50,13 @@ class GrahamNumberAnalysis:
         status = self.assembly.status
         return self.result.status if status is CalculationStatus.OK else status
 
+    @property
+    def reason_code(self) -> ReasonCode | None:
+        """Return the assembly's code when it is not OK, else the result's code when it is not OK, else ``None``."""
+        return served_reason_code(
+            self.assembly.status, self.assembly.reason_code, self.result.status, self.result.reason_code
+        )
+
 
 def run_graham_number_analysis(  # noqa: PLR0913
     *,
@@ -71,6 +80,7 @@ def run_graham_number_analysis(  # noqa: PLR0913
         assembly = GrahamNumberInputAssembly(
             status=CalculationStatus.NOT_APPLICABLE,
             reason=_etf_not_applicable_reason("Graham Number"),
+            reason_code=ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
         )
     else:
 
@@ -122,7 +132,7 @@ def run_graham_number_analysis(  # noqa: PLR0913
                     assembly = assemble(anchor)
                     instrument_profile = completed(instrument_profile, assembly)
                 else:
-                    stop = anchor_stop(anchor)
+                    stop = anchor_stop(anchor, ticker)
                     assembly = GrahamNumberInputAssembly(
                         status=stop.status,
                         reason=stop.reason,
@@ -136,18 +146,25 @@ def run_graham_number_analysis(  # noqa: PLR0913
             assembly,
             status=CalculationStatus.INPUT_UNAVAILABLE,
             reason=_unverified_ticker_reason(ticker),
+            reason_code=ReasonCode.OVERRIDE_ONLY,
         )
 
     if assembly.status is not CalculationStatus.OK:
         result = GrahamNumberResult(
             status=assembly.status,
             reason=assembly.reason or "Required Graham Number inputs are unavailable.",
+            reason_code=assembly.reason_code,
         )
         comparison = evaluate_price_comparison(None, assembly.current_price)
     else:
         assert assembly.eps is not None
         assert assembly.bvps is not None
-        result = compute_graham_number(assembly.eps.value, assembly.bvps.value)
+        result = compute_graham_number(
+            assembly.eps.value,
+            assembly.bvps.value,
+            eps_currency=assembly.eps.currency,
+            bvps_currency=assembly.bvps.currency,
+        )
         comparison = evaluate_price_comparison(
             result.maximum_indicated_price,
             assembly.current_price,

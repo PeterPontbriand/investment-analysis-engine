@@ -2161,7 +2161,7 @@
       },
       "GrahamGrowthDocument": {
         "additionalProperties": false,
-        "description": "The Graham Growth document, version 9, as ``graham-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+        "description": "The Graham Growth document, version 12, as ``graham-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
         "properties": {
           "analysis": {
             "const": "graham_growth_value",
@@ -2281,6 +2281,16 @@
             ],
             "title": "Reason"
           },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "requested_as_of": {
             "anyOf": [
               {
@@ -2333,6 +2343,7 @@
           "security_identity",
           "instrument_kind",
           "price_comparison",
+          "reason_code",
           "reason",
           "result",
           "inputs",
@@ -2534,7 +2545,7 @@
       },
       "GrahamNumberDocument": {
         "additionalProperties": false,
-        "description": "The Graham Number document, version 9, as ``graham-number --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+        "description": "The Graham Number document, version 12, as ``graham-number --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
         "properties": {
           "analysis": {
             "const": "graham_number",
@@ -2651,6 +2662,16 @@
             ],
             "title": "Reason"
           },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "requested_as_of": {
             "anyOf": [
               {
@@ -2703,6 +2724,7 @@
           "security_identity",
           "instrument_kind",
           "price_comparison",
+          "reason_code",
           "reason",
           "result",
           "inputs",
@@ -4817,7 +4839,9 @@
           "unsupported_mapping",
           "debt_not_visible",
           "nonpositive_denominator",
-          "insufficient_tests"
+          "insufficient_tests",
+          "nonpositive_input",
+          "override_only"
         ],
         "title": "ReasonCode",
         "type": "string"
@@ -5758,8 +5782,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 3,
-            "default": 3,
+            "const": 4,
+            "default": 4,
             "title": "Schema Version",
             "type": "integer"
           },

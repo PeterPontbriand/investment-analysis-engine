@@ -5,7 +5,6 @@ from investment_analysis_engine.reporting.headline import Headline
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from investment_analysis_engine.strategies._graham.replay import (
     EARNINGS_PERIOD_END_LABEL,
-    friendly_graham_assembly,
     margin_cell,
     price_cell,
 )
@@ -33,7 +32,7 @@ def _presentation(
     del selection
     return GrahamNumberPresentation(
         ticker=evidence.ticker,
-        assembly=number_with_public_quote_reason(friendly_graham_assembly(inputs.ticker, evidence.assembly)),
+        assembly=number_with_public_quote_reason(evidence.assembly),
         result=evidence.result,
         as_of=evidence.as_of,
         effective_as_of=evidence.effective_as_of,
@@ -73,6 +72,7 @@ def headline_graham_number(analysis: GrahamNumberAnalysis) -> Headline:
                 term=HEADLINE_TERMS["maximum_indicated_price"],
                 value=analysis.result.maximum_indicated_price,
                 status=analysis.native_status,
+                reason_code=analysis.reason_code,
                 currency=common_currency(assembly.eps, assembly.bvps),
             ),
             margin_cell(

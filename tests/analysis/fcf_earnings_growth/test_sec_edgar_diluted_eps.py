@@ -487,7 +487,7 @@ def test_a_conflict_in_the_newest_period_empties_the_series_and_the_resolver_doe
     assert _years(adapter.fetch_annual_series(_request(), effective_as_of=NOW).conflicting) == [2020]
     resolution = InputResolver(adapter, clock=lambda: NOW).resolve_annual_series(_request())
     assert resolution.status is CalculationStatus.INPUT_UNAVAILABLE
-    assert resolution.reason == f"No eps observation is usable: {CONFLICTING_VERSIONS_MESSAGE}"
+    assert resolution.reason == f"No earnings per share observation is usable: {CONFLICTING_VERSIONS_MESSAGE}"
     assert [item.why for item in resolution.left_out] == [LeftOutReason.CONFLICTING_VERSIONS]
 
 

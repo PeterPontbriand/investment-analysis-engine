@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "MISSING",
@@ -34,7 +34,8 @@
     "security_unit_evidence": null,
     "provenance": null
   },
-  "reason": "Unable to analyze MISSING: required financial data is unavailable for the requested method.",
+  "reason_code": "insufficient_history",
+  "reason": "Earnings per share is unavailable: Insufficient eligible fiscal-year EPS observations: found 0 distinct period(s), need 3.",
   "result": {
     "growth_value": null,
     "margin_of_safety_percent": null

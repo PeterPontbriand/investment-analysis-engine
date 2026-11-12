@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "FLSW",
@@ -25,6 +25,7 @@
     "resolved_at": "<wall-clock>"
   },
   "price_comparison": null,
+  "reason_code": "instrument_kind_not_applicable",
   "reason": "Graham Number is a company-level valuation method and does not apply directly to an ETF. No constituent-level or aggregate ETF valuation was performed.",
   "result": {
     "maximum_indicated_price": null,

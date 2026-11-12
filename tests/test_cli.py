@@ -546,7 +546,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 11
+    assert payload["schema_version"] == 12
     assert payload["analysis"] == "graham_number"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID
@@ -768,7 +768,7 @@ def test_cli_graham_invalid_or_unavailable_ticker_has_one_clean_failure(
     lines = [line for line in result.output.splitlines() if line.strip()]
     assert lines[0] == f"{SUBJECT_MISSING} — Graham Number"
     assert "Status: input unavailable" in lines
-    assert any("Eligible earnings per share could not be resolved" in line for line in lines)
+    assert any(line.startswith("Reason: Earnings per share is unavailable: ") for line in lines)
     assert "verify ticker" not in result.output.lower()
     assert "Traceback" not in result.output
     assert "pydantic.dev" not in result.output

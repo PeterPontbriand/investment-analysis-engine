@@ -215,7 +215,7 @@ def test_a_historical_observation_with_no_availability_is_left_out() -> None:
         _request(as_of=datetime(2025, 6, 30, tzinfo=UTC))
     )
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
-    assert "No net_income observation is eligible at the boundary" in (result.reason or "")
+    assert "No net income observation is eligible at the boundary" in (result.reason or "")
     assert not result.not_available_as_of
 
 
@@ -299,7 +299,7 @@ def test_the_trace_keeps_the_ineligible_count_beside_the_earlier_basis_count() -
 def test_a_provider_that_returned_only_earlier_basis_periods_does_not_report_no_data() -> None:
     result = _resolver(_SeriesProvider((), (_fact(2022),))).resolve_annual_series(_request())
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
-    assert result.reason == f"No net_income observation is on the latest basis: {EARLIER_BASIS_MESSAGE}"
+    assert result.reason == f"No net income observation is on the latest basis: {EARLIER_BASIS_MESSAGE}"
     assert result.reason is not None
     assert "no data" not in result.reason
     assert [item.why for item in result.left_out] == [LeftOutReason.EARLIER_BASIS]

@@ -10,6 +10,21 @@ Graham Growth Value applies a forecast-dependent Graham-style formula using earn
 
 The exact formula is documented in [Financial Math](../FINANCE_MATH.md#graham-growth-value-strategy).
 
+## Reason codes
+
+Whenever the status is anything other than `ok`, the analysis also gives a reason code and a message that says the same thing in words. A script or the desktop app can act on the code; the message is for reading. A successful analysis has no code. These are the codes this strategy can give, with when each happens:
+
+- [Missing input](../GLOSSARY.md#reason-missing-input): the data provider has no value for earnings per share, or for the anchor filing.
+- [Not available as of](../GLOSSARY.md#reason-not-available-as-of): a value exists, but it was not public at the as-of date, or the provider gave no date when it became public.
+- [Insufficient history](../GLOSSARY.md#reason-insufficient-history): fewer than three fiscal years of earnings are available and none was left out for a reason of its own.
+- [Earlier basis](../GLOSSARY.md#reason-earlier-basis): the earnings of the older years are on a different basis from the newest, so the engine does not combine them.
+- [Ambiguous fact](../GLOSSARY.md#reason-ambiguous-fact): the filings give two values for one fiscal year, or share counts that cannot be used.
+- [Incompatible inputs](../GLOSSARY.md#reason-incompatible-inputs): the earnings years differ in currency or units.
+- [Provider error](../GLOSSARY.md#status-provider-error): the data provider could not be reached or its answer was rejected.
+- [Security not applicable](../GLOSSARY.md#reason-security-not-applicable): the security is an ETF, and the method is a company-level valuation.
+- [Override only](../GLOSSARY.md#reason-override-only): every input was supplied as an override and none came from a data provider, so the analysis is not run.
+- [Invalid request](../GLOSSARY.md#reason-invalid-request): the valuation P/E, which is the base P/E plus the growth multiplier times the expected growth, is zero or negative, or the value is too large to compute.
+
 ## Quick start
 <!-- help:exclude -->
 

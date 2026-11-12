@@ -197,6 +197,34 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
         )
     )
     finite = "Financial override must be a finite number."
+    for value in ("0", "-2.5"):
+        add(
+            _check(
+                "SUP-9",
+                _direct("graham-number", f"--current-price={value}"),
+                "Invalid --current-price: Share price override must be greater than zero.",
+                ("--current-price",),
+                json_flag=True,
+            )
+        )
+        add(
+            _check(
+                "SUP-9",
+                _direct("graham-growth", f"--current-price={value}"),
+                "Invalid --current-price: Share price override must be greater than zero.",
+                ("--current-price",),
+                json_flag=True,
+            )
+        )
+        add(
+            _check(
+                "SUP-9",
+                ("graham-growth", "AAPL", "--expected-growth", "5", f"--aaa-yield={value}"),
+                "Invalid --aaa-yield: AAA yield must be greater than zero.",
+                ("--aaa-yield",),
+                json_flag=True,
+            )
+        )
     for value in ("nan", "inf", "-inf"):
         for option in ("--eps", "--bvps", "--current-price"):
             add(

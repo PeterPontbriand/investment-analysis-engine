@@ -15,6 +15,7 @@ from typer.testing import CliRunner
 
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.data.provider_probe import ProbeFinding, ProbeVerdict
 from investment_analysis_engine.strategies.graham_growth.calculation import GrowthValueInputAssembly
@@ -49,12 +50,6 @@ def _stored(name: str) -> Case:
 _NUMBER_OVERFLOW = Case(
     "graham-number-overflow", "graham-number", _arguments("graham-number", "--eps", "1e200", "--bvps", "1e200"), 1
 )
-_NUMBER_BAD_QUOTE = Case(
-    "graham-number-bad-quote", "graham-number", _arguments("graham-number", "--current-price", "-1"), 1
-)
-_GROWTH_BAD_QUOTE = Case(
-    "graham-growth-bad-quote", "graham-growth", _arguments("graham-growth", "--current-price", "-1"), 1
-)
 _GROWTH_UNCLASSIFIED = Case(
     "graham-growth-provider-error-unclassified",
     "graham-growth",
@@ -76,7 +71,6 @@ _COMBINATIONS = (
     pytest.param(
         _stored("graham-number-etf"), "not_applicable", "not_applicable", "not_applicable", False, id="number-na"
     ),
-    pytest.param(_NUMBER_BAD_QUOTE, "invalid_input", "invalid_input", "failed", False, id="number-invalid"),
     pytest.param(
         _stored("graham-number-missing-input"),
         "input_unavailable",
@@ -106,7 +100,6 @@ _COMBINATIONS = (
     pytest.param(
         _stored("graham-growth-etf"), "not_applicable", "not_applicable", "not_applicable", False, id="growth-na"
     ),
-    pytest.param(_GROWTH_BAD_QUOTE, "invalid_input", "invalid_input", "failed", False, id="growth-invalid"),
     pytest.param(
         _stored("graham-growth-missing-input"),
         "input_unavailable",
@@ -204,7 +197,10 @@ def test_an_assembly_records_a_provider_failure_only_with_the_provider_error_sta
     record = ProviderFailureRecord(ProviderFailureKind.UNREACHABLE, "sec_edgar")
     for assembly_type in (GrahamNumberInputAssembly, GrowthValueInputAssembly):
         assert (
-            assembly_type(status=CalculationStatus.PROVIDER_ERROR, provider_failure=record).provider_failure == record
+            assembly_type(
+                status=CalculationStatus.PROVIDER_ERROR, provider_failure=record, reason_code=ReasonCode.PROVIDER_ERROR
+            ).provider_failure
+            == record
         )
         for status in (
             CalculationStatus.OK,

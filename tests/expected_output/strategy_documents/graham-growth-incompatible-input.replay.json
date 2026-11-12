@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "INCOMPATIBLE",
@@ -43,6 +43,7 @@
     "security_unit_evidence": null,
     "provenance": null
   },
+  "reason_code": "provider_error",
   "reason": "Unable to analyze INCOMPATIBLE: the configured provider could not retrieve required security data.",
   "result": {
     "growth_value": null,

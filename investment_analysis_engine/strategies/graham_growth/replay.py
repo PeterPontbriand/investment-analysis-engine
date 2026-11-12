@@ -5,7 +5,6 @@ from investment_analysis_engine.reporting.headline import Headline
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from investment_analysis_engine.strategies._graham.replay import (
     EARNINGS_PERIOD_END_LABEL,
-    friendly_graham_assembly,
     margin_cell,
     price_cell,
 )
@@ -34,7 +33,7 @@ def _presentation(
     del selection
     return GrahamGrowthPresentation(
         ticker=evidence.ticker,
-        assembly=growth_with_public_quote_reason(friendly_graham_assembly(inputs.ticker, evidence.assembly)),
+        assembly=growth_with_public_quote_reason(evidence.assembly),
         result=evidence.result,
         base_pe=evidence.policy.base_pe,
         growth_multiplier=evidence.policy.growth_multiplier,
@@ -77,6 +76,7 @@ def headline_graham_growth(analysis: GrahamGrowthAnalysis) -> Headline:
                 term=HEADLINE_TERMS["intrinsic_value"],
                 value=analysis.result.growth_value,
                 status=analysis.native_status,
+                reason_code=analysis.reason_code,
                 currency=common_currency(assembly.eps),
             ),
             margin_cell(

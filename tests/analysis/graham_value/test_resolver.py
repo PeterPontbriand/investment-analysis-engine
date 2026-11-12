@@ -1645,7 +1645,7 @@ def test_a_quote_that_is_not_recent_is_unusable_from_the_provider() -> None:
     result = resolver.resolve(_make_request(field=FinancialField.CURRENT_PRICE), use_cache=False)
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.reason_code is ReasonCode.QUOTE_TIMING_UNUSABLE
-    assert result.reason == "Quote response timing is unusable: expired."
+    assert result.reason == "Quote response timing is unusable: the quote is older than the freshness rules allow."
 
 
 def test_a_resolved_quote_whose_timing_is_unusable_is_unavailable_with_the_quote_timing_code() -> None:
@@ -2019,7 +2019,7 @@ def test_c2d_graham_number_bvps_failure_prevents_quote() -> None:
     assert result.eps is not None  # EPS resolved before BVPS failed
     assert result.bvps is None
     assert result.current_price is None
-    assert "bvps" in (result.reason or "")
+    assert (result.reason or "").startswith("Book value per share is unavailable: ")
     assert FinancialField.CURRENT_PRICE not in provider.requested_fields()
 
 
@@ -2067,57 +2067,26 @@ def test_c2d_growth_value_success() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 5: Missing expected growth → INPUT_UNAVAILABLE
-# ---------------------------------------------------------------------------
-
-
-def test_c2d_growth_value_missing_growth() -> None:
-    """expected_growth not provided → INPUT_UNAVAILABLE; AAA and quote never reached."""
-    provider = MultiFieldProvider(
-        handlers={
-            FinancialField.EPS: (_single_eps_fact(),),
-            # No AAA or quote handlers
-        }
-    )
-    resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
-    result = resolver.assemble_growth_value(
-        anchor=_ANCHOR,
-        security_subject_id=SUBJECT_ID,
-        eps_basis="fiscal_year",
-        # expected_growth intentionally omitted (defaults to None)
-        aaa_yield_override=5.0,
-    )
-    assert result.status is CalculationStatus.INPUT_UNAVAILABLE
-    assert "expected_growth" in (result.reason or "")
-    assert result.current_aaa_yield is None
-    assert result.current_price is None
-    # AAA and quote must never have been requested.
-    assert FinancialField.CURRENT_AAA_YIELD not in provider.requested_fields()
-    assert FinancialField.CURRENT_PRICE not in provider.requested_fields()
-
-
-# ---------------------------------------------------------------------------
-# Test 6: Non-finite expected growth → INVALID_INPUT
+# Test 6: Non-finite expected growth is a programming error: the selection rules it out
 # ---------------------------------------------------------------------------
 
 
 def test_c2d_growth_value_non_finite_growth() -> None:
-    """expected_growth=inf → INVALID_INPUT; AAA and quote never reached."""
+    """expected_growth=inf raises ValueError; AAA and quote never reached."""
     provider = MultiFieldProvider(
         handlers={
             FinancialField.EPS: (_single_eps_fact(),),
         }
     )
     resolver = GrahamGrowthInputResolver(provider=provider, clock=lambda: NOW)
-    result = resolver.assemble_growth_value(
-        anchor=_ANCHOR,
-        security_subject_id=SUBJECT_ID,
-        eps_basis="fiscal_year",
-        expected_growth=inf,
-        aaa_yield_override=5.0,
-    )
-    assert result.status is CalculationStatus.INVALID_INPUT
-    assert "expected_growth" in (result.reason or "")
+    with pytest.raises(ValueError, match="finite"):
+        resolver.assemble_growth_value(
+            anchor=_ANCHOR,
+            security_subject_id=SUBJECT_ID,
+            eps_basis="fiscal_year",
+            expected_growth=inf,
+            aaa_yield_override=5.0,
+        )
     assert FinancialField.CURRENT_AAA_YIELD not in provider.requested_fields()
     assert FinancialField.CURRENT_PRICE not in provider.requested_fields()
 

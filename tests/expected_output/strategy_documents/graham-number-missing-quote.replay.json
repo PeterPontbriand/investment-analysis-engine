@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "MISSING_QUOTE",
@@ -34,6 +34,7 @@
     "security_unit_evidence": null,
     "provenance": null
   },
+  "reason_code": null,
   "reason": null,
   "result": {
     "maximum_indicated_price": 36.686169055926236,

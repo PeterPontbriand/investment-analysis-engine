@@ -67,6 +67,18 @@ class GrahamNumberSelection(FrozenSelection):
             )
         return value
 
+    @field_validator("quote_override")
+    @classmethod
+    def _require_positive_quote(cls, value: float | None) -> float | None:
+        """Reject a zero or negative price override at the workspace boundary."""
+        if value is not None and value <= 0:
+            raise SelectionRuleError(
+                "Invalid {quote_override}: Share price override must be greater than zero.",
+                fields=("quote_override",),
+                rule="graham-number.quote_override_not_positive",
+            )
+        return value
+
     def to_graham_number_config(self) -> GrahamNumberConfig:
         """Return the existing analyzer config carrying this snapshot's values."""
         return GrahamNumberConfig(

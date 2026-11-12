@@ -180,6 +180,53 @@ def test_a_non_finite_override_names_its_field_and_rule() -> None:
     )
 
 
+@pytest.mark.parametrize("value", [0.0, -0.5])
+@pytest.mark.parametrize(
+    ("method_id", "fields", "field", "rule", "message"),
+    [
+        (
+            GRAHAM_NUMBER.method_id,
+            {},
+            "quote_override",
+            "graham-number.quote_override_not_positive",
+            "Share price override must be greater than zero.",
+        ),
+        (
+            GRAHAM_GROWTH.method_id,
+            GROWTH,
+            "quote_override",
+            "graham-growth.quote_override_not_positive",
+            "Share price override must be greater than zero.",
+        ),
+        (
+            GRAHAM_GROWTH.method_id,
+            {"expected_growth": 5.0},
+            "aaa_yield_override",
+            "graham-growth.aaa_yield_override_not_positive",
+            "AAA yield must be greater than zero.",
+        ),
+    ],
+)
+def test_a_price_or_yield_override_of_zero_or_less_names_its_field_and_rule(  # noqa: PLR0913, PLR0917
+    method_id: str, fields: dict[str, object], field: str, rule: str, message: str, value: float
+) -> None:
+    error = _rejection(method_id, {**fields, field: value})
+
+    assert (str(error), error.parameters, error.rule) == (f"Invalid {field}: {message}", (field,), rule)
+
+
+@pytest.mark.parametrize(
+    ("method_id", "fields"),
+    [
+        (GRAHAM_NUMBER.method_id, {"quote_override": 0.01}),
+        (GRAHAM_GROWTH.method_id, {**GROWTH, "quote_override": 0.01}),
+        (GRAHAM_GROWTH.method_id, {"expected_growth": 5.0, "aaa_yield_override": 0.01}),
+    ],
+)
+def test_a_small_positive_price_or_yield_override_is_accepted(method_id: str, fields: dict[str, object]) -> None:
+    assert build_selection(CONTEXT, method_id, fields).method_id == method_id
+
+
 def test_graham_growth_defaults_its_eps_basis_in_the_model() -> None:
     built = build_selection(CONTEXT, GRAHAM_GROWTH.method_id, GROWTH)
 

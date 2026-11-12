@@ -24,6 +24,7 @@ import sys
 import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthValueResult,
     compute_graham_growth_value,
@@ -127,140 +128,63 @@ class TestMethodDiscrimination:
 
 class TestGrahamNumberApplicability:
     def test_zero_eps(self) -> None:
-        result = compute_graham_number(eps=0.0, bvps=10.0)
+        result = compute_graham_number(eps=0.0, bvps=10.0, eps_currency="USD")
         assert result.status is CalculationStatus.NOT_APPLICABLE
         assert result.maximum_indicated_price is None
-        assert result.reason is not None
+        assert result.reason_code is ReasonCode.NONPOSITIVE_INPUT
+        assert result.reason == "Earnings per share is zero (0.00 USD), so the Graham Number does not apply."
 
     def test_negative_eps(self) -> None:
-        result = compute_graham_number(eps=-1.5, bvps=10.0)
+        result = compute_graham_number(eps=-1.5, bvps=10.0, eps_currency="USD")
         assert result.status is CalculationStatus.NOT_APPLICABLE
         assert result.maximum_indicated_price is None
-        assert result.reason is not None
+        assert result.reason_code is ReasonCode.NONPOSITIVE_INPUT
+        assert result.reason == "Earnings per share is negative (-1.50 USD), so the Graham Number does not apply."
 
     def test_zero_bvps(self) -> None:
-        result = compute_graham_number(eps=5.0, bvps=0.0)
+        result = compute_graham_number(eps=5.0, bvps=0.0, bvps_currency="USD")
         assert result.status is CalculationStatus.NOT_APPLICABLE
         assert result.maximum_indicated_price is None
-        assert result.reason is not None
+        assert result.reason_code is ReasonCode.NONPOSITIVE_INPUT
+        assert result.reason == "Book value per common share is zero (0.00 USD), so the Graham Number does not apply."
 
     def test_negative_bvps(self) -> None:
-        result = compute_graham_number(eps=5.0, bvps=-3.0)
+        result = compute_graham_number(eps=5.0, bvps=-3.0, bvps_currency=None)
         assert result.status is CalculationStatus.NOT_APPLICABLE
         assert result.maximum_indicated_price is None
-        assert result.reason is not None
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. NaN and ±inf never escaping as successful results
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestNonFiniteInputs:
-    @pytest.mark.parametrize(
-        ("eps", "bvps"),
-        [
-            (float("nan"), 10.0),
-            (10.0, float("nan")),
-            (float("inf"), 10.0),
-            (10.0, float("inf")),
-            (float("-inf"), 10.0),
-            (10.0, float("-inf")),
-        ],
-    )
-    def test_graham_number_non_finite(self, eps: float, bvps: float) -> None:
-        result = compute_graham_number(eps=eps, bvps=bvps)
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.maximum_indicated_price is None
-        assert result.reason is not None
-
-    @pytest.mark.parametrize(
-        ("eps", "g", "curr_aaa"),
-        [
-            (float("nan"), 5.0, 4.0),
-            (1.0, float("nan"), 4.0),
-            (1.0, 5.0, float("nan")),
-            (1.0, float("inf"), 4.0),
-            (1.0, 5.0, float("inf")),
-            (float("inf"), 5.0, 4.0),
-            (1.0, 5.0, float("-inf")),
-        ],
-    )
-    def test_growth_value_non_finite(self, eps: float, g: float, curr_aaa: float) -> None:
-        result = compute_graham_growth_value(normalized_eps=eps, expected_growth_rate=g, current_aaa_yield=curr_aaa)
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
-        assert result.reason is not None
-
-    def test_non_finite_bvps_graham_number(self) -> None:
-        result = compute_graham_number(eps=10.0, bvps=float("nan"))
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.maximum_indicated_price is None
-
-    def test_non_finite_baseline_aaa(self) -> None:
-        result = compute_graham_growth_value(
-            normalized_eps=1.0,
-            expected_growth_rate=5.0,
-            current_aaa_yield=4.0,
-            baseline_aaa_yield=float("nan"),
+        assert result.reason_code is ReasonCode.NONPOSITIVE_INPUT
+        assert result.reason == (
+            "Book value per common share is negative (-3.00 (currency unspecified)), "
+            "so the Graham Number does not apply."
         )
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
-
-    def test_non_finite_growth_multiplier(self) -> None:
-        result = compute_graham_growth_value(
-            normalized_eps=1.0,
-            expected_growth_rate=5.0,
-            current_aaa_yield=4.0,
-            growth_multiplier=float("inf"),
-        )
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. Zero and negative current AAA yield → invalid_input
+# 7. A calculation constant a policy rules out is a programming error
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestGrowthValueYieldValidation:
-    def test_zero_current_aaa(self) -> None:
-        result = compute_graham_growth_value(normalized_eps=3.5, expected_growth_rate=6.5, current_aaa_yield=0.0)
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
-        assert result.reason is not None
+class TestGrowthValueConstants:
+    @pytest.mark.parametrize("baseline", [0.0, -4.4, float("nan")])
+    def test_baseline_aaa_out_of_range(self, baseline: float) -> None:
+        with pytest.raises(ValueError, match="constants"):
+            compute_graham_growth_value(
+                normalized_eps=3.5, expected_growth_rate=6.5, current_aaa_yield=5.25, baseline_aaa_yield=baseline
+            )
 
-    def test_negative_current_aaa(self) -> None:
-        result = compute_graham_growth_value(normalized_eps=3.5, expected_growth_rate=6.5, current_aaa_yield=-2.5)
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
+    @pytest.mark.parametrize("base_pe", [0.0, -5.0, float("nan")])
+    def test_base_pe_out_of_range(self, base_pe: float) -> None:
+        with pytest.raises(ValueError, match="constants"):
+            compute_graham_growth_value(
+                normalized_eps=1.0, expected_growth_rate=5.0, current_aaa_yield=4.0, base_pe=base_pe
+            )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 7. Invalid baseline AAA yield → invalid_input
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestGrowthValueBaselineYield:
-    def test_zero_baseline_aaa(self) -> None:
-        result = compute_graham_growth_value(
-            normalized_eps=3.5,
-            expected_growth_rate=6.5,
-            current_aaa_yield=5.25,
-            baseline_aaa_yield=0.0,
-        )
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
-
-    def test_negative_baseline_aaa(self) -> None:
-        result = compute_graham_growth_value(
-            normalized_eps=3.5,
-            expected_growth_rate=6.5,
-            current_aaa_yield=5.25,
-            baseline_aaa_yield=-4.4,
-        )
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
+    @pytest.mark.parametrize("multiplier", [-1.0, float("inf")])
+    def test_growth_multiplier_out_of_range(self, multiplier: float) -> None:
+        with pytest.raises(ValueError, match="constants"):
+            compute_graham_growth_value(
+                normalized_eps=1.0, expected_growth_rate=5.0, current_aaa_yield=4.0, growth_multiplier=multiplier
+            )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -278,8 +202,9 @@ class TestNonFiniteOutput:
         result = compute_graham_number(eps=eps, bvps=1.0)
         assert result.status is CalculationStatus.INVALID_INPUT
         assert result.maximum_indicated_price is None
+        assert result.reason_code is ReasonCode.INVALID_REQUEST
         assert result.reason is not None
-        assert "not finite" in result.reason or "not a valid positive finite" in result.reason
+        assert "not a valid positive finite" in result.reason
 
     def test_non_finite_valuation_pe_rejected(self) -> None:
         # growth_multiplier * g overflows to inf:
@@ -292,6 +217,7 @@ class TestNonFiniteOutput:
         )
         assert result.status is CalculationStatus.INVALID_INPUT
         assert result.growth_value is None
+        assert result.reason_code is ReasonCode.INVALID_REQUEST
         assert result.reason is not None
         assert "valuation P/E is not finite" in result.reason
 
@@ -306,6 +232,7 @@ class TestNonFiniteOutput:
         )
         assert result.status is CalculationStatus.INVALID_INPUT
         assert result.growth_value is None
+        assert result.reason_code is ReasonCode.INVALID_REQUEST
         assert result.reason is not None
         assert "Computed growth value is not finite" in result.reason
 
@@ -326,7 +253,10 @@ class TestNegativeGrowth:
         )
         assert result.status is CalculationStatus.INVALID_INPUT
         assert result.growth_value is None
-        assert result.reason is not None
+        assert result.reason_code is ReasonCode.INVALID_REQUEST
+        assert (
+            result.reason == "The computed valuation P/E is zero or negative (-1.5), so the value cannot be computed."
+        )
 
     def test_moderate_negative_growth_accepted(self) -> None:
         # eps=3.0, g=-2.0, currAAA=4.0, basePE=8.5, mult=2.0, baseAAA=4.4
@@ -384,46 +314,6 @@ class TestLargeGrowth:
 
 
 class TestGrowthValueParameterValidation:
-    def test_non_finite_base_pe(self) -> None:
-        result = compute_graham_growth_value(
-            normalized_eps=1.0,
-            expected_growth_rate=5.0,
-            current_aaa_yield=4.0,
-            base_pe=float("nan"),
-        )
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
-
-    def test_zero_base_pe(self) -> None:
-        result = compute_graham_growth_value(
-            normalized_eps=1.0,
-            expected_growth_rate=5.0,
-            current_aaa_yield=4.0,
-            base_pe=0.0,
-        )
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
-
-    def test_negative_base_pe(self) -> None:
-        result = compute_graham_growth_value(
-            normalized_eps=1.0,
-            expected_growth_rate=5.0,
-            current_aaa_yield=4.0,
-            base_pe=-5.0,
-        )
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
-
-    def test_negative_growth_multiplier(self) -> None:
-        result = compute_graham_growth_value(
-            normalized_eps=1.0,
-            expected_growth_rate=5.0,
-            current_aaa_yield=4.0,
-            growth_multiplier=-1.0,
-        )
-        assert result.status is CalculationStatus.INVALID_INPUT
-        assert result.growth_value is None
-
     def test_zero_growth_multiplier_valid(self) -> None:
         # growth_multiplier=0, g=5.0 → pe = 8.5 + 0 = 8.5 > 0 → valid
         # value = 1.0 * 8.5 * 4.4 / 4.0 = 37.4 / 4.0 = 9.35
@@ -502,7 +392,8 @@ class TestMethodFixedDiscriminators:
         assert result.method == "graham_growth_value"
 
     def test_growth_value_error_result_has_growth_method(self) -> None:
-        result = compute_graham_growth_value(normalized_eps=1.0, expected_growth_rate=5.0, current_aaa_yield=0.0)
+        result = compute_graham_growth_value(normalized_eps=1.0, expected_growth_rate=-50.0, current_aaa_yield=4.0)
+        assert result.status is CalculationStatus.INVALID_INPUT
         assert result.method == "graham_growth_value"
 
 
@@ -530,11 +421,14 @@ class TestResultStateInvariants:
                 status=CalculationStatus.INVALID_INPUT,
                 maximum_indicated_price=5.0,
                 reason="should fail",
+                reason_code=ReasonCode.INVALID_REQUEST,
             )
 
     def test_graham_number_non_ok_requires_non_empty_reason(self) -> None:
         with pytest.raises(ValueError, match="reason"):
-            GrahamNumberResult(status=CalculationStatus.INVALID_INPUT, reason="")
+            GrahamNumberResult(
+                status=CalculationStatus.INVALID_INPUT, reason="", reason_code=ReasonCode.INVALID_REQUEST
+            )
 
     def test_growth_value_ok_requires_value(self) -> None:
         with pytest.raises(ValueError, match="growth_value"):
@@ -554,8 +448,31 @@ class TestResultStateInvariants:
                 status=CalculationStatus.NOT_APPLICABLE,
                 growth_value=5.0,
                 reason="should fail",
+                reason_code=ReasonCode.INVALID_REQUEST,
             )
 
     def test_growth_value_non_ok_requires_non_empty_reason(self) -> None:
         with pytest.raises(ValueError, match="reason"):
-            GrahamGrowthValueResult(status=CalculationStatus.NOT_APPLICABLE, reason="")
+            GrahamGrowthValueResult(
+                status=CalculationStatus.NOT_APPLICABLE, reason="", reason_code=ReasonCode.INVALID_REQUEST
+            )
+
+    def test_graham_number_non_ok_requires_a_reason_code(self) -> None:
+        with pytest.raises(ValueError, match="reason_code is present exactly when"):
+            GrahamNumberResult(status=CalculationStatus.NOT_APPLICABLE, reason="no code")
+
+    def test_graham_number_ok_rejects_a_reason_code(self) -> None:
+        with pytest.raises(ValueError, match="reason_code is present exactly when"):
+            GrahamNumberResult(
+                status=CalculationStatus.OK, maximum_indicated_price=10.0, reason_code=ReasonCode.INVALID_REQUEST
+            )
+
+    def test_growth_value_non_ok_requires_a_reason_code(self) -> None:
+        with pytest.raises(ValueError, match="reason_code is present exactly when"):
+            GrahamGrowthValueResult(status=CalculationStatus.INVALID_INPUT, reason="no code")
+
+    def test_growth_value_ok_rejects_a_reason_code(self) -> None:
+        with pytest.raises(ValueError, match="reason_code is present exactly when"):
+            GrahamGrowthValueResult(
+                status=CalculationStatus.OK, growth_value=10.0, reason_code=ReasonCode.INVALID_REQUEST
+            )

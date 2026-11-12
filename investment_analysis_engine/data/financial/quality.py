@@ -58,7 +58,7 @@ def financial_quality_error(  # noqa: PLR0913
     publish_quality(decisions)
     for decision in decisions:
         if decision.outcome is QualityOutcome.FAIL:
-            return f"{decision.rule_id}: {decision.reason}"
+            return decision.reason
     if isinstance(value, ResolvedInput) and value.lineage is not None:
         for component in value.lineage.components:
             error = financial_quality_error(component, input_id=input_id, now=now, as_of=as_of)

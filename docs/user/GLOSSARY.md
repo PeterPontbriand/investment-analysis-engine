@@ -1203,6 +1203,14 @@ A price quote cannot be used because the time it was retrieved is unknown, it is
 
 See [quote freshness](#quote-freshness).
 
+<a id="reason-nonpositive-input"></a>
+### Nonpositive Input
+An input the formula needs is zero or negative, so the method does not apply to this company.
+
+<a id="reason-override-only"></a>
+### Override Only
+Every input was supplied as an override and none came from a data provider, so the analysis is not run.
+
 <a id="reason-stale-anchor"></a>
 ### Stale Anchor
 The market capitalization is not calculated: the newest annual report was overdue for replacement at the as-of date and none was filed.

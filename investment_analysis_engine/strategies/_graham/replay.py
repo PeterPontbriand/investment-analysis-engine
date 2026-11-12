@@ -1,36 +1,9 @@
 """Replay code the two Graham strategies share."""
 
-from dataclasses import replace
-
 from investment_analysis_engine.analysis.shared.financial_resolution import PriceComparison
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.core.metric_result import MetricStatus
-from investment_analysis_engine.reporting.evidence_presentation import friendly_valuation_failure
+from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
 from investment_analysis_engine.reporting.headline import UNIT_PERCENT, CellKind, HeadlineCell, per_share_unit
-from investment_analysis_engine.strategies.graham_growth.calculation import GrowthValueInputAssembly
-from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputAssembly
-
-# Statuses whose stored `assembly.reason`/`result.reason` is already investor-facing
-# (a successful calculation, or a method-level inapplicability message authored at
-# the source); every other non-OK status carries a raw resolver reason that the live
-# commands only ever show after `friendly_valuation_failure` normalizes it.
-_REASON_ALREADY_SAFE = (CalculationStatus.OK, CalculationStatus.NOT_APPLICABLE)
-
-
-def friendly_graham_assembly[AssemblyT: (GrahamNumberInputAssembly, GrowthValueInputAssembly)](
-    ticker: str, assembly: AssemblyT
-) -> AssemblyT:
-    """Replace a genuine failure's raw reason with the live command's investor-facing text.
-
-    Mirrors the Graham commands' failure output exactly: a successful or NOT_APPLICABLE assembly's reason is
-    already safe to show verbatim (or, for OK, is None), as is a reason that states its own cause
-    (``reason_code``); any other status carries a raw resolver reason at
-    capture time that the live command only ever displays after `friendly_valuation_failure` normalizes it.
-    """
-    if assembly.status in _REASON_ALREADY_SAFE or assembly.reason_code is not None:
-        return assembly
-    return replace(assembly, reason=friendly_valuation_failure(ticker, assembly.status, assembly.reason))
-
 
 EARNINGS_PERIOD_END_LABEL = "earnings input period end"
 """What a Graham strategy's period end is: the observation period end of the earnings (EPS) input.
@@ -40,14 +13,21 @@ Book value can come from another period; no code compares them, so the label nev
 
 
 def price_cell(  # noqa: PLR0913
-    *, key: str, label: str, term: str, value: float | None, status: CalculationStatus, currency: str | None
+    *,
+    key: str,
+    label: str,
+    term: str,
+    value: float | None,
+    status: CalculationStatus,
+    reason_code: ReasonCode | None,
+    currency: str | None,
 ) -> HeadlineCell:
     """Return a Graham strategy's per-share cell: its value, the strategy's own status and the run's currency.
 
-    The Graham results carry text reasons only, so the cell has no reason code. The currency is the one the run
-    recorded, or none, which the unit then says.
+    The cell carries the analysis's reason code, which is ``None`` exactly when the status is ``ok``. The currency is
+    the one the run recorded, or none, which the unit then says.
     """
-    return HeadlineCell(key, label, term, CellKind.NUMBER, value, per_share_unit(currency), status)
+    return HeadlineCell(key, label, term, CellKind.NUMBER, value, per_share_unit(currency), status, reason_code)
 
 
 def margin_cell(

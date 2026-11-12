@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTIVE_AS_OF
 from investment_analysis_engine.strategies.graham_growth.calculation import (
@@ -169,7 +170,8 @@ def test_number_not_applicable_keeps_status_and_reason_prominent() -> None:
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=eps, bvps=bvps),
         result=GrahamNumberResult(
             status=CalculationStatus.NOT_APPLICABLE,
-            reason="BVPS must be positive for Graham Number.",
+            reason="Book value per common share is negative (-4.99 USD), so the Graham Number does not apply.",
+            reason_code=ReasonCode.NONPOSITIVE_INPUT,
         ),
         effective_as_of=EFFECTIVE_AS_OF,
     )

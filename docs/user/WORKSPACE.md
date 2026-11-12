@@ -399,6 +399,6 @@ A refresh ID the command cannot find is reported as `analysis_run_not_found` (ex
 
 A run saved by an older version of the application, or for a strategy this version no longer declares, still has its row. Its outcome is read from the stored record, its cells read `—`, and a line under the table lists its ID; `--json` states why its headline is missing. `runs show` refuses such a run with `unsupported_run_version`. Runs are never converted: a new version of a stored shape leaves older runs in the database, and they are refused by version rather than misread. A run whose stored evidence is invalid refuses the whole table, as it refuses `runs show`, with `invalid_stored_run` and the run's ID.
 
-`runs compare --json` prints one document, described by `schemas/runs-compare.schema.json`, whose first key is `schema_version` (2).
+`runs compare --json` prints one document, described by `schemas/runs-compare.schema.json`, whose first key is `schema_version` (4).
 
 `runs show` exits `0` even for a saved run whose own financial outcome was unavailable or failed — you asked to *see* a record, and it exists; the record's own status tells you what happened when it ran.

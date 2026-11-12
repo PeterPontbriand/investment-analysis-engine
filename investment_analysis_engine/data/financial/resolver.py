@@ -19,6 +19,7 @@ from investment_analysis_engine.core.provider_failure_kind import ProviderFailur
 from investment_analysis_engine.data.financial.cache import ResolvedInputCacheKey, ResolvedInputCacheProtocol
 from investment_analysis_engine.data.financial.facts import (
     ANNUAL_PERIOD_FIELDS,
+    FINANCIAL_FIELD_LABELS,
     INSTANT_SERIES_FIELDS,
     AnnualSeriesFacts,
     AnnualSeriesProvider,
@@ -47,6 +48,7 @@ from investment_analysis_engine.data.financial.quote_freshness import (
     QuoteFreshnessEvidence,
     QuoteFreshnessPolicy,
     evaluate_quote_freshness,
+    quote_timing_message,
 )
 from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionEvent,
@@ -602,14 +604,15 @@ class InputResolver:
             reported[why] = records
             left_out.extend(records)
         if not kept:
+            label = FINANCIAL_FIELD_LABELS[request.field_name]
             if not facts and not left_out:
                 reason = "Provider returned no data for the requested field."
             elif left_out[0].why is LeftOutReason.EARLIER_BASIS:
-                reason = f"No {field_name} observation is on the latest basis: {left_out[0].reason}"
+                reason = f"No {label} observation is on the latest basis: {left_out[0].reason}"
             elif left_out[0].why is LeftOutReason.CONFLICTING_VERSIONS:
-                reason = f"No {field_name} observation is usable: {left_out[0].reason}"
+                reason = f"No {label} observation is usable: {left_out[0].reason}"
             else:
-                reason = f"No {field_name} observation is eligible at the boundary: {left_out[0].reason}"
+                reason = f"No {label} observation is eligible at the boundary: {left_out[0].reason}"
             return self._annual_failure(
                 request, trace, CalculationStatus.INPUT_UNAVAILABLE, reason, left_out=tuple(left_out)
             )
@@ -706,7 +709,7 @@ class InputResolver:
         if evidence.status in ("expired", "unknown_retrieval_time", "future_timestamp"):
             return InputResolutionResult(
                 status=CalculationStatus.INPUT_UNAVAILABLE,
-                reason=f"Quote response timing is unusable: {evidence.status}.",
+                reason=quote_timing_message(evidence.status),
                 resolution_trace=result.resolution_trace,
                 quote_freshness=evidence,
                 reason_code=ReasonCode.QUOTE_TIMING_UNUSABLE,
@@ -1789,7 +1792,7 @@ class InputResolver:
             if timing.status in ("expired", "unknown_retrieval_time", "future_timestamp"):
                 return InputResolutionResult(
                     status=CalculationStatus.INPUT_UNAVAILABLE,
-                    reason=f"Quote response timing is unusable: {timing.status}.",
+                    reason=quote_timing_message(timing.status),
                     quote_freshness=timing,
                     reason_code=ReasonCode.QUOTE_TIMING_UNUSABLE,
                     resolution_trace=trace.append(
@@ -1797,7 +1800,7 @@ class InputResolver:
                             field_name,
                             ResolutionStage.VALIDATION,
                             ResolutionOutcome.REJECTED,
-                            f"Quote response timing is unusable: {timing.status}.",
+                            quote_timing_message(timing.status),
                             now=self._clock(),
                         )
                     ),
@@ -2153,12 +2156,16 @@ def _boundary_error(request: FinancialFactRequest, fact: ProviderFact) -> str | 
         return None
     # Historical: available_at is required and must be <= as_of.
     if fact.available_at is None:
-        return "Historical request requires available_at; fact has no available_at."
+        return "The provider gave no date when this value became public, which an as-of analysis needs."
     if fact.available_at > request.as_of:
-        return (
-            f"Fact available_at ({fact.available_at.isoformat()}) is later than "
-            f"request as_of ({request.as_of.isoformat()})."
-        )
+        available_day = fact.available_at.date()
+        as_of_day = request.as_of.date()
+        if available_day == as_of_day:
+            return (
+                f"This value became public at {fact.available_at.isoformat()}, "
+                f"after the as-of time {request.as_of.isoformat()}."
+            )
+        return f"This value became public on {available_day.isoformat()}, after the as-of date {as_of_day.isoformat()}."
     return None
 
 

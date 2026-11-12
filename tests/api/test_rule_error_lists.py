@@ -16,7 +16,7 @@ from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope, json_argument
-from investment_analysis_engine.strategy_wiring import GRAHAM_NUMBER, MOMENTUM
+from investment_analysis_engine.strategy_wiring import GRAHAM_GROWTH, GRAHAM_NUMBER, MOMENTUM
 from tests.api._support import AUTH, client_for
 
 runner = CliRunner()
@@ -288,3 +288,40 @@ def test_the_api_lists_an_invalid_as_of_text_with_invalid_windows_in_field_order
     ]
     assert failure["errors"][-1]["rule"] == "selection.as_of_syntax"
     assert failure["parameters"] == ["selection.eps_override"]
+
+
+@pytest.mark.parametrize(
+    ("method_id", "selection", "parameter", "rule"),
+    [
+        (
+            GRAHAM_NUMBER.method_id,
+            {"quote_override": 0},
+            "selection.quote_override",
+            "graham-number.quote_override_not_positive",
+        ),
+        (
+            GRAHAM_GROWTH.method_id,
+            {"expected_growth": 5, "aaa_yield_override": 4.5, "quote_override": -3},
+            "selection.quote_override",
+            "graham-growth.quote_override_not_positive",
+        ),
+        (
+            GRAHAM_GROWTH.method_id,
+            {"expected_growth": 5, "aaa_yield_override": 0},
+            "selection.aaa_yield_override",
+            "graham-growth.aaa_yield_override_not_positive",
+        ),
+    ],
+)
+def test_the_api_refuses_a_zero_or_negative_price_or_yield_override_as_an_invalid_parameter(
+    isolated_cli_settings: ProjectSettings, method_id: str, selection: dict[str, object], parameter: str, rule: str
+) -> None:
+    body = {"ticker": "KO", "method_id": method_id, "selection": selection}
+    with client_for(isolated_cli_settings) as client:
+        response = client.post("/v1/analyses", json=body, headers=AUTH)
+
+    failure = response.json()
+    assert response.status_code == 400
+    assert failure["reason_code"] == "invalid_parameter"
+    assert failure["parameters"] == [parameter]
+    assert [item["rule"] for item in failure["errors"]] == [rule]
