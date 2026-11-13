@@ -194,12 +194,12 @@ def test_refresh_stores_a_failed_run_with_its_batch_context_and_counts_every_out
     assert result.exit_code == 1
     assert document["counts"] == {"completed": 1, "failed": 1, "unavailable": 1}
     by_ticker = {item["ticker"]: item for item in document["results"]}
-    assert by_ticker["BAD"]["status"] == "failed"
+    assert by_ticker["BAD"]["outcome"] == "failed"
     assert by_ticker["BAD"]["reason_code"] == "provider_rate_limited"
     assert by_ticker["BAD"]["error"] is None
     assert by_ticker["BAD"]["saved"] is True
-    assert by_ticker["SHORT"]["status"] == "unavailable"
-    assert by_ticker["GOOD"]["status"] == "completed"
+    assert by_ticker["SHORT"]["outcome"] == "unavailable"
+    assert by_ticker["GOOD"]["outcome"] == "completed"
 
     database = SQLiteDatabase(isolated_cli_settings)
     try:
@@ -228,7 +228,7 @@ def test_refresh_no_save_reports_the_failed_outcome_with_its_code_and_stores_not
     document = json.loads(result.stdout)
     (job,) = document["results"]
     assert result.exit_code == 1
-    assert (job["saved"], job["analysis_run_id"], job["status"]) == (False, None, "failed")
+    assert (job["saved"], job["analysis_run_id"], job["outcome"]) == (False, None, "failed")
     assert job["reason_code"] == "provider_unreachable"
     assert job["error"] is None
     assert _stored(isolated_cli_settings) == []

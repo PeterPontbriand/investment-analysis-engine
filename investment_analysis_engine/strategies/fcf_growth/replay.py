@@ -1,6 +1,6 @@
 """FCF Growth's replay projector: render a stored run using only the evidence it captured."""
 
-from investment_analysis_engine.reporting.headline import UNIT_PERCENT, CellKind, Headline, HeadlineCell
+from investment_analysis_engine.reporting.headline import CellKind, CellUnit, Headline, HeadlineCell
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from investment_analysis_engine.strategies.fcf_growth.envelope import FCFDocument
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthResult
@@ -53,7 +53,7 @@ def headline_fcf_growth(result: FCFEarningsGrowthResult) -> Headline:
                 HEADLINE_TERMS["fcf_cagr"],
                 CellKind.NUMBER,
                 growth.value,
-                UNIT_PERCENT,
+                CellUnit.PERCENT,
                 growth.status,
                 growth.reason_code,
             ),
@@ -63,7 +63,7 @@ def headline_fcf_growth(result: FCFEarningsGrowthResult) -> Headline:
                 HEADLINE_TERMS["eps_cagr"],
                 CellKind.NUMBER,
                 result.eps_cagr.value,
-                UNIT_PERCENT,
+                CellUnit.PERCENT,
                 result.eps_cagr.status,
                 result.eps_cagr.reason_code,
             ),

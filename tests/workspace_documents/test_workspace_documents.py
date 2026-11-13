@@ -116,19 +116,19 @@ def test_each_watchlist_schema_is_version_one(file_name: str) -> None:
     assert "schema_version" not in schema.get("required", [])
 
 
-def test_the_runs_list_schema_is_version_one_with_a_paging_flag_and_items() -> None:
+def test_the_runs_list_schema_is_version_two_with_a_paging_flag_and_items() -> None:
     schema = json.loads(expected_schemas()["runs-list.schema.json"])
     assert schema["type"] == "object"
     assert schema["additionalProperties"] is False
-    assert schema["properties"]["schema_version"]["const"] == 1
+    assert schema["properties"]["schema_version"]["const"] == 2
     assert list(RunsListDocument.model_fields) == ["schema_version", "has_more", "items"]
     assert schema["required"] == ["has_more", "items"]
     assert "unversioned" not in schema["description"]
 
 
-def test_the_refresh_summary_schema_is_version_three_and_its_watchlist_is_nullable() -> None:
+def test_the_refresh_summary_schema_is_version_four_and_its_watchlist_is_nullable() -> None:
     schema = json.loads(expected_schemas()["refresh-summary.schema.json"])
-    assert schema["properties"]["schema_version"]["const"] == 3
+    assert schema["properties"]["schema_version"]["const"] == 4
     assert {"type": "null"} in schema["properties"]["watchlist_id"]["anyOf"]
     assert {"type": "null"} in schema["properties"]["watchlist_name"]["anyOf"]
     assert "unversioned" not in schema["description"]
@@ -330,7 +330,7 @@ def test_an_unreadable_entry_document_needs_an_error_that_names_its_entry() -> N
 
 def test_the_runs_list_is_a_versioned_object_and_an_empty_page_has_no_items() -> None:
     assert RunsListDocument(has_more=False, items=()).model_dump(mode="json") == {
-        "schema_version": 1,
+        "schema_version": 2,
         "has_more": False,
         "items": [],
     }
@@ -338,7 +338,7 @@ def test_the_runs_list_is_a_versioned_object_and_an_empty_page_has_no_items() ->
         analysis_run_id=UUID(int=1),
         ticker="AAPL",
         method_id="sma_crossover",
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         completed_at=datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
         refresh_id=None,
     )
@@ -350,7 +350,7 @@ def test_the_runs_list_is_a_versioned_object_and_an_empty_page_has_no_items() ->
             "analysis_run_id": "00000000-0000-0000-0000-000000000001",
             "ticker": "AAPL",
             "method_id": "sma_crossover",
-            "status": "completed",
+            "outcome": "completed",
             "completed_at": "2026-01-02T03:04:05+00:00",
             "refresh_id": None,
         }
@@ -377,7 +377,7 @@ def test_the_refresh_summary_reports_an_unsaved_outcome_and_a_failed_job() -> No
         "counts",
         "provider_check",
     ]
-    assert document["schema_version"] == 3
+    assert document["schema_version"] == 4
     assert document["provider_check"] is None
     assert document["results"] == [
         {
@@ -385,7 +385,7 @@ def test_the_refresh_summary_reports_an_unsaved_outcome_and_a_failed_job() -> No
             "method_id": "sma_crossover",
             "analysis_run_id": None,
             "saved": False,
-            "status": "completed",
+            "outcome": "completed",
             "error": None,
             "reason_code": None,
         },
@@ -394,7 +394,7 @@ def test_the_refresh_summary_reports_an_unsaved_outcome_and_a_failed_job() -> No
             "method_id": "sma_crossover",
             "analysis_run_id": None,
             "saved": False,
-            "status": None,
+            "outcome": None,
             "error": "boom",
             "reason_code": "provider_error",
         },
@@ -419,7 +419,7 @@ def test_a_refresh_result_document_enforces_its_consistency_rules() -> None:
         "method_id": "m",
         "analysis_run_id": None,
         "saved": False,
-        "status": RunOutcome.COMPLETED,
+        "outcome": RunOutcome.COMPLETED,
         "error": None,
         "reason_code": None,
     }
@@ -427,8 +427,8 @@ def test_a_refresh_result_document_enforces_its_consistency_rules() -> None:
     for change, message in (
         ({"saved": True}, "saved is true"),
         ({"reason_code": FailureReasonCode.PROVIDER_ERROR}, "reason_code is set"),
-        ({"error": "boom", "reason_code": FailureReasonCode.PROVIDER_ERROR}, "status is set"),
-        ({"status": None}, "status is set"),
+        ({"error": "boom", "reason_code": FailureReasonCode.PROVIDER_ERROR}, "outcome is set"),
+        ({"outcome": None}, "outcome is set"),
     ):
         with pytest.raises(ValidationError, match=message):
             RefreshResultDocument(**{**base, **change})

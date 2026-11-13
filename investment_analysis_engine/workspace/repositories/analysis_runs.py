@@ -63,6 +63,32 @@ class StoredRefreshRun:
         return SQLiteAnalysisRunRepository.decode_row(self.row)
 
 
+@dataclass(frozen=True)
+class StoredRun:
+    """One stored run read by its ID: its indexed identity, outcome and completion, with its envelope decoded on demand.
+
+    Like :class:`StoredRefreshRun`, the indexed fields are read without decoding the stored envelope, so a run of an
+    older version, or of a strategy no longer declared, can still be shown by what its row records.
+    """
+
+    analysis_run_id: UUID
+    ticker: str
+    analysis_id: str
+    method_id: str
+    status: RunOutcome
+    completed_at: datetime
+    refresh_id: UUID | None
+    row: Mapping[str, Any] = field(repr=False, compare=False)
+
+    def envelope(self) -> AnalysisRun:
+        """Return the fully decoded run.
+
+        Raises:
+            ValueError: If the stored envelope is malformed or disagrees with its own indexed columns.
+        """
+        return SQLiteAnalysisRunRepository.decode_row(self.row)
+
+
 class AnalysisRunConflictError(ValueError):
     """A run with the same ``analysis_run_id`` already exists; only a defect can cause it."""
 
@@ -140,6 +166,28 @@ class SQLiteAnalysisRunRepository:
             if row is None:
                 return None
             return self._decode(dict(row))
+
+    def get_stored(self, run_id: UUID) -> StoredRun | None:
+        """Return one run by its indexed columns with its envelope undecoded, or None for an exact-ID miss."""
+        with self._database.read() as connection:
+            row = (
+                connection.execute(select(analysis_runs).where(analysis_runs.c.analysis_run_id == str(run_id)))
+                .mappings()
+                .one_or_none()
+            )
+        if row is None:
+            return None
+        values = dict(row)
+        return StoredRun(
+            analysis_run_id=UUID(values["analysis_run_id"]),
+            ticker=values["ticker"],
+            analysis_id=values["analysis_id"],
+            method_id=values["method_id"],
+            status=RunOutcome(values["outcome"]),
+            completed_at=datetime.fromisoformat(values["completed_at"]),
+            refresh_id=None if values["refresh_id"] is None else UUID(values["refresh_id"]),
+            row=values,
+        )
 
     def list(self, query: RunQuery) -> RunPage:
         """Return a bounded, filtered page of run summaries and whether more rows follow it.
@@ -290,4 +338,5 @@ __all__ = [
     "AnalysisRunConflictError",
     "SQLiteAnalysisRunRepository",
     "StoredRefreshRun",
+    "StoredRun",
 ]

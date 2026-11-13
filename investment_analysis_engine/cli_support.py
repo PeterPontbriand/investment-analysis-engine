@@ -6,7 +6,8 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Annotated, Any, NoReturn
+from types import MappingProxyType
+from typing import Annotated, Any, Final, NoReturn
 
 import typer
 from pydantic import BaseModel
@@ -23,6 +24,7 @@ from investment_analysis_engine.core.failure_classification import classify_fail
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.tickers import normalize_ticker
+from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
@@ -194,13 +196,14 @@ def execution_errors(
         analysis, method = _selection_identity(selection_type)
         cause = exc.cause if isinstance(exc, SavingFailureError) else exc
         description = describe_failure(cause, scope.ticker, saving=isinstance(exc, SavingFailureError))
+        message = operator_message(cause) if isinstance(cause, DatabaseReadinessError) else description.message
         envelope = failure_envelope(
-            description.code, description.message, cause=cause, analysis=analysis, method=method, ticker=scope.ticker
+            description.code, message, cause=cause, analysis=analysis, method=method, ticker=scope.ticker
         )
         if scope.mode is PresentationMode.JSON:
             typer.echo(failure_document_json(envelope))
         else:
-            typer.echo(description.message, err=True)
+            typer.echo(message, err=True)
             if scope.mode is PresentationMode.DIAGNOSTICS:
                 for diagnostic in envelope.diagnostics:
                     typer.echo(f"{diagnostic.rule}: {diagnostic.reason}", err=True)
@@ -381,11 +384,73 @@ def fail(reason_code: FailureReasonCode, message: str, *, json_output: bool = Fa
     report_failure(failure_envelope(reason_code, message), json_output=json_output)
 
 
-def operator_message(exception: Exception) -> str:
-    """Return the exception's own message, with the command that removes an unreadable watchlist entry.
+_DATABASE_CLI_DETAILS: Final[Mapping[ReadinessReason, str]] = MappingProxyType(
+    {
+        ReadinessReason.MIGRATION_FAILED: (
+            "schema migration did not complete. Preserve this database and inspect application diagnostics; "
+            "the migration transaction was rolled back."
+        ),
+        ReadinessReason.UPGRADE_REQUIRED: (
+            "schema upgrade required to revision {expected_revision}. This is a one-time upgrade of your "
+            "existing local database, not new setup \u2014 your data is not lost. Back up this database file, "
+            "then run:\n\n    ian db upgrade\n\nAdd --database-url to target a database "
+            "other than your configured default. Let any other ian command using this same "
+            "file finish first."
+        ),
+        ReadinessReason.INCOMPATIBLE_SCHEMA: (
+            "schema is incompatible or incomplete. Preserve this database and inspect it with the matching "
+            "application version; automatic initialization was not performed."
+        ),
+        ReadinessReason.BUSY: (
+            "readiness could not acquire storage access within the configured wait. "
+            "Close other database operations and retry."
+        ),
+        ReadinessReason.PERMISSION_DENIED: (
+            "access was denied. Check permissions for this file and its parent directory."
+        ),
+        ReadinessReason.INVALID_FILE: (
+            "the file is not a readable SQLite database or is corrupt. "
+            "Preserve it and inspect or restore it before retrying."
+        ),
+        ReadinessReason.IO_ERROR: (
+            "storage could not be accessed. Check the path, available storage and filesystem health."
+        ),
+        ReadinessReason.RESOURCES_UNAVAILABLE: (
+            "migration resources are unavailable or inconsistent. Use a complete matching source installation; "
+            "the database was not initialized."
+        ),
+        ReadinessReason.INITIALIZATION_FAILED: (
+            "fresh initialization did not complete. "
+            "Preserve this file and inspect application diagnostics before retrying; "
+            "no partial schema was accepted."
+        ),
+    }
+)
+"""What the command line says of each database failure after the target: the state, with the remedy and the options."""
 
-    The stored-selection error names the entry and its state; the command that removes it is the CLI's to offer.
+
+def database_message(error: DatabaseReadinessError) -> str:
+    """Return a database failure as the command line writes it: the target, the state and the remedy.
+
+    The error itself states only the database's state; the target is the configured database path and the remedy is
+    an ``ian`` command, both of which the command line puts back.
     """
+    path = error.database_path
+    target = "in-memory database" if path is None else json.dumps(str(path), ensure_ascii=False)
+    detail = _DATABASE_CLI_DETAILS[error.reason]
+    if error.reason is ReadinessReason.UPGRADE_REQUIRED:
+        detail = detail.format(expected_revision=error.expected_revision or "the required revision")
+    return f"Database {target}: {detail}"
+
+
+def operator_message(exception: Exception) -> str:
+    """Return the exception's own message, with what the command line adds to it.
+
+    The stored-selection error names the entry and its state; the command that removes it is the CLI's to offer. The
+    database error states the database's state; the target and the remedy are the CLI's to add.
+    """
+    if isinstance(exception, DatabaseReadinessError):
+        return database_message(exception)
     message = str(exception)
     if isinstance(exception, StoredSelectionError) and exception.watchlist_name is not None:
         message += f' Remove it with: ian watchlist remove-entry "{exception.watchlist_name}" {exception.entry_number}'

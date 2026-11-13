@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 
 import investment_analysis_engine.application.watchlists
 from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_support import database_message
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
@@ -200,7 +201,7 @@ def test_runs_list_json_failure_on_a_readiness_error_carries_the_database_facts(
     assert not result.stderr
     envelope = _envelope(result.stdout)
     assert envelope["reason_code"] == "database_upgrade_required"
-    assert envelope["reason"] == str(error)
+    assert envelope["reason"] == database_message(error)
     assert envelope["database"] == {"database_path": str(tmp_path / "cli.sqlite3"), "expected_revision": "0001_head"}
 
 
@@ -211,7 +212,7 @@ def test_a_readiness_error_without_json_stays_text_on_standard_error(tmp_path: P
 
     assert result.exit_code == 1
     assert result.stdout == ""
-    assert normalize_cli_output(result.stderr) == normalize_cli_output(str(error))
+    assert normalize_cli_output(result.stderr) == normalize_cli_output(database_message(error))
 
 
 def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(

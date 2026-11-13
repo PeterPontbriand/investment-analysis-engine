@@ -9,11 +9,10 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
 from investment_analysis_engine.core.strategy_errors import UndeclaredStrategyError
 from investment_analysis_engine.reporting.headline import (
-    UNIT_PERCENT,
     CellKind,
+    CellUnit,
     Headline,
     HeadlineCell,
-    per_share_unit,
 )
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategy_wiring import (
@@ -28,11 +27,11 @@ from tests._direct_command_output import _COMMANDS
 from tests._strategy_document_output import CASES, Case, run_saved
 
 STAMP = datetime(2026, 1, 1, tzinfo=UTC)
-NO_CURRENCY = "currency unspecified per share"
+NO_CURRENCY = None
 
 
 def _number(**changes: object) -> HeadlineCell:
-    base = HeadlineCell("k", "K", "term-k", CellKind.NUMBER, 1.0, UNIT_PERCENT, MetricStatus.OK)
+    base = HeadlineCell("k", "K", "term-k", CellKind.NUMBER, 1.0, CellUnit.PERCENT, MetricStatus.OK)
     return replace(base, **changes)  # type: ignore[arg-type]
 
 
@@ -52,7 +51,11 @@ def test_a_valid_number_and_text_cell_construct() -> None:
         {"value": True},
         {"value": "1.0"},
         {"unit": None},
-        {"unit": " "},
+        {"currency": "USD"},
+        {"unit": CellUnit.PER_SHARE, "currency": "usd"},
+        {"unit": CellUnit.PER_SHARE, "currency": "US"},
+        {"unit": CellUnit.PER_SHARE, "currency": "USDX"},
+        {"unit": CellUnit.PER_SHARE, "currency": "US1"},
         {"status": None},
         {"value": None},
         {"status": MetricStatus.UNAVAILABLE},
@@ -72,7 +75,8 @@ def test_an_invalid_number_cell_is_rejected(changes: dict[str, object]) -> None:
     [
         {"value": 1.0},
         {"value": " "},
-        {"unit": "percent"},
+        {"unit": CellUnit.PERCENT},
+        {"currency": "USD"},
         {"status": MetricStatus.OK},
         {"reason_code": ReasonCode.MISSING_FACT},
     ],
@@ -98,10 +102,19 @@ def test_a_headline_needs_cells_with_unique_keys_and_an_aware_period_end() -> No
             Headline(**bad)
 
 
-def test_the_per_share_unit_names_the_currency_or_says_none_was_recorded() -> None:
-    assert per_share_unit("USD") == "USD per share"
-    assert per_share_unit(None) == NO_CURRENCY
-    assert per_share_unit("") == NO_CURRENCY
+def test_a_per_share_cell_carries_a_currency_or_none_and_no_other_cell_does() -> None:
+    with_currency = _number(unit=CellUnit.PER_SHARE, currency="USD")
+    assert (with_currency.unit, with_currency.currency) == (CellUnit.PER_SHARE, "USD")
+    unspecified = _number(unit=CellUnit.PER_SHARE)
+    assert (unspecified.unit, unspecified.currency) == (CellUnit.PER_SHARE, None)
+    for unit in (CellUnit.PERCENT, CellUnit.POINTS, CellUnit.MULTIPLE):
+        assert _number(unit=unit).currency is None
+        with pytest.raises(ValueError, match="per-share"):
+            _number(unit=unit, currency="USD")
+
+
+def test_the_cell_units_are_the_closed_set() -> None:
+    assert [item.value for item in CellUnit] == ["percent", "points", "multiple", "per_share"]
 
 
 def _headline_of(case: Case) -> tuple[str, Headline]:
@@ -122,7 +135,7 @@ def test_momentum_cells_for_a_known_trend() -> None:
     assert (cells["trend"].label, cells["trend"].value, cells["trend"].status) == ("Trend", "Bullish", None)
     assert (cells["rsi"].label, cells["rsi"].unit, cells["rsi"].status, cells["rsi"].value) == (
         "RSI",
-        "points",
+        CellUnit.POINTS,
         MetricStatus.OK,
         100.0,
     )
@@ -165,14 +178,14 @@ def test_an_unknown_trend_keeps_the_rsi_that_was_computed() -> None:
 
 
 @pytest.mark.parametrize(
-    ("case_name", "price_status", "price", "unit", "period", "code"),
+    ("case_name", "price_status", "price", "currency", "period", "code"),
     [
-        ("graham-number-success", CalculationStatus.OK, 36.686169055926236, "USD per share", True, None),
+        ("graham-number-success", CalculationStatus.OK, 36.686169055926236, "USD", True, None),
         (
             "graham-number-nonpositive-eps",
             CalculationStatus.NOT_APPLICABLE,
             None,
-            "USD per share",
+            "USD",
             False,
             ReasonCode.NONPOSITIVE_INPUT,
         ),
@@ -206,7 +219,7 @@ def test_graham_number_price_cell(  # noqa: PLR0913, PLR0917
     case_name: str,
     price_status: CalculationStatus,
     price: float | None,
-    unit: str,
+    currency: str | None,
     period: bool,
     code: ReasonCode | None,
 ) -> None:
@@ -214,7 +227,13 @@ def test_graham_number_price_cell(  # noqa: PLR0913, PLR0917
     _status, headline = _headline_of(case)
     cell = headline.cells[0]
     assert (cell.key, cell.label, cell.kind) == ("maximum_indicated_price", "Max price", CellKind.NUMBER)
-    assert (cell.value, cell.status, cell.unit, cell.reason_code) == (price, price_status, unit, code)
+    assert (cell.value, cell.status, cell.unit, cell.currency, cell.reason_code) == (
+        price,
+        price_status,
+        CellUnit.PER_SHARE,
+        currency,
+        code,
+    )
     assert (headline.period_end is not None) is period
     assert headline.taxonomy is None
     assert headline.period_end_label == "earnings input period end"
@@ -259,7 +278,12 @@ def test_a_graham_margin_is_ok_with_its_percent_when_the_comparison_is_available
         analysis, price_comparison=PriceComparison("available", "ok", percent=18.4), margin_of_safety_percent=18.4
     )
     cell = GRAHAM_NUMBER.behavior.headline_for(available).cells[1]
-    assert (cell.value, cell.status, cell.unit, cell.reason_code) == (18.4, MetricStatus.OK, "percent", None)
+    assert (cell.value, cell.status, cell.unit, cell.reason_code) == (
+        18.4,
+        MetricStatus.OK,
+        CellUnit.PERCENT,
+        None,
+    )
     assert headline.cells[1].status is MetricStatus.UNAVAILABLE
 
 
@@ -304,7 +328,7 @@ def test_an_overridden_earnings_input_gives_a_per_share_cell_with_no_currency_an
     assert status == "completed"
     assert cell.status is CalculationStatus.OK
     assert cell.value is not None
-    assert cell.unit == NO_CURRENCY
+    assert (cell.unit, cell.currency) == (CellUnit.PER_SHARE, None)
     assert headline.period_end is None, "An override carries no fiscal period."
 
 
@@ -325,7 +349,7 @@ def test_fcf_growth_cagr_cell_names_its_basis_and_takes_the_metrics_own_status_a
     cells = _cells(case_name)
     assert list(cells) == ["fcf_cagr", "eps_cagr", "classification"]
     cagr = cells["fcf_cagr"]
-    assert (cagr.label, cagr.unit, cagr.status, cagr.reason_code) == (label, "percent", status, code)
+    assert (cagr.label, cagr.unit, cagr.status, cagr.reason_code) == (label, CellUnit.PERCENT, status, code)
     assert (cagr.value is not None) is (status is MetricStatus.OK)
 
 

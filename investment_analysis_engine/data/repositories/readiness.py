@@ -1,7 +1,6 @@
 """Conservative SQLite readiness with atomic initialization of empty storage."""
 
 import errno
-import json
 import re
 import sqlite3
 from collections.abc import Iterator
@@ -52,40 +51,47 @@ class ReadinessReason(StrEnum):
 
 _MESSAGES = {
     ReadinessReason.MIGRATION_FAILED: (
-        "schema migration did not complete. Preserve this database and inspect application diagnostics; "
+        "Database schema migration did not complete. Preserve this database and inspect application diagnostics; "
         "the migration transaction was rolled back."
     ),
     ReadinessReason.UPGRADE_REQUIRED: (
-        "schema upgrade required to revision {expected_revision}. This is a one-time upgrade of your "
-        "existing local database, not new setup — your data is not lost. Back up this database file, "
-        "then run:\n\n    ian db upgrade\n\nAdd --database-url to target a database "
-        "other than your configured default. Let any other ian command using this same "
-        "file finish first."
+        "Database schema upgrade required to revision {expected_revision}. This is a one-time upgrade of your "
+        "existing local database, not new setup — your data is not lost. Back up the database file before "
+        "upgrading it, and let any other process using it finish first."
     ),
     ReadinessReason.INCOMPATIBLE_SCHEMA: (
-        "schema is incompatible or incomplete. Preserve this database and inspect it with the matching "
+        "Database schema is incompatible or incomplete. Preserve this database and inspect it with the matching "
         "application version; automatic initialization was not performed."
     ),
     ReadinessReason.BUSY: (
-        "readiness could not acquire storage access within the configured wait. "
+        "Database readiness could not acquire storage access within the configured wait. "
         "Close other database operations and retry."
     ),
-    ReadinessReason.PERMISSION_DENIED: "access was denied. Check permissions for this file and its parent directory.",
+    ReadinessReason.PERMISSION_DENIED: (
+        "Database access was denied. Check permissions for the database file and its parent directory."
+    ),
     ReadinessReason.INVALID_FILE: (
-        "the file is not a readable SQLite database or is corrupt. "
+        "The database file is not a readable SQLite database or is corrupt. "
         "Preserve it and inspect or restore it before retrying."
     ),
-    ReadinessReason.IO_ERROR: "storage could not be accessed. Check the path, available storage and filesystem health.",
+    ReadinessReason.IO_ERROR: (
+        "Database storage could not be accessed. Check the database location, available storage and filesystem health."
+    ),
     ReadinessReason.RESOURCES_UNAVAILABLE: (
-        "migration resources are unavailable or inconsistent. Use a complete matching source installation; "
+        "Database migration resources are unavailable or inconsistent. Use a complete matching source installation; "
         "the database was not initialized."
     ),
     ReadinessReason.INITIALIZATION_FAILED: (
-        "fresh initialization did not complete. "
+        "Database fresh initialization did not complete. "
         "Preserve this file and inspect application diagnostics before retrying; "
         "no partial schema was accepted."
     ),
 }
+"""The message of each category: only the state of the database, with no command, option, variable or path.
+
+A caller that can name a remedy or the target, as the command line does, adds them to this message itself; the target
+is :attr:`DatabaseReadinessError.database_path`.
+"""
 
 
 class DatabaseReadinessError(RuntimeError):
@@ -98,11 +104,10 @@ class DatabaseReadinessError(RuntimeError):
         self._reason = reason
         self._database_path = database_path
         self._expected_revision = expected_revision
-        target = "in-memory database" if database_path is None else json.dumps(str(database_path), ensure_ascii=False)
-        detail = _MESSAGES[reason]
+        message = _MESSAGES[reason]
         if reason is ReadinessReason.UPGRADE_REQUIRED:
-            detail = detail.format(expected_revision=expected_revision or "the required revision")
-        super().__init__(f"Database {target}: {detail}")
+            message = message.format(expected_revision=expected_revision or "the required revision")
+        super().__init__(message)
 
     @property
     def reason(self) -> ReadinessReason:

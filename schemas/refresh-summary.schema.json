@@ -80,7 +80,7 @@
     },
     "RefreshResultDocument": {
       "additionalProperties": false,
-      "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``status`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if the job raised (``error``) or its\n``status`` is ``failed``. An ``unavailable`` job is an analysis outcome and carries none.",
+      "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``outcome`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if the job stopped because of an unexpected\nproblem (``error``) or its ``outcome`` is ``failed``. An ``unavailable`` job is an analysis outcome and carries\nnone.",
       "properties": {
         "analysis_run_id": {
           "anyOf": [
@@ -104,12 +104,23 @@
               "type": "null"
             }
           ],
-          "description": "The message the application wrote for the failure, chosen by its code; null unless the job raised.",
+          "description": "The message the application wrote for the failure, chosen by its code; null unless the job stopped because of an unexpected problem.",
           "title": "Error"
         },
         "method_id": {
           "title": "Method Id",
           "type": "string"
+        },
+        "outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How the job's run ended, whether or not it was saved; null for a job that stopped because of an unexpected problem, before it produced an outcome."
         },
         "reason_code": {
           "anyOf": [
@@ -120,22 +131,11 @@
               "type": "null"
             }
           ],
-          "description": "The stable code of the failure; null unless the job raised or its status is failed."
+          "description": "The stable code of the failure; null unless the job stopped because of an unexpected problem or its outcome is failed."
         },
         "saved": {
           "title": "Saved",
           "type": "boolean"
-        },
-        "status": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RunOutcome"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The run's or the unsaved outcome's status; null for a raised job."
         },
         "ticker": {
           "title": "Ticker",
@@ -147,7 +147,7 @@
         "method_id",
         "analysis_run_id",
         "saved",
-        "status",
+        "outcome",
         "error",
         "reason_code"
       ],
@@ -173,7 +173,7 @@
       "additionalProperties": {
         "type": "integer"
       },
-      "description": "Jobs per status; a job that raised counts as 'error'.",
+      "description": "How many jobs ended in each outcome. A job that stopped because of an unexpected problem, before it produced an outcome, is counted under the key `error`.",
       "title": "Counts",
       "type": "object"
     },
@@ -205,8 +205,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 3,
-      "default": 3,
+      "const": 4,
+      "default": 4,
       "title": "Schema Version",
       "type": "integer"
     },

@@ -75,7 +75,7 @@ def test_a_malformed_id_in_a_path_is_invalid_not_missing(
     [
         ({"ticker": " "}, "ticker", "ticker must not be empty."),
         ({"method_id": "nonsense"}, "method_id", None),
-        ({"status": "great"}, "status", "status must be one of: completed, unavailable, not_applicable, failed."),
+        ({"outcome": "great"}, "outcome", "outcome must be one of: completed, unavailable, not_applicable, failed."),
         ({"refresh_id": "abc"}, "refresh_id", "refresh_id 'abc' is not a valid refresh ID."),
         ({"limit": "0"}, "limit", "limit must be between 1 and 100."),
         ({"limit": "101"}, "limit", "limit must be between 1 and 100."),
@@ -133,7 +133,7 @@ def test_mode_is_required_and_has_no_default(isolated_cli_settings: ProjectSetti
 
 
 _API_NAMES = RunQueryNames(
-    ticker="ticker", method="method_id", status="status", refresh_id="refresh_id", limit="limit", offset="offset"
+    ticker="ticker", method="method_id", outcome="outcome", refresh_id="refresh_id", limit="limit", offset="offset"
 )
 
 
@@ -141,7 +141,7 @@ def _query(  # noqa: PLR0913
     *,
     ticker: str | None = None,
     method: str | None = None,
-    status: str | None = None,
+    outcome: str | None = None,
     refresh_id: str | None = None,
     limit: int = 20,
     offset: int = 0,
@@ -151,7 +151,7 @@ def _query(  # noqa: PLR0913
         resolve_method=lambda value: declared_method_id(value, name="method_id"),
         ticker=ticker,
         method=method,
-        status=status,
+        outcome=outcome,
         refresh_id=refresh_id,
         limit=limit,
         offset=offset,
@@ -160,14 +160,14 @@ def _query(  # noqa: PLR0913
 
 def test_the_query_function_reports_the_first_rejected_parameter_in_the_order_the_command_checks_them() -> None:
     with pytest.raises(InvalidParameterError) as caught:
-        _query(ticker=" ", method="nonsense", status="bad", limit=0, offset=-1)
+        _query(ticker=" ", method="nonsense", outcome="bad", limit=0, offset=-1)
     assert caught.value.parameters == ("ticker",)
     with pytest.raises(InvalidParameterError) as caught:
-        _query(method="nonsense", status="bad", limit=0, offset=-1)
+        _query(method="nonsense", outcome="bad", limit=0, offset=-1)
     assert caught.value.parameters == ("method_id",)
     with pytest.raises(InvalidParameterError) as caught:
-        _query(status="bad", limit=0, offset=-1)
-    assert caught.value.parameters == ("status",)
+        _query(outcome="bad", limit=0, offset=-1)
+    assert caught.value.parameters == ("outcome",)
     with pytest.raises(InvalidParameterError) as caught:
         _query(refresh_id="x", limit=0, offset=-1)
     assert caught.value.parameters == ("refresh_id",)
@@ -179,7 +179,12 @@ def test_the_query_function_reports_the_first_rejected_parameter_in_the_order_th
 def test_the_query_function_builds_a_normalized_query() -> None:
     refresh_id = uuid4()
     query = _query(
-        ticker=" brk-b ", method=STRATEGIES[0].method_id, status="failed", refresh_id=str(refresh_id), limit=5, offset=2
+        ticker=" brk-b ",
+        method=STRATEGIES[0].method_id,
+        outcome="failed",
+        refresh_id=str(refresh_id),
+        limit=5,
+        offset=2,
     )
     assert query.ticker == "BRK-B"
     assert query.method_id == STRATEGIES[0].method_id

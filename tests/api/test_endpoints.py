@@ -112,7 +112,7 @@ def test_an_empty_store_lists_empty_documents(isolated_cli_settings: ProjectSett
         runs = client.get("/v1/runs", headers=AUTH)
 
     assert watchlists.json() == {"schema_version": 1, "items": []}
-    assert runs.json() == {"schema_version": 1, "has_more": False, "items": []}
+    assert runs.json() == {"schema_version": 2, "has_more": False, "items": []}
 
 
 def test_a_missing_watchlist_is_not_found_with_the_message_of_the_operation(
@@ -234,7 +234,7 @@ def test_a_response_body_is_compact_utf_8_json_in_field_order(isolated_cli_setti
     with client_for(isolated_cli_settings) as client:
         response = client.get("/v1/runs", headers=AUTH)
 
-    assert response.content == b'{"schema_version":1,"has_more":false,"items":[]}'
+    assert response.content == b'{"schema_version":2,"has_more":false,"items":[]}'
     assert response.headers["content-type"] == "application/json"
     assert response.headers["cache-control"] == "no-store"
 

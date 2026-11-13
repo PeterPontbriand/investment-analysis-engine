@@ -1,0 +1,401 @@
+{
+  "$defs": {
+    "CellKind": {
+      "description": "Whether a cell holds a number or a text.",
+      "enum": [
+        "number",
+        "text"
+      ],
+      "title": "CellKind",
+      "type": "string"
+    },
+    "CellStatusValue": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "not_applicable",
+        "input_unavailable",
+        "invalid_input",
+        "provider_error"
+      ],
+      "type": "string"
+    },
+    "CellUnit": {
+      "description": "The unit of a number cell's value; a client formats the value by it.",
+      "enum": [
+        "percent",
+        "points",
+        "multiple",
+        "per_share"
+      ],
+      "title": "CellUnit",
+      "type": "string"
+    },
+    "CompareCellDocument": {
+      "additionalProperties": false,
+      "description": "One headline cell of a run.",
+      "properties": {
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The ISO 4217 currency of a per-share amount; null for any other cell, and for a per-share cell whose run recorded no currency.",
+          "title": "Currency"
+        },
+        "key": {
+          "description": "The cell's stable key.",
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/CellKind"
+        },
+        "label": {
+          "description": "The column header the text table uses for the cell.",
+          "title": "Label",
+          "type": "string"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The reason code the result carries for the cell, if any."
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CellStatusValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The status of a number cell's value; null for a text cell."
+        },
+        "term": {
+          "description": "The id of the glossary term that explains the label.",
+          "title": "Term",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CellUnit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The unit of a number cell; null for a text cell."
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The number or text; null when the run has none. A percent value is the percentage itself: 18.4 means 18.4 %.",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "term",
+        "kind",
+        "value",
+        "unit",
+        "currency",
+        "status",
+        "reason_code"
+      ],
+      "title": "CompareCellDocument",
+      "type": "object"
+    },
+    "CompareHeadlineDocument": {
+      "additionalProperties": false,
+      "description": "One run's headline: its cells, the fiscal period end it used and its taxonomy.",
+      "properties": {
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/CompareCellDocument"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "period_end": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The fiscal period end the run used; null if not recorded.",
+          "title": "Period End"
+        },
+        "period_end_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the period end is, in the strategy's own words.",
+          "title": "Period End Label"
+        },
+        "taxonomy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The filing taxonomy; null where the run records none.",
+          "title": "Taxonomy"
+        }
+      },
+      "required": [
+        "cells",
+        "period_end",
+        "period_end_label",
+        "taxonomy"
+      ],
+      "title": "CompareHeadlineDocument",
+      "type": "object"
+    },
+    "CompareStrategyDocument": {
+      "additionalProperties": false,
+      "description": "One column group: a strategy present in the refresh.",
+      "properties": {
+        "alias": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The strategy's command alias; null for a strategy no longer declared.",
+          "title": "Alias"
+        },
+        "analysis_id": {
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "declared": {
+          "title": "Declared",
+          "type": "boolean"
+        },
+        "label": {
+          "description": "The strategy's display name; its stored method identifier if no longer declared.",
+          "title": "Label",
+          "type": "string"
+        },
+        "method_id": {
+          "title": "Method Id",
+          "type": "string"
+        },
+        "term": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The id of the glossary term that explains the strategy; null for a strategy no longer declared.",
+          "title": "Term"
+        }
+      },
+      "required": [
+        "analysis_id",
+        "method_id",
+        "alias",
+        "label",
+        "term",
+        "declared"
+      ],
+      "title": "CompareStrategyDocument",
+      "type": "object"
+    },
+    "HeadlineUnavailable": {
+      "enum": [
+        "unsupported_version",
+        "strategy_not_declared",
+        "no_result_stored"
+      ],
+      "type": "string"
+    },
+    "ReasonCode": {
+      "description": "Machine-readable reasons shared by deterministic metric results.",
+      "enum": [
+        "insufficient_history",
+        "non_contiguous_history",
+        "missing_fact",
+        "incompatible_period",
+        "incompatible_units",
+        "incompatible_currency",
+        "incompatible_scope",
+        "ambiguous_fact",
+        "not_available_as_of",
+        "quote_timing_unusable",
+        "stale_anchor",
+        "earlier_basis",
+        "nonpositive_beginning",
+        "nonpositive_ending",
+        "sign_change",
+        "fcf_not_growing",
+        "eps_not_growing",
+        "fcf_and_eps_not_growing",
+        "forward_growth_not_confirmed",
+        "consensus_unavailable",
+        "market_cap_unavailable",
+        "provider_error",
+        "invalid_request",
+        "instrument_kind_not_applicable",
+        "industry_class_not_applicable",
+        "industry_class_unknown",
+        "unsupported_mapping",
+        "debt_not_visible",
+        "nonpositive_denominator",
+        "insufficient_tests",
+        "nonpositive_input",
+        "override_only"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "RunOutcome": {
+      "description": "Terminal outcome of a workspace analysis run.\n\nOnly terminal states exist; there is deliberately no in-progress value because\nthe envelope records an immutable completed attempt rather than live state.",
+      "enum": [
+        "completed",
+        "unavailable",
+        "not_applicable",
+        "failed"
+      ],
+      "title": "RunOutcome",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The whole run overview: what a run is, how it ended and its headline, or why it has none.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
+  "properties": {
+    "analysis_run_id": {
+      "format": "uuid",
+      "title": "Analysis Run Id",
+      "type": "string"
+    },
+    "completed_at": {
+      "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+      "format": "date-time",
+      "title": "Completed At",
+      "type": "string"
+    },
+    "headline": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompareHeadlineDocument"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The run's cells; null when headline_unavailable is set."
+    },
+    "headline_unavailable": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HeadlineUnavailable"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Why the run has no headline, if it has none."
+    },
+    "outcome": {
+      "$ref": "#/$defs/RunOutcome",
+      "description": "The run's outcome, read from its stored record."
+    },
+    "refresh_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The refresh that saved the run; null for a run saved by a direct command.",
+      "title": "Refresh Id"
+    },
+    "requested_as_of": {
+      "anyOf": [
+        {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The point in time the run asked for; null means now.",
+      "title": "Requested As Of"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "strategy": {
+      "$ref": "#/$defs/CompareStrategyDocument",
+      "description": "The strategy that produced the run."
+    },
+    "ticker": {
+      "title": "Ticker",
+      "type": "string"
+    }
+  },
+  "required": [
+    "analysis_run_id",
+    "ticker",
+    "outcome",
+    "completed_at",
+    "refresh_id",
+    "requested_as_of",
+    "strategy",
+    "headline",
+    "headline_unavailable"
+  ],
+  "title": "RunOverviewDocument",
+  "type": "object"
+}

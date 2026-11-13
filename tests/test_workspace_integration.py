@@ -147,7 +147,7 @@ def test_full_offline_workflow_create_seed_refresh_and_browse(mock_run: MagicMoc
     assert len(summaries) == 3
     method_ids = {item["method_id"] for item in summaries}
     assert method_ids == {"sma_crossover", "graham_number", "graham_growth_value"}
-    assert {item["status"] for item in summaries} == {"completed"}
+    assert {item["outcome"] for item in summaries} == {"completed"}
     refresh_ids = {item["refresh_id"] for item in summaries}
     assert len(refresh_ids) == 1  # all three came from the same refresh batch
 

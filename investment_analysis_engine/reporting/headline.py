@@ -2,12 +2,13 @@
 
 Each strategy supplies one pure function from its decoded result to a :class:`Headline`: a fixed-order tuple of
 cells, the fiscal period end the run used and the filing taxonomy. A cell has a stable key, a label, the glossary
-term that explains the label, a kind (a number or a text), a value, an explicit unit, the status of that cell's own
-value and the reason code the result carries for it.
+term that explains the label, a kind (a number or a text), a value, a unit from the closed :class:`CellUnit` set, the
+currency of a per-share amount, the status of that cell's own value and the reason code the result carries for it.
 
-A text cell carries no status, no reason code and no unit: the run's status is already shown beside it as the run's
-outcome. A number cell with a value is ``ok``; a number cell without one carries the status that says why and, where
-the result carries one, the reason code. Nothing missing becomes zero.
+A text cell carries no status, no reason code, no unit and no currency: the run's status is already shown beside it as
+the run's outcome. A number cell has a unit; it has a currency only when its unit is per share, and a per-share cell
+without one says the run recorded none. A number cell with a value is ``ok``; a number cell without one carries the
+status that says why and, where the result carries one, the reason code. Nothing missing becomes zero.
 """
 
 import math
@@ -29,28 +30,30 @@ class CellKind(StrEnum):
     TEXT = "text"
 
 
-UNIT_PERCENT: Final = "percent"
-"""The unit of a percentage."""
+class CellUnit(StrEnum):
+    """The unit of a number cell's value; a client formats the value by it."""
 
-UNIT_POINTS: Final = "points"
-"""The unit of an index on its own scale, such as the RSI."""
+    PERCENT = "percent"
+    """A percentage: the value is the percentage itself, so 18.4 means 18.4 %."""
 
-UNIT_MULTIPLE: Final = "multiple"
-"""The unit of a ratio shown as a multiple, such as ``12.3x``."""
+    POINTS = "points"
+    """An index on its own scale, such as the RSI."""
 
-UNSPECIFIED_CURRENCY_PER_SHARE: Final = "currency unspecified per share"
-"""The unit of a per-share amount whose currency the run did not record."""
+    MULTIPLE = "multiple"
+    """A ratio shown as a multiple, such as ``12.3x``."""
+
+    PER_SHARE = "per_share"
+    """An amount of money per share; the cell's currency says which money, or none when the run recorded none."""
+
+
+CURRENCY_CODE_LENGTH: Final = 3
+"""The length of an ISO 4217 currency code."""
 
 CellStatus = CalculationStatus | MetricStatus
 """The status of a number cell's value: the run's status or the metric's own."""
 
 CELL_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType({**CALCULATION_STATUS_TERMS, **METRIC_STATUS_TERMS})
 """The glossary term that explains each cell status; a value both status types share maps to the same term."""
-
-
-def per_share_unit(currency: str | None) -> str:
-    """Return ``"<currency> per share"``, or the unspecified form when the run recorded no currency."""
-    return f"{currency} per share" if currency else UNSPECIFIED_CURRENCY_PER_SHARE
 
 
 @dataclass(frozen=True)
@@ -62,9 +65,10 @@ class HeadlineCell:
     term: str
     kind: CellKind
     value: float | str | None
-    unit: str | None
+    unit: CellUnit | None
     status: CellStatus | None
     reason_code: ReasonCode | None = None
+    currency: str | None = None
 
     def __post_init__(self) -> None:
         """Enforce the invariants of a number cell and of a text cell."""
@@ -78,11 +82,16 @@ class HeadlineCell:
             self._validate_number()
 
     def _validate_text(self) -> None:
-        """A text cell has a non-empty text or none, and no unit, status or reason code."""
+        """A text cell has a non-empty text or none, and no unit, currency, status or reason code."""
         if self.value is not None and (not isinstance(self.value, str) or not self.value.strip()):
             raise ValueError("A text cell holds a non-empty text or no value.")
-        if self.unit is not None or self.status is not None or self.reason_code is not None:
-            raise ValueError("A text cell carries no unit, status or reason code.")
+        if (
+            self.unit is not None
+            or self.currency is not None
+            or self.status is not None
+            or self.reason_code is not None
+        ):
+            raise ValueError("A text cell carries no unit, currency, status or reason code.")
 
     def _validate_number(self) -> None:
         """A number cell has a finite number or none, a unit and a status that agrees with the value."""
@@ -91,8 +100,18 @@ class HeadlineCell:
             raise ValueError("A number cell holds a number or no value.")
         if value is not None and not math.isfinite(value):
             raise ValueError("A number cell never holds NaN or infinity.")
-        if self.unit is None or not self.unit.strip():
+        if self.unit is None:
             raise ValueError("A number cell has a unit.")
+        if self.currency is not None:
+            if self.unit is not CellUnit.PER_SHARE:
+                raise ValueError("Only a per-share cell carries a currency.")
+            if (
+                len(self.currency) != CURRENCY_CODE_LENGTH
+                or not self.currency.isascii()
+                or not self.currency.isalpha()
+                or not self.currency.isupper()
+            ):
+                raise ValueError("A cell's currency is a three-letter ISO 4217 code.")
         if self.status is None:
             raise ValueError("A number cell has a status.")
         is_ok = self.status in (CalculationStatus.OK, MetricStatus.OK)
@@ -135,13 +154,9 @@ class Headline:
 
 __all__ = [
     "CELL_STATUS_TERMS",
-    "UNIT_MULTIPLE",
-    "UNIT_PERCENT",
-    "UNIT_POINTS",
-    "UNSPECIFIED_CURRENCY_PER_SHARE",
     "CellKind",
     "CellStatus",
+    "CellUnit",
     "Headline",
     "HeadlineCell",
-    "per_share_unit",
 ]

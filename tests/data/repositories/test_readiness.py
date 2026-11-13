@@ -256,8 +256,8 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
             ensure_database_ready(database)
         assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
         assert "synthetic_next" in str(caught.value)
-        assert "\n\n    ian db upgrade\n\n" in str(caught.value)
-        assert "--database-url" in str(caught.value)
+        assert "ian " not in str(caught.value)
+        assert "--" not in str(caught.value)
         assert caught.value.database_path == path
         assert caught.value.expected_revision == "synthetic_next"
     finally:

@@ -19,7 +19,7 @@ class RunSummaryDocument(BaseModel):
     analysis_run_id: UUID
     ticker: str
     method_id: str
-    status: RunOutcome
+    outcome: RunOutcome
     completed_at: DocumentTimestamp
     refresh_id: UUID | None = Field(
         description="The refresh that saved the run; null for a run saved by a direct command."
@@ -31,7 +31,7 @@ class RunsListDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     has_more: bool = Field(description="True when at least one more run follows this page for the same filters.")
     items: tuple[RunSummaryDocument, ...]
 
@@ -45,7 +45,7 @@ def build_runs_list_document(summaries: Sequence[AnalysisRunSummary], *, has_mor
                 analysis_run_id=item.analysis_run_id,
                 ticker=item.ticker,
                 method_id=item.method_id,
-                status=item.status,
+                outcome=item.status,
                 completed_at=item.completed_at,
                 refresh_id=item.refresh_id,
             )

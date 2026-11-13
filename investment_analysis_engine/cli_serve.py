@@ -27,7 +27,7 @@ from investment_analysis_engine.api.origins import normalize_origin
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
 from investment_analysis_engine.cli_database_target import file_backed_settings
-from investment_analysis_engine.cli_support import report_failure
+from investment_analysis_engine.cli_support import operator_message, report_failure
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
@@ -88,7 +88,9 @@ def _launch_failures() -> Iterator[None]:
         raise
     except Exception as exc:
         if isinstance(getattr(exc, "reason_code", None), FailureReasonCode):
-            report_failure(failure_envelope(classify_failure(exc).reason_code, str(exc), cause=exc), json_output=True)
+            report_failure(
+                failure_envelope(classify_failure(exc).reason_code, operator_message(exc), cause=exc), json_output=True
+            )
         logger.exception("Unexpected failure while launching 'ian serve'.")
         _fail(FailureReasonCode.EXECUTION_ERROR, "serve failed unexpectedly.")
 

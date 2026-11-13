@@ -441,13 +441,19 @@ def test_runs_list_reports_no_matches_then_summaries() -> None:
     assert "No matching runs" in result.output
 
 
-def test_runs_list_rejects_an_invalid_status_as_a_usage_error() -> None:
-    result = runner.invoke(app, ["runs", "list", "--status", "bogus"])
+def test_runs_list_rejects_an_invalid_outcome_as_a_usage_error() -> None:
+    result = runner.invoke(app, ["runs", "list", "--outcome", "bogus"])
     assert result.exit_code == 1
 
 
-def test_runs_list_rejects_the_removed_cancelled_status_as_a_usage_error() -> None:
-    result = runner.invoke(app, ["runs", "list", "--status", "cancelled"])
+def test_runs_list_no_longer_accepts_the_status_option_it_replaced_with_outcome() -> None:
+    result = runner.invoke(app, ["runs", "list", "--status", "completed"])
+    assert result.exit_code == 2
+    assert "--status" in normalize_cli_output(result.output)
+
+
+def test_runs_list_rejects_the_removed_cancelled_outcome_as_a_usage_error() -> None:
+    result = runner.invoke(app, ["runs", "list", "--outcome", "cancelled"])
     assert result.exit_code == 1
     assert "cancelled" not in normalize_cli_output(result.output).split("must be one of:")[-1]
 

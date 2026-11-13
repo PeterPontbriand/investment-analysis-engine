@@ -61,13 +61,17 @@ SHARED_CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = {
 EXEMPT_CODE_SETS: Final[Mapping[str, str]] = {
     "schema_version": "A document's version number is a plain integer a client compares, not a code a person reads.",
     "headline cell kind": "A headline cell's kind says whether its value is a number or a text, which the value shows.",
+    "headline cell unit": (
+        "A cell's unit is shown by its formatted value; the cell's own term explains what it measures."
+    ),
     "replay text mode": "The mode names which of the engine's text renderings the text is; the text explains itself.",
     "method_id path parameter": "The method identifier in a path is the strategy's own; its term explains it.",
 }
-"""The four code sets and fields that name no glossary term, each with its reason."""
+"""The code sets and fields that name no glossary term, each with its reason."""
 
 EXEMPT_LOCATIONS: Final[Mapping[str, str]] = {
     "CellKind": "headline cell kind",
+    "CellUnit": "headline cell unit",
     "TextPresentationMode": "replay text mode",
     "query:mode": "replay text mode",
     "path:method_id": "method_id path parameter",

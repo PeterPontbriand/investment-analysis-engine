@@ -18,6 +18,7 @@ from investment_analysis_engine.reporting.documents.failure import FailureEnvelo
 from investment_analysis_engine.reporting.documents.health import ProviderHealthDocument
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.refreshes import RefreshesListDocument
+from investment_analysis_engine.workspace_documents.run_overview import RunOverviewDocument
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
 from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
 from investment_analysis_engine.workspace_documents.watchlist import (
@@ -64,6 +65,7 @@ DOCUMENTS: Final = (
     JsonDocument("runs-list.schema.json", RunsListDocument, ("runs list",)),
     JsonDocument("refreshes-list.schema.json", RefreshesListDocument, ("runs refreshes",)),
     JsonDocument("runs-compare.schema.json", RunsCompareDocument, ("runs compare",)),
+    JsonDocument("run-overview.schema.json", RunOverviewDocument, ()),
     JsonDocument("refresh-summary.schema.json", RefreshSummaryDocument, ("refresh",)),
     JsonDocument("provider-health.schema.json", ProviderHealthDocument, ("health",)),
 )

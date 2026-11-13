@@ -6,7 +6,7 @@ from typing import Literal
 import typer
 
 from investment_analysis_engine.cli_database_target import file_backed_settings
-from investment_analysis_engine.cli_support import parameter_failures, report_failure
+from investment_analysis_engine.cli_support import database_message, parameter_failures, report_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError
 from investment_analysis_engine.data.repositories.readiness import (
@@ -70,7 +70,7 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
                     DatabaseState.INCOMPATIBLE: ReadinessReason.INCOMPATIBLE_SCHEMA,
                 }.get(state)
                 reason_text = (
-                    str(DatabaseReadinessError(reason, path, inspection.expected_revision))
+                    database_message(DatabaseReadinessError(reason, path, inspection.expected_revision))
                     if reason is not None
                     else "Database is ready."
                     if state is DatabaseState.READY
@@ -99,7 +99,7 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
                 current_revision=None,
                 expected_revision=exc.expected_revision,
                 reason_code=FailureReasonCode(exc.reason.value),
-                reason=str(exc),
+                reason=database_message(exc),
             )
             code = 1
         if json_output:

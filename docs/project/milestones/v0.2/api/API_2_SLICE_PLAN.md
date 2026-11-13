@@ -409,6 +409,10 @@ The rule applies to every published document, CLI `--json` included.
   (constant versions, `additionalProperties` false) and describe this engine version; clients must not validate strictly
   against them.
 - Response headers are outside the rule: [S43](#s43-response-headers-are-not-part-of-the-contract-2026-11-03).
+- **Amendment (2026-11-13, [A.7](API_CONTRACT_AND_SLICE_PLAN.md#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13), U2):**
+  the rule applies from the first engine release that includes the API. Until then an incompatible change inside `/v1`,
+  CLI `--json` included, is allowed when the slice that makes it records it and raises the affected document's
+  `schema_version`.
 
 ### S5 The client reference is docs/user/API.md (2026-11-03)
 

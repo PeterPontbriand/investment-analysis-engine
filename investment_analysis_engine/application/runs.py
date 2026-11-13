@@ -32,6 +32,7 @@ from investment_analysis_engine.workspace.runs import (
     RunPage,
     RunQuery,
 )
+from investment_analysis_engine.workspace_documents.run_overview import RunOverviewDocument, build_run_overview
 from investment_analysis_engine.workspace_documents.run_replay import project_run, project_run_document
 from investment_analysis_engine.workspace_documents.runs_compare import (
     CompareColumn,
@@ -49,7 +50,7 @@ class RunQueryNames:
 
     ticker: str
     method: str
-    status: str
+    outcome: str
     refresh_id: str
     limit: str
     offset: str
@@ -95,7 +96,7 @@ def build_run_query(  # noqa: PLR0913
     resolve_method: Callable[[str], str],
     ticker: str | None,
     method: str | None,
-    status: str | None,
+    outcome: str | None,
     refresh_id: str | None,
     limit: int,
     offset: int,
@@ -108,7 +109,7 @@ def build_run_query(  # noqa: PLR0913
             :class:`InvalidParameterError` for one it does not accept.
         ticker: The raw ticker filter, or ``None``.
         method: The raw method filter, or ``None``.
-        status: The raw outcome filter, or ``None``.
+        outcome: The raw outcome filter, or ``None``.
         refresh_id: The raw refresh ID filter, or ``None``.
         limit: The row limit.
         offset: The number of rows to skip.
@@ -119,14 +120,14 @@ def build_run_query(  # noqa: PLR0913
     if ticker is not None and not ticker.strip():
         raise InvalidParameterError(f"{names.ticker} must not be empty.", parameters=(names.ticker,))
     method_id = None if method is None else resolve_method(method)
-    outcome = None
-    if status is not None:
+    run_outcome = None
+    if outcome is not None:
         try:
-            outcome = RunOutcome(status)
+            run_outcome = RunOutcome(outcome)
         except ValueError as exc:
             allowed = ", ".join(item.value for item in RunOutcome)
             raise InvalidParameterError(
-                f"{names.status} must be one of: {allowed}.", parameters=(names.status,)
+                f"{names.outcome} must be one of: {allowed}.", parameters=(names.outcome,)
             ) from exc
     refresh_batch = None if refresh_id is None else parse_refresh_id(refresh_id, name=names.refresh_id)
     if not RUN_QUERY_MIN_LIMIT <= limit <= RUN_QUERY_MAX_LIMIT:
@@ -139,7 +140,7 @@ def build_run_query(  # noqa: PLR0913
     return RunQuery(
         ticker=None if ticker is None else normalize_ticker(ticker),
         method_id=method_id,
-        status=outcome,
+        status=run_outcome,
         refresh_id=refresh_batch,
         limit=limit,
         offset=offset,
@@ -258,6 +259,26 @@ def replay_run_document(context: ApplicationContext, run_id: UUID) -> BaseModel:
     return project_run_document(run, codecs=EVIDENCE_BY_KEY, documents=DOCUMENTS_BY_KEY)
 
 
+def get_run_overview(context: ApplicationContext, run_id: UUID) -> RunOverviewDocument:
+    """Return one stored run's overview: its identity, outcome and headline, or why it has none.
+
+    A run of a strategy no longer declared is shown by its stored row and says so; the headline is built by the
+    builder the comparison table uses.
+
+    Raises:
+        AnalysisRunNotFoundError: If no run has that ID.
+        InvalidStoredRunError: If the stored record or its evidence is invalid.
+        UnsupportedRunVersionError: If the run was stored under a version this one cannot read.
+    """
+    with open_database(context) as database:
+        stored = SQLiteAnalysisRunRepository(database).get_stored(run_id)
+    if stored is None:
+        raise AnalysisRunNotFoundError(f"No Analysis Run with ID {run_id} exists.")
+    key = (stored.analysis_id, stored.method_id)
+    column = next((item for item in _compare_columns() if (item.analysis_id, item.method_id) == key), None)
+    return build_run_overview(stored, column)
+
+
 def compare_refresh_runs(context: ApplicationContext, refresh_id: UUID) -> RunsCompareDocument:
     """Return the runs of one refresh as a table, one row per ticker and one column group per strategy.
 
@@ -280,6 +301,7 @@ __all__ = [
     "build_run_query",
     "compare_refresh_runs",
     "declared_method_id",
+    "get_run_overview",
     "list_refreshes",
     "list_runs",
     "parse_refresh_id",

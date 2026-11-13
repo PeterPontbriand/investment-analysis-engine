@@ -352,14 +352,14 @@ def _refresh_text(summary: RefreshSummary) -> str:
 
 
 def build_refresh_result_document(result: RefreshJobResult) -> RefreshResultDocument:
-    """Build one job's entry; its status is the saved run's, else the unsaved outcome's, else null."""
-    status = result.run.status if result.run is not None else result.outcome
+    """Build one job's entry; its outcome is the saved run's, else the unsaved outcome's, else null."""
+    outcome = result.run.status if result.run is not None else result.outcome
     return RefreshResultDocument(
         ticker=result.ticker,
         method_id=result.method_id,
         analysis_run_id=None if result.run is None else result.run.analysis_run_id,
         saved=result.run is not None,
-        status=status,
+        outcome=outcome,
         error=result.error,
         reason_code=None if result.reason_code is None else FailureReasonCode(result.reason_code),
     )

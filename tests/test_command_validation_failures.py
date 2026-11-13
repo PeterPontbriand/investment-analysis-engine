@@ -441,9 +441,9 @@ def _rows() -> list[Check]:  # noqa: PLR0912, PLR0915
     add(
         _check(
             "WRK-11",
-            ("runs", "list", "--status", "bogus"),
-            "--status must be one of: completed, unavailable, not_applicable, failed.",
-            ("--status",),
+            ("runs", "list", "--outcome", "bogus"),
+            "--outcome must be one of: completed, unavailable, not_applicable, failed.",
+            ("--outcome",),
             json_flag=True,
         )
     )
@@ -757,7 +757,7 @@ _ORDER = [
     (("watchlist", "add-selection", "momentum", "Nope", " "), ("TICKER",)),
     (("watchlist", "rename", "Nope", " "), ("NEW_NAME",)),
     (("runs", "list", "--ticker", " ", "--analysis", "bogus"), ("--ticker",)),
-    (("runs", "list", "--analysis", "bogus", "--status", "bogus"), ("--analysis",)),
+    (("runs", "list", "--analysis", "bogus", "--outcome", "bogus"), ("--analysis",)),
     (("runs", "list", "--limit", "0", "--offset", "-1"), ("--limit",)),
     (("runs", "show", "abc", "--details", "--json"), ("--details", "--json")),
     (("refresh", "Nope", "--workers", "9"), ("--workers",)),

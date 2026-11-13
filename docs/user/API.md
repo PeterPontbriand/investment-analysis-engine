@@ -5,7 +5,9 @@ program on the same computer can read and change watchlists, analyze a ticker, r
 page is for the authors of such a program, called a client here. It is not reachable from another computer.
 
 For the rules that say what may change inside `/v1`, see
-[What may change in the JSON output](USAGE.md#what-may-change-in-the-json-output). The machine-readable description of
+[What may change in the JSON output](USAGE.md#what-may-change-in-the-json-output). Those rules apply from the first engine
+release that includes the API; until then a change may be incompatible when it is recorded and the affected document's
+`schema_version` is raised. The machine-readable description of
 every endpoint and response is [`schemas/openapi.json`](../../schemas/openapi.json); the server does not serve it.
 
 ## Starting the server
@@ -133,8 +135,9 @@ The endpoints that read use `GET`; the actions are below.
 | `/v1/strategies` | none | `schema_version` and `items`, each with `analysis`, `method` and `label` |
 | `/v1/watchlists` | none | the watchlist list document |
 | `/v1/watchlists/{watchlist_id}` | none | the watchlist document |
-| `/v1/runs` | `ticker`, `method_id`, `status`, `refresh_id`, `limit`, `offset` | the runs list document |
+| `/v1/runs` | `ticker`, `method_id`, `outcome`, `refresh_id`, `limit`, `offset` | the runs list document |
 | `/v1/runs/{analysis_run_id}` | none | the saved run's own strategy document |
+| `/v1/runs/{analysis_run_id}/overview` | none | the run overview document (see [Run overview](#run-overview)) |
 | `/v1/runs/{analysis_run_id}/text` | `mode` (required): `concise`, `details` or `diagnostics` | `schema_version`, `mode` and `text` |
 | `/v1/refreshes` | `watchlist_id`, `limit`, `offset` | the refreshes list document (see [Refreshes list](#refreshes-list)) |
 | `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document |
@@ -148,6 +151,30 @@ The endpoints that read use `GET`; the actions are below.
 
 On `/v1/runs`, `limit` is 1 to 100 and defaults to 20, and `offset` defaults to 0. `method_id` is the `method` value of
 an item in `/v1/strategies` (for example `sma_crossover`). The document says whether more rows follow with `has_more`; there is no total.
+
+A run's outcome (`completed`, `unavailable`, `not_applicable` or `failed`) is called `outcome` everywhere: the `outcome` query
+parameter filters by it and each item of the runs list carries it. The name `status` is not accepted by `/v1/runs`.
+
+### Run overview
+
+`GET /v1/runs/{analysis_run_id}/overview` gives one saved run's headline for a client that lays out its own display. The
+document is `{schema_version, analysis_run_id, ticker, outcome, completed_at, refresh_id, requested_as_of, strategy, headline, headline_unavailable}`.
+`strategy` and `headline` have the shapes the compare document uses, and the headline is built the same way, so a run reads the
+same in both. Exactly one of `headline` and `headline_unavailable` is set. A run of a strategy this version no longer declares
+is shown by what its stored row records: `strategy.declared` is false, `strategy.label` is its stored method identifier,
+`strategy.term` is null, `requested_as_of` is null and `headline_unavailable` is `strategy_not_declared`. A run whose stored record
+holds no result has `headline_unavailable` `no_result_stored`. The endpoint fails as `GET /v1/runs/{analysis_run_id}` does: a
+run that does not exist is 404 `analysis_run_not_found`, one stored under a version this one cannot read is refused by
+version, and one whose stored record is invalid is `invalid_stored_run`. The command line has no counterpart; `ian runs show`
+prints the same run as text.
+
+### Cell units
+
+A headline cell that holds a number has a `unit`, one of `percent`, `points`, `multiple` or `per_share`, and a client formats
+the `value` by it. A `percent` value is the percentage itself: 18.4 means 18.4 %, not 1840 %. A `per_share` amount has a
+`currency`, an ISO 4217 code such as `USD`; when the run recorded no currency (an earnings per share given as an override, for
+example) `currency` is null and no currency is to be assumed. Every other number has a null `currency`, and a text cell has a
+null `unit` and a null `currency`.
 
 ### Refreshes list
 
@@ -238,7 +265,7 @@ failure}`:
 - `summary` is the [refresh summary](WORKSPACE.md#refreshing-a-watchlist), provider check included, for `completed` and `stopped`, and
   `null` otherwise. `failure` is a [failure document](#errors) for `failed` and `null` otherwise; the events already
   recorded are kept either way.
-- An entry whose analysis failed, or raised, is still a finished entry: the event reports it in `result`, and the job is
+- An entry whose analysis failed, or that stopped because of an unexpected problem, is still a finished entry: the event reports it in `result`, and the job is
   `completed`.
 
 #### Events and polling
@@ -249,7 +276,7 @@ order they were recorded. `position` is the entry's 0-based place in the refresh
 `batch_position` and as the index in an `entries[i]` error, and not the 1-based `entry_number` of a watchlist. Two entries
 for one ticker are told apart by their position. A started event has `result` and `analysis` `null`. A finished event's
 `result` is the entry as the refresh summary lists it, and its `analysis` is the document `POST /v1/analyses` returns for
-the run, so a client can show a result as soon as it is in; `analysis` is `null` for an entry that raised. The
+the run, so a client can show a result as soon as it is in; `analysis` is `null` for an entry that stopped because of an unexpected problem. The
 `provider_check` element inside a finished event's analysis is always `null`, as it is for a stored run read back,
 because the refresh sends one provider check after the batch and reports it in `summary`.
 

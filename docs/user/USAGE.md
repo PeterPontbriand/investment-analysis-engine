@@ -246,6 +246,8 @@ The same rule covers every published JSON document, whether a command writes it 
   - a new required request parameter, or a changed default;
   - a different HTTP status for an existing condition.
 
+This rule applies from the first engine release that includes the local API. Until then a change to a published document may be incompatible when the change is recorded and the document's `schema_version` is raised.
+
 A program that reads this output must tolerate unknown fields, unknown values and a higher `schema_version`. The published files in `schemas/` are exact (each `schema_version` is a constant and no unknown key is allowed) and describe this engine version, so validate against them in tests, not against the output of a newer engine in production.
 
 Response headers of the local API are not part of this contract, except `Content-Type` and `WWW-Authenticate`: a header may be added, changed or removed within `/v1`. The [API reference](API.md) describes the interface and links back to this rule.

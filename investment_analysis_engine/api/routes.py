@@ -35,6 +35,7 @@ from investment_analysis_engine.api.selection_forms import SelectionFormDocument
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.refreshes import RefreshesListDocument
+from investment_analysis_engine.workspace_documents.run_overview import RunOverviewDocument
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
 from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
 from investment_analysis_engine.workspace_documents.watchlist import (
@@ -206,7 +207,7 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         (
             _query("ticker", "Only runs of this ticker."),
             _query("method_id", "Only runs of this method."),
-            _query("status", "Only runs with this outcome."),
+            _query("outcome", "Only runs with this outcome."),
             _query("refresh_id", "Only runs saved by this refresh.", ("format", "uuid")),
             _query(
                 "limit",
@@ -224,6 +225,14 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         "Show one saved run as its strategy's document.",
         (_uuid_path("analysis_run_id", "The run's ID."),),
         _responses(tuple(item.json_envelope for item in STRATEGIES), lookup=True, database=True),
+    ),
+    RouteSpec(
+        "GET",
+        "/v1/runs/{analysis_run_id}/overview",
+        "get_run_overview",
+        "Show one saved run's headline: its outcome and the cells its strategy offers for a table.",
+        (_uuid_path("analysis_run_id", "The run's ID."),),
+        _responses((RunOverviewDocument,), lookup=True, database=True),
     ),
     RouteSpec(
         "GET",

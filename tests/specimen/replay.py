@@ -1,7 +1,7 @@
 """The specimen's replay projector: render a stored run using only the evidence it captured."""
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
-from investment_analysis_engine.reporting.headline import CellKind, Headline, HeadlineCell
+from investment_analysis_engine.reporting.headline import CellKind, CellUnit, Headline, HeadlineCell
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions
 from tests.specimen.analyzer import SpecimenResult
 from tests.specimen.envelope import SpecimenDocument
@@ -36,7 +36,7 @@ def headline_specimen(result: SpecimenResult) -> Headline:
                 HEADLINE_TERMS["scaled"],
                 CellKind.NUMBER,
                 result.scaled,
-                "points",
+                CellUnit.POINTS,
                 CalculationStatus.OK,
             ),
         )

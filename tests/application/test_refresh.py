@@ -267,7 +267,7 @@ def test_entries_are_refreshed_and_belong_to_no_watchlist(isolated_cli_settings:
 
     document = outcome.document
     assert (document.watchlist_id, document.watchlist_name) == (None, None)
-    assert document.schema_version == 3
+    assert document.schema_version == 4
     assert [result.ticker for result in document.results] == ["AAPL", "MSFT"]
     assert outcome.render_text().splitlines()[0] == f"Refresh {document.refresh_id}:"
     database = SQLiteDatabase(isolated_cli_settings)
