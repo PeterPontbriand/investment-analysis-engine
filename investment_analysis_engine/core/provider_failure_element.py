@@ -18,7 +18,10 @@ class ProviderFailureInput(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     input: str | None = Field(
-        description="The strategy input the failure was recorded against; null when the failure was raised."
+        description=(
+            "The strategy input the failure was recorded against; null when the provider failed before the failure "
+            "could be tied to one input."
+        )
     )
     provider_id: str = Field(description="The provider that failed.")
     kind: ProviderFailureKind

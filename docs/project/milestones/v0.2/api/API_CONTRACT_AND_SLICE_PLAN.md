@@ -57,7 +57,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.6a | [Term references](API_6_SLICE_PLAN.md#api6a--term-references) | Complete | 2026-11-07 |
 | API.6b | [Help endpoints and locales](API_6_SLICE_PLAN.md#api6b--help-endpoints-and-locales) | Complete | 2026-11-08 |
 | API.7 | [Refreshes list](#api7--refreshes-list) | Complete | 2026-11-10 |
-| API.8 | [Run overview](#api8--run-overview) | Complete | 2026-11-13 |
+| API.8 | [Structured units, run overview and command-free database messages](#api8--structured-units-run-overview-and-command-free-database-messages) | Complete | 2026-11-13 |
 
 ## 3. The slices
 
@@ -291,19 +291,22 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-refreshes-list`.
 - **Detail:** no separate slice plan; decisions in [A.6](#a6-refreshes-list-2026-11-10).
 
-### API.8 — Run overview
+### API.8 — Structured units, run overview and command-free database messages
 
 - **Problem:** the desktop application's next screens (comparison, run detail, saved runs) need numbers they can format
   without parsing English, one run's headline, one name for a run's outcome, and database failure messages that name
   no command.
 - **Decision:** a headline cell's unit becomes a closed code set with a separate currency; `GET /v1/runs/{analysis_run_id}/overview`
-  serves one run's headline through the builder the comparison uses; a run's outcome is called `outcome` everywhere it
-  was called `status`; a database failure's message states only the database's state, and the command line adds the
+  serves one run's headline through the builder the comparison uses, and both read a run's requested point in time from its
+  envelope, refusing a run whose envelope cannot be read; a run's outcome is called `outcome` everywhere it was called
+  `status`, refresh results included; a database failure's message states only the database's state, and the command line adds the
   target and the remedy ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13)).
 - **Scope:** `CellUnit` and the cell's `currency` in `reporting/headline.py`, the compare document and its JSON Schema;
   the term-reference exemption for `CellUnit`; `DatabaseReadinessError`'s message and the command line's form of it; the
   run overview document, its application-layer function, route, JSON Schema and the regenerated `openapi.json`; the
-  `status` to `outcome` rename in the runs-list document, the `/v1/runs` query and `ian runs list`; `docs/user/API.md`,
+  `status` to `outcome` rename in the runs-list document, the `/v1/runs` query, `ian runs list` and the refresh results (the
+  refresh summary and refresh job documents' versions go up), and the plain wording for a job that stopped because of an
+  unexpected problem; `docs/user/API.md`,
   `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and `docs/user/SMOKE_TESTING.md`; tests.
 - **Branch:** `feat/api-run-overview`.
 - **Detail:** no separate slice plan; decisions in [A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13).
@@ -368,7 +371,10 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   and for a strategy no longer declared, and fails as `GET /v1/runs/{analysis_run_id}` does; its JSON Schema is in
   `schemas/` and `openapi.json` is regenerated, both compared in the managed gate; the new fields pass the API.6a
   conformance test; a run's outcome is `outcome` in the runs-list document, the `/v1/runs` query and `ian runs list
-  --outcome`, and `status` is no longer accepted there; `docs/user/API.md`, `docs/user/WORKSPACE.md` and
+  --outcome`, and `status` is no longer accepted there; a refresh job's run outcome is `outcome` in the refresh summary
+  (version 4) and the refresh job document (version 2); a run's `requested_as_of` is read from its envelope for every run, so
+  null always means now, in the overview and the comparison alike, and a run whose envelope cannot be read is refused with
+  `invalid_stored_run`, whether or not its strategy is still declared; `docs/user/API.md`, `docs/user/WORKSPACE.md` and
   `docs/user/SMOKE_TESTING.md` describe it.
 
 ## 6. Background
@@ -494,7 +500,7 @@ Approved by the project owner on 2026-11-13. No database migration, stored shape
 
 | # | Decision |
 | :--- | :--- |
-| U1 | Where it is planned: a new slice API.8, Run overview, in this plan's sequence table and §3, in the form of API.7 and with no separate slice plan. It is IAN's next slice. Step 3.5's plan and §2 above say 3.5.5 starts after API.8 merges. Branch `feat/api-run-overview`. The pull request marks API.8's row Complete, dated the day it is opened. |
+| U1 | Where it is planned: a new slice API.8, Structured units, run overview and command-free database messages, in this plan's sequence table and §3, in the form of API.7 and with no separate slice plan. It is IAN's next slice. Step 3.5's plan and §2 above say 3.5.5 starts after API.8 merges. Branch `feat/api-run-overview`. The pull request marks API.8's row Complete, dated the day it is opened. |
 | U2 | Changes before the first release amend [S4](API_2_SLICE_PLAN.md#s4-the-v1-additions-rule-2026-11-03): the additions rule applies from the first engine release that includes the API. Until then an incompatible change inside `/v1`, CLI `--json` included, is allowed when the slice that makes it records it and raises the affected document's `schema_version`. `docs/user/API.md` and `docs/user/USAGE.md` say so where they state the rule. API.8's own incompatible changes (U3, U9) are recorded under this rule. |
 | U3 | Unit shape: a headline cell's `unit` is the closed code set `CellUnit` (`percent`, `points`, `multiple`, `per_share`) and a new nullable `currency` holds an ISO 4217 code. A number cell has a unit; `currency` is non-null only when the unit is `per_share`, and null then means the run recorded no currency, which replaces "currency unspecified per share". A text cell has a null `unit` and a null `currency`. The `value` description says a `percent` value is the percentage itself (18.4 means 18.4 %). `HeadlineCell` changes the same way and enforces these rules; `per_share_unit` and `UNSPECIFIED_CURRENCY_PER_SHARE` are removed. The compare document's `schema_version` is raised (it was 4 and is now 5, not 1 and 2 as the decision was first worded). The CLI's text comparison table reads the new fields and its output does not change. Every currency a strategy can put in a cell is a three-letter ISO 4217 code: SEC per-share units are checked to three letters before they become a currency, and an override carries none. |
 | U4 | Terms: `CellUnit` is exempt from term references, like `CellKind`, because a cell's unit is shown by its formatted value and the cell's own term explains what it measures. It is added to `EXEMPT_CODE_SETS` and `EXEMPT_LOCATIONS`; the module's docstrings and the tests and documents that stated how many exemptions there are stop stating a count. |
@@ -502,6 +508,7 @@ Approved by the project owner on 2026-11-13. No database migration, stored shape
 | U6 | One test, parametrized over every readiness reason, checks that the served reason has no `ian ` command, no `--` option, no environment variable name and no path, and that the command line's form of the same failure keeps the remedy and the path where it does today. |
 | U7 | Run overview: `GET /v1/runs/{analysis_run_id}/overview` returns a new versioned document, `RunOverviewDocument` (`schema_version` 1): `analysis_run_id`, `ticker`, `outcome`, `completed_at`, `refresh_id`, `requested_as_of`, `strategy` (the compare document's strategy shape; a strategy no longer declared shows its stored label with `declared` false and a null term), `headline` and `headline_unavailable` (exactly one is set, as in the compare document). It fails with the same reason codes and statuses as `GET /v1/runs/{analysis_run_id}`: not found, an unsupported run version, an invalid stored run and database failures. A run of a strategy no longer declared succeeds, because its row, not its envelope, is read; its `requested_as_of` is null because its envelope is not decoded. It goes through an application-layer function, one route, its own JSON Schema and the regenerated `openapi.json`, and its new fields pass the API.6a conformance test. |
 | U8 | One headline builder: `resolve_headline` in `workspace_documents/runs_compare.py` builds a run's headline, or its `headline_unavailable`, for both the overview and the comparison. The parametrized endpoint test covers the overview for every declared strategy, so a new strategy appears with no edit. |
-| U9 | One name for a run's outcome: where a `RunOutcome` value was called `status` for a run, it is `outcome`: the runs-list item's field (the runs-list document's `schema_version` is raised from 1 to 2), the `/v1/runs` query parameter, and `ian runs list --status`, now `--outcome`. A calculation status and a cell's status keep their names. |
+| U9 | One name for a run's outcome: where a `RunOutcome` value was called `status` for a run, it is `outcome`: the runs-list item's field (the runs-list document's `schema_version` is raised from 1 to 2), the `/v1/runs` query parameter, and `ian runs list --status`, now `--outcome`. A calculation status and a cell's status keep their names. **Amendment (approved by the project owner on 2026-11-13):** U9 extends to refreshes. A refresh job's run outcome is `outcome` in `RefreshResultDocument` (it was `status`), with a plain-words description; the refresh summary's `schema_version` goes from 3 to 4, and the refresh job document, which embeds the summary and the results, from 1 to 2 (the refresh event document has no version of its own). A job's `state` and a calculation status keep their names. The `counts` description becomes "How many jobs ended in each outcome. A job that stopped because of an unexpected problem, before it produced an outcome, is counted under the key `error`.", and served descriptions and `docs/user/` say a job or entry "stopped because of an unexpected problem" instead of "raised". |
 | U10 | No command-line counterpart for the overview; see [§4](#4-out-of-scope). |
 | U11 | Documentation and tests: `docs/user/API.md` (the endpoint row and a short section, the unit and currency fields with the percent scale, the U2 rule, the U9 rename), `docs/user/USAGE.md` (the U2 rule), `docs/user/WORKSPACE.md` and `docs/user/SMOKE_TESTING.md` (`--outcome`); regenerated JSON Schemas and `openapi.json`; tests for each strategy's number cells, `HeadlineCell`'s rules, the unchanged comparison table, U6, the overview's cases and the U9 rename. |
+| U12 | A run's `requested_as_of` is read from its envelope for every run, including a run of a strategy no longer declared and a run stored under an unsupported version, so null always means "now". The envelope does not depend on the strategy; only decoding the evidence needs the strategy's codec, so `resolve_headline`, the one builder the overview and the comparison share, reads the field without it. The comparison had the same ambiguity before API.8: it showed null for those runs. A run of a strategy no longer declared, or stored under an unsupported version, whose envelope cannot be read now fails with `invalid_stored_run`, the same as a declared strategy's run, in both the comparison and the overview; before, such a run succeeded only because its envelope was never read. The overview's description is "The point in time the run asked for; null means now." Approved by the project owner on 2026-11-13. |

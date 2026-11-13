@@ -1206,7 +1206,7 @@
               "type": "null"
             }
           ],
-          "description": "The strategy input the failure was recorded against; null when the failure was raised.",
+          "description": "The strategy input the failure was recorded against; null when the provider failed before the failure could be tied to one input.",
           "title": "Input"
         },
         "kind": {
