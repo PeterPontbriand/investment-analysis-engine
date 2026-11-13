@@ -108,6 +108,7 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
   older version stay in the database and are refused by version when read (`UnsupportedRunVersionError`), never
   misread. No migration or compatibility decoder is written unless the active plan requires one. The pull request
   lists such a change among its user-visible changes.
+- A change to the local HTTP API follows the [local HTTP API rules](docs/project/ARCHITECTURE.md#local-http-api-rules).
 - "Open items" are not an acceptable outcome of a design decision; decide, or escalate to the project owner.
 
 ### Removing superseded rules

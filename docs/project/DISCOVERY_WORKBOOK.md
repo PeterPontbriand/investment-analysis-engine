@@ -652,7 +652,7 @@ The reader behind filing reading and the answer check (text in, one of a few fix
 6. Do investors prefer direct one-off analysis, the watchlist/refresh/run-history workflow, plain-English questions, or a mix—and which information belongs in the concise default versus details?
 7. Does later experience justify adding a deterministic historical-EPS-growth proxy, or should Growth remain assumption-only until analyst-consensus semantics are evidence-approved?
 8. Which local models, if any, meet the v0.3 bars under Light Mode? ASK.0 answers this before any design work.
-9. Should the deferred MCP server move into v0.3? For someone who already uses a capable assistant it is the cheapest route to plain-English answers, but it puts the language work outside the local-first boundary.
+9. ~~Should the deferred MCP server move into v0.3? For someone who already uses a capable assistant it is the cheapest route to plain-English answers, but it puts the language work outside the local-first boundary.~~ **Resolved 2026-11-13.** No. The MCP server is planned for after v1.0, as a thin adapter over the local HTTP API ([Master Plan §2.5](MASTER_PLAN.md#future-mcp-adapter)).
 10. Must plain-English answers work in `fr-CA` from the start, given that a small local model writes the sentences?
 11. Should each strategy declare the question topics it speaks to in its descriptor, or should that mapping live in one separate table?
 12. Once the future predictive evaluator has scored results, is there a measured job for a model over already-computed results, beyond relevance and sentence checking, that still passes the test in §7?

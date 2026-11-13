@@ -94,6 +94,19 @@ Every composition root reads `executed_at` exactly once per analysis it runs, vi
 
 For the concrete sequence a request follows from composition through to a rendered or saved result, see the [Analysis Strategy Development Guide](STRATEGY_DEVELOPMENT.md)'s execution trace rather than a second copy of it here.
 
+### Local HTTP API rules
+
+These rules keep the API usable by clients other than the desktop application, including a future MCP adapter ([Master Plan §2.5](MASTER_PLAN.md#future-mcp-adapter)). A change to the API keeps to them; a change that cannot needs the project owner's approval first.
+
+- **One front door.** Every capability a client needs is an application operation that the command line and the API both call. No endpoint composes dependencies or computes, and no capability exists for one client only.
+- **Effects follow the method.** A `GET` never changes stored data or starts work. Whether a `POST`, `PATCH` or `DELETE` changes stored data depends only on its method and an explicit request field, such as `save`. When the method alone does not say what an operation changes, its summary does.
+- **New fields are described.** A new or changed document field, query or path parameter, and request-body field has a description that says what it holds and, for a number or date, its unit or format. Each operation's summary says what it does.
+- **Failures have codes.** A new failure case gets a `FailureReasonCode` value. `reason` and other messages are for people and carry no guarantee.
+- **Results state their time.** A document a client may show on its own names the run or refresh it came from and the `as_of` it answers for.
+- **Growing lists are paged.** A new list whose length grows with use takes `limit` and `offset` and answers `has_more`, as the runs and refreshes lists do.
+- **Long work is a job.** Work that can outlast a request answers `202` with a `Location`, and the client polls it, as a refresh job does.
+- **Outside text is marked.** A field that can hold text from an outside source, such as a company name, a provider message or a passage from a filing, says so in its description, so that a client can give it to a model as data, never as instructions.
+
 ---
 
 ## 5. Time and the analysis boundary
