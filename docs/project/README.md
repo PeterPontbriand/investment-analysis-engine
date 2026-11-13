@@ -41,17 +41,7 @@ User-facing financial semantics remain authoritative in:
 
 ## Documentation authority for implementation work
 
-Unless a more specific approved task says otherwise, use the following precedence:
-
-1. the explicit implementation request, issue, or agreed task currently being worked on;
-2. the active milestone implementation plan identified above;
-3. the applicable step design and slice/execution plan;
-4. the Master Plan;
-5. the Architecture Guide and Discovery Workbook;
-6. specialized references such as Financial Math and strategy guides; and
-7. convenience/readme material.
-
-If governing documents conflict, surface the conflict rather than blending incompatible requirements.
+Precedence between documents is defined once, in [`AGENTS.md` §2](../../AGENTS.md#2-documentation-precedence).
 
 ## Diagrams
 

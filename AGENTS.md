@@ -2,6 +2,8 @@
 
 These rules apply to agents that write, refactor, test, document, or maintain this codebase.
 
+**Start here.** The rules no change may break are in §3 (forbidden actions), §9 (strategy independence and shared capability) and [Architecture §2](docs/project/ARCHITECTURE.md#2-architectural-invariants) (architectural invariants). §2 below says which document wins a conflict, and §12 says where each subject is written down. Records of past decisions are history, not guidance (§2).
+
 # 1. Project Instructions
 
 You are an expert Python developer specializing in financial data analysis, pandas, NumPy, and quantitative workflows. Always prioritize correctness, readability, and performance. Use type hints and docstrings where helpful.
@@ -12,12 +14,15 @@ When instructions differ, use this precedence:
 
 1. explicit user request for the current task;
 2. current active milestone implementation plan;
-3. `docs/project/MASTER_PLAN.md`;
-4. `docs/project/ARCHITECTURE.md` and `docs/project/DISCOVERY_WORKBOOK.md`;
-5. specialized references such as `docs/user/FINANCE_MATH.md`;
-6. README/convenience command files.
+3. the applicable step design and slice plan;
+4. `docs/project/MASTER_PLAN.md`;
+5. `docs/project/ARCHITECTURE.md` and `docs/project/DISCOVERY_WORKBOOK.md`;
+6. specialized references such as `docs/user/FINANCE_MATH.md`;
+7. README/convenience command files.
 
 Do not blend contradictory instructions. Surface the conflict and follow the more specific/current source.
+
+A plan's precedence covers its open work only. Decision records, appendices, completion evidence and the sections of completed work describe what was decided at the time; they are not current guidance. Current behavior and rules are in `AGENTS.md`, `docs/project/ARCHITECTURE.md`, `docs/project/STRATEGY_DEVELOPMENT.md`, `docs/user/FINANCE_MATH.md` and the code. When a past record still binds (an accepted exception, for example), the current document that relies on it links to it.
 
 For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
 
@@ -105,6 +110,10 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
   lists such a change among its user-visible changes.
 - "Open items" are not an acceptable outcome of a design decision; decide, or escalate to the project owner.
 
+### Removing superseded rules
+
+- A temporary rule states the event that ends it, and the change that brings about that event removes it. When a work package completes, its closing change removes or rewrites any rule in `AGENTS.md`, `ARCHITECTURE.md` or `STRATEGY_DEVELOPMENT.md` that the package superseded.
+
 ## 5. Python, Ruff & typing
 
 - Target Python 3.12+.
@@ -151,10 +160,12 @@ When editing a legacy file that currently uses a different logging pattern, do n
 
 Strategies differ in what they compute, not in how they are invoked.
 
+- Before writing or changing a strategy, or shared code a strategy uses, read `docs/project/ARCHITECTURE.md` §2 and §6, `docs/project/STRATEGY_DEVELOPMENT.md`, and one existing strategy end to end: the one closer in form, as the guide's "Copy structure, not rules" section describes.
 - Select/implement analyzers according to the task, not according to which analyzer existed first. Do not treat Momentum, or any existing analyzer, as the template for a new strategy's configuration, inputs, calculation, or result.
 - Each strategy owns its typed configuration, data inputs, calculation, and result type, and may legitimately differ from existing strategies in all four.
 - Every strategy shares one invocation envelope: it subclasses `BaseAnalyzer[ResultT]` when it has no configuration or `BaseAnalyzer[ResultT, ConfigT]` when it has one typed configuration (never more than one), receives its dependencies (resolvers, providers, policies, clock) at construction, and is invoked as `run_analysis(ticker, context)` or `run_analysis(ticker, context, config)`, where `AnalysisContext` carries cross-cutting execution concerns (point-in-time boundary, effective execution time, cache use, instrument profile). `ResultT` is the complete evidence type production callers consume.
 - Do not add per-strategy parameters for concerns `AnalysisContext` already carries, and do not bypass a strategy's analyzer by calling its service or calculation functions from composition, orchestration, CLI, or workspace code.
+- When a strategy needs a capability that another strategy could use (a provider request, a data capability, a metric, an input assembly, or a cache or presentation helper) and no shared layer supplies it, the capability is added to the shared layer that should own it, never built inside the strategy. When that file is outside the task's approved scope, stop and report the gap and the proposed shared addition (§4). A strategy keeps a resolver of its own only for evidence specific to its own method.
 - A strategy's user-tunable defaults live in the `settings.toml` beside the module that defines its settings model; a user's `strategies/<alias>.toml` in the settings folder overrides it per key ([ARCHITECTURE §6](docs/project/ARCHITECTURE.md#6-analysis-strategies-the-boundary)). Strategies never read settings; composition loads them and passes them in. A settings model has no defaults.
 - Every strategy follows the shared outcome conventions: `MetricResult` for metrics, explicit reason codes instead of silent defaults, and retained provenance.
 - An option, tool argument or stored field that can hold only one value is not added; a fixed choice is a
@@ -359,7 +370,9 @@ Dependabot pull requests are never merged: reapply the same version bump on a pr
 Example: `feat(step-3.5): annual period fields and the depreciation evidence (3.5.1c)`. Commits on a branch may use any
 wording, since they are squashed.
 
-## 12. Context index
+## 12. Sources of truth
+
+Each subject below is written down in exactly one place; anything else that mentions it summarizes and links, and loses to it in a conflict.
 
 - To find current or next work, start at the sequence table in
   `docs/project/MASTER_PLAN.md` and follow its links.
@@ -371,6 +384,10 @@ wording, since they are squashed.
 - Roadmap → `docs/project/MASTER_PLAN.md`
 - Rationale / decision history → `docs/project/DISCOVERY_WORKBOOK.md`
 - Architecture → `docs/project/ARCHITECTURE.md`
+- Architectural invariants → `docs/project/ARCHITECTURE.md` §2
+- Packages and the imports between them → `docs/project/ARCHITECTURE.md` §13
+- Adding or changing a strategy → `docs/project/STRATEGY_DEVELOPMENT.md`
+- Document precedence → `AGENTS.md` §2
 - Financial mathematics → `docs/user/FINANCE_MATH.md`
 - Domain terms → `docs/user/GLOSSARY.md` (investor terms, plus an excluded command-line section) and `docs/project/CONTRIBUTOR_GLOSSARY.md` (contributor terms); entry rules in `docs/project/README.md`'s "Glossary entries" section
 - Hardware/model modes → `docs/user/HARDWARE.md`
