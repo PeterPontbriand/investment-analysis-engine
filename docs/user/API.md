@@ -265,7 +265,7 @@ failure}`:
 - `summary` is the [refresh summary](WORKSPACE.md#refreshing-a-watchlist), provider check included, for `completed` and `stopped`, and
   `null` otherwise. `failure` is a [failure document](#errors) for `failed` and `null` otherwise; the events already
   recorded are kept either way.
-- An entry whose analysis failed, or raised, is still a finished entry: the event reports it in `result`, and the job is
+- An entry whose analysis failed, or that stopped because of an unexpected problem, is still a finished entry: the event reports it in `result`, and the job is
   `completed`.
 
 #### Events and polling
@@ -276,7 +276,7 @@ order they were recorded. `position` is the entry's 0-based place in the refresh
 `batch_position` and as the index in an `entries[i]` error, and not the 1-based `entry_number` of a watchlist. Two entries
 for one ticker are told apart by their position. A started event has `result` and `analysis` `null`. A finished event's
 `result` is the entry as the refresh summary lists it, and its `analysis` is the document `POST /v1/analyses` returns for
-the run, so a client can show a result as soon as it is in; `analysis` is `null` for an entry that raised. The
+the run, so a client can show a result as soon as it is in; `analysis` is `null` for an entry that stopped because of an unexpected problem. The
 `provider_check` element inside a finished event's analysis is always `null`, as it is for a stored run read back,
 because the refresh sends one provider check after the batch and reports it in `summary`.
 

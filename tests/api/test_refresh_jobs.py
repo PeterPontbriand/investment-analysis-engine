@@ -108,7 +108,7 @@ def test_each_strategy_is_refreshed_through_the_endpoints_from_a_list_of_entries
     for item in finished:
         assert item["method_id"] == descriptor.method_id
         assert item["result"]["saved"] is False
-        assert item["result"]["status"] == "completed"
+        assert item["result"]["outcome"] == "completed"
         analysis = item["analysis"]
         assert list(analysis) == ["schema_version", "analysis_run_id", "document", "text"]
         assert analysis["analysis_run_id"] is None
@@ -124,7 +124,8 @@ def test_each_strategy_is_refreshed_through_the_endpoints_from_a_list_of_entries
     assert all(item["result"] is None and item["analysis"] is None for item in started_events)
     summary = ended["summary"]
     assert isinstance(summary, dict)
-    assert summary["schema_version"] == 3
+    assert summary["schema_version"] == 4
+    assert ended["schema_version"] == 2
     assert (summary["watchlist_id"], summary["watchlist_name"]) == (None, None)
     assert ended["failure"] is None
     assert latest == ended

@@ -4901,7 +4901,7 @@
       },
       "RefreshEventDocument": {
         "additionalProperties": false,
-        "description": "One event of a refresh job: a job of the refresh started, or finished.\n\n``sequence`` counts the job's events from 1 in the order they were recorded. ``position`` is the entry's 0-based\nplace in the refresh, the same as a saved run's ``batch_position`` and the index of an ``entries[i]`` error; it is\nnot the 1-based ``entry_number`` of a watchlist. ``result`` and ``analysis`` are null for a started event, and\n``analysis`` is also null for a job that raised.",
+        "description": "One event of a refresh job: a job of the refresh started, or finished.\n\n``sequence`` counts the job's events from 1 in the order they were recorded. ``position`` is the entry's 0-based\nplace in the refresh, the same as a saved run's ``batch_position`` and the index of an ``entries[i]`` error; it is\nnot the 1-based ``entry_number`` of a watchlist. ``result`` and ``analysis`` are null for a started event, and\n``analysis`` is also null for a job that stopped because of an unexpected problem.",
         "properties": {
           "analysis": {
             "anyOf": [
@@ -4912,7 +4912,7 @@
                 "type": "null"
               }
             ],
-            "description": "The job's analysis, as POST /v1/analyses returns it, with its provider_check element null; null for a started event and for a job that raised."
+            "description": "The job's analysis, as POST /v1/analyses returns it, with its provider_check element null; null for a started event and for a job that stopped because of an unexpected problem."
           },
           "kind": {
             "$ref": "#/components/schemas/RefreshEventKind"
@@ -5006,8 +5006,8 @@
             "type": "string"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -5160,7 +5160,7 @@
       },
       "RefreshResultDocument": {
         "additionalProperties": false,
-        "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``status`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if the job raised (``error``) or its\n``status`` is ``failed``. An ``unavailable`` job is an analysis outcome and carries none.",
+        "description": "One (ticker, selection) job of a refresh.\n\nExactly one of a saved run (``analysis_run_id``), an unsaved outcome (``outcome`` with no run) and a failure\n(``error``) describes the job, and ``reason_code`` is set if and only if the job stopped because of an unexpected\nproblem (``error``) or its ``outcome`` is ``failed``. An ``unavailable`` job is an analysis outcome and carries\nnone.",
         "properties": {
           "analysis_run_id": {
             "anyOf": [
@@ -5184,12 +5184,23 @@
                 "type": "null"
               }
             ],
-            "description": "The message the application wrote for the failure, chosen by its code; null unless the job raised.",
+            "description": "The message the application wrote for the failure, chosen by its code; null unless the job stopped because of an unexpected problem.",
             "title": "Error"
           },
           "method_id": {
             "title": "Method Id",
             "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How the job's run ended, whether or not it was saved; null for a job that stopped because of an unexpected problem, before it produced an outcome."
           },
           "reason_code": {
             "anyOf": [
@@ -5200,22 +5211,11 @@
                 "type": "null"
               }
             ],
-            "description": "The stable code of the failure; null unless the job raised or its status is failed."
+            "description": "The stable code of the failure; null unless the job stopped because of an unexpected problem or its outcome is failed."
           },
           "saved": {
             "title": "Saved",
             "type": "boolean"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RunOutcome"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The run's or the unsaved outcome's status; null for a raised job."
           },
           "ticker": {
             "title": "Ticker",
@@ -5227,7 +5227,7 @@
           "method_id",
           "analysis_run_id",
           "saved",
-          "status",
+          "outcome",
           "error",
           "reason_code"
         ],
@@ -5242,7 +5242,7 @@
             "additionalProperties": {
               "type": "integer"
             },
-            "description": "Jobs per status; a job that raised counts as 'error'.",
+            "description": "How many jobs ended in each outcome. A job that stopped because of an unexpected problem, before it produced an outcome, is counted under the key `error`.",
             "title": "Counts",
             "type": "object"
           },
@@ -5274,8 +5274,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 3,
-            "default": 3,
+            "const": 4,
+            "default": 4,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -5801,7 +5801,7 @@
                 "type": "null"
               }
             ],
-            "description": "The point in time the run asked for; null means now, and for a run of a strategy no longer declared the stored record is not decoded, so it is null too.",
+            "description": "The point in time the run asked for; null means now.",
             "title": "Requested As Of"
           },
           "schema_version": {

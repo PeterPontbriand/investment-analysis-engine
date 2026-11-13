@@ -303,19 +303,46 @@ def _headline_document(headline: Headline) -> CompareHeadlineDocument:
     )
 
 
+class _EnvelopeRequest(BaseModel):
+    """The one field of a stored envelope the run's request is read from, which no strategy's codec is needed for."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    requested_as_of: datetime | None = None
+
+
+def _requested_as_of(record: StoredRecord) -> datetime | None:
+    """Read the point in time a run asked for from its stored envelope, with no decoding of its strategy's parts.
+
+    ``None`` means the run asked for now. A run of a strategy no longer declared, or stored under an older version,
+    still has this field, so it is read without the strategy's codec.
+
+    Raises:
+        InvalidStoredRunError: If the stored envelope cannot be read, naming the run.
+    """
+    try:
+        return _EnvelopeRequest.model_validate_json(record.row["envelope_json"]).requested_as_of
+    except (ValueError, KeyError, TypeError) as exc:
+        raise InvalidStoredRunError(
+            f"Analysis Run {record.analysis_run_id} could not be read: "
+            "its stored record is malformed or does not match its summary."
+        ) from exc
+
+
 def resolve_headline(record: StoredRecord, column: CompareColumn | None) -> RunHeadline:
     """Build a stored run's headline, or say why it has none: the one builder the table and the overview share.
 
     A run of a strategy no longer declared, or stored under an older version, or with no stored result, has no
-    headline and says which; no other run is without one.
+    headline and says which; no other run is without one. Every run reports the point in time it asked for, read
+    from its envelope, so ``None`` there always means "now".
 
     Raises:
         InvalidStoredRunError: If the run's envelope or evidence is invalid, naming the run.
     """
     if column is None:
-        return RunHeadline(None, "strategy_not_declared")
+        return RunHeadline(None, "strategy_not_declared", _requested_as_of(record))
     if not _versions_supported(record.row, column.codec):
-        return RunHeadline(None, "unsupported_version")
+        return RunHeadline(None, "unsupported_version", _requested_as_of(record))
     try:
         run = record.envelope()
     except ValueError as exc:

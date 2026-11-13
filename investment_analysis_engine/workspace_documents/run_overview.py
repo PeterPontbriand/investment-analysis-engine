@@ -41,10 +41,7 @@ class RunOverviewDocument(BaseModel):
         description="The refresh that saved the run; null for a run saved by a direct command."
     )
     requested_as_of: DocumentTimestamp | None = Field(
-        description=(
-            "The point in time the run asked for; null means now, and for a run of a strategy no longer declared "
-            "the stored record is not decoded, so it is null too."
-        )
+        description="The point in time the run asked for; null means now."
     )
     strategy: CompareStrategyDocument = Field(description="The strategy that produced the run.")
     headline: CompareHeadlineDocument | None = Field(

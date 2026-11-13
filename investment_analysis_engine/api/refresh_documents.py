@@ -40,7 +40,7 @@ class RefreshEventDocument(BaseModel):
     ``sequence`` counts the job's events from 1 in the order they were recorded. ``position`` is the entry's 0-based
     place in the refresh, the same as a saved run's ``batch_position`` and the index of an ``entries[i]`` error; it is
     not the 1-based ``entry_number`` of a watchlist. ``result`` and ``analysis`` are null for a started event, and
-    ``analysis`` is also null for a job that raised.
+    ``analysis`` is also null for a job that stopped because of an unexpected problem.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -56,7 +56,7 @@ class RefreshEventDocument(BaseModel):
     analysis: AnalysisDocument | None = Field(
         description=(
             "The job's analysis, as POST /v1/analyses returns it, with its provider_check element null; null for a "
-            "started event and for a job that raised."
+            "started event and for a job that stopped because of an unexpected problem."
         )
     )
 
@@ -90,7 +90,7 @@ class RefreshJobDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     refresh_id: UUID = Field(description="The refresh's ID, which is the job's and the ID of every run it saves.")
     watchlist_id: UUID | None = Field(description="The watchlist refreshed; null for a refresh of a list of entries.")
     state: str = Field(description="running, stopping, completed, stopped or failed; treat any other value as running.")

@@ -367,7 +367,7 @@
           "type": "null"
         }
       ],
-      "description": "The point in time the run asked for; null means now, and for a run of a strategy no longer declared the stored record is not decoded, so it is null too.",
+      "description": "The point in time the run asked for; null means now.",
       "title": "Requested As Of"
     },
     "schema_version": {

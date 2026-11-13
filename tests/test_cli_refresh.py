@@ -350,7 +350,7 @@ def test_refresh_json_emits_one_stable_final_document(
     assert payload["watchlist_name"] == "My Watch"
     assert len(payload["results"]) == 1
     assert payload["results"][0]["ticker"] == "AAPL"
-    assert payload["results"][0]["status"] == "completed"
+    assert payload["results"][0]["outcome"] == "completed"
     assert payload["results"][0]["analysis_run_id"] is not None
     assert payload["results"][0]["error"] is None
     assert payload["results"][0]["reason_code"] is None
@@ -522,7 +522,7 @@ def test_refresh_no_save_json_reports_saved_false_and_a_null_run_id(
     payload = json.loads(result.output)
     assert payload["results"][0]["saved"] is False
     assert payload["results"][0]["analysis_run_id"] is None
-    assert payload["results"][0]["status"] == "completed"
+    assert payload["results"][0]["outcome"] == "completed"
     assert payload["results"][0]["reason_code"] is None
     assert payload["counts"] == {"completed": 1}
 
