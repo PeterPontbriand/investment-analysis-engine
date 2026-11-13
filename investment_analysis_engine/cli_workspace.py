@@ -109,7 +109,7 @@ _ANALYSIS_CHOICES = _alias_choices()
 _RUN_QUERY_NAMES = RunQueryNames(
     ticker="--ticker",
     method="--analysis",
-    status="--status",
+    outcome="--outcome",
     refresh_id="--refresh-id",
     limit="--limit",
     offset="--offset",
@@ -388,7 +388,7 @@ def runs_list(  # noqa: PLR0913
         str | None,
         typer.Option("--analysis", "-a", help=f"Filter by method: {_ANALYSIS_CHOICES}."),
     ] = None,
-    status: Annotated[str | None, typer.Option("--status", help="Filter by outcome.")] = None,
+    outcome: Annotated[str | None, typer.Option("--outcome", help="Filter by outcome.")] = None,
     refresh_id: Annotated[
         str | None, typer.Option("--refresh-id", help="Filter by refresh batch ID (the full UUID shown by 'refresh').")
     ] = None,
@@ -405,7 +405,7 @@ def runs_list(  # noqa: PLR0913
             resolve_method=lambda alias: _method_id_for_alias(_parse_analysis(alias)),
             ticker=ticker,
             method=analysis,
-            status=status,
+            outcome=outcome,
             refresh_id=refresh_id,
             limit=limit,
             offset=offset,

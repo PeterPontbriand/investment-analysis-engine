@@ -378,7 +378,7 @@ def test_refresh_persists_a_not_applicable_etf_outcome_and_still_exits_0(
     assert result.exit_code == 0, result.output
     payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "FLSW", "--json"]).output)["items"]
     assert len(payload) == 1
-    assert payload[0]["status"] == "not_applicable"
+    assert payload[0]["outcome"] == "not_applicable"
 
 
 @patch("investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis")
@@ -451,7 +451,7 @@ def test_refresh_graham_growth_selection_persists_with_configured_assumptions(
     payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "SYNTH", "--json"]).output)["items"]
     assert len(payload) == 1
     assert payload[0]["method_id"] == "graham_growth_value"
-    assert payload[0]["status"] == "completed"
+    assert payload[0]["outcome"] == "completed"
 
 
 def test_refresh_fcf_growth_selection_persists(isolated_cli_settings: ProjectSettings) -> None:
@@ -468,7 +468,7 @@ def test_refresh_fcf_growth_selection_persists(isolated_cli_settings: ProjectSet
     payload = json.loads(runner.invoke(app, ["runs", "list", "--ticker", "ACME", "--json"]).output)["items"]
     assert len(payload) == 1
     assert payload[0]["method_id"] == "reported_fcf_eps_cagr"
-    assert payload[0]["status"] == "completed"
+    assert payload[0]["outcome"] == "completed"
 
 
 def test_refresh_unavailable_outcome_still_persists_and_exits_1(isolated_cli_settings: ProjectSettings) -> None:

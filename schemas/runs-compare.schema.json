@@ -20,10 +20,33 @@
       ],
       "type": "string"
     },
+    "CellUnit": {
+      "description": "The unit of a number cell's value; a client formats the value by it.",
+      "enum": [
+        "percent",
+        "points",
+        "multiple",
+        "per_share"
+      ],
+      "title": "CellUnit",
+      "type": "string"
+    },
     "CompareCellDocument": {
       "additionalProperties": false,
       "description": "One headline cell of a run.",
       "properties": {
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The ISO 4217 currency of a per-share amount; null for any other cell, and for a per-share cell whose run recorded no currency.",
+          "title": "Currency"
+        },
         "key": {
           "description": "The cell's stable key.",
           "title": "Key",
@@ -67,14 +90,13 @@
         "unit": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/CellUnit"
             },
             {
               "type": "null"
             }
           ],
-          "description": "The unit of a number: percent, points, multiple, or '<currency> per share'.",
-          "title": "Unit"
+          "description": "The unit of a number cell; null for a text cell."
         },
         "value": {
           "anyOf": [
@@ -88,7 +110,7 @@
               "type": "null"
             }
           ],
-          "description": "The number or text; null when the run has none.",
+          "description": "The number or text; null when the run has none. A percent value is the percentage itself: 18.4 means 18.4 %.",
           "title": "Value"
         }
       },
@@ -99,6 +121,7 @@
         "kind",
         "value",
         "unit",
+        "currency",
         "status",
         "reason_code"
       ],
@@ -407,8 +430,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 4,
-      "default": 4,
+      "const": 5,
+      "default": 5,
       "title": "Schema Version",
       "type": "integer"
     },

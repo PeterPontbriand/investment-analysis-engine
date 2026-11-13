@@ -1,5 +1,5 @@
 exit 0
 --- stdout
-{"schema_version": 1, "has_more": false, "items": []}
+{"schema_version": 2, "has_more": false, "items": []}
 --- stderr
 

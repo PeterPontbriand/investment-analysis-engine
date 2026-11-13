@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.providers import production_financial_cache
 from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_support import database_message
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.trajectory_events import TrajectoryEventType
@@ -70,12 +71,12 @@ def test_typed_readiness_failure_preserves_envelope_and_closes_storage(
         assert report["status"] == "error"
         assert report["result"] is None
         assert report["reason_code"] == reason.value
-        assert report["reason"] == str(error)
+        assert report["reason"] == database_message(error)
         assert report["database"] == {"database_path": str(path), "expected_revision": "0001_persistence"}
         assert not result.stderr
     else:
         assert not result.stdout
-        assert result.stderr.strip() == str(error)
+        assert result.stderr.strip() == database_message(error)
     assert not path.exists()
     with pytest.raises(RuntimeError, match="closed"), database.read():
         pytest.fail("Storage leaked after a readiness failure.")

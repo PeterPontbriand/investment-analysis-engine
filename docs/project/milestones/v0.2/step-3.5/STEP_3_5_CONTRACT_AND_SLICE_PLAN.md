@@ -90,7 +90,7 @@ Issue 246 follows #204, issue 245 follows issue 246, and issue 250 follows issue
 
 Once Step 3.5 closes, a person, not an AI agent, reviews [`docs/project/STRATEGY_DEVELOPMENT.md`](../../../STRATEGY_DEVELOPMENT.md); language and readability criticisms of the guide wait for that review.
 
-3.5.5 starts after work package API's API.7 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)),
+3.5.5 starts after work package API's API.8 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)),
 and 3.5.4 follows 3.5.5 ([A.15](#a15-355-before-354-2026-11-02)).
 From 3.5.5 on, "the same completeness as 3.5.3" also covers the glossary-terms edit site that API.6 adds: an
 investor glossary entry for each term the strategy's headline cells, statuses and selection fields name

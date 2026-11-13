@@ -31,11 +31,11 @@ def _store_copies(settings: ProjectSettings, count: int) -> None:
 
 
 @pytest.mark.usefixtures("isolated_cli_settings")
-def test_an_empty_store_prints_a_version_one_page_with_no_items() -> None:
+def test_an_empty_store_prints_a_versioned_page_with_no_items() -> None:
     result = runner.invoke(app, ["runs", "list", "--json"])
 
     assert result.exit_code == 0, result.output
-    assert result.stdout.strip() == '{"schema_version": 1, "has_more": false, "items": []}'
+    assert result.stdout.strip() == '{"schema_version": 2, "has_more": false, "items": []}'
 
 
 def test_the_command_reports_has_more_for_the_page_it_prints(isolated_cli_settings: ProjectSettings) -> None:

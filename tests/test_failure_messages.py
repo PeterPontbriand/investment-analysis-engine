@@ -31,6 +31,7 @@ from investment_analysis_engine.application.failures import (
 )
 from investment_analysis_engine.application.selections import build_selection
 from investment_analysis_engine.cli import app
+from investment_analysis_engine.cli_support import operator_message
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.config import settings as real_settings
 from investment_analysis_engine.core.failure_classification import classify_failure
@@ -79,6 +80,11 @@ def _validation_error() -> ValidationError:
     raise AssertionError("the model accepted a bad value")
 
 
+def _command_message(exception: BaseException) -> str:
+    """Return the message a command writes for ``exception``: the application's, with what the command line adds."""
+    return operator_message(exception) if isinstance(exception, Exception) else str(exception)
+
+
 @dataclass(frozen=True)
 class Row:
     """One row of the failure table: the exception, where it is raised and what the rule gives it."""
@@ -93,6 +99,10 @@ class Row:
     def expected(self, exception: BaseException, ticker: str) -> str:
         """Return the message the rule gives, with the ticker filled in."""
         return str(exception) if self.message == RAISED else self.message.format(t=ticker)
+
+    def expected_from_command(self, exception: BaseException, ticker: str) -> str:
+        """Return the message a command writes: the rule's message, or the command line's form of the raised one."""
+        return _command_message(exception) if self.message == RAISED else self.message.format(t=ticker)
 
 
 ROWS = (
@@ -328,7 +338,7 @@ def test_every_direct_command_gives_every_counterpart_row_its_code_and_message(
     (tmp_path / "json").mkdir()
     (tmp_path / "text").mkdir()
     exception, as_json = _direct(row, alias, ["--json"], tmp_path / "json", monkeypatch)
-    message = row.expected(exception, ticker)
+    message = row.expected_from_command(exception, ticker)
     document = json.loads(as_json.stdout)
     assert as_json.exit_code == 1
     assert (document["reason_code"], document["reason"]) == (row.code, message)
@@ -368,7 +378,7 @@ def test_the_graham_resolver_build_gives_the_same_code_and_message(
         )
         result = runner.invoke(app, [*_COMMANDS[alias], "--json", *no_provider_check_flag(alias)])
     document = json.loads(result.stdout)
-    expected = str(exception) if message == RAISED else message.format(t=_COMMANDS[alias][1])
+    expected = _command_message(exception) if message == RAISED else message.format(t=_COMMANDS[alias][1])
     assert (document["reason_code"], document["reason"]) == (code, expected)
 
 
@@ -382,9 +392,13 @@ def test_the_same_exception_gives_the_same_code_and_message_from_a_direct_comman
     exception, job, _ = _refresh(isolated_cli_settings, row, _PATHS["saved"])
     direct_exception, result = _direct(row, "momentum", ["--json"], tmp_path, monkeypatch)
     document = json.loads(result.stdout)
+    # A database failure is worded for the command line by the command, and bare by the application.
+    served = str(job["error"])
+    if isinstance(direct_exception, DatabaseReadinessError):
+        served = operator_message(direct_exception)
     assert (document["reason_code"], document["reason"].replace("AAPL", "BTC-USD")) == (
         job["reason_code"],
-        str(job["error"]).replace("AAPL", "BTC-USD"),
+        served.replace("AAPL", "BTC-USD"),
     )
     assert type(exception) is type(direct_exception)
 

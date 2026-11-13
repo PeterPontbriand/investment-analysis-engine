@@ -1,6 +1,6 @@
 """Momentum's replay projector: render a stored run using only the evidence it captured."""
 
-from investment_analysis_engine.reporting.headline import UNIT_POINTS, CellKind, Headline, HeadlineCell
+from investment_analysis_engine.reporting.headline import CellKind, CellUnit, Headline, HeadlineCell
 from investment_analysis_engine.reporting.replay_inputs import ReplayInputs, ReplayOptions, UnsupportedProjectionError
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
 from investment_analysis_engine.strategies.momentum.envelope import MomentumDocument
@@ -101,7 +101,7 @@ def headline_momentum(run: MomentumRun) -> Headline:
             HEADLINE_TERMS["rsi"],
             CellKind.NUMBER,
             None,
-            UNIT_POINTS,
+            CellUnit.POINTS,
             run.execution_status,
             run.reason_code,
         )
@@ -113,7 +113,7 @@ def headline_momentum(run: MomentumRun) -> Headline:
             HEADLINE_TERMS["rsi"],
             CellKind.NUMBER,
             metric.value,
-            UNIT_POINTS,
+            CellUnit.POINTS,
             metric.status,
             metric.reason_code,
         )

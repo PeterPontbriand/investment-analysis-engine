@@ -3,7 +3,7 @@
 from investment_analysis_engine.analysis.shared.financial_resolution import PriceComparison
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.metric_result import MetricStatus, ReasonCode
-from investment_analysis_engine.reporting.headline import UNIT_PERCENT, CellKind, HeadlineCell, per_share_unit
+from investment_analysis_engine.reporting.headline import CellKind, CellUnit, HeadlineCell
 
 EARNINGS_PERIOD_END_LABEL = "earnings input period end"
 """What a Graham strategy's period end is: the observation period end of the earnings (EPS) input.
@@ -25,9 +25,11 @@ def price_cell(  # noqa: PLR0913
     """Return a Graham strategy's per-share cell: its value, the strategy's own status and the run's currency.
 
     The cell carries the analysis's reason code, which is ``None`` exactly when the status is ``ok``. The currency is
-    the one the run recorded, or none, which the unit then says.
+    the one the run recorded, or none when the run recorded none.
     """
-    return HeadlineCell(key, label, term, CellKind.NUMBER, value, per_share_unit(currency), status, reason_code)
+    return HeadlineCell(
+        key, label, term, CellKind.NUMBER, value, CellUnit.PER_SHARE, status, reason_code, currency=currency or None
+    )
 
 
 def margin_cell(
@@ -46,4 +48,4 @@ def margin_cell(
     else:
         status = MetricStatus.UNAVAILABLE if native_status is CalculationStatus.OK else native_status
         value = None
-    return HeadlineCell("margin_of_safety", "Margin", term, CellKind.NUMBER, value, UNIT_PERCENT, status)
+    return HeadlineCell("margin_of_safety", "Margin", term, CellKind.NUMBER, value, CellUnit.PERCENT, status)

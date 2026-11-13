@@ -295,15 +295,15 @@ Filter by ticker, analysis, outcome, or the refresh batch that produced a run. `
 
 ```bash
 ian runs list --ticker AAPL --analysis graham-number
-ian runs list --status unavailable
+ian runs list --outcome unavailable
 ian runs list --refresh-id 7c1a...
 ian runs list --json
 ```
 
-`runs list --json` prints one JSON object, described by `schemas/runs-list.schema.json`. Its keys are `schema_version` (currently `1`), `has_more` and `items`, one entry per run on the page. `has_more` is `true` when at least one more run follows the page for the same filters, so a program pages with `--limit` and `--offset` until it is `false`. Each `completed_at` is written with its UTC offset, as `+00:00` (it was written as `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
+`runs list --json` prints one JSON object, described by `schemas/runs-list.schema.json`. Its keys are `schema_version` (currently `2`), `has_more` and `items`, one entry per run on the page. Each item calls the run's outcome `outcome`; version 1 called it `status`. `has_more` is `true` when at least one more run follows the page for the same filters, so a program pages with `--limit` and `--offset` until it is `false`. Each `completed_at` is written with its UTC offset, as `+00:00` (it was written as `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
 
 ```json
-{"schema_version": 1, "has_more": false, "items": [{"analysis_run_id": "3f9b...", "ticker": "AAPL", "method_id": "sma_crossover", "status": "completed", "completed_at": "2026-09-19T14:02:11+00:00", "refresh_id": null}]}
+{"schema_version": 2, "has_more": false, "items": [{"analysis_run_id": "3f9b...", "ticker": "AAPL", "method_id": "sma_crossover", "outcome": "completed", "completed_at": "2026-09-19T14:02:11+00:00", "refresh_id": null}]}
 ```
 
 A listing with no matching runs prints `{"schema_version": 1, "has_more": false, "items": []}`. Before this object existed the command printed the bare array of items, so a program that read the array reads `items` instead.
@@ -399,6 +399,6 @@ A refresh ID the command cannot find is reported as `analysis_run_not_found` (ex
 
 A run saved by an older version of the application, or for a strategy this version no longer declares, still has its row. Its outcome is read from the stored record, its cells read `—`, and a line under the table lists its ID; `--json` states why its headline is missing. `runs show` refuses such a run with `unsupported_run_version`. Runs are never converted: a new version of a stored shape leaves older runs in the database, and they are refused by version rather than misread. A run whose stored evidence is invalid refuses the whole table, as it refuses `runs show`, with `invalid_stored_run` and the run's ID.
 
-`runs compare --json` prints one document, described by `schemas/runs-compare.schema.json`, whose first key is `schema_version` (4).
+`runs compare --json` prints one document, described by `schemas/runs-compare.schema.json`, whose first key is `schema_version` (5). A number cell states its `unit` (`percent`, `points`, `multiple` or `per_share`) and, for a per-share amount, its `currency`, which is null when none was recorded; version 4 wrote the unit as text such as `USD per share`.
 
-`runs show` exits `0` even for a saved run whose own financial outcome was unavailable or failed — you asked to *see* a record, and it exists; the record's own status tells you what happened when it ran.
+`runs show` exits `0` even for a saved run whose own financial outcome was unavailable or failed — you asked to *see* a record, and it exists; the record's own outcome tells you what happened when it ran.

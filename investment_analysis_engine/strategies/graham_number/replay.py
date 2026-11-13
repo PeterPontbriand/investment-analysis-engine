@@ -59,8 +59,8 @@ def project_graham_number_document(
 def headline_graham_number(analysis: GrahamNumberAnalysis) -> Headline:
     """Return the Graham Number's side-by-side cells: the maximum indicated price and the margin of safety.
 
-    The price takes the strategy's own status. The unit carries the currency the earnings and book value share, or
-    says none was recorded (both overridden). The period end is the observation period end of the earnings input,
+    The price takes the strategy's own status. The cell's currency is the one the earnings and book value share, or
+    none when none was recorded (both overridden). The period end is the observation period end of the earnings input,
     which is not recorded when EPS was an override. The taxonomy is not recorded.
     """
     assembly = analysis.assembly

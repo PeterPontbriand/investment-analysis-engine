@@ -109,7 +109,7 @@ def test_the_json_document_validates_and_carries_the_same_content_as_the_text(
     assert list(json.loads(out))[0] == "schema_version"
     document = RunsCompareDocument.model_validate_json(out)
 
-    assert document.schema_version == 4
+    assert document.schema_version == 5
     assert (document.refresh_id, document.watchlist_name) == (refresh_id, "Core")
     assert [item.alias for item in document.strategies] == ["momentum", "graham-number", "graham-growth", "fcf-growth"]
     assert [row.ticker for row in document.rows] == ["SYNTH", "MISSING", "ERROR"]
@@ -119,11 +119,12 @@ def test_the_json_document_validates_and_carries_the_same_content_as_the_text(
     assert synth_run is not None
     assert synth_run.headline is not None
     price = synth_run.headline.cells[0]
-    assert (price.key, price.label, price.kind.value, price.unit, price.status) == (
+    assert (price.key, price.label, price.kind.value, price.unit, price.currency, price.status) == (
         "maximum_indicated_price",
         "Max price",
         "number",
-        "USD per share",
+        "per_share",
+        "USD",
         "ok",
     )
     assert price.value == pytest.approx(36.686169055926236)
@@ -136,7 +137,13 @@ def test_the_json_document_validates_and_carries_the_same_content_as_the_text(
     rsi = failed.headline.cells[1]
     assert (rsi.value, rsi.status, rsi.reason_code) == (None, "provider_error", "provider_error")
     trend = failed.headline.cells[0]
-    assert (trend.kind.value, trend.value, trend.status, trend.unit) == ("text", None, None, None)
+    assert (trend.kind.value, trend.value, trend.status, trend.unit, trend.currency) == (
+        "text",
+        None,
+        None,
+        None,
+        None,
+    )
 
 
 def test_the_table_is_built_from_storage_alone(isolated_cli_settings: ProjectSettings) -> None:
@@ -305,7 +312,7 @@ def test_overridden_earnings_and_book_value_show_the_value_without_a_currency(
     run = document.rows[0].entries[0].run
     assert run is not None
     assert run.headline is not None
-    assert run.headline.cells[0].unit == "currency unspecified per share"
+    assert (run.headline.cells[0].unit, run.headline.cells[0].currency) == ("per_share", None)
     assert run.headline.period_end is None, "An override has no period."
     assert "earnings input period end not recorded" in out
 
@@ -323,7 +330,7 @@ def test_overridden_earnings_show_the_growth_value_without_a_currency(isolated_c
     run = document.rows[0].entries[0].run
     assert run is not None
     assert run.headline is not None
-    assert run.headline.cells[0].unit == "currency unspecified per share"
+    assert (run.headline.cells[0].unit, run.headline.cells[0].currency) == ("per_share", None)
 
 
 def test_a_reported_currency_follows_the_number(isolated_cli_settings: ProjectSettings) -> None:

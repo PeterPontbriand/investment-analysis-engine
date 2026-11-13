@@ -95,10 +95,11 @@ def test_every_enumeration_in_the_api_names_a_term_for_each_value() -> None:
     assert set(tables) == seen_components, "a term table names a component the API description does not hold"
 
 
-def test_the_exemptions_are_exactly_the_four_decided_and_each_is_used() -> None:
+def test_the_exemptions_are_the_decided_set_and_each_is_used() -> None:
     assert set(EXEMPT_CODE_SETS) == {
         "schema_version",
         "headline cell kind",
+        "headline cell unit",
         "replay text mode",
         "method_id path parameter",
     }

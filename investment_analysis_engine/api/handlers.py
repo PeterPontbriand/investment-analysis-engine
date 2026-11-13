@@ -80,6 +80,7 @@ from investment_analysis_engine.application.runs import (
     build_run_query,
     compare_refresh_runs,
     declared_method_id,
+    get_run_overview,
     list_refreshes,
     list_runs,
     parse_refresh_id,
@@ -127,7 +128,7 @@ UNEXPECTED_FAILURE_MESSAGE = "The request failed unexpectedly."
 """The one message of an unexpected failure; the detail goes to the log with its traceback."""
 
 _RUN_QUERY_NAMES = RunQueryNames(
-    ticker="ticker", method="method_id", status="status", refresh_id="refresh_id", limit="limit", offset="offset"
+    ticker="ticker", method="method_id", outcome="outcome", refresh_id="refresh_id", limit="limit", offset="offset"
 )
 _REFRESH_QUERY_NAMES = RefreshQueryNames(watchlist="watchlist_id", limit="limit", offset="offset")
 _TEXT_MODES: Mapping[str, TextPresentationMode] = {
@@ -305,7 +306,7 @@ def _runs(context: ApplicationContext, parameters: RequestParameters) -> BaseMod
         resolve_method=lambda value: declared_method_id(value, name="method_id"),
         ticker=parameters.query.get("ticker"),
         method=parameters.query.get("method_id"),
-        status=parameters.query.get("status"),
+        outcome=parameters.query.get("outcome"),
         refresh_id=parameters.query.get("refresh_id"),
         limit=_integer(parameters, "limit", DEFAULT_RUNS_LIMIT),
         offset=_integer(parameters, "offset", DEFAULT_RUNS_OFFSET),
@@ -327,6 +328,10 @@ def _refreshes(context: ApplicationContext, parameters: RequestParameters) -> Ba
 
 def _run(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
     return replay_run_document(context, _uuid(parameters, "analysis_run_id", "Analysis Run"))
+
+
+def _run_overview(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+    return get_run_overview(context, _uuid(parameters, "analysis_run_id", "Analysis Run"))
 
 
 def _run_text(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
@@ -562,6 +567,7 @@ def operations(settings: ProjectSettings, refresh_jobs: RefreshJobsOfServer) -> 
         "list_runs": _runs,
         "list_refreshes": _refreshes,
         "get_run": _run,
+        "get_run_overview": _run_overview,
         "get_run_text": _run_text,
         "compare_refresh": _compare,
         "get_selection_form": _selection_form,

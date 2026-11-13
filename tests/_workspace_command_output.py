@@ -86,7 +86,7 @@ _STEPS: tuple[tuple[str, list[str]], ...] = (
     ("refresh-json", ["refresh", "Seeded", "--workers", "1", "--json"]),
     ("runs-list", ["runs", "list"]),
     ("runs-list-json", ["runs", "list", "--json"]),
-    ("runs-list-filtered", ["runs", "list", "--ticker", "AAPL", "--analysis", "momentum", "--status", "completed"]),
+    ("runs-list-filtered", ["runs", "list", "--ticker", "AAPL", "--analysis", "momentum", "--outcome", "completed"]),
     ("runs-list-empty", ["runs", "list", "--ticker", "NONE"]),
     ("runs-list-empty-json", ["runs", "list", "--ticker", "NONE", "--json"]),
     ("runs-show", ["runs", "show", "<run>"]),

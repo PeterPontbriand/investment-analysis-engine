@@ -30,6 +30,9 @@
           "title": "Method Id",
           "type": "string"
         },
+        "outcome": {
+          "$ref": "#/$defs/RunOutcome"
+        },
         "refresh_id": {
           "anyOf": [
             {
@@ -43,9 +46,6 @@
           "description": "The refresh that saved the run; null for a run saved by a direct command.",
           "title": "Refresh Id"
         },
-        "status": {
-          "$ref": "#/$defs/RunOutcome"
-        },
         "ticker": {
           "title": "Ticker",
           "type": "string"
@@ -55,7 +55,7 @@
         "analysis_run_id",
         "ticker",
         "method_id",
-        "status",
+        "outcome",
         "completed_at",
         "refresh_id"
       ],
@@ -79,8 +79,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "const": 2,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
     }

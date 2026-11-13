@@ -279,6 +279,17 @@
         ],
         "type": "string"
       },
+      "CellUnit": {
+        "description": "The unit of a number cell's value; a client formats the value by it.",
+        "enum": [
+          "percent",
+          "points",
+          "multiple",
+          "per_share"
+        ],
+        "title": "CellUnit",
+        "type": "string"
+      },
       "CheckOutcome": {
         "description": "Outcome of one test. An unavailable test is never a fail.",
         "enum": [
@@ -303,6 +314,18 @@
         "additionalProperties": false,
         "description": "One headline cell of a run.",
         "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The ISO 4217 currency of a per-share amount; null for any other cell, and for a per-share cell whose run recorded no currency.",
+            "title": "Currency"
+          },
           "key": {
             "description": "The cell's stable key.",
             "title": "Key",
@@ -346,14 +369,13 @@
           "unit": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/CellUnit"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "The unit of a number: percent, points, multiple, or '<currency> per share'.",
-            "title": "Unit"
+            "description": "The unit of a number cell; null for a text cell."
           },
           "value": {
             "anyOf": [
@@ -367,7 +389,7 @@
                 "type": "null"
               }
             ],
-            "description": "The number or text; null when the run has none.",
+            "description": "The number or text; null when the run has none. A percent value is the percentage itself: 18.4 means 18.4 %.",
             "title": "Value"
           }
         },
@@ -378,6 +400,7 @@
           "kind",
           "value",
           "unit",
+          "currency",
           "status",
           "reason_code"
         ],
@@ -5713,6 +5736,103 @@
         "title": "RunOutcome",
         "type": "string"
       },
+      "RunOverviewDocument": {
+        "additionalProperties": false,
+        "description": "The whole run overview: what a run is, how it ended and its headline, or why it has none.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
+        "properties": {
+          "analysis_run_id": {
+            "format": "uuid",
+            "title": "Analysis Run Id",
+            "type": "string"
+          },
+          "completed_at": {
+            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompareHeadlineDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run's cells; null when headline_unavailable is set."
+          },
+          "headline_unavailable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HeadlineUnavailable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the run has no headline, if it has none."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/RunOutcome",
+            "description": "The run's outcome, read from its stored record."
+          },
+          "refresh_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The refresh that saved the run; null for a run saved by a direct command.",
+            "title": "Refresh Id"
+          },
+          "requested_as_of": {
+            "anyOf": [
+              {
+                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The point in time the run asked for; null means now, and for a run of a strategy no longer declared the stored record is not decoded, so it is null too.",
+            "title": "Requested As Of"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/CompareStrategyDocument",
+            "description": "The strategy that produced the run."
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_run_id",
+          "ticker",
+          "outcome",
+          "completed_at",
+          "refresh_id",
+          "requested_as_of",
+          "strategy",
+          "headline",
+          "headline_unavailable"
+        ],
+        "title": "RunOverviewDocument",
+        "type": "object"
+      },
       "RunSummaryDocument": {
         "additionalProperties": false,
         "description": "One saved run, summarized.",
@@ -5732,6 +5852,9 @@
             "title": "Method Id",
             "type": "string"
           },
+          "outcome": {
+            "$ref": "#/components/schemas/RunOutcome"
+          },
           "refresh_id": {
             "anyOf": [
               {
@@ -5745,9 +5868,6 @@
             "description": "The refresh that saved the run; null for a run saved by a direct command.",
             "title": "Refresh Id"
           },
-          "status": {
-            "$ref": "#/components/schemas/RunOutcome"
-          },
           "ticker": {
             "title": "Ticker",
             "type": "string"
@@ -5757,7 +5877,7 @@
           "analysis_run_id",
           "ticker",
           "method_id",
-          "status",
+          "outcome",
           "completed_at",
           "refresh_id"
         ],
@@ -5782,8 +5902,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 4,
-            "default": 4,
+            "const": 5,
+            "default": 5,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -5848,8 +5968,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           }
@@ -9129,7 +9249,7 @@
           {
             "description": "Only runs with this outcome.",
             "in": "query",
-            "name": "status",
+            "name": "outcome",
             "required": false,
             "schema": {
               "type": "string"
@@ -9607,6 +9727,242 @@
           }
         },
         "summary": "Show one saved run as its strategy's document."
+      }
+    },
+    "/v1/runs/{analysis_run_id}/overview": {
+      "get": {
+        "operationId": "get_run_overview",
+        "parameters": [
+          {
+            "description": "The run's ID.",
+            "in": "path",
+            "name": "analysis_run_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunOverviewDocument"
+                }
+              }
+            },
+            "description": "The document.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A rejected parameter, or a Host or Origin the server does not allow.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No valid bearer token.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "WWW-Authenticate": {
+                "description": "The challenge: Bearer.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "405": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The endpoint does not accept this method.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "An unexpected failure.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "The database is busy.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Show one saved run's headline: its outcome and the cells its strategy offers for a table."
       }
     },
     "/v1/runs/{analysis_run_id}/text": {

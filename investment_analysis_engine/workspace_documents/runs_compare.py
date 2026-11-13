@@ -19,7 +19,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
-from typing import Any, ClassVar, Final, Literal, Self
+from typing import Any, ClassVar, Final, Literal, Protocol, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -29,11 +29,8 @@ from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
 from investment_analysis_engine.reporting.headline import (
-    UNIT_MULTIPLE,
-    UNIT_PERCENT,
-    UNIT_POINTS,
-    UNSPECIFIED_CURRENCY_PER_SHARE,
     CellKind,
+    CellUnit,
     Headline,
     HeadlineCell,
 )
@@ -45,6 +42,7 @@ from investment_analysis_engine.workspace.codecs import (
     decode_evidence,
 )
 from investment_analysis_engine.workspace.repositories.analysis_runs import StoredRefreshRun
+from investment_analysis_engine.workspace.runs import AnalysisRun
 
 type CellStatusValue = Literal[
     "ok", "unavailable", "not_applicable", "input_unavailable", "invalid_input", "provider_error"
@@ -77,7 +75,6 @@ _NO_RUN = "no stored run"
 _NOT_RECORDED = "not recorded"
 _MARKERS = ("†", "‡", "§", "¶")
 _UNREADABLE = ("unsupported_version", "strategy_not_declared")
-_PER_SHARE_SUFFIX = " per share"
 _SUPPORTED_RUN_SCHEMA_VERSION = 3
 _SUPPORTED_PROJECTION_VERSION = 1
 
@@ -113,10 +110,32 @@ class CompareCellDocument(_Document):
     label: str = Field(description="The column header the text table uses for the cell.")
     term: str = Field(description="The id of the glossary term that explains the label.")
     kind: CellKind
-    value: float | str | None = Field(description="The number or text; null when the run has none.")
-    unit: str | None = Field(description="The unit of a number: percent, points, multiple, or '<currency> per share'.")
+    value: float | str | None = Field(
+        description=(
+            "The number or text; null when the run has none. A percent value is the percentage itself: 18.4 means "
+            "18.4 %."
+        )
+    )
+    unit: CellUnit | None = Field(description="The unit of a number cell; null for a text cell.")
+    currency: str | None = Field(
+        description=(
+            "The ISO 4217 currency of a per-share amount; null for any other cell, and for a per-share cell whose "
+            "run recorded no currency."
+        )
+    )
     status: CellStatusValue | None = Field(description="The status of a number cell's value; null for a text cell.")
     reason_code: ReasonCode | None = Field(description="The reason code the result carries for the cell, if any.")
+
+    @model_validator(mode="after")
+    def _unit_and_currency_follow_the_kind(self) -> Self:
+        """Require a unit for a number, no unit or currency for a text, and a currency only for a per-share unit."""
+        if self.kind is CellKind.TEXT and (self.unit is not None or self.currency is not None):
+            raise ValueError("A text cell has no unit and no currency.")
+        if self.kind is CellKind.NUMBER and self.unit is None:
+            raise ValueError("A number cell has a unit.")
+        if self.currency is not None and self.unit is not CellUnit.PER_SHARE:
+            raise ValueError("Only a per-share cell has a currency.")
+        return self
 
 
 class CompareHeadlineDocument(_Document):
@@ -184,7 +203,7 @@ class RunsCompareDocument(_Document):
     ``schema_version`` is this document's own lineage and is independent of every other document's.
     """
 
-    schema_version: Literal[4] = 4
+    schema_version: Literal[5] = 5
     refresh_id: UUID
     watchlist_id: UUID | None = Field(description="The watchlist the refresh ran; null if no readable run records it.")
     watchlist_name: str | None = Field(description="The watchlist's name when the refresh ran.")
@@ -205,12 +224,36 @@ class CompareColumn:
     headline: Callable[[object], Headline]
 
 
-@dataclass(frozen=True)
-class _Resolved:
-    """One run turned into its document entry, with the watchlist its envelope recorded, if it was decoded."""
+class StoredRecord(Protocol):
+    """What the headline builder needs of a stored run: its ID, its indexed row and its envelope."""
 
-    document: CompareRunDocument
-    watchlist: tuple[UUID, str] | None
+    @property
+    def analysis_run_id(self) -> UUID:
+        """The run's ID."""
+        ...
+
+    @property
+    def row(self) -> Mapping[str, Any]:
+        """The stored row, whose indexed columns carry the run's versions."""
+        ...
+
+    def envelope(self) -> AnalysisRun:
+        """Return the fully decoded run, raising ``ValueError`` if the stored envelope is malformed."""
+        ...
+
+
+@dataclass(frozen=True)
+class RunHeadline:
+    """A run's headline, or the reason it has none, with the facts only its decoded envelope gives.
+
+    Exactly one of ``headline`` and ``unavailable`` is set. ``requested_as_of`` and ``watchlist`` come from the
+    envelope, so they are ``None`` for a run the builder did not decode.
+    """
+
+    headline: CompareHeadlineDocument | None
+    unavailable: HeadlineUnavailable | None
+    requested_as_of: datetime | None = None
+    watchlist: tuple[UUID, str] | None = None
 
 
 def _versions_supported(row: Mapping[str, Any], codec: EvidenceCodec) -> bool:
@@ -245,6 +288,7 @@ def _cell_document(cell: HeadlineCell) -> CompareCellDocument:
         kind=cell.kind,
         value=cell.value,
         unit=cell.unit,
+        currency=cell.currency,
         status=None if cell.status is None else cell.status.value,  # type: ignore[arg-type]
         reason_code=cell.reason_code,
     )
@@ -259,27 +303,19 @@ def _headline_document(headline: Headline) -> CompareHeadlineDocument:
     )
 
 
-def _without_headline(record: StoredRefreshRun, reason: HeadlineUnavailable, requested: datetime | None) -> _Resolved:
-    document = CompareRunDocument(
-        analysis_run_id=record.analysis_run_id,
-        outcome=record.status,
-        requested_as_of=requested,
-        headline=None,
-        headline_unavailable=reason,
-    )
-    return _Resolved(document, None)
+def resolve_headline(record: StoredRecord, column: CompareColumn | None) -> RunHeadline:
+    """Build a stored run's headline, or say why it has none: the one builder the table and the overview share.
 
-
-def _resolve(record: StoredRefreshRun, column: CompareColumn | None) -> _Resolved:
-    """Turn one stored run into its entry.
+    A run of a strategy no longer declared, or stored under an older version, or with no stored result, has no
+    headline and says which; no other run is without one.
 
     Raises:
         InvalidStoredRunError: If the run's envelope or evidence is invalid, naming the run.
     """
     if column is None:
-        return _without_headline(record, "strategy_not_declared", None)
+        return RunHeadline(None, "strategy_not_declared")
     if not _versions_supported(record.row, column.codec):
-        return _without_headline(record, "unsupported_version", None)
+        return RunHeadline(None, "unsupported_version")
     try:
         run = record.envelope()
     except ValueError as exc:
@@ -291,7 +327,7 @@ def _resolve(record: StoredRefreshRun, column: CompareColumn | None) -> _Resolve
     try:
         evidence = decode_evidence(run, codecs)
     except UnsupportedRunVersionError:
-        return _without_headline(record, "unsupported_version", run.requested_as_of)
+        return RunHeadline(None, "unsupported_version", run.requested_as_of)
     except InvalidStoredRunError as exc:
         raise InvalidStoredRunError(
             f"Analysis Run {record.analysis_run_id} could not be read: its stored evidence is invalid."
@@ -300,15 +336,20 @@ def _resolve(record: StoredRefreshRun, column: CompareColumn | None) -> _Resolve
         None if run.watchlist_id is None or run.watchlist_name is None else (run.watchlist_id, run.watchlist_name)
     )
     if evidence is None:
-        return _Resolved(_without_headline(record, "no_result_stored", run.requested_as_of).document, watchlist)
-    document = CompareRunDocument(
-        analysis_run_id=record.analysis_run_id,
-        outcome=record.status,
-        requested_as_of=run.requested_as_of,
-        headline=_headline_document(column.headline(evidence)),
-        headline_unavailable=None,
+        return RunHeadline(None, "no_result_stored", run.requested_as_of, watchlist)
+    return RunHeadline(_headline_document(column.headline(evidence)), None, run.requested_as_of, watchlist)
+
+
+def strategy_document(analysis_id: str, method_id: str, column: CompareColumn | None) -> CompareStrategyDocument:
+    """Return the strategy of a stored run: the declared column's names, or the stored method identifier if none."""
+    return CompareStrategyDocument(
+        analysis_id=analysis_id,
+        method_id=method_id,
+        alias=None if column is None else column.alias,
+        label=method_id if column is None else column.label,
+        term=None if column is None else column.term,
+        declared=column is not None,
     )
-    return _Resolved(document, watchlist)
 
 
 def _duplicates(runs: Sequence[StoredRefreshRun], columns: Mapping[tuple[str, str], CompareColumn]) -> list[str]:
@@ -348,14 +389,24 @@ def build_runs_compare(
     present = {(run.analysis_id, run.method_id) for run in runs}
     ordered = [key for key in declared if key in present]
     ordered += [key for key in dict.fromkeys((run.analysis_id, run.method_id) for run in runs) if key not in declared]
-    resolved = {run.analysis_run_id: _resolve(run, declared.get((run.analysis_id, run.method_id))) for run in runs}
+    resolved = {
+        run.analysis_run_id: resolve_headline(run, declared.get((run.analysis_id, run.method_id))) for run in runs
+    }
+    documents = {
+        run.analysis_run_id: CompareRunDocument(
+            analysis_run_id=run.analysis_run_id,
+            outcome=run.status,
+            requested_as_of=resolved[run.analysis_run_id].requested_as_of,
+            headline=resolved[run.analysis_run_id].headline,
+            headline_unavailable=resolved[run.analysis_run_id].unavailable,
+        )
+        for run in runs
+    }
     tickers = list(dict.fromkeys(run.ticker for run in runs))
     rows = []
     for ticker in tickers:
         mine = {
-            (run.analysis_id, run.method_id): resolved[run.analysis_run_id].document
-            for run in runs
-            if run.ticker == ticker
+            (run.analysis_id, run.method_id): documents[run.analysis_run_id] for run in runs if run.ticker == ticker
         }
         rows.append(
             CompareRowDocument(
@@ -368,17 +419,7 @@ def build_runs_compare(
         refresh_id=refresh_id,
         watchlist_id=None if watchlist is None else watchlist[0],
         watchlist_name=None if watchlist is None else watchlist[1],
-        strategies=tuple(
-            CompareStrategyDocument(
-                analysis_id=key[0],
-                method_id=key[1],
-                alias=declared[key].alias if key in declared else None,
-                label=declared[key].label if key in declared else key[1],
-                term=declared[key].term if key in declared else None,
-                declared=key in declared,
-            )
-            for key in ordered
-        ),
+        strategies=tuple(strategy_document(key[0], key[1], declared.get(key)) for key in ordered),
         rows=tuple(rows),
     )
 
@@ -405,18 +446,17 @@ def format_cell(cell: CompareCellDocument) -> str:
     number = float(value)
     if not math.isfinite(number):
         return MISSING
-    unit = cell.unit or ""
-    if unit == UNIT_PERCENT:
-        text = f"{number:.1f}%"
-    elif unit == UNIT_POINTS:
-        text = f"{number:.1f}"
-    elif unit == UNIT_MULTIPLE:
-        text = f"{number:.1f}x"
-    elif unit.endswith(_PER_SHARE_SUFFIX):
-        currency = None if unit == UNSPECIFIED_CURRENCY_PER_SHARE else unit.removesuffix(_PER_SHARE_SUFFIX)
-        text = format_money(number, currency)
-    else:
-        text = f"{number:.2f} {unit}".strip()
+    match cell.unit:
+        case CellUnit.PERCENT:
+            text = f"{number:.1f}%"
+        case CellUnit.POINTS:
+            text = f"{number:.1f}"
+        case CellUnit.MULTIPLE:
+            text = f"{number:.1f}x"
+        case CellUnit.PER_SHARE:
+            text = format_money(number, cell.currency)
+        case None:
+            text = f"{number:.2f}"
     return _minus(text)
 
 
@@ -615,9 +655,13 @@ __all__ = [
     "CompareStrategyDocument",
     "DuplicateRefreshRunsError",
     "HeadlineUnavailable",
+    "RunHeadline",
     "RunsCompareDocument",
+    "StoredRecord",
     "build_runs_compare",
     "format_cell",
     "no_runs_message",
     "render_runs_compare_text",
+    "resolve_headline",
+    "strategy_document",
 ]

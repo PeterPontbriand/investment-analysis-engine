@@ -63,7 +63,7 @@ def project_graham_growth_document(
 def headline_graham_growth(analysis: GrahamGrowthAnalysis) -> Headline:
     """Return Graham Growth's side-by-side cells: the intrinsic value and the margin of safety.
 
-    The value takes the strategy's own status. The unit carries the currency of the earnings input, or says none
+    The value takes the strategy's own status. The cell's currency is that of the earnings input, or none when none
     was recorded (EPS overridden). The period end is the observation period end of the earnings input, which is not
     recorded when EPS was an override. The taxonomy is not recorded.
     """

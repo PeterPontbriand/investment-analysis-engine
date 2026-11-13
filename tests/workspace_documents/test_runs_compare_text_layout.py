@@ -6,7 +6,7 @@ from itertools import count
 from uuid import UUID
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
-from investment_analysis_engine.reporting.headline import CellKind
+from investment_analysis_engine.reporting.headline import CellKind, CellUnit
 from investment_analysis_engine.workspace_documents.runs_compare import (
     TEXT_WIDTH,
     CompareCellDocument,
@@ -31,7 +31,15 @@ Period = tuple[str, date | None]
 
 def _text(label: str, value: str | None) -> CompareCellDocument:
     return CompareCellDocument(
-        key=label, label=label, term="term-k", kind=CellKind.TEXT, value=value, unit=None, status=None, reason_code=None
+        key=label,
+        label=label,
+        term="term-k",
+        kind=CellKind.TEXT,
+        value=value,
+        unit=None,
+        currency=None,
+        status=None,
+        reason_code=None,
     )
 
 
@@ -42,7 +50,8 @@ def _percent(label: str, value: float | None) -> CompareCellDocument:
         term="term-k",
         kind=CellKind.NUMBER,
         value=value,
-        unit="percent",
+        unit=CellUnit.PERCENT,
+        currency=None,
         status="ok",
         reason_code=None,
     )
@@ -55,7 +64,8 @@ def _money(label: str, value: float | None) -> CompareCellDocument:
         term="term-k",
         kind=CellKind.NUMBER,
         value=value,
-        unit="USD per share",
+        unit=CellUnit.PER_SHARE,
+        currency="USD",
         status="ok",
         reason_code=None,
     )

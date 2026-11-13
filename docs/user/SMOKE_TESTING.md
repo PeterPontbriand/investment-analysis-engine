@@ -212,7 +212,7 @@ B6. List the runs of that refresh:
 ian runs list --refresh-id <refresh ID>
 ```
 
-Expect exactly the runs that B5 reported, most recently completed first, each with its run ID, ticker, method, outcome and completion time.
+Expect exactly the runs that B5 reported, most recently completed first, each with its run ID, ticker, method, outcome and completion time. Adding `--outcome completed` keeps only the runs that completed; an outcome the application does not know is rejected, naming `--outcome`.
 
 B7. Compare the refresh:
 
