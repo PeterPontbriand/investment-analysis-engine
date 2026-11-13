@@ -263,6 +263,8 @@ A strategy is ready for review when the tooling and a reader both agree.
 - [ ] The strategy guide explains what the method shows and where it stops, with no command lines in its served sections ([the minimum bar](#4-write-the-reviewed-sites)).
 - [ ] Every reason message names its operands in plain words ([step 3](#3-fill-the-stubs)).
 - [ ] [`SMOKE_TESTING.md`](../user/SMOKE_TESTING.md) has the strategy's direct command and its expectations.
+- [ ] No shared capability was rebuilt inside the strategy: every provider request, metric and input assembly goes through `analysis/shared/` or a provider contract, or is evidence specific to this method.
+- [ ] The completion report and the pull request description list the shared modules the strategy uses (`analysis/shared/` functions, provider contracts, shared helpers), and any shared gap found with how it was resolved.
 
 ## Common pitfalls
 
@@ -491,7 +493,7 @@ Keep missing, unavailable, and not-applicable evidence explicit. Preserve source
 
 **On the critical path:** read this before writing the analyzer.
 
-Before writing a private resolver, check whether a shared function already supplies the input. The shared code is under [`investment_analysis_engine/analysis/shared/`](../../investment_analysis_engine/analysis/shared); a strategy calls it and does not rebuild it.
+Before writing a private resolver, check whether a shared function already supplies the input. The shared code is under [`investment_analysis_engine/analysis/shared/`](../../investment_analysis_engine/analysis/shared); a strategy calls it and does not rebuild it. When no shared function supplies an input that another strategy could use, add it to `analysis/shared/` or the provider contract rather than to the strategy, and stop and ask first when that file is outside the task's scope ([`AGENTS.md`](../../AGENTS.md) §9).
 
 | Entry point | Home | Call it when | Instead of |
 | :--- | :--- | :--- | :--- |
@@ -548,7 +550,7 @@ The `use_cache` field is declared once, in `AnalysisToolArguments` (`orchestrato
 | --- | --- |
 | Configuration or policy and its semantic rules, when the strategy has any | `BaseAnalyzer[ResultT, *ConfigT]`, `AnalysisContext`, workspace request selections |
 | Strategy analyzer and typed result | `ResolvedInput`, `ResolutionTrace`, provider contracts |
-| Input requirements and calculations; a resolver of its own only for evidence no shared entry supplies | The shared metrics and input assembly of `analysis/shared/` ([Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs)), financial-fact providers, historical-price providers, and caches where applicable |
+| Input requirements and calculations; a resolver of its own only for evidence specific to this strategy's method | The shared metrics and input assembly of `analysis/shared/` ([Shared metrics and SEC inputs](#shared-metrics-and-sec-inputs)), financial-fact providers, historical-price providers, and caches where applicable |
 | Focused tests for rules, unavailable evidence, and edge cases | Common `workspace.execute()`, `AnalysisRun`, repositories, and evidence codecs |
 | Investor-facing rendering and strategy guide | Shared presentation vocabulary and financial conventions |
 | Strategy-specific execution adapter integration | CLI/workspace composition and persistence boundaries |
