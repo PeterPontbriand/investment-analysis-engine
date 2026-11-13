@@ -8,6 +8,7 @@ from datetime import date
 import pytest
 
 from investment_analysis_engine.analysis.shared.anchor_filing import stale_anchor_message
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.resolver import EARLIER_BASIS_MESSAGE
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.presentation import PresentationMode
@@ -192,7 +193,10 @@ def test_m4_the_investor_sees_the_year_message_not_the_general_text_of_its_statu
     analysis = _analysis(growth, provider)
     document = _document(analysis)
     assert document.reason is not None
-    assert document.reason.startswith("eps: The newest fiscal year of diluted EPS ends 2023-06-30, not")
+    assert document.reason.startswith(
+        "Earnings per share is unavailable: The newest fiscal year of diluted EPS ends 2023-06-30, not"
+    )
+    assert document.reason_code is ReasonCode.INCOMPATIBLE_PERIOD
     text = "\n".join(_text(analysis, PresentationMode.CONCISE))
     assert "never calculated from an older year" in text
 

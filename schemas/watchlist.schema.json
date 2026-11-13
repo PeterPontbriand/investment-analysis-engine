@@ -137,8 +137,8 @@
           "x-term": "as-of-date"
         },
         "config_schema_version": {
-          "const": 2,
-          "default": 2,
+          "const": 3,
+          "default": 3,
           "title": "Config Schema Version",
           "type": "integer"
         },
@@ -250,8 +250,8 @@
           "x-term": "override"
         },
         "config_schema_version": {
-          "const": 3,
-          "default": 3,
+          "const": 4,
+          "default": 4,
           "title": "Config Schema Version",
           "type": "integer"
         },

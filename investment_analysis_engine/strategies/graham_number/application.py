@@ -5,7 +5,6 @@ composes the dependencies of one run, runs it through :func:`execute_graham_numb
 present it as a document and as text, so a caller never needs Graham Number's presentation.
 """
 
-from dataclasses import replace
 from datetime import datetime
 
 from investment_analysis_engine.application.context import ApplicationContext
@@ -17,7 +16,6 @@ from investment_analysis_engine.core.provider_check_element import ProviderCheck
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.instrument_profile_cache import InstrumentProfileResolver
 from investment_analysis_engine.data.yfinance.client import YFinanceClient
-from investment_analysis_engine.reporting.evidence_presentation import friendly_valuation_failure
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
 from investment_analysis_engine.strategies._graham.application import build_graham_resolver
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
@@ -105,14 +103,9 @@ def run(
                 instrument_profile=profile,
                 provider_check=element,
             )
-        reason = (
-            assembly.reason
-            if assembly.reason_code is not None
-            else friendly_valuation_failure(ticker, assembly.status, assembly.reason)
-        )
         return GrahamNumberPresentation(
             ticker=ticker,
-            assembly=number_with_public_quote_reason(replace(assembly, reason=reason)),
+            assembly=number_with_public_quote_reason(assembly),
             price_comparison=analysis.price_comparison,
             result=None,
             as_of=selection.as_of,

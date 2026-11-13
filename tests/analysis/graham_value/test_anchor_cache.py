@@ -166,7 +166,9 @@ def test_m6_when_the_providers_year_still_differs_the_year_rule_applies_to_its_a
     second = run_number(provider, cache=cache, quote_override=40.0)
     assert second.assembly.status is CalculationStatus.INPUT_UNAVAILABLE
     assert second.assembly.reason is not None
-    assert second.assembly.reason.startswith("eps: The newest fiscal year of diluted EPS ends 2023-06-30, not")
+    assert second.assembly.reason.startswith(
+        "Earnings per share is unavailable: The newest fiscal year of diluted EPS ends 2023-06-30, not"
+    )
     assert requested_fields(provider).count(FinancialField.EPS) == 1
 
 

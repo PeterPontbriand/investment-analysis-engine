@@ -259,8 +259,10 @@ class FCFEarningsGrowthAnalyzer(BaseAnalyzer[FCFEarningsGrowthResult, FCFEarning
             trend = decision.trend_classification
         else:
             classification = Classification.INDETERMINATE
-            reason_code = assembly.reason_code or ReasonCode.MISSING_FACT
-            reason = assembly.reason or "Required historical evidence is unavailable."
+            assert assembly.reason_code is not None  # a failed assembly carries its code
+            assert assembly.reason is not None  # and its reason
+            reason_code = assembly.reason_code
+            reason = assembly.reason
             trend = TrendClassification.INSUFFICIENT_OR_NONMEANINGFUL_GROWTH
 
         warnings: list[str] = list(stale_anchor_warnings(yield_outcome.anchor_filing, boundary))

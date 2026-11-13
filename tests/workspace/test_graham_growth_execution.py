@@ -9,6 +9,7 @@ import pytest
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.instrument_profile import InstrumentKind, InstrumentProfile
 from investment_analysis_engine.evaluation.fixtures.graham import NOW, SECURITY_ID, FixtureFinancialFactsProvider
 from investment_analysis_engine.evaluation.fixtures.instrument_profiles import fixture_instrument_profile
@@ -39,13 +40,17 @@ def _profile(ticker: str = SECURITY_ID) -> InstrumentProfile:
 
 
 def _assembly(status: CalculationStatus) -> GrowthValueInputAssembly:
-    return GrowthValueInputAssembly(status=status, reason=None if status is CalculationStatus.OK else "fixture reason")
+    return GrowthValueInputAssembly(
+        status=status,
+        reason=None if status is CalculationStatus.OK else "fixture reason",
+        reason_code=None if status is CalculationStatus.OK else ReasonCode.INVALID_REQUEST,
+    )
 
 
 def _result(status: CalculationStatus, *, growth_value: float = 42.0) -> GrahamGrowthValueResult:
     if status is CalculationStatus.OK:
         return GrahamGrowthValueResult(status=status, growth_value=growth_value)
-    return GrahamGrowthValueResult(status=status, reason="fixture reason")
+    return GrahamGrowthValueResult(status=status, reason="fixture reason", reason_code=ReasonCode.INVALID_REQUEST)
 
 
 def _analysis(

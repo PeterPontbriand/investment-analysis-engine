@@ -78,6 +78,30 @@ class GrahamGrowthSelection(FrozenSelection):
             )
         return value
 
+    @field_validator("quote_override")
+    @classmethod
+    def _require_positive_quote(cls, value: float | None) -> float | None:
+        """Reject a zero or negative price override at the workspace boundary."""
+        if value is not None and value <= 0:
+            raise SelectionRuleError(
+                "Invalid {quote_override}: Share price override must be greater than zero.",
+                fields=("quote_override",),
+                rule="graham-growth.quote_override_not_positive",
+            )
+        return value
+
+    @field_validator("aaa_yield_override")
+    @classmethod
+    def _require_positive_aaa_yield(cls, value: float) -> float:
+        """Reject a zero or negative AAA yield at the workspace boundary."""
+        if value <= 0:
+            raise SelectionRuleError(
+                "Invalid {aaa_yield_override}: AAA yield must be greater than zero.",
+                fields=("aaa_yield_override",),
+                rule="graham-growth.aaa_yield_override_not_positive",
+            )
+        return value
+
     @field_validator("eps_basis", mode="before")
     @classmethod
     def _normalize_basis(cls, value: object) -> object:

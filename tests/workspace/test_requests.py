@@ -46,7 +46,7 @@ def test_fixed_identifiers_and_schema_version() -> None:
 
     graham = GrahamNumberSelection()
     assert graham.analysis_id == "graham_number"
-    assert (graham.method_id, graham.config_schema_version) == ("graham_number", 3)
+    assert (graham.method_id, graham.config_schema_version) == ("graham_number", 4)
 
 
 def test_momentum_selection_carries_the_given_values_into_its_config() -> None:
@@ -183,9 +183,9 @@ def test_graham_rejects_naive_as_of() -> None:
 
 
 @pytest.mark.parametrize("value", [0.0, -1.0])
-def test_graham_numeric_financial_validity_is_deferred(value: float) -> None:
-    selection = GrahamNumberSelection(eps_override=value, bvps_override=value, quote_override=value)
-    assert (selection.eps_override, selection.bvps_override, selection.quote_override) == (value, value, value)
+def test_graham_eps_and_bvps_validity_is_deferred_to_the_calculation(value: float) -> None:
+    selection = GrahamNumberSelection(eps_override=value, bvps_override=value)
+    assert (selection.eps_override, selection.bvps_override) == (value, value)
 
 
 def test_graham_selection_is_frozen() -> None:
@@ -287,8 +287,8 @@ def test_growth_requires_each_explicit_assumption(missing: str) -> None:
 
 @pytest.mark.parametrize("growth", [0.0, -5.0, 5.0])
 def test_growth_conversion_preserves_assumptions(growth: float) -> None:
-    selection = GrahamGrowthSelection(expected_growth=growth, aaa_yield_override=0.0)
-    expected = GrahamGrowthConfig(expected_growth=growth, aaa_yield_override=0.0)
+    selection = GrahamGrowthSelection(expected_growth=growth, aaa_yield_override=4.5)
+    expected = GrahamGrowthConfig(expected_growth=growth, aaa_yield_override=4.5)
     assert selection.to_graham_growth_config() == expected
     assert selection.eps_basis == "three_year_average"
 
@@ -505,7 +505,7 @@ def test_stored_graham_number_edge_values_round_trip_and_convert() -> None:
 
 @pytest.mark.usefixtures("no_external_state")
 def test_stored_graham_growth_edge_values_round_trip_and_convert() -> None:
-    restored = _stored_round_trip(GrahamGrowthSelection(expected_growth=-5, aaa_yield_override=0))
+    restored = _stored_round_trip(GrahamGrowthSelection(expected_growth=-5, aaa_yield_override=4.5))
     assert restored.to_graham_growth_config().expected_growth == -5
 
 

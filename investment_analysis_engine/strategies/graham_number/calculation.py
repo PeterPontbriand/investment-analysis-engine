@@ -23,10 +23,12 @@ from investment_analysis_engine.data.financial.resolution_trace import Resolutio
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, AnchorYearEnd
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
+from investment_analysis_engine.reporting.presentation import format_money
 from investment_analysis_engine.strategies._graham.anchor_years import (
     GrahamFilingInput,
     resolve_aligned,
 )
+from investment_analysis_engine.strategies._graham.outcome import failed_input_outcome
 from investment_analysis_engine.strategies.graham_number.vocabulary import METHOD_ID, MethodId
 
 _EPS_BASIS: Final = "three_year_average"
@@ -45,8 +47,8 @@ class GrahamNumberInputAssembly:
     provenance.
 
     Invariants:
-        - ``OK``: ``eps``, ``bvps`` present; ``reason`` is ``None``.
-        - Non-OK: ``reason`` non-empty; field slots that were not resolved
+        - ``OK``: ``eps``, ``bvps`` present; ``reason`` and ``reason_code`` are ``None``.
+        - Non-OK: ``reason`` non-empty and ``reason_code`` present; field slots that were not resolved
           are ``None``.
         - ``current_price`` is ``None`` when the quote was unavailable or
           the assembly failed before reaching quote resolution.
@@ -74,9 +76,8 @@ class GrahamNumberInputAssembly:
             filing input overridden).
         left_out_years: The years of EPS left out of the three-year series, with the reason of each; empty unless the
             series came up short because years were left out.
-        reason_code: The code of the cause ``reason`` names (an input year that is not the anchor's, a gap in the
-            EPS years, years left out, or no anchor); ``None`` for a failure with no such code. The presenters show
-            a reason that has one as written. It is internal and is not served.
+        reason_code: The code of the cause ``reason`` names; present exactly when ``status`` is not ``OK``. The
+            presenters show ``reason`` as written.
     """
 
     status: CalculationStatus
@@ -101,8 +102,8 @@ class GrahamNumberInputAssembly:
             raise ValueError("provider_failure requires a provider_error assembly.")
         if self.quote_provider_failure is not None and self.quote_status is not CalculationStatus.PROVIDER_ERROR:
             raise ValueError("quote_provider_failure requires a provider_error quote status.")
-        if self.reason_code is not None and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
-            raise ValueError("reason_code requires an input_unavailable assembly.")
+        if (self.reason_code is None) is (self.status is not CalculationStatus.OK):
+            raise ValueError("A reason_code is present exactly when the assembly status is not ok.")
 
 
 @dataclass(frozen=True)
@@ -116,12 +117,14 @@ class GrahamNumberResult:
         reason: Human-readable explanation when ``status`` is not ``OK``.
         method: Always ``"graham_number"`` (set automatically, not
             caller-supplied).
+        reason_code: The code of the cause ``reason`` names; present exactly when ``status`` is not ``OK``.
     """
 
     status: CalculationStatus
     maximum_indicated_price: float | None = None
     reason: str | None = None
     method: MethodId = field(init=False, default=METHOD_ID)
+    reason_code: ReasonCode | None = None
 
     def __post_init__(self) -> None:
         """Enforce result-state invariants."""
@@ -137,63 +140,60 @@ class GrahamNumberResult:
                 )
             if not self.reason:
                 raise ValueError(f"GrahamNumberResult: status {self.status} requires a non-empty reason.")
+        if (self.reason_code is None) is (self.status is not CalculationStatus.OK):
+            raise ValueError("GrahamNumberResult: a reason_code is present exactly when the status is not ok.")
 
 
 # Classic Graham multiplier: maximum P/E 15 × maximum P/B 1.5 = 22.5
 _GRAHAM_MULTIPLIER: Final[float] = 22.5
 
 
-def compute_graham_number(eps: float, bvps: float) -> GrahamNumberResult:
+def compute_graham_number(
+    eps: float, bvps: float, *, eps_currency: str | None = None, bvps_currency: str | None = None
+) -> GrahamNumberResult:
     """Compute the Graham Number (maximum indicated price).
 
     Formula: ``sqrt(22.5 * eps * bvps)``.
 
     Args:
-        eps: Earnings per share on the selected basis.  Must be finite and
-            positive for a successful calculation.
-        bvps: Book value per common share.  Must be finite and positive for
-            a successful calculation.
+        eps: Earnings per share on the selected basis; finite, as every resolved input is.
+        bvps: Book value per common share; finite, as every resolved input is.
+        eps_currency: The currency of ``eps``, or ``None`` when it was not recorded.
+        bvps_currency: The currency of ``bvps``, or ``None`` when it was not recorded.
 
     Returns:
-        GrahamNumberResult with ``status`` of ``OK``, ``NOT_APPLICABLE``, or
-        ``INVALID_INPUT``.  When ``status`` is ``OK``,
-        ``maximum_indicated_price`` contains the screening-ceiling price;
-        otherwise it is ``None`` and ``reason`` explains the failure.
+        GrahamNumberResult with ``status`` of ``OK``, ``NOT_APPLICABLE`` (an input of zero or less, with the
+        ``nonpositive_input`` code) or ``INVALID_INPUT`` (a product too large to compute, with the
+        ``invalid_request`` code). When ``status`` is ``OK``, ``maximum_indicated_price`` contains the
+        screening-ceiling price; otherwise it is ``None`` and ``reason`` explains the failure.
     """
-    # --- Finite check (invalid_input) ---
-    if not math.isfinite(eps):
-        return GrahamNumberResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"EPS must be finite (received {eps!r}).",
-        )
-    if not math.isfinite(bvps):
-        return GrahamNumberResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"BVPS must be finite (received {bvps!r}).",
-        )
-
-    # --- Applicability check (not_applicable) ---
     if eps <= 0:
+        condition = "negative" if eps < 0 else "zero"
         return GrahamNumberResult(
             status=CalculationStatus.NOT_APPLICABLE,
-            reason=f"EPS must be positive for Graham Number (received {eps}).",
+            reason=(
+                f"Earnings per share is {condition} ({format_money(eps, eps_currency)}), "
+                "so the Graham Number does not apply."
+            ),
+            reason_code=ReasonCode.NONPOSITIVE_INPUT,
         )
     if bvps <= 0:
+        condition = "negative" if bvps < 0 else "zero"
         return GrahamNumberResult(
             status=CalculationStatus.NOT_APPLICABLE,
-            reason=f"BVPS must be positive for Graham Number (received {bvps}).",
+            reason=(
+                f"Book value per common share is {condition} ({format_money(bvps, bvps_currency)}), "
+                "so the Graham Number does not apply."
+            ),
+            reason_code=ReasonCode.NONPOSITIVE_INPUT,
         )
 
-    # --- Calculation ---
-    product = _GRAHAM_MULTIPLIER * eps * bvps
-    # product is guaranteed > 0 here (all inputs positive and finite,
-    # multiplier is positive finite constant)
-    result_value = math.sqrt(product)
-
-    if not math.isfinite(result_value) or result_value <= 0:
+    result_value = math.sqrt(_GRAHAM_MULTIPLIER * eps * bvps)
+    if not math.isfinite(result_value):
         return GrahamNumberResult(
             status=CalculationStatus.INVALID_INPUT,
             reason=f"Computed Graham Number is not a valid positive finite value ({result_value!r}).",
+            reason_code=ReasonCode.INVALID_REQUEST,
         )
 
     return GrahamNumberResult(
@@ -251,13 +251,16 @@ class GrahamNumberInputResolver(InputResolver):
         )
         trace = eps_result.resolution_trace
         if eps_result.status is not CalculationStatus.OK:
+            code, message = failed_input_outcome(
+                eps_result, security_subject_id=security_subject_id, label="Earnings per share"
+            )
             return GrahamNumberInputAssembly(
                 status=eps_result.status,
-                reason=f"eps: {eps_result.reason}",
+                reason=message,
                 resolution_trace=trace,
                 provider_failure=_recorded(eps_result, "eps"),
                 left_out_years=left_out_years_of("eps", eps_result.left_out),
-                reason_code=eps_result.reason_code,
+                reason_code=code,
             )
         eps_input = eps_result.resolved_input
 
@@ -278,13 +281,16 @@ class GrahamNumberInputResolver(InputResolver):
         )
         trace = trace.extend(bvps_result.resolution_trace)
         if bvps_result.status is not CalculationStatus.OK:
+            code, message = failed_input_outcome(
+                bvps_result, security_subject_id=security_subject_id, label="Book value per share"
+            )
             return GrahamNumberInputAssembly(
                 status=bvps_result.status,
                 eps=eps_input,
-                reason=f"bvps: {bvps_result.reason}",
+                reason=message,
                 resolution_trace=trace,
                 provider_failure=_recorded(bvps_result, "bvps"),
-                reason_code=bvps_result.reason_code,
+                reason_code=code,
             )
         bvps_input = bvps_result.resolved_input
         assert bvps_input is not None
@@ -300,12 +306,16 @@ class GrahamNumberInputResolver(InputResolver):
         )
         trace = trace.extend(quote_result.resolution_trace)
         if quote_result.status is CalculationStatus.INVALID_INPUT:
+            code, message = failed_input_outcome(
+                quote_result, security_subject_id=security_subject_id, label="Share price"
+            )
             return GrahamNumberInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
                 eps=eps_input,
                 bvps=bvps_input,
-                reason=f"current_price: {quote_result.reason}",
+                reason=message,
                 resolution_trace=trace,
+                reason_code=code,
             )
         if quote_result.status is not CalculationStatus.OK:
             return GrahamNumberInputAssembly(

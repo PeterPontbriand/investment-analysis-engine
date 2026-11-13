@@ -307,17 +307,19 @@ def compute_enterprise_value(  # noqa: PLR0913, PLR0911
     cap = market_cap.result
     debt = total_debt.result
     if cap.status is not MetricStatus.OK or cap.value is None:
+        assert cap.reason_code is not None  # a MetricResult that is not ok carries its code
         return _ev_unavailable(
             market_cap,
             total_debt,
-            cap.reason_code or ReasonCode.MISSING_FACT,
+            cap.reason_code,
             f"Market cap is {cap.status.value}: {cap.reason}",
         )
     if debt.status is not MetricStatus.OK or debt.value is None:
+        assert debt.reason_code is not None  # a MetricResult that is not ok carries its code
         return _ev_unavailable(
             market_cap,
             total_debt,
-            debt.reason_code or ReasonCode.MISSING_FACT,
+            debt.reason_code,
             f"Total debt is {debt.status.value}: {debt.reason}",
         )
     if isinstance(cash_and_equivalents, InstantAbsence):

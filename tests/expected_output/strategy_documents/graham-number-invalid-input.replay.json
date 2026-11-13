@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "KO",
@@ -20,7 +20,8 @@
   },
   "instrument_kind": null,
   "price_comparison": null,
-  "reason": "Unable to analyze KO: the requested inputs are invalid. Review the method and overrides.",
+  "reason_code": "invalid_request",
+  "reason": "Share price is invalid: Override value must be finite (received nan).",
   "result": {
     "maximum_indicated_price": null,
     "margin_of_safety_percent": null

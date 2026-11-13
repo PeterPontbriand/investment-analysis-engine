@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "KO",
@@ -20,6 +20,7 @@
   },
   "instrument_kind": null,
   "price_comparison": null,
+  "reason_code": null,
   "reason": null,
   "result": {
     "maximum_indicated_price": 42.0,

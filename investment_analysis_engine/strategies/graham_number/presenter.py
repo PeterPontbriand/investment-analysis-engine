@@ -11,7 +11,6 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.failure_classification import provider_failure_of
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem
 from investment_analysis_engine.data.financial.provenance import ResolvedInput
-from investment_analysis_engine.data.financial.resolution_trace import ResolutionOutcome
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile, profile_identity_resolution
 from investment_analysis_engine.data.security_identity import SecurityIdentityResolution
 from investment_analysis_engine.reporting.documents.shared_parts import (
@@ -56,6 +55,7 @@ from investment_analysis_engine.reporting.valuation_presentation import (
     quote_warnings,
     validate_margin,
 )
+from investment_analysis_engine.strategies._graham.outcome import served_reason_code
 from investment_analysis_engine.strategies.graham_number.calculation import (
     GrahamNumberInputAssembly,
     GrahamNumberResult,
@@ -179,7 +179,7 @@ def _number_concise_lines(p: GrahamNumberPresentation) -> list[str]:
             lines.append("Graham Number could not be calculated.")
         lines.append(f"Status: {status_label(status)}")
         if reason:
-            lines.append(f"Reason: {_number_reason(p, status, reason)}")
+            lines.append(f"Reason: {reason}")
 
     lines.append("")
     basis_summary = _number_basis_summary(p.assembly.eps, p.assembly.bvps)
@@ -284,53 +284,6 @@ def _number_warning_lines(p: GrahamNumberPresentation) -> list[str]:
     return [f"Warning: {warning}" for warning in _number_warnings(p)]
 
 
-def _number_reason(  # noqa: PLR0911
-    presentation: GrahamNumberPresentation,
-    status: CalculationStatus,
-    fallback: str,
-) -> str:
-    """Translate retained input and applicability evidence without exposing raw errors."""
-    if presentation.assembly.reason_code is not None:
-        return fallback
-    if status is CalculationStatus.INPUT_UNAVAILABLE:
-        assembly = presentation.assembly
-        if assembly.eps is None:
-            return "Eligible earnings per share could not be resolved for the requested basis and analysis date."
-        if assembly.bvps is None:
-            labels = {
-                "preferred_shares_outstanding": "preferred-share evidence",
-                "stockholders_equity": "stockholders' equity",
-                "common_shares_outstanding": "period-end common shares outstanding",
-            }
-            for event in reversed(assembly.resolution_trace.events):
-                if event.field_name in labels and event.outcome is ResolutionOutcome.UNAVAILABLE:
-                    explanation = (
-                        "Book value per common share could not be established because eligible "
-                        f"{labels[event.field_name]} could not be resolved."
-                    )
-                    if event.field_name == "preferred_shares_outstanding":
-                        explanation += " Missing preferred-share data is not assumed to be zero."
-                    return explanation
-            return "Eligible book value per common share could not be resolved for the requested analysis date."
-    if status is not CalculationStatus.NOT_APPLICABLE:
-        return fallback
-    eps = presentation.assembly.eps
-    bvps = presentation.assembly.bvps
-    if eps is not None and eps.value <= 0:
-        condition = "negative" if eps.value < 0 else "zero"
-        return (
-            f"Earnings per share is {condition} ({format_money(eps.value, eps.currency)}), "
-            "so the Graham Number does not apply."
-        )
-    if bvps is not None and bvps.value <= 0:
-        condition = "negative" if bvps.value < 0 else "zero"
-        return (
-            f"Book value per common share is {condition} ({format_money(bvps.value, bvps.currency)}), "
-            "so the Graham Number does not apply."
-        )
-    return fallback
-
-
 def build_graham_number_document(p: GrahamNumberPresentation) -> GrahamNumberDocument:
     """Build the typed Graham Number document, which the JSON mode writes and a replay returns.
 
@@ -342,8 +295,11 @@ def build_graham_number_document(p: GrahamNumberPresentation) -> GrahamNumberDoc
         p.result.status if p.result else None,
         p.result.reason if p.result else None,
     )
-    if reason:
-        reason = _number_reason(p, status, reason)
+    reason_code = (
+        p.assembly.reason_code
+        if p.result is None
+        else served_reason_code(p.assembly.status, p.assembly.reason_code, p.result.status, p.result.reason_code)
+    )
     result_value = (
         p.result.maximum_indicated_price if p.result is not None and p.result.status is CalculationStatus.OK else None
     )
@@ -361,6 +317,7 @@ def build_graham_number_document(p: GrahamNumberPresentation) -> GrahamNumberDoc
         security_identity=security_identity_part(p.ticker, p.identity_resolution),
         instrument_kind=instrument_kind_part_of(p.instrument_profile),
         price_comparison=price_comparison_part(p.price_comparison),
+        reason_code=reason_code,
         reason=reason,
         result=GrahamNumberResultPart(
             maximum_indicated_price=result_value, margin_of_safety_percent=p.margin_of_safety_percent

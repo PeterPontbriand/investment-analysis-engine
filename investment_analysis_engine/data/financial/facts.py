@@ -19,11 +19,13 @@ normalization is identical to the C1 cache-key conventions.
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from types import MappingProxyType
+from typing import Final, Protocol, runtime_checkable
 
 from investment_analysis_engine.core.failure_codes import FailureReasonCode, provider_reason_code
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, require_provider_identity
@@ -171,6 +173,47 @@ class FinancialField(StrEnum):
     PRETAX_INCOME = "pretax_income"
     INCOME_TAX_EXPENSE = "income_tax_expense"
     NET_INCOME = "net_income"
+
+
+FINANCIAL_FIELD_LABELS: Final[Mapping[FinancialField, str]] = MappingProxyType(
+    {
+        FinancialField.CURRENT_PRICE: "current price",
+        FinancialField.EPS: "earnings per share",
+        FinancialField.BVPS: "book value per share",
+        FinancialField.CURRENT_AAA_YIELD: "current AAA yield",
+        FinancialField.STOCKHOLDERS_EQUITY: "stockholders' equity",
+        FinancialField.COMMON_SHARES_OUTSTANDING: "common shares outstanding",
+        FinancialField.PREFERRED_SHARES_OUTSTANDING: "preferred shares outstanding",
+        FinancialField.OPERATING_CASH_FLOW: "operating cash flow",
+        FinancialField.CAPITAL_EXPENDITURES: "capital expenditures",
+        FinancialField.WEIGHTED_AVERAGE_DILUTED_SHARES: "weighted average diluted shares",
+        FinancialField.TOTAL_ASSETS: "total assets",
+        FinancialField.TOTAL_LIABILITIES: "total liabilities",
+        FinancialField.CURRENT_ASSETS: "current assets",
+        FinancialField.CURRENT_LIABILITIES: "current liabilities",
+        FinancialField.CASH_AND_EQUIVALENTS: "cash and equivalents",
+        FinancialField.SHORT_TERM_INVESTMENTS: "short-term investments",
+        FinancialField.NET_PPE: "net property, plant and equipment",
+        FinancialField.RETAINED_EARNINGS: "retained earnings",
+        FinancialField.SHORT_TERM_BORROWINGS: "short-term borrowings",
+        FinancialField.CURRENT_PORTION_OF_LONG_TERM_DEBT: "current portion of long-term debt",
+        FinancialField.NONCURRENT_LONG_TERM_DEBT: "noncurrent long-term debt",
+        FinancialField.LONG_TERM_DEBT_TOTAL: "total long-term debt",
+        FinancialField.LEASE_LIABILITIES_AS_DEBT: "lease liabilities counted as debt",
+        FinancialField.PREFERRED_STOCK: "preferred stock",
+        FinancialField.NONCONTROLLING_INTEREST: "noncontrolling interest",
+        FinancialField.SALES: "sales",
+        FinancialField.COST_OF_REVENUE: "cost of revenue",
+        FinancialField.GROSS_PROFIT: "gross profit",
+        FinancialField.OPERATING_INCOME: "operating income",
+        FinancialField.DEPRECIATION_AND_AMORTIZATION: "depreciation and amortization",
+        FinancialField.INTEREST_EXPENSE: "interest expense",
+        FinancialField.PRETAX_INCOME: "pretax income",
+        FinancialField.INCOME_TAX_EXPENSE: "income tax expense",
+        FinancialField.NET_INCOME: "net income",
+    }
+)
+"""The plain words that name each financial field inside a user-facing message, one entry per field."""
 
 
 class FinancialUnit(StrEnum):

@@ -351,6 +351,7 @@
         "incompatible_scope",
         "ambiguous_fact",
         "not_available_as_of",
+        "quote_timing_unusable",
         "stale_anchor",
         "earlier_basis",
         "nonpositive_beginning",
@@ -370,7 +371,9 @@
         "unsupported_mapping",
         "debt_not_visible",
         "nonpositive_denominator",
-        "insufficient_tests"
+        "insufficient_tests",
+        "nonpositive_input",
+        "override_only"
       ],
       "title": "ReasonCode",
       "type": "string"
@@ -404,8 +407,8 @@
       "type": "array"
     },
     "schema_version": {
-      "const": 3,
-      "default": 3,
+      "const": 4,
+      "default": 4,
       "title": "Schema Version",
       "type": "integer"
     },

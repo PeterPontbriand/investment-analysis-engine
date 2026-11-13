@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "KO",
@@ -20,6 +20,7 @@
   },
   "instrument_kind": null,
   "price_comparison": null,
+  "reason_code": null,
   "reason": null,
   "result": {
     "growth_value": 999.0,

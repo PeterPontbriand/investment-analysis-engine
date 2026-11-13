@@ -318,7 +318,7 @@ def test_resolver_rejects_a_quote_ticked_beyond_the_skew_tolerance() -> None:
     assert result.resolved_input is None
     assert result.quote_freshness is None
     assert result.reason is not None
-    assert "observation_age" in result.reason
+    assert result.reason == "Observation is later than the analysis boundary."
 
 
 def test_same_run_cache_round_trip_tolerates_a_quote_ticked_after_the_frozen_clock() -> None:

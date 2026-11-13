@@ -87,6 +87,21 @@ def evaluate_quote_freshness(
     )
 
 
+QUOTE_TIMING_PROBLEMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "expired": "the quote is older than the freshness rules allow",
+        "unknown_retrieval_time": "the time the quote was retrieved is unknown",
+        "future_timestamp": "the quote is dated in the future",
+    }
+)
+"""The plain words for each quote-freshness status that makes the quote's timing unusable."""
+
+
+def quote_timing_message(status: str) -> str:
+    """Return the message of a quote whose timing is unusable, naming the problem in plain words."""
+    return f"Quote response timing is unusable: {QUOTE_TIMING_PROBLEMS[status]}."
+
+
 QUOTE_FRESHNESS_STATUS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
     {
         "recent_retrieval": "quote-recent",

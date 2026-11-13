@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "MISSING",
@@ -34,7 +34,8 @@
     "security_unit_evidence": null,
     "provenance": null
   },
-  "reason": "Eligible earnings per share could not be resolved for the requested basis and analysis date.",
+  "reason_code": "insufficient_history",
+  "reason": "Earnings per share is unavailable: Insufficient eligible fiscal-year EPS observations: found 0 distinct period(s), need 3.",
   "result": {
     "maximum_indicated_price": null,
     "margin_of_safety_percent": null

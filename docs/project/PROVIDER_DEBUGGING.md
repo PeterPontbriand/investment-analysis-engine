@@ -141,8 +141,8 @@ failure document and the four strategy documents, and is the last key of the `re
   and no other. The verdict is never stored.
 - **Consistency.** A document carries a non-null element only beside a non-null `provider_failure`, naming exactly the
   providers that element names. A `refresh` summary lists each provider once.
-- **Versions.** The failure document is `schema_version` 9, the strategy documents 9 (Momentum), 10 (Graham Number),
-  10 (Graham Growth) and 9 (FCF Growth), and the refresh summary 2. No stored version changed.
+- **Versions.** The failure document is `schema_version` 9, the strategy documents 9 (Momentum), 12 (Graham Number),
+  12 (Graham Growth) and 9 (FCF Growth), and the refresh summary 2. No stored version changed.
 
 ## 2. The scheduled and on-demand run
 

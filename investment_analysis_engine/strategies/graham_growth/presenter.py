@@ -53,6 +53,7 @@ from investment_analysis_engine.reporting.valuation_presentation import (
     quote_warnings,
     validate_margin,
 )
+from investment_analysis_engine.strategies._graham.outcome import served_reason_code
 from investment_analysis_engine.strategies.graham_growth.calculation import (
     GrahamGrowthValueResult,
     GrowthValueInputAssembly,
@@ -299,6 +300,11 @@ def build_graham_growth_document(p: GrahamGrowthPresentation) -> GrahamGrowthDoc
         p.result.status if p.result else None,
         p.result.reason if p.result else None,
     )
+    reason_code = (
+        p.assembly.reason_code
+        if p.result is None
+        else served_reason_code(p.assembly.status, p.assembly.reason_code, p.result.status, p.result.reason_code)
+    )
     result_value = p.result.growth_value if p.result is not None and p.result.status is CalculationStatus.OK else None
     return GrahamGrowthDocument(
         schema_version=DOCUMENT_SCHEMA_VERSION,
@@ -314,6 +320,7 @@ def build_graham_growth_document(p: GrahamGrowthPresentation) -> GrahamGrowthDoc
         security_identity=security_identity_part(p.ticker, p.identity_resolution),
         instrument_kind=instrument_kind_part_of(p.instrument_profile),
         price_comparison=price_comparison_part(p.price_comparison),
+        reason_code=reason_code,
         reason=reason,
         result=GrahamGrowthResultPart(growth_value=result_value, margin_of_safety_percent=p.margin_of_safety_percent),
         inputs=GrahamGrowthInputsPart(

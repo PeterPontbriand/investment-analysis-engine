@@ -16,6 +16,7 @@ from datetime import UTC, date, datetime, time
 from typing import Final
 
 from investment_analysis_engine.data.financial.facts import (
+    FINANCIAL_FIELD_LABELS,
     SHARE_COUNT_SERIES_FIELD,
     FinancialField,
     FinancialUnit,
@@ -722,7 +723,8 @@ def _one_currency(request: InstantSeriesRequest, series: InstantSeriesFacts) -> 
 
 def _unsupported_detail(request: InstantSeriesRequest, namespace: str) -> str:
     """Explain an unsupported mapping."""
-    return f"{request.field_name.value} has no approved {namespace} mapping; it is unavailable, not zero."
+    label = FINANCIAL_FIELD_LABELS[request.field_name]
+    return f"No approved {namespace} mapping exists for {label}, so the value is unavailable, not zero."
 
 
 def _absence(day: date, reason: InstantAbsenceReason, detail: str) -> InstantAbsence:

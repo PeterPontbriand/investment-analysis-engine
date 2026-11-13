@@ -548,6 +548,12 @@
           "id": "important-limitations",
           "level": 2,
           "markdown": "Graham Growth Value depends materially on a user-supplied forecast and current AAA-yield assumption.\n\nAccurate arithmetic does not guarantee that this strategy is appropriate for a particular security.\n\nNothing produced by this strategy is investment advice."
+        },
+        {
+          "heading": "Reason codes",
+          "id": "reason-codes",
+          "level": 2,
+          "markdown": "Whenever the status is anything other than `ok`, the analysis also gives a reason code and a message that says the same thing in words. A script or the desktop app can act on the code; the message is for reading. A successful analysis has no code. These are the codes this strategy can give, with when each happens:\n\n- [Missing input](help:terms/reason-missing-input) (`missing_fact`): the data provider has no value for earnings per share, or for the anchor filing.\n- [Not available as of](help:terms/reason-not-available-as-of) (`not_available_as_of`): a value exists, but it was not public at the as-of date, or the provider gave no date when it became public.\n- [Insufficient history](help:terms/reason-insufficient-history) (`insufficient_history`): fewer than three fiscal years of earnings are available and none was left out for a reason of its own.\n- [Earlier basis](help:terms/reason-earlier-basis) (`earlier_basis`): the earnings of the older years are on a different basis from the newest, so the engine does not combine them.\n- [Ambiguous fact](help:terms/reason-ambiguous-fact) (`ambiguous_fact`): the filings give two values for one fiscal year, or share counts that cannot be used.\n- [Incompatible inputs](help:terms/reason-incompatible-inputs) (`incompatible_period`, `incompatible_currency`, `incompatible_units` or `incompatible_scope`): the earnings are not for the anchor filing's fiscal year, or the earnings years differ in currency, units or scope.\n- [Provider error](help:terms/status-provider-error) (`provider_error`): the data provider could not be reached or its answer was rejected.\n- [Security not applicable](help:terms/reason-security-not-applicable) (`instrument_kind_not_applicable`): the security is an ETF, and the method is a company-level valuation.\n- [Override only](help:terms/reason-override-only) (`override_only`): every input was supplied as an override and none came from a data provider, so the analysis is not run.\n- [Invalid request](help:terms/reason-invalid-request) (`invalid_request`): the valuation P/E, which is the base P/E plus the growth multiplier times the expected growth, is zero or negative, or the value is too large to compute."
         }
       ],
       "title": "Graham Growth Value Strategy Guide"
@@ -674,6 +680,12 @@
           "id": "important-limitations",
           "level": 2,
           "markdown": "The Graham Number uses only earnings and book value. It does not test Graham's complete defensive-investor criteria and may be economically inappropriate for some businesses.\n\nAccurate arithmetic does not guarantee that this strategy is appropriate for a particular security.\n\nNothing produced by this strategy is investment advice."
+        },
+        {
+          "heading": "Reason codes",
+          "id": "reason-codes",
+          "level": 2,
+          "markdown": "Whenever the status is anything other than `ok`, the analysis also gives a reason code and a message that says the same thing in words. A script or the desktop app can act on the code; the message is for reading. A successful analysis has no code. These are the codes this strategy can give, with when each happens:\n\n- [Missing input](help:terms/reason-missing-input) (`missing_fact`): the data provider has no value for earnings per share or book value per share, or for the anchor filing.\n- [Not available as of](help:terms/reason-not-available-as-of) (`not_available_as_of`): a value exists, but it was not public at the as-of date, or the provider gave no date when it became public.\n- [Insufficient history](help:terms/reason-insufficient-history) (`insufficient_history`): fewer than three fiscal years of earnings are available and none was left out for a reason of its own.\n- [Earlier basis](help:terms/reason-earlier-basis) (`earlier_basis`): the earnings of the older years are on a different basis from the newest, so the engine does not combine them.\n- [Ambiguous fact](help:terms/reason-ambiguous-fact) (`ambiguous_fact`): the filings give two values for one fiscal year, or share counts that cannot be used.\n- [Incompatible inputs](help:terms/reason-incompatible-inputs) (`incompatible_period`, `incompatible_currency`, `incompatible_units` or `incompatible_scope`): an input is not for the anchor filing's fiscal year, the book value inputs are not for one period end, not in one currency or in shares, or carry preferred shares; or the earnings years differ in currency, units or scope.\n- [Provider error](help:terms/status-provider-error) (`provider_error`): the data provider could not be reached or its answer was rejected.\n- [Security not applicable](help:terms/reason-security-not-applicable) (`instrument_kind_not_applicable`): the security is an ETF, and the method is a company-level valuation.\n- [Override only](help:terms/reason-override-only) (`override_only`): every input was supplied as an override and none came from a data provider, so the analysis is not run.\n- [Invalid request](help:terms/reason-invalid-request) (`invalid_request`): the product of the earnings and book value is too large to compute.\n- [Nonpositive input](help:terms/reason-nonpositive-input) (`nonpositive_input`): earnings per share or book value per share is zero or negative, so the Graham Number does not apply to this company."
         }
       ],
       "title": "Graham Number Strategy Guide"
@@ -1034,6 +1046,9 @@
         "reason-incompatible-inputs",
         "reason-ambiguous-fact",
         "reason-not-available-as-of",
+        "reason-quote-timing-unusable",
+        "reason-nonpositive-input",
+        "reason-override-only",
         "reason-stale-anchor",
         "reason-earlier-basis",
         "reason-growth-not-meaningful",
@@ -1957,6 +1972,12 @@
       "group": "outcomes-statuses-and-reasons",
       "name": "Missing Input"
     },
+    "reason-nonpositive-input": {
+      "body": "",
+      "definition": "An input the formula needs is zero or negative, so the method does not apply to this company.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Nonpositive Input"
+    },
     "reason-not-available-as-of": {
       "body": "The engine never uses information from after the boundary. See [as-of date](help:terms/as-of-date) and [look-ahead bias](help:terms/look-ahead-bias).",
       "definition": "An input was not yet available on the as-of date, for example because it was filed or published after it.",
@@ -1968,6 +1989,18 @@
       "definition": "A required growth rate is not positive, so a growth screen does not pass: free cash flow, earnings or both did not grow.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Not Growing"
+    },
+    "reason-override-only": {
+      "body": "",
+      "definition": "Every input was supplied as an override and none came from a data provider, so the analysis is not run.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Override Only"
+    },
+    "reason-quote-timing-unusable": {
+      "body": "See [quote freshness](help:terms/quote-freshness).",
+      "definition": "A price quote cannot be used because the time it was retrieved is unknown, it is dated in the future, or it is older than the quote freshness rules allow.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Quote Timing Unusable"
     },
     "reason-security-not-applicable": {
       "body": "A strategy built for company financial statements does not cover every instrument or every industry. See [instrument kind](help:terms/instrument-kind), [industry class](help:terms/industry-class) and [not applicable](help:terms/not-applicable).",

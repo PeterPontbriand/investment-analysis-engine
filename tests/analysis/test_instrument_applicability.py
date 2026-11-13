@@ -157,6 +157,7 @@ def test_unreviewed_kind_fails_open_to_existing_graham_resolution() -> None:
     resolver.assemble_graham_number.return_value = GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
         reason="Fixture facts are unavailable.",
+        reason_code=ReasonCode.MISSING_FACT,
     )
     profile = _profile(None, "MUTUALFUND")
 
@@ -182,6 +183,7 @@ def test_known_equity_continues_existing_graham_resolution() -> None:
     resolver.assemble_graham_number.return_value = GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
         reason="Fixture facts are unavailable.",
+        reason_code=ReasonCode.MISSING_FACT,
     )
 
     result = run_graham_number_analysis(
@@ -206,6 +208,7 @@ def test_kind_provider_error_fails_open_to_existing_graham_resolution() -> None:
     resolver.assemble_graham_number.return_value = GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
         reason="Fixture facts are unavailable.",
+        reason_code=ReasonCode.MISSING_FACT,
     )
 
     result = run_graham_number_analysis(

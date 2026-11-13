@@ -14,8 +14,8 @@ MethodId = Literal["graham_growth_value"]
 ANALYSIS_ID: Final[AnalysisId] = "graham_growth_value"
 METHOD_ID: Final[MethodId] = "graham_growth_value"
 
-ConfigSchemaVersion = Literal[2]
-CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 2
+ConfigSchemaVersion = Literal[3]
+CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 3
 
 
 HEADLINE_TERMS: Final[Mapping[str, str]] = MappingProxyType(

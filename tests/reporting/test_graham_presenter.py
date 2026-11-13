@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 import pytest
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.data.financial.provenance import ComponentLineage, ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.resolution_trace import (
     ResolutionEvent,
@@ -216,7 +217,7 @@ def test_number_json_preserves_typed_provenance() -> None:
 
     payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
 
-    assert payload["schema_version"] == 11
+    assert payload["schema_version"] == 12
     assert payload["security_identity"]["instrument_name"] is None
     assert payload["method"] == "graham_number"
     assert payload["result"]["maximum_indicated_price"] == pytest.approx(33.8004677786747)
@@ -274,7 +275,8 @@ def test_growth_concise_makes_user_growth_assumption_conspicuous() -> None:
 def test_diagnostics_do_not_invent_unretained_cache_or_provider_attempts() -> None:
     assembly = GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
-        reason="bvps: provider returned no data",
+        reason="Book value per share is unavailable: provider returned no data",
+        reason_code=ReasonCode.MISSING_FACT,
         eps=_eps(),
     )
     presentation = GrahamNumberPresentation(
@@ -342,23 +344,18 @@ def test_diagnostics_render_recorded_resolver_trace_without_reconstruction() -> 
     assert "bvps: derivation -> success" in rendered
 
 
-@pytest.mark.parametrize("mode", [PresentationMode.CONCISE, PresentationMode.DETAILS, PresentationMode.DIAGNOSTICS])
-@pytest.mark.parametrize(
-    ("component", "label"),
-    [
-        ("preferred_shares_outstanding", "preferred-share evidence"),
-        ("stockholders_equity", "stockholders' equity"),
-        ("common_shares_outstanding", "period-end common shares outstanding"),
-    ],
+_MISSING_COMPONENT_REASON = (
+    "Book value per share is unavailable: Stockholders' equity could not be resolved: "
+    "Provider returned no data for the requested field."
 )
-def test_number_missing_component_explains_failure_before_diagnostics(
-    mode: PresentationMode, component: str, label: str
-) -> None:
-    """A sanitized assembly still exposes its specific blocker through typed trace evidence."""
-    assembly = GrahamNumberInputAssembly(
+
+
+def _missing_component_assembly(component: str) -> GrahamNumberInputAssembly:
+    return GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
         eps=_eps(),
-        reason="Unable to analyze MSFT: required financial data is unavailable for the requested method.",
+        reason=_MISSING_COMPONENT_REASON,
+        reason_code=ReasonCode.MISSING_FACT,
         resolution_trace=ResolutionTrace(
             events=(
                 ResolutionEvent(
@@ -370,57 +367,46 @@ def test_number_missing_component_explains_failure_before_diagnostics(
             )
         ),
     )
+
+
+@pytest.mark.parametrize("mode", [PresentationMode.CONCISE, PresentationMode.DETAILS, PresentationMode.DIAGNOSTICS])
+@pytest.mark.parametrize(
+    "component", ["preferred_shares_outstanding", "stockholders_equity", "common_shares_outstanding"]
+)
+def test_number_failure_shows_the_message_written_where_its_code_is_set_before_diagnostics(
+    mode: PresentationMode, component: str
+) -> None:
+    """The failure's message is shown as written; the trace's raw detail stays in the diagnostics."""
+    assembly = _missing_component_assembly(component)
     rendered = render_graham_number(
         GrahamNumberPresentation(ticker="MSFT", assembly=assembly, result=None, effective_as_of=EFFECTIVE_AS_OF), mode
     )
     opening = rendered.split("Details")[0]
     assert "Graham Number could not be calculated." in opening
-    assert f"eligible {label} could not be resolved" in opening
+    assert f"Reason: {_MISSING_COMPONENT_REASON}" in opening
     assert "Price comparison was not performed" in opening
     assert "Current price: not requested" in opening
     assert "Current price: unavailable" not in rendered
     assert "Raw provider detail" not in opening
-    assert ("Missing preferred-share data is not assumed to be zero." in opening) == (
-        component == "preferred_shares_outstanding"
-    )
     if mode is PresentationMode.DIAGNOSTICS:
         assert "Raw provider detail" in rendered
 
 
 @pytest.mark.parametrize(
-    ("component", "label"),
-    [
-        ("preferred_shares_outstanding", "preferred-share evidence"),
-        ("stockholders_equity", "stockholders' equity"),
-        ("common_shares_outstanding", "period-end common shares outstanding"),
-    ],
+    "component", ["preferred_shares_outstanding", "stockholders_equity", "common_shares_outstanding"]
 )
-def test_number_json_reason_matches_text_modes_specific_explanation(component: str, label: str) -> None:
-    """JSON's reason must carry the same specific blocker as text modes, not the generic fallback (ESC-19)."""
-    assembly = GrahamNumberInputAssembly(
-        status=CalculationStatus.INPUT_UNAVAILABLE,
-        eps=_eps(),
-        reason="Unable to analyze MSFT: required financial data is unavailable for the requested method.",
-        resolution_trace=ResolutionTrace(
-            events=(
-                ResolutionEvent(
-                    component, ResolutionStage.PROVIDER, ResolutionOutcome.UNAVAILABLE, "Raw provider detail"
-                ),
-                ResolutionEvent(
-                    "bvps", ResolutionStage.DERIVATION, ResolutionOutcome.UNAVAILABLE, "Raw derivation detail"
-                ),
-            )
-        ),
-    )
+def test_number_json_reason_and_code_match_the_text_modes(component: str) -> None:
+    """JSON carries the same message as the text modes, and the code beside it."""
     presentation = GrahamNumberPresentation(
-        ticker="MSFT", assembly=assembly, result=None, effective_as_of=EFFECTIVE_AS_OF
+        ticker="MSFT",
+        assembly=_missing_component_assembly(component),
+        result=None,
+        effective_as_of=EFFECTIVE_AS_OF,
     )
     payload = json.loads(render_graham_number(presentation, PresentationMode.JSON))
-    assert f"eligible {label} could not be resolved" in payload["reason"]
+    assert payload["reason"] == _MISSING_COMPONENT_REASON
+    assert payload["reason_code"] == "missing_fact"
     assert "Raw provider detail" not in payload["reason"]
-    assert ("Missing preferred-share data is not assumed to be zero." in payload["reason"]) == (
-        component == "preferred_shares_outstanding"
-    )
 
 
 def test_number_failure_does_not_relabel_attempted_quote_as_not_requested() -> None:
@@ -428,7 +414,8 @@ def test_number_failure_does_not_relabel_attempted_quote_as_not_requested() -> N
     assembly = GrahamNumberInputAssembly(
         status=CalculationStatus.INPUT_UNAVAILABLE,
         eps=_eps(),
-        reason="Missing BVPS",
+        reason="Book value per share is unavailable: missing",
+        reason_code=ReasonCode.MISSING_FACT,
         quote_status=CalculationStatus.PROVIDER_ERROR,
         quote_reason="Quote request failed",
     )
@@ -551,7 +538,8 @@ def test_number_not_applicable_is_humanized_and_suppresses_quote_noise() -> None
         assembly=assembly,
         result=GrahamNumberResult(
             status=CalculationStatus.NOT_APPLICABLE,
-            reason="BVPS must be positive for Graham Number (received -4.986447241045498).",
+            reason="Book value per common share is negative (-4.99 USD), so the Graham Number does not apply.",
+            reason_code=ReasonCode.NONPOSITIVE_INPUT,
         ),
         effective_as_of=EFFECTIVE_AS_OF,
     )
@@ -675,7 +663,8 @@ def test_not_applicable_json_preserves_raw_status_value_and_precision() -> None:
         assembly=GrahamNumberInputAssembly(status=CalculationStatus.OK, eps=_eps(), bvps=bvps),
         result=GrahamNumberResult(
             status=CalculationStatus.NOT_APPLICABLE,
-            reason=f"BVPS must be positive for Graham Number (received {bvps_value}).",
+            reason=f"Book value per common share is not positive ({bvps_value}), so the Graham Number does not apply.",
+            reason_code=ReasonCode.NONPOSITIVE_INPUT,
         ),
         effective_as_of=EFFECTIVE_AS_OF,
     )

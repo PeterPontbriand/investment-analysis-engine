@@ -165,17 +165,32 @@ def test_an_unknown_trend_keeps_the_rsi_that_was_computed() -> None:
 
 
 @pytest.mark.parametrize(
-    ("case_name", "price_status", "price", "unit", "period"),
+    ("case_name", "price_status", "price", "unit", "period", "code"),
     [
-        ("graham-number-success", CalculationStatus.OK, 36.686169055926236, "USD per share", True),
-        ("graham-number-nonpositive-eps", CalculationStatus.NOT_APPLICABLE, None, "USD per share", False),
-        ("graham-number-etf", CalculationStatus.NOT_APPLICABLE, None, NO_CURRENCY, False),
+        ("graham-number-success", CalculationStatus.OK, 36.686169055926236, "USD per share", True, None),
+        (
+            "graham-number-nonpositive-eps",
+            CalculationStatus.NOT_APPLICABLE,
+            None,
+            "USD per share",
+            False,
+            ReasonCode.NONPOSITIVE_INPUT,
+        ),
+        (
+            "graham-number-etf",
+            CalculationStatus.NOT_APPLICABLE,
+            None,
+            NO_CURRENCY,
+            False,
+            ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE,
+        ),
         (
             "graham-number-missing-input",
             CalculationStatus.INPUT_UNAVAILABLE,
             None,
             NO_CURRENCY,
             False,
+            ReasonCode.INSUFFICIENT_HISTORY,
         ),
         (
             "graham-number-provider-error",
@@ -183,17 +198,23 @@ def test_an_unknown_trend_keeps_the_rsi_that_was_computed() -> None:
             None,
             NO_CURRENCY,
             False,
+            ReasonCode.PROVIDER_ERROR,
         ),
     ],
 )
-def test_graham_number_price_cell(
-    case_name: str, price_status: CalculationStatus, price: float | None, unit: str, period: bool
+def test_graham_number_price_cell(  # noqa: PLR0913, PLR0917
+    case_name: str,
+    price_status: CalculationStatus,
+    price: float | None,
+    unit: str,
+    period: bool,
+    code: ReasonCode | None,
 ) -> None:
     case = next(item for item in CASES if item.name == case_name)
     _status, headline = _headline_of(case)
     cell = headline.cells[0]
     assert (cell.key, cell.label, cell.kind) == ("maximum_indicated_price", "Max price", CellKind.NUMBER)
-    assert (cell.value, cell.status, cell.unit, cell.reason_code) == (price, price_status, unit, None)
+    assert (cell.value, cell.status, cell.unit, cell.reason_code) == (price, price_status, unit, code)
     assert (headline.period_end is not None) is period
     assert headline.taxonomy is None
     assert headline.period_end_label == "earnings input period end"
@@ -202,16 +223,18 @@ def test_graham_number_price_cell(
 
 
 @pytest.mark.parametrize(
-    ("case_name", "status", "value"),
+    ("case_name", "status", "value", "code"),
     [
-        ("graham-growth-success", CalculationStatus.OK, 58.4874074074074),
-        ("graham-growth-negative-growth", CalculationStatus.OK, 14.226666666666667),
-        ("graham-growth-etf", CalculationStatus.NOT_APPLICABLE, None),
-        ("graham-growth-missing-input", CalculationStatus.INPUT_UNAVAILABLE, None),
-        ("graham-growth-provider-error", CalculationStatus.PROVIDER_ERROR, None),
+        ("graham-growth-success", CalculationStatus.OK, 58.4874074074074, None),
+        ("graham-growth-negative-growth", CalculationStatus.OK, 14.226666666666667, None),
+        ("graham-growth-etf", CalculationStatus.NOT_APPLICABLE, None, ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE),
+        ("graham-growth-missing-input", CalculationStatus.INPUT_UNAVAILABLE, None, ReasonCode.INSUFFICIENT_HISTORY),
+        ("graham-growth-provider-error", CalculationStatus.PROVIDER_ERROR, None, ReasonCode.PROVIDER_ERROR),
     ],
 )
-def test_graham_growth_value_cell(case_name: str, status: CalculationStatus, value: float | None) -> None:
+def test_graham_growth_value_cell(
+    case_name: str, status: CalculationStatus, value: float | None, code: ReasonCode | None
+) -> None:
     case = next(item for item in CASES if item.name == case_name)
     _outcome, headline = _headline_of(case)
     cell = headline.cells[0]
@@ -220,7 +243,7 @@ def test_graham_growth_value_cell(case_name: str, status: CalculationStatus, val
         "Value",
         value,
         status,
-        None,
+        code,
     )
     assert headline.cells[1].key == "margin_of_safety"
 

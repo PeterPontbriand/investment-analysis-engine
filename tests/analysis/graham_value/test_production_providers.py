@@ -505,7 +505,7 @@ def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() 
     assert result.status is CalculationStatus.INPUT_UNAVAILABLE
     assert result.resolved_input is None
     assert result.reason is not None
-    assert "preferred_shares_outstanding is non-zero" in result.reason
+    assert "The company has preferred shares" in result.reason
 
 
 def _quote_request(field: FinancialField) -> FinancialFactRequest:

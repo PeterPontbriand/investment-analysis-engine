@@ -86,17 +86,6 @@ def field_display_name(field_name: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def friendly_valuation_failure(ticker: str, status: CalculationStatus, reason: str | None) -> str:
-    """Map resolver failure classes to concise investor-facing errors."""
-    if reason is not None and reason.startswith("Unable to analyze"):
-        return reason
-    if status is CalculationStatus.PROVIDER_ERROR:
-        return f"Unable to analyze {ticker}: the configured provider could not retrieve required security data."
-    if status is CalculationStatus.INPUT_UNAVAILABLE:
-        return f"Unable to analyze {ticker}: required financial data is unavailable for the requested method."
-    return f"Unable to analyze {ticker}: the requested inputs are invalid. Review the method and overrides."
-
-
 def status_label(status: CalculationStatus) -> str:
     """Render enum status values in investor-facing prose."""
     return humanized_status(status)

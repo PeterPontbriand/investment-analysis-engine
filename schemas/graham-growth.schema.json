@@ -689,6 +689,7 @@
         "incompatible_scope",
         "ambiguous_fact",
         "not_available_as_of",
+        "quote_timing_unusable",
         "stale_anchor",
         "earlier_basis",
         "nonpositive_beginning",
@@ -708,7 +709,9 @@
         "unsupported_mapping",
         "debt_not_visible",
         "nonpositive_denominator",
-        "insufficient_tests"
+        "insufficient_tests",
+        "nonpositive_input",
+        "override_only"
       ],
       "title": "ReasonCode",
       "type": "string"
@@ -1167,7 +1170,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "The Graham Growth document, version 9, as ``graham-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
+  "description": "The Graham Growth document, version 12, as ``graham-growth --json`` and ``runs show --json`` write it.\n\nThe shared header and tail come from :mod:`investment_analysis_engine.reporting.documents.strategy_document`.",
   "properties": {
     "analysis": {
       "const": "graham_growth_value",
@@ -1287,6 +1290,16 @@
       ],
       "title": "Reason"
     },
+    "reason_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReasonCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "requested_as_of": {
       "anyOf": [
         {
@@ -1339,6 +1352,7 @@
     "security_identity",
     "instrument_kind",
     "price_comparison",
+    "reason_code",
     "reason",
     "result",
     "inputs",

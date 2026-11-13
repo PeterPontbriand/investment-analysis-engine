@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "SYNTH",
@@ -41,6 +41,7 @@
     "security_unit_evidence": null,
     "provenance": null
   },
+  "reason_code": "nonpositive_input",
   "reason": "Earnings per share is negative (-1.00 (currency unspecified)), so the Graham Number does not apply.",
   "result": {
     "maximum_indicated_price": null,

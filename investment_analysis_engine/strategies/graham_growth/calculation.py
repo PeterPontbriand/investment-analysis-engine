@@ -32,6 +32,7 @@ from investment_analysis_engine.strategies._graham.anchor_years import (
     GrahamFilingInput,
     resolve_aligned,
 )
+from investment_analysis_engine.strategies._graham.outcome import failed_input_outcome
 from investment_analysis_engine.strategies.graham_growth.vocabulary import METHOD_ID, MethodId
 
 _METHOD_NAME: Final = "Graham Growth Value"
@@ -44,8 +45,8 @@ class GrowthValueInputAssembly:
 
     Invariants:
         - ``OK``: ``eps``, ``expected_growth``, ``current_aaa_yield``
-          present; ``reason`` is ``None``.
-        - Non-OK: ``reason`` non-empty.
+          present; ``reason`` and ``reason_code`` are ``None``.
+        - Non-OK: ``reason`` non-empty and ``reason_code`` present.
         - ``current_price`` is ``None`` when the quote was unavailable or
           the assembly failed before reaching quote resolution.
         - ``quote_status`` / ``quote_reason`` carry the diagnostic when the
@@ -74,9 +75,8 @@ class GrowthValueInputAssembly:
             the boundary; ``None`` when it was not resolved (an ETF, a failure before it, or EPS overridden).
         left_out_years: The years of EPS left out of the three-year series, with the reason of each; empty unless the
             series came up short because years were left out.
-        reason_code: The code of the cause ``reason`` names (an input year that is not the anchor's, a gap in the
-            EPS years, years left out, or no anchor); ``None`` for a failure with no such code. The presenters show
-            a reason that has one as written. It is internal and is not served.
+        reason_code: The code of the cause ``reason`` names; present exactly when ``status`` is not ``OK``. The
+            presenters show ``reason`` as written.
     """
 
     status: CalculationStatus
@@ -102,8 +102,8 @@ class GrowthValueInputAssembly:
             raise ValueError("provider_failure requires a provider_error assembly.")
         if self.quote_provider_failure is not None and self.quote_status is not CalculationStatus.PROVIDER_ERROR:
             raise ValueError("quote_provider_failure requires a provider_error quote status.")
-        if self.reason_code is not None and self.status is not CalculationStatus.INPUT_UNAVAILABLE:
-            raise ValueError("reason_code requires an input_unavailable assembly.")
+        if (self.reason_code is None) is (self.status is not CalculationStatus.OK):
+            raise ValueError("A reason_code is present exactly when the assembly status is not ok.")
 
 
 @dataclass(frozen=True)
@@ -117,12 +117,14 @@ class GrahamGrowthValueResult:
         reason: Human-readable explanation when ``status`` is not ``OK``.
         method: Always ``"graham_growth_value"`` (set automatically, not
             caller-supplied).
+        reason_code: The code of the cause ``reason`` names; present exactly when ``status`` is not ``OK``.
     """
 
     status: CalculationStatus
     growth_value: float | None = None
     reason: str | None = None
     method: MethodId = field(init=False, default=METHOD_ID)
+    reason_code: ReasonCode | None = None
 
     def __post_init__(self) -> None:
         """Enforce result-state invariants."""
@@ -136,6 +138,8 @@ class GrahamGrowthValueResult:
                 raise ValueError(f"GrahamGrowthValueResult: status {self.status} requires growth_value to be None.")
             if not self.reason:
                 raise ValueError(f"GrahamGrowthValueResult: status {self.status} requires a non-empty reason.")
+        if (self.reason_code is None) is (self.status is not CalculationStatus.OK):
+            raise ValueError("GrahamGrowthValueResult: a reason_code is present exactly when the status is not ok.")
 
 
 @dataclass(frozen=True)
@@ -159,7 +163,7 @@ class GrahamGrowthCalculationPolicy:
             raise ValueError("Graham growth baseline_aaa_yield must be positive.")
 
 
-def compute_graham_growth_value(  # noqa: PLR0913,PLR0917,PLR0911,PLR0912
+def compute_graham_growth_value(  # noqa: PLR0913,PLR0917
     normalized_eps: float,
     expected_growth_rate: float,
     current_aaa_yield: float,
@@ -174,14 +178,14 @@ def compute_graham_growth_value(  # noqa: PLR0913,PLR0917,PLR0911,PLR0912
     All percentage values are in percentage points (e.g. 6.5 means 6.5 %).
 
     Args:
-        normalized_eps: Normalized EPS with an explicit basis.  Must be finite.
+        normalized_eps: Normalized EPS with an explicit basis.  Finite, as every resolved input is.
             Negative values are permitted (the method does not reject them
             merely for being negative).
         expected_growth_rate: Expected annual growth in percentage points.
-            Must be finite.  Negative values are permitted; no clipping,
+            Finite.  Negative values are permitted; no clipping,
             capping, or annualization is applied.
         current_aaa_yield: Current AAA corporate-bond yield in percentage
-            points.  Must be finite and strictly positive.
+            points.  Finite and strictly positive, as the selection requires.
         base_pe: Base P/E for a zero-growth company.  Must be finite and
             positive.  Default 8.5.
         growth_multiplier: Multiplier applied to the growth rate.  Must be
@@ -190,85 +194,42 @@ def compute_graham_growth_value(  # noqa: PLR0913,PLR0917,PLR0911,PLR0912
             points.  Must be finite and strictly positive.  Default 4.4.
 
     Returns:
-        GrahamGrowthValueResult with ``status`` of ``OK`` or
-        ``INVALID_INPUT``.  When ``status`` is ``OK``, ``growth_value``
-        contains the forecast-dependent estimate; otherwise it is ``None``
+        GrahamGrowthValueResult with ``status`` of ``OK`` or ``INVALID_INPUT``. ``INVALID_INPUT`` carries the
+        ``invalid_request`` code and is a valuation P/E of zero or less, or a value too large to compute. When
+        ``status`` is ``OK``, ``growth_value`` contains the forecast-dependent estimate; otherwise it is ``None``
         and ``reason`` explains the failure.
+
+    Raises:
+        ValueError: If a calculation constant is not finite, or ``base_pe`` or ``baseline_aaa_yield`` is not
+            positive, or ``growth_multiplier`` is negative; ``GrahamGrowthCalculationPolicy`` rules these out.
     """
-    # --- Finite checks (invalid_input) ---
-    if not math.isfinite(normalized_eps):
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"normalized_eps must be finite (received {normalized_eps!r}).",
-        )
-    if not math.isfinite(expected_growth_rate):
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"expected_growth_rate must be finite (received {expected_growth_rate!r}).",
-        )
-    if not math.isfinite(current_aaa_yield):
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"current_aaa_yield must be finite (received {current_aaa_yield!r}).",
-        )
-    if not math.isfinite(base_pe):
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"base_pe must be finite (received {base_pe!r}).",
-        )
-    if not math.isfinite(growth_multiplier):
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"growth_multiplier must be finite (received {growth_multiplier!r}).",
-        )
-    if not math.isfinite(baseline_aaa_yield):
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"baseline_aaa_yield must be finite (received {baseline_aaa_yield!r}).",
-        )
+    constants = (base_pe, growth_multiplier, baseline_aaa_yield)
+    if not all(math.isfinite(value) for value in constants):
+        raise ValueError("Graham growth calculation constants must be finite.")
+    if base_pe <= 0 or baseline_aaa_yield <= 0 or growth_multiplier < 0:
+        raise ValueError("Graham growth calculation constants are out of range.")
 
-    # --- Positivity / non-negativity checks (invalid_input) ---
-    if current_aaa_yield <= 0:
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"current_aaa_yield must be strictly positive (received {current_aaa_yield}).",
-        )
-    if baseline_aaa_yield <= 0:
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"baseline_aaa_yield must be strictly positive (received {baseline_aaa_yield}).",
-        )
-    if base_pe <= 0:
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"base_pe must be strictly positive (received {base_pe}).",
-        )
-    if growth_multiplier < 0:
-        return GrahamGrowthValueResult(
-            status=CalculationStatus.INVALID_INPUT,
-            reason=f"growth_multiplier must be non-negative (received {growth_multiplier}).",
-        )
-
-    # --- Calculation ---
     valuation_pe = base_pe + growth_multiplier * expected_growth_rate
     if not math.isfinite(valuation_pe):
         return GrahamGrowthValueResult(
             status=CalculationStatus.INVALID_INPUT,
             reason=f"Computed valuation P/E is not finite ({valuation_pe!r}).",
+            reason_code=ReasonCode.INVALID_REQUEST,
         )
     if valuation_pe <= 0:
         return GrahamGrowthValueResult(
             status=CalculationStatus.INVALID_INPUT,
-            reason=f"Computed valuation P/E must be strictly positive (received {valuation_pe}).",
+            reason=f"The computed valuation P/E is zero or negative ({valuation_pe}), so the value cannot be computed.",
+            reason_code=ReasonCode.INVALID_REQUEST,
         )
 
     growth_value = normalized_eps * valuation_pe * baseline_aaa_yield / current_aaa_yield
 
-    # Reject non-finite output
     if not math.isfinite(growth_value):
         return GrahamGrowthValueResult(
             status=CalculationStatus.INVALID_INPUT,
             reason=f"Computed growth value is not finite ({growth_value!r}).",
+            reason_code=ReasonCode.INVALID_REQUEST,
         )
 
     return GrahamGrowthValueResult(
@@ -298,7 +259,7 @@ class GrahamGrowthInputResolver(InputResolver):
         anchor: AnchorYearEnd | None,
         eps_basis: str,
         eps_override: float | None = None,
-        expected_growth: float | None = None,
+        expected_growth: float,
         aaa_yield_override: float,
         quote_override: float | None = None,
         as_of: datetime | None = None,
@@ -323,18 +284,6 @@ class GrahamGrowthInputResolver(InputResolver):
         """
         if anchor is None and eps_override is None:
             raise ValueError("An input read from a filing is assembled only at the anchor filing.")
-        if not eps_basis.strip():
-            reason = "eps_basis must be a non-empty string."
-            return GrowthValueInputAssembly(
-                status=CalculationStatus.INVALID_INPUT,
-                reason=reason,
-                resolution_trace=single_event_trace(
-                    "eps",
-                    ResolutionStage.VALIDATION,
-                    ResolutionOutcome.INVALID,
-                    reason,
-                ),
-            )
 
         eps_result = resolve_aligned(
             self,
@@ -354,27 +303,23 @@ class GrahamGrowthInputResolver(InputResolver):
         )
         trace = eps_result.resolution_trace
         if eps_result.status is not CalculationStatus.OK:
+            code, message = failed_input_outcome(
+                eps_result, security_subject_id=security_subject_id, label="Earnings per share"
+            )
             return GrowthValueInputAssembly(
                 status=eps_result.status,
-                reason=f"eps: {eps_result.reason}",
+                reason=message,
                 resolution_trace=trace,
                 provider_failure=_recorded(eps_result, "eps"),
                 left_out_years=left_out_years_of("eps", eps_result.left_out),
-                reason_code=eps_result.reason_code,
+                reason_code=code,
             )
         eps_input = eps_result.resolved_input
 
         growth_result = self._resolve_expected_growth(expected_growth, as_of=as_of)
         trace = trace.extend(growth_result.resolution_trace)
-        if growth_result.status is not CalculationStatus.OK:
-            return GrowthValueInputAssembly(
-                status=growth_result.status,
-                eps=eps_input,
-                reason=f"expected_growth: {growth_result.reason}",
-                resolution_trace=trace,
-                provider_failure=_recorded(growth_result, "expected_growth"),
-            )
         growth_input = growth_result.resolved_input
+        assert growth_input is not None
 
         aaa_request = FinancialFactRequest(
             subject_kind=FinancialSubjectKind.MACRO,
@@ -386,13 +331,15 @@ class GrahamGrowthInputResolver(InputResolver):
         aaa_result = self.resolve(aaa_request, override=aaa_yield_override, use_cache=use_cache)
         trace = trace.extend(aaa_result.resolution_trace)
         if aaa_result.status is not CalculationStatus.OK:
+            code, message = failed_input_outcome(aaa_result, security_subject_id=security_subject_id, label="AAA yield")
             return GrowthValueInputAssembly(
                 status=aaa_result.status,
                 eps=eps_input,
                 expected_growth=growth_input,
-                reason=f"current_aaa_yield: {aaa_result.reason}",
+                reason=message,
                 resolution_trace=trace,
                 provider_failure=_recorded(aaa_result, "current_aaa_yield"),
+                reason_code=code,
             )
         aaa_input = aaa_result.resolved_input
 
@@ -406,13 +353,17 @@ class GrahamGrowthInputResolver(InputResolver):
         )
         trace = trace.extend(quote_result.resolution_trace)
         if quote_result.status is CalculationStatus.INVALID_INPUT:
+            code, message = failed_input_outcome(
+                quote_result, security_subject_id=security_subject_id, label="Share price"
+            )
             return GrowthValueInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
                 eps=eps_input,
                 expected_growth=growth_input,
                 current_aaa_yield=aaa_input,
-                reason=f"current_price: {quote_result.reason}",
+                reason=message,
                 resolution_trace=trace,
+                reason_code=code,
             )
         if quote_result.status is not CalculationStatus.OK:
             return GrowthValueInputAssembly(
@@ -437,33 +388,9 @@ class GrahamGrowthInputResolver(InputResolver):
             resolution_trace=trace,
         )
 
-    def _resolve_expected_growth(self, value: float | None, *, as_of: datetime | None = None) -> InputResolutionResult:
-        """Validate and construct an OVERRIDE ResolvedInput for expected growth."""
+    def _resolve_expected_growth(self, value: float, *, as_of: datetime | None = None) -> InputResolutionResult:
+        """Construct the OVERRIDE ResolvedInput for the expected growth, a finite number the selection guarantees."""
         field_name = "expected_growth"
-        if value is None:
-            reason = "expected_growth is required but was not provided."
-            return InputResolutionResult(
-                status=CalculationStatus.INPUT_UNAVAILABLE,
-                reason=reason,
-                resolution_trace=single_event_trace(
-                    field_name,
-                    ResolutionStage.OVERRIDE,
-                    ResolutionOutcome.UNAVAILABLE,
-                    reason,
-                ),
-            )
-        if not math.isfinite(value):
-            reason = f"expected_growth must be finite (received {value!r})."
-            return InputResolutionResult(
-                status=CalculationStatus.INVALID_INPUT,
-                reason=reason,
-                resolution_trace=single_event_trace(
-                    field_name,
-                    ResolutionStage.OVERRIDE,
-                    ResolutionOutcome.INVALID,
-                    reason,
-                ),
-            )
         ri = ResolvedInput(
             field_name=field_name,
             value=value,

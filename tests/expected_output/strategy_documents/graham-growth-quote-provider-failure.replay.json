@@ -1,5 +1,5 @@
 {
-  "schema_version": 11,
+  "schema_version": 12,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "SYNTH",
@@ -34,6 +34,7 @@
     "security_unit_evidence": null,
     "provenance": null
   },
+  "reason_code": null,
   "reason": null,
   "result": {
     "growth_value": 58.4874074074074,

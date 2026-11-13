@@ -265,11 +265,9 @@ def compute_market_cap(  # noqa: PLR0911, PLR0913
             "known currency.",
         )
     if not listing_check.affirmed:
-        return _refuse(
-            base,
-            listing_check.reason_code or ReasonCode.MISSING_FACT,
-            listing_check.reason or "The listing check refused the ticker.",
-        )
+        assert listing_check.reason_code is not None  # a refused listing check carries its code
+        assert listing_check.reason is not None  # and its reason
+        return _refuse(base, listing_check.reason_code, listing_check.reason)
     if anchor_stale:
         return _refuse(base, ReasonCode.STALE_ANCHOR, stale_market_cap_reason(boundary))
     if isinstance(share_count, InputUnavailable):

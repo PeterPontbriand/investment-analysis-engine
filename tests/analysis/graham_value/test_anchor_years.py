@@ -84,8 +84,10 @@ def test_m2_a_provider_failure_resolving_the_anchor_is_a_provider_error_recorded
     assert assembly.status is CalculationStatus.PROVIDER_ERROR
     assert assembly.provider_failure is not None
     assert assembly.provider_failure.input == "anchor_year_end"
-    assert assembly.reason is not None
-    assert assembly.reason.startswith("anchor_year_end:")
+    assert assembly.reason == (
+        "Unable to analyze SYNTH: the configured provider could not retrieve required security data."
+    )
+    assert assembly.reason_code is ReasonCode.PROVIDER_ERROR
     assert assembly.anchor_filing is None
     assert provider.fact_requests == []
 
@@ -131,7 +133,8 @@ def test_m4_eps_that_does_not_end_on_the_anchors_year_end_is_unavailable_and_nev
     assembly = _assembly(growth, provider)
     assert assembly.status is CalculationStatus.INPUT_UNAVAILABLE
     assert assembly.reason == (
-        "eps: The newest fiscal year of diluted EPS ends 2024-06-30, not the anchor filing's fiscal year-end "
+        "Earnings per share is unavailable: The newest fiscal year of diluted EPS ends 2024-06-30, not the anchor "
+        "filing's fiscal year-end "
         f"2025-06-30; the {METHOD[growth]} is never calculated from an older year."
     )
     assert assembly.reason_code is ReasonCode.INCOMPATIBLE_PERIOD
@@ -144,7 +147,8 @@ def test_m4_book_value_that_does_not_end_on_the_anchors_year_end_is_unavailable(
     assembly = run_number(provider).assembly
     assert assembly.status is CalculationStatus.INPUT_UNAVAILABLE
     assert assembly.reason == (
-        "bvps: The newest book value per common share is for the fiscal year ended 2023-06-30, not the anchor "
+        "Book value per share is unavailable: The newest book value per common share is for the fiscal year ended "
+        "2023-06-30, not the anchor "
         "filing's fiscal year-end 2024-06-30; the Graham Number is never calculated from an older year."
     )
     assert assembly.reason_code is ReasonCode.INCOMPATIBLE_PERIOD
@@ -159,7 +163,9 @@ def test_m4_the_single_year_eps_basis_of_graham_growth_is_checked_too() -> None:
     assembly = run_growth(provider, eps_basis="fiscal_year").assembly
     assert assembly.status is CalculationStatus.INPUT_UNAVAILABLE
     assert assembly.reason is not None
-    assert assembly.reason.startswith("eps: The newest fiscal year of diluted EPS ends 2024-06-30, not")
+    assert assembly.reason.startswith(
+        "Earnings per share is unavailable: The newest fiscal year of diluted EPS ends 2024-06-30, not"
+    )
 
 
 @STRATEGIES
@@ -182,7 +188,8 @@ def test_m5_three_eps_years_with_a_gap_are_unavailable_and_the_missing_year_is_n
     assembly = _assembly(growth, provider)
     assert assembly.status is CalculationStatus.INPUT_UNAVAILABLE
     assert assembly.reason == (
-        "eps: The fiscal years of diluted EPS are not consecutive: none ends 2022-06-30, between the years ended "
+        "Earnings per share is unavailable: The fiscal years of diluted EPS are not consecutive: none ends 2022-06-30, "
+        "between the years ended "
         "2021-06-30 and 2023-06-30."
     )
     assert assembly.reason_code is ReasonCode.MISSING_FACT
@@ -203,7 +210,9 @@ def test_m7_an_overridden_eps_is_exempt_but_the_book_value_still_resolves_the_an
     # EPS is exempt from the year check; the book value of the older year is not.
     assert assembly.status is CalculationStatus.INPUT_UNAVAILABLE
     assert assembly.reason is not None
-    assert assembly.reason.startswith("bvps: The newest book value per common share is for the fiscal year ended")
+    assert assembly.reason.startswith(
+        "Book value per share is unavailable: The newest book value per common share is for the fiscal year ended"
+    )
 
 
 def test_m7_with_both_filing_inputs_overridden_no_anchor_is_requested_and_it_is_null() -> None:
