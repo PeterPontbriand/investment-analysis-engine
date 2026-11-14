@@ -2021,8 +2021,8 @@
       "name": "Reference Value"
     },
     "refresh": {
-      "body": "A refresh limits how many tickers run at once, and one ticker's failure never stops the rest of the watchlist.",
-      "definition": "Running every entry in one watchlist and saving each result as its own analysis run.",
+      "body": "A refresh limits how many tickers run at once, and one ticker's failure never stops the rest of the refresh.",
+      "definition": "Running every entry of a watchlist, or of a list of entries that belongs to no watchlist, and saving each result as its own analysis run.",
       "group": "local-research-workspace",
       "name": "Refresh"
     },
