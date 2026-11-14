@@ -94,7 +94,7 @@ differentiators.
   formula strategies, such as the growth rate at which Graham Growth equals the current price.
 - **Data-license tags in provenance.** Mark each fact's redistribution status (SEC public domain
   vs. Yahoo-via-yfinance) so downstream products can filter to what they may show clients.
-- **Standard delivery surfaces — decided, deferred.** An MCP server over the existing dispatcher,
+- **Standard delivery surfaces — decided, deferred.** An MCP server over the local HTTP API (after v1.0, [Master Plan §2.5](MASTER_PLAN.md#future-mcp-adapter)),
   an HTTP API with an OpenAPI spec, and Parquet/Arrow export for cross-sectional batches (published
   JSON Schemas are already [IR](milestones/v0.2/integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)
   item 7, not part of this candidate). The project owner confirmed this becomes its own scoped

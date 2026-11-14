@@ -2,7 +2,7 @@
 
 **Status:** deferred; own scoped work package once picked up, but not to be scheduled until
 after [Step 3.5](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status).
-**Reconsider at:** the close of [Step 3.5](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#4-out-of-scope), which links back here.
+**Reconsider at:** for Parquet/Arrow export, the close of [Step 3.5](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#4-out-of-scope), which links back here; for the MCP server, after v1.0.
 **Discovered:** 2026-09, via the [evidence provider roadmap](../../../EVIDENCE_PROVIDER_ROADMAP.md)'s
 "Standard delivery surfaces" candidate.
 **Decision:** the project owner confirmed this becomes its own work package rather than folding
@@ -14,11 +14,12 @@ lost, not to claim priority over anything already sequenced.
 [API](../api/API_CONTRACT_AND_SLICE_PLAN.md), with a separate GUI application as its first consumer. This note
 now covers the MCP server and Parquet/Arrow export. When it is taken up, decide also whether either sits on the
 API's application layer or on the HTTP API itself.
+**MCP route decided 2026-11-13:** the MCP server reaches the engine only through the local HTTP API, as a thin adapter with one tool per API operation, and is planned for after v1.0. Its rules are in [Master Plan §2.5](../../../MASTER_PLAN.md#future-mcp-adapter). For the MCP server, this settles whether it sits on the application layer or the HTTP API. Where its code lives is decided when it is taken up.
 
 ## Trigger
 
 The evidence provider roadmap's "Standard delivery surfaces" idea bundles several distinct
-integration mechanisms under one heading: an MCP server over the existing dispatcher, an HTTP API
+integration mechanisms under one heading: an MCP server, an HTTP API
 with an OpenAPI spec, published JSON Schemas, and Parquet/Arrow export for cross-sectional
 batches. Published JSON Schemas are already in scope as [IR](../integration-readiness/IR_CONTRACT_AND_SLICE_PLAN.md)
 item 7 (typed envelope models plus generated schemas for the existing `--json` payloads); the
@@ -36,8 +37,11 @@ the CLI and its `--json` output, or the local HTTP API once [API](../api/API_CON
 - Decide which of the two surfaces to build first, and whether both are actually warranted
   or whether real consumer demand should narrow this before implementation — this project's own
   guardrails already caution against building speculative generality ahead of an actual need.
-- An MCP server would most naturally sit over the existing `investment_analysis_engine/orchestrator` dispatcher, since
-  that already exposes typed tool-call boundaries for the four analyses.
+- An MCP server is a thin adapter over the local HTTP API ([Master Plan §2.5](../../../MASTER_PLAN.md#future-mcp-adapter)). Gaps to close
+  when it is taken up, as of engine commit `beb58a2`: 404 of the 613 document-model properties in `openapi.json` have no
+  description; the run overview and the refresh comparison name the run and its `requested_as_of` but not its
+  `effective_as_of` or sources, so a tool that shows them alone points to the full run document; the watchlist list and a
+  watchlist's entries are not paged.
 - Parquet/Arrow export is scoped to cross-sectional batches (multiple tickers at once), which does
   not exist as a capability today outside of watchlist refresh's own internal batching — this would
   need its own specification for what a "batch" means as an export unit.

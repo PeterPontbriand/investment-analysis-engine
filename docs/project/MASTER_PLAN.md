@@ -129,9 +129,19 @@ These move to the evaluator's own repository when it gets one.
 - Historical results depend on point-in-time data quality, including delisted companies; survivorship-biased universes are reported as a limitation.
 - A model-generated hypothesis is tested only on data after that model's training cutoff.
 
+### Future MCP adapter
+
+An MCP (Model Context Protocol) adapter would let an assistant the investor already uses call the engine. It is planned for after v1.0, is unscheduled, and is recorded in the [deferred delivery-surfaces record](milestones/v0.2/deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md). Three rules bind it:
+
+1. Its only route into IAN is the versioned local HTTP API, started and authenticated as any client starts `ian serve`: no database reads, no Python imports and no route through the orchestrator's tool dispatcher.
+2. Each tool it offers is one API operation, with that operation's inputs, documents and reason codes. It adds no calculation, ranking or wording of its own.
+3. It offers reads freely. An operation that changes stored data or starts a refresh runs only after the assistant's host confirms it with the investor.
+
+Until it is built, changes to the API follow the [local HTTP API rules](ARCHITECTURE.md#local-http-api-rules), which keep the adapter a thin layer.
+
 ### Open question: where LLM orchestration lives
 
-Do LLM orchestration, v0.3 ASK and v1.0 autonomy stay in IAN, or move to a separate assistant application over the same API? This is to be decided before v0.3 starts. No code or plan moves now.
+Do LLM orchestration, v0.3 ASK and v1.0 autonomy stay in IAN, or move to a separate assistant application over the same API? This is to be decided before v0.3 starts. No code or plan moves now. A [future MCP adapter](#future-mcp-adapter) would let an outside assistant do this orchestration over the same API; that bears on the answer but does not settle it.
 
 ### Decision record: product boundaries (2026-11-01)
 
