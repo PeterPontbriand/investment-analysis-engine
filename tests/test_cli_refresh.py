@@ -633,7 +633,7 @@ def test_delete_json_with_an_unreadable_entry_deletes_reports_the_delete_documen
     assert confirmation.startswith("Deleted watchlist 'Old Watch' (ID ")
     assert confirmation.endswith("2 entries). Saved Analysis Runs are kept.")
     document = json.loads(result.stdout)
-    assert (document["schema_version"], document["deleted"], document["watchlist"]) == (1, True, None)
+    assert (document["schema_version"], document["deleted"], document["watchlist"]) == (2, True, None)
     unreadable = document["unreadable"]
     assert (unreadable["entry_number"], unreadable["ticker"], unreadable["method_id"]) == (2, "MSFT", "sma_crossover")
     assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(unreadable["reason"])
@@ -697,7 +697,7 @@ def test_rename_json_with_an_unreadable_entry_renames_reports_the_rename_documen
     assert result.exit_code == 1
     assert normalize_cli_output(result.stderr) == "Renamed watchlist 'Old Watch' to 'Renamed'."
     document = json.loads(result.stdout)
-    assert (document["schema_version"], document["watchlist"]) == (1, None)
+    assert (document["schema_version"], document["watchlist"]) == (2, None)
     unreadable = document["unreadable"]
     assert (unreadable["entry_number"], unreadable["ticker"], unreadable["method_id"]) == (2, "MSFT", "sma_crossover")
     assert "entry 2 (MSFT, momentum): saved by an earlier version" in normalize_cli_output(unreadable["reason"])

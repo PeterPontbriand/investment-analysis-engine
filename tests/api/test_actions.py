@@ -159,7 +159,7 @@ def test_creating_a_watchlist_answers_201_with_the_watchlist_document(isolated_c
 
     assert created.status_code == 201
     assert created.json() == shown.json()
-    assert created.json()["schema_version"] == 1
+    assert created.json()["schema_version"] == 2
     assert (created.json()["display_name"], created.json()["entries"]) == ("Core", [])
 
 
@@ -211,7 +211,7 @@ def test_deleting_answers_the_delete_document_and_a_missing_watchlist_is_a_404(
         deleted = client.delete(f"/v1/watchlists/{created['watchlist_id']}", headers=AUTH)
         again = client.delete(f"/v1/watchlists/{created['watchlist_id']}", headers=AUTH)
 
-    assert deleted.json() == {"schema_version": 1, "deleted": True, "watchlist": created, "unreadable": None}
+    assert deleted.json() == {"schema_version": 2, "deleted": True, "watchlist": created, "unreadable": None}
     _failure(again, 404, "watchlist_not_found")
 
 
@@ -294,7 +294,7 @@ def test_a_selection_as_of_is_text_parsed_under_its_path(isolated_cli_settings: 
         naive = client.post(url, json=body | {"selection": fields | {"as_of": "2025-12-31T10:00:00"}}, headers=AUTH)
 
     assert ok.status_code == 200
-    assert ok.json()["entries"][0]["selection"]["as_of"].startswith("2025-12-31T23:59:59.999999")
+    assert ok.json()["entries"][0]["selection"]["as_of"] == "2025-12-31"
     failure = _failure(bad_text, 400, "invalid_parameter")
     assert failure["parameters"] == ["selection.as_of"]
     assert failure["errors"][0]["rule"] == "selection.as_of_syntax"  # type: ignore[index]

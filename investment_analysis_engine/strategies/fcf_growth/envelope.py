@@ -34,7 +34,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import (
     StrategyDocumentHeader,
     StrategyDocumentTail,
 )
-from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
+from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf, DocumentTimestamp
 from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     AnalysisId,
     Classification,
@@ -46,7 +46,7 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 12
+DOCUMENT_SCHEMA_VERSION: Final = 13
 
 
 class FCFResolvedInputPart(DocumentPart):
@@ -66,7 +66,7 @@ class FCFResolvedInputPart(DocumentPart):
     observation_period_end: DocumentTimestamp | None
     observed_at: DocumentTimestamp | None
     available_at: DocumentTimestamp | None
-    as_of: DocumentTimestamp | None
+    as_of: DocumentAsOf | None
     retrieved_at: DocumentTimestamp | None
     cache_schema_version: int | None
     lineage: FCFLineagePart | None

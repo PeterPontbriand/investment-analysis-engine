@@ -24,7 +24,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import (
 )
 from investment_analysis_engine.strategies.graham_number.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 12
+DOCUMENT_SCHEMA_VERSION: Final = 13
 
 
 class GrahamNumberResultPart(DocumentPart):

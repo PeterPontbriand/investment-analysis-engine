@@ -22,8 +22,16 @@
         "as_of": {
           "anyOf": [
             {
-              "format": "date-time",
-              "type": "string"
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
             },
             {
               "type": "null"
@@ -124,8 +132,16 @@
         "as_of": {
           "anyOf": [
             {
-              "format": "date-time",
-              "type": "string"
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
             },
             {
               "type": "null"
@@ -223,8 +239,16 @@
         "as_of": {
           "anyOf": [
             {
-              "format": "date-time",
-              "type": "string"
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
             },
             {
               "type": "null"
@@ -324,8 +348,16 @@
         "as_of": {
           "anyOf": [
             {
-              "format": "date-time",
-              "type": "string"
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
             },
             {
               "type": "null"
@@ -398,8 +430,16 @@
         "as_of": {
           "anyOf": [
             {
-              "format": "date-time",
-              "type": "string"
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
             },
             {
               "type": "null"
@@ -488,8 +528,8 @@
           "type": "array"
         },
         "schema_version": {
-          "const": 1,
-          "default": 1,
+          "const": 2,
+          "default": 2,
           "title": "Schema Version",
           "type": "integer"
         },
@@ -533,7 +573,7 @@
           "type": "integer"
         },
         "selection": {
-          "description": "The stored selection; its method_id says which strategy. Its instants (as_of) carry a UTC offset.",
+          "description": "The stored selection; its method_id says which strategy. Its as_of is a date when a date was given, else an instant with its UTC offset.",
           "discriminator": {
             "mapping": {
               "graham_growth_value": "#/$defs/GrahamGrowthSelection",
@@ -585,8 +625,8 @@
       "type": "boolean"
     },
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "const": 2,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
     },

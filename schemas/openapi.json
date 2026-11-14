@@ -554,15 +554,23 @@
           "requested_as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
               }
             ],
-            "description": "The point in time the run asked for; null means now.",
+            "description": "The point in time the run asked for, as it was asked: a date or an instant; null means now.",
             "title": "Requested As Of"
           }
         },
@@ -756,10 +764,18 @@
             "type": "array"
           },
           "effective_as_of": {
-            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-            "format": "date-time",
-            "title": "Effective As Of",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              }
+            ],
+            "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset.",
+            "title": "Effective As Of"
           },
           "eps_cagr": {
             "$ref": "#/components/schemas/MetricResultPart"
@@ -875,9 +891,17 @@
           "requested_as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
@@ -1577,9 +1601,17 @@
           "as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
@@ -2216,10 +2248,18 @@
             "type": "array"
           },
           "effective_as_of": {
-            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-            "format": "date-time",
-            "title": "Effective As Of",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              }
+            ],
+            "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset.",
+            "title": "Effective As Of"
           },
           "inputs": {
             "$ref": "#/components/schemas/GrahamGrowthInputsPart"
@@ -2317,9 +2357,17 @@
           "requested_as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
@@ -2600,10 +2648,18 @@
             "type": "array"
           },
           "effective_as_of": {
-            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-            "format": "date-time",
-            "title": "Effective As Of",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              }
+            ],
+            "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset.",
+            "title": "Effective As Of"
           },
           "inputs": {
             "$ref": "#/components/schemas/GrahamNumberInputsPart"
@@ -2698,9 +2754,17 @@
           "requested_as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
@@ -3573,10 +3637,18 @@
             "type": "array"
           },
           "effective_as_of": {
-            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-            "format": "date-time",
-            "title": "Effective As Of",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              }
+            ],
+            "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset.",
+            "title": "Effective As Of"
           },
           "instrument_kind": {
             "anyOf": [
@@ -3651,9 +3723,17 @@
           "requested_as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
@@ -4071,10 +4151,18 @@
             "type": "array"
           },
           "effective_as_of": {
-            "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-            "format": "date-time",
-            "title": "Effective As Of",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              }
+            ],
+            "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset.",
+            "title": "Effective As Of"
           },
           "industry_class": {
             "anyOf": [
@@ -4180,9 +4268,17 @@
           "requested_as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
@@ -5514,9 +5610,17 @@
           "as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
@@ -5793,20 +5897,28 @@
           "requested_as_of": {
             "anyOf": [
               {
-                "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-                "format": "date-time",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "format": "date",
+                    "type": "string"
+                  },
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  }
+                ],
+                "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
               },
               {
                 "type": "null"
               }
             ],
-            "description": "The point in time the run asked for; null means now.",
+            "description": "The point in time the run asked for, as it was asked: a date or an instant; null means now.",
             "title": "Requested As Of"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -5902,8 +6014,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 5,
-            "default": 5,
+            "const": 6,
+            "default": 6,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -6410,8 +6522,8 @@
             "type": "boolean"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -6468,8 +6580,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -6513,7 +6625,7 @@
             "type": "integer"
           },
           "selection": {
-            "description": "The stored selection; its method_id says which strategy. Its instants (as_of) carry a UTC offset.",
+            "description": "The stored selection; its method_id says which strategy. Its as_of is a date when a date was given, else an instant with its UTC offset.",
             "discriminator": {
               "mapping": {
                 "graham_growth_value": "#/components/schemas/GrahamGrowthSelection",
@@ -6606,8 +6718,8 @@
             "type": "integer"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -6647,8 +6759,8 @@
         "description": "The outcome of ``watchlist rename --json``: the renamed watchlist, or the entry that could not be read.",
         "properties": {
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },

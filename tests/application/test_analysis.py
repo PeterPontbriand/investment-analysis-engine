@@ -202,7 +202,7 @@ def test_the_as_of_reaches_the_document(alias: str, context: ApplicationContext)
         outcome = analyze(context, _ticker(alias), boundary, save=False, provider_check=False)
 
     document = json.loads(strategy_document_json(outcome.document))
-    assert document["requested_as_of"].startswith("2026-01-15T23:59:59.999999")
+    assert document["requested_as_of"] == "2026-01-15"
     assert "effective_as_of" in document
 
 

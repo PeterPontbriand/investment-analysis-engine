@@ -134,14 +134,8 @@ def seed(settings: ProjectSettings, name: str, entries: list[tuple[str, Analysis
         database.close()
 
 
-def refresh_document(
-    settings: ProjectSettings,
-    name: str = "Core",
-    entries: list[tuple[str, AnalysisSelection]] | None = None,
-    *extra: str,
-) -> dict[str, Any]:
-    """Seed a watchlist with the entries, run a real refresh offline and return its ``--json`` summary."""
-    seed(settings, name, ENTRIES if entries is None else entries)
+def offline_refresh(name: str, *extra: str) -> dict[str, Any]:
+    """Run a real refresh of an existing watchlist offline and return its ``--json`` summary."""
     with (
         patch(
             "investment_analysis_engine.strategies.momentum.workspace.MomentumAnalyzer.run_analysis",
@@ -163,6 +157,17 @@ def refresh_document(
         result = runner.invoke(app, ["refresh", name, "--workers", "1", "--json", "--no-provider-check", *extra])
     document: dict[str, Any] = json.loads(result.stdout)
     return document
+
+
+def refresh_document(
+    settings: ProjectSettings,
+    name: str = "Core",
+    entries: list[tuple[str, AnalysisSelection]] | None = None,
+    *extra: str,
+) -> dict[str, Any]:
+    """Seed a watchlist with the entries, run a real refresh offline and return its ``--json`` summary."""
+    seed(settings, name, ENTRIES if entries is None else entries)
+    return offline_refresh(name, *extra)
 
 
 def refresh(

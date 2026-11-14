@@ -35,7 +35,7 @@ from investment_analysis_engine.data.instrument_profile import (
     InstrumentProfileDiagnostic,
 )
 from investment_analysis_engine.data.security_identity import IdentityResolutionStatus, SecurityIdentityResolution
-from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
+from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf, DocumentTimestamp
 
 JsonNumber = Annotated[
     int | float,
@@ -148,7 +148,7 @@ class ResolvedInputPart(DocumentPart):
     observation_period_end: DocumentTimestamp | None
     observed_at: DocumentTimestamp | None
     available_at: DocumentTimestamp | None
-    as_of: DocumentTimestamp | None
+    as_of: DocumentAsOf | None
     retrieved_at: DocumentTimestamp | None
     resolved_at: DocumentTimestamp
     cache_schema_version: int | None

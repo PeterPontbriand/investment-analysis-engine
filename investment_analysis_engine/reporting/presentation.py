@@ -9,12 +9,13 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Final
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
+from investment_analysis_engine.reporting.documents.timestamp import is_end_of_day_utc
 
 
 class PresentationMode(StrEnum):
@@ -114,7 +115,7 @@ def format_as_of(value: datetime | None) -> str:
     """Format an analysis boundary without exposing end-of-day implementation detail."""
     if value is None:
         return "current"
-    if value.timetz().replace(tzinfo=None) == time.max:
+    if is_end_of_day_utc(value):
         return value.date().isoformat()
     return format_utc_minute(value)
 
