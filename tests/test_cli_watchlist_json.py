@@ -137,7 +137,7 @@ def test_a_removal_with_json_confirms_on_standard_error_and_writes_the_removal_d
     document = result["watchlist"]
     assert (code, stderr) == (0, confirmation)
     assert list(result) == ["schema_version", "removed", "watchlist", "unreadable"]
-    assert (result["schema_version"], result["unreadable"]) == (1, None)
+    assert (result["schema_version"], result["unreadable"]) == (2, None)
     assert result["removed"] == 3 - len(remaining)
     assert [entry["ticker"] for entry in document["entries"]] == remaining
     assert [entry["index"] for entry in document["entries"]] == list(range(1, len(remaining) + 1))
@@ -173,7 +173,7 @@ def test_a_removal_with_json_and_another_unreadable_entry_commits_and_writes_the
 
     document = json.loads(stdout)
     assert (code, stderr) == (1, confirmation)
-    assert document["schema_version"] == 1
+    assert document["schema_version"] == 2
     assert document["removed"] == 1
     assert document["watchlist"] is None
     unreadable = document["unreadable"]
@@ -220,7 +220,7 @@ def test_rename_and_delete_with_json_and_an_unreadable_entry_commit_and_write_th
 
     renamed = json.loads(stdout)
     assert (code, stderr) == (1, "Renamed watchlist 'Core' to 'Main'.")
-    assert (renamed["schema_version"], renamed["watchlist"]) == (1, None)
+    assert (renamed["schema_version"], renamed["watchlist"]) == (2, None)
     assert renamed["unreadable"]["method_id"] == "reported_fcf_eps_cagr"
 
     code, stdout, stderr = _run("watchlist", "delete", "Main", "--yes", "--json")
@@ -228,7 +228,7 @@ def test_rename_and_delete_with_json_and_an_unreadable_entry_commit_and_write_th
     deleted = json.loads(stdout)
     assert code == 1
     assert stderr.startswith("Deleted watchlist 'Main'")
-    assert (deleted["schema_version"], deleted["deleted"], deleted["watchlist"]) == (1, True, None)
+    assert (deleted["schema_version"], deleted["deleted"], deleted["watchlist"]) == (2, True, None)
     assert deleted["unreadable"]["entry_number"] == 1
     assert _tickers(isolated_cli_settings) == []
 

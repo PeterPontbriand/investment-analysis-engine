@@ -11,7 +11,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
-from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
+from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf, DocumentTimestamp
 from investment_analysis_engine.workspace.codecs import UnsupportedRunVersionError
 from investment_analysis_engine.workspace.repositories.analysis_runs import StoredRun
 from investment_analysis_engine.workspace_documents.runs_compare import (
@@ -32,7 +32,7 @@ class RunOverviewDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     analysis_run_id: UUID
     ticker: str
     outcome: RunOutcome = Field(description="The run's outcome, read from its stored record.")
@@ -40,8 +40,8 @@ class RunOverviewDocument(BaseModel):
     refresh_id: UUID | None = Field(
         description="The refresh that saved the run; null for a run saved by a direct command."
     )
-    requested_as_of: DocumentTimestamp | None = Field(
-        description="The point in time the run asked for; null means now."
+    requested_as_of: DocumentAsOf | None = Field(
+        description="The point in time the run asked for, as it was asked: a date or an instant; null means now."
     )
     strategy: CompareStrategyDocument = Field(description="The strategy that produced the run.")
     headline: CompareHeadlineDocument | None = Field(

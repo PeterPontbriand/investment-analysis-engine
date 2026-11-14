@@ -27,7 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.metric_result import ReasonCode
-from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
+from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf, DocumentTimestamp
 from investment_analysis_engine.reporting.headline import (
     CellKind,
     CellUnit,
@@ -154,8 +154,8 @@ class CompareRunDocument(_Document):
 
     analysis_run_id: UUID
     outcome: RunOutcome = Field(description="The run's outcome, read from its stored envelope.")
-    requested_as_of: DocumentTimestamp | None = Field(
-        description="The point in time the run asked for; null means now."
+    requested_as_of: DocumentAsOf | None = Field(
+        description="The point in time the run asked for, as it was asked: a date or an instant; null means now."
     )
     headline: CompareHeadlineDocument | None = Field(
         description="The run's cells; null when headline_unavailable is set."
@@ -203,7 +203,7 @@ class RunsCompareDocument(_Document):
     ``schema_version`` is this document's own lineage and is independent of every other document's.
     """
 
-    schema_version: Literal[5] = 5
+    schema_version: Literal[6] = 6
     refresh_id: UUID
     watchlist_id: UUID | None = Field(description="The watchlist the refresh ran; null if no readable run records it.")
     watchlist_name: str | None = Field(description="The watchlist's name when the refresh ran.")

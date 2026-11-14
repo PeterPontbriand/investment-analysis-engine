@@ -359,20 +359,28 @@
     "requested_as_of": {
       "anyOf": [
         {
-          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-          "format": "date-time",
-          "type": "string"
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "format": "date-time",
+              "type": "string"
+            }
+          ],
+          "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
         },
         {
           "type": "null"
         }
       ],
-      "description": "The point in time the run asked for; null means now.",
+      "description": "The point in time the run asked for, as it was asked: a date or an instant; null means now.",
       "title": "Requested As Of"
     },
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "const": 2,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
     },

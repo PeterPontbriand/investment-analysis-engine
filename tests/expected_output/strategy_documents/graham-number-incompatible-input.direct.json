@@ -1,5 +1,5 @@
 {
-  "schema_version": 12,
+  "schema_version": 13,
   "analysis": "graham_number",
   "method": "graham_number",
   "ticker": "INCOMPATIBLE",
@@ -20,7 +20,7 @@
       "verdict": "not_checked"
     }
   ],
-  "requested_as_of": "2025-07-01T23:59:59.999999+00:00",
+  "requested_as_of": "2025-07-01",
   "effective_as_of": "<wall-clock>",
   "anchor_filing": {
     "year_end": "2024-06-30",

@@ -178,7 +178,7 @@ def test_watchlist_add_selection_momentum_persists_as_of_and_no_cache() -> None:
     assert result.exit_code == 0, result.output
     payload = json.loads(runner.invoke(app, ["watchlist", "show", "Point In Time", "--json"]).output)
     selection = payload["entries"][0]["selection"]
-    assert selection["as_of"] == "2026-08-01T23:59:59.999999+00:00"
+    assert selection["as_of"] == "2026-08-01"
     assert selection["use_cache"] is False
     assert selection["config_schema_version"] == 2
 
@@ -992,7 +992,7 @@ def test_watchlist_delete_json_carries_the_watchlist_show_document() -> None:
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout) == {
-        "schema_version": 1,
+        "schema_version": 2,
         "deleted": True,
         "watchlist": shown,
         "unreadable": None,
@@ -1071,7 +1071,7 @@ def test_watchlist_delete_missing_ok_on_an_unknown_name_exits_0_in_text_and_json
     json_result = runner.invoke(app, ["watchlist", "delete", "Nonexistent", "--yes", "--missing-ok", "--json"])
     assert json_result.exit_code == 0, json_result.output
     assert json.loads(json_result.stdout) == {
-        "schema_version": 1,
+        "schema_version": 2,
         "deleted": False,
         "watchlist": None,
         "unreadable": None,
@@ -1127,7 +1127,7 @@ def test_watchlist_rename_json_prints_only_the_rename_result_document() -> None:
     assert result.exit_code == 0, result.output
     result_document = json.loads(result.stdout)
     assert list(result_document) == ["schema_version", "watchlist", "unreadable"]
-    assert result_document["schema_version"] == 1
+    assert result_document["schema_version"] == 2
     assert result_document["unreadable"] is None
     document = result_document["watchlist"]
     assert document["display_name"] == "New Name"

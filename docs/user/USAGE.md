@@ -202,11 +202,15 @@ Every strategy document has the same header and the same tail. Keys are written 
 | | `status` | Whether the calculation ran, as a calculation status (`ok`, `not_applicable`, `invalid_input`, `input_unavailable` or `provider_error`). Never a verdict |
 | | `provider_failure` | Why a `provider_error` status happened, when the adapter classified the failure: one of `provider_unreachable`, `provider_rate_limited`, `provider_unexpected_response` or `provider_no_data` as `reason_code`, and `inputs`, each failed input with its `provider_id` and `kind`. `null` for every other status, and for a provider failure the adapter could not classify. It is the element the failure document carries |
 | | `provider_check` | What one test request found for each provider `provider_failure` names, as a list of `provider_id` and `verdict` entries; see [After a provider failure](#after-a-provider-failure-the-first-line). `null` on success, for a failure that names no provider, and for every document `runs show --json` writes |
-| | `requested_as_of` | The point in time you asked for with `--as-of`; `null` means now |
-| | `effective_as_of` | The instant the analysis was evaluated at: `requested_as_of` when given, else the execution time |
+| | `requested_as_of` | The point in time you asked for with `--as-of`, as you gave it: a date stays `YYYY-MM-DD`; `null` means now |
+| | `effective_as_of` | The boundary the analysis was evaluated at: `requested_as_of` when given, else the execution time |
 | | `security_identity`, `instrument_kind` | The identity and instrument-kind evidence the run retained |
 | Body | The strategy's own keys | Listed in its schema |
 | Tail | `warnings`, `limitations`, `diagnostics` | Lists of strings, strings and entries |
+
+A date `--as-of` is stored as the end of that day in UTC and printed back as the date (`2025-12-31`) in `requested_as_of`, `effective_as_of`,
+a resolved input's `as_of` and a stored selection's `as_of` (`watchlist show --json`). A timestamp keeps its instant and offset, except that
+one at exactly `23:59:59.999999` UTC cannot be told from a date and is also printed as the date.
 
 A verdict lives in the body: Momentum's trend is `result.trend` (`BULLISH`, `BEARISH` or `UNKNOWN`), and FCF Growth's screen is `classification`. Momentum's `status` is `ok` for a bullish or bearish trend, `input_unavailable` for an `UNKNOWN` trend, for no price at or before `--as-of` and for a failed data-quality check, and `provider_error` for a provider failure; the body's `result` is `null` when no calculation ran, and `reason` and `reason_code` say why. The latest data date Momentum used is `source.data_as_of`.
 

@@ -723,9 +723,17 @@
         "as_of": {
           "anyOf": [
             {
-              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-              "format": "date-time",
-              "type": "string"
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ],
+              "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
             },
             {
               "type": "null"
@@ -1202,10 +1210,18 @@
       "type": "array"
     },
     "effective_as_of": {
-      "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-      "format": "date-time",
-      "title": "Effective As Of",
-      "type": "string"
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "format": "date-time",
+          "type": "string"
+        }
+      ],
+      "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset.",
+      "title": "Effective As Of"
     },
     "inputs": {
       "$ref": "#/$defs/GrahamGrowthInputsPart"
@@ -1303,9 +1319,17 @@
     "requested_as_of": {
       "anyOf": [
         {
-          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
-          "format": "date-time",
-          "type": "string"
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "format": "date-time",
+              "type": "string"
+            }
+          ],
+          "description": "A date (YYYY-MM-DD) when the boundary was given as a date, else an ISO 8601 instant with its UTC offset."
         },
         {
           "type": "null"

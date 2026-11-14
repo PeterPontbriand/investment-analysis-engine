@@ -14,10 +14,13 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    GetJsonSchemaHandler,
     SerializerFunctionWrapHandler,
     field_serializer,
     model_validator,
 )
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import CoreSchema
 
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp, document_json_value
 from investment_analysis_engine.workspace.repositories.watchlists import (
@@ -38,8 +41,30 @@ class WatchlistEntryDocument(BaseModel):
     index: int = Field(description="The 1-based position a user sees and passes to 'remove-entry'.")
     ticker: str
     selection: AnalysisSelection = Field(
-        description="The stored selection; its method_id says which strategy. Its instants (as_of) carry a UTC offset."
+        description=(
+            "The stored selection; its method_id says which strategy. Its as_of is a date when a date was given, "
+            "else an instant with its UTC offset."
+        )
     )
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
+        """Describe each selection's ``as_of`` as the date or the instant the document serves.
+
+        The selection models are stored shapes and keep their own schema; the document spells ``as_of`` with
+        :func:`~investment_analysis_engine.reporting.documents.timestamp.as_of_text`, so its schema says so.
+        """
+        schema = handler(core_schema)
+        selection = handler.resolve_ref_schema(schema)["properties"]["selection"]
+        for option in selection["oneOf"]:
+            as_of = handler.resolve_ref_schema(option)["properties"]["as_of"]
+            as_of["anyOf"] = [
+                {"anyOf": [{"type": "string", "format": "date"}, {"type": "string", "format": "date-time"}]}
+                if item.get("format") == "date-time"
+                else item
+                for item in as_of["anyOf"]
+            ]
+        return schema
 
     @field_serializer("selection", mode="wrap", when_used="json")
     def _serialize_selection(self, value: SelectionMember, handler: SerializerFunctionWrapHandler):  # type: ignore[no-untyped-def]  # noqa: ANN202
@@ -61,7 +86,7 @@ class WatchlistDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     watchlist_id: UUID
     display_name: str
     created_at: DocumentTimestamp
@@ -91,7 +116,7 @@ class WatchlistRenameDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     watchlist: WatchlistDocument | None = Field(description="The renamed watchlist; null when an entry is unreadable.")
     unreadable: UnreadableEntryDocument | None = Field(
         description="The first entry this version cannot read; the rename is committed either way."
@@ -109,7 +134,7 @@ class WatchlistRemovalDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     removed: int = Field(description="The number of entries removed; 0 when nothing matched.")
     watchlist: WatchlistDocument | None = Field(
         description="The watchlist read back; null when an entry is unreadable."
@@ -134,7 +159,7 @@ class WatchlistDeleteDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     deleted: bool
     watchlist: WatchlistDocument | None = Field(
         description="The deleted watchlist; null when an entry was unreadable or nothing was deleted."

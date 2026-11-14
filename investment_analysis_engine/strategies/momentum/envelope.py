@@ -25,7 +25,7 @@ from investment_analysis_engine.strategies.momentum.vocabulary import (
     TrendRelationship,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 11
+DOCUMENT_SCHEMA_VERSION: Final = 12
 
 
 class MomentumResultPart(DocumentPart):

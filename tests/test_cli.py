@@ -365,7 +365,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert result.exit_code == 1
     assert "NaN" not in result.output
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == 11
+    assert payload["schema_version"] == 12
     assert payload["status"] == "input_unavailable"
     assert payload["reason_code"] == "insufficient_history"
     assert payload["result"]["short_sma"] is None
@@ -546,7 +546,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 12
+    assert payload["schema_version"] == 13
     assert payload["analysis"] == "graham_number"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID

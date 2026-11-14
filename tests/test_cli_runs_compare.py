@@ -109,7 +109,7 @@ def test_the_json_document_validates_and_carries_the_same_content_as_the_text(
     assert list(json.loads(out))[0] == "schema_version"
     document = RunsCompareDocument.model_validate_json(out)
 
-    assert document.schema_version == 5
+    assert document.schema_version == 6
     assert (document.refresh_id, document.watchlist_name) == (refresh_id, "Core")
     assert [item.alias for item in document.strategies] == ["momentum", "graham-number", "graham-growth", "fcf-growth"]
     assert [row.ticker for row in document.rows] == ["SYNTH", "MISSING", "ERROR"]

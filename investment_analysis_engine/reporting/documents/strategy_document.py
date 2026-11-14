@@ -27,9 +27,11 @@ The header's key order is part of the contract:
     every replay of a stored run and whenever ``provider_failure`` is null. It is non-null only beside a non-null
     ``provider_failure``, and then names exactly the providers that element names. The verdict is never stored.
 ``requested_as_of``
-    The point in time the user asked for; null means now.
+    The point in time the user asked for, as it was asked: a date (``YYYY-MM-DD``) when a date was given, else an
+    instant with its UTC offset; null means now.
 ``effective_as_of``
-    The instant the analysis was evaluated at: ``requested_as_of`` when given, else the execution time.
+    The boundary the analysis was evaluated at, spelled like ``requested_as_of``: that value when given, else the
+    execution time.
 ``anchor_filing``
     The anchor annual filing the run was taken at, with the date its next annual report was due and whether it is
     stale at the boundary, as :class:`~investment_analysis_engine.reporting.documents.shared_parts.AnchorFilingPart`;
@@ -57,7 +59,7 @@ from investment_analysis_engine.reporting.documents.shared_parts import (
     InstrumentKindPart,
     SecurityIdentityPart,
 )
-from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
+from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf
 
 HEADER_KEYS: tuple[str, ...] = (
     "schema_version",
@@ -89,8 +91,8 @@ class StrategyDocumentHeader[AnalysisIdT: str, MethodIdT: str](DocumentPart):
     status: CalculationStatus
     provider_failure: ProviderFailure | None
     provider_check: tuple[ProviderCheckItem, ...] | None
-    requested_as_of: DocumentTimestamp | None
-    effective_as_of: DocumentTimestamp
+    requested_as_of: DocumentAsOf | None
+    effective_as_of: DocumentAsOf
     anchor_filing: AnchorFilingPart | None
     security_identity: SecurityIdentityPart
     instrument_kind: InstrumentKindPart | None

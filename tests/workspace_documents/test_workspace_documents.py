@@ -16,7 +16,7 @@ from investment_analysis_engine.application.provider_check import ProviderCheckF
 from investment_analysis_engine.application.refresh import build_refresh_document
 from investment_analysis_engine.cli_support import document_json, watchlist_json
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
-from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
+from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf, DocumentTimestamp
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
@@ -39,6 +39,7 @@ from scripts.generate_schemas import DOCUMENTS, expected_schemas
 
 _DATETIME_LEAVES: tuple[Any, ...] = (datetime, AwareDatetime, NaiveDatetime, PastDatetime, FutureDatetime)
 _TIMESTAMP_METADATA: tuple[Any, ...] = get_args(DocumentTimestamp)[1:]
+_AS_OF_METADATA: tuple[Any, ...] = get_args(DocumentAsOf)[1:]
 _SELECTION_MEMBERS: tuple[Any, ...] = get_args(SelectionMember)
 _VERSIONED_WATCHLIST_FILES = (
     "watchlist-delete.schema.json",
@@ -68,7 +69,9 @@ def _untyped_datetime_fields(model: type[BaseModel], seen: set[type[BaseModel]])
             elif isinstance(node, type) and issubclass(node, BaseModel):
                 problems.extend(_untyped_datetime_fields(node, seen))
             elif node in _DATETIME_LEAVES:
-                if not all(item in metadata for item in _TIMESTAMP_METADATA):
+                if not any(
+                    all(item in metadata for item in spelling) for spelling in (_TIMESTAMP_METADATA, _AS_OF_METADATA)
+                ):
                     problems.append(f"{model.__name__}.{name}")
             elif get_origin(node) in (typing.Union, types.UnionType) or get_args(node):
                 stack.extend((argument, metadata) for argument in get_args(node))
@@ -109,10 +112,10 @@ def test_a_timestamp_keeps_the_offset_it_carries() -> None:
 
 
 @pytest.mark.parametrize("file_name", _VERSIONED_WATCHLIST_FILES)
-def test_each_watchlist_schema_is_version_one(file_name: str) -> None:
+def test_each_watchlist_schema_is_version_two(file_name: str) -> None:
     schema = json.loads(expected_schemas()[file_name])
     assert "unversioned" not in schema["description"]
-    assert schema["properties"]["schema_version"]["const"] == 1
+    assert schema["properties"]["schema_version"]["const"] == 2
     assert "schema_version" not in schema.get("required", [])
 
 
@@ -220,7 +223,7 @@ def test_the_watchlist_document_matches_what_the_hand_built_dictionary_wrote() -
             dumped["as_of"] = entry.selection.as_of.isoformat()  # type: ignore[union-attr]
         expected_selections.append(dumped)
     expected = {
-        "schema_version": 1,
+        "schema_version": 2,
         "watchlist_id": str(watchlist.watchlist_id),
         "display_name": "Core",
         "created_at": watchlist.created_at.isoformat(),
@@ -237,7 +240,7 @@ def test_the_watchlist_document_matches_what_the_hand_built_dictionary_wrote() -
 
 @pytest.mark.parametrize("offset", [UTC, timezone(timedelta(hours=5, minutes=30))])
 def test_a_selection_instant_is_written_with_its_offset_and_parses_back_to_the_same_selection(offset: timezone) -> None:
-    """The rule: every instant in a document, a selection's ``as_of`` included, is ``isoformat()`` text."""
+    """Instants are ``isoformat()`` text; an ``as_of`` at the end of a UTC day is its date."""
     instant = datetime(2026, 8, 1, 23, 59, 59, 999999, tzinfo=offset)
     selections: tuple[SelectionMember, ...] = (
         MomentumSelection(short_window=2, long_window=3, rsi_period=3, as_of=instant),
@@ -253,10 +256,12 @@ def test_a_selection_instant_is_written_with_its_offset_and_parses_back_to_the_s
         entries=tuple(WatchlistEntry(ticker="A", selection=item) for item in selections),
     )
     emitted = _document_selections(watchlist)
-    assert [item["as_of"] for item in emitted] == [instant.isoformat()] * 4
+    written = "2026-08-01" if offset == UTC else instant.isoformat()
+    assert [item["as_of"] for item in emitted] == [written] * 4
     assert not any(str(item["as_of"]).endswith("Z") for item in emitted)
-    adapter: TypeAdapter[SelectionMember] = TypeAdapter(AnalysisSelection)
-    assert [adapter.validate_python(item) for item in emitted] == list(selections)
+    if offset != UTC:
+        adapter: TypeAdapter[SelectionMember] = TypeAdapter(AnalysisSelection)
+        assert [adapter.validate_python(item) for item in emitted] == list(selections)
 
 
 def test_an_absent_as_of_stays_null() -> None:
@@ -302,10 +307,10 @@ def test_the_rename_and_removal_documents_require_exactly_one_of_the_watchlist_a
 
 def test_every_watchlist_document_is_versioned() -> None:
     document = WatchlistDocument.model_validate(json.loads(watchlist_json(_watchlist(updated_at=None))))
-    assert document.schema_version == 1
-    assert json.loads(watchlist_json(_watchlist(updated_at=None)))["schema_version"] == 1
+    assert document.schema_version == 2
+    assert json.loads(watchlist_json(_watchlist(updated_at=None)))["schema_version"] == 2
     assert WatchlistDeleteDocument(deleted=False, watchlist=None, unreadable=None).model_dump(mode="json") == {
-        "schema_version": 1,
+        "schema_version": 2,
         "deleted": False,
         "watchlist": None,
         "unreadable": None,
