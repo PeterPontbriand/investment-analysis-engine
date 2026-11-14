@@ -92,9 +92,9 @@ A value the run could not calculate is shown as a dash.
 
 <a id="refresh"></a>
 ### Refresh
-Running every entry in one watchlist and saving each result as its own analysis run.
+Running every entry of a watchlist, or of a list of entries that belongs to no watchlist, and saving each result as its own analysis run.
 
-A refresh limits how many tickers run at once, and one ticker's failure never stops the rest of the watchlist.
+A refresh limits how many tickers run at once, and one ticker's failure never stops the rest of the refresh.
 
 <a id="refresh-event"></a>
 ### Refresh Event
