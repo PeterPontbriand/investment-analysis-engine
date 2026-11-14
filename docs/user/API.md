@@ -311,6 +311,12 @@ parameter `body`, as is one holding `NaN`, `Infinity`, `-Infinity` or a number t
 path: `name`, `tickers`, `tickers[1]`, `selection.short_window`, `selection.policy.historical_horizon`. In `selection`,
 `as_of` is text: `YYYY-MM-DD` (the end of that day, UTC) or an ISO 8601 timestamp with a timezone offset.
 
+A date `as_of` is stored as the last instant of that day in UTC and served back as the date, so what you sent is what you
+read: `2025-12-31` stays `2025-12-31`. A timestamp is served as given, with its offset. This holds for every as-of boundary a
+document carries: a selection's `as_of`, a run's `requested_as_of` and `effective_as_of`, and a resolved input's `as_of`.
+A timestamp of exactly `23:59:59.999999` in UTC cannot be told from a date and is served as the date. Times of events,
+such as `completed_at` or `created_at`, are always instants.
+
 ### Selection forms
 
 `GET /v1/strategies/{method_id}/selection` returns what a form needs. `schema` is the JSON Schema of the `selection`

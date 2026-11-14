@@ -58,6 +58,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.6b | [Help endpoints and locales](API_6_SLICE_PLAN.md#api6b--help-endpoints-and-locales) | Complete | 2026-11-08 |
 | API.7 | [Refreshes list](#api7--refreshes-list) | Complete | 2026-11-10 |
 | API.8 | [Structured units, run overview and command-free database messages](#api8--structured-units-run-overview-and-command-free-database-messages) | Complete | 2026-11-13 |
+| API.9 | [A date as-of is served as written](#api9--a-date-as-of-is-served-as-written) | Complete | 2026-11-14 |
 
 ## 3. The slices
 
@@ -311,6 +312,22 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-run-overview`.
 - **Detail:** no separate slice plan; decisions in [A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13).
 
+### API.9 — A date as-of is served as written
+
+- **Problem:** a selection given a date as-of (`--as-of 2025-12-31`) is stored as the last instant of that day in UTC and
+  was served as that instant, so a client could not tell a date from a time and showed one the user never chose
+  ("Dec 31, 2025, 6:59 PM" in Toronto).
+- **Decision:** stored selections do not change. An end-of-day UTC instant is served as its date wherever a document
+  carries an as-of boundary, and any other timestamp is served as given; the rule has one definition, and the affected
+  documents' `schema_version` goes up ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13),
+  U13 to U18).
+- **Scope:** the shared end-of-day predicate and `DocumentAsOf` in `reporting/documents/timestamp.py`, used by
+  `format_as_of`; the strategy documents' `requested_as_of`, `effective_as_of` and resolved-input `as_of`; the watchlist
+  documents' selection `as_of`; the run overview's and the comparison's `requested_as_of`; the raised versions, the
+  regenerated JSON Schemas and `openapi.json`; `docs/user/API.md` and `docs/user/USAGE.md`; tests.
+- **Branch:** `fix/as-of-served-as-written`.
+- **Detail:** no separate slice plan; decisions in [A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -512,3 +529,9 @@ Approved by the project owner on 2026-11-13. No database migration, stored shape
 | U10 | No command-line counterpart for the overview; see [§4](#4-out-of-scope). |
 | U11 | Documentation and tests: `docs/user/API.md` (the endpoint row and a short section, the unit and currency fields with the percent scale, the U2 rule, the U9 rename), `docs/user/USAGE.md` (the U2 rule), `docs/user/WORKSPACE.md` and `docs/user/SMOKE_TESTING.md` (`--outcome`); regenerated JSON Schemas and `openapi.json`; tests for each strategy's number cells, `HeadlineCell`'s rules, the unchanged comparison table, U6, the overview's cases and the U9 rename. |
 | U12 | A run's `requested_as_of` is read from its envelope for every run, including a run of a strategy no longer declared and a run stored under an unsupported version, so null always means "now". The envelope does not depend on the strategy; only decoding the evidence needs the strategy's codec, so `resolve_headline`, the one builder the overview and the comparison share, reads the field without it. The comparison had the same ambiguity before API.8: it showed null for those runs. A run of a strategy no longer declared, or stored under an unsupported version, whose envelope cannot be read now fails with `invalid_stored_run`, the same as a declared strategy's run, in both the comparison and the overview; before, such a run succeeded only because its envelope was never read. The overview's description is "The point in time the run asked for; null means now." Approved by the project owner on 2026-11-13. |
+| U13 | A date given as an `as_of` stays stored as the end of that day in UTC (`time.max`, the last microsecond), as before: no migration and no change to a stored shape. It is served as that date (`YYYY-MM-DD`); any other timestamp is served as given, with its offset. A timestamp entered as exactly `23:59:59.999999` in UTC is indistinguishable from a date and is also served as the date; `docs/user/API.md` and `docs/user/USAGE.md` say so. The rule is one predicate, `is_end_of_day_utc` in `reporting/documents/timestamp.py`, which `as_of_text` (the served spelling) and `format_as_of` (text output) both use; `format_as_of` now also requires the UTC offset, as the served rule does. Approved by the project owner on 2026-11-14. |
+| U14 | The rule applies to every served as-of boundary, in API responses and in CLI `--json` output: a strategy document's `requested_as_of` and `effective_as_of`; the `as_of` of a resolved input in the Graham Number, Graham Growth and Piotroski documents (the shared `ResolvedInputPart`) and in the FCF Growth document (`FCFResolvedInputPart`); a stored selection's `as_of` in the watchlist, rename, removal and delete documents (and the API's entry and watchlist responses, which are the watchlist document); and `requested_as_of` in the run overview and the runs comparison. Event times (`completed_at`, `created_at`, `updated_at`, `observed_at`, `available_at`, `retrieved_at`, `resolved_at`, observation periods) are unchanged, as is Momentum's `data_as_of`, which is already a date. The refresh summary, refresh job, runs list, refreshes list and watchlist list documents carry no as-of boundary. |
+| U15 | Under U2, each document whose served shape changes (a field widened from date-time to date or date-time) raises its `schema_version`: the watchlist, watchlist rename, watchlist removal and watchlist delete documents 1 to 2; the run overview 1 to 2; the runs comparison 5 to 6; the Momentum document 11 to 12; the Graham Number and Graham Growth documents 12 to 13; the FCF Growth document 12 to 13; the Piotroski document 3 to 4. |
+| U16 | The JSON Schemas, `openapi.json` and the stored command-output snapshot are regenerated as reviewed diffs. The watchlist documents describe a selection's `as_of` as a date or a date-time without changing the selection models, which are stored shapes. |
+| U17 | Tests: the shared predicate (the end of a day, one microsecond before it, other offsets, null); a date as-of added through the API, refreshed, and read back as the entry, the saved run's overview, its strategy document and the comparison, each showing the date; the same through the CLI `--json` forms; a timestamp as-of unchanged; the stored selection still holding the end-of-day instant. |
+| U18 | Documentation: `docs/user/API.md` and `docs/user/USAGE.md` say that a date as-of is stored as the end of that day in UTC and served as the date, and note the exactly-end-of-day timestamp. Approved by the project owner on 2026-11-14. |
