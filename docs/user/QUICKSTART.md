@@ -9,6 +9,8 @@ This is the terse installation/configuration version. If any step is unfamiliar,
 - `uv`
 - Internet access for live data
 
+These steps are intended to work on Windows, macOS, and Linux. The commands below run unchanged in PowerShell, Git Bash, macOS Terminal, or a Linux shell.
+
 ## Install
 
 ```bash
@@ -43,7 +45,7 @@ ian db status
 
 ## Configure SEC EDGAR
 
-Create `.env` in your settings folder (on Windows `%APPDATA%\investment-analysis-engine`; see [Where the application keeps its files](INSTALLATION.md#where-the-application-keeps-its-files) for other systems):
+Create `.env` in your settings folder (on Windows `%APPDATA%\investment-analysis-engine`, on macOS `~/Library/Application Support/investment-analysis-engine`, on Linux `~/.config/investment-analysis-engine` unless `XDG_CONFIG_HOME` is set; see [Where the application keeps its files](INSTALLATION.md#where-the-application-keeps-its-files) for details and how to move it):
 
 ```dotenv
 SEC_USER_AGENT="Your Name your-email@example.com"

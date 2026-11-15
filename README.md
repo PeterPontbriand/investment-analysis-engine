@@ -10,6 +10,8 @@ The [Analysis Strategy Guides](docs/user/strategies/README.md) describe availabl
 
 **Status:** Active development — pre-v1.0.
 
+**Platforms:** Windows, macOS, and Linux. Efforts have been made to keep the engine usable on all three, and the automated test suite runs on each. The project is developed mainly on Windows, so platform-specific problems on macOS or Linux are possible; please report them.
+
 > Investment Analysis Engine is research/educational software, not investment advice. See [Limitations & disclaimer](#limitations--disclaimer).
 
 ---
@@ -80,7 +82,7 @@ Choose the guide that matches what you need:
 - **Already comfortable with Python development?** Use the [Quick Start](docs/user/QUICKSTART.md).
 - **Already installed?** Go directly to the [Usage Guide](docs/user/USAGE.md).
 
-Direct deterministic analysis does **not** require Ollama or a GPU. Local-AI features are optional.
+The guides cover Windows, macOS, and Linux. Direct deterministic analysis does **not** require Ollama or a GPU. Local-AI features are optional.
 
 ---
 
