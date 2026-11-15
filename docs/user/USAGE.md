@@ -382,6 +382,28 @@ throttled download cannot be told from an empty answer. An SEC HTTP 403 is still
 blocked client and for a rejected identity alike, so it cannot be told apart from a rejected identity. The
 maintainer's runbook is [Provider Debugging](../project/PROVIDER_DEBUGGING.md).
 
+## Checking which installation runs
+
+```bash
+ian about
+ian about --json
+```
+
+`ian about` prints three lines: the engine's version, the installation folder the `ian` command runs, and that
+folder's Git commit, with `(with uncommitted changes)` after it when you have changed or added files there that Git does
+not ignore. Where a fact cannot be established the line says so: the commit is `none (not a Git checkout)` when the
+folder is not itself a Git checkout (a folder inside some other repository is not one), `none (Git is not installed)`
+when Git cannot be started, and `none` when the engine was installed as a package, in which case the installation
+folder line reads `none (installed as a package)`. The command exits 0 in all these cases.
+
+With `--json` the command writes one document to standard output instead: `engine_version`, `installation_folder`
+(the folder as your system writes a path), `commit` (the full 40-character hash) and `uncommitted_changes` (`true` or
+`false`). `installation_folder` is `null` for a package installation; `commit` is `null` when there is no installation
+folder, the folder is not a Git checkout or Git is not installed; `uncommitted_changes` is `null` whenever `commit` is
+`null` or Git could not report the status. The document is published as `schemas/about.schema.json`; its
+`schema_version` is 1. Like every command, `ian about` stops with exit status 2 and one message when an engine
+environment variable or a settings file is invalid, and `--json` then writes no document.
+
 ## Optional local AI
 
 The commands above are deterministic analysis commands and do not require a local LLM.

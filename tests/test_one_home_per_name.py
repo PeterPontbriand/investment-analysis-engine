@@ -28,6 +28,9 @@ _FOLDER_COUNT_ALLOWED = frozenset(
 
 # The repository root is defined once, for tests and scripts, in this file; nothing else derives it.
 _REPOSITORY_ROOT_DEFINITION = "scripts/repository_root.py"
+# The package root module also names the folder that contains the package, once, as the installation folder that
+# ``ian about`` reports; it is the one other file allowed to do so.
+_INSTALLATION_FOLDER_DEFINITION = "investment_analysis_engine/core/package_root.py"
 _DERIVATION = "PACKAGE_ROOT" + ".parent"
 _DERIVATION_MESSAGE = "derives the repository root; import REPOSITORY_ROOT from scripts.repository_root instead"
 
@@ -201,12 +204,13 @@ def folder_count_violations(root: Path) -> list[str]:
 
 
 def repository_root_derivation_violations(root: Path) -> list[str]:
-    """Return one message per file, other than the definition, that derives the repository root."""
+    """Return one message per file, other than the two definitions, that derives the repository root."""
+    allowed = {_REPOSITORY_ROOT_DEFINITION, _INSTALLATION_FOLDER_DEFINITION}
     return [
         f"{_relative(path, root)}: {_DERIVATION_MESSAGE}"
         for folder in _SOURCE_FOLDERS
         for path in _python_files(root, folder)
-        if _relative(path, root) != _REPOSITORY_ROOT_DEFINITION and _DERIVATION in path.read_text(encoding="utf-8")
+        if _relative(path, root) not in allowed and _DERIVATION in path.read_text(encoding="utf-8")
     ]
 
 

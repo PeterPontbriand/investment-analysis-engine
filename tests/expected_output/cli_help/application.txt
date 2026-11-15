@@ -5,6 +5,7 @@ Options
 Commands
 refresh Execute every entry in a watchlist and, by default, persist
 each result.
+about Show the engine's version, installation folder and commit.
 health Check that Yahoo and SEC EDGAR still answer in the shape the
 adapters read.
 serve Serve the read API on loopback until standard input closes.

@@ -176,7 +176,7 @@ CLI_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"command", "add_selection",
 APPLICATION_COMPOSITION_MEMBERS: frozenset[str] = frozenset({"run"})
 """The documented members of a strategy's application-tier composition."""
 
-NON_STRATEGY_COMMANDS: frozenset[str] = frozenset({"evaluate", "health", "refresh", "serve"})
+NON_STRATEGY_COMMANDS: frozenset[str] = frozenset({"about", "evaluate", "health", "refresh", "serve"})
 """The top-level commands that are not a strategy's direct command; command groups are recognized by type."""
 
 CLI_ENTRY_FIELDS: frozenset[str] = frozenset({"behavior", "command", "add_selection", "selection_options"})

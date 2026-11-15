@@ -5,7 +5,9 @@ environment there and runs the installed ``ian`` with the temporary folder as th
 
 * the wheel contains every file ``package-data`` lists and exactly one top-level package;
 * ``import investment_analysis_engine`` resolves inside the new environment;
-* ``ian --help`` succeeds, and ``ian db upgrade`` and ``ian db status`` succeed with the database in the data folder;
+* ``ian --help`` succeeds, and ``ian about --json`` reports the version in ``pyproject.toml`` with a null installation
+  folder, commit and ``uncommitted_changes``;
+* ``ian db upgrade`` and ``ian db status`` succeed with the database in the data folder;
 * ``ian evaluate --mode deterministic`` writes the same report as the repository checkout;
 * the system prompt built by the installed package contains the runtime rules;
 * the installed package's help bundle of each declared locale, loaded through ``load_help_bundle(locale)``, equals the
@@ -136,6 +138,30 @@ def bundle_difference(installed_json: str, repository_bundle: Path) -> str | Non
     return f"the installed bundle differs from the repository's in {', '.join(parts) or 'its fields'}"
 
 
+def about_difference(completed: subprocess.CompletedProcess[str], repository: Path) -> str | None:
+    """Return why ``ian about --json`` of an installed wheel is not the expected document, or ``None`` when it is.
+
+    The version is the one in the repository's ``pyproject.toml``; a wheel has no installation folder, so the folder,
+    the commit and the uncommitted-changes flag are all null.
+    """
+    if completed.returncode != 0:
+        return tail(completed)
+    try:
+        document = json.loads(completed.stdout)
+    except ValueError:
+        return f"ian about --json did not print JSON: {completed.stdout.strip()[:200]!r}"
+    with (repository / "pyproject.toml").open("rb") as handle:
+        version = tomllib.load(handle)["project"]["version"]
+    expected = {
+        "schema_version": 1,
+        "engine_version": version,
+        "installation_folder": None,
+        "commit": None,
+        "uncommitted_changes": None,
+    }
+    return None if document == expected else f"expected {expected}, got {document}"
+
+
 def clean_environment(base: Mapping[str, str]) -> dict[str, str]:
     """Return ``base`` without ``PYTHONPATH``, an active virtual environment or any ``IAN_*`` variable."""
     removed = {"PYTHONPATH", "VIRTUAL_ENV", "PYTHONHOME"}
@@ -243,6 +269,13 @@ def run_installed_checks(  # noqa: PLR0913
 
     helped = run([ian, "--help"], cwd=work, env=environment)
     results.record("ian --help succeeds", helped.returncode == 0, tail(helped))
+
+    about = run([ian, "about", "--json"], cwd=work, env=environment)
+    results.record(
+        "ian about --json reports the packaged version and no checkout",
+        about_difference(about, repository) is None,
+        str(about_difference(about, repository)),
+    )
 
     upgraded = run([ian, "db", "upgrade"], cwd=work, env=environment)
     results.record("ian db upgrade succeeds", upgraded.returncode == 0, tail(upgraded))

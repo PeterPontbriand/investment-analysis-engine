@@ -22,12 +22,13 @@ from tests._cli_helpers import normalize_cli_output
 
 EXPECTED_DIRECTORY = Path(__file__).resolve().parent / "expected_output" / "cli_help"
 
-# The application itself, then ``health``, the direct command of each declared strategy in declaration order,
+# The application itself, then ``about``, ``health``, the direct command of each declared strategy in declaration order,
 # ``refresh`` and ``serve``; "" is the application's own help. The last targets are ``watchlist create``, the
 # ``watchlist add-selection`` group and the ``add-selection`` subcommand of each declared strategy; a target is the
 # words after ``ian``.
 HELP_TARGETS: tuple[str, ...] = (
     "",
+    "about",
     "health",
     *(descriptor.alias for descriptor in STRATEGIES),
     "refresh",

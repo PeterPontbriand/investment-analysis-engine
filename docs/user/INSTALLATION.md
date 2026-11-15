@@ -71,7 +71,7 @@ ian --help
 ```
 
 If you see the Investment Analysis Engine help text, the command is available. Help does not open or verify the
-database.
+database. `ian about` shows which installation the `ian` command runs: its version, its folder and its Git commit.
 
 From then on, `ian` works in any folder and always runs this installation. Running the same command from another
 copy of the application points `ian` at that copy instead. To remove the command, run `uv tool uninstall ian-launcher`.

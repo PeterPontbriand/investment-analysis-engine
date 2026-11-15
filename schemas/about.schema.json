@@ -1,0 +1,61 @@
+{
+  "additionalProperties": false,
+  "description": "What the running engine is: its version and, for a source checkout, where it is and which commit it is at.",
+  "properties": {
+    "commit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The full 40-character Git commit the installation folder is at; null when there is no installation folder, the folder is not itself a Git checkout (a folder inside another repository is not one), or Git is not installed.",
+      "title": "Commit"
+    },
+    "engine_version": {
+      "description": "The installed version of the engine distribution.",
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "installation_folder": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The folder of the source checkout the engine runs from, as the platform writes a path; null when the engine was installed as a package.",
+      "title": "Installation Folder"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "uncommitted_changes": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "True when the checkout has changes to tracked files or untracked files that Git does not ignore, false when it has none; null whenever the commit is null or Git could not report the status.",
+      "title": "Uncommitted Changes"
+    }
+  },
+  "required": [
+    "engine_version",
+    "installation_folder",
+    "commit",
+    "uncommitted_changes"
+  ],
+  "title": "AboutDocument",
+  "type": "object"
+}

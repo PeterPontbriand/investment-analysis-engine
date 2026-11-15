@@ -59,6 +59,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.7 | [Refreshes list](#api7--refreshes-list) | Complete | 2026-11-10 |
 | API.8 | [Structured units, run overview and command-free database messages](#api8--structured-units-run-overview-and-command-free-database-messages) | Complete | 2026-11-13 |
 | API.9 | [A date as-of is served as written](#api9--a-date-as-of-is-served-as-written) | Complete | 2026-11-14 |
+| API.10 | [Engine version, installation folder and commit](#api10--engine-version-installation-folder-and-commit) | Complete | 2026-11-14 |
 
 ## 3. The slices
 
@@ -328,6 +329,21 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `fix/as-of-served-as-written`.
 - **Detail:** no separate slice plan; decisions in [A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13).
 
+### API.10 — Engine version, installation folder and commit
+
+- **Problem:** nothing the user can run says which installation the `ian` command executes, which version it is or which
+  commit it is at, so a smoke-test record and a support report cannot name the code that produced them.
+- **Decision:** a new command, `ian about`, with `--json`, reports the engine's version, the installation folder (the
+  source checkout the code runs from, or none for a wheel) and that folder's Git commit with whether it has uncommitted
+  changes; a fact it cannot establish is reported as absent and the command always exits 0 ([A.8](#a8-engine-version-installation-folder-and-commit-2026-11-14), D1 to D7).
+- **Scope:** `INSTALLATION_FOLDER` in `core/package_root.py`; `cli_about.py`; the `AboutDocument` in
+  `reporting/documents/about.py`, its registration and `schemas/about.schema.json`; the command's entry in the
+  non-strategy command list of the conformance script; `scripts/check_installed_package.py`; `docs/user/USAGE.md`,
+  `docs/user/INSTALLATION.md` and `docs/user/SMOKE_TESTING.md`; tests. The launcher, `scripts/install_command.py`, the
+  API, `/v1/info` and `openapi.json` do not change.
+- **Branch:** `feat/ian-about`.
+- **Detail:** no separate slice plan; decisions in [A.8](#a8-engine-version-installation-folder-and-commit-2026-11-14).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -392,6 +408,14 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   (version 4) and the refresh job document (version 2); a run's `requested_as_of` is read from its envelope for every run, so
   null always means now, in the overview and the comparison alike, and a run whose envelope cannot be read is refused with
   `invalid_stored_run`, whether or not its strategy is still declared; `docs/user/API.md`, `docs/user/WORKSPACE.md` and
+  `docs/user/SMOKE_TESTING.md` describe it.
+- API.10: `ian about` is listed in `ian --help` and prints the three lines D6 gives for a clean checkout, a checkout with
+  uncommitted changes (tracked, or untracked and not ignored), a folder that is not a Git checkout (including one inside
+  another repository), a machine without Git and a package installation; `ian about --json` writes the `about` document
+  (`schema_version` 1), whose JSON Schema is in `schemas/` and compared in the managed gate; the command exits 0 in every
+  one of these cases and stops with exit 2 and one message on invalid settings, as every command does; the installed
+  wheel reports the version in `pyproject.toml` with a null installation folder, commit and `uncommitted_changes`;
+  `/v1/info` and `openapi.json` are unchanged; `docs/user/USAGE.md`, `docs/user/INSTALLATION.md` and
   `docs/user/SMOKE_TESTING.md` describe it.
 
 ## 6. Background
@@ -535,3 +559,17 @@ Approved by the project owner on 2026-11-13. No database migration, stored shape
 | U16 | The JSON Schemas, `openapi.json` and the stored command-output snapshot are regenerated as reviewed diffs. The watchlist documents describe a selection's `as_of` as a date or a date-time without changing the selection models, which are stored shapes. |
 | U17 | Tests: the shared predicate (the end of a day, one microsecond before it, other offsets, null); a date as-of added through the API, refreshed, and read back as the entry, the saved run's overview, its strategy document and the comparison, each showing the date; the same through the CLI `--json` forms; a timestamp as-of unchanged; the stored selection still holding the end-of-day instant. |
 | U18 | Documentation: `docs/user/API.md` and `docs/user/USAGE.md` say that a date as-of is stored as the end of that day in UTC and served as the date, and note the exactly-end-of-day timestamp. Approved by the project owner on 2026-11-14. |
+
+### A.8 Engine version, installation folder and commit (2026-11-14)
+
+Approved by the project owner on 2026-11-14. No database migration, stored shape, formula or classification changes.
+
+| # | Decision |
+| :--- | :--- |
+| D1 | Installation folder: `investment_analysis_engine/core/package_root.py` defines `INSTALLATION_FOLDER: Final[Path | None]`, which is `PACKAGE_ROOT.parent` when that folder holds the project's `pyproject.toml` (a source checkout, which uv installs in editable mode) and `None` otherwise (installed from a wheel). It reports the code that is actually running however `ian` was started, so the launcher is not changed and passes nothing to the engine. The module's docstring states the one exception to "the package never names the folder that contains it". `tests/test_one_home_per_name.py` keeps its guard against deriving the repository root and gives `core/package_root.py` a stated exception; `scripts/repository_root.py` stays as it is. |
+| D2 | Command: `ian about`, with `--json`, listed in `ian --help`; there is no `--version` option. It is in `investment_analysis_engine/cli_about.py`, registered in `cli.py` the way `cli_health.py` is. The command never fails on its own account and always exits 0; like every command it still stops with exit 2 and one message when the engine settings or a component settings file is invalid (D7). Its name is added to the conformance script's list of non-strategy commands (approved by the project owner, 2026-11-14), because the script's command-table check names every top-level command that is not a strategy. |
+| D3 | Commit: when `INSTALLATION_FOLDER` is not `None`, `git -C <folder> rev-parse --show-toplevel` and `git -C <folder> rev-parse HEAD` run as subprocesses with output captured. The commit is the full 40-character hash, and only when the reported top level resolves to the installation folder itself; a folder inside some other repository is not a checkout of the engine. It is null when there is no installation folder, Git is not installed, a Git call exits nonzero, or the top level is a different folder. |
+| D4 | Uncommitted changes: when the commit is not null, `uncommitted_changes` is true when `git -C <folder> status --porcelain` prints anything (tracked changes and untracked files that are not ignored) and false otherwise. It is null whenever the commit is null, including when this status call itself fails. |
+| D5 | JSON document: `AboutDocument` in `reporting/documents/about.py`, in the form of the health document: frozen, `extra="forbid"`, with `schema_version` 1, `engine_version`, `installation_folder` (the native path form), `commit` and `uncommitted_changes`. It is a report, not the failure envelope, and carries facts and no instructions. It is registered in `workspace_documents/json_documents.py` and published as `schemas/about.schema.json`. The version comes from `installed_engine_version()`, not from `pyproject.toml`. `/v1/info` and `openapi.json` do not change. |
+| D6 | Text output: three lines, `Investment Analysis Engine <version>`, `Installation folder: <folder>` and `Commit: <hash>`, where the commit line ends in ` (with uncommitted changes)` when there are any, reads `none (not a Git checkout)` for a source folder with no commit, `none (Git is not installed)` when Git cannot be started, and `none` for a package installation, whose folder line reads `none (installed as a package)`. The help text is "Show the engine's version, installation folder and commit." |
+| D7 | Invalid settings: startup is left as it is. An invalid engine environment variable or component settings file stops `ian about`, as it stops every command, with one message on standard error and exit 2, and `--json` then produces no document. The cost, accepted: with invalid settings `ian about --json` produces no document, because changing that would change startup for every command. |

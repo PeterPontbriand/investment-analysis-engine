@@ -15,6 +15,8 @@ S1. Get a current installation.
 - No copy yet: follow [Installation, section 1](INSTALLATION.md#1-installation), which ends with making the `ian` command available, then [section 2](INSTALLATION.md#2-configuration) to configure it.
 - A copy already exists: follow [Updating an existing installation](INSTALLATION.md#updating-an-existing-installation), which first has you make the `ian` command available if it is not yet. It never changes your settings, your database or your logs.
 
+Then run `ian about`. Expect the installation folder to be the folder your terminal is in, and the commit line to show no uncommitted changes; if it shows `(with uncommitted changes)`, note that in the record.
+
 Also check two prerequisites:
 
 - Outbound access to Yahoo Finance and SEC EDGAR must be allowed. If a provider does not answer later, see [Installation, troubleshooting](INSTALLATION.md#4-troubleshooting).
@@ -78,7 +80,7 @@ A1. Confirm that the CLI starts and lists its commands:
 ian --help
 ```
 
-Expect every strategy command plus `evaluate`, `health`, `serve`, `refresh`, `watchlist` and `runs`. The `db` commands stay hidden from this list. Shell-setup options such as `--show-completion` and `--install-completion` must not appear; help must not emit shell scripts.
+Expect every strategy command plus `about`, `evaluate`, `health`, `serve`, `refresh`, `watchlist` and `runs`. The `db` commands stay hidden from this list. Shell-setup options such as `--show-completion` and `--install-completion` must not appear; help must not emit shell scripts.
 
 A2. Run the default Momentum analysis over a liquid U.S. equity:
 
@@ -279,7 +281,8 @@ Copy this block into your notes and fill it in. Mark each step `pass`, `fail` or
 ```text
 Smoke test record
 Date:
-Commit (git rev-parse --short HEAD):
+Engine version (ian about):
+Commit (ian about):
 Operating system:
 Python version (uv run python --version):
 yfinance version (providers[].library.version in: ian health --json):

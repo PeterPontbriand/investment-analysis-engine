@@ -1,0 +1,5 @@
+Usage: root about [OPTIONS]
+Show the engine's version, installation folder and commit.
+Options
+--json Write one JSON document to standard output instead of text
+--help Show this message and exit.
