@@ -13,6 +13,7 @@ from typing import Final
 
 from pydantic import BaseModel
 
+from investment_analysis_engine.reporting.documents.about import AboutDocument
 from investment_analysis_engine.reporting.documents.database import DatabaseMaintenanceReport
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.documents.health import ProviderHealthDocument
@@ -68,6 +69,7 @@ DOCUMENTS: Final = (
     JsonDocument("run-overview.schema.json", RunOverviewDocument, ()),
     JsonDocument("refresh-summary.schema.json", RefreshSummaryDocument, ("refresh",)),
     JsonDocument("provider-health.schema.json", ProviderHealthDocument, ("health",)),
+    JsonDocument("about.schema.json", AboutDocument, ("about",)),
 )
 """Every document this module lists, in the order the schemas are published."""
 
