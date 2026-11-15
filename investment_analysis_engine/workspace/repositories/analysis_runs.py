@@ -313,11 +313,11 @@ class SQLiteAnalysisRunRepository:
         return RefreshPage(summaries=summaries, has_more=len(rows) > query.limit)
 
     def get_refresh(self, refresh_id: UUID) -> StoredRefresh | None:
-        """Return one refresh's summary and every run it saved, from one read, or None when it has no stored run.
+        """Return one refresh's summary and all of its runs, from one read, or None when it has no stored run.
 
-        The summary is the one ``list_refreshes`` gives, and the runs are those of ``list_refresh_runs``, so the counts
-        and the runs always agree. An unknown ID and a refresh run with ``--no-save`` both return None; storage cannot
-        tell them apart.
+        The summary is the one ``list_refreshes`` gives, and the runs are all that refresh's runs in batch order, with
+        no row limit, so a refresh can hold more than the 100-row bound of ``list``. The counts and the runs always
+        agree. An unknown ID and a refresh run with ``--no-save`` both return None; storage cannot tell them apart.
         """
         with self._database.read() as connection:
             row = (
@@ -329,15 +329,6 @@ class SQLiteAnalysisRunRepository:
                 return None
             runs = self._refresh_runs(connection, refresh_id)
         return StoredRefresh(summary=_refresh_summary(row), runs=runs)
-
-    def list_refresh_runs(self, refresh_id: UUID) -> tuple[StoredRefreshRun, ...]:
-        """Return every run saved by one refresh, in batch order, with no row limit.
-
-        A refresh can hold more runs than the 100-row bound of ``list``, so this read is separate. An unknown ID
-        and a refresh run with ``--no-save`` both return an empty tuple; storage cannot tell them apart.
-        """
-        with self._database.read() as connection:
-            return self._refresh_runs(connection, refresh_id)
 
     @staticmethod
     def _refresh_runs(connection: Connection, refresh_id: UUID) -> tuple[StoredRefreshRun, ...]:

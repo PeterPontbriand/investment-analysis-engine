@@ -368,9 +368,11 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 
 - **Problem:** the stored envelope model `AnalysisRun` still names a run's outcome `status`, the one place left
   ([issue 264](https://github.com/PeterPontbriand/investment-analysis-engine/issues/264)).
-- **Decision:** to be taken before the slice starts: rename the field to `outcome`, raise `run_schema_version` from 3 to
-  4 with a migration that rewrites stored envelopes, and decide whether `native_status` is renamed with it.
-- **Scope:** `AnalysisRun` in `workspace/runs.py`, the codecs and a migration following 0005 and 0006; to be settled.
+- **Decision:** to be taken before the slice starts. Open: convert stored runs to the new version with a migration (which
+  changes the rule in `docs/user/WORKSPACE.md` that runs are never converted), or raise `run_schema_version` and leave
+  version 3 runs refused by version as that rule says; and whether `native_status` is renamed with it.
+- **Scope:** `AnalysisRun` in `workspace/runs.py`, the codecs, the test helper `refresh_run(status=...)` in
+  `tests/_refresh_runs.py`, and a migration only if conversion is chosen; to be settled.
 - **Branch:** to be named when the slice starts.
 - **Detail:** decisions to be taken before the slice starts.
 

@@ -272,10 +272,11 @@ def test_entries_are_refreshed_and_belong_to_no_watchlist(isolated_cli_settings:
     assert outcome.render_text().splitlines()[0] == f"Refresh {document.refresh_id}:"
     database = SQLiteDatabase(isolated_cli_settings)
     try:
-        stored = SQLiteAnalysisRunRepository(database).list_refresh_runs(document.refresh_id)
+        stored = SQLiteAnalysisRunRepository(database).get_refresh(document.refresh_id)
     finally:
         database.close()
-    runs = [item.envelope() for item in stored]
+    assert stored is not None
+    runs = [item.envelope() for item in stored.runs]
     assert [(run.batch_position, run.ticker) for run in runs] == [(0, "AAPL"), (1, "MSFT")]
     assert all(run.refresh_id == document.refresh_id for run in runs)
     assert all(run.watchlist_id is None and run.watchlist_name is None for run in runs)
@@ -294,8 +295,12 @@ def test_the_stored_runs_of_an_entries_refresh_match_those_of_a_watchlist_refres
     database = SQLiteDatabase(isolated_cli_settings)
     try:
         repository = SQLiteAnalysisRunRepository(database)
-        first = [item.envelope() for item in repository.list_refresh_runs(from_watchlist.document.refresh_id)]
-        second = [item.envelope() for item in repository.list_refresh_runs(from_entries.document.refresh_id)]
+        first_refresh = repository.get_refresh(from_watchlist.document.refresh_id)
+        second_refresh = repository.get_refresh(from_entries.document.refresh_id)
+        assert first_refresh is not None
+        assert second_refresh is not None
+        first = [item.envelope() for item in first_refresh.runs]
+        second = [item.envelope() for item in second_refresh.runs]
     finally:
         database.close()
 

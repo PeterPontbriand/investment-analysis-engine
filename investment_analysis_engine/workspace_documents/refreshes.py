@@ -10,6 +10,7 @@ from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
 from investment_analysis_engine.workspace.runs import RefreshSummary
 
+# The descriptions of the summary fields the refreshes list and the runs comparison both carry, defined once.
 WATCHLIST_ID_DESCRIPTION = (
     "The watchlist the refresh ran, as recorded when it ran; null for a refresh of a list of entries."
 )
@@ -19,7 +20,6 @@ WATCHLIST_NAME_DESCRIPTION = (
 FIRST_COMPLETED_DESCRIPTION = "When the refresh's earliest stored run completed."
 LAST_COMPLETED_DESCRIPTION = "When the refresh's latest stored run completed."
 RUN_COUNT_DESCRIPTION = "The number of stored runs; a stopped refresh stores fewer."
-"""The descriptions of the summary fields the refreshes list and the runs comparison both carry, defined once."""
 
 
 class RefreshOutcomeCountsDocument(BaseModel):
