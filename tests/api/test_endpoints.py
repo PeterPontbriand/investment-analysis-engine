@@ -227,6 +227,13 @@ def test_the_compare_endpoint_serves_the_refreshs_document(isolated_cli_settings
 
     assert response.status_code == 200
     assert response.json() == expected.model_dump(mode="json")
+    body = response.json()
+    assert body["schema_version"] == 7
+    assert (body["run_count"], body["outcome_counts"]) == (
+        1,
+        {"completed": 1, "unavailable": 0, "not_applicable": 0, "failed": 0},
+    )
+    assert body["first_completed_at"] == body["last_completed_at"]
     assert (unknown.status_code, unknown.json()["reason_code"]) == (404, "analysis_run_not_found")
 
 

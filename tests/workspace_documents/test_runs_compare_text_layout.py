@@ -7,6 +7,7 @@ from uuid import UUID
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.reporting.headline import CellKind, CellUnit
+from investment_analysis_engine.workspace_documents.refreshes import RefreshOutcomeCountsDocument
 from investment_analysis_engine.workspace_documents.runs_compare import (
     TEXT_WIDTH,
     CompareCellDocument,
@@ -21,6 +22,7 @@ from investment_analysis_engine.workspace_documents.runs_compare import (
 )
 
 _IDS = count(1)
+_COMPLETED = datetime(2026, 9, 19, 14, 2, 12, tzinfo=UTC)
 _REFRESH = UUID("00000000-0000-4000-8000-0000000000aa")
 _RUNS_HEADING = "Runs (open one with: ian runs show <run-id>)"
 _UNREADABLE_LEAD_IN = "Could not be read (stored under an older version, or for a strategy no longer declared):"
@@ -97,6 +99,10 @@ def _document(labels: Sequence[str], rows: dict[str, Sequence[CompareRunDocument
         refresh_id=_REFRESH,
         watchlist_id=None,
         watchlist_name=None,
+        first_completed_at=_COMPLETED,
+        last_completed_at=_COMPLETED,
+        run_count=1,
+        outcome_counts=RefreshOutcomeCountsDocument(completed=1, unavailable=0, not_applicable=0, failed=0),
         strategies=tuple(
             CompareStrategyDocument(
                 analysis_id=f"a{index}",

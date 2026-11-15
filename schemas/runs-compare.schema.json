@@ -409,6 +409,44 @@
       "title": "ReasonCode",
       "type": "string"
     },
+    "RefreshOutcomeCountsDocument": {
+      "additionalProperties": false,
+      "description": "How many of a refresh's stored runs ended in each outcome; one count for every outcome.",
+      "properties": {
+        "completed": {
+          "description": "Stored runs that ended completed.",
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "failed": {
+          "description": "Stored runs that ended failed.",
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "not_applicable": {
+          "description": "Stored runs that ended not applicable.",
+          "minimum": 0,
+          "title": "Not Applicable",
+          "type": "integer"
+        },
+        "unavailable": {
+          "description": "Stored runs that ended unavailable.",
+          "minimum": 0,
+          "title": "Unavailable",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "completed",
+        "unavailable",
+        "not_applicable",
+        "failed"
+      ],
+      "title": "RefreshOutcomeCountsDocument",
+      "type": "object"
+    },
     "RunOutcome": {
       "description": "Terminal outcome of a workspace analysis run.\n\nOnly terminal states exist; there is deliberately no in-progress value because\nthe envelope records an immutable completed attempt rather than live state.",
       "enum": [
@@ -424,6 +462,21 @@
   "additionalProperties": false,
   "description": "The whole ``runs compare --json`` output.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
   "properties": {
+    "first_completed_at": {
+      "description": "When the refresh's earliest stored run completed.",
+      "format": "date-time",
+      "title": "First Completed At",
+      "type": "string"
+    },
+    "last_completed_at": {
+      "description": "When the refresh's latest stored run completed.",
+      "format": "date-time",
+      "title": "Last Completed At",
+      "type": "string"
+    },
+    "outcome_counts": {
+      "$ref": "#/$defs/RefreshOutcomeCountsDocument"
+    },
     "refresh_id": {
       "format": "uuid",
       "title": "Refresh Id",
@@ -437,9 +490,15 @@
       "title": "Rows",
       "type": "array"
     },
+    "run_count": {
+      "description": "The number of stored runs; a stopped refresh stores fewer.",
+      "minimum": 1,
+      "title": "Run Count",
+      "type": "integer"
+    },
     "schema_version": {
-      "const": 6,
-      "default": 6,
+      "const": 7,
+      "default": 7,
       "title": "Schema Version",
       "type": "integer"
     },
@@ -461,7 +520,7 @@
           "type": "null"
         }
       ],
-      "description": "The watchlist the refresh ran; null if no readable run records it.",
+      "description": "The watchlist the refresh ran, as recorded when it ran; null for a refresh of a list of entries.",
       "title": "Watchlist Id"
     },
     "watchlist_name": {
@@ -473,7 +532,7 @@
           "type": "null"
         }
       ],
-      "description": "The watchlist's name when the refresh ran.",
+      "description": "The watchlist's name when the refresh ran, not its current name; null when watchlist_id is null.",
       "title": "Watchlist Name"
     }
   },
@@ -481,6 +540,10 @@
     "refresh_id",
     "watchlist_id",
     "watchlist_name",
+    "first_completed_at",
+    "last_completed_at",
+    "run_count",
+    "outcome_counts",
     "strategies",
     "rows"
   ],

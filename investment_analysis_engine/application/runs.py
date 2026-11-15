@@ -288,10 +288,10 @@ def compare_refresh_runs(context: ApplicationContext, refresh_id: UUID) -> RunsC
         InvalidStoredRunError: If a run's evidence is invalid.
     """
     with open_database(context) as database:
-        stored = SQLiteAnalysisRunRepository(database).list_refresh_runs(refresh_id)
-    if not stored:
+        stored = SQLiteAnalysisRunRepository(database).get_refresh(refresh_id)
+    if stored is None:
         raise AnalysisRunNotFoundError(no_runs_message(refresh_id))
-    return build_runs_compare(refresh_id, stored, _compare_columns())
+    return build_runs_compare(stored, _compare_columns())
 
 
 __all__ = [

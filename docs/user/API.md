@@ -140,7 +140,7 @@ The endpoints that read use `GET`; the actions are below.
 | `/v1/runs/{analysis_run_id}/overview` | none | the run overview document (see [Run overview](#run-overview)) |
 | `/v1/runs/{analysis_run_id}/text` | `mode` (required): `concise`, `details` or `diagnostics` | `schema_version`, `mode` and `text` |
 | `/v1/refreshes` | `watchlist_id`, `limit`, `offset` | the refreshes list document (see [Refreshes list](#refreshes-list)) |
-| `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document |
+| `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document (see [Runs comparison](#runs-comparison)) |
 | `/v1/strategies/{method_id}/selection` | none | `schema_version`, `schema` and `defaults` (see [Selection forms](#selection-forms)) |
 | `/v1/help` | none | the help index document (see [Help](#help)) |
 | `/v1/help/terms/{term_id}` | none | one glossary term |
@@ -192,6 +192,16 @@ for the current one. A refresh of a list of entries, and a refresh whose stored 
 including a deleted watchlist's, returns an empty list rather than 404, and a malformed one is `invalid_parameter`. A deleted
 watchlist's refreshes keep appearing, with their recorded name. The command line writes the same document with
 `ian runs refreshes --json`.
+
+### Runs comparison
+
+`GET /v1/refreshes/{refresh_id}/compare` gives one refresh's saved runs as a table, and the document says which refresh it is.
+Besides `schema_version` (7), `refresh_id`, `strategies` and `rows`, it carries the refresh's summary exactly as the
+refreshes list gives it: `watchlist_id`, `watchlist_name`, `first_completed_at`, `last_completed_at`, `run_count` and
+`outcome_counts`, with the same meaning (see [Refreshes list](#refreshes-list)). The summary and the rows are read together,
+so the counts always agree with the rows, and the watchlist is the one recorded when the refresh ran, whether or not any
+run's record can be read. A refresh with no saved run, an unknown ID and a refresh run with saving off are all 404
+`analysis_run_not_found`. `ian runs compare --json` writes the same document.
 
 ### Actions
 
