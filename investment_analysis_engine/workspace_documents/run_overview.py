@@ -74,7 +74,7 @@ def build_run_overview(record: StoredRun, column: CompareColumn | None) -> RunOv
     return RunOverviewDocument(
         analysis_run_id=record.analysis_run_id,
         ticker=record.ticker,
-        outcome=record.status,
+        outcome=record.outcome,
         completed_at=record.completed_at,
         refresh_id=record.refresh_id,
         requested_as_of=resolved.requested_as_of,

@@ -140,7 +140,7 @@ def build_run_query(  # noqa: PLR0913
     return RunQuery(
         ticker=None if ticker is None else normalize_ticker(ticker),
         method_id=method_id,
-        status=run_outcome,
+        outcome=run_outcome,
         refresh_id=refresh_batch,
         limit=limit,
         offset=offset,

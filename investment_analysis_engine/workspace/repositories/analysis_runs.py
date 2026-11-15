@@ -50,7 +50,7 @@ class StoredRefreshRun:
     ticker: str
     analysis_id: str
     method_id: str
-    status: RunOutcome
+    outcome: RunOutcome
     batch_position: int
     row: Mapping[str, Any] = field(repr=False, compare=False)
 
@@ -75,7 +75,7 @@ class StoredRun:
     ticker: str
     analysis_id: str
     method_id: str
-    status: RunOutcome
+    outcome: RunOutcome
     completed_at: datetime
     refresh_id: UUID | None
     row: Mapping[str, Any] = field(repr=False, compare=False)
@@ -183,7 +183,7 @@ class SQLiteAnalysisRunRepository:
             ticker=values["ticker"],
             analysis_id=values["analysis_id"],
             method_id=values["method_id"],
-            status=RunOutcome(values["outcome"]),
+            outcome=RunOutcome(values["outcome"]),
             completed_at=datetime.fromisoformat(values["completed_at"]),
             refresh_id=None if values["refresh_id"] is None else UUID(values["refresh_id"]),
             row=values,
@@ -205,8 +205,8 @@ class SQLiteAnalysisRunRepository:
             conditions.append(analysis_runs.c.ticker == query.ticker)
         if query.method_id is not None:
             conditions.append(analysis_runs.c.method_id == query.method_id)
-        if query.status is not None:
-            conditions.append(analysis_runs.c.outcome == query.status.value)
+        if query.outcome is not None:
+            conditions.append(analysis_runs.c.outcome == query.outcome.value)
         if query.refresh_id is not None:
             conditions.append(analysis_runs.c.refresh_id == str(query.refresh_id))
         statement = (
@@ -230,7 +230,7 @@ class SQLiteAnalysisRunRepository:
                 analysis_run_id=UUID(row["analysis_run_id"]),
                 ticker=row["ticker"],
                 method_id=row["method_id"],
-                status=RunOutcome(row["outcome"]),
+                outcome=RunOutcome(row["outcome"]),
                 completed_at=datetime.fromisoformat(row["completed_at"]),
                 refresh_id=None if row["refresh_id"] is None else UUID(row["refresh_id"]),
             )
@@ -313,7 +313,7 @@ class SQLiteAnalysisRunRepository:
                 ticker=row["ticker"],
                 analysis_id=row["analysis_id"],
                 method_id=row["method_id"],
-                status=RunOutcome(row["outcome"]),
+                outcome=RunOutcome(row["outcome"]),
                 batch_position=row["batch_position"],
                 row=row,
             )

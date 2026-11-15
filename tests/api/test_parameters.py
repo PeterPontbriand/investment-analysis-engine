@@ -188,6 +188,6 @@ def test_the_query_function_builds_a_normalized_query() -> None:
     )
     assert query.ticker == "BRK-B"
     assert query.method_id == STRATEGIES[0].method_id
-    assert query.status is RunOutcome.FAILED
+    assert query.outcome is RunOutcome.FAILED
     assert query.refresh_id == refresh_id
     assert (query.limit, query.offset) == (5, 2)

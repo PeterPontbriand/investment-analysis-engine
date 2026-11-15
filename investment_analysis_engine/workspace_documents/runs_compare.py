@@ -422,7 +422,7 @@ def build_runs_compare(
     documents = {
         run.analysis_run_id: CompareRunDocument(
             analysis_run_id=run.analysis_run_id,
-            outcome=run.status,
+            outcome=run.outcome,
             requested_as_of=resolved[run.analysis_run_id].requested_as_of,
             headline=resolved[run.analysis_run_id].headline,
             headline_unavailable=resolved[run.analysis_run_id].unavailable,
