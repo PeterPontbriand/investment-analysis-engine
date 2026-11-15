@@ -10,7 +10,7 @@ Installing the application currently involves **three main things**:
 
 You do **not** need a GPU or a local AI model to run direct deterministic analysis.
 
-The steps are intended to work the same way on Windows, macOS, and Linux, and efforts have been made to keep them so. Commands shown in `bash` blocks run in any of the terminals listed below; where a step differs by system, the guide says so.
+The steps are intended to work the same way on Windows, macOS, and Linux, and efforts have been made to keep them so. Unless the guide labels a command for particular terminals, the commands in `bash` blocks run in any of the terminals listed in [Choose an installation folder](#choose-an-installation-folder); where a step differs by system, the guide says so.
 
 If Git, Python virtual environments, and environment variables are already familiar to you, the [Quick Start](QUICKSTART.md) is much shorter.
 

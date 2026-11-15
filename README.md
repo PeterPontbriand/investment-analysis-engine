@@ -12,8 +12,6 @@ The [Analysis Strategy Guides](docs/user/strategies/README.md) describe availabl
 
 **Platforms:** Windows, macOS, and Linux. Efforts have been made to keep the engine usable on all three, and the automated test suite runs on each. The project is developed mainly on Windows, so platform-specific problems on macOS or Linux are possible; please report them.
 
-![Windows](https://img.shields.io/badge/Windows-supported-blue) ![macOS](https://img.shields.io/badge/macOS-supported-blue) ![Linux](https://img.shields.io/badge/Linux-supported-blue)
-
 > Investment Analysis Engine is research/educational software, not investment advice. See [Limitations & disclaimer](#limitations--disclaimer).
 
 ---
