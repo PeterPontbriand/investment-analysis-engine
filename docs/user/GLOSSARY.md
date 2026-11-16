@@ -984,19 +984,19 @@ calculation or a metric, a provider failure, a failure code and the reason behin
 means the same everywhere shares one entry.
 
 <a id="outcome-completed"></a>
-### Completed Run
+### Completed
 A run outcome meaning the strategy calculated its result from the inputs it was given.
 
 It is the outcome of a run whose calculation status is [ok](#status-ok). It says that a result exists, not that the result is favorable: a screen can complete and still report that a company failed it.
 
 <a id="outcome-unavailable"></a>
-### Unavailable Run
+### Unavailable
 A run outcome meaning the analysis could not be calculated because an input it needs was not available.
 
 It is the outcome of a run whose calculation status is [input unavailable](#status-input-unavailable). The run is saved so that it can be revisited; nothing is estimated or replaced by zero.
 
 <a id="outcome-failed"></a>
-### Failed Run
+### Failed
 A run outcome meaning the analysis stopped because an input was invalid or a data provider failed. No result was produced.
 
 It is the outcome of a run whose calculation status is [invalid input](#status-invalid-input) or [provider error](#status-provider-error). The run's failure code says which.
