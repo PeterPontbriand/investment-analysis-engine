@@ -125,7 +125,7 @@ def test_a_failed_quality_check_is_unavailable_with_a_text_reason_and_no_code() 
 def _stored(settings: ProjectSettings) -> list[RunOutcome]:
     database = SQLiteDatabase(settings)
     try:
-        return [item.status for item in SQLiteAnalysisRunRepository(database).list(RunQuery()).summaries]
+        return [item.outcome for item in SQLiteAnalysisRunRepository(database).list(RunQuery()).summaries]
     finally:
         database.close()
 

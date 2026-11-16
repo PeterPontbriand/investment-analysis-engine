@@ -60,6 +60,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.8 | [Structured units, run overview and command-free database messages](#api8--structured-units-run-overview-and-command-free-database-messages) | Complete | 2026-11-13 |
 | API.9 | [A date as-of is served as written](#api9--a-date-as-of-is-served-as-written) | Complete | 2026-11-14 |
 | API.10 | [Engine version, installation folder and commit](#api10--engine-version-installation-folder-and-commit) | Complete | 2026-11-14 |
+| API.11 | [The runs comparison carries its refresh's summary](#api11--the-runs-comparison-carries-its-refreshs-summary) | Complete | 2026-11-15 |
+| API.12 | [The stored run envelope's outcome](#api12--the-stored-run-envelopes-outcome) | Next | |
 
 ## 3. The slices
 
@@ -344,6 +346,36 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/ian-about`.
 - **Detail:** no separate slice plan; decisions in [A.8](#a8-engine-version-installation-folder-and-commit-2026-11-14).
 
+### API.11 — The runs comparison carries its refresh's summary
+
+- **Problem:** the refresh comparison screen has to say which refresh it shows, when it ran and how its runs ended, but
+  the comparison document carries no completion time and no outcome count, and its heading in `ian runs compare` has the
+  same gap; the refreshes list already carries both.
+- **Decision:** the comparison document gains `first_completed_at`, `last_completed_at`, `run_count` and `outcome_counts`,
+  named, typed and described as the refreshes list's item has them, and its `schema_version` goes from 6 to 7. Both
+  documents read one SQL summary, and the comparison's watchlist comes from it, so it shows even when no run's envelope can
+  be read. The `ian runs compare` heading names the last completion. A run's outcome is named `outcome` in the in-memory
+  run records too ([A.9](#a9-runs-comparison-carries-its-refreshs-summary-2026-11-15), C1 to C7).
+- **Scope:** `workspace_documents/runs_compare.py` and `refreshes.py`; the summary select and the single-refresh read in
+  `workspace/repositories/analysis_runs.py`; `compare_refresh_runs` in `application/runs.py`; the `status` to `outcome`
+  rename on `StoredRefreshRun`, `StoredRun`, `AnalysisRunSummary` and `RunQuery`; regenerated
+  `schemas/runs-compare.schema.json` and `schemas/openapi.json`; `docs/user/API.md` and `docs/user/WORKSPACE.md`; tests.
+  The refreshes list, the stored envelope and the database do not change.
+- **Branch:** `feat/api-compare-summary`.
+- **Detail:** no separate slice plan; decisions in [A.9](#a9-runs-comparison-carries-its-refreshs-summary-2026-11-15).
+
+### API.12 — The stored run envelope's outcome
+
+- **Problem:** the stored envelope model `AnalysisRun` still names a run's outcome `status`, the one place left
+  ([issue 264](https://github.com/PeterPontbriand/investment-analysis-engine/issues/264)).
+- **Decision:** to be taken before the slice starts. Open: convert stored runs to the new version with a migration (which
+  changes the rule in `docs/user/WORKSPACE.md` that runs are never converted), or raise `run_schema_version` and leave
+  version 3 runs refused by version as that rule says; and whether `native_status` is renamed with it.
+- **Scope:** `AnalysisRun` in `workspace/runs.py`, the codecs, the test helper `refresh_run(status=...)` in
+  `tests/_refresh_runs.py`, and a migration only if conversion is chosen; to be settled.
+- **Branch:** to be named when the slice starts.
+- **Detail:** decisions to be taken before the slice starts.
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -417,6 +449,13 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   wheel reports the version in `pyproject.toml` with a null installation folder, commit and `uncommitted_changes`;
   `/v1/info` and `openapi.json` are unchanged; `docs/user/USAGE.md`, `docs/user/INSTALLATION.md` and
   `docs/user/SMOKE_TESTING.md` describe it.
+- API.11: `GET /v1/refreshes/{refresh_id}/compare` and `ian runs compare --json` carry `first_completed_at`,
+  `last_completed_at`, `run_count` and `outcome_counts` (`schema_version` 7), and with the watchlist fields they equal the
+  refreshes list's item for the same refresh, for a watchlist refresh, a refresh of a list of entries and a refresh
+  stopped partway; the watchlist shows when no run's envelope can be read; the `ian runs compare` heading names the last
+  completion in the form `ian runs refreshes` prints, with no outcome counts; the refreshes list is unchanged and
+  byte-identical; the JSON Schemas, `openapi.json` and the term-reference test pass; no stored shape, migration or served
+  name other than these changes; `docs/user/API.md` and `docs/user/WORKSPACE.md` describe it.
 
 ## 6. Background
 
@@ -573,3 +612,18 @@ Approved by the project owner on 2026-11-14. No database migration, stored shape
 | D5 | JSON document: `AboutDocument` in `reporting/documents/about.py`, in the form of the health document: frozen, `extra="forbid"`, with `schema_version` 1, `engine_version`, `installation_folder` (the native path form), `commit` and `uncommitted_changes`. It is a report, not the failure envelope, and carries facts and no instructions. It is registered in `workspace_documents/json_documents.py` and published as `schemas/about.schema.json`. The version comes from `installed_engine_version()`, not from `pyproject.toml`. `/v1/info` and `openapi.json` do not change. |
 | D6 | Text output: three lines, `Investment Analysis Engine <version>`, `Installation folder: <folder>` and `Commit: <hash>`, where the commit line ends in ` (with uncommitted changes)` when there are any, reads `none (not a Git checkout)` for a source folder with no commit, `none (Git is not installed)` when Git cannot be started, and `none` for a package installation, whose folder line reads `none (installed as a package)`. The help text is "Show the engine's version, installation folder and commit." |
 | D7 | Invalid settings: startup is left as it is. An invalid engine environment variable or component settings file stops `ian about`, as it stops every command, with one message on standard error and exit 2, and `--json` then produces no document. The cost, accepted: with invalid settings `ian about --json` produces no document, because changing that would change startup for every command. |
+
+### A.9 Runs comparison carries its refresh's summary (2026-11-15)
+
+Approved by the project owner on 2026-11-15. No database migration, stored shape, formula or classification changes.
+
+| # | Decision |
+| :--- | :--- |
+| C1 | Shape: `RunsCompareDocument` gains four flat top-level fields, `first_completed_at`, `last_completed_at`, `run_count` and `outcome_counts`, the last typed as the existing `RefreshOutcomeCountsDocument`. Their names, types, constraints (`run_count` at least 1) and descriptions are those of `RefreshSummaryItemDocument`, and each description is defined once in `workspace_documents/refreshes.py` and used by both documents, so the two cannot drift. `refresh_id`, `watchlist_id`, `watchlist_name`, `strategies` and `rows` stay. Rejected: nesting the list item as a `summary` member, which repeats `refresh_id` and the watchlist fields. |
+| C2 | One source: the SQL grouping in `list_refreshes` becomes one summary select that both callers use. The list is unchanged (paging, the watchlist filter and the order), and a new repository read, `get_refresh`, returns one refresh's `RefreshSummary` together with its runs from the same database read, so the counts and the rows always agree. `compare_refresh_runs` uses it, and the comparison's `watchlist_id` and `watchlist_name` come from that summary (the indexed columns), not from decoded envelopes. The envelope-based derivation (`RunHeadline.watchlist` and the `watchlist = next(...)` line in `build_runs_compare`) is deleted. The comparison's watchlist field descriptions become the list item's, shared as in C1. The effect: the watchlist shows even when no run's envelope can be read. |
+| C3 | Version: under U2 ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13)) the comparison document's `schema_version` goes from 6 to 7. `schemas/runs-compare.schema.json` and `schemas/openapi.json` are regenerated. The refreshes-list document stays at version 1 with byte-identical output. |
+| C4 | `ian runs compare` heading: it adds the last completion time, in the ISO form `ian runs refreshes` prints, after the watchlist part, as in `Refresh 7c1a... · watchlist "Core" · completed 2026-09-19T14:02:12+00:00 · 3 tickers · 4 strategies`. For a refresh of a list of entries the watchlist part stays absent: `Refresh 7c1a... · completed 2026-09-19T14:02:12+00:00 · 3 tickers · 4 strategies`. The heading carries no outcome counts, and nothing else in the text output changes. |
+| C5 | A run's outcome is named `outcome` in the in-memory records. As amended (C5a): `status` becomes `outcome` on exactly four types, `StoredRefreshRun` and `StoredRun` in `workspace/repositories/analysis_runs.py` and `AnalysisRunSummary` and `RunQuery` in `workspace/runs.py`, with every reader and writer. The stored envelope model `AnalysisRun` keeps its `status` field, because it is written into `envelope_json` under `run_schema_version` 3; a comment on the field says so and names [issue 264](https://github.com/PeterPontbriand/investment-analysis-engine/issues/264), which API.12 resolves. No stored shape, migration, CLI option, served name or output changes. The first version of C5 renamed `AnalysisRun.status` too and was replaced, because that is a stored-shape change. |
+| C6 | Tests: the comparison's four new fields and its watchlist fields equal the refreshes-list item for the same refresh, for a watchlist refresh, a refresh of a list of entries and a refresh stopped partway; the watchlist shows when no run's envelope can be read; the heading in both forms of C4; the endpoint returns the new fields; the JSON Schema and OpenAPI drift checks and the API.6a term-reference test pass for the new fields, which the list item's fields already cover. |
+| C7 | Plan and docs: the API.11 row, its section 3 entry and acceptance line and this section; `docs/user/API.md` and `docs/user/WORKSPACE.md` (the compare heading and the document's fields and version). The API.12 row and entry record the issue for the stored envelope's `status`. No glossary change. |
+

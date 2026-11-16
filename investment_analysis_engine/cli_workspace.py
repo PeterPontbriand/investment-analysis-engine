@@ -531,7 +531,7 @@ def _refresh_summary_line(summary: RefreshSummary) -> str:
 def _run_summary_line(summary: AnalysisRunSummary) -> str:
     return (
         f"{summary.analysis_run_id}  {summary.ticker:<10} {alias_for_method_id(summary.method_id):<24} "
-        f"{summary.status.value:<14} {summary.completed_at.isoformat()}"
+        f"{summary.outcome.value:<14} {summary.completed_at.isoformat()}"
     )
 
 

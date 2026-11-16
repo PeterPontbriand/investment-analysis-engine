@@ -41,8 +41,17 @@ from investment_analysis_engine.workspace.codecs import (
     UnsupportedRunVersionError,
     decode_evidence,
 )
-from investment_analysis_engine.workspace.repositories.analysis_runs import StoredRefreshRun
+from investment_analysis_engine.workspace.repositories.analysis_runs import StoredRefresh, StoredRefreshRun
 from investment_analysis_engine.workspace.runs import AnalysisRun
+from investment_analysis_engine.workspace_documents.refreshes import (
+    FIRST_COMPLETED_DESCRIPTION,
+    LAST_COMPLETED_DESCRIPTION,
+    RUN_COUNT_DESCRIPTION,
+    WATCHLIST_ID_DESCRIPTION,
+    WATCHLIST_NAME_DESCRIPTION,
+    RefreshOutcomeCountsDocument,
+    outcome_counts_document,
+)
 
 type CellStatusValue = Literal[
     "ok", "unavailable", "not_applicable", "input_unavailable", "invalid_input", "provider_error"
@@ -203,10 +212,14 @@ class RunsCompareDocument(_Document):
     ``schema_version`` is this document's own lineage and is independent of every other document's.
     """
 
-    schema_version: Literal[6] = 6
+    schema_version: Literal[7] = 7
     refresh_id: UUID
-    watchlist_id: UUID | None = Field(description="The watchlist the refresh ran; null if no readable run records it.")
-    watchlist_name: str | None = Field(description="The watchlist's name when the refresh ran.")
+    watchlist_id: UUID | None = Field(description=WATCHLIST_ID_DESCRIPTION)
+    watchlist_name: str | None = Field(description=WATCHLIST_NAME_DESCRIPTION)
+    first_completed_at: DocumentTimestamp = Field(description=FIRST_COMPLETED_DESCRIPTION)
+    last_completed_at: DocumentTimestamp = Field(description=LAST_COMPLETED_DESCRIPTION)
+    run_count: int = Field(ge=1, description=RUN_COUNT_DESCRIPTION)
+    outcome_counts: RefreshOutcomeCountsDocument
     strategies: tuple[CompareStrategyDocument, ...] = Field(description="The columns, in order.")
     rows: tuple[CompareRowDocument, ...] = Field(description="The tickers, in watchlist order.")
 
@@ -246,14 +259,12 @@ class StoredRecord(Protocol):
 class RunHeadline:
     """A run's headline, or the reason it has none, with the facts only its decoded envelope gives.
 
-    Exactly one of ``headline`` and ``unavailable`` is set. ``requested_as_of`` and ``watchlist`` come from the
-    envelope, so they are ``None`` for a run the builder did not decode.
+    Exactly one of ``headline`` and ``unavailable`` is set. ``requested_as_of`` comes from the envelope.
     """
 
     headline: CompareHeadlineDocument | None
     unavailable: HeadlineUnavailable | None
     requested_as_of: datetime | None = None
-    watchlist: tuple[UUID, str] | None = None
 
 
 def _versions_supported(row: Mapping[str, Any], codec: EvidenceCodec) -> bool:
@@ -359,12 +370,9 @@ def resolve_headline(record: StoredRecord, column: CompareColumn | None) -> RunH
         raise InvalidStoredRunError(
             f"Analysis Run {record.analysis_run_id} could not be read: its stored evidence is invalid."
         ) from exc
-    watchlist = (
-        None if run.watchlist_id is None or run.watchlist_name is None else (run.watchlist_id, run.watchlist_name)
-    )
     if evidence is None:
-        return RunHeadline(None, "no_result_stored", run.requested_as_of, watchlist)
-    return RunHeadline(_headline_document(column.headline(evidence)), None, run.requested_as_of, watchlist)
+        return RunHeadline(None, "no_result_stored", run.requested_as_of)
+    return RunHeadline(_headline_document(column.headline(evidence)), None, run.requested_as_of)
 
 
 def strategy_document(analysis_id: str, method_id: str, column: CompareColumn | None) -> CompareStrategyDocument:
@@ -389,14 +397,14 @@ def _duplicates(runs: Sequence[StoredRefreshRun], columns: Mapping[tuple[str, st
     ]
 
 
-def build_runs_compare(
-    refresh_id: UUID, runs: Sequence[StoredRefreshRun], columns: Sequence[CompareColumn]
-) -> RunsCompareDocument:
-    """Build the table of one refresh from its stored runs, in batch order.
+def build_runs_compare(refresh: StoredRefresh, columns: Sequence[CompareColumn]) -> RunsCompareDocument:
+    """Build the table of one refresh from its summary and its stored runs, in batch order.
+
+    The summary comes from the same read as the runs, so its counts and the table's rows agree; its watchlist is the
+    one recorded when the refresh ran, whether or not any run's envelope can be read.
 
     Args:
-        refresh_id: The refresh the runs belong to.
-        runs: The refresh's stored runs, in batch order.
+        refresh: The refresh's summary and its stored runs, in batch order.
         columns: The declared strategies in column order.
 
     Raises:
@@ -404,6 +412,8 @@ def build_runs_compare(
         DuplicateRefreshRunsError: If a ticker has more than one run of a strategy.
         InvalidStoredRunError: If a run's envelope or evidence is invalid.
     """
+    refresh_id = refresh.summary.refresh_id
+    runs = refresh.runs
     if not runs:
         raise ValueError(no_runs_message(refresh_id))
     declared = {(column.analysis_id, column.method_id): column for column in columns}
@@ -422,7 +432,7 @@ def build_runs_compare(
     documents = {
         run.analysis_run_id: CompareRunDocument(
             analysis_run_id=run.analysis_run_id,
-            outcome=run.status,
+            outcome=run.outcome,
             requested_as_of=resolved[run.analysis_run_id].requested_as_of,
             headline=resolved[run.analysis_run_id].headline,
             headline_unavailable=resolved[run.analysis_run_id].unavailable,
@@ -441,11 +451,15 @@ def build_runs_compare(
                 entries=tuple(CompareEntryDocument(method_id=key[1], run=mine.get(key)) for key in ordered),
             )
         )
-    watchlist = next((item.watchlist for item in resolved.values() if item.watchlist is not None), None)
+    summary = refresh.summary
     return RunsCompareDocument(
         refresh_id=refresh_id,
-        watchlist_id=None if watchlist is None else watchlist[0],
-        watchlist_name=None if watchlist is None else watchlist[1],
+        watchlist_id=summary.watchlist_id,
+        watchlist_name=summary.watchlist_name,
+        first_completed_at=summary.first_completed_at,
+        last_completed_at=summary.last_completed_at,
+        run_count=summary.run_count,
+        outcome_counts=outcome_counts_document(summary),
         strategies=tuple(strategy_document(key[0], key[1], declared.get(key)) for key in ordered),
         rows=tuple(rows),
     )
@@ -627,6 +641,7 @@ def render_runs_compare_text(document: RunsCompareDocument) -> str:
     title = f"Refresh {document.refresh_id}"
     if document.watchlist_name is not None:
         title += f' · watchlist "{document.watchlist_name}"'
+    title += f" · completed {document.last_completed_at.isoformat()}"
     tickers = _count(len(document.rows), "ticker", "tickers")
     strategies = _count(len(document.strategies), "strategy", "strategies")
     title += f" · {tickers} · {strategies}"

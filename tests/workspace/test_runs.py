@@ -244,7 +244,7 @@ def test_summaries_construct() -> None:
         analysis_run_id=RUN_ID,
         ticker="KO",
         method_id="graham_number",
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         completed_at=COMPLETED_AT,
         refresh_id=REFRESH_ID,
     )

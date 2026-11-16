@@ -45,7 +45,7 @@ def build_runs_list_document(summaries: Sequence[AnalysisRunSummary], *, has_mor
                 analysis_run_id=item.analysis_run_id,
                 ticker=item.ticker,
                 method_id=item.method_id,
-                outcome=item.status,
+                outcome=item.outcome,
                 completed_at=item.completed_at,
                 refresh_id=item.refresh_id,
             )

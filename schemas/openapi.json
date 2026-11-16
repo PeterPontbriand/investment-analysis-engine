@@ -6000,6 +6000,21 @@
         "additionalProperties": false,
         "description": "The whole ``runs compare --json`` output.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
         "properties": {
+          "first_completed_at": {
+            "description": "When the refresh's earliest stored run completed.",
+            "format": "date-time",
+            "title": "First Completed At",
+            "type": "string"
+          },
+          "last_completed_at": {
+            "description": "When the refresh's latest stored run completed.",
+            "format": "date-time",
+            "title": "Last Completed At",
+            "type": "string"
+          },
+          "outcome_counts": {
+            "$ref": "#/components/schemas/RefreshOutcomeCountsDocument"
+          },
           "refresh_id": {
             "format": "uuid",
             "title": "Refresh Id",
@@ -6013,9 +6028,15 @@
             "title": "Rows",
             "type": "array"
           },
+          "run_count": {
+            "description": "The number of stored runs; a stopped refresh stores fewer.",
+            "minimum": 1,
+            "title": "Run Count",
+            "type": "integer"
+          },
           "schema_version": {
-            "const": 6,
-            "default": 6,
+            "const": 7,
+            "default": 7,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -6037,7 +6058,7 @@
                 "type": "null"
               }
             ],
-            "description": "The watchlist the refresh ran; null if no readable run records it.",
+            "description": "The watchlist the refresh ran, as recorded when it ran; null for a refresh of a list of entries.",
             "title": "Watchlist Id"
           },
           "watchlist_name": {
@@ -6049,7 +6070,7 @@
                 "type": "null"
               }
             ],
-            "description": "The watchlist's name when the refresh ran.",
+            "description": "The watchlist's name when the refresh ran, not its current name; null when watchlist_id is null.",
             "title": "Watchlist Name"
           }
         },
@@ -6057,6 +6078,10 @@
           "refresh_id",
           "watchlist_id",
           "watchlist_name",
+          "first_completed_at",
+          "last_completed_at",
+          "run_count",
+          "outcome_counts",
           "strategies",
           "rows"
         ],

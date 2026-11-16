@@ -179,7 +179,7 @@ def test_list_orders_by_completion_desc_then_id_desc_and_filters_combine_with_an
     by_ticker_and_method = repository.list(RunQuery(ticker="KO", method_id="graham_number")).summaries
     assert [s.analysis_run_id for s in by_ticker_and_method] == [high_id]
 
-    by_outcome = repository.list(RunQuery(status=RunOutcome.COMPLETED)).summaries
+    by_outcome = repository.list(RunQuery(outcome=RunOutcome.COMPLETED)).summaries
     assert len(by_outcome) == 3
 
     assert repository.list(RunQuery(refresh_id=UUID("11111111-1111-4111-8111-111111111111"))).summaries == ()

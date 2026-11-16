@@ -78,6 +78,7 @@ class AnalysisRun(_FrozenModel):
     projection_version: Literal[1] = 1
 
     # Outcome
+    # Stored name; renamed to outcome with a run_schema_version change (issue #264).
     status: RunOutcome
     native_status: CalculationStatus | None = None
     native_reason: str | None = None
@@ -151,7 +152,7 @@ class AnalysisRunSummary(_FrozenModel):
     analysis_run_id: UUID
     ticker: str
     method_id: str
-    status: RunOutcome
+    outcome: RunOutcome
     completed_at: AwareDatetime
     refresh_id: UUID | None = None
 
@@ -166,7 +167,7 @@ class RunQuery(_FrozenModel):
 
     ticker: str | None = None
     method_id: str | None = None
-    status: RunOutcome | None = None
+    outcome: RunOutcome | None = None
     refresh_id: UUID | None = None
     limit: int = Field(default=20, ge=RUN_QUERY_MIN_LIMIT, le=RUN_QUERY_MAX_LIMIT)
     offset: int = Field(default=0, ge=0)

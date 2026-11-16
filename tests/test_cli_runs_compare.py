@@ -56,11 +56,12 @@ def test_the_table_of_a_stored_refresh_equals_the_reviewed_layout(isolated_cli_s
     ids = run_ids(isolated_cli_settings, refresh_id)
     momentum, number, growth, fcf = "sma_crossover", "graham_number", "graham_growth_value", "reported_fcf_eps_cagr"
 
+    completed = _document(refresh_id).last_completed_at.isoformat()
     code, out, err = _compare(refresh_id)
 
     assert (code, err) == (0, "")
     assert out.splitlines() == [
-        f'Refresh {refresh_id} · watchlist "Core" · 3 tickers · 4 strategies',
+        f'Refresh {refresh_id} · watchlist "Core" · completed {completed} · 3 tickers · 4 strategies',
         "",
         "         Momentum                      Graham Number                       Graham Growth",
         "Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome",
@@ -109,7 +110,7 @@ def test_the_json_document_validates_and_carries_the_same_content_as_the_text(
     assert list(json.loads(out))[0] == "schema_version"
     document = RunsCompareDocument.model_validate_json(out)
 
-    assert document.schema_version == 6
+    assert document.schema_version == 7
     assert (document.refresh_id, document.watchlist_name) == (refresh_id, "Core")
     assert [item.alias for item in document.strategies] == ["momentum", "graham-number", "graham-growth", "fcf-growth"]
     assert [row.ticker for row in document.rows] == ["SYNTH", "MISSING", "ERROR"]

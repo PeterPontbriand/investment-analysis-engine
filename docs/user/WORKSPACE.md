@@ -345,7 +345,7 @@ ian runs compare 7c1a... --json
 ```
 
 ```text
-Refresh 7c1a... · watchlist "Core" · 3 tickers · 4 strategies
+Refresh 7c1a... · watchlist "Core" · completed 2026-09-19T14:02:12+00:00 · 3 tickers · 4 strategies
 
          Momentum                      Graham Number                       Graham Growth
 Ticker   Trend     RSI    Outcome      Max price      Margin  Outcome      Value          Margin  Outcome
@@ -399,6 +399,6 @@ A refresh ID the command cannot find is reported as `analysis_run_not_found` (ex
 
 A run saved by an older version of the application, or for a strategy this version no longer declares, still has its row. Its outcome is read from the stored record, its cells read `—`, and a line under the table lists its ID; `--json` states why its headline is missing. `runs show` refuses such a run with `unsupported_run_version`. Runs are never converted: a new version of a stored shape leaves older runs in the database, and they are refused by version rather than misread. A run whose stored evidence is invalid refuses the whole table, as it refuses `runs show`, with `invalid_stored_run` and the run's ID.
 
-`runs compare --json` prints one document, described by `schemas/runs-compare.schema.json`, whose first key is `schema_version` (5). A number cell states its `unit` (`percent`, `points`, `multiple` or `per_share`) and, for a per-share amount, its `currency`, which is null when none was recorded; version 4 wrote the unit as text such as `USD per share`.
+`runs compare --json` prints one document, described by `schemas/runs-compare.schema.json`, whose first key is `schema_version` (7). Besides the table it states which refresh it is, as `ian runs refreshes --json` does for one refresh: `watchlist_id`, `watchlist_name`, `first_completed_at`, `last_completed_at`, `run_count` and `outcome_counts`; the text heading shows the watchlist, when there is one, and the last completion. A number cell states its `unit` (`percent`, `points`, `multiple` or `per_share`) and, for a per-share amount, its `currency`, which is null when none was recorded; version 4 wrote the unit as text such as `USD per share`.
 
 `runs show` exits `0` even for a saved run whose own financial outcome was unavailable or failed — you asked to *see* a record, and it exists; the record's own outcome tells you what happened when it ran.

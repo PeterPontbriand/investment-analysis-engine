@@ -329,7 +329,7 @@ def test_graham_number_save_run_persists_a_not_applicable_etf_outcome(
 
     saved = _repository(isolated_save_run_database).list(RunQuery(ticker="FLSW")).summaries
     assert len(saved) == 1
-    assert saved[0].status is RunOutcome.NOT_APPLICABLE
+    assert saved[0].outcome is RunOutcome.NOT_APPLICABLE
 
 
 def test_graham_number_no_cache_plus_save_run_still_saves(isolated_save_run_database: ProjectSettings) -> None:

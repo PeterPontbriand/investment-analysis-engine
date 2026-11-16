@@ -17,7 +17,7 @@ from typing import Any, ClassVar, cast
 from uuid import UUID
 
 from pydantic import TypeAdapter
-from sqlalchemy import and_, case, func, select, true
+from sqlalchemy import Connection, RowMapping, Select, and_, case, func, select, true
 from sqlalchemy.exc import IntegrityError
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
@@ -50,7 +50,7 @@ class StoredRefreshRun:
     ticker: str
     analysis_id: str
     method_id: str
-    status: RunOutcome
+    outcome: RunOutcome
     batch_position: int
     row: Mapping[str, Any] = field(repr=False, compare=False)
 
@@ -75,7 +75,7 @@ class StoredRun:
     ticker: str
     analysis_id: str
     method_id: str
-    status: RunOutcome
+    outcome: RunOutcome
     completed_at: datetime
     refresh_id: UUID | None
     row: Mapping[str, Any] = field(repr=False, compare=False)
@@ -87,6 +87,52 @@ class StoredRun:
             ValueError: If the stored envelope is malformed or disagrees with its own indexed columns.
         """
         return SQLiteAnalysisRunRepository.decode_row(self.row)
+
+
+@dataclass(frozen=True)
+class StoredRefresh:
+    """One refresh as stored: its summary and the runs it saved, read together so the counts and the runs agree."""
+
+    summary: RefreshSummary
+    runs: tuple[StoredRefreshRun, ...]
+
+
+def _refresh_summary_select() -> Select[Any]:
+    """Return the grouped select that summarizes each refresh from its indexed columns, with no order or paging.
+
+    The one source of a refresh's summary: the refreshes list adds its order, paging and watchlist filter, and the
+    single-refresh read adds the refresh ID.
+    """
+    counts = [
+        func.coalesce(func.sum(case((analysis_runs.c.outcome == outcome.value, 1), else_=0)), 0).label(outcome.value)
+        for outcome in RunOutcome
+    ]
+    return (
+        select(
+            analysis_runs.c.refresh_id,
+            func.max(analysis_runs.c.watchlist_id).label("watchlist_id"),
+            func.max(analysis_runs.c.watchlist_name).label("watchlist_name"),
+            func.min(analysis_runs.c.completed_at).label("first_completed_at"),
+            func.max(analysis_runs.c.completed_at).label("last_completed_at"),
+            func.count().label("run_count"),
+            *counts,
+        )
+        .where(analysis_runs.c.refresh_id.is_not(None))
+        .group_by(analysis_runs.c.refresh_id)
+    )
+
+
+def _refresh_summary(row: RowMapping) -> RefreshSummary:
+    """Decode one row of the summary select."""
+    return RefreshSummary(
+        refresh_id=UUID(row["refresh_id"]),
+        watchlist_id=None if row["watchlist_id"] is None else UUID(row["watchlist_id"]),
+        watchlist_name=row["watchlist_name"],
+        first_completed_at=datetime.fromisoformat(row["first_completed_at"]),
+        last_completed_at=datetime.fromisoformat(row["last_completed_at"]),
+        run_count=row["run_count"],
+        outcome_counts={outcome: row[outcome.value] for outcome in RunOutcome},
+    )
 
 
 class AnalysisRunConflictError(ValueError):
@@ -183,7 +229,7 @@ class SQLiteAnalysisRunRepository:
             ticker=values["ticker"],
             analysis_id=values["analysis_id"],
             method_id=values["method_id"],
-            status=RunOutcome(values["outcome"]),
+            outcome=RunOutcome(values["outcome"]),
             completed_at=datetime.fromisoformat(values["completed_at"]),
             refresh_id=None if values["refresh_id"] is None else UUID(values["refresh_id"]),
             row=values,
@@ -205,8 +251,8 @@ class SQLiteAnalysisRunRepository:
             conditions.append(analysis_runs.c.ticker == query.ticker)
         if query.method_id is not None:
             conditions.append(analysis_runs.c.method_id == query.method_id)
-        if query.status is not None:
-            conditions.append(analysis_runs.c.outcome == query.status.value)
+        if query.outcome is not None:
+            conditions.append(analysis_runs.c.outcome == query.outcome.value)
         if query.refresh_id is not None:
             conditions.append(analysis_runs.c.refresh_id == str(query.refresh_id))
         statement = (
@@ -230,7 +276,7 @@ class SQLiteAnalysisRunRepository:
                 analysis_run_id=UUID(row["analysis_run_id"]),
                 ticker=row["ticker"],
                 method_id=row["method_id"],
-                status=RunOutcome(row["outcome"]),
+                outcome=RunOutcome(row["outcome"]),
                 completed_at=datetime.fromisoformat(row["completed_at"]),
                 refresh_id=None if row["refresh_id"] is None else UUID(row["refresh_id"]),
             )
@@ -248,26 +294,9 @@ class SQLiteAnalysisRunRepository:
         page. The filter selects refreshes by the watchlist index, then every stored run of a selected refresh is
         counted, including one whose own watchlist columns are empty. Counts are of stored runs only.
         """
-        counts = [
-            func.coalesce(func.sum(case((analysis_runs.c.outcome == outcome.value, 1), else_=0)), 0).label(
-                outcome.value
-            )
-            for outcome in RunOutcome
-        ]
-        last_completed = func.max(analysis_runs.c.completed_at)
         statement = (
-            select(
-                analysis_runs.c.refresh_id,
-                func.max(analysis_runs.c.watchlist_id).label("watchlist_id"),
-                func.max(analysis_runs.c.watchlist_name).label("watchlist_name"),
-                func.min(analysis_runs.c.completed_at).label("first_completed_at"),
-                last_completed.label("last_completed_at"),
-                func.count().label("run_count"),
-                *counts,
-            )
-            .where(analysis_runs.c.refresh_id.is_not(None))
-            .group_by(analysis_runs.c.refresh_id)
-            .order_by(last_completed.desc(), analysis_runs.c.refresh_id.desc())
+            _refresh_summary_select()
+            .order_by(func.max(analysis_runs.c.completed_at).desc(), analysis_runs.c.refresh_id.desc())
             .limit(query.limit + 1)
             .offset(query.offset)
         )
@@ -280,40 +309,43 @@ class SQLiteAnalysisRunRepository:
             )
         with self._database.read() as connection:
             rows = connection.execute(statement).mappings().all()
-        summaries = tuple(
-            RefreshSummary(
-                refresh_id=UUID(row["refresh_id"]),
-                watchlist_id=None if row["watchlist_id"] is None else UUID(row["watchlist_id"]),
-                watchlist_name=row["watchlist_name"],
-                first_completed_at=datetime.fromisoformat(row["first_completed_at"]),
-                last_completed_at=datetime.fromisoformat(row["last_completed_at"]),
-                run_count=row["run_count"],
-                outcome_counts={outcome: row[outcome.value] for outcome in RunOutcome},
-            )
-            for row in rows[: query.limit]
-        )
+        summaries = tuple(_refresh_summary(row) for row in rows[: query.limit])
         return RefreshPage(summaries=summaries, has_more=len(rows) > query.limit)
 
-    def list_refresh_runs(self, refresh_id: UUID) -> tuple[StoredRefreshRun, ...]:
-        """Return every run saved by one refresh, in batch order, with no row limit.
+    def get_refresh(self, refresh_id: UUID) -> StoredRefresh | None:
+        """Return one refresh's summary and all of its runs, from one read, or None when it has no stored run.
 
-        A refresh can hold more runs than the 100-row bound of ``list``, so this read is separate. An unknown ID
-        and a refresh run with ``--no-save`` both return an empty tuple; storage cannot tell them apart.
+        The summary is the one ``list_refreshes`` gives, and the runs are all that refresh's runs in batch order, with
+        no row limit, so a refresh can hold more than the 100-row bound of ``list``. The counts and the runs always
+        agree. An unknown ID and a refresh run with ``--no-save`` both return None; storage cannot tell them apart.
         """
+        with self._database.read() as connection:
+            row = (
+                connection.execute(_refresh_summary_select().where(analysis_runs.c.refresh_id == str(refresh_id)))
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                return None
+            runs = self._refresh_runs(connection, refresh_id)
+        return StoredRefresh(summary=_refresh_summary(row), runs=runs)
+
+    @staticmethod
+    def _refresh_runs(connection: Connection, refresh_id: UUID) -> tuple[StoredRefreshRun, ...]:
+        """Read one refresh's runs in batch order on an open connection."""
         statement = (
             select(analysis_runs)
             .where(analysis_runs.c.refresh_id == str(refresh_id))
             .order_by(analysis_runs.c.batch_position.asc(), analysis_runs.c.analysis_run_id.asc())
         )
-        with self._database.read() as connection:
-            rows = [dict(row) for row in connection.execute(statement).mappings().all()]
+        rows = [dict(row) for row in connection.execute(statement).mappings().all()]
         return tuple(
             StoredRefreshRun(
                 analysis_run_id=UUID(row["analysis_run_id"]),
                 ticker=row["ticker"],
                 analysis_id=row["analysis_id"],
                 method_id=row["method_id"],
-                status=RunOutcome(row["outcome"]),
+                outcome=RunOutcome(row["outcome"]),
                 batch_position=row["batch_position"],
                 row=row,
             )
@@ -337,6 +369,7 @@ class SQLiteAnalysisRunRepository:
 __all__ = [
     "AnalysisRunConflictError",
     "SQLiteAnalysisRunRepository",
+    "StoredRefresh",
     "StoredRefreshRun",
     "StoredRun",
 ]

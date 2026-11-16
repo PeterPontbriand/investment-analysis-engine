@@ -31,6 +31,7 @@ from investment_analysis_engine.strategies.piotroski.presenter import (
 from investment_analysis_engine.strategies.piotroski.replay import headline_piotroski, project_piotroski
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
 from investment_analysis_engine.strategies.piotroski.vocabulary import CheckOutcome
+from investment_analysis_engine.workspace_documents.refreshes import RefreshOutcomeCountsDocument
 from investment_analysis_engine.workspace_documents.runs_compare import (
     CompareEntryDocument,
     CompareRowDocument,
@@ -287,6 +288,7 @@ def test_the_headline_has_a_score_cell_a_completeness_cell_the_year_end_and_the_
 
 
 _IDS = count(1)
+_COMPLETED = datetime(2026, 9, 19, 14, 2, 12, tzinfo=UTC)
 
 
 def _compare_run(result: PiotroskiResult) -> CompareRunDocument:
@@ -305,6 +307,10 @@ def test_the_side_by_side_table_shows_the_score_and_completeness_cells() -> None
         refresh_id=UUID(int=999),
         watchlist_id=None,
         watchlist_name=None,
+        first_completed_at=_COMPLETED,
+        last_completed_at=_COMPLETED,
+        run_count=1,
+        outcome_counts=RefreshOutcomeCountsDocument(completed=1, unavailable=0, not_applicable=0, failed=0),
         strategies=(
             CompareStrategyDocument(
                 analysis_id="piotroski",
