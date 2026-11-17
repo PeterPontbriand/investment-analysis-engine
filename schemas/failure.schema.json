@@ -130,13 +130,19 @@
           "description": "The stable identifier of the rule, such as momentum.window_order.",
           "title": "Rule",
           "type": "string"
+        },
+        "template": {
+          "description": "The message with each parameter written as a placeholder spelled as in parameters, such as {--short-window}, and each value as a placeholder named as in arguments, such as {short_window_value}; replacing every placeholder with its text gives message. Parameters and arguments share one placeholder namespace, so a name is never both, and a template never contains a literal brace. A client replaces a parameter's placeholder with its own label for that parameter.",
+          "title": "Template",
+          "type": "string"
         }
       },
       "required": [
         "rule",
         "parameters",
         "arguments",
-        "message"
+        "message",
+        "template"
       ],
       "title": "FailureRuleError",
       "type": "object"
@@ -248,6 +254,39 @@
       ],
       "title": "ProviderFailureKind",
       "type": "string"
+    },
+    "UnreadableEntryDocument": {
+      "additionalProperties": false,
+      "description": "The first entry of a watchlist that this version cannot read, and why.",
+      "properties": {
+        "entry_number": {
+          "description": "The 1-based position of the entry.",
+          "title": "Entry Number",
+          "type": "integer"
+        },
+        "method_id": {
+          "description": "The method identifier as stored; this version may no longer declare it.",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "reason": {
+          "description": "The state of the entry, in words for a person. It names no command.",
+          "title": "Reason",
+          "type": "string"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entry_number",
+        "ticker",
+        "method_id",
+        "reason"
+      ],
+      "title": "UnreadableEntryDocument",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -373,8 +412,8 @@
       "type": "null"
     },
     "schema_version": {
-      "const": 13,
-      "default": 13,
+      "const": 14,
+      "default": 14,
       "title": "Schema Version",
       "type": "integer"
     },
@@ -393,6 +432,18 @@
       "default": null,
       "description": "The requested ticker of a direct command; null for any other command and for an API response.",
       "title": "Ticker"
+    },
+    "unreadable": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/UnreadableEntryDocument"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set exactly when reason_code is stored_selection_unreadable and the failure names the entry it concerns: that entry's position, ticker and stored method, and why this version cannot read it; null otherwise."
     }
   },
   "required": [

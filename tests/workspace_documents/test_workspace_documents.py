@@ -16,6 +16,7 @@ from investment_analysis_engine.application.provider_check import ProviderCheckF
 from investment_analysis_engine.application.refresh import build_refresh_document
 from investment_analysis_engine.cli_support import document_json, watchlist_json
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.reporting.documents.shared_parts import UnreadableEntryDocument
 from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf, DocumentTimestamp
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
@@ -28,7 +29,6 @@ from investment_analysis_engine.workspace.watchlists import StoredSelectionError
 from investment_analysis_engine.workspace_documents.refresh import RefreshResultDocument, RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument, RunSummaryDocument
 from investment_analysis_engine.workspace_documents.watchlist import (
-    UnreadableEntryDocument,
     WatchlistDeleteDocument,
     WatchlistDocument,
     WatchlistRemovalDocument,

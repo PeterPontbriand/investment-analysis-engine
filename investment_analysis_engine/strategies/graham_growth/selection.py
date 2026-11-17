@@ -30,28 +30,35 @@ class GrahamGrowthSelection(FrozenSelection):
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     eps_basis: GrahamGrowthSelectionEPSBasis = Field(
+        title="EPS basis",
         default="three_year_average",
         description="Which earnings figure to use: the three-year average, or one completed fiscal year.",
         json_schema_extra={"x-term": "eps-basis"},
     )
     eps_override: StrictFloat | None = Field(
+        title="Earnings per share override",
         default=None,
         description="Earnings per share to use instead of the reported figure; leave empty to use it.",
         json_schema_extra={"x-term": "override"},
     )
     quote_override: StrictFloat | None = Field(
+        title="Share price override",
         default=None,
         description="Share price to use instead of the current quote; leave empty to use the quote.",
         json_schema_extra={"x-term": "override"},
     )
     expected_growth: StrictFloat = Field(
+        title="Expected growth rate",
         description="Expected annual earnings growth, in percentage points.",
         json_schema_extra={"x-term": "expected-growth-rate"},
     )
     aaa_yield_override: StrictFloat = Field(
-        description="Current AAA corporate-bond yield, in percentage points.", json_schema_extra={"x-term": "override"}
+        title="AAA corporate bond yield",
+        description="Current AAA corporate-bond yield, in percentage points.",
+        json_schema_extra={"x-term": "override"},
     )
     as_of: AwareDatetime | None = Field(
+        title="As of",
         default=None,
         description=(
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
@@ -60,6 +67,7 @@ class GrahamGrowthSelection(FrozenSelection):
         json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
+        title="Use cached data",
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",

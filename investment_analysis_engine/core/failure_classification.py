@@ -106,6 +106,37 @@ def violations_of_exception(exception: BaseException) -> tuple[RuleViolation, ..
     return None
 
 
+@dataclass(frozen=True)
+class UnreadableEntryFacts:
+    """The entry a stored-selection failure names.
+
+    Attributes:
+        entry_number: The 1-based position of the entry.
+        ticker: The entry's ticker.
+        method_id: The method identifier as stored.
+        reason: The failure's message, which says why this version cannot read the entry.
+    """
+
+    entry_number: int
+    ticker: str
+    method_id: str
+    reason: str
+
+
+def unreadable_entry_of_exception(exception: BaseException) -> UnreadableEntryFacts | None:
+    """Return the entry an exception names as unreadable, or ``None`` when it names none.
+
+    Like :func:`parameters_of_exception`, the function names no exception type: an exception that carries an entry
+    number, a ticker and a stored method identifier reports them, with its message as the reason.
+    """
+    entry_number = getattr(exception, "entry_number", None)
+    ticker = getattr(exception, "ticker", None)
+    method_id = getattr(exception, "method_id", None)
+    if not (isinstance(entry_number, int) and isinstance(ticker, str) and isinstance(method_id, str)):
+        return None
+    return UnreadableEntryFacts(entry_number, ticker, method_id, str(exception))
+
+
 def failure_reason_code(
     native_status: CalculationStatus, provider_failure: ProviderFailure | None
 ) -> FailureReasonCode:

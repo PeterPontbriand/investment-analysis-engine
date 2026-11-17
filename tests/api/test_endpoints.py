@@ -17,9 +17,10 @@ from investment_analysis_engine.application.runs import compare_refresh_runs, re
 from investment_analysis_engine.application.watchlists import get_watchlist_by_name, watchlist_repository
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.data.provider_checks import PROVIDER_CHECKS
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.help.locales import LOCALES
-from investment_analysis_engine.reporting.presentation import PresentationMode
+from investment_analysis_engine.reporting.presentation import PROVIDER_DISPLAY_NAMES, PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
@@ -55,11 +56,14 @@ def test_info_names_the_served_versions_and_never_the_sec_identity(isolated_cli_
 
     assert response.status_code == 200
     assert response.json() == {
-        "schema_version": 2,
+        "schema_version": 3,
         "api_versions": list(API_VERSIONS),
         "engine_version": version("investment-analysis-engine"),
         "sec_identity_configured": True,
         "locales": [{"tag": item.tag, "name": item.name} for item in LOCALES],
+        "providers": [
+            {"id": entry.provider_id, "name": PROVIDER_DISPLAY_NAMES[entry.provider_id]} for entry in PROVIDER_CHECKS
+        ],
     }
     assert "someone@example.com" not in response.text
     assert absent.json()["sec_identity_configured"] is False
@@ -69,6 +73,7 @@ def test_info_names_the_served_versions_and_never_the_sec_identity(isolated_cli_
         "engine_version",
         "sec_identity_configured",
         "locales",
+        "providers",
     ]
 
 
@@ -148,6 +153,14 @@ def test_an_unreadable_entry_is_served_without_a_command_to_run(isolated_cli_set
     assert document["reason"] == (
         "Watchlist 'Core', entry 2 (MSFT, momentum): its stored selection is not in a shape this version can read."
     )
+    assert document["unreadable"] == {
+        "entry_number": 2,
+        "ticker": "MSFT",
+        "method_id": _SELECTION.method_id,
+        "reason": document["reason"],
+    }
+    assert missing.json()["unreadable"] is None
+    assert malformed.json()["unreadable"] is None
     for response in (unreadable, missing, malformed):
         assert response.status_code >= 400
         assert "ian " not in response.text

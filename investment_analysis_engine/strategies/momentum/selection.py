@@ -35,24 +35,28 @@ class MomentumSelection(FrozenSelection):
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     short_window: int = Field(
+        title="Short window",
         gt=0,
         strict=True,
         description="Number of trading days in the short moving average.",
         json_schema_extra={"x-term": "sma-windows"},
     )
     long_window: int = Field(
+        title="Long window",
         gt=0,
         strict=True,
         description="Number of trading days in the long moving average; it must be larger than the short one.",
         json_schema_extra={"x-term": "sma-windows"},
     )
     rsi_period: int = Field(
+        title="RSI period",
         gt=0,
         strict=True,
         description="Number of trading days the relative strength index looks back over.",
         json_schema_extra={"x-term": "rsi"},
     )
     as_of: AwareDatetime | None = Field(
+        title="As of",
         default=None,
         description=(
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
@@ -61,6 +65,7 @@ class MomentumSelection(FrozenSelection):
         json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
+        title="Use cached data",
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",

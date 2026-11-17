@@ -61,6 +61,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.9 | [A date as-of is served as written](#api9--a-date-as-of-is-served-as-written) | Complete | 2026-11-14 |
 | API.10 | [Engine version, installation folder and commit](#api10--engine-version-installation-folder-and-commit) | Complete | 2026-11-14 |
 | API.11 | [The runs comparison carries its refresh's summary](#api11--the-runs-comparison-carries-its-refreshs-summary) | Complete | 2026-11-15 |
+| API.13 | [Form labels, error templates, refresh totals and provider names](#api13--form-labels-error-templates-refresh-totals-and-provider-names) | Complete | 2026-11-16 |
 | API.12 | [The stored run envelope's outcome](#api12--the-stored-run-envelopes-outcome) | Next | |
 
 ## 3. The slices
@@ -364,6 +365,24 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-compare-summary`.
 - **Detail:** no separate slice plan; decisions in [A.9](#a9-runs-comparison-carries-its-refreshs-summary-2026-11-15).
 
+### API.13 — Form labels, error templates, refresh totals and provider names
+
+- **Problem:** a client building a form from the selection schemas has no label for a field, only its name; a rule's
+  message names the command line's options, so a client cannot say it in its own words; a refresh job reports no total;
+  a client cannot name a data provider or show the entry a refused refresh was refused for
+  ([issue 267](https://github.com/PeterPontbriand/investment-analysis-engine/issues/267)).
+- **Decision:** every selection field declares a JSON Schema `title` as its label, a field having one label in every
+  strategy and the conformance check enforcing it; `errors[].template` carries the message with its placeholders;
+  a `stored_selection_unreadable` failure carries `unreadable`; the refresh totals gain `total`; `/v1/info` lists
+  `providers`. `FailureEnvelope` goes from 13 to 14, `RefreshJobDocument` from 2 to 3 and `InfoDocument` from 2 to 3
+  ([A.10](#a10-form-labels-error-templates-refresh-totals-and-provider-names-2026-11-16), N1 to N11).
+- **Scope:** the five strategies' selections, the specimen and the generator templates; `application/parameters.py`,
+  `core/operator_errors.py`, `core/failure_classification.py`, `reporting/failure_envelope.py` and the failure and shared
+  document parts; `api/documents.py` and `api/refresh_documents.py`; the selection-options conformance check; regenerated
+  schemas and `openapi.json`; `docs/user/API.md` and `docs/project/STRATEGY_DEVELOPMENT.md`; tests.
+- **Branch:** `feat/api-form-labels`.
+- **Detail:** no separate slice plan; decisions in [A.10](#a10-form-labels-error-templates-refresh-totals-and-provider-names-2026-11-16).
+
 ### API.12 — The stored run envelope's outcome
 
 - **Problem:** the stored envelope model `AnalysisRun` still names a run's outcome `status`, the one place left
@@ -449,6 +468,13 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   wheel reports the version in `pyproject.toml` with a null installation folder, commit and `uncommitted_changes`;
   `/v1/info` and `openapi.json` are unchanged; `docs/user/USAGE.md`, `docs/user/INSTALLATION.md` and
   `docs/user/SMOKE_TESTING.md` describe it.
+- API.13: every served selection schema, nested fields included, carries the labels of A.10 N3 as `title`, and the
+  conformance check reports a field without one and a field name titled differently in two strategies; `errors[].template`
+  filled gives `message` for a single error, a list, a nested selection field and a watchlist add, and an
+  `ActionParameterError` refuses an argument named like a parameter and an undeclared placeholder; `unreadable` is set
+  exactly for a `stored_selection_unreadable` failure that names its entry, through the API and `--json`; `totals.total`
+  equals `admitted + remaining`; `/v1/info` lists `providers` and every provider check identifier has a display name;
+  versions 14, 3 and 3; the schemas, `openapi.json` and help snapshots pass their checks; `docs/user/API.md` describes it.
 - API.11: `GET /v1/refreshes/{refresh_id}/compare` and `ian runs compare --json` carry `first_completed_at`,
   `last_completed_at`, `run_count` and `outcome_counts` (`schema_version` 7), and with the watchlist fields they equal the
   refreshes list's item for the same refresh, for a watchlist refresh, a refresh of a list of entries and a refresh
@@ -627,3 +653,20 @@ Approved by the project owner on 2026-11-15. No database migration, stored shape
 | C6 | Tests: the comparison's four new fields and its watchlist fields equal the refreshes-list item for the same refresh, for a watchlist refresh, a refresh of a list of entries and a refresh stopped partway; the watchlist shows when no run's envelope can be read; the heading in both forms of C4; the endpoint returns the new fields; the JSON Schema and OpenAPI drift checks and the API.6a term-reference test pass for the new fields, which the list item's fields already cover. |
 | C7 | Plan and docs: the API.11 row, its section 3 entry and acceptance line and this section; `docs/user/API.md` and `docs/user/WORKSPACE.md` (the compare heading and the document's fields and version). The API.12 row and entry record the issue for the stored envelope's `status`. No glossary change. |
 
+### A.10 Form labels, error templates, refresh totals and provider names (2026-11-16)
+
+Approved by the project owner on 2026-11-16. No database migration, stored shape, request, formula or classification changes.
+
+| # | Decision |
+| :--- | :--- |
+| N1 | Slice and records: API.13 is one slice and one pull request, recorded like API.7 to API.11. There is no separate slice plan. The row is dated the day the pull request is opened. |
+| N2 | Selection field labels go in the JSON Schema `title`, declared with `Field(title=...)` on every selection field of every strategy, the nested `policy` group of FCF Growth and each of its fields included. The labels replace pydantic's generated titles, are in the default locale, and are not an `x-label` key. |
+| N3 | Labels capitalize only their first word and proper names, and a field name has the same label in every strategy that has it: `as_of` As of; `use_cache` Use cached data; `short_window` Short window; `long_window` Long window; `rsi_period` RSI period; `bvps_override` Book value per share override; `eps_override` Earnings per share override; `quote_override` Share price override; `expected_growth` Expected growth rate; `aaa_yield_override` AAA corporate bond yield; `eps_basis` EPS basis; `currency` Reporting currency; `policy` Growth policy; `policy.classification_basis` Classification basis; `policy.forward_policy` Forward policy; `policy.historical_horizon` Historical horizon. Units stay in the descriptions, which do not change. The specimen strategy and the generator templates declare titles too. |
+| N4 | Enforcement: the selection-options conformance check (T27, `selection_options_gaps`) also reports a selection field, nested fields included, that declares no title or a blank one, and a field name whose title differs between strategies. The selection-field steps of `docs/project/STRATEGY_DEVELOPMENT.md` say so. |
+| N5 | Error templates: `FailureRuleError` gains `template`, the rule's message with each parameter as a placeholder spelled as in `parameters` and each value as a placeholder named as in `arguments`, so filling every placeholder gives `message`. The value comes from the template `ActionParameterError` holds, under the caller's parameter spellings; `RuleViolation` carries it to the envelope. Parameters and arguments share one placeholder namespace. Building an `ActionParameterError` raises when an argument name equals a parameter name and when the template has a placeholder that names neither a parameter nor an argument. Tests that used an undeclared placeholder assert that refusal. |
+| N6 | Unreadable entry on a refusal: `FailureEnvelope` gains `unreadable`, typed as `UnreadableEntryDocument` (`entry_number`, `ticker`, `method_id`, `reason`), whose model lives in `reporting`'s shared document parts with its class name, OpenAPI component name and fields unchanged; `workspace_documents` imports it from there, and no second document model exists. Core gets a small frozen dataclass holding the same four facts, in the style of `RuleViolation`, in `core/failure_classification.py`. A new `unreadable_entry_of_exception` there, beside `provider_failure_of_exception`, `parameters_of_exception` and `violations_of_exception` and in their style, returns that dataclass: it names no exception type, reads the attributes by `getattr` with type checks, and returns a value only when `entry_number`, `ticker` and `method_id` are all present. `failure_envelope` calls it only when `reason_code` is `stored_selection_unreadable` and builds the `UnreadableEntryDocument` from it, as `_rule_error` builds `FailureRuleError` from a `RuleViolation`; the field is null otherwise. The entry's `reason` is the text the rename, removal and delete documents put in their `unreadable.reason` for the same entry. The package dependency table does not change. |
+| N7 | Refresh totals: `RefreshTotalsDocument` gains `total`, the number of entries in the refresh, which is the snapshot's size and always equals `admitted + remaining`. The command line's refresh output does not change. |
+| N8 | Provider names: `InfoDocument` (`/v1/info`) gains `providers`, a list of `{id, name}` (component `ProviderItem`): one item per data provider in `PROVIDER_CHECKS`, in that order, named from `PROVIDER_DISPLAY_NAMES`. A conformance test checks that every `PROVIDER_CHECKS` identifier has a display name. `instrument_profile_cache` and `user_override` are sources of a value, not data providers, and are not listed. `ProviderCheckItem` and `data/instrument_profile_cache.py` do not change. |
+| N9 | Versions, as `docs/user/USAGE.md` allows for additions: `FailureEnvelope` 13 to 14 (N5, N6), `RefreshJobDocument` 2 to 3 (N7), `InfoDocument` 2 to 3 (N8). The selection form document and the selection schemas keep their versions: titles change their content, not their shape. The pull request lists the three changes. |
+| N10 | Documents and generated files: `docs/user/API.md` (Errors, Selection forms, Refresh jobs and the `/v1/info` row), `docs/user/USAGE.md` (the `--json` failure-document paragraph: version 14, `errors[].template` and `unreadable`), `docs/user/DATABASE.md` (links to the failure document instead of stating its version), `schemas/openapi.json` and the schemas the changes reach, regenerated with their drift checks passing, and `docs/project/STRATEGY_DEVELOPMENT.md` (N4). No command-line text changes. |
+| N11 | Out of scope: localized labels; an endpoint for a ticker's details; checking a ticker when an entry is added; any change to a request, a stored shape, the database or an existing field's name, type, nullability or meaning. |

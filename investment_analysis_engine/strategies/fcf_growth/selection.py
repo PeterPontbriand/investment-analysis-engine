@@ -25,16 +25,19 @@ class FCFPolicySnapshot(FrozenSelection):
     """Validated immutable copy of the existing FCF policy and its native enums."""
 
     historical_horizon: HistoricalHorizon = Field(
+        title="Historical horizon",
         default=HistoricalHorizon.LONGEST_AVAILABLE,
         description="How many elapsed years of history to require; the default picks the longest available up to five.",
         json_schema_extra={"x-term": "historical-horizon"},
     )
     classification_basis: FCFClassificationBasis = Field(
+        title="Classification basis",
         default=FCFClassificationBasis.TOTAL_FCF,
         description="Whether growth is classified on total free cash flow or on free cash flow per share.",
         json_schema_extra={"x-term": "classification-basis"},
     )
     forward_policy: ForwardPolicy = Field(
+        title="Forward policy",
         default=ForwardPolicy.DISPLAY_ONLY,
         description="How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate.",
         json_schema_extra={"x-term": "forward-policy"},
@@ -67,16 +70,19 @@ class FCFGrowthSelection(FrozenSelection):
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     policy: FCFPolicySnapshot = Field(
+        title="Growth policy",
         default_factory=FCFPolicySnapshot,
         description="The growth horizon, classification and forward-evidence rules.",
         json_schema_extra={"x-term": "fcf-growth-strategy"},
     )
     currency: str = Field(
+        title="Reporting currency",
         default="USD",
         description="Three-letter ISO 4217 code of the reporting currency the annual facts must use.",
         json_schema_extra={"x-term": "reporting-currency"},
     )
     as_of: AwareDatetime | None = Field(
+        title="As of",
         default=None,
         description=(
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
@@ -85,6 +91,7 @@ class FCFGrowthSelection(FrozenSelection):
         json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
+        title="Use cached data",
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",

@@ -22,6 +22,7 @@ from pydantic import (
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
+from investment_analysis_engine.reporting.documents.shared_parts import UnreadableEntryDocument
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp, document_json_value
 from investment_analysis_engine.workspace.repositories.watchlists import (
     DeletedWatchlist,
@@ -92,17 +93,6 @@ class WatchlistDocument(BaseModel):
     created_at: DocumentTimestamp
     updated_at: DocumentTimestamp | None = Field(description="Null until the watchlist is first changed.")
     entries: tuple[WatchlistEntryDocument, ...]
-
-
-class UnreadableEntryDocument(BaseModel):
-    """The first entry of a watchlist that this version cannot read, and why."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    entry_number: int = Field(description="The 1-based position of the entry.")
-    ticker: str
-    method_id: str = Field(description="The method identifier as stored; this version may no longer declare it.")
-    reason: str = Field(description="The state of the entry, in words for a person. It names no command.")
 
 
 def _exactly_one(watchlist: object | None, unreadable: object | None) -> None:
@@ -269,7 +259,6 @@ def build_watchlist_list_document(summaries: Sequence[WatchlistSummary]) -> Watc
 
 
 __all__ = [
-    "UnreadableEntryDocument",
     "WatchlistDeleteDocument",
     "WatchlistDocument",
     "WatchlistEntryDocument",

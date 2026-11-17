@@ -3,6 +3,7 @@
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from functools import cache
+from typing import Any
 
 from starlette.testclient import TestClient
 
@@ -52,3 +53,13 @@ def store(settings: ProjectSettings, *runs: AnalysisRun) -> None:
             repository.insert(run)
     finally:
         database.close()
+
+
+def filled_template(item: dict[str, Any]) -> str:
+    """Fill every placeholder of an error item's ``template`` from its own ``parameters`` and ``arguments``."""
+    text = str(item["template"])
+    for parameter in item["parameters"]:
+        text = text.replace("{" + parameter + "}", parameter)
+    for name, value in item["arguments"].items():
+        text = text.replace("{" + name + "}", str(value))
+    return text

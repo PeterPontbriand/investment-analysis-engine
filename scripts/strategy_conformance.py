@@ -1600,10 +1600,13 @@ def selection_options_gaps(
     - its ``add-selection`` options are exactly its direct command's selection options, declared identically;
     - its option table covers every selection field except the fixed ones, once, and names real parameters;
     - each selection field is a form type and has a description;
+    - each selection field, a nested one included, declares a non-blank title, and a field name has the same title in
+      every strategy that has it;
     - each name in ``selection_settings_fields`` is a required field of the selection and a field of the settings model;
     - an option whose literal default duplicates a model default gives that default through its converter.
     """
     gaps: list[str] = []
+    titles: dict[str, dict[str, list[str]]] = {}
     for item, entry in cli_entries(descriptors, cli_tier):
         key = label(item)
         model = item.behavior.selection_type
@@ -1646,6 +1649,7 @@ def selection_options_gaps(
                 gaps.append(f"strategy {key}: the selection field {name} is not a form-supported type")
             if not (info.description or "").strip():
                 gaps.append(f"strategy {key}: the selection field {name} has no description")
+            gaps.extend(_record_title(titles, key, name, info.title))
         gaps.extend(_settings_field_gaps(item, key))
         defaults = _signature_defaults(entry.command)
         for row in entry.selection_options:
@@ -1659,7 +1663,27 @@ def selection_options_gaps(
                 gaps.append(
                     f"strategy {key}: the default of {row.option} does not convert to the default of {row.field}"
                 )
+    gaps.extend(_title_mismatch_gaps(titles))
     return gaps
+
+
+def _record_title(titles: dict[str, dict[str, list[str]]], key: str, name: str, title: str | None) -> list[str]:
+    """Record a selection field's title under its name, or return the gap when it declares none."""
+    text = (title or "").strip()
+    if not text:
+        return [f"strategy {key}: the selection field {name} declares no title"]
+    titles.setdefault(name, {}).setdefault(text, []).append(key)
+    return []
+
+
+def _title_mismatch_gaps(titles: dict[str, dict[str, list[str]]]) -> list[str]:
+    """Return a gap for each field name that has different titles in different strategies."""
+    return [
+        f"the selection field {name} has different titles in different strategies: "
+        + "; ".join(f"{title!r} in {', '.join(keys)}" for title, keys in sorted(by_title.items()))
+        for name, by_title in sorted(titles.items())
+        if len(by_title) > 1
+    ]
 
 
 def _settings_field_gaps(item: StrategyDescriptor, key: str) -> list[str]:

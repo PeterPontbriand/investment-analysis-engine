@@ -12,6 +12,7 @@ from pydantic import JsonValue
 from investment_analysis_engine.core.failure_classification import (
     parameters_of_exception,
     provider_failure_of_exception,
+    unreadable_entry_of_exception,
     violations_of_exception,
 )
 from investment_analysis_engine.core.failure_codes import FailureReasonCode, status_for
@@ -25,6 +26,7 @@ from investment_analysis_engine.reporting.documents.failure import (
     FailureEnvelope,
     FailureRuleError,
 )
+from investment_analysis_engine.reporting.documents.shared_parts import UnreadableEntryDocument
 
 
 def json_argument(value: object) -> JsonValue:
@@ -49,6 +51,17 @@ def _rule_error(violation: RuleViolation) -> FailureRuleError:
         parameters=violation.parameters,
         arguments={name: json_argument(value) for name, value in violation.arguments.items()},
         message=violation.message,
+        template=violation.template,
+    )
+
+
+def _unreadable_entry(cause: BaseException) -> UnreadableEntryDocument | None:
+    """Build the document of the entry a stored-selection failure names, or ``None`` when it names none."""
+    facts = unreadable_entry_of_exception(cause)
+    if facts is None:
+        return None
+    return UnreadableEntryDocument(
+        entry_number=facts.entry_number, ticker=facts.ticker, method_id=facts.method_id, reason=facts.reason
     )
 
 
@@ -66,7 +79,8 @@ def failure_envelope(  # noqa: PLR0913
     ``reason`` is the message to show; the caller sanitizes it. Only a failed historical-quality
     exception contributes diagnostics, only a readiness error contributes ``database``, only an
     ``invalid_parameter`` exception contributes ``parameters``, and only a provider failure that carries a kind
-    contributes ``provider_failure`` (its one input is null: the failure was raised).
+    contributes ``provider_failure``, and only a ``stored_selection_unreadable`` exception that names its entry
+    contributes ``unreadable`` (its one input is null: the failure was raised).
     """
     diagnostics: tuple[FailureDiagnostic, ...] = ()
     database: FailureDatabase | None = None
@@ -96,8 +110,14 @@ def failure_envelope(  # noqa: PLR0913
         if cause is not None and reason_code is FailureReasonCode.INVALID_PARAMETER
         else None
     )
+    unreadable = (
+        _unreadable_entry(cause)
+        if cause is not None and reason_code is FailureReasonCode.STORED_SELECTION_UNREADABLE
+        else None
+    )
     return FailureEnvelope(
         status=status_for(reason_code),
+        unreadable=unreadable,
         parameters=parameters,
         errors=None if violations is None else tuple(_rule_error(item) for item in violations),
         reason_code=reason_code,

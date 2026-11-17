@@ -6,7 +6,8 @@ names into the action's message template, so its message and the ``parameters`` 
 
 A template names a parameter as ``{parameter}`` and a value as ``{argument}``. Only the placeholders the error
 declares are replaced, by explicit substitution and never by ``str.format``, because a dotted name such as
-``policy.historical_horizon`` is attribute access in a format string.
+``policy.historical_horizon`` is attribute access in a format string. Parameters and arguments share one placeholder
+namespace, so no argument is named as a parameter, and a template holds no literal brace.
 """
 
 import re
@@ -53,9 +54,20 @@ class ActionParameterError(InvalidParameterError):
         """Keep the template, rule and values, and render the message with the action's own parameter names."""
         names = tuple(parameters)
         values = dict(arguments or {})
+        clashing = sorted(set(names) & set(values))
+        if clashing:
+            raise ValueError(
+                f"Rule {rule!r} names {clashing} as both a parameter and an argument; "
+                "they share one placeholder namespace."
+            )
+        undeclared = sorted(set(_PLACEHOLDER.findall(template)) - set(names) - set(values))
+        if undeclared:
+            raise ValueError(
+                f"Rule {rule!r} has a template placeholder that is neither a parameter nor an argument: {undeclared}."
+            )
         replacements = {name: name for name in names} | {key: str(value) for key, value in values.items()}
         message = _substitute(template, replacements)
-        super().__init__(message, parameters=names, violations=(RuleViolation(rule, names, values, message),))
+        super().__init__(message, parameters=names, violations=(RuleViolation(rule, names, values, message, template),))
         self.errors: tuple[ActionParameterError, ...] = (self,)
         self.template = template
         self.action_parameters = names
@@ -101,7 +113,8 @@ class ActionParameterError(InvalidParameterError):
         """Return this single rejection as a violation under a caller's names."""
         spelled = {parameter: names.get(parameter, parameter) for parameter in self.action_parameters}
         message = _substitute(self.template, spelled | {key: str(value) for key, value in self.arguments.items()})
-        return RuleViolation(self.rule, tuple(spelled.values()), self.arguments, message)
+        template = _substitute(self.template, {parameter: f"{{{name}}}" for parameter, name in spelled.items()})
+        return RuleViolation(self.rule, tuple(spelled.values()), self.arguments, message, template)
 
 
 __all__ = ["ActionParameterError"]

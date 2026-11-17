@@ -75,6 +75,10 @@ class RefreshTotalsDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    total: int = Field(
+        ge=0,
+        description="The number of entries in the refresh: the snapshot's size, always admitted plus remaining.",
+    )
     admitted: int = Field(ge=0, description="Jobs that have started.")
     finished: int = Field(ge=0, description="Jobs that have finished.")
     remaining: int = Field(ge=0, description="Jobs not yet started; above zero after a stop.")
@@ -90,7 +94,7 @@ class RefreshJobDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3
     refresh_id: UUID = Field(description="The refresh's ID, which is the job's and the ID of every run it saves.")
     watchlist_id: UUID | None = Field(description="The watchlist refreshed; null for a refresh of a list of entries.")
     state: str = Field(description="running, stopping, completed, stopped or failed; treat any other value as running.")
@@ -172,7 +176,10 @@ def build_job_document(
         watchlist_id=view.watchlist_id,
         state=view.state.value,
         totals=RefreshTotalsDocument(
-            admitted=view.totals.admitted, finished=view.totals.finished, remaining=view.totals.remaining
+            total=view.totals.admitted + view.totals.remaining,
+            admitted=view.totals.admitted,
+            finished=view.totals.finished,
+            remaining=view.totals.remaining,
         ),
         events=tuple(item.event for item in view.events),
         next_after=view.next_after,

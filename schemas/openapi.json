@@ -1084,25 +1084,26 @@
             ],
             "default": null,
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-            "title": "As Of",
+            "title": "As of",
             "x-term": "as-of-date"
           },
           "currency": {
             "default": "USD",
             "description": "Three-letter ISO 4217 code of the reporting currency the annual facts must use.",
-            "title": "Currency",
+            "title": "Reporting currency",
             "type": "string",
             "x-term": "reporting-currency"
           },
           "policy": {
             "$ref": "#/components/schemas/FCFGrowthSelection.FCFPolicySnapshot",
             "description": "The growth horizon, classification and forward-evidence rules.",
+            "title": "Growth policy",
             "x-term": "fcf-growth-strategy"
           },
           "use_cache": {
             "default": true,
             "description": "Whether the analysis may read and write the local cache of fetched data.",
-            "title": "Use Cache",
+            "title": "Use cached data",
             "type": "boolean",
             "x-term": "cache"
           }
@@ -1127,18 +1128,21 @@
             "$ref": "#/components/schemas/FCFGrowthSelection.FCFClassificationBasis",
             "default": "total_fcf",
             "description": "Whether growth is classified on total free cash flow or on free cash flow per share.",
+            "title": "Classification basis",
             "x-term": "classification-basis"
           },
           "forward_policy": {
             "$ref": "#/components/schemas/FCFGrowthSelection.ForwardPolicy",
             "default": "display_only",
             "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate.",
+            "title": "Forward policy",
             "x-term": "forward-policy"
           },
           "historical_horizon": {
             "$ref": "#/components/schemas/FCFGrowthSelection.HistoricalHorizon",
             "default": "longest_available",
             "description": "How many elapsed years of history to require; the default picks the longest available up to five.",
+            "title": "Historical horizon",
             "x-term": "historical-horizon"
           }
         },
@@ -1541,18 +1545,21 @@
             "$ref": "#/components/schemas/FCFClassificationBasis",
             "default": "total_fcf",
             "description": "Whether growth is classified on total free cash flow or on free cash flow per share.",
+            "title": "Classification basis",
             "x-term": "classification-basis"
           },
           "forward_policy": {
             "$ref": "#/components/schemas/ForwardPolicy",
             "default": "display_only",
             "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate.",
+            "title": "Forward policy",
             "x-term": "forward-policy"
           },
           "historical_horizon": {
             "$ref": "#/components/schemas/HistoricalHorizon",
             "default": "longest_available",
             "description": "How many elapsed years of history to require; the default picks the longest available up to five.",
+            "title": "Historical horizon",
             "x-term": "historical-horizon"
           }
         },
@@ -2047,8 +2054,8 @@
             "type": "null"
           },
           "schema_version": {
-            "const": 13,
-            "default": 13,
+            "const": 14,
+            "default": 14,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -2067,6 +2074,18 @@
             "default": null,
             "description": "The requested ticker of a direct command; null for any other command and for an API response.",
             "title": "Ticker"
+          },
+          "unreadable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnreadableEntryDocument"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Set exactly when reason_code is stored_selection_unreadable and the failure names the entry it concerns: that entry's position, ticker and stored method, and why this version cannot read it; null otherwise."
           }
         },
         "required": [
@@ -2151,13 +2170,19 @@
             "description": "The stable identifier of the rule, such as momentum.window_order.",
             "title": "Rule",
             "type": "string"
+          },
+          "template": {
+            "description": "The message with each parameter written as a placeholder spelled as in parameters, such as {--short-window}, and each value as a placeholder named as in arguments, such as {short_window_value}; replacing every placeholder with its text gives message. Parameters and arguments share one placeholder namespace, so a name is never both, and a template never contains a literal brace. A client replaces a parameter's placeholder with its own label for that parameter.",
+            "title": "Template",
+            "type": "string"
           }
         },
         "required": [
           "rule",
           "parameters",
           "arguments",
-          "message"
+          "message",
+          "template"
         ],
         "title": "FailureRuleError",
         "type": "object"
@@ -2522,7 +2547,7 @@
         "properties": {
           "aaa_yield_override": {
             "description": "Current AAA corporate-bond yield, in percentage points.",
-            "title": "Aaa Yield Override",
+            "title": "AAA corporate bond yield",
             "type": "number",
             "x-term": "override"
           },
@@ -2542,13 +2567,14 @@
             ],
             "default": null,
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-            "title": "As Of",
+            "title": "As of",
             "x-term": "as-of-date"
           },
           "eps_basis": {
             "$ref": "#/components/schemas/GrahamGrowthSelection.GrahamGrowthSelectionEPSBasis",
             "default": "three_year_average",
             "description": "Which earnings figure to use: the three-year average, or one completed fiscal year.",
+            "title": "EPS basis",
             "x-term": "eps-basis"
           },
           "eps_override": {
@@ -2562,12 +2588,12 @@
             ],
             "default": null,
             "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
-            "title": "Eps Override",
+            "title": "Earnings per share override",
             "x-term": "override"
           },
           "expected_growth": {
             "description": "Expected annual earnings growth, in percentage points.",
-            "title": "Expected Growth",
+            "title": "Expected growth rate",
             "type": "number",
             "x-term": "expected-growth-rate"
           },
@@ -2582,13 +2608,13 @@
             ],
             "default": null,
             "description": "Share price to use instead of the current quote; leave empty to use the quote.",
-            "title": "Quote Override",
+            "title": "Share price override",
             "x-term": "override"
           },
           "use_cache": {
             "default": true,
             "description": "Whether the analysis may read and write the local cache of fetched data.",
-            "title": "Use Cache",
+            "title": "Use cached data",
             "type": "boolean",
             "x-term": "cache"
           }
@@ -2921,7 +2947,7 @@
             ],
             "default": null,
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-            "title": "As Of",
+            "title": "As of",
             "x-term": "as-of-date"
           },
           "bvps_override": {
@@ -2935,7 +2961,7 @@
             ],
             "default": null,
             "description": "Book value per share to use instead of the reported figure; leave empty to use it.",
-            "title": "Bvps Override",
+            "title": "Book value per share override",
             "x-term": "override"
           },
           "eps_override": {
@@ -2949,7 +2975,7 @@
             ],
             "default": null,
             "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
-            "title": "Eps Override",
+            "title": "Earnings per share override",
             "x-term": "override"
           },
           "quote_override": {
@@ -2963,13 +2989,13 @@
             ],
             "default": null,
             "description": "Share price to use instead of the current quote; leave empty to use the quote.",
-            "title": "Quote Override",
+            "title": "Share price override",
             "x-term": "override"
           },
           "use_cache": {
             "default": true,
             "description": "Whether the analysis may read and write the local cache of fetched data.",
-            "title": "Use Cache",
+            "title": "Use cached data",
             "type": "boolean",
             "x-term": "cache"
           }
@@ -3323,9 +3349,17 @@
             "title": "Locales",
             "type": "array"
           },
+          "providers": {
+            "description": "The data providers the engine reads from, which are the providers a provider check can name, with the name to show for each.",
+            "items": {
+              "$ref": "#/components/schemas/ProviderItem"
+            },
+            "title": "Providers",
+            "type": "array"
+          },
           "schema_version": {
-            "const": 2,
-            "default": 2,
+            "const": 3,
+            "default": 3,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -3339,7 +3373,8 @@
           "api_versions",
           "engine_version",
           "sec_identity_configured",
-          "locales"
+          "locales",
+          "providers"
         ],
         "title": "InfoDocument",
         "type": "object"
@@ -3967,34 +4002,34 @@
             ],
             "default": null,
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-            "title": "As Of",
+            "title": "As of",
             "x-term": "as-of-date"
           },
           "long_window": {
             "description": "Number of trading days in the long moving average; it must be larger than the short one.",
             "exclusiveMinimum": 0,
-            "title": "Long Window",
+            "title": "Long window",
             "type": "integer",
             "x-term": "sma-windows"
           },
           "rsi_period": {
             "description": "Number of trading days the relative strength index looks back over.",
             "exclusiveMinimum": 0,
-            "title": "Rsi Period",
+            "title": "RSI period",
             "type": "integer",
             "x-term": "rsi"
           },
           "short_window": {
             "description": "Number of trading days in the short moving average.",
             "exclusiveMinimum": 0,
-            "title": "Short Window",
+            "title": "Short window",
             "type": "integer",
             "x-term": "sma-windows"
           },
           "use_cache": {
             "default": true,
             "description": "Whether the analysis may read and write the local cache of fetched data.",
-            "title": "Use Cache",
+            "title": "Use cached data",
             "type": "boolean",
             "x-term": "cache"
           }
@@ -4466,13 +4501,13 @@
             ],
             "default": null,
             "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-            "title": "As Of",
+            "title": "As of",
             "x-term": "as-of-date"
           },
           "use_cache": {
             "default": true,
             "description": "Whether the analysis may read and write the local cache of fetched data.",
-            "title": "Use Cache",
+            "title": "Use cached data",
             "type": "boolean",
             "x-term": "cache"
           }
@@ -4811,6 +4846,28 @@
         "title": "ProviderFailureKind",
         "type": "string"
       },
+      "ProviderItem": {
+        "additionalProperties": false,
+        "description": "One data provider the engine reads from.",
+        "properties": {
+          "id": {
+            "description": "The provider's identifier, as a provider failure and a provider check name it.",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "The provider's name for a person.",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProviderItem",
+        "type": "object"
+      },
       "QuoteFreshnessPart": {
         "additionalProperties": false,
         "description": "How recent the quote behind a price comparison was.",
@@ -5102,8 +5159,8 @@
             "type": "string"
           },
           "schema_version": {
-            "const": 2,
-            "default": 2,
+            "const": 3,
+            "default": 3,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -5501,9 +5558,16 @@
             "minimum": 0,
             "title": "Remaining",
             "type": "integer"
+          },
+          "total": {
+            "description": "The number of entries in the refresh: the snapshot's size, always admitted plus remaining.",
+            "minimum": 0,
+            "title": "Total",
+            "type": "integer"
           }
         },
         "required": [
+          "total",
           "admitted",
           "finished",
           "remaining"

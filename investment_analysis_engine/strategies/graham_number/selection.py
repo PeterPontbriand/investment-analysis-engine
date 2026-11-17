@@ -26,21 +26,25 @@ class GrahamNumberSelection(FrozenSelection):
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     eps_override: StrictFloat | None = Field(
+        title="Earnings per share override",
         default=None,
         description="Earnings per share to use instead of the reported figure; leave empty to use it.",
         json_schema_extra={"x-term": "override"},
     )
     quote_override: StrictFloat | None = Field(
+        title="Share price override",
         default=None,
         description="Share price to use instead of the current quote; leave empty to use the quote.",
         json_schema_extra={"x-term": "override"},
     )
     bvps_override: StrictFloat | None = Field(
+        title="Book value per share override",
         default=None,
         description="Book value per share to use instead of the reported figure; leave empty to use it.",
         json_schema_extra={"x-term": "override"},
     )
     as_of: AwareDatetime | None = Field(
+        title="As of",
         default=None,
         description=(
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
@@ -49,6 +53,7 @@ class GrahamNumberSelection(FrozenSelection):
         json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
+        title="Use cached data",
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",
