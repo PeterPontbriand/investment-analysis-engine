@@ -18,13 +18,13 @@
       ],
       "default": null,
       "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
-      "title": "As Of",
+      "title": "As of",
       "x-term": "as-of-date"
     },
     "use_cache": {
       "default": true,
       "description": "Whether the analysis may read and write the local cache of fetched data.",
-      "title": "Use Cache",
+      "title": "Use cached data",
       "type": "boolean",
       "x-term": "cache"
     }

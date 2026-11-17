@@ -17,7 +17,7 @@ from investment_analysis_engine.core.operator_errors import InvalidParameterErro
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope, json_argument
 from investment_analysis_engine.strategy_wiring import GRAHAM_GROWTH, GRAHAM_NUMBER, MOMENTUM
-from tests.api._support import AUTH, client_for
+from tests.api._support import AUTH, client_for, filled_template
 
 runner = CliRunner()
 
@@ -70,8 +70,8 @@ def test_several_rejections_keep_every_rule_its_parameters_its_values_and_its_me
 def test_arguments_json_cannot_carry_are_text_in_the_document(isolated_cli_settings: ProjectSettings) -> None:
     del isolated_cli_settings
     error = ActionParameterError(
-        "{value} on {day} is not allowed.",
-        parameters=("value",),
+        "{amount}: {value} on {day} is not allowed.",
+        parameters=("amount",),
         rule="test.not_allowed",
         arguments={"value": math.inf, "day": date(2025, 12, 31), "ratio": 0.5, "count": 3},
     )
@@ -80,7 +80,7 @@ def test_arguments_json_cannot_carry_are_text_in_the_document(isolated_cli_setti
 
     assert envelope.errors is not None
     assert envelope.errors[0].arguments == {"value": "inf", "day": "2025-12-31", "ratio": 0.5, "count": 3}
-    assert envelope.errors[0].message == "inf on 2025-12-31 is not allowed."
+    assert envelope.errors[0].message == "amount: inf on 2025-12-31 is not allowed."
     json.dumps(envelope.model_dump(mode="json"), allow_nan=False, ensure_ascii=False)
 
 
@@ -138,6 +138,9 @@ def test_the_api_lists_every_error_with_its_rule_and_message(isolated_cli_settin
     assert failure["reason"] == failure["errors"][0]["message"]
     assert failure["errors"][0]["message"] == "Invalid selection.eps_override: Input should be a valid number"
     assert failure["errors"][1]["rule"] == "pydantic.float_type"
+    assert [item["template"] for item in failure["errors"]][0] == "Invalid {selection.eps_override}: {pydantic_message}"
+    for item in failure["errors"]:
+        assert filled_template(item) == item["message"]
 
 
 def test_the_api_lists_a_rule_with_its_named_values(isolated_cli_settings: ProjectSettings) -> None:
@@ -158,6 +161,8 @@ def test_the_api_lists_a_rule_with_its_named_values(isolated_cli_settings: Proje
     assert failure["errors"][0]["parameters"] == ["selection.short_window", "selection.long_window"]
     assert failure["errors"][0]["arguments"] == {"short_window_value": 50, "long_window_value": 20}
     assert failure["parameters"] == failure["errors"][0]["parameters"]
+    for item in failure["errors"]:
+        assert filled_template(item) == item["message"]
 
 
 @pytest.mark.usefixtures("isolated_cli_settings")
@@ -175,7 +180,7 @@ def test_the_command_line_message_and_exit_code_are_those_of_the_first_error_and
     assert (document["reason"], document["parameters"]) == (text.stderr.strip(), ["--eps"])
     assert [item["parameters"] for item in document["errors"]] == [["--eps"], ["--bvps"]]
     assert document["errors"][1]["message"] == "Invalid --bvps: Financial override must be a finite number."
-    assert document["schema_version"] == 13
+    assert document["schema_version"] == 14
 
 
 # --- Pre-checks join the list (R2) ---------------------------------------------------------------------------------

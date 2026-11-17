@@ -26,12 +26,15 @@ class RuleViolation:
         parameters: The caller's names of the parameters the rule names.
         arguments: The values the rule's message shows, by placeholder name, as the rule saw them.
         message: The rule's message, with the caller's parameter names filled in.
+        template: The message with each parameter written as ``{parameter}``, spelled as in ``parameters``, and each
+            value as ``{argument}``, named as in ``arguments``; filling every placeholder gives ``message``.
     """
 
     rule: str
     parameters: tuple[str, ...]
     arguments: Mapping[str, object]
     message: str
+    template: str
 
 
 class InvalidParameterError(ValueError):

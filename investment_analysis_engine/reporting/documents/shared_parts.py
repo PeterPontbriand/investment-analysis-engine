@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, WithJsonSchema
+from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema
 
 from investment_analysis_engine.analysis.shared.anchor_filing import AnchorFilingEvidence
 from investment_analysis_engine.analysis.shared.financial_resolution import PriceComparison, PriceComparisonStatus
@@ -436,3 +436,12 @@ def price_comparison_part(comparison: PriceComparison | None) -> PriceComparison
             ),
         ),
     )
+
+
+class UnreadableEntryDocument(DocumentPart):
+    """The first entry of a watchlist that this version cannot read, and why."""
+
+    entry_number: int = Field(description="The 1-based position of the entry.")
+    ticker: str
+    method_id: str = Field(description="The method identifier as stored; this version may no longer declare it.")
+    reason: str = Field(description="The state of the entry, in words for a person. It names no command.")

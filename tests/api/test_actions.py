@@ -25,7 +25,7 @@ from investment_analysis_engine.config.component_settings import clear_component
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from investment_analysis_engine.workspace_documents.watchlist import build_watchlist_document
 from scripts.generate_schemas import SCHEMA_DIRECTORY
-from tests.api._support import AUTH, client_for, runs_by_alias, store
+from tests.api._support import AUTH, client_for, filled_template, runs_by_alias, store
 
 _BODY_ROUTES = (
     ("POST", "/v1/watchlists", {"name": "Core"}),
@@ -78,7 +78,7 @@ def _failure(response: httpx2.Response, status: int, code: str) -> dict[str, obj
     assert response.status_code == status, response.text
     body: dict[str, object] = response.json()
     assert body["reason_code"] == code
-    assert body["schema_version"] == 13
+    assert body["schema_version"] == 14
     return body
 
 
@@ -175,7 +175,13 @@ def test_creating_a_watchlist_with_a_used_name_is_a_409_and_a_blank_name_a_400_w
     failure = _failure(blank, 400, "invalid_parameter")
     assert failure["parameters"] == ["name"]
     assert failure["errors"] == [
-        {"rule": "watchlist.blank_name", "parameters": ["name"], "arguments": {}, "message": "name must not be blank."}
+        {
+            "rule": "watchlist.blank_name",
+            "parameters": ["name"],
+            "arguments": {},
+            "message": "name must not be blank.",
+            "template": "{name} must not be blank.",
+        }
     ]
 
 
@@ -375,10 +381,22 @@ def test_adding_with_no_tickers_a_blank_ticker_a_missing_watchlist_or_an_unreada
         refused = client.post(url, json=body | {"tickers": ["KO"]}, headers=AUTH)
 
     assert _failure(none, 400, "invalid_parameter")["parameters"] == ["tickers"]
-    assert _failure(blank, 400, "invalid_parameter")["parameters"] == ["tickers"]
+    blank_failure = _failure(blank, 400, "invalid_parameter")
+    assert blank_failure["parameters"] == ["tickers"]
+    blank_errors = blank_failure["errors"]
+    assert isinstance(blank_errors, list)
+    assert [filled_template(item) for item in blank_errors] == [item["message"] for item in blank_errors]
     _failure(missing, 404, "watchlist_not_found")
     refusal = _failure(refused, 409, "stored_selection_unreadable")
     assert "ian " not in str(refusal["reason"])
+    unreadable = refusal["unreadable"]
+    assert isinstance(unreadable, dict)
+    assert (unreadable["entry_number"], unreadable["ticker"], unreadable["reason"]) == (1, "MSFT", refusal["reason"])
+    assert isinstance(unreadable["method_id"], str)
+    assert all(
+        failure["unreadable"] is None
+        for failure in (_failure(none, 400, "invalid_parameter"), _failure(missing, 404, "watchlist_not_found"))
+    )
 
 
 # --- removals --------------------------------------------------------------------------------------------------------

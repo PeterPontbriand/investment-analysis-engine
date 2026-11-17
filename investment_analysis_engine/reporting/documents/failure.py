@@ -1,9 +1,9 @@
 """The failure envelope: one typed document for every ``--json`` command failure and every API error response.
 
-This module imports only ``investment_analysis_engine.core``, so the command line, the strategy documents and the schema
-generator can all depend on it without a cycle. The code vocabulary and the ``provider_failure`` element live in
-``investment_analysis_engine.core``. ``DatabaseMaintenanceReport`` is a sibling shape that shares the code vocabulary
-but is not a failure document.
+This module imports ``investment_analysis_engine.core`` and the shared document parts, so the command line, the
+strategy documents and the schema generator can all depend on it without a cycle. The code vocabulary and the
+``provider_failure`` element live in ``investment_analysis_engine.core``. ``DatabaseMaintenanceReport`` is a sibling
+shape that shares the code vocabulary but is not a failure document.
 
 The envelope reports a condition; it never offers a remedy. It has no field that names a command or
 an action, and ``database`` carries facts about the target, not instructions.
@@ -21,6 +21,7 @@ from investment_analysis_engine.core.failure_codes import (
 )
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem, require_check_matches_failure
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
+from investment_analysis_engine.reporting.documents.shared_parts import UnreadableEntryDocument
 
 
 class FailureDiagnostic(BaseModel):
@@ -46,6 +47,16 @@ class FailureRuleError(BaseModel):
         )
     )
     message: str = Field(description="The rule's message for a person; it carries no guarantee.")
+    template: str = Field(
+        description=(
+            "The message with each parameter written as a placeholder spelled as in parameters, such as "
+            "{--short-window}, and each value as a placeholder named as in arguments, such as {short_window_value}; "
+            "replacing every "
+            "placeholder with its text gives message. Parameters and arguments share one placeholder namespace, so a "
+            "name is never both, and a template never contains a literal brace. A client replaces a parameter's "
+            "placeholder with its own label for that parameter."
+        )
+    )
 
 
 class FailureDatabase(BaseModel):
@@ -71,7 +82,7 @@ class FailureEnvelope(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[13] = 13
+    schema_version: Literal[14] = 14
     status: FailureStatus
     reason_code: FailureReasonCode
     reason: str
@@ -99,6 +110,13 @@ class FailureEnvelope(BaseModel):
         description=(
             "Set exactly when reason_code is invalid_parameter and a rule rejected the argument: every rejection in "
             "field order, the first being the one reason and parameters describe; null otherwise."
+        ),
+    )
+    unreadable: UnreadableEntryDocument | None = Field(
+        default=None,
+        description=(
+            "Set exactly when reason_code is stored_selection_unreadable and the failure names the entry it concerns: "
+            "that entry's position, ticker and stored method, and why this version cannot read it; null otherwise."
         ),
     )
     result: None = Field(default=None, description="Always null, so success and failure share top-level keys.")
@@ -129,6 +147,8 @@ class FailureEnvelope(BaseModel):
             raise ValueError("parameters must name at least one parameter, each non-empty.")
         if self.errors is not None and (not self.errors or self.reason_code is not FailureReasonCode.INVALID_PARAMETER):
             raise ValueError("errors is set only for invalid_parameter, and then holds at least one error.")
+        if self.unreadable is not None and self.reason_code is not FailureReasonCode.STORED_SELECTION_UNREADABLE:
+            raise ValueError("unreadable is set only for stored_selection_unreadable.")
         if self.database is not None and not self.reason_code.value.startswith("database_"):
             raise ValueError("database is set only for a database_* reason_code.")
         if self.reason_code in PROVIDER_FAILURE_CODES:

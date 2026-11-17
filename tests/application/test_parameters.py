@@ -45,15 +45,15 @@ def test_the_rule_and_the_values_are_kept_beside_the_message() -> None:
 
 def test_a_nested_field_name_is_substituted_and_not_read_as_attribute_access() -> None:
     error = ActionParameterError(
-        "Invalid {policy.historical_horizon}: {detail} {unrelated} {0}.",
+        "Invalid {policy.historical_horizon}: {detail}.",
         parameters=("policy.historical_horizon",),
         rule="pydantic.literal_error",
         arguments={"detail": "bad"},
     )
 
-    assert str(error) == "Invalid policy.historical_horizon: bad {unrelated} {0}."
+    assert str(error) == "Invalid policy.historical_horizon: bad."
     spelled = error.named({"policy.historical_horizon": "--growth-years"})
-    assert str(spelled) == "Invalid --growth-years: bad {unrelated} {0}."
+    assert str(spelled) == "Invalid --growth-years: bad."
 
 
 def test_text_inserted_for_a_placeholder_is_not_substituted_again() -> None:
@@ -65,7 +65,27 @@ def test_text_inserted_for_a_placeholder_is_not_substituted_again() -> None:
     assert str(error.named({"name": "--n"})) == "--n got {name} and {other}."
 
 
-def test_a_placeholder_the_error_does_not_declare_stays_as_written() -> None:
-    error = ActionParameterError("{name} and {undeclared}.", parameters=("name",), rule="demo.undeclared")
+def test_a_template_placeholder_the_error_does_not_declare_is_refused() -> None:
+    with pytest.raises(ValueError, match="neither a parameter nor an argument"):
+        ActionParameterError("{name} and {undeclared}.", parameters=("name",), rule="demo.undeclared")
 
-    assert str(error) == "name and {undeclared}."
+
+def test_an_argument_named_like_a_parameter_is_refused() -> None:
+    with pytest.raises(ValueError, match="both a parameter and an argument"):
+        ActionParameterError("{name}.", parameters=("name",), rule="demo.clash", arguments={"name": 1})
+
+
+def test_the_template_is_carried_and_filling_it_gives_the_message() -> None:
+    error = ActionParameterError(
+        "{first} ({first_value}) must be below {second} ({second_value}).",
+        parameters=("first", "second"),
+        rule="demo.order",
+        arguments={"first_value": 9, "second_value": 4},
+    )
+    spelled = error.named({"first": "--a", "second": "--b"})
+    violation = spelled.violations[0]
+
+    assert violation.template == "{--a} ({first_value}) must be below {--b} ({second_value})."
+    filled = violation.template.replace("{--a}", "--a").replace("{--b}", "--b")
+    filled = filled.replace("{first_value}", "9").replace("{second_value}", "4")
+    assert filled == violation.message

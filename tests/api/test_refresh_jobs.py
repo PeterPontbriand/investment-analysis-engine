@@ -20,7 +20,7 @@ from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
-from tests.api._support import AUTH, client_for
+from tests.api._support import AUTH, client_for, filled_template
 from tests.api.test_actions import _add, _create, _fields, _retire
 from tests.application._refresh_fakes import FakeRuns, Probe, fakes
 
@@ -65,11 +65,18 @@ def _ended(client: TestClient, refresh_id: object) -> dict[str, object]:
     raise AssertionError("the job did not end")
 
 
+def _assert_total_adds_up(job: dict[str, object]) -> None:
+    """Require the job's total to be the number of entries in the refresh: admitted plus remaining."""
+    totals = job["totals"]
+    assert isinstance(totals, dict)
+    assert totals["total"] == totals["admitted"] + totals["remaining"]
+
+
 def _failure(response: httpx2.Response, status: int, code: str) -> dict[str, object]:
     assert response.status_code == status, response.text
     body: dict[str, object] = response.json()
     assert body["reason_code"] == code
-    assert body["schema_version"] == 13
+    assert body["schema_version"] == 14
     return body
 
 
@@ -94,7 +101,8 @@ def test_each_strategy_is_refreshed_through_the_endpoints_from_a_list_of_entries
     assert document["next_after"] == len(document["events"])  # an ordinary view at after 0: the events so far
     assert (document["watchlist_id"], document["summary"], document["failure"]) == (None, None, None)
     assert ended["state"] == "completed"
-    assert ended["totals"] == {"admitted": 2, "finished": 2, "remaining": 0}
+    assert ended["totals"] == {"total": 2, "admitted": 2, "finished": 2, "remaining": 0}
+    _assert_total_adds_up(ended)
     events = ended["events"]
     assert isinstance(events, list)
     assert [(item["sequence"], item["kind"], item["position"]) for item in events] == [
@@ -125,7 +133,7 @@ def test_each_strategy_is_refreshed_through_the_endpoints_from_a_list_of_entries
     summary = ended["summary"]
     assert isinstance(summary, dict)
     assert summary["schema_version"] == 4
-    assert ended["schema_version"] == 2
+    assert ended["schema_version"] == 3
     assert (summary["watchlist_id"], summary["watchlist_name"]) == (None, None)
     assert ended["failure"] is None
     assert latest == ended
@@ -220,6 +228,9 @@ def test_entry_errors_are_named_by_their_index_and_listed_together(isolated_cli_
         ["entries[3]"],
     ]
     assert [item["rule"] for item in errors][2] == "entries.duplicate"
+    for item in errors:
+        assert filled_template(item) == item["message"]
+    assert "{entries[2].selection.short_window}" in errors[1]["template"]
     assert failure["parameters"] == ["entries[1].method_id"]
 
 
@@ -249,7 +260,11 @@ def test_a_missing_watchlist_an_empty_one_and_an_unreadable_one_are_refused_befo
         _failure(empty_response, 409, "watchlist_empty")["reason"]
         == "Watchlist 'Empty' has no entries; there is nothing to refresh."
     )
-    _failure(unreadable, 409, "stored_selection_unreadable")
+    refusal = _failure(unreadable, 409, "stored_selection_unreadable")
+    entry = refusal["unreadable"]
+    assert isinstance(entry, dict)
+    assert (entry["entry_number"], entry["ticker"], entry["reason"]) == (2, "PG", refusal["reason"])
+    assert _failure(missing, 404, "watchlist_not_found")["unreadable"] is None
     _failure(none_started, 404, "refresh_job_not_found")
 
 
@@ -369,7 +384,10 @@ def test_stop_ends_the_job_stopped_and_is_idempotent(isolated_cli_settings: Proj
     assert list(first.json()) == _JOB_KEYS
     assert first.json()["state"] == second.json()["state"] == mid["state"] == "stopping"
     assert ended["state"] == "stopped"
-    assert ended["totals"] == {"admitted": 1, "finished": 1, "remaining": 2}
+    assert ended["totals"] == {"total": 3, "admitted": 1, "finished": 1, "remaining": 2}
+    _assert_total_adds_up(ended)
+    _assert_total_adds_up(mid)
+    assert mid["totals"]["total"] == 3
     assert [item["ticker"] for item in ended["summary"]["results"]] == ["KO"]  # type: ignore[index]
     assert third.json()["state"] == "stopped"
 
@@ -518,8 +536,11 @@ def test_a_job_that_fails_after_the_202_is_failed(isolated_cli_settings: Project
     assert ended["summary"] is None
     failure = ended["failure"]
     assert isinstance(failure, dict)
-    assert (failure["reason_code"], failure["schema_version"]) == ("database_busy", 13)
+    assert (failure["reason_code"], failure["schema_version"]) == ("database_busy", 14)
     assert ended["events"] == []
+    _assert_total_adds_up(ended)
+    assert isinstance(ended["totals"], dict)
+    assert ended["totals"]["total"] == 1
 
 
 def test_the_events_of_a_job_that_failed_midway_are_kept(isolated_cli_settings: ProjectSettings) -> None:

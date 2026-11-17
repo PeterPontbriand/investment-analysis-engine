@@ -25,10 +25,12 @@ class SpecimenSelection(FrozenSelection):
     method_id: MethodId = METHOD_ID
     config_schema_version: ConfigSchemaVersion = CONFIG_SCHEMA_VERSION
     value: StrictFloat = Field(
+        title="Value",
         description="The number the specimen scales by its configured multiplier.",
         json_schema_extra={"x-term": "specimen-scaled"},
     )
     as_of: AwareDatetime | None = Field(
+        title="As of",
         default=None,
         description=(
             "Run the analysis as of this date (the end of that day, UTC) or this moment, "
@@ -37,6 +39,7 @@ class SpecimenSelection(FrozenSelection):
         json_schema_extra={"x-term": "as-of-date"},
     )
     use_cache: bool = Field(
+        title="Use cached data",
         default=True,
         strict=True,
         description="Whether the analysis may read and write the local cache of fetched data.",

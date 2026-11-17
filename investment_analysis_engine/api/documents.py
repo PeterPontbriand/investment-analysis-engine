@@ -6,7 +6,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, SerializeAsAny
 
+from investment_analysis_engine.data.provider_checks import PROVIDER_CHECKS
 from investment_analysis_engine.help.locales import LOCALES
+from investment_analysis_engine.reporting.presentation import provider_display_name
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 
@@ -35,12 +37,21 @@ class LocaleItem(BaseModel):
     name: str = Field(description="The locale's name in its own language.")
 
 
+class ProviderItem(BaseModel):
+    """One data provider the engine reads from."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: str = Field(description="The provider's identifier, as a provider failure and a provider check name it.")
+    name: str = Field(description="The provider's name for a person.")
+
+
 class InfoDocument(BaseModel):
     """What a client may learn about the engine it is talking to; it never holds a credential's value."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[2] = 2
+    schema_version: Literal[3] = 3
     api_versions: tuple[str, ...] = Field(description="The API versions this engine serves, such as v1.")
     engine_version: str = Field(description="The version of the engine package.")
     sec_identity_configured: bool = Field(
@@ -48,6 +59,12 @@ class InfoDocument(BaseModel):
     )
     locales: tuple[LocaleItem, ...] = Field(
         description="The locales engine text is available in, for a language picker."
+    )
+    providers: tuple[ProviderItem, ...] = Field(
+        description=(
+            "The data providers the engine reads from, which are the providers a provider check can name, with the "
+            "name to show for each."
+        )
     )
 
 
@@ -114,6 +131,9 @@ def build_info_document(*, engine_version: str, sec_identity_configured: bool) -
         engine_version=engine_version,
         sec_identity_configured=sec_identity_configured,
         locales=tuple(LocaleItem(tag=item.tag, name=item.name) for item in LOCALES),
+        providers=tuple(
+            ProviderItem(id=item.provider_id, name=provider_display_name(item.provider_id)) for item in PROVIDER_CHECKS
+        ),
     )
 
 
@@ -138,6 +158,7 @@ __all__ = [
     "AnalysisTextDocument",
     "InfoDocument",
     "LocaleItem",
+    "ProviderItem",
     "ReplayTextDocument",
     "StrategiesDocument",
     "StrategyItem",

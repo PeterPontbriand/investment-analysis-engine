@@ -117,8 +117,15 @@ status 500; its detail goes to the log. `port_unavailable` occurs only
 at launch.
 
 When a rule rejected a value (a field of a selection, a blank name), `invalid_parameter` also carries `errors`, one
-item for every rejected value in field order, each with its `rule`, `parameters`, `arguments` and `message`; `reason`
-and `parameters` are the first item's. A client can place each message on its form field and translate by `rule`. A
+item for every rejected value in field order, each with its `rule`, `parameters`, `arguments`, `message` and `template`; `reason`
+and `parameters` are the first item's. A client can place each message on its form field and translate by `rule`. The
+`template` is the `message` with each parameter as a placeholder spelled as in `parameters` (`{--short-window}`) and each
+value as a placeholder named as in `arguments`; parameters and arguments share one placeholder namespace, and every
+placeholder is filled from the item's own `parameters` and `arguments`, so a client that fills them with its own labels
+for the parameters writes the message in its own words.
+
+A `stored_selection_unreadable` failure that names its entry also carries `unreadable`: that entry's `entry_number`,
+`ticker`, `method_id` and `reason`, as the watchlist actions' `unreadable` has them. It is `null` for every other code. A
 rejection that comes from the shape of the request (an unknown field, a wrong type, a bad ID) has `errors` `null`.
 
 A parameter is rejected with `invalid_parameter`, naming it, when it is unknown, when it is given more than once, when it
@@ -131,7 +138,7 @@ The endpoints that read use `GET`; the actions are below.
 
 | Path | Query parameters | Response |
 | :--- | :--- | :--- |
-| `/v1/info` | none | `schema_version`, `api_versions`, `engine_version`, `sec_identity_configured` and `locales`; never the identity itself |
+| `/v1/info` | none | `schema_version`, `api_versions`, `engine_version`, `sec_identity_configured`, `locales` and `providers` (each data provider's `id` and `name`, the providers a provider check can name); never the identity itself |
 | `/v1/strategies` | none | `schema_version` and `items`, each with `analysis`, `method` and `label` |
 | `/v1/watchlists` | none | the watchlist list document |
 | `/v1/watchlists/{watchlist_id}` | none | the watchlist document |
@@ -270,8 +277,8 @@ failure}`:
   attention when the job opens it, an unexpected exception, or an event that could not be built: the job then starts no
   more entries, the ones running finish and are saved, and the events recorded before the failure are kept.
 - `watchlist_id` is `null` for a refresh over `entries`.
-- `totals` is `{admitted, finished, remaining}`: the jobs started, the jobs finished and the jobs not yet started;
-  `remaining` stays above zero after a stop.
+- `totals` is `{total, admitted, finished, remaining}`: the entries in the refresh (always `admitted` plus `remaining`),
+  the jobs started, the jobs finished and the jobs not yet started; `remaining` stays above zero after a stop.
 - `summary` is the [refresh summary](WORKSPACE.md#refreshing-a-watchlist), provider check included, for `completed` and `stopped`, and
   `null` otherwise. `failure` is a [failure document](#errors) for `failed` and `null` otherwise; the events already
   recorded are kept either way.
@@ -334,6 +341,9 @@ fields, the same file as `schemas/selections/<alias>.schema.json`. The schemas s
 strategy's settings fill; `defaults` gives the configured value of each, by field name, as it is now, and is an empty
 object for a strategy with none. A request that leaves such a field out gets that value. A `method_id` this engine does
 not declare is `invalid_parameter` naming `method_id`, as it is anywhere else.
+
+Each field's `title` in `schema` is its label for a form, in the default locale, and a field has the same title in every
+strategy that has it. The nested `policy` group and its fields carry titles too. The field's `description` states its unit.
 
 ### Help
 
