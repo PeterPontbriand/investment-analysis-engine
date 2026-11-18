@@ -89,7 +89,7 @@ The SEC check needs the declared identity in the `SEC_USER_AGENT` setting. When 
 
 ### The check after a command failure
 
-After `momentum`, `graham-number`, `graham-growth` or `fcf-growth` fails on a provider, or `refresh` has a job that
+After a strategy's command (such as `momentum`) fails on a provider, or `refresh` has a job that
 did, the application runs the same check body for the provider the failure names (read from the failure's typed
 `provider_failure` element, never from message text) and reports what it found: a line before the failure text in the
 text modes, and the `provider_check` element in `--json`. The probe is
