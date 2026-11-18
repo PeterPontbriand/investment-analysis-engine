@@ -26,14 +26,13 @@ def test_a_repeat_within_one_request_is_a_400_and_nothing_is_written(isolated_cl
 
     body = _refused(refused)
     assert body["reason"] == (
-        f"tickers must not duplicate an entry: KO is already listed for {_DESCRIPTOR.method_id} with an equal "
-        "selection earlier in this request."
+        f"tickers must not duplicate an entry: KO is listed twice for {_DESCRIPTOR.label} with an equal selection in "
+        "this request."
     )
     assert body["errors"][0]["rule"] == "entries.duplicate"  # type: ignore[index]
     assert body["errors"][0]["arguments"] == {  # type: ignore[index]
         "ticker": "KO",
-        "method_id": _DESCRIPTOR.method_id,
-        "where": "earlier in this request",
+        "strategy": _DESCRIPTOR.label,
     }
     assert shown["entries"] == []
 
@@ -56,6 +55,8 @@ def test_a_repeat_of_a_stored_entry_is_a_400_and_another_selection_is_accepted(
         )
 
     body = _refused(refused)
-    assert str(body["reason"]).endswith("with an equal selection in the watchlist.")
+    assert str(body["reason"]).endswith(
+        f"is already listed for {_DESCRIPTOR.label} with an equal selection in the watchlist."
+    )
     assert other.status_code == 200
     assert [entry["ticker"] for entry in other.json()["entries"]] == ["KO", "KO"]

@@ -79,6 +79,33 @@ HEADLINE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
 )
 """The glossary term that explains the label of each headline cell, by the cell's key."""
 
+HISTORICAL_HORIZON_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        HistoricalHorizon.LONGEST_AVAILABLE.value: "historical-horizon-longest-available",
+        HistoricalHorizon.THREE_YEARS.value: "historical-horizon-three-years",
+        HistoricalHorizon.FOUR_YEARS.value: "historical-horizon-four-years",
+        HistoricalHorizon.FIVE_YEARS.value: "historical-horizon-five-years",
+    }
+)
+"""The glossary term of each historical horizon option; both component names of the code set share it."""
+
+FORWARD_POLICY_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        ForwardPolicy.DISPLAY_ONLY.value: "forward-policy-display-only",
+        ForwardPolicy.CONFIRMATION.value: "forward-policy-confirmation",
+        ForwardPolicy.HARD_GATE.value: "forward-policy-hard-gate",
+    }
+)
+"""The glossary term of each forward policy option; both component names of the code set share it."""
+
+CLASSIFICATION_BASIS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        FCFClassificationBasis.TOTAL_FCF.value: "classification-basis-total-fcf",
+        FCFClassificationBasis.FCF_PER_SHARE.value: "classification-basis-fcf-per-share",
+    }
+)
+"""The glossary term of each classification basis option; both component names of the code set share it."""
+
 CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
     {
         "Classification": MappingProxyType(
@@ -95,48 +122,12 @@ CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
                 ForwardEvidenceStatus.UNAVAILABLE.value: "forward-evidence-unavailable",
             }
         ),
-        "HistoricalHorizon": MappingProxyType(
-            {
-                HistoricalHorizon.LONGEST_AVAILABLE.value: "historical-horizon",
-                HistoricalHorizon.THREE_YEARS.value: "historical-horizon",
-                HistoricalHorizon.FOUR_YEARS.value: "historical-horizon",
-                HistoricalHorizon.FIVE_YEARS.value: "historical-horizon",
-            }
-        ),
-        "FCFGrowthSelection.HistoricalHorizon": MappingProxyType(
-            {
-                HistoricalHorizon.LONGEST_AVAILABLE.value: "historical-horizon",
-                HistoricalHorizon.THREE_YEARS.value: "historical-horizon",
-                HistoricalHorizon.FOUR_YEARS.value: "historical-horizon",
-                HistoricalHorizon.FIVE_YEARS.value: "historical-horizon",
-            }
-        ),
-        "ForwardPolicy": MappingProxyType(
-            {
-                ForwardPolicy.DISPLAY_ONLY.value: "forward-policy",
-                ForwardPolicy.CONFIRMATION.value: "forward-policy",
-                ForwardPolicy.HARD_GATE.value: "forward-policy",
-            }
-        ),
-        "FCFGrowthSelection.ForwardPolicy": MappingProxyType(
-            {
-                ForwardPolicy.DISPLAY_ONLY.value: "forward-policy",
-                ForwardPolicy.CONFIRMATION.value: "forward-policy",
-                ForwardPolicy.HARD_GATE.value: "forward-policy",
-            }
-        ),
-        "FCFClassificationBasis": MappingProxyType(
-            {
-                FCFClassificationBasis.TOTAL_FCF.value: "classification-basis",
-                FCFClassificationBasis.FCF_PER_SHARE.value: "classification-basis",
-            }
-        ),
-        "FCFGrowthSelection.FCFClassificationBasis": MappingProxyType(
-            {
-                FCFClassificationBasis.TOTAL_FCF.value: "classification-basis",
-                FCFClassificationBasis.FCF_PER_SHARE.value: "classification-basis",
-            }
-        ),
+        "HistoricalHorizon": HISTORICAL_HORIZON_TERMS,
+        "FCFGrowthSelection.HistoricalHorizon": HISTORICAL_HORIZON_TERMS,
+        "ForwardPolicy": FORWARD_POLICY_TERMS,
+        "FCFGrowthSelection.ForwardPolicy": FORWARD_POLICY_TERMS,
+        "FCFClassificationBasis": CLASSIFICATION_BASIS_TERMS,
+        "FCFGrowthSelection.FCFClassificationBasis": CLASSIFICATION_BASIS_TERMS,
         "TrendClassification": MappingProxyType(
             {
                 TrendClassification.BOTH_GROWING.value: "growth-trend-both",

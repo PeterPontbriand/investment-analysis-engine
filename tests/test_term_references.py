@@ -13,7 +13,12 @@ from typing import Any, Final
 
 import pytest
 
-from investment_analysis_engine.api.term_references import EXEMPT_CODE_SETS, EXEMPT_LOCATIONS, SHARED_CODE_TERMS
+from investment_analysis_engine.api.term_references import (
+    EXEMPT_CODE_SETS,
+    EXEMPT_LOCATIONS,
+    SHARED_CODE_TERMS,
+    code_terms_by_component,
+)
 from investment_analysis_engine.help.bundle import TERM_LINK_PREFIX, HelpBundle, load_help_bundle
 from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.reporting.headline import CELL_STATUS_TERMS
@@ -164,6 +169,57 @@ def _selection_properties(schema: dict[str, Any]) -> Iterator[tuple[str, dict[st
     for model in schema.get("$defs", {}).values():
         for name, definition in model.get("properties", {}).items():
             yield name, definition
+
+
+def _selection_option_sets(schema: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any], str, list[Any]]]:
+    """Yield each selection field that offers a closed set: the field, its definition, the set's name and its values.
+
+    The set is read through the field's ``$ref``, or from an enumeration written inline, which is named by the field.
+    """
+    for name, definition in _selection_properties(schema):
+        target = definition
+        set_name = name
+        if "$ref" in definition:
+            set_name = str(definition["$ref"]).rsplit("/", 1)[-1]
+            target = schema["$defs"][set_name]
+        values = target.get("enum")
+        if isinstance(values, list) and len(values) > 1:
+            yield name, definition, set_name, values
+
+
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.alias)
+def test_each_option_of_a_selection_field_names_its_own_term(descriptor: StrategyDescriptor) -> None:
+    schema = json.loads(
+        (REPOSITORY_ROOT / _SELECTION_DIRECTORY / f"{descriptor.alias}.schema.json").read_text(encoding="utf-8")
+    )
+    tables = code_terms_by_component(STRATEGIES)
+    problems: list[str] = []
+    for name, definition, set_name, values in _selection_option_sets(schema):
+        table = tables.get(set_name)
+        if table is None:
+            problems.append(f"{name}: the closed set {set_name} has no term table")
+            continue
+        terms = [table.get(str(value)) for value in values]
+        if None in terms:
+            problems.append(f"{name}: a value of {set_name} has no term")
+        if len(set(terms)) != len(terms):
+            problems.append(f"{name}: two options of {set_name} share a term: {terms}")
+        if definition["x-term"] in terms:
+            problems.append(f"{name}: an option of {set_name} names the field's own term {definition['x-term']}")
+    assert problems == []
+
+
+def test_the_option_walk_finds_a_closed_set_to_check() -> None:
+    found = [
+        set_name
+        for descriptor in STRATEGIES
+        for _name, _definition, set_name, _values in _selection_option_sets(
+            json.loads(
+                (REPOSITORY_ROOT / _SELECTION_DIRECTORY / f"{descriptor.alias}.schema.json").read_text(encoding="utf-8")
+            )
+        )
+    ]
+    assert found, "no selection schema offers a closed set, so the option-term check has nothing to check"
 
 
 def _named_terms() -> set[str]:

@@ -4,7 +4,10 @@ Each action checks its arguments before it opens the database (so a rejected arg
 database is not ready), then does its write and, where it returns the watchlist, its read-back in one transaction.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from enum import StrEnum
+from types import MappingProxyType
+from typing import Final
 from uuid import UUID
 
 from investment_analysis_engine.application.context import ApplicationContext
@@ -30,11 +33,24 @@ from investment_analysis_engine.workspace.watchlists import (
     encode_selection,
 )
 
-REPEATED_IN_REQUEST = "earlier in this request"
-"""Where a duplicate entry's twin is, when it is another entry of the same request."""
 
-REPEATED_IN_WATCHLIST = "in the watchlist"
-"""Where a duplicate entry's twin is, when it is an entry the watchlist already holds."""
+class DuplicateTwin(StrEnum):
+    """Where a duplicate entry's twin is; it selects the message template of ``entries.duplicate``."""
+
+    REQUEST = "request"
+    """The twin is another entry of the same request."""
+
+    WATCHLIST = "watchlist"
+    """The twin is an entry the watchlist already holds."""
+
+
+_DUPLICATE_TEMPLATES: Final[Mapping[DuplicateTwin, str]] = MappingProxyType(
+    {
+        DuplicateTwin.REQUEST: "is listed twice for {strategy} with an equal selection in this request.",
+        DuplicateTwin.WATCHLIST: "is already listed for {strategy} with an equal selection in the watchlist.",
+    }
+)
+"""The text after ``{ticker}`` in the message of each kind of duplicate."""
 
 
 def _stored_method_alias(method_id: str) -> str | None:
@@ -109,24 +125,24 @@ def _check_tickers(tickers: Sequence[str]) -> None:
         )
 
 
-def duplicate_entry_error(parameter: str, ticker: str, method_id: str, where: str) -> ActionParameterError:
+def duplicate_entry_error(parameter: str, ticker: str, method_id: str, twin: DuplicateTwin) -> ActionParameterError:
     """Return the error of an entry that repeats another: the same ticker with an equal selection.
 
     This is the one rule of a duplicate, ``entries.duplicate``, for a list of entries to refresh and for every add to a
-    watchlist.
+    watchlist. The message names the strategy by its label.
 
     Args:
         parameter: The action's name for the offending entry or entries.
         ticker: The normalized ticker.
-        method_id: The strategy's method identifier.
-        where: Where the other entry is: :data:`REPEATED_IN_REQUEST` or :data:`REPEATED_IN_WATCHLIST`.
+        method_id: The method identifier of a declared strategy.
+        twin: Where the other entry is; it selects the message template.
     """
+    strategy = require(BY_METHOD_ID, method_id, what="method id").label
     return ActionParameterError(
-        f"{{{parameter}}} must not duplicate an entry: {{ticker}} is already listed for {{method_id}} with an equal "
-        "selection {where}.",
+        f"{{{parameter}}} must not duplicate an entry: {{ticker}} {_DUPLICATE_TEMPLATES[twin]}",
         parameters=(parameter,),
         rule="entries.duplicate",
-        arguments={"ticker": ticker, "method_id": method_id, "where": where},
+        arguments={"ticker": ticker, "strategy": strategy},
     )
 
 
@@ -208,7 +224,7 @@ def add_watchlist_entries(
     for ticker, selection in entries:
         key = entry_key(ticker, selection)
         if key in seen:
-            repeated.append(duplicate_entry_error("tickers", key[0], selection.method_id, REPEATED_IN_REQUEST))
+            repeated.append(duplicate_entry_error("tickers", key[0], selection.method_id, DuplicateTwin.REQUEST))
         seen.add(key)
     if repeated:
         raise ActionParameterError.several(repeated)
@@ -218,7 +234,7 @@ def add_watchlist_entries(
         except DuplicateEntryError as exc:
             raise ActionParameterError.several(
                 [
-                    duplicate_entry_error("tickers", ticker, method_id, REPEATED_IN_WATCHLIST)
+                    duplicate_entry_error("tickers", ticker, method_id, DuplicateTwin.WATCHLIST)
                     for ticker, method_id in exc.duplicates
                 ]
             ) from None
@@ -275,8 +291,7 @@ def remove_watchlist_method(context: ApplicationContext, ref: WatchlistRef, meth
 
 
 __all__ = [
-    "REPEATED_IN_REQUEST",
-    "REPEATED_IN_WATCHLIST",
+    "DuplicateTwin",
     "alias_for_method_id",
     "add_watchlist_entries",
     "create_watchlist",

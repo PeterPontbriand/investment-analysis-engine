@@ -2054,8 +2054,8 @@
             "type": "null"
           },
           "schema_version": {
-            "const": 14,
-            "default": 14,
+            "const": 15,
+            "default": 15,
             "title": "Schema Version",
             "type": "integer"
           },

@@ -26,20 +26,18 @@ HEADLINE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
 )
 """The glossary term that explains the label of each headline cell, by the cell's key."""
 
+EPS_BASIS_TERMS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "three_year_average": "three-year-average-eps",
+        "fiscal_year": "fiscal-year-eps",
+    }
+)
+"""The glossary term of each EPS basis option; both component names of the code set share it."""
+
 CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = MappingProxyType(
     {
-        "GrahamGrowthSelectionEPSBasis": MappingProxyType(
-            {
-                "three_year_average": "eps-basis",
-                "fiscal_year": "eps-basis",
-            }
-        ),
-        "GrahamGrowthSelection.GrahamGrowthSelectionEPSBasis": MappingProxyType(
-            {
-                "three_year_average": "eps-basis",
-                "fiscal_year": "eps-basis",
-            }
-        ),
+        "GrahamGrowthSelectionEPSBasis": EPS_BASIS_TERMS,
+        "GrahamGrowthSelection.GrahamGrowthSelectionEPSBasis": EPS_BASIS_TERMS,
     }
 )
 """The glossary term that explains each value of each code set this strategy defines, by the name of the OpenAPI

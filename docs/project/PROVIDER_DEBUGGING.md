@@ -89,7 +89,7 @@ The SEC check needs the declared identity in the `SEC_USER_AGENT` setting. When 
 
 ### The check after a command failure
 
-After `momentum`, `graham-number`, `graham-growth` or `fcf-growth` fails on a provider, or `refresh` has a job that
+After a strategy's command (such as `momentum`) fails on a provider, or `refresh` has a job that
 did, the application runs the same check body for the provider the failure names (read from the failure's typed
 `provider_failure` element, never from message text) and reports what it found: a line before the failure text in the
 text modes, and the `provider_check` element in `--json`. The probe is
@@ -141,8 +141,10 @@ failure document and the four strategy documents, and is the last key of the `re
   and no other. The verdict is never stored.
 - **Consistency.** A document carries a non-null element only beside a non-null `provider_failure`, naming exactly the
   providers that element names. A `refresh` summary lists each provider once.
-- **Versions.** The failure document is `schema_version` 9, the strategy documents 9 (Momentum), 12 (Graham Number),
-  12 (Graham Growth) and 9 (FCF Growth), and the refresh summary 2. No stored version changed.
+- **Versions.** The documents' versions are in their published schemas: the failure document in
+  [`schemas/failure.schema.json`](../../schemas/failure.schema.json), each strategy's document in its own schema in
+  [`schemas/`](../../schemas/), named after the strategy's command alias (for example `momentum.schema.json`), and the
+  refresh summary in [`schemas/refresh-summary.schema.json`](../../schemas/refresh-summary.schema.json).
 
 ## 2. The scheduled and on-demand run
 
