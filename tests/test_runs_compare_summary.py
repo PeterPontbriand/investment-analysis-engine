@@ -51,7 +51,7 @@ def _run(
     outcome: RunOutcome = RunOutcome.COMPLETED,
 ) -> AnalysisRun:
     """Return a stored run of its own ticker, so a refresh holds no two runs of one ticker and strategy."""
-    run = refresh_run(refresh_id, position, at(minute), watchlist=watchlist, status=outcome)
+    run = refresh_run(refresh_id, position, at(minute), watchlist=watchlist, outcome=outcome)
     return run.model_copy(update={"ticker": f"T{position}", "method_version": 99})
 
 
@@ -124,6 +124,23 @@ def test_the_watchlist_shows_when_no_runs_envelope_can_be_read(isolated_cli_sett
         for row in document.rows
         for entry in row.entries
     )
+
+
+def test_a_version_3_run_compares_as_an_unsupported_version(isolated_cli_settings: ProjectSettings) -> None:
+    refresh_id = refresh(isolated_cli_settings)
+
+    def as_version_3(envelope: dict[str, object]) -> None:
+        envelope["status"] = envelope.pop("outcome")
+        envelope["run_schema_version"] = 3
+
+    for run_id in run_ids(isolated_cli_settings, refresh_id).values():
+        alter_row(isolated_cli_settings, run_id, {"run_schema_version": 3}, as_version_3)
+
+    document = compare_refresh_runs(ApplicationContext(settings=isolated_cli_settings), refresh_id)
+
+    runs = [entry.run for row in document.rows for entry in row.entries if entry.run is not None]
+    assert runs
+    assert all(run.headline_unavailable == "unsupported_version" for run in runs)
 
 
 def test_the_heading_names_the_last_completion_with_and_without_a_watchlist(

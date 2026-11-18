@@ -33,7 +33,7 @@ _CASE = next(item for item in CASES if item.name == "graham-number-nonpositive-e
 def test_the_saved_run_is_not_applicable_with_no_failure_code() -> None:
     direct, replayed, run = run_saved(_CASE)
 
-    assert run.status is RunOutcome.NOT_APPLICABLE
+    assert run.outcome is RunOutcome.NOT_APPLICABLE
     assert run.failure_reason_code is None
     assert json.loads(direct.stdout)["status"] == "not_applicable"
     assert direct.exit_code == 0
@@ -74,5 +74,5 @@ def test_a_refresh_job_for_it_carries_no_reason_code(save: bool) -> None:
     result = summary.results[0]
     assert result.reason_code is None
     assert result.error is None
-    assert (result.run.status if result.run is not None else result.outcome) is RunOutcome.NOT_APPLICABLE
+    assert (result.run.outcome if result.run is not None else result.outcome) is RunOutcome.NOT_APPLICABLE
     assert summary.counts == {"not_applicable": 1}

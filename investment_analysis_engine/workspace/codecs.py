@@ -12,7 +12,7 @@ from typing import ClassVar
 from investment_analysis_engine.analysis.run_models import StrictJsonMapping
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.strategy_errors import find
-from investment_analysis_engine.workspace.runs import AnalysisRun
+from investment_analysis_engine.workspace.runs import PROJECTION_VERSION, RUN_SCHEMA_VERSION, AnalysisRun
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence
 
 
@@ -64,9 +64,9 @@ def decode_evidence(run: AnalysisRun, codecs: Mapping[tuple[str, str], EvidenceC
     if (
         codec is None
         or type(run.run_schema_version) is not int
-        or run.run_schema_version != 3
+        or run.run_schema_version != RUN_SCHEMA_VERSION
         or type(run.projection_version) is not int
-        or run.projection_version != 1
+        or run.projection_version != PROJECTION_VERSION
         or type(run.evidence_codec_version) is not int
         or run.evidence_codec_version != codec.evidence_codec_version
         or (

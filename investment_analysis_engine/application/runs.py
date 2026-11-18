@@ -20,7 +20,7 @@ from investment_analysis_engine.strategy_wiring import (
     REPLAYS_BY_KEY,
     STRATEGIES,
 )
-from investment_analysis_engine.workspace.codecs import InvalidStoredRunError
+from investment_analysis_engine.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from investment_analysis_engine.workspace.repositories.analysis_runs import SQLiteAnalysisRunRepository
 from investment_analysis_engine.workspace.runs import (
     RUN_QUERY_MAX_LIMIT,
@@ -199,11 +199,14 @@ def _stored_run(context: ApplicationContext, run_id: UUID) -> AnalysisRun:
     Raises:
         AnalysisRunNotFoundError: If no run has that ID.
         InvalidStoredRunError: If the stored record is malformed or does not match its summary.
+        UnsupportedRunVersionError: If the run was stored under a run schema version this one cannot read.
     """
     with open_database(context) as database:
         repository = SQLiteAnalysisRunRepository(database)
         try:
             run = repository.get(run_id)
+        except UnsupportedRunVersionError:
+            raise
         except ValueError as exc:
             # The repository's documented contract: a malformed or internally inconsistent stored envelope raises
             # a plain ValueError from get(); its text is the validation library's, so it goes to the log.

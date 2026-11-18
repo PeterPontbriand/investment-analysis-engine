@@ -118,7 +118,7 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     assert run.result_schema_version == 5
     assert run.evidence_codec_version == 4
     assert run.projection_version == 1
-    assert run.status is RunOutcome.COMPLETED
+    assert run.outcome is RunOutcome.COMPLETED
     assert run.failure_reason_code is None
     assert (
         run.requested_config == run.effective_config == MomentumSelection(short_window=2, long_window=3, rsi_period=14)
@@ -178,7 +178,7 @@ def test_execute_only_sets_failure_reason_code_for_failed(outcome: RunOutcome) -
         clock=lambda: NOW,
         spec=run_spec_for(_momentum_request().selection),
     )
-    assert run.status is outcome
+    assert run.outcome is outcome
     assert run.failure_reason_code is None
 
 
@@ -191,7 +191,7 @@ def test_execute_sets_a_stable_failure_reason_code_when_failed() -> None:
         clock=lambda: NOW,
         spec=run_spec_for(_momentum_request().selection),
     )
-    assert run.status is RunOutcome.FAILED
+    assert run.outcome is RunOutcome.FAILED
     assert run.failure_reason_code == "provider_error"
 
 

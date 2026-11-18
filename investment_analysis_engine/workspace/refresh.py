@@ -158,7 +158,7 @@ class RefreshJobResult:
             raise ValueError("Exactly one of run, outcome, or error must be set.")
         failed = (
             self.error is not None
-            or (self.run is not None and self.run.status is RunOutcome.FAILED)
+            or (self.run is not None and self.run.outcome is RunOutcome.FAILED)
             or self.outcome is RunOutcome.FAILED
         )
         if failed != (self.reason_code is not None):
@@ -204,7 +204,7 @@ class RefreshSummary:
         counts: dict[str, int] = {}
         for item in self.results:
             if item.run is not None:
-                key = item.run.status.value
+                key = item.run.outcome.value
             elif item.outcome is not None:
                 key = item.outcome.value
             else:
@@ -423,7 +423,7 @@ def _saved(ticker: str, selection: AnalysisSelection, run: AnalysisRun, capture:
         method_id=selection.method_id,
         run=run,
         reason_code=run.failure_reason_code,
-        provider_failure=capture.provider_failure if run.status is RunOutcome.FAILED else None,
+        provider_failure=capture.provider_failure if run.outcome is RunOutcome.FAILED else None,
     )
 
 

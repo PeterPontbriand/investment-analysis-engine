@@ -11,7 +11,7 @@ identifiers and finite-value guarantees.
 
 from collections.abc import Mapping
 from datetime import date
-from typing import ClassVar, Literal
+from typing import ClassVar, Final, Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, Field, field_validator, model_validator
@@ -28,6 +28,14 @@ from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 
+RunSchemaVersion = Literal[4]
+RUN_SCHEMA_VERSION: Final[RunSchemaVersion] = 4
+"""The run envelope version this code writes and reads; a stored run of any other version is refused by version."""
+
+ProjectionVersion = Literal[1]
+PROJECTION_VERSION: Final[ProjectionVersion] = 1
+"""The replay projection version this code writes and reads."""
+
 
 class AnalysisRunNotFoundError(ValueError):
     """No Analysis Run exists with the requested ID, or no run is stored for the requested refresh."""
@@ -40,7 +48,7 @@ class AnalysisRun(_FrozenModel):
 
     The envelope freezes the requested and (when materialized) effective selection,
     canonical identifiers, timing, schema/method versions, outcome, and evidence for
-    a single run. Cross-field invariants enforce time ordering, status-dependent
+    a single run. Cross-field invariants enforce time ordering, outcome-dependent
     requirements, identifier consistency with the embedded configs, and paired-field
     presence; all financial floats inside evidence/presentation must be finite JSON
     primitives.
@@ -71,15 +79,14 @@ class AnalysisRun(_FrozenModel):
     source_retrieval_at: AwareDatetime | None = None
 
     # Versions
-    run_schema_version: Literal[3] = 3
+    run_schema_version: RunSchemaVersion = RUN_SCHEMA_VERSION
     method_version: int = Field(ge=1)
     result_schema_version: int = Field(ge=1)
     evidence_codec_version: int = Field(ge=1)
-    projection_version: Literal[1] = 1
+    projection_version: ProjectionVersion = PROJECTION_VERSION
 
     # Outcome
-    # Stored name; renamed to outcome with a run_schema_version change (issue #264).
-    status: RunOutcome
+    outcome: RunOutcome
     native_status: CalculationStatus | None = None
     native_reason: str | None = None
     failure_reason_code: str | None = None
@@ -135,10 +142,10 @@ class AnalysisRun(_FrozenModel):
         ):
             raise ValueError("analysis/method identifiers and version must match effective_config.")
 
-        if self.status is RunOutcome.FAILED and not (self.failure_reason_code and self.failure_reason_code.strip()):
-            raise ValueError("failure_reason_code is required when status is failed.")
-        if self.status is RunOutcome.COMPLETED and self.result_evidence is None:
-            raise ValueError("result_evidence is required when status is completed.")
+        if self.outcome is RunOutcome.FAILED and not (self.failure_reason_code and self.failure_reason_code.strip()):
+            raise ValueError("failure_reason_code is required when outcome is failed.")
+        if self.outcome is RunOutcome.COMPLETED and self.result_evidence is None:
+            raise ValueError("result_evidence is required when outcome is completed.")
 
         if self.instrument_profile is not None and self.instrument_profile.ticker != self.ticker:
             raise ValueError("instrument_profile ticker must match ticker.")
@@ -268,16 +275,20 @@ class WatchlistSummary(_FrozenModel):
 
 
 __all__ = [
+    "PROJECTION_VERSION",
     "RUN_QUERY_MAX_LIMIT",
     "RUN_QUERY_MIN_LIMIT",
+    "RUN_SCHEMA_VERSION",
     "AnalysisRun",
     "AnalysisRunNotFoundError",
     "AnalysisRunSummary",
+    "ProjectionVersion",
     "RefreshPage",
     "RefreshQuery",
     "RefreshSummary",
     "RunPage",
     "RunQuery",
+    "RunSchemaVersion",
     "Watchlist",
     "WatchlistEntry",
     "WatchlistSummary",

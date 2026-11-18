@@ -145,7 +145,7 @@ def test_save_run_stores_a_provider_failure_as_a_failed_run_with_its_code(
     finally:
         database.close()
     assert run is not None
-    assert run.status is RunOutcome.FAILED
+    assert run.outcome is RunOutcome.FAILED
     assert run.failure_reason_code == "provider_rate_limited"
     assert run.result_evidence is not None
 
@@ -214,7 +214,7 @@ def test_refresh_stores_a_failed_run_with_its_batch_context_and_counts_every_out
     assert str(failed.refresh_id) == document["refresh_id"]
     assert failed.batch_position == 1
     assert failed.watchlist_id is not None
-    assert failed.status is RunOutcome.FAILED
+    assert failed.outcome is RunOutcome.FAILED
 
 
 def test_refresh_no_save_reports_the_failed_outcome_with_its_code_and_stores_nothing(

@@ -146,7 +146,7 @@ def execute(  # noqa: PLR0913
         method_version=spec.method_version,
         result_schema_version=spec.result_schema_version,
         evidence_codec_version=spec.evidence_codec_version,
-        status=result.outcome,
+        outcome=result.outcome,
         failure_reason_code=result.failure_reason_code,
         result_evidence=spec.encode(result.native_evidence),
         presentation_inputs=result.presentation_inputs or None,

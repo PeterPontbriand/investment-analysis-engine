@@ -172,7 +172,7 @@ def _graham_run(
         method_version=2,
         result_schema_version=4,
         evidence_codec_version=6,
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis),
         instrument_profile=profile,
     )
@@ -575,7 +575,7 @@ def _growth_run(
         method_version=2,
         result_schema_version=4,
         evidence_codec_version=6,
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis),
         instrument_profile=profile,
     )
@@ -838,7 +838,7 @@ def _fcf_run(
         method_version=3,
         result_schema_version=9,
         evidence_codec_version=4,
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(result),
         instrument_profile=profile,
     )

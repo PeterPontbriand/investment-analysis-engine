@@ -42,7 +42,7 @@ from investment_analysis_engine.workspace.codecs import (
     decode_evidence,
 )
 from investment_analysis_engine.workspace.repositories.analysis_runs import StoredRefresh, StoredRefreshRun
-from investment_analysis_engine.workspace.runs import AnalysisRun
+from investment_analysis_engine.workspace.runs import PROJECTION_VERSION, RUN_SCHEMA_VERSION, AnalysisRun
 from investment_analysis_engine.workspace_documents.refreshes import (
     FIRST_COMPLETED_DESCRIPTION,
     LAST_COMPLETED_DESCRIPTION,
@@ -84,8 +84,6 @@ _NO_RUN = "no stored run"
 _NOT_RECORDED = "not recorded"
 _MARKERS = ("†", "‡", "§", "¶")
 _UNREADABLE = ("unsupported_version", "strategy_not_declared")
-_SUPPORTED_RUN_SCHEMA_VERSION = 3
-_SUPPORTED_PROJECTION_VERSION = 1
 
 
 def no_runs_message(refresh_id: UUID) -> str:
@@ -282,12 +280,12 @@ def _versions_supported(row: Mapping[str, Any], codec: EvidenceCodec) -> bool:
         row["projection_version"],
     )
     return stored == (
-        _SUPPORTED_RUN_SCHEMA_VERSION,
+        RUN_SCHEMA_VERSION,
         codec.config_schema_version,
         codec.method_version,
         codec.result_schema_version,
         codec.evidence_codec_version,
-        _SUPPORTED_PROJECTION_VERSION,
+        PROJECTION_VERSION,
     )
 
 

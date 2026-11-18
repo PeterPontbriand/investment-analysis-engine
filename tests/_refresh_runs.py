@@ -22,11 +22,11 @@ def refresh_run(  # noqa: PLR0913
     completed_at: datetime,
     *,
     watchlist: tuple[UUID, str] | None = None,
-    status: RunOutcome = RunOutcome.COMPLETED,
+    outcome: RunOutcome = RunOutcome.COMPLETED,
 ) -> AnalysisRun:
     """Return a stored-run envelope that belongs to ``refresh_id`` and was completed at ``completed_at``.
 
-    The copy is not revalidated, so ``status`` changes only what listing reads: the outcome column.
+    The copy is not revalidated, so ``outcome`` changes only what listing reads: the outcome column.
     """
     return _momentum_run().model_copy(
         update={
@@ -37,6 +37,6 @@ def refresh_run(  # noqa: PLR0913
             "watchlist_name": None if watchlist is None else watchlist[1],
             "started_at": completed_at,
             "completed_at": completed_at,
-            "status": status,
+            "outcome": outcome,
         }
     )

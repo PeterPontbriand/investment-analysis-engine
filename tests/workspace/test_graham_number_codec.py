@@ -135,7 +135,7 @@ def _run(analysis: GrahamNumberAnalysis | None = None) -> AnalysisRun:
         method_version=2,
         result_schema_version=4,
         evidence_codec_version=6,
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis or _analysis()),
     )
 
@@ -267,7 +267,7 @@ def test_ticker_mismatch_wrong_payload_and_absent_evidence() -> None:
     with pytest.raises(InvalidStoredRunError):
         decode_evidence(run.model_copy(update={"result_evidence": {"run": {}}}), EVIDENCE_BY_KEY)
     failed = AnalysisRun.model_validate(
-        {**run.model_dump(), "status": "failed", "failure_reason_code": "provider_error", "result_evidence": None}
+        {**run.model_dump(), "outcome": "failed", "failure_reason_code": "provider_error", "result_evidence": None}
     )
     assert decode_evidence(failed, EVIDENCE_BY_KEY) is None
 

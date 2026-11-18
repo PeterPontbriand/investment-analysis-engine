@@ -25,15 +25,15 @@ def repository(migrated_database: SQLiteDatabase) -> SQLiteAnalysisRunRepository
 
 def _store_refreshes(repository: SQLiteAnalysisRunRepository) -> None:
     core = (CORE_ID, "Core")
-    for position, (minute, status) in enumerate(
+    for position, (minute, outcome) in enumerate(
         ((0, RunOutcome.COMPLETED), (1, RunOutcome.COMPLETED), (2, RunOutcome.FAILED))
     ):
-        repository.insert(refresh_run(REFRESH_A, position, at(minute), watchlist=core, status=status))
+        repository.insert(refresh_run(REFRESH_A, position, at(minute), watchlist=core, outcome=outcome))
     repository.insert(refresh_run(REFRESH_B, 0, at(10), watchlist=(CORE_ID, "Core before rename")))
     repository.insert(refresh_run(REFRESH_B, 1, at(11), watchlist=(CORE_ID, "Core before rename")))
-    repository.insert(refresh_run(REFRESH_C, 0, at(20), status=RunOutcome.UNAVAILABLE))
+    repository.insert(refresh_run(REFRESH_C, 0, at(20), outcome=RunOutcome.UNAVAILABLE))
     repository.insert(
-        refresh_run(REFRESH_D, 0, at(20), watchlist=(VALUE_ID, "Value"), status=RunOutcome.NOT_APPLICABLE)
+        refresh_run(REFRESH_D, 0, at(20), watchlist=(VALUE_ID, "Value"), outcome=RunOutcome.NOT_APPLICABLE)
     )
     repository.insert(refresh_run(None, 0, at(30)))
 
