@@ -419,7 +419,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - Database maintenance, provider health, evaluation and settings editing through the API.
 - A change to any stored shape, formula or classification, or to existing CLI output, except the two list documents
   of [S3](API_2_SLICE_PLAN.md#s3-the-list-documents-are-versioned-objects-2026-11-03), the two summary columns that
-  API.7's migration adds to `analysis_runs` ([A.6](#a6-refreshes-list-2026-11-10), L3) the changes API.8 records
+  API.7's migration adds to `analysis_runs` ([A.6](#a6-refreshes-list-2026-11-10), L3), the changes API.8 records
   ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13), U3 and U9) and the stored
   run envelope's `outcome` under `run_schema_version` 4 that API.12 records
   ([A.11](#a11-the-stored-run-envelopes-outcome-2026-11-17), D1).

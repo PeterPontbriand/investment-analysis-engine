@@ -197,6 +197,12 @@ def alter_row(
         connection.commit()
 
 
+def as_version_3(envelope: dict[str, object]) -> None:
+    """Rewrite a stored envelope as version 3 wrote it: `outcome` named `status`, `run_schema_version` 3."""
+    envelope["status"] = envelope.pop("outcome")
+    envelope["run_schema_version"] = 3
+
+
 def run_ids(settings: ProjectSettings, refresh_id: UUID) -> dict[tuple[str, str], str]:
     """Return the stored run ID of each (ticker, method id) of a refresh."""
     path = settings.database_url.removeprefix("sqlite:///")

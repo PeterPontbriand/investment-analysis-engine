@@ -11,7 +11,7 @@ from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.reporting.headline import CellKind, CellUnit
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from tests._cli_helpers import normalize_cli_output
-from tests._runs_compare_refresh import alter_row
+from tests._runs_compare_refresh import alter_row, as_version_3
 from tests.api._support import AUTH, client_for, runs_by_alias, store
 
 runner = CliRunner()
@@ -111,18 +111,12 @@ def test_a_run_stored_under_another_version_fails_as_the_run_document_does(
     assert overview.json()["reason"] == shown.json()["reason"]
 
 
-def _as_version_3(document: dict[str, object]) -> None:
-    """Rewrite a stored envelope as version 3 wrote it: a ``status`` key and ``run_schema_version`` 3."""
-    document["status"] = document.pop("outcome")
-    document["run_schema_version"] = 3
-
-
 def test_a_version_3_run_is_refused_by_version_by_both_endpoints_and_still_listed(
     caplog: pytest.LogCaptureFixture, isolated_cli_settings: ProjectSettings
 ) -> None:
     run = runs_by_alias()[STRATEGIES[0].alias]
     store(isolated_cli_settings, run)
-    alter_row(isolated_cli_settings, str(run.analysis_run_id), {"run_schema_version": 3}, _as_version_3)
+    alter_row(isolated_cli_settings, str(run.analysis_run_id), {"run_schema_version": 3}, as_version_3)
 
     with client_for(isolated_cli_settings) as client:
         overview = client.get(f"/v1/runs/{run.analysis_run_id}/overview", headers=AUTH)

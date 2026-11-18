@@ -16,7 +16,7 @@ from investment_analysis_engine.workspace.runs import AnalysisRun, RefreshQuery
 from investment_analysis_engine.workspace_documents.refreshes import build_refreshes_list_document
 from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
 from tests._refresh_runs import CORE_ID, at, refresh_run
-from tests._runs_compare_refresh import alter_row, refresh, run_ids
+from tests._runs_compare_refresh import alter_row, as_version_3, refresh, run_ids
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings", "stub_yahoo_identity_metadata")
 
@@ -128,10 +128,6 @@ def test_the_watchlist_shows_when_no_runs_envelope_can_be_read(isolated_cli_sett
 
 def test_a_version_3_run_compares_as_an_unsupported_version(isolated_cli_settings: ProjectSettings) -> None:
     refresh_id = refresh(isolated_cli_settings)
-
-    def as_version_3(envelope: dict[str, object]) -> None:
-        envelope["status"] = envelope.pop("outcome")
-        envelope["run_schema_version"] = 3
 
     for run_id in run_ids(isolated_cli_settings, refresh_id).values():
         alter_row(isolated_cli_settings, run_id, {"run_schema_version": 3}, as_version_3)

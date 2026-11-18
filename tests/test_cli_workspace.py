@@ -35,6 +35,7 @@ from tests._cli_helpers import normalize_cli_output
 from tests._migrated_database import alembic_config
 from tests._native_status import NATIVE_STATUS_OF_OUTCOME
 from tests._refresh_runs import CORE_ID, at, refresh_run
+from tests._runs_compare_refresh import alter_row, as_version_3
 from tests._wiring import encode_native
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
@@ -665,30 +666,6 @@ def test_runs_show_rejects_an_unsupported_stored_method_version(isolated_cli_set
     assert "Unsupported Analysis Run method or version" in normalize_cli_output(result.output)
 
 
-def _rewrite_as_version_3(settings: ProjectSettings, run: AnalysisRun, *, envelope_json: str | None = None) -> None:
-    """Rewrite a stored run as version 3 stored it: a ``status`` key, ``run_schema_version`` 3, consistent columns."""
-    envelope = json.loads(
-        json.dumps(run.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    )
-    envelope["status"] = envelope.pop("outcome")
-    envelope["run_schema_version"] = 3
-    database = SQLiteDatabase(settings)
-    try:
-        with database.transaction() as connection:
-            connection.execute(
-                update(analysis_runs)
-                .where(analysis_runs.c.analysis_run_id == str(run.analysis_run_id))
-                .values(
-                    run_schema_version=3,
-                    envelope_json=envelope_json
-                    if envelope_json is not None
-                    else json.dumps(envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
-                )
-            )
-    finally:
-        database.close()
-
-
 def test_a_new_run_stores_its_outcome_and_run_schema_version_4(isolated_cli_settings: ProjectSettings) -> None:
     run = _insert_momentum_run(isolated_cli_settings)
     database = SQLiteDatabase(isolated_cli_settings)
@@ -708,7 +685,7 @@ def test_a_version_3_run_is_refused_by_version_but_still_listed(
 ) -> None:
     """Version 3 runs stay in the database: show refuses them by version, list still reads their columns."""
     run = _insert_momentum_run(isolated_cli_settings)
-    _rewrite_as_version_3(isolated_cli_settings, run)
+    alter_row(isolated_cli_settings, str(run.analysis_run_id), {"run_schema_version": 3}, as_version_3)
     run_id = str(run.analysis_run_id)
 
     text = runner.invoke(app, ["runs", "show", run_id])
