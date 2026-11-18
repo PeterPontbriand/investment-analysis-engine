@@ -265,7 +265,7 @@ def test_the_refreshes_list_groups_filters_and_pages_like_the_command(isolated_c
         repository = SQLiteAnalysisRunRepository(database)
         older, newer, entries = uuid4(), uuid4(), uuid4()
         repository.insert(refresh_run(older, 0, at(0), watchlist=(CORE_ID, "Core")))
-        repository.insert(refresh_run(older, 1, at(1), watchlist=(CORE_ID, "Core"), status=RunOutcome.FAILED))
+        repository.insert(refresh_run(older, 1, at(1), watchlist=(CORE_ID, "Core"), outcome=RunOutcome.FAILED))
         repository.insert(refresh_run(newer, 0, at(5), watchlist=(VALUE_ID, "Value")))
         repository.insert(refresh_run(entries, 0, at(9)))
         repository.insert(refresh_run(None, 0, at(20)))

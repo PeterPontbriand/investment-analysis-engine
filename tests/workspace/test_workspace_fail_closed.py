@@ -56,7 +56,7 @@ def _run(analysis_id: str = "momentum", method_id: str = "sma_crossover") -> Ana
         method_version=1,
         result_schema_version=5,
         evidence_codec_version=4,
-        status=RunOutcome.FAILED,
+        outcome=RunOutcome.FAILED,
         failure_reason_code="execution_error",
     )
     return run.model_copy(update={"analysis_id": analysis_id, "method_id": method_id})

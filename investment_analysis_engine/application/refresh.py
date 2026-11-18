@@ -325,8 +325,8 @@ def _refresh_has_failure(summary: RefreshSummary) -> bool:
     for result in summary.results:
         if result.error is not None:
             return True
-        status = result.run.status if result.run is not None else result.outcome
-        if status is not None and exit_code_of(status):
+        outcome = result.run.outcome if result.run is not None else result.outcome
+        if outcome is not None and exit_code_of(outcome):
             return True
     return False
 
@@ -341,7 +341,7 @@ def _refresh_text(summary: RefreshSummary) -> str:
     for result in summary.results:
         method = alias_for_method_id(result.method_id)
         if result.run is not None:
-            lines.append(f"  {result.run.analysis_run_id}  {result.ticker:<10} {method:<24} {result.run.status.value}")
+            lines.append(f"  {result.run.analysis_run_id}  {result.ticker:<10} {method:<24} {result.run.outcome.value}")
         elif result.outcome is not None:
             lines.append(f"  {'(not saved)':<38}{result.ticker:<10} {method:<24} {result.outcome.value}")
         else:
@@ -353,7 +353,7 @@ def _refresh_text(summary: RefreshSummary) -> str:
 
 def build_refresh_result_document(result: RefreshJobResult) -> RefreshResultDocument:
     """Build one job's entry; its outcome is the saved run's, else the unsaved outcome's, else null."""
-    outcome = result.run.status if result.run is not None else result.outcome
+    outcome = result.run.outcome if result.run is not None else result.outcome
     return RefreshResultDocument(
         ticker=result.ticker,
         method_id=result.method_id,

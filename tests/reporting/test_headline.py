@@ -121,7 +121,7 @@ def _headline_of(case: Case) -> tuple[str, Headline]:
     _direct, _replayed, run = run_saved(case)
     evidence = decode_evidence(run, EVIDENCE_BY_KEY)
     assert evidence is not None
-    return run.status.value, HEADLINES_BY_KEY[(run.analysis_id, run.method_id)](evidence)
+    return run.outcome.value, HEADLINES_BY_KEY[(run.analysis_id, run.method_id)](evidence)
 
 
 def _cells(case_name: str) -> dict[str, HeadlineCell]:

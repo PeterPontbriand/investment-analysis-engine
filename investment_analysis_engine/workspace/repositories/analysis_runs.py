@@ -24,7 +24,9 @@ from investment_analysis_engine.analysis.run_models import RunOutcome
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.data.repositories.schema import analysis_runs
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
+from investment_analysis_engine.workspace.codecs import UnsupportedRunVersionError
 from investment_analysis_engine.workspace.runs import (
+    RUN_SCHEMA_VERSION,
     AnalysisRun,
     AnalysisRunSummary,
     RefreshPage,
@@ -58,6 +60,7 @@ class StoredRefreshRun:
         """Return the fully decoded run.
 
         Raises:
+            UnsupportedRunVersionError: If the run was stored under another run schema version.
             ValueError: If the stored envelope is malformed or disagrees with its own indexed columns.
         """
         return SQLiteAnalysisRunRepository.decode_row(self.row)
@@ -84,6 +87,7 @@ class StoredRun:
         """Return the fully decoded run.
 
         Raises:
+            UnsupportedRunVersionError: If the run was stored under another run schema version.
             ValueError: If the stored envelope is malformed or disagrees with its own indexed columns.
         """
         return SQLiteAnalysisRunRepository.decode_row(self.row)
@@ -157,7 +161,7 @@ def _row(run: AnalysisRun) -> dict[str, Any]:
         "ticker": run.ticker,
         "analysis_id": run.analysis_id,
         "method_id": run.method_id,
-        "outcome": run.status.value,
+        "outcome": run.outcome.value,
         "completed_at": _utc(run.completed_at),
         "run_schema_version": run.run_schema_version,
         "config_schema_version": run.config_schema_version,
@@ -200,6 +204,7 @@ class SQLiteAnalysisRunRepository:
         """Return one fully decoded run, or None for an exact-ID miss.
 
         Raises:
+            UnsupportedRunVersionError: If the run was stored under another run schema version.
             ValueError: If the stored envelope is malformed or disagrees with
                 its own indexed relational columns.
         """
@@ -359,7 +364,17 @@ class SQLiteAnalysisRunRepository:
 
     @staticmethod
     def _decode(row: Mapping[str, Any]) -> AnalysisRun:
-        """Validate the stored envelope and confirm it matches its own row."""
+        """Validate the stored envelope and confirm it matches its own row.
+
+        The row's ``run_schema_version`` column is read first, so a run stored under another version is refused by
+        version and never validated as if it were malformed.
+
+        Raises:
+            UnsupportedRunVersionError: If the row's run schema version is not the supported one.
+            ValueError: If the envelope is malformed or disagrees with its own indexed columns.
+        """
+        if row["run_schema_version"] != RUN_SCHEMA_VERSION:
+            raise UnsupportedRunVersionError("Unsupported Analysis Run method or version.")
         run = _ENVELOPE_ADAPTER.validate_json(cast(str, row["envelope_json"]))
         if _row(run) != dict(row):
             raise ValueError("Malformed or inconsistent Analysis Run encoding.")

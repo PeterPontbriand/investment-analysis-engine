@@ -62,7 +62,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.10 | [Engine version, installation folder and commit](#api10--engine-version-installation-folder-and-commit) | Complete | 2026-11-14 |
 | API.11 | [The runs comparison carries its refresh's summary](#api11--the-runs-comparison-carries-its-refreshs-summary) | Complete | 2026-11-15 |
 | API.13 | [Form labels, error templates, refresh totals and provider names](#api13--form-labels-error-templates-refresh-totals-and-provider-names) | Complete | 2026-11-16 |
-| API.12 | [The stored run envelope's outcome](#api12--the-stored-run-envelopes-outcome) | Next | |
+| API.12 | [The stored run envelope's outcome](#api12--the-stored-run-envelopes-outcome) | Complete | 2026-11-17 |
 
 ## 3. The slices
 
@@ -385,15 +385,21 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 
 ### API.12 — The stored run envelope's outcome
 
-- **Problem:** the stored envelope model `AnalysisRun` still names a run's outcome `status`, the one place left
+- **Problem:** the stored envelope model `AnalysisRun` still named a run's outcome `status`, the one place left
   ([issue 264](https://github.com/PeterPontbriand/investment-analysis-engine/issues/264)).
-- **Decision:** to be taken before the slice starts. Open: convert stored runs to the new version with a migration (which
-  changes the rule in `docs/user/WORKSPACE.md` that runs are never converted), or raise `run_schema_version` and leave
-  version 3 runs refused by version as that rule says; and whether `native_status` is renamed with it.
-- **Scope:** `AnalysisRun` in `workspace/runs.py`, the codecs, the test helper `refresh_run(status=...)` in
-  `tests/_refresh_runs.py`, and a migration only if conversion is chosen; to be settled.
-- **Branch:** to be named when the slice starts.
-- **Detail:** decisions to be taken before the slice starts.
+- **Decision:** `AnalysisRun.status` becomes `outcome` and `run_schema_version` goes from 3 to 4, with no migration:
+  version 3 runs stay in the database and are refused by version, as `docs/user/WORKSPACE.md` says. The repository reads
+  the row's version column before it validates an envelope, so an older run is refused as `unsupported_run_version` and
+  not as malformed. `native_status` and `native_reason` keep their names. The supported run and projection versions are
+  each one constant, typed from a `Literal` alias
+  ([A.11](#a11-the-stored-run-envelopes-outcome-2026-11-17), D1 to D6).
+- **Scope:** `AnalysisRun` and the two version constants in `workspace/runs.py`; `workspace/codecs.py`;
+  `workspace/repositories/analysis_runs.py`; `workspace/refresh.py`, `workspace/execution.py`, `application/refresh.py`
+  and `application/runs.py`; `workspace_documents/runs_compare.py` and `workspace_documents/run_replay.py`; the test
+  helper `refresh_run(outcome=...)` and the tests and fixtures that build or store envelopes; this plan and
+  `docs/project/STRATEGY_DEVELOPMENT.md`.
+- **Branch:** `chore/run-envelope-outcome`.
+- **Detail:** no separate slice plan; decisions in [A.11](#a11-the-stored-run-envelopes-outcome-2026-11-17).
 
 ## 4. Out of scope
 
@@ -413,8 +419,10 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - Database maintenance, provider health, evaluation and settings editing through the API.
 - A change to any stored shape, formula or classification, or to existing CLI output, except the two list documents
   of [S3](API_2_SLICE_PLAN.md#s3-the-list-documents-are-versioned-objects-2026-11-03), the two summary columns that
-  API.7's migration adds to `analysis_runs` ([A.6](#a6-refreshes-list-2026-11-10), L3) and the changes API.8 records
-  ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13), U3 and U9).
+  API.7's migration adds to `analysis_runs` ([A.6](#a6-refreshes-list-2026-11-10), L3), the changes API.8 records
+  ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13), U3 and U9) and the stored
+  run envelope's `outcome` under `run_schema_version` 4 that API.12 records
+  ([A.11](#a11-the-stored-run-envelopes-outcome-2026-11-17), D1).
 - A command-line counterpart of the run overview. The command line shows a run through `runs show`, whose concise text
   already leads with the headline values; the overview exists for clients that lay out their own display
   ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13), U10).
@@ -475,6 +483,12 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   exactly for a `stored_selection_unreadable` failure that names its entry, through the API and `--json`; `totals.total`
   equals `admitted + remaining`; `/v1/info` lists `providers` and every provider check identifier has a display name;
   versions 14, 3 and 3; the schemas, `openapi.json` and help snapshots pass their checks; `docs/user/API.md` describes it.
+- API.12: a new run stores `outcome` and `run_schema_version` 4 in `envelope_json` and in the column, and reads back; a
+  version 3 run is refused with `unsupported_run_version` by `runs show` (text and `--json`), the run endpoint, the run
+  overview and replay, logs no exception, and still appears in `runs list` and the refreshes list with its outcome and in
+  `runs compare` with `—` cells; a run of the supported version with a malformed envelope is still refused as
+  `invalid_stored_run`; no migration, schema module, served document, failure code, JSON Schema or `openapi.json`
+  changes.
 - API.11: `GET /v1/refreshes/{refresh_id}/compare` and `ian runs compare --json` carry `first_completed_at`,
   `last_completed_at`, `run_count` and `outcome_counts` (`schema_version` 7), and with the watchlist fields they equal the
   refreshes list's item for the same refresh, for a watchlist refresh, a refresh of a list of entries and a refresh
@@ -670,3 +684,16 @@ Approved by the project owner on 2026-11-16. No database migration, stored shape
 | N9 | Versions, as `docs/user/USAGE.md` allows for additions: `FailureEnvelope` 13 to 14 (N5, N6), `RefreshJobDocument` 2 to 3 (N7), `InfoDocument` 2 to 3 (N8). The selection form document and the selection schemas keep their versions: titles change their content, not their shape. The pull request lists the three changes. |
 | N10 | Documents and generated files: `docs/user/API.md` (Errors, Selection forms, Refresh jobs and the `/v1/info` row), `docs/user/USAGE.md` (the `--json` failure-document paragraph: version 14, `errors[].template` and `unreadable`), `docs/user/DATABASE.md` (links to the failure document instead of stating its version), `schemas/openapi.json` and the schemas the changes reach, regenerated with their drift checks passing, and `docs/project/STRATEGY_DEVELOPMENT.md` (N4). No command-line text changes. |
 | N11 | Out of scope: localized labels; an endpoint for a ticker's details; checking a ticker when an entry is added; any change to a request, a stored shape, the database or an existing field's name, type, nullability or meaning. |
+
+### A.11 The stored run envelope's outcome (2026-11-17)
+
+Approved by the project owner on 2026-11-17. The stored run envelope changes shape; no database migration, served document, failure code, formula or classification changes.
+
+| # | Decision |
+| :--- | :--- |
+| D1 | Refuse by version; do not convert. `AnalysisRun.status` is renamed `outcome`, and `run_schema_version` goes from 3 to 4. There is no migration. Version 3 runs stay in the database. `runs list`, the refreshes list and `runs compare` still show them, because they read the indexed columns; `runs compare` gives them `—` cells, as for any older version. `runs show`, the run overview and replay refuse them with `unsupported_run_version`. The rule in `docs/user/WORKSPACE.md` that runs are never converted stays as it is. |
+| D2 | Refused by version, not as malformed. Before this slice `SQLiteAnalysisRunRepository._decode` validated `envelope_json` against `AnalysisRun` before it checked any version, so a run of another `run_schema_version` failed validation with a `ValueError` and was reported as `invalid_stored_run` (version 1 and 2 runs already were). Now `_decode` reads the row's `run_schema_version` column first and raises `UnsupportedRunVersionError`, the error `decode_evidence` raises, when it is not the supported version. `_stored_run` in `application/runs.py`, the one caller of `get`, lets that error through unlogged; the run overview and the comparison already read the version columns before decoding an envelope. `decode_evidence` is unchanged apart from D4. |
+| D3 | `native_status` and `native_reason` keep their names. "Native status" is a defined contributor term, the same name is used by the codec site check and by `ExecutionCapture.native_status`, and a version 4 `status` key with a different meaning from version 3's would invite misreading. |
+| D4 | One place for each supported version, in `workspace/runs.py`: `RunSchemaVersion = Literal[4]` with `RUN_SCHEMA_VERSION: Final[RunSchemaVersion] = 4`, and `ProjectionVersion = Literal[1]` with `PROJECTION_VERSION: Final[ProjectionVersion] = 1`. The `AnalysisRun` fields are typed and defaulted from them, so `mypy --strict` reports a disagreement between an alias and its constant; the stored JSON and the generated schema are unchanged (const 4 and const 1). `workspace/codecs.py`, the D2 pre-check, `workspace_documents/runs_compare.py` and `workspace_documents/run_replay.py` use the constants, and the private `_SUPPORTED_RUN_SCHEMA_VERSION` and `_SUPPORTED_PROJECTION_VERSION` constants are removed. `projection_version` keeps its value. `Literal[RUN_SCHEMA_VERSION]` is rejected by mypy, which is why the alias comes first. |
+| D5 | No migration; D1. |
+| D6 | Branch `chore/run-envelope-outcome`. |

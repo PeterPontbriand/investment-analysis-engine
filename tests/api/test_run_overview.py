@@ -11,7 +11,7 @@ from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.reporting.headline import CellKind, CellUnit
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from tests._cli_helpers import normalize_cli_output
-from tests._runs_compare_refresh import alter_row
+from tests._runs_compare_refresh import alter_row, as_version_3
 from tests.api._support import AUTH, client_for, runs_by_alias, store
 
 runner = CliRunner()
@@ -49,7 +49,7 @@ def test_the_overview_of_a_saved_run_of_each_strategy_is_its_headline(
     assert (document["analysis_run_id"], document["ticker"], document["outcome"]) == (
         str(run.analysis_run_id),
         run.ticker,
-        run.status.value,
+        run.outcome.value,
     )
     assert document["strategy"] == {
         "analysis_id": descriptor.analysis_id,
@@ -111,6 +111,27 @@ def test_a_run_stored_under_another_version_fails_as_the_run_document_does(
     assert overview.json()["reason"] == shown.json()["reason"]
 
 
+def test_a_version_3_run_is_refused_by_version_by_both_endpoints_and_still_listed(
+    caplog: pytest.LogCaptureFixture, isolated_cli_settings: ProjectSettings
+) -> None:
+    run = runs_by_alias()[STRATEGIES[0].alias]
+    store(isolated_cli_settings, run)
+    alter_row(isolated_cli_settings, str(run.analysis_run_id), {"run_schema_version": 3}, as_version_3)
+
+    with client_for(isolated_cli_settings) as client:
+        overview = client.get(f"/v1/runs/{run.analysis_run_id}/overview", headers=AUTH)
+        shown = client.get(f"/v1/runs/{run.analysis_run_id}", headers=AUTH)
+        listed = client.get("/v1/runs", headers=AUTH).json()["items"]
+
+    for response in (overview, shown):
+        assert response.status_code >= 400
+        assert response.json()["reason_code"] == "unsupported_run_version"
+    assert not any(record.exc_info for record in caplog.records)
+    assert [(item["analysis_run_id"], item["outcome"]) for item in listed] == [
+        (str(run.analysis_run_id), run.outcome.value)
+    ]
+
+
 def test_a_malformed_stored_record_fails_as_the_run_document_does(isolated_cli_settings: ProjectSettings) -> None:
     run = runs_by_alias()[STRATEGIES[0].alias]
     store(isolated_cli_settings, run)
@@ -148,13 +169,13 @@ def test_a_run_of_a_strategy_no_longer_declared_shows_its_stored_label(isolated_
         "declared": False,
     }
     assert (document["headline"], document["headline_unavailable"]) == (None, "strategy_not_declared")
-    assert (document["ticker"], document["outcome"]) == (run.ticker, run.status.value)
+    assert (document["ticker"], document["outcome"]) == (run.ticker, run.outcome.value)
 
 
 def test_the_runs_list_names_a_runs_outcome_outcome(isolated_cli_settings: ProjectSettings) -> None:
     runs = list(runs_by_alias().values())
     store(isolated_cli_settings, *runs)
-    outcome = runs[0].status
+    outcome = runs[0].outcome
 
     with client_for(isolated_cli_settings) as client:
         everything = client.get("/v1/runs", headers=AUTH).json()
@@ -179,7 +200,7 @@ def test_the_runs_list_names_a_runs_outcome_outcome(isolated_cli_settings: Proje
 def test_the_command_lists_and_filters_by_outcome(isolated_cli_settings: ProjectSettings) -> None:
     runs = list(runs_by_alias().values())
     store(isolated_cli_settings, *runs)
-    outcome = runs[0].status
+    outcome = runs[0].outcome
 
     listed = runner.invoke(app, ["runs", "list", "--outcome", outcome.value, "--json"])
     help_text = runner.invoke(app, ["runs", "list", "--help"])

@@ -214,7 +214,7 @@ def _run(result: FCFEarningsGrowthResult | None = None) -> AnalysisRun:
         method_version=3,
         result_schema_version=9,
         evidence_codec_version=4,
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(result or _result()),
     )
 
@@ -407,7 +407,7 @@ def test_pairing_missing_metadata_and_absent_evidence() -> None:
     assert (
         decode_evidence(
             run.model_copy(
-                update={"status": RunOutcome.FAILED, "failure_reason_code": "provider_error", "result_evidence": None}
+                update={"outcome": RunOutcome.FAILED, "failure_reason_code": "provider_error", "result_evidence": None}
             ),
             EVIDENCE_BY_KEY,
         )

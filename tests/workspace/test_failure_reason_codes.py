@@ -356,7 +356,7 @@ def test_a_job_carries_a_code_if_and_only_if_it_failed(outcome: RunOutcome, code
 
     assert result.reason_code == code
     assert (result.run is not None) is save
-    status = result.run.status if result.run is not None else result.outcome
+    status = result.run.outcome if result.run is not None else result.outcome
     assert status is outcome
     assert (result.reason_code is not None) is (outcome is RunOutcome.FAILED)
 

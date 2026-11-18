@@ -12,6 +12,7 @@ from investment_analysis_engine.evaluation.fixtures.instrument_profiles import f
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.workspace.runs import (
+    RUN_SCHEMA_VERSION,
     AnalysisRun,
     AnalysisRunSummary,
     RunQuery,
@@ -40,7 +41,7 @@ def _base_run(**overrides: object) -> dict[str, object]:
         "requested_config": GrahamNumberSelection(),
         "started_at": STARTED_AT,
         "completed_at": COMPLETED_AT,
-        "status": RunOutcome.COMPLETED,
+        "outcome": RunOutcome.COMPLETED,
         "result_evidence": {"maximum_indicated_price": 33.8},
     }
     data.update(overrides)
@@ -50,16 +51,16 @@ def _base_run(**overrides: object) -> dict[str, object]:
 def test_valid_completed_run_constructs_and_normalizes_ticker() -> None:
     run = AnalysisRun.model_validate(_base_run())
     assert run.ticker == "KO"
-    assert run.status is RunOutcome.COMPLETED
-    assert run.run_schema_version == 3
+    assert run.outcome is RunOutcome.COMPLETED
+    assert run.run_schema_version == RUN_SCHEMA_VERSION
     assert run.projection_version == 1
 
 
 @pytest.mark.parametrize("outcome", list(RunOutcome))
 def test_one_valid_construction_per_outcome(outcome: RunOutcome) -> None:
     overrides = {"failure_reason_code": "data_unavailable"} if outcome is RunOutcome.FAILED else {}
-    run = AnalysisRun.model_validate(_base_run(status=outcome, **overrides))
-    assert run.status is outcome
+    run = AnalysisRun.model_validate(_base_run(outcome=outcome, **overrides))
+    assert run.outcome is outcome
 
 
 def test_completed_requires_result_evidence() -> None:
@@ -68,7 +69,7 @@ def test_completed_requires_result_evidence() -> None:
 
 
 def test_failed_without_evidence_or_effective_config_constructs() -> None:
-    data = _base_run(status=RunOutcome.FAILED, failure_reason_code="data_unavailable", result_evidence=None)
+    data = _base_run(outcome=RunOutcome.FAILED, failure_reason_code="data_unavailable", result_evidence=None)
     run = AnalysisRun.model_validate(data)
     assert run.result_evidence is None
     assert run.effective_config is None
@@ -77,7 +78,7 @@ def test_failed_without_evidence_or_effective_config_constructs() -> None:
 @pytest.mark.parametrize("reason", [None, ""])
 def test_failed_requires_failure_reason_code(reason: str | None) -> None:
     with pytest.raises(ValidationError, match="failure_reason_code"):
-        AnalysisRun.model_validate(_base_run(status=RunOutcome.FAILED, failure_reason_code=reason))
+        AnalysisRun.model_validate(_base_run(outcome=RunOutcome.FAILED, failure_reason_code=reason))
 
 
 def test_completed_at_before_started_rejected() -> None:
@@ -85,10 +86,10 @@ def test_completed_at_before_started_rejected() -> None:
         AnalysisRun.model_validate(_base_run(started_at=COMPLETED_AT, completed_at=STARTED_AT))
 
 
-@pytest.mark.parametrize("status", ["running", "bogus"])
-def test_invalid_status_rejected(status: str) -> None:
+@pytest.mark.parametrize("outcome", ["running", "bogus"])
+def test_invalid_outcome_rejected(outcome: str) -> None:
     with pytest.raises(ValidationError):
-        AnalysisRun.model_validate(_base_run(status=status))
+        AnalysisRun.model_validate(_base_run(outcome=outcome))
 
 
 @pytest.mark.parametrize(

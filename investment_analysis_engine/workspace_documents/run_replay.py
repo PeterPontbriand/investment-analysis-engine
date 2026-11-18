@@ -32,9 +32,7 @@ from investment_analysis_engine.reporting.replay_inputs import (
     UnsupportedProjectionError,
 )
 from investment_analysis_engine.workspace.codecs import EvidenceCodec, decode_evidence
-from investment_analysis_engine.workspace.runs import AnalysisRun
-
-_SUPPORTED_PROJECTION_VERSION = 1
+from investment_analysis_engine.workspace.runs import PROJECTION_VERSION, AnalysisRun
 
 
 def _projector_for[ProjectorT](run: AnalysisRun, projectors: Mapping[tuple[str, str], ProjectorT]) -> ProjectorT:
@@ -44,7 +42,7 @@ def _projector_for[ProjectorT](run: AnalysisRun, projectors: Mapping[tuple[str, 
         UnsupportedProjectionError: If `run.projection_version` is not the one this module implements, or if
             `projectors` declares none for `run`'s `(analysis_id, method_id)` pair.
     """
-    if run.projection_version != _SUPPORTED_PROJECTION_VERSION:
+    if run.projection_version != PROJECTION_VERSION:
         raise UnsupportedProjectionError(f"Unsupported projection version: {run.projection_version}.")
     projector = projectors.get((run.analysis_id, run.method_id))
     if projector is None:

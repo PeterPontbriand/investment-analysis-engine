@@ -151,7 +151,7 @@ def _run(evidence: MomentumRun | None = None) -> AnalysisRun:
         method_version=1,
         result_schema_version=5,
         evidence_codec_version=4,
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(evidence or _evidence()),
     )
 
@@ -272,7 +272,7 @@ def test_mismatched_envelope_and_missing_payload() -> None:
     with pytest.raises(UnsupportedRunVersionError):
         decode_evidence(run.model_copy(update={"method_id": "graham_number"}), EVIDENCE_BY_KEY)
     failed = AnalysisRun.model_validate(
-        {**run.model_dump(), "status": "failed", "failure_reason_code": "provider_error", "result_evidence": None}
+        {**run.model_dump(), "outcome": "failed", "failure_reason_code": "provider_error", "result_evidence": None}
     )
     assert decode_evidence(failed, EVIDENCE_BY_KEY) is None
 

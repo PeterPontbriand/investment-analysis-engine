@@ -473,7 +473,7 @@ def _build_run(*, status: RunOutcome, failure_reason_code: str | None = None) ->
         method_version=1,
         result_schema_version=1,
         evidence_codec_version=1,
-        status=status,
+        outcome=status,
         failure_reason_code=failure_reason_code,
         result_evidence=encode_native(native) if status is not RunOutcome.FAILED else None,
     )
@@ -1123,7 +1123,7 @@ def test_a_momentum_provider_failure_is_a_stored_failed_run_in_the_batch(workers
     assert set(stored) == {"A", "B"}
     for ticker, position in (("A", 0), ("B", 1)):
         run = stored[ticker]
-        assert run.status is RunOutcome.FAILED
+        assert run.outcome is RunOutcome.FAILED
         assert run.failure_reason_code == "provider_unreachable"
         assert (run.batch_position, run.watchlist_id) == (position, WATCHLIST_ID)
         assert run.refresh_id == summary.refresh_id

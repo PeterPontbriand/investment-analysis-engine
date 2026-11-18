@@ -73,7 +73,7 @@ def test_a_saved_failed_run_carries_the_element(workers: int) -> None:
 
     aapl, broken, msft = summary.results
     assert broken.run is not None
-    assert broken.run.status is RunOutcome.FAILED
+    assert broken.run.outcome is RunOutcome.FAILED
     assert broken.reason_code == "provider_unreachable"
     assert broken.provider_failure == _UNREACHABLE
     assert aapl.provider_failure is None

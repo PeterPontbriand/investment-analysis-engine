@@ -48,7 +48,7 @@ def test_the_document_the_replay_and_the_saved_run_agree_on_the_code(name: str, 
     assert json.loads(replayed.stdout)["provider_check"] is None
     assert without_excluded_keys(direct.stdout) == without_excluded_keys(replayed.stdout)
     assert json.loads(direct.stdout)["status"] == "provider_error"
-    assert run.status is RunOutcome.FAILED
+    assert run.outcome is RunOutcome.FAILED
     assert run.failure_reason_code == code
 
 
@@ -80,7 +80,7 @@ def test_a_failed_optional_quote_carries_its_kind_direct_and_replayed(name: str,
     assert document["status"] == "ok"
     assert document["provider_failure"] is None
     assert direct.stdout == replayed.stdout
-    assert run.status is RunOutcome.COMPLETED
+    assert run.outcome is RunOutcome.COMPLETED
 
 
 @pytest.mark.parametrize(

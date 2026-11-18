@@ -11,7 +11,7 @@ import pytest
 import typer
 from alembic import command
 from pydantic import ValidationError
-from sqlalchemy import update
+from sqlalchemy import select, update
 from typer.testing import CliRunner
 
 import investment_analysis_engine.cli_workspace
@@ -35,6 +35,7 @@ from tests._cli_helpers import normalize_cli_output
 from tests._migrated_database import alembic_config
 from tests._native_status import NATIVE_STATUS_OF_OUTCOME
 from tests._refresh_runs import CORE_ID, at, refresh_run
+from tests._runs_compare_refresh import alter_row, as_version_3
 from tests._wiring import encode_native
 
 pytestmark = pytest.mark.usefixtures("isolated_cli_settings")
@@ -651,7 +652,7 @@ def test_runs_show_rejects_an_unsupported_stored_method_version(isolated_cli_set
         method_version=99,
         result_schema_version=1,
         evidence_codec_version=1,
-        status=RunOutcome.COMPLETED,
+        outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(native),
     )
     database = SQLiteDatabase(isolated_cli_settings)
@@ -663,6 +664,59 @@ def test_runs_show_rejects_an_unsupported_stored_method_version(isolated_cli_set
     result = runner.invoke(app, ["runs", "show", str(run.analysis_run_id)])
     assert result.exit_code == 1
     assert "Unsupported Analysis Run method or version" in normalize_cli_output(result.output)
+
+
+def test_a_new_run_stores_its_outcome_and_run_schema_version_4(isolated_cli_settings: ProjectSettings) -> None:
+    run = _insert_momentum_run(isolated_cli_settings)
+    database = SQLiteDatabase(isolated_cli_settings)
+    try:
+        with database.read() as connection:
+            row = connection.execute(select(analysis_runs)).mappings().one()
+        stored = json.loads(row["envelope_json"])
+        assert (stored["outcome"], stored["run_schema_version"], row["run_schema_version"]) == ("completed", 4, 4)
+        assert "status" not in stored
+        assert SQLiteAnalysisRunRepository(database).get(run.analysis_run_id) == run
+    finally:
+        database.close()
+
+
+def test_a_version_3_run_is_refused_by_version_but_still_listed(
+    caplog: pytest.LogCaptureFixture, isolated_cli_settings: ProjectSettings
+) -> None:
+    """Version 3 runs stay in the database: show refuses them by version, list still reads their columns."""
+    run = _insert_momentum_run(isolated_cli_settings)
+    alter_row(isolated_cli_settings, str(run.analysis_run_id), {"run_schema_version": 3}, as_version_3)
+    run_id = str(run.analysis_run_id)
+
+    text = runner.invoke(app, ["runs", "show", run_id])
+    as_json = runner.invoke(app, ["runs", "show", run_id, "--json"])
+
+    assert text.exit_code == as_json.exit_code == 1
+    assert "Unsupported Analysis Run method or version" in normalize_cli_output(text.output)
+    assert json.loads(as_json.stdout)["reason_code"] == "unsupported_run_version"
+    assert not any(record.exc_info for record in caplog.records)
+
+    listed = json.loads(runner.invoke(app, ["runs", "list", "--json"]).output)["items"]
+    assert [(item["analysis_run_id"], item["outcome"]) for item in listed] == [(run_id, "completed")]
+
+
+def test_a_malformed_envelope_of_the_supported_version_is_still_invalid_not_unsupported(
+    isolated_cli_settings: ProjectSettings,
+) -> None:
+    """The version pre-check does not hide real corruption of a run whose version column is supported."""
+    run = _insert_momentum_run(isolated_cli_settings)
+    database = SQLiteDatabase(isolated_cli_settings)
+    try:
+        with database.transaction() as connection:
+            connection.execute(
+                update(analysis_runs)
+                .where(analysis_runs.c.analysis_run_id == str(run.analysis_run_id))
+                .values(envelope_json='{"status": "completed"}')
+            )
+    finally:
+        database.close()
+    as_json = runner.invoke(app, ["runs", "show", str(run.analysis_run_id), "--json"])
+    assert json.loads(as_json.stdout)["reason_code"] == "invalid_stored_run"
 
 
 def test_runs_list_rejects_an_invalid_ticker_or_refresh_id_as_a_usage_error() -> None:
@@ -699,7 +753,7 @@ def _store_refreshes(settings: ProjectSettings) -> tuple[UUID, UUID]:
     try:
         repository = SQLiteAnalysisRunRepository(database)
         repository.insert(refresh_run(named, 0, at(0), watchlist=(CORE_ID, "Core")))
-        repository.insert(refresh_run(named, 1, at(1), watchlist=(CORE_ID, "Core"), status=RunOutcome.FAILED))
+        repository.insert(refresh_run(named, 1, at(1), watchlist=(CORE_ID, "Core"), outcome=RunOutcome.FAILED))
         repository.insert(refresh_run(entries, 0, at(5)))
     finally:
         database.close()
