@@ -7,8 +7,6 @@ import pytest
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.application.watchlists import (
-    REPEATED_IN_REQUEST,
-    REPEATED_IN_WATCHLIST,
     add_watchlist_entries,
     create_watchlist,
     get_watchlist_by_name,
@@ -39,14 +37,14 @@ def test_a_repeat_within_the_request_is_refused_before_the_database_opens(tmp_pa
     error = caught.value
     assert error.rule == "entries.duplicate"
     assert error.template == (
-        "{tickers} must not duplicate an entry: {ticker} is already listed for {method_id} with an equal selection "
-        "{where}."
+        "{tickers} must not duplicate an entry: {ticker} is listed twice for {strategy} with an equal selection in "
+        "this request."
     )
-    assert error.arguments == {"ticker": "AAPL", "method_id": _MOMENTUM.method_id, "where": REPEATED_IN_REQUEST}
+    assert error.arguments == {"ticker": "AAPL", "strategy": "Momentum"}
     assert error.action_parameters == ("tickers",)
     assert str(error) == (
-        "tickers must not duplicate an entry: AAPL is already listed for sma_crossover with an equal selection "
-        "earlier in this request."
+        "tickers must not duplicate an entry: AAPL is listed twice for Momentum with an equal selection in this "
+        "request."
     )
 
 
@@ -70,12 +68,8 @@ def test_a_repeat_of_a_stored_entry_is_refused_and_nothing_is_written(isolated_c
         add_watchlist_entries(context, _REF, [("KO", _MOMENTUM), ("aapl", _MOMENTUM)])
 
     assert caught.value.rule == "entries.duplicate"
-    assert caught.value.arguments == {
-        "ticker": "AAPL",
-        "method_id": _MOMENTUM.method_id,
-        "where": REPEATED_IN_WATCHLIST,
-    }
-    assert str(caught.value).endswith("with an equal selection in the watchlist.")
+    assert caught.value.arguments == {"ticker": "AAPL", "strategy": "Momentum"}
+    assert str(caught.value).endswith("is already listed for Momentum with an equal selection in the watchlist.")
     assert [entry.ticker for entry in get_watchlist_by_name(context, "Core").entries] == ["AAPL"]
 
 

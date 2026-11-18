@@ -97,7 +97,7 @@ Add one method across one or more tickers to an existing watchlist with `add-sel
 ian watchlist add-selection graham-number "Core Holdings" AAPL MSFT
 ```
 
-Adding the same method again for a ticker that already has it with a different selection does not replace anything — it appends a second entry, so you can compare configurations side by side. An entry that repeats another, the same ticker and method with an equal selection, is refused with `TICKER must not duplicate an entry: AAPL is already listed for graham_number with an equal selection in the watchlist.` and nothing is written; the same rule refuses a ticker that appears twice in one `add-selection` command and an entry that the API's watchlist entries endpoint would repeat:
+Adding the same method again for a ticker that already has it with a different selection does not replace anything — it appends a second entry, so you can compare configurations side by side. An entry that repeats another, the same ticker and method with an equal selection, is refused with `TICKER must not duplicate an entry: AAPL is already listed for Graham Number with an equal selection in the watchlist.` and nothing is written; the same rule refuses a ticker that appears twice in one `add-selection` command and an entry that the API's watchlist entries endpoint would repeat:
 
 ```bash
 ian watchlist add-selection graham-number "Core Holdings" AAPL --bvps 12.5

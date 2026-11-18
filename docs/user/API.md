@@ -254,7 +254,7 @@ before the 202, and its failure is the response:
 
 | Status | `reason_code` | Cause |
 | :--- | :--- | :--- |
-| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].selection.short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker with an equal selection (rule `entries.duplicate`) |
+| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].selection.short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker with an equal selection (rule `entries.duplicate`, whose `arguments` are `ticker` and `strategy`, the strategy's label) |
 | 404 | `watchlist_not_found` | no watchlist has that ID |
 | 409 | `watchlist_empty` | the watchlist has no entries |
 | 409 | `stored_selection_unreadable` | the watchlist holds an entry this version cannot read |

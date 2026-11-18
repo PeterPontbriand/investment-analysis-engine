@@ -166,6 +166,43 @@ def _selection_properties(schema: dict[str, Any]) -> Iterator[tuple[str, dict[st
             yield name, definition
 
 
+def _selection_option_sets(schema: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any], str, list[Any]]]:
+    """Yield each selection field that offers a closed set: the field, its definition, the set's name and its values.
+
+    The set is read through the field's ``$ref``, or from an enumeration written inline, which is named by the field.
+    """
+    for name, definition in _selection_properties(schema):
+        target = definition
+        set_name = name
+        if "$ref" in definition:
+            set_name = str(definition["$ref"]).rsplit("/", 1)[-1]
+            target = schema["$defs"][set_name]
+        values = target.get("enum")
+        if isinstance(values, list) and len(values) > 1:
+            yield name, definition, set_name, values
+
+
+@pytest.mark.parametrize("descriptor", STRATEGIES, ids=lambda item: item.alias)
+def test_each_option_of_a_selection_field_names_its_own_term(descriptor: StrategyDescriptor) -> None:
+    schema = json.loads(
+        (REPOSITORY_ROOT / _SELECTION_DIRECTORY / f"{descriptor.alias}.schema.json").read_text(encoding="utf-8")
+    )
+    problems: list[str] = []
+    for name, definition, set_name, values in _selection_option_sets(schema):
+        table = descriptor.code_terms.get(set_name)
+        if table is None:
+            problems.append(f"{name}: the closed set {set_name} has no term table")
+            continue
+        terms = [table.get(str(value)) for value in values]
+        if None in terms:
+            problems.append(f"{name}: a value of {set_name} has no term")
+        if len(set(terms)) != len(terms):
+            problems.append(f"{name}: two options of {set_name} share a term: {terms}")
+        if definition["x-term"] in terms:
+            problems.append(f"{name}: an option of {set_name} names the field's own term {definition['x-term']}")
+    assert problems == []
+
+
 def _named_terms() -> set[str]:
     """Return every term a table, a headline cell, a strategy or a selection field names."""
     named: set[str] = set()

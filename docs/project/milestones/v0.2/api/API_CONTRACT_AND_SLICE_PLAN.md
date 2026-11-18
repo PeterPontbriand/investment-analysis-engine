@@ -63,6 +63,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.11 | [The runs comparison carries its refresh's summary](#api11--the-runs-comparison-carries-its-refreshs-summary) | Complete | 2026-11-15 |
 | API.13 | [Form labels, error templates, refresh totals and provider names](#api13--form-labels-error-templates-refresh-totals-and-provider-names) | Complete | 2026-11-16 |
 | API.12 | [The stored run envelope's outcome](#api12--the-stored-run-envelopes-outcome) | Complete | 2026-11-17 |
+| API.14 | [Option terms and the duplicate message](#api14--option-terms-and-the-duplicate-message) | Complete | 2026-11-18 |
 
 ## 3. The slices
 
@@ -401,6 +402,24 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `chore/run-envelope-outcome`.
 - **Detail:** no separate slice plan; decisions in [A.11](#a11-the-stored-run-envelopes-outcome-2026-11-17).
 
+### API.14 — Option terms and the duplicate message
+
+- **Problem:** the desktop application's GUI.3b cannot name the options of a drop-down list, because every option of a
+  selection field pointed at the same glossary term, and the duplicate-entry message shows a raw method code instead of
+  the strategy's name.
+- **Decision:** each option of a selection field's closed set names its own glossary term through the strategy's code-term
+  tables, one table for each code set, shared by both of its component names; the field keeps its own `x-term` and the
+  schemas gain no option labels. The `entries.duplicate` rule names the strategy by its label, in one of two message
+  templates, and its arguments become `ticker` and `strategy`; `FailureEnvelope` goes from 14 to 15
+  ([A.12](#a12-option-terms-and-the-duplicate-message-2026-11-18), O1 to O12).
+- **Scope:** `strategies/fcf_growth/vocabulary.py` and `strategies/graham_growth/vocabulary.py`;
+  `application/watchlists.py` and `application/refresh.py`; the failure document's version; ten glossary entries
+  (`docs/user/GLOSSARY.md`) and the overview entries that list them; the help bundle, `schemas/openapi.json` and
+  `schemas/failure.schema.json`; `docs/user/API.md`, `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and
+  `docs/project/STRATEGY_DEVELOPMENT.md`; this plan; tests.
+- **Branch:** `feat/api-option-terms`.
+- **Detail:** no separate slice plan; decisions in [A.12](#a12-option-terms-and-the-duplicate-message-2026-11-18).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -483,6 +502,12 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   exactly for a `stored_selection_unreadable` failure that names its entry, through the API and `--json`; `totals.total`
   equals `admitted + remaining`; `/v1/info` lists `providers` and every provider check identifier has a display name;
   versions 14, 3 and 3; the schemas, `openapi.json` and help snapshots pass their checks; `docs/user/API.md` describes it.
+- API.14: `GET /v1/help/references` gives each option of the closed sets of the FCF Growth and Graham Growth selection
+  fields its own term, none of them the field's own `x-term`, and a test requires this of every declared strategy;
+  `entries.duplicate` names the strategy by its label in two templates, with the arguments `ticker` and `strategy`, in
+  the API and on the command line; `FailureEnvelope` is version 15; the help bundle, `openapi.json` and
+  `failure.schema.json` pass their drift checks; `docs/user/GLOSSARY.md`, `docs/user/API.md` and `docs/user/USAGE.md`
+  describe it.
 - API.12: a new run stores `outcome` and `run_schema_version` 4 in `envelope_json` and in the column, and reads back; a
   version 3 run is refused with `unsupported_run_version` by `runs show` (text and `--json`), the run endpoint, the run
   overview and replay, logs no exception, and still appears in `runs list` and the refreshes list with its outcome and in
@@ -697,3 +722,22 @@ Approved by the project owner on 2026-11-17. The stored run envelope changes sha
 | D4 | One place for each supported version, in `workspace/runs.py`: `RunSchemaVersion = Literal[4]` with `RUN_SCHEMA_VERSION: Final[RunSchemaVersion] = 4`, and `ProjectionVersion = Literal[1]` with `PROJECTION_VERSION: Final[ProjectionVersion] = 1`. The `AnalysisRun` fields are typed and defaulted from them, so `mypy --strict` reports a disagreement between an alias and its constant; the stored JSON and the generated schema are unchanged (const 4 and const 1). `workspace/codecs.py`, the D2 pre-check, `workspace_documents/runs_compare.py` and `workspace_documents/run_replay.py` use the constants, and the private `_SUPPORTED_RUN_SCHEMA_VERSION` and `_SUPPORTED_PROJECTION_VERSION` constants are removed. `projection_version` keeps its value. `Literal[RUN_SCHEMA_VERSION]` is rejected by mypy, which is why the alias comes first. |
 | D5 | No migration; D1. |
 | D6 | Branch `chore/run-envelope-outcome`. |
+
+### A.12 Option terms and the duplicate message (2026-11-18)
+
+Approved by the project owner on 2026-11-17 (O1 to O3) and 2026-11-18 (O4 to O12). No database migration, stored shape, request shape, formula or classification changes.
+
+| # | Decision |
+| :--- | :--- |
+| O1 | Option terms: each option of a selection field's closed set names its own glossary term through the strategy's code-term tables, so `GET /v1/help/references` gives each option a distinct term. The field keeps its own `x-term`. No `title` or label is added to options in the schemas. |
+| O2 | Duplicate message: the `entries.duplicate` rule names the strategy by its label, not its method code, in the API and on the command line. The rule identifier stays `entries.duplicate`. |
+| O3 | Other raw codes: no change to the built-in field-type messages (for example "Input should be 'three_year_average' or 'fiscal_year'"). |
+| O4 | Slice and records: API.14 is one slice and one pull request with no separate slice plan, recorded like API.7 to API.13: a sequence-table row after API.12 dated the day the pull request is opened, a section 3 entry, an acceptance-criteria line and this appendix entry. No GitHub issue is opened. |
+| O5 | EPS basis options: `three_year_average` maps to the existing `three-year-average-eps`, unchanged. `fiscal_year` maps to a new entry `fiscal-year-eps`, "Fiscal-Year EPS". The existing `fiscal-year` entry is unchanged. |
+| O6 | New glossary entries: `fiscal-year-eps`; `historical-horizon-longest-available`, `historical-horizon-three-years`, `historical-horizon-four-years`, `historical-horizon-five-years`; `forward-policy-display-only`, `forward-policy-confirmation`, `forward-policy-hard-gate`; `classification-basis-total-fcf`, `classification-basis-fcf-per-share`. Each has a short definition checked against `docs/user/FINANCE_MATH.md` and `docs/user/strategies/FCF_GROWTH.md`, ends with a line pointing to its overview, and sits in its overview's section as the per-value entries of the stored-outcome overviews do. |
+| O7 | One table per code set: each of the four code sets has one term table, declared once in its strategy's `vocabulary.py`, and `CODE_TERMS` maps both of its component names (the bare one and the selection one) to that same table. |
+| O8 | Overview entries: EPS Basis, Historical Horizon, Forward Policy and Classification Basis keep their text and gain a final line listing their values' entries in table order, in the form the other overviews use. In EPS Basis it replaces the sentence that linked the two older entries. Three-Year-Average EPS is not changed. |
+| O9 | Test: `tests/test_term_references.py` requires, for every closed set that a declared strategy's selection schema offers, nested fields and `$ref` included, that each value maps to a different term and no value maps to the field's own `x-term`. It applies to selection options only; other code sets keep the rule that values differing only in detail may share an entry. `docs/project/STRATEGY_DEVELOPMENT.md` states the rule in its selection-field steps, beside the title rule of A.10 (N4). |
+| O10 | Duplicate templates: `duplicate_entry_error` takes the strategy's label, read from the descriptor, instead of `method_id`, and its arguments are exactly `ticker` and `strategy`. The `where` argument goes; a two-value enum selects one of two templates, "{<parameter>} must not duplicate an entry: {ticker} is already listed for {strategy} with an equal selection in the watchlist." or "{<parameter>} must not duplicate an entry: {ticker} is listed twice for {strategy} with an equal selection in this request.", so no English text is passed in as an argument. The command line's message changes the same way; no other command-line text changes. |
+| O11 | Versions: `FailureEnvelope` goes from 14 to 15 under the pre-release rule ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13) U2), because the duplicate rule's arguments change. The selection schemas, the selection form document, the references document and the help bundle keep their versions: their content changes, not their shape (as A.10 N9). The pull request lists the version change. |
+| O12 | Documents and generated files: `docs/user/GLOSSARY.md`, `docs/user/API.md`, `docs/user/USAGE.md`, `docs/project/STRATEGY_DEVELOPMENT.md`, every other place that states the failure document's version, the help bundle, `schemas/openapi.json` and any schema the changes reach, regenerated with their drift checks passing. |

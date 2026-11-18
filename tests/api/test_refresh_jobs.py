@@ -76,7 +76,7 @@ def _failure(response: httpx2.Response, status: int, code: str) -> dict[str, obj
     assert response.status_code == status, response.text
     body: dict[str, object] = response.json()
     assert body["reason_code"] == code
-    assert body["schema_version"] == 14
+    assert body["schema_version"] == 15
     return body
 
 
@@ -536,7 +536,7 @@ def test_a_job_that_fails_after_the_202_is_failed(isolated_cli_settings: Project
     assert ended["summary"] is None
     failure = ended["failure"]
     assert isinstance(failure, dict)
-    assert (failure["reason_code"], failure["schema_version"]) == ("database_busy", 14)
+    assert (failure["reason_code"], failure["schema_version"]) == ("database_busy", 15)
     assert ended["events"] == []
     _assert_total_adds_up(ended)
     assert isinstance(ended["totals"], dict)

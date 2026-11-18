@@ -48,7 +48,7 @@ def test_a_refusal_over_an_unreadable_entry_carries_that_entry(
 
     code, failure = _run(*arguments)
 
-    assert (code, failure["reason_code"], failure["schema_version"]) == (1, "stored_selection_unreadable", 14)
+    assert (code, failure["reason_code"], failure["schema_version"]) == (1, "stored_selection_unreadable", 15)
     unreadable = failure["unreadable"]
     assert isinstance(unreadable, dict)
     assert (unreadable["entry_number"], unreadable["ticker"], unreadable["method_id"]) == (

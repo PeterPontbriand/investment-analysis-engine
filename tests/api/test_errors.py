@@ -73,7 +73,7 @@ def test_each_reason_code_reaches_the_status_of_the_table_and_is_a_failure_envel
 
     assert response.status_code == _STATUS.get(code.value, 500)
     body = response.json()
-    assert body["schema_version"] == 14
+    assert body["schema_version"] == 15
     assert body["reason_code"] == code.value
     assert body["result"] is None
     assert body["status"] in ("error", "input_unavailable")

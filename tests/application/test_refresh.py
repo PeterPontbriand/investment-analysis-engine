@@ -352,13 +352,12 @@ def test_a_repeated_entry_is_a_duplicate_but_another_selection_is_not(isolated_c
     assert [violation.parameters for violation in error.violations] == [("entries[2]",), ("entries[3]",)]
     assert {violation.rule for violation in error.violations} == {"entries.duplicate"}
     assert error.violations[0].message == (
-        f"entries[2] must not duplicate an entry: AAPL is already listed for {MOMENTUM.method_id} with an equal "
-        "selection earlier in this request."
+        f"entries[2] must not duplicate an entry: AAPL is listed twice for {MOMENTUM.label} with an equal selection in "
+        "this request."
     )
     assert dict(error.violations[0].arguments) == {
         "ticker": "AAPL",
-        "method_id": MOMENTUM.method_id,
-        "where": "earlier in this request",
+        "strategy": MOMENTUM.label,
     }
     with fakes(Probe()):  # the same ticker and method under a different selection is allowed
         prepared = prepare_refresh(

@@ -34,7 +34,7 @@ from investment_analysis_engine.application.selections import build_selection
 from investment_analysis_engine.application.strategy_run import StrategyRun
 from investment_analysis_engine.application.tier import analysis_runner_for
 from investment_analysis_engine.application.watchlists import (
-    REPEATED_IN_REQUEST,
+    DuplicateTwin,
     alias_for_method_id,
     duplicate_entry_error,
     entry_key,
@@ -208,7 +208,9 @@ def _snapshot_entries(context: ApplicationContext, target: RefreshEntries) -> tu
             continue
         key = entry_key(ticker, selection)
         if key in seen:
-            errors.append(duplicate_entry_error(f"entries[{index}]", ticker, selection.method_id, REPEATED_IN_REQUEST))
+            errors.append(
+                duplicate_entry_error(f"entries[{index}]", ticker, selection.method_id, DuplicateTwin.REQUEST)
+            )
             continue
         seen.add(key)
         built.append(WatchlistEntry(ticker=ticker, selection=selection))

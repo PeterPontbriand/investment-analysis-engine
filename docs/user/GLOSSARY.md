@@ -753,7 +753,15 @@ The initial conventional value is `2.0` (`growth_multiplier`).
 ### EPS Basis
 Which earnings figure a valuation uses: the three-year average, or the earnings of one completed fiscal year.
 
-The three-year average smooths a single unusual year. The fiscal-year basis uses one year's earnings as reported. See [three-year-average EPS](#three-year-average-eps) and [fiscal year](#fiscal-year).
+The three-year average smooths a single unusual year. The fiscal-year basis uses one year's earnings as reported.
+
+The values are explained in [Three-Year-Average EPS](#three-year-average-eps), [Fiscal-Year EPS](#fiscal-year-eps).
+
+<a id="fiscal-year-eps"></a>
+### Fiscal-Year EPS
+The earnings per share of one completed fiscal year, as reported, used instead of a three-year average.
+
+See [EPS Basis](#eps-basis) for the whole set of values.
 
 ---
 
@@ -783,6 +791,20 @@ The free-cash-flow measure whose growth rate controls the growth screen: the tot
 
 The total is the default (`total_fcf`) and the per-share measure is the alternative (`fcf_per_share`). Both measures remain visible regardless of the choice.
 
+The values are explained in [Total FCF Basis](#classification-basis-total-fcf), [FCF-per-Share Basis](#classification-basis-fcf-per-share).
+
+<a id="classification-basis-total-fcf"></a>
+### Total FCF Basis
+The growth screen is decided by the growth of the company's total free cash flow. This is the default.
+
+See [Classification Basis](#classification-basis) for the whole set of values.
+
+<a id="classification-basis-fcf-per-share"></a>
+### FCF-per-Share Basis
+The growth screen is decided by the growth of free cash flow per diluted share, which reflects changes in the share count.
+
+See [Classification Basis](#classification-basis) for the whole set of values.
+
 <a id="fcf-classification"></a>
 ### FCF Classification
 The growth screen's three outcomes: pass when required growth rates are positive, fail when complete evidence shows a nonpositive rate, indeterminate when no classification can be made.
@@ -803,6 +825,26 @@ The rule for how optional analyst-consensus EPS estimates for the next two fisca
 
 The code values are `display_only`, `confirmation`, and `hard_gate`. Only `hard_gate` can alter an otherwise passing historical classification.
 
+The values are explained in [Display-Only Policy](#forward-policy-display-only), [Confirmation Policy](#forward-policy-confirmation), [Hard-Gate Policy](#forward-policy-hard-gate).
+
+<a id="forward-policy-display-only"></a>
+### Display-Only Policy
+Analyst-consensus estimates are shown when available and never change the growth screen's result. This is the default.
+
+See [Forward Policy](#forward-policy) for the whole set of values.
+
+<a id="forward-policy-confirmation"></a>
+### Confirmation Policy
+The result reports whether the estimates confirm positive growth in both forward years, without changing the growth screen's result.
+
+See [Forward Policy](#forward-policy) for the whole set of values.
+
+<a id="forward-policy-hard-gate"></a>
+### Hard-Gate Policy
+The screen passes only when the estimates show positive growth in both forward years; without complete estimates the result is indeterminate.
+
+See [Forward Policy](#forward-policy) for the whole set of values.
+
 <a id="forward-evidence-status"></a>
 ### Forward Evidence Status
 How complete the analyst-consensus evidence is: complete when every estimate was found, partial when only some were, unavailable when none was.
@@ -816,6 +858,32 @@ The values are explained in [Complete Forward Evidence](#forward-evidence-comple
 The number of elapsed years of history the growth screen looks back over: three, four or five, or the longest available.
 
 The default picks the longest history available, up to five years. A longer horizon needs more consecutive annual facts and is unavailable when there are too few.
+
+The values are explained in [Longest Available Horizon](#historical-horizon-longest-available), [Three-Year Horizon](#historical-horizon-three-years), [Four-Year Horizon](#historical-horizon-four-years), [Five-Year Horizon](#historical-horizon-five-years).
+
+<a id="historical-horizon-longest-available"></a>
+### Longest Available Horizon
+Growth is measured over the longest span the history allows: five elapsed years when there is enough history, otherwise four, otherwise three. This is the default.
+
+See [Historical Horizon](#historical-horizon) for the whole set of values.
+
+<a id="historical-horizon-three-years"></a>
+### Three-Year Horizon
+Growth is measured over exactly three elapsed years, which needs four consecutive fiscal years of figures; with fewer, the screen does not fall back to a shorter span.
+
+See [Historical Horizon](#historical-horizon) for the whole set of values.
+
+<a id="historical-horizon-four-years"></a>
+### Four-Year Horizon
+Growth is measured over exactly four elapsed years, which needs five consecutive fiscal years of figures; with fewer, the screen does not fall back to a shorter span.
+
+See [Historical Horizon](#historical-horizon) for the whole set of values.
+
+<a id="historical-horizon-five-years"></a>
+### Five-Year Horizon
+Growth is measured over exactly five elapsed years, which needs six consecutive fiscal years of figures; with fewer, the screen does not fall back to a shorter span.
+
+See [Historical Horizon](#historical-horizon) for the whole set of values.
 
 <a id="growth-trend"></a>
 ### Growth Trend
