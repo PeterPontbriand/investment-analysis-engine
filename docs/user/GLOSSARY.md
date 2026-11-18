@@ -793,18 +793,6 @@ The total is the default (`total_fcf`) and the per-share measure is the alternat
 
 The values are explained in [Total FCF Basis](#classification-basis-total-fcf), [FCF-per-Share Basis](#classification-basis-fcf-per-share).
 
-<a id="classification-basis-total-fcf"></a>
-### Total FCF Basis
-The growth screen is decided by the growth of the company's total free cash flow. This is the default.
-
-See [Classification Basis](#classification-basis) for the whole set of values.
-
-<a id="classification-basis-fcf-per-share"></a>
-### FCF-per-Share Basis
-The growth screen is decided by the growth of free cash flow per diluted share, which reflects changes in the share count.
-
-See [Classification Basis](#classification-basis) for the whole set of values.
-
 <a id="fcf-classification"></a>
 ### FCF Classification
 The growth screen's three outcomes: pass when required growth rates are positive, fail when complete evidence shows a nonpositive rate, indeterminate when no classification can be made.
@@ -827,6 +815,60 @@ The code values are `display_only`, `confirmation`, and `hard_gate`. Only `hard_
 
 The values are explained in [Display-Only Policy](#forward-policy-display-only), [Confirmation Policy](#forward-policy-confirmation), [Hard-Gate Policy](#forward-policy-hard-gate).
 
+<a id="forward-evidence-status"></a>
+### Forward Evidence Status
+How complete the analyst-consensus evidence is: complete when every estimate was found, partial when only some were, unavailable when none was.
+
+Forward evidence is optional. Whether it can change the result is set by the [forward policy](#forward-policy). See [analyst consensus estimate](#analyst-consensus-estimate).
+
+The values are explained in [Complete Forward Evidence](#forward-evidence-complete), [Partial Forward Evidence](#forward-evidence-partial), [Unavailable Forward Evidence](#forward-evidence-unavailable).
+
+<a id="historical-horizon"></a>
+### Historical Horizon
+The number of elapsed years of history the growth screen looks back over: three, four or five, or the longest available.
+
+The default picks the longest history available, up to five years. A longer horizon needs more consecutive annual facts and is unavailable when there are too few.
+
+The values are explained in [Longest Available Horizon](#historical-horizon-longest-available), [Three-Year Horizon](#historical-horizon-three-years), [Four-Year Horizon](#historical-horizon-four-years), [Five-Year Horizon](#historical-horizon-five-years).
+
+<a id="growth-trend"></a>
+### Growth Trend
+How free cash flow growth and earnings growth compare over the screened period: both growing, only one growing, neither growing, or too little meaningful data to say.
+
+The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](#free-cash-flow) and [CAGR](#cagr).
+
+The values are explained in [Both Growing](#growth-trend-both), [Only Free Cash Flow Growing](#growth-trend-fcf-only), [Only Earnings Growing](#growth-trend-earnings-only), [Neither Growing](#growth-trend-neither), [Insufficient Growth Evidence](#growth-trend-insufficient).
+
+<a id="classification-basis-total-fcf"></a>
+### Total FCF Basis
+The growth screen is decided by the growth of the company's total free cash flow. This is the default.
+
+See [Classification Basis](#classification-basis) for the whole set of values.
+
+<a id="classification-basis-fcf-per-share"></a>
+### FCF-per-Share Basis
+The growth screen is decided by the growth of free cash flow per diluted share, which reflects changes in the share count.
+
+See [Classification Basis](#classification-basis) for the whole set of values.
+
+<a id="fcf-growth-pass"></a>
+### FCF Growth Pass
+The growth screen passes: the free cash flow and diluted EPS growth rates are both meaningful and above zero, and any forward hard gate is met.
+
+It is a screen result, not a valuation or a recommendation. See [FCF Classification](#fcf-classification) for the whole set of values.
+
+<a id="fcf-growth-fail"></a>
+### FCF Growth Fail
+The screen fails: a historical growth rate of free cash flow or diluted EPS is zero or negative, or, under the hard gate, forward consensus growth is not positive in both years.
+
+It is a screen result, not a valuation or a recommendation. See [FCF Classification](#fcf-classification) for the whole set of values.
+
+<a id="fcf-growth-indeterminate"></a>
+### FCF Growth Indeterminate
+The screen cannot be decided, because a required growth rate could not be calculated or is not meaningful, or the hard gate lacks complete consensus evidence.
+
+It is not a failed screen: the engine cannot make the classification from the evidence it may use. See [FCF Classification](#fcf-classification) for the whole set of values.
+
 <a id="forward-policy-display-only"></a>
 ### Display-Only Policy
 Analyst-consensus estimates are shown when available and never change the growth screen's result. This is the default.
@@ -845,21 +887,23 @@ The screen passes only when the estimates show positive growth in both forward y
 
 See [Forward Policy](#forward-policy) for the whole set of values.
 
-<a id="forward-evidence-status"></a>
-### Forward Evidence Status
-How complete the analyst-consensus evidence is: complete when every estimate was found, partial when only some were, unavailable when none was.
+<a id="forward-evidence-complete"></a>
+### Complete Forward Evidence
+The latest actual EPS and both consensus estimates were found, and both growth intervals between them could be calculated.
 
-Forward evidence is optional. Whether it can change the result is set by the [forward policy](#forward-policy). See [analyst consensus estimate](#analyst-consensus-estimate).
+See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
 
-The values are explained in [Complete Forward Evidence](#forward-evidence-complete), [Partial Forward Evidence](#forward-evidence-partial), [Unavailable Forward Evidence](#forward-evidence-unavailable).
+<a id="forward-evidence-partial"></a>
+### Partial Forward Evidence
+At least one consensus estimate was found, but not enough to calculate both growth intervals.
 
-<a id="historical-horizon"></a>
-### Historical Horizon
-The number of elapsed years of history the growth screen looks back over: three, four or five, or the longest available.
+See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
 
-The default picks the longest history available, up to five years. A longer horizon needs more consecutive annual facts and is unavailable when there are too few.
+<a id="forward-evidence-unavailable"></a>
+### Unavailable Forward Evidence
+No usable consensus estimate was found, so the forward evidence is empty.
 
-The values are explained in [Longest Available Horizon](#historical-horizon-longest-available), [Three-Year Horizon](#historical-horizon-three-years), [Four-Year Horizon](#historical-horizon-four-years), [Five-Year Horizon](#historical-horizon-five-years).
+The engine has no approved source of consensus estimates yet, so this is the usual value. See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
 
 <a id="historical-horizon-longest-available"></a>
 ### Longest Available Horizon
@@ -884,32 +928,6 @@ See [Historical Horizon](#historical-horizon) for the whole set of values.
 Growth is measured over exactly five elapsed years, which needs six consecutive fiscal years of figures; with fewer, the screen does not fall back to a shorter span.
 
 See [Historical Horizon](#historical-horizon) for the whole set of values.
-
-<a id="growth-trend"></a>
-### Growth Trend
-How free cash flow growth and earnings growth compare over the screened period: both growing, only one growing, neither growing, or too little meaningful data to say.
-
-The trend is evidence and not a score. Both growing and neither growing mean what they say. Free cash flow growing without earnings, or earnings growing without free cash flow, names the one that grew. The last value means a growth rate could not be calculated meaningfully. See [free cash flow](#free-cash-flow) and [CAGR](#cagr).
-
-The values are explained in [Both Growing](#growth-trend-both), [Only Free Cash Flow Growing](#growth-trend-fcf-only), [Only Earnings Growing](#growth-trend-earnings-only), [Neither Growing](#growth-trend-neither), [Insufficient Growth Evidence](#growth-trend-insufficient).
-
-<a id="fcf-growth-pass"></a>
-### FCF Growth Pass
-The growth screen passes: the free cash flow and diluted EPS growth rates are both meaningful and above zero, and any forward hard gate is met.
-
-It is a screen result, not a valuation or a recommendation. See [FCF Classification](#fcf-classification) for the whole set of values.
-
-<a id="fcf-growth-fail"></a>
-### FCF Growth Fail
-The screen fails: a historical growth rate of free cash flow or diluted EPS is zero or negative, or, under the hard gate, forward consensus growth is not positive in both years.
-
-It is a screen result, not a valuation or a recommendation. See [FCF Classification](#fcf-classification) for the whole set of values.
-
-<a id="fcf-growth-indeterminate"></a>
-### FCF Growth Indeterminate
-The screen cannot be decided, because a required growth rate could not be calculated or is not meaningful, or the hard gate lacks complete consensus evidence.
-
-It is not a failed screen: the engine cannot make the classification from the evidence it may use. See [FCF Classification](#fcf-classification) for the whole set of values.
 
 <a id="growth-trend-both"></a>
 ### Both Growing
@@ -940,24 +958,6 @@ See [Growth Trend](#growth-trend) for the whole set of values.
 At least one of the two growth rates, of free cash flow and of diluted EPS, could not be calculated or is not meaningful, so the trend cannot be described.
 
 Without both rates the engine cannot say which of the two grew. See [Growth Trend](#growth-trend) for the whole set of values.
-
-<a id="forward-evidence-complete"></a>
-### Complete Forward Evidence
-The latest actual EPS and both consensus estimates were found, and both growth intervals between them could be calculated.
-
-See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
-
-<a id="forward-evidence-partial"></a>
-### Partial Forward Evidence
-At least one consensus estimate was found, but not enough to calculate both growth intervals.
-
-See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
-
-<a id="forward-evidence-unavailable"></a>
-### Unavailable Forward Evidence
-No usable consensus estimate was found, so the forward evidence is empty.
-
-The engine has no approved source of consensus estimates yet, so this is the usual value. See [Forward Evidence Status](#forward-evidence-status) for the whole set of values.
 
 ---
 

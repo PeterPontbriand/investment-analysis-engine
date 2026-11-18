@@ -13,7 +13,12 @@ from typing import Any, Final
 
 import pytest
 
-from investment_analysis_engine.api.term_references import EXEMPT_CODE_SETS, EXEMPT_LOCATIONS, SHARED_CODE_TERMS
+from investment_analysis_engine.api.term_references import (
+    EXEMPT_CODE_SETS,
+    EXEMPT_LOCATIONS,
+    SHARED_CODE_TERMS,
+    code_terms_by_component,
+)
 from investment_analysis_engine.help.bundle import TERM_LINK_PREFIX, HelpBundle, load_help_bundle
 from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.reporting.headline import CELL_STATUS_TERMS
@@ -187,9 +192,10 @@ def test_each_option_of_a_selection_field_names_its_own_term(descriptor: Strateg
     schema = json.loads(
         (REPOSITORY_ROOT / _SELECTION_DIRECTORY / f"{descriptor.alias}.schema.json").read_text(encoding="utf-8")
     )
+    tables = code_terms_by_component(STRATEGIES)
     problems: list[str] = []
     for name, definition, set_name, values in _selection_option_sets(schema):
-        table = descriptor.code_terms.get(set_name)
+        table = tables.get(set_name)
         if table is None:
             problems.append(f"{name}: the closed set {set_name} has no term table")
             continue
@@ -201,6 +207,19 @@ def test_each_option_of_a_selection_field_names_its_own_term(descriptor: Strateg
         if definition["x-term"] in terms:
             problems.append(f"{name}: an option of {set_name} names the field's own term {definition['x-term']}")
     assert problems == []
+
+
+def test_the_option_walk_finds_a_closed_set_to_check() -> None:
+    found = [
+        set_name
+        for descriptor in STRATEGIES
+        for _name, _definition, set_name, _values in _selection_option_sets(
+            json.loads(
+                (REPOSITORY_ROOT / _SELECTION_DIRECTORY / f"{descriptor.alias}.schema.json").read_text(encoding="utf-8")
+            )
+        )
+    ]
+    assert found, "no selection schema offers a closed set, so the option-term check has nothing to check"
 
 
 def _named_terms() -> set[str]:

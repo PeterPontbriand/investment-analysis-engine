@@ -415,8 +415,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Scope:** `strategies/fcf_growth/vocabulary.py` and `strategies/graham_growth/vocabulary.py`;
   `application/watchlists.py` and `application/refresh.py`; the failure document's version; ten glossary entries
   (`docs/user/GLOSSARY.md`) and the overview entries that list them; the help bundle, `schemas/openapi.json` and
-  `schemas/failure.schema.json`; `docs/user/API.md`, `docs/user/USAGE.md`, `docs/user/WORKSPACE.md` and
-  `docs/project/STRATEGY_DEVELOPMENT.md`; this plan; tests.
+  `schemas/failure.schema.json`; `docs/user/API.md`, `docs/user/USAGE.md`, `docs/user/WORKSPACE.md`,
+  `docs/project/STRATEGY_DEVELOPMENT.md` and `docs/project/PROVIDER_DEBUGGING.md`; this plan; tests.
 - **Branch:** `feat/api-option-terms`.
 - **Detail:** no separate slice plan; decisions in [A.12](#a12-option-terms-and-the-duplicate-message-2026-11-18).
 
@@ -725,7 +725,7 @@ Approved by the project owner on 2026-11-17. The stored run envelope changes sha
 
 ### A.12 Option terms and the duplicate message (2026-11-18)
 
-Approved by the project owner on 2026-11-17 (O1 to O3) and 2026-11-18 (O4 to O12). No database migration, stored shape, request shape, formula or classification changes.
+Approved by the project owner on 2026-11-17 (O1 to O3) and 2026-11-18 (O4 to O15). No database migration, stored shape, request shape, formula or classification changes.
 
 | # | Decision |
 | :--- | :--- |
@@ -741,3 +741,6 @@ Approved by the project owner on 2026-11-17 (O1 to O3) and 2026-11-18 (O4 to O12
 | O10 | Duplicate templates: `duplicate_entry_error` takes the strategy's label, read from the descriptor, instead of `method_id`, and its arguments are exactly `ticker` and `strategy`. The `where` argument goes; a two-value enum selects one of two templates, "{<parameter>} must not duplicate an entry: {ticker} is already listed for {strategy} with an equal selection in the watchlist." or "{<parameter>} must not duplicate an entry: {ticker} is listed twice for {strategy} with an equal selection in this request.", so no English text is passed in as an argument. The command line's message changes the same way; no other command-line text changes. |
 | O11 | Versions: `FailureEnvelope` goes from 14 to 15 under the pre-release rule ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13) U2), because the duplicate rule's arguments change. The selection schemas, the selection form document, the references document and the help bundle keep their versions: their content changes, not their shape (as A.10 N9). The pull request lists the version change. |
 | O12 | Documents and generated files: `docs/user/GLOSSARY.md`, `docs/user/API.md`, `docs/user/USAGE.md`, `docs/project/STRATEGY_DEVELOPMENT.md`, every other place that states the failure document's version, the help bundle, `schemas/openapi.json` and any schema the changes reach, regenerated with their drift checks passing. |
+| O13 | Glossary placement: in the Free Cash Flow & Earnings Growth Strategy terms section, the overview and other entries come first in their existing order, then the value entries, grouped by overview in the order the overviews appear and, within a group, in the order of the overview's "The values are explained in" line. Entries move whole and no entry's text changes. The Graham Growth Value Strategy terms section already follows the rule. |
+| O14 | Option-terms test: it looks each set up in the shared registry merged with every strategy's tables (`code_terms_by_component`), and a separate test requires the walk to find at least one closed set across the declared strategies' selection schemas, so the check cannot pass with nothing to check. |
+| O15 | Runbook versions: `docs/project/PROVIDER_DEBUGGING.md` states no version number; it links to the published schemas that describe the documents, as `docs/user/DATABASE.md` does (A.10 N10), and drops the sentence "No stored version changed.". |

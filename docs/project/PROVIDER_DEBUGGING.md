@@ -141,8 +141,13 @@ failure document and the four strategy documents, and is the last key of the `re
   and no other. The verdict is never stored.
 - **Consistency.** A document carries a non-null element only beside a non-null `provider_failure`, naming exactly the
   providers that element names. A `refresh` summary lists each provider once.
-- **Versions.** The failure document is `schema_version` 9, the strategy documents 9 (Momentum), 12 (Graham Number),
-  12 (Graham Growth) and 9 (FCF Growth), and the refresh summary 2. No stored version changed.
+- **Versions.** The documents' versions are in their published schemas: the failure document in
+  [`schemas/failure.schema.json`](../../schemas/failure.schema.json), the strategy documents in
+  [`momentum.schema.json`](../../schemas/momentum.schema.json),
+  [`graham-number.schema.json`](../../schemas/graham-number.schema.json),
+  [`graham-growth.schema.json`](../../schemas/graham-growth.schema.json) and
+  [`fcf-growth.schema.json`](../../schemas/fcf-growth.schema.json), and the refresh summary in
+  [`refresh-summary.schema.json`](../../schemas/refresh-summary.schema.json).
 
 ## 2. The scheduled and on-demand run
 
