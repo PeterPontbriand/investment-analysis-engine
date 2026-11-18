@@ -55,6 +55,7 @@ dev = [
     "pandas-stubs>=3.0.3.260530",
     "pytest-asyncio>=1.4.0",
     "httpx2>=2.16.0",
+    "pytest-xdist>=3.8.0",
 ]
 
 [tool.uv]
@@ -123,6 +124,7 @@ python_files = ["test_*.py"]
 addopts = "--cov=investment_analysis_engine --cov-report=term-missing --cov-report=html"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = ["slow: takes tens of seconds or more; left out of the slice check, run by the full gate and CI"]
 filterwarnings = ["error::ResourceWarning", "error::pytest.PytestUnraisableExceptionWarning"]
 
 [tool.coverage.run]

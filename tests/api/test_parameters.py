@@ -1,6 +1,6 @@
 """Parameter handling: unknown, repeated and malformed values, the defaults and the runs-list checks."""
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -12,7 +12,7 @@ from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace.runs import RunQuery
 from tests.api._support import AUTH, client_for, runs_by_alias, store
 
-_RUN_ID = uuid4()
+_RUN_ID = UUID("6f1c2a5e-0d3b-4c8e-9a71-2b4d5e6f7a80")
 
 
 def _rejected(response_json: dict[str, object], *, parameters: list[str]) -> None:

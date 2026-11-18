@@ -76,7 +76,7 @@ The help bundle serves some user documents. Their rules are decided in [H24](mil
 
 ## Quality gates
 
-Run the complete non-mutating repository gate from the repository root before requesting technical review or declaring implementation work complete, whenever the change touches Python source, tests, or any file the gate's own tooling actually parses or executes (this includes `pyproject.toml` fields that affect dependency resolution, build, or tool configuration):
+There are two tiers, both for a change that touches Python source, tests, or any file the gate's own tooling actually parses or executes (this includes `pyproject.toml` fields that affect dependency resolution, build, or tool configuration). The **slice check** runs after each sub-slice: every step below, except that pytest runs with no coverage and leaves out tests marked `slow`. The **full gate** runs once per pull request, before the branch is pushed for review, and CI runs on the pull request; the full gate and green CI are what a pull request is reviewed against. A sub-slice that changes the strategy generator or its templates, sites or fills, or `investment_analysis_engine/strategy_wiring.py` also runs the full gate, because the `slow` tests cover those files. The complete non-mutating repository gate:
 
 ```bash
 python3 scripts/check_doc_links.py
@@ -88,7 +88,7 @@ uv run python -m scripts.generate_help --check
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy --strict
-uv run pytest
+uv run pytest -n auto
 ```
 
 Standard-library-only gate scripts run with system Python (`py -3` on Windows), not through `uv run` or the project virtualenv.
@@ -107,11 +107,15 @@ The commands above are the ordinary developer and CI interface. Managed agents w
 bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"
 ```
 
-The wrappers run the same six gates with `uv run --no-sync` and isolate writable pytest, coverage, mypy, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory. They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
+Add `-Slice` (PowerShell) or `--slice` (shell) for the slice check.
+
+The wrappers run the same gates in both modes with `uv run --no-sync`; the slice check differs only in pytest (no coverage, `-m "not slow"`, a step named `pytest slice`). They isolate writable pytest, coverage, Ruff, and UV artifacts under a unique ignored `/.tmp/quality-runs/` directory, and share one mypy cache at `/.tmp/mypy-cache`, so only the first run after a change is slow (deleting that folder resets it). They are safe for concurrent managed-agent runs and contain no machine-specific repository path. Developers with normal user-directory access do not need the wrappers.
 
 Each wrapper writes its complete, unfiltered output (every command's standard output and standard error, in order) to `gate-output.txt` in that run's own directory, while still printing it; the last line it prints is the path of that file. Each step (each check, and each pytest pass separately) prints its elapsed time when it ends. Each pytest pass lists its failing and erroring tests by full name at the end of its output, every skipped test by full name with its reason (`-rs`), and its 20 slowest tests (`--durations=20`). A closing summary lists every step with its time and result, and the total time; a failing step stops the gate there, and the summary still prints. The PowerShell and shell wrappers print the same summary.
 
-The default gate runs on the interpreter pinned in `.python-version` (3.12, the floor of the supported range), so eager-annotation regressions fail locally; the reasoning is in [IR.4](milestones/v0.2/integration-readiness/IR4_PYTHON_VERSION_REPRODUCIBILITY.md#3-python-policy). Pass `-ExtraPython 3.14` to the PowerShell wrapper (`--extra-python 3.14` to the shell wrapper) to also run the test suite on that interpreter after the default gate, in a separate ignored environment under `/.tmp/envs/` that is built once from the lock file and leaves `.venv` untouched. Run the 3.14 pass once before pushing a pull request.
+The default gate runs on the interpreter pinned in `.python-version` (3.12, the floor of the supported range), so eager-annotation regressions fail locally; the reasoning is in [IR.4](milestones/v0.2/integration-readiness/IR4_PYTHON_VERSION_REPRODUCIBILITY.md#3-python-policy). Pass `-ExtraPython 3.14` to the PowerShell wrapper (`--extra-python 3.14` to the shell wrapper) to also run the test suite on that interpreter after the default gate, in a separate ignored environment under `/.tmp/envs/` that is built once from the lock file and leaves `.venv` untouched. The pass is optional and not part of either tier: CI runs Python 3.12, 3.13 and 3.14 on Windows, macOS and Linux, so use it only to reproduce a version-specific CI failure locally. It cannot be combined with the slice check.
+
+Pytest runs in parallel (pytest-xdist) in both tiers and in CI. The wrappers pass `-n auto --maxprocesses 4` by default: as many workers as the machine has cores, never more than four, because each worker opens its own sockets and [#116](https://github.com/PeterPontbriand/investment-analysis-engine/issues/116) is a Windows socket-buffer exhaustion failure. `-Workers <n>` (PowerShell) or `--workers <n>` (shell) changes the cap, and `-Workers 0` / `--workers 0` runs pytest serially in one process. Every worker collects the test ids itself and they must agree, so a parametrize id must not hold a random or time-dependent value. A test that must not share the machine with other workers belongs in the `slow` marker discussion with the project owner, not in an xdist-specific workaround.
 
 Coverage is measured on one pass per run. With the extra pass, the extra pass carries it (terminal report with missing lines, and the HTML report) and the default pass runs without coverage; without the extra pass, the default pass carries it. coverage.py measures with `sys.monitoring` on Python 3.14, which costs far less than on 3.12. The gate fails below 85% total coverage on the pass that measures it, and CI's test step fails below 85% as well. `pyproject.toml` sets no threshold, so a focused run such as `uv run pytest tests/<file>` is not failed by it.
 

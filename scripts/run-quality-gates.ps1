@@ -3,9 +3,24 @@ param(
     # Optional second pass: after the default gate, run the test suite on this interpreter
     # (for example "3.14") in its own ignored environment under .tmp/envs/, leaving .venv alone.
     [ValidatePattern('^\d+\.\d+$')]
-    [string]$ExtraPython = ""
+    [string]$ExtraPython = "",
+
+    # Slice check: the per-sub-slice tier. Every step of the full gate runs, except that pytest runs
+    # with no coverage and leaves out tests marked "slow". It cannot be combined with -ExtraPython.
+    [switch]$Slice,
+
+    # Upper bound on pytest worker processes (pytest-xdist). Each worker opens its own sockets, and
+    # issue #116 is a Windows socket-buffer exhaustion failure, so the count is capped instead of
+    # using every core. 0 runs pytest serially in one process.
+    [ValidateRange(0, 1024)]
+    [int]$Workers = 4
 )
 
+# Two tiers: the full gate (no mode option) runs once per pull request, and the slice check
+# (-Slice) runs after each sub-slice. Pytest runs with "-n auto --maxprocesses <Workers>" in both.
+# Every run shares one mypy cache, <repository root>/.tmp/mypy-cache, so only the first run after
+# a change is slow; deleting that folder resets it. Every other cache and temp path is unique per run.
+#
 # Evidence: everything the run prints (every command's standard output and standard error, in
 # order) is also written to gate-output.txt in the run's own directory under .tmp/quality-runs/.
 # Each step prints its elapsed time when it ends, a closing summary lists every step with its
@@ -14,13 +29,18 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if ($Slice -and $ExtraPython) {
+    [Console]::Error.WriteLine("Usage: run-quality-gates.ps1 [-Slice | -ExtraPython <major.minor>] [-Workers <n>]; -Slice cannot be combined with -ExtraPython")
+    exit 2
+}
+
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $runId = "{0}-{1}-{2}" -f (Get-Date -Format "yyyyMMddHHmmssfff"), $PID, ([guid]::NewGuid().ToString("N"))
 $runRoot = Join-Path $repositoryRoot ".tmp\quality-runs\$runId"
 $pytestRoot = Join-Path $runRoot "pytest"
 $coverageFile = Join-Path $runRoot ".coverage"
 $coverageHtml = Join-Path $runRoot "htmlcov"
-$mypyCache = Join-Path $runRoot "mypy-cache"
+$mypyCache = Join-Path $repositoryRoot ".tmp\mypy-cache"
 $uvCache = Join-Path $runRoot "uv-cache"
 $logFile = Join-Path $runRoot "gate-output.txt"
 $stepOutputFile = Join-Path $runRoot "step-output.txt"
@@ -34,6 +54,8 @@ $coverageArguments = @(
     "--cov-report=html:$coverageHtml",
     "--cov-fail-under=85"
 )
+
+$workerArguments = if ($Workers -ge 1) { @("-n", "auto", "--maxprocesses", "$Workers") } else { @("-n", "0") }
 
 $originalLocation = Get-Location
 $originalTemp = $env:TEMP
@@ -184,7 +206,8 @@ try {
     $env:COVERAGE_FILE = $coverageFile
 
     $pythonVersion, $pandasVersion = (Get-VersionInfo) -split '\|'
-    Write-Gate "Quality gate running on Python $pythonVersion, pandas $pandasVersion"
+    $modeName = if ($Slice) { "slice check" } else { "full gate" }
+    Write-Gate "Quality gate ($modeName) on Python $pythonVersion, pandas $pandasVersion; pytest workers: up to $Workers (0 = serial)"
 
     # The Markdown checkers import only the standard library, so they run with system Python
     # rather than through uv or the project virtualenv.
@@ -215,7 +238,9 @@ try {
         "--cache-dir",
         $mypyCache
     )
-    Invoke-Step -Name "pytest (Python $pythonVersion)" -Executable "uv" -Arguments (@(
+    $pytestName = if ($Slice) { "pytest slice (Python $pythonVersion)" } else { "pytest (Python $pythonVersion)" }
+    $modeArguments = if ($Slice) { @("-m", "not slow") } elseif ($ExtraPython) { @() } else { $coverageArguments }
+    Invoke-Step -Name $pytestName -Executable "uv" -Arguments (@(
             "run",
             "--no-sync",
             "pytest",
@@ -223,14 +248,15 @@ try {
             "addopts=",
             "-p",
             "no:cacheprovider",
-            "-rs",
+            "-rfEs",
             "--durations=20"
-        ) + $(if ($ExtraPython) { @() } else { $coverageArguments }) + @(
+        ) + $workerArguments + $modeArguments + @(
             "--basetemp=$pytestRoot",
             "tests"
         ))
 
-    Write-Gate "Quality gates passed on Python $pythonVersion, pandas $pandasVersion. Isolated artifacts: $runRoot"
+    $passedLabel = if ($Slice) { "Slice check passed" } else { "Quality gates passed" }
+    Write-Gate "$passedLabel on Python $pythonVersion, pandas $pandasVersion. Isolated artifacts: $runRoot"
 
     if ($ExtraPython) {
         # The environment folder is persistent and ignored (/.tmp/), so it is built once from the
@@ -251,9 +277,9 @@ try {
                 "addopts=",
                 "-p",
                 "no:cacheprovider",
-                "-rs",
+                "-rfEs",
                 "--durations=20"
-            ) + $coverageArguments + @(
+            ) + $workerArguments + $coverageArguments + @(
                 "--basetemp=$(Join-Path $runRoot 'pytest-extra')",
                 "tests"
             ))

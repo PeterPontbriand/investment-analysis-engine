@@ -145,7 +145,11 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Mock external APIs and local LLM endpoints in deterministic tests.
 - Tests close every socket, file, event loop and `HTTPError` they create; the suite fails on `ResourceWarning`. A leak warning can fail a test other than the one that created the object, because the warning is reported when the object is freed. The leak's source, for that case and for a failure reported at session end with no test named, is found by rerunning with `PYTHONTRACEMALLOC=25`.
 - Project target: ≥85% line coverage overall; new financial-analysis code should directly exercise meaningful branches and edge cases.
-- Run the complete quality gate specified by the active milestone plan before completion of any change that touches Python source, tests, or a file the tooling actually parses/executes. A change confined to non-executable declarative metadata (e.g. a single `pyproject.toml` project-metadata field such as `license`) or a prose-only documentation edit does not require the full pytest run — see `docs/project/README.md`'s Quality gates section for the exact boundary. When in doubt, run the full gate.
+- After each sub-slice (each implementation step that is reported as done) that touches Python source, tests, or a file the tooling actually parses/executes, run the slice check: the managed wrapper with `-Slice` / `--slice` (§10).
+- Before pushing a branch for a pull request, run the full gate once: the wrapper with no mode option. Also run it for a sub-slice that changes `scripts/new_strategy.py`, `scripts/strategy_sites.py`, `scripts/strategy_sites.toml`, `scripts/strategy_templates/`, `tests/scripts/generator_fills/` or `investment_analysis_engine/strategy_wiring.py`, because the `slow` tests that the slice check leaves out cover those files. The full gate and green CI are what a pull request is reviewed against.
+- After a failed slice check, re-run only the tests it listed as failing, with a focused pytest command (§10), until they pass. Then run the slice check once more. Do not repeat the whole check after each fix.
+- The `-ExtraPython 3.14` / `--extra-python 3.14` pass is not part of either tier. CI runs Python 3.12, 3.13 and 3.14 on all three operating systems. Use the extra pass only to reproduce a version-specific CI failure locally.
+- A change confined to non-executable declarative metadata (e.g. a single `pyproject.toml` project-metadata field such as `license`) or a prose-only documentation edit does not require the full pytest run — see `docs/project/README.md`'s Quality gates section for the exact boundary. When in doubt, run the full gate.
 - For a documentation-only change, run `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, `python scripts/check_package_dependencies.py`, and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff also lints and formats Python code blocks in Markdown. CI runs MyPy and pytest for every pull request; the documentation-only local gate may omit those unless the change also affects code or test behavior. A change to a served document must also pass the commands that the [Quality gates](docs/project/README.md#quality-gates) section of `docs/project/README.md` names for it.
 
 ## 8. Financial-analysis guardrails
@@ -217,15 +221,32 @@ Managed agents must not use the Windows user-profile temp or UV cache paths for
 repository verification. Those locations may be inaccessible even when the
 interactive developer account can use them.
 
-For the complete non-mutating repository gate, run the wrapper matching the
-active shell from any repository subdirectory:
+There are two tiers (§7), both run by the wrapper matching the active shell from
+any repository subdirectory.
+
+The full gate, once per pull request before the branch is pushed:
 
 - PowerShell: `& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')`
 - Git Bash/Cline: `bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"`
 
+The slice check, after each sub-slice. It runs every step of the full gate except
+that pytest runs with no coverage and leaves out tests marked `slow`, and it never
+runs the extra-interpreter pass:
+
+- PowerShell: `& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1') -Slice`
+- Git Bash/Cline: `bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh" --slice`
+
+Pytest runs on up to four worker processes by default (`-Workers <n>` /
+`--workers <n>` changes the cap; `-Workers 0` / `--workers 0` runs it serially in
+one process). The mypy cache is shared by every run at `.tmp/mypy-cache`, so only
+the first run after a change is slow; deleting that folder resets it. A failure
+with `winerror` 10055, or a `socket snapshot` section in the output, is evidence
+for issue #116: keep the run directory, re-run nothing, and report the evidence to
+the project owner instead of retrying.
+
 The wrappers derive the repository root at runtime and create a unique ignored
 directory below `/.tmp/quality-runs/` for that invocation. They isolate pytest
-temporary files, coverage output, mypy and Ruff caches, and the UV cache so
+temporary files, coverage output, Ruff caches, and the UV cache so
 concurrent agent runs cannot clear or overwrite one another. Never replace the
 unique run directory with a shared fixed `--basetemp`; pytest deletes its base
 temp directory at startup. The wrappers use `uv run --no-sync` against the

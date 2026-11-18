@@ -57,6 +57,7 @@ def _generate_and_check(tmp_path: Path, module: str, label: str) -> None:
         assert not too_long, f"{path.name}: lines {too_long}"
 
 
+@pytest.mark.slow
 def test_the_limits_are_proven_at_both_maxima_together(tmp_path: Path) -> None:
     """The longest label with the longest module name generates a lint-, format- and type-clean package."""
     assert len(MAXIMUM_LABEL) == MAX_LABEL_LENGTH
@@ -64,6 +65,7 @@ def test_the_limits_are_proven_at_both_maxima_together(tmp_path: Path) -> None:
     _generate_and_check(tmp_path, MAXIMUM_MODULE, MAXIMUM_LABEL)
 
 
+@pytest.mark.slow
 def test_the_longest_candidates_of_the_specifications_generate_cleanly(tmp_path: Path) -> None:
     """Cash-Flow Valuation Multiples, the longest name of Step 3.5, fits with margin and generates cleanly."""
     assert len(LONGEST_LABEL) < MAX_LABEL_LENGTH
