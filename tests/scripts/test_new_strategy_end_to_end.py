@@ -323,6 +323,7 @@ def _selected_nodes_run_and_pass(copy: Path) -> subprocess.CompletedProcess[str]
     return _run(copy, *_conformance_arguments("-k", f"{ALIAS} or {MODULE}", *PER_STRATEGY_TESTS))
 
 
+@pytest.mark.slow
 def test_t28_the_generator_takes_a_strategy_through_the_whole_contributor_path(tmp_path: Path) -> None:
     """Generate, type-check, fill, regenerate and run the conformance tests for a throwaway strategy in a copy."""
     sites = load_sites()

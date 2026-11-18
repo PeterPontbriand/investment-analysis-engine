@@ -1,29 +1,66 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Two tiers: the full gate (no mode option) runs once per pull request, and the slice check
+# (--slice) runs after each sub-slice: every step of the full gate, except that pytest runs with no
+# coverage and leaves out tests marked "slow". It cannot be combined with --extra-python.
+#
 # Optional second pass: --extra-python <major.minor> runs the test suite on that interpreter in
 # its own ignored environment under .tmp/envs/ after the default gate, leaving .venv alone.
+#
+# --workers <n> (default 4) caps the pytest worker processes (pytest-xdist): "-n auto
+# --maxprocesses <n>", so as many workers as cores but never more than n. Each worker opens its own
+# sockets and issue #116 is a Windows socket-buffer exhaustion failure, so the count is capped.
+# --workers 0 runs pytest serially in one process.
+#
+# Every run shares one mypy cache, <repository root>/.tmp/mypy-cache, so only the first run after a
+# change is slow; deleting that folder resets it. Every other cache and temp path is unique per run.
 #
 # Evidence: everything the run prints (every command's standard output and standard error, in
 # order) is also written to gate-output.txt in the run's own directory under .tmp/quality-runs/.
 # Each step prints its elapsed time when it ends, a closing summary lists every step with its
 # time and result, and each pytest pass lists its failing and erroring tests by full name and its
 # 20 slowest tests. The last line printed is the path of the output file.
+usage() {
+    printf 'Usage: %s [--slice | --extra-python <major.minor>] [--workers <n>]; --slice cannot be combined with --extra-python\n' "$0" >&2
+    exit 2
+}
+
 extra_python=""
-case "${1:-}" in
-    "") ;;
-    --extra-python)
-        extra_python="${2:-}"
-        if ! [[ "$extra_python" =~ ^[0-9]+\.[0-9]+$ ]] || [ "$#" -ne 2 ]; then
-            printf 'Usage: %s [--extra-python <major.minor>]\n' "$0" >&2
-            exit 2
-        fi
-        ;;
-    *)
-        printf 'Usage: %s [--extra-python <major.minor>]\n' "$0" >&2
-        exit 2
-        ;;
-esac
+slice_mode=0
+workers=4
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --slice)
+            slice_mode=1
+            shift
+            ;;
+        --workers)
+            [ "$#" -ge 2 ] || usage
+            workers="$2"
+            [[ "$workers" =~ ^[0-9]+$ ]] || usage
+            shift 2
+            ;;
+        --extra-python)
+            [ "$#" -ge 2 ] || usage
+            extra_python="$2"
+            [[ "$extra_python" =~ ^[0-9]+\.[0-9]+$ ]] || usage
+            shift 2
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+if [ "$slice_mode" -eq 1 ] && [ -n "$extra_python" ]; then
+    usage
+fi
+workers=$((10#$workers))
+if [ "$workers" -ge 1 ]; then
+    worker_args=(-n auto --maxprocesses "$workers")
+else
+    worker_args=(-n 0)
+fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repository_root="$(cd -- "$script_dir/.." && pwd -P)"
@@ -33,7 +70,7 @@ run_id="$(date -u +%Y%m%d%H%M%S)-$$-${RANDOM}"
 run_root="$repository_root/.tmp/quality-runs/$run_id"
 pytest_root="$run_root/pytest"
 coverage_html="$run_root/htmlcov"
-mypy_cache="$run_root/mypy-cache"
+mypy_cache="$repository_root/.tmp/mypy-cache"
 log_file="$run_root/gate-output.txt"
 step_output="$run_root/step-output.txt"
 
@@ -146,7 +183,11 @@ main() {
     version_info="$(uv run --no-sync python -c "import sys, pandas; print(f'{sys.version.split()[0]}|{pandas.__version__}')")"
     python_version="${version_info%%|*}"
     pandas_version="${version_info##*|}"
-    printf 'Quality gate running on Python %s, pandas %s\n' "$python_version" "$pandas_version"
+    local mode_name="full gate"
+    if [ "$slice_mode" -eq 1 ]; then
+        mode_name="slice check"
+    fi
+    printf 'Quality gate (%s) on Python %s, pandas %s; pytest workers: up to %s (0 = serial)\n' "$mode_name" "$python_version" "$pandas_version" "$workers"
 
     # The Markdown checkers import only the standard library, so they run with system Python
     # rather than through uv or the project virtualenv.
@@ -171,20 +212,27 @@ main() {
     run_step "ruff check" uv run --no-sync ruff check --no-cache .
     run_step "ruff format" uv run --no-sync ruff format --check .
     run_step "mypy" uv run --no-sync mypy --strict --cache-dir "$windows_mypy_cache"
-    local default_coverage=("${coverage_args[@]}")
-    if [ -n "$extra_python" ]; then
-        default_coverage=()
+    local mode_args=("${coverage_args[@]}")
+    local pytest_name="pytest (Python $python_version)"
+    local passed_label="Quality gates passed"
+    if [ "$slice_mode" -eq 1 ]; then
+        mode_args=(-m "not slow")
+        pytest_name="pytest slice (Python $python_version)"
+        passed_label="Slice check passed"
+    elif [ -n "$extra_python" ]; then
+        mode_args=()
     fi
-    run_step "pytest (Python $python_version)" uv run --no-sync pytest \
+    run_step "$pytest_name" uv run --no-sync pytest \
         -o addopts= \
         -p no:cacheprovider \
-        -rs \
+        -rfEs \
         --durations=20 \
-        ${default_coverage[@]+"${default_coverage[@]}"} \
+        "${worker_args[@]}" \
+        ${mode_args[@]+"${mode_args[@]}"} \
         --basetemp="$windows_pytest_root" \
         tests
 
-    printf 'Quality gates passed on Python %s, pandas %s. Isolated artifacts: %s\n' "$python_version" "$pandas_version" "$run_root"
+    printf '%s on Python %s, pandas %s. Isolated artifacts: %s\n' "$passed_label" "$python_version" "$pandas_version" "$run_root"
 
     if [ -n "$extra_python" ]; then
         # The environment folder is persistent and ignored (/.tmp/), so it is built once from the
@@ -210,8 +258,9 @@ main() {
         run_step "pytest (Python $extra_version)" uv run --no-sync pytest \
             -o addopts= \
             -p no:cacheprovider \
-            -rs \
+            -rfEs \
             --durations=20 \
+            "${worker_args[@]}" \
             "${coverage_args[@]}" \
             --basetemp="$windows_run_root/pytest-extra" \
             tests
