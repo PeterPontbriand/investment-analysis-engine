@@ -17,6 +17,7 @@ history. Update the owner instead of copying status into indexes or other guides
 - [Evidence Provider Roadmap](EVIDENCE_PROVIDER_ROADMAP.md) — non-authoritative candidate backlog of future strategies and platform features; the Master Plan and implementation plan remain authoritative for scope and sequencing.
 - [Architecture](ARCHITECTURE.md) — current architectural boundaries and approved target seams.
 - [Analysis Strategy Development Guide](STRATEGY_DEVELOPMENT.md) — the one guide for adding a strategy: the step-by-step workflow, the edit sites, the settings convention, and how a strategy fits into the code (the analyzer contract, execution/capture flow, and what's strategy-specific versus shared).
+- [Spec Workflow](SPEC_WORKFLOW.md) — how a unit of work is handed off through a spec committed on its branch, with the [spec template](SPEC_TEMPLATE.md) it is written from; piloted on Step 3.5 slice 3.5.5.
 - [Provider Debugging Runbook](PROVIDER_DEBUGGING.md) — running the live provider checks and `ian health`, reading the scheduled run's kept results, and what a failed Yahoo or SEC EDGAR check means.
 - [Discovery Workbook](DISCOVERY_WORKBOOK.md) — rationale, alternatives, decisions, and product/engineering context.
 - [Evaluations & Golden Suite](../EVALUATIONS.md) — Step 2.5 benchmark purpose, execution modes, scoring boundaries, fixtures, and maintenance rules.

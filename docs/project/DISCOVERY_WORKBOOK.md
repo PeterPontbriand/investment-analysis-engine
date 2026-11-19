@@ -802,6 +802,7 @@ complete. See the
 | A model's role over already-computed results is limited to relevance and sentence checking; revisit when the future evaluator has scored results | Makes the narrowing an explicit decision with a stated trigger, not a side effect of the redesign |
 | Record product boundaries: the engine, the Investment Analysis Desktop and a future predictive evaluator are separate applications (2026-11-01) | Keeps the engine a point-in-time evidence and filter provider; see the decision record in [Product boundaries](MASTER_PLAN.md#25-product-boundaries) |
 | Move the forecast ledger, and composite screens, universe screening and cross-sectional ranking that the project would design or validate itself, to the future evaluator (2026-11-01; published, fully specified screens stay in the engine); supersedes the decision to start forecast-ledger recording in v0.3 | The engine must not see the outcomes it is scored on, and a composite needs validation that belongs outside it |
+| Hand off units of work through a spec committed on the work branch, with a written escalation table and a fixed review order; piloted on Step 3.5 slice 3.5.5 and kept, adjusted or dropped by recorded decision afterwards (2026-11-19) | Removes hand-copied prompts while every approval stays with the project owner; see [the spec workflow](SPEC_WORKFLOW.md) and its decision record, [A.21 of the Step 3.5 plan](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a21-spec-workflow-pilot-on-355-2026-11-19) |
 
 ---
 

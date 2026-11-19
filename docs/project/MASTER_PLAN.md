@@ -461,6 +461,7 @@ Documentation lives in the repository and is updated with the code:
 - **`docs/project/milestones/v0.2/step-2.3/STEP_2_3_GRAHAM_DESIGN.md`:** Compact approved Step 2.3 method, resolution, provenance, CLI, fixture, and review record.
 - **`docs/project/milestones/v0.2/step-2.4/STEP_2_4_FCF_EARNINGS_GROWTH_DESIGN.md`:** Initial Step 2.4 financial, data, CLI, presentation, and review design.
 - **`docs/EVALUATIONS.md`:** Step 2.5 Golden Suite status, usage target, scoring, fixtures, reporting, and extension policy.
+- **`docs/project/SPEC_WORKFLOW.md`:** How a unit of work is handed off through a spec committed on its branch: the roles, the flow, the review order and the pilot's measures. `docs/project/SPEC_TEMPLATE.md` is the spec's fixed shape, and the escalation table is in `AGENTS.md` §11.
 - **`docs/project/STRATEGY_DEVELOPMENT.md`:** The single contributor guide for adding an analysis strategy: the workflow, the generated edit-site table, the settings convention and the background on how a strategy fits into the code.
 - **`docs/I18N_GUIDE.md`:** **Planned for localization work.** Translation/report-localization procedures.
 
