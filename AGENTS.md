@@ -22,6 +22,8 @@ When instructions differ, use this precedence:
 
 Do not blend contradictory instructions. Surface the conflict and follow the more specific/current source.
 
+A unit of work handed off through a spec ([spec workflow](docs/project/SPEC_WORKFLOW.md)) follows its spec within the plan that owns the unit. When the spec and that plan, or the spec and the code, disagree, stop and escalate (§11) instead of choosing.
+
 A plan's precedence covers its open work only. Decision records, appendices, completion evidence and the sections of completed work describe what was decided at the time; they are not current guidance. Current behavior and rules are in `AGENTS.md`, `docs/project/ARCHITECTURE.md`, `docs/project/STRATEGY_DEVELOPMENT.md`, `docs/user/FINANCE_MATH.md` and the code. When a past record still binds (an accepted exception, for example), the current document that relies on it links to it.
 
 For Milestone v0.2, `docs/project/milestones/v0.2/IMPLEMENTATION_PLAN.md` owns implementation sequencing, review gates, scope, and acceptance criteria.
@@ -88,6 +90,7 @@ Use [`IR_CONTRACT_AND_SLICE_PLAN.md`](docs/project/milestones/v0.2/integration-r
 - Put background and origin after the scope limits and acceptance criteria.
 - Put decision records, renumbering history, branching rationale, and accepted exceptions in a verbatim appendix at the end.
 - Keep detail in the lowest-level document that owns it. A parent summarizes and links; it does not duplicate a child's inventory, design decisions, or history.
+- A unit spec (`specs/<unit>.md` beside the plan that owns the unit) is a handoff, not a planning document: it follows the [spec template](docs/project/SPEC_TEMPLATE.md) instead of this structure.
 
 ### Diagrams in documentation
 
@@ -379,6 +382,22 @@ Require explicit user confirmation before:
 
 Dependabot pull requests are never merged: reapply the same version bump on a project branch, and Dependabot then closes its own pull request. Commits on `main` are authored by project contributors only.
 
+### Escalation in a spec-driven unit
+
+Temporary rule: it applies to units handed off through a spec while the [spec workflow](docs/project/SPEC_WORKFLOW.md) is piloted, and the change that records the pilot's outcome keeps, rewrites or removes it. The implementer handles each situation as the table says; the roles are defined in the spec workflow.
+
+| Situation | What the implementer does |
+| :--- | :--- |
+| A step's checks pass and only allowed files changed | Commits and goes on to the next step |
+| A check fails because of an implementation mistake (a failing test, a lint, type or formatting error) | Fixes it within the allowed files and re-runs only what failed (§7). After three attempts at the same failure, stops and escalates to the spec author |
+| The spec is ambiguous, misses a decision, or contradicts the code, its plan or another current document | Stops that step and escalates to the spec author, who corrects the spec before work continues. Never settles it in code |
+| The work needs a file outside the spec's allowed files | Stops and escalates to the spec author (§4, implementation preservation) |
+| The work would change an architectural invariant, a financial formula or convention, provenance, or a persisted shape or the local HTTP API beyond what the spec names | Stops and escalates to the spec author, who takes it to the project owner |
+| The work needs a new dependency, a `pyproject.toml` or `uv.lock` change, a migration against user data, or a step this section or §3 reserves for the project owner | Stops and escalates to the spec author, who takes it to the project owner |
+| A run shows evidence for issue #116 | Stops and keeps the evidence (§10) |
+
+An escalation names the table row, the step, and what was found. The spec author settles what the approved decisions already cover and records it in the spec; anything that would change a decision, the scope, a dependency, or a step that cannot be undone goes to the project owner.
+
 ### Commit and pull request titles
 
 `main` is squash-merged, so a pull request's title is the first line of its commit. Titles follow Conventional Commits, as
@@ -409,6 +428,7 @@ Each subject below is written down in exactly one place; anything else that ment
 - Architectural invariants → `docs/project/ARCHITECTURE.md` §2
 - Packages and the imports between them → `docs/project/ARCHITECTURE.md` §13
 - Adding or changing a strategy → `docs/project/STRATEGY_DEVELOPMENT.md`
+- Handing off a unit of work through a spec → `docs/project/SPEC_WORKFLOW.md` (the spec's shape: `docs/project/SPEC_TEMPLATE.md`; escalation: §11)
 - Document precedence → `AGENTS.md` §2
 - Financial mathematics → `docs/user/FINANCE_MATH.md`
 - Domain terms → `docs/user/GLOSSARY.md` (investor terms, plus an excluded command-line section) and `docs/project/CONTRIBUTOR_GLOSSARY.md` (contributor terms); entry rules in `docs/project/README.md`'s "Glossary entries" section

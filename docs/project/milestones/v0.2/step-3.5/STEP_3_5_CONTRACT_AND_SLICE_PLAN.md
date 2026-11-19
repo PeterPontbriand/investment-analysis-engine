@@ -92,6 +92,7 @@ Once Step 3.5 closes, a person, not an AI agent, reviews [`docs/project/STRATEGY
 
 3.5.5 starts after work package API's API.8 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)),
 and 3.5.4 follows 3.5.5 ([A.15](#a15-355-before-354-2026-11-02)).
+3.5.5 pilots the [spec workflow](../../../SPEC_WORKFLOW.md); the project owner records the pilot's outcome before the 3.5.4 slice plan is accepted ([A.21](#a21-spec-workflow-pilot-on-355-2026-11-19)).
 From 3.5.5 on, "the same completeness as 3.5.3" also covers the glossary-terms edit site that API.6 adds: an
 investor glossary entry for each term the strategy's headline cells, statuses and selection fields name
 ([API plan A.4](../api/API_CONTRACT_AND_SLICE_PLAN.md#a4-help-content-in-the-gui-2026-10-30)).
@@ -252,8 +253,11 @@ its own quality gate and authorization.
 - **Problem:** three single-ticker analyzers that consume the 3.5.2 metrics directly.
 - **Decision:** the valuation strategy reports EV/EBITDA and FCF yield only. Interest Coverage
   uses gross interest expense only. ROIC uses one NOPAT definition and a guarded three-year
-  incremental view.
-- **Scope:** three analyzers with the same completeness as 3.5.3.
+  incremental view. Every 3.5.5 sub-slice is handed off through a spec under `specs/` in this folder, as the pilot of
+  the [spec workflow](../../../SPEC_WORKFLOW.md) ([A.21](#a21-spec-workflow-pilot-on-355-2026-11-19)); the pilot's
+  measures and its adopt, adjust or drop outcome are in [its §7](../../../SPEC_WORKFLOW.md#7-pilot-on-355).
+- **Scope:** three analyzers with the same completeness as 3.5.3, and the pilot measures table in the slice plan's
+  implementation record.
 - **Detail:** [Strategy specifications §4, §6, §7](STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples)
   and [Slice inputs §7](STEP_3_5_SLICE_INPUTS.md#7-355--valuation-multiples-interest-coverage-and-roic).
   ⚠ no slice plan yet
@@ -728,3 +732,23 @@ Decided by the project owner for [issue 250](https://github.com/PeterPontbriand/
 | Documents (Z8, Z8a) | Both Graham documents gave `status` and `reason` only | `reason_code` before `reason`, null exactly when the status is `ok`; each document's schema version goes up by one. The Graham headline price cells carry the code, so each other document that serves those cells also goes up one version, under J44 in [API.4's slice plan](../api/API_4_SLICE_PLAN.md) | Scripts and the desktop app act on a code, not on message text |
 | Messages (Z9, Z9a–Z9c) | General replacement lines (`friendly_valuation_failure`, `friendly_graham_assembly`, Graham Number's `_number_reason`) chose the message, keyed on whether a code was present | Every non-OK message is written where its code is set and shown as written; those functions are deleted. An unavailable input reads "Earnings per share is unavailable: …" or "Book value per share is unavailable: …", replacing the `eps:` and `bvps:` prefixes (M4 and M5's wording changes only there). The not-applicable and provider-error messages keep their wording, now written at the source. The resolver's messages name no internal field; a quality rule's message no longer starts with its rule id, which stays in the published quality decisions; the boundary check names the dates in plain words | The message and its code say the same thing |
 | Records (Z10) | None | Glossary entries for `quote_timing_unusable`, `nonpositive_input` and `override_only`, each mapped in `REASON_CODE_TERMS`. The help bundle, OpenAPI and schemas regenerated. Each Graham guide has a plain-English section on its reason codes. This pull request marks issue 250 Complete and sets 3.5.5 Next | Every served code is explained where a reader looks |
+
+### A.21 Spec workflow pilot on 3.5.5 (2026-11-19)
+
+Decided by the project owner. The workflow was agreed on 2026-11-14 and 2026-11-15, and its pilot was moved from the
+desktop application's read-only screens to 3.5.5 on 2026-11-15, so that its one-time setup is spread over a whole
+work package. Its documents land in one documentation-only pull request before 3.5.5 starts.
+
+| Topic | Before | Decision | Why |
+| :--- | :--- | :--- | :--- |
+| Handoff | A prompt pasted into the implementer's session, and PR text pasted separately | A spec, `specs/<unit>.md` beside the plan that owns the unit, committed first on the unit's branch; the implementer is given its path only ([spec workflow](../../../SPEC_WORKFLOW.md)) | Removes hand copying, and the handoff lives in the repository, where every later agent can read it |
+| Spec shape | Prompts varied; allowed files and an out-of-scope section were added to them on 2026-11-15 | The [spec template](../../../SPEC_TEMPLATE.md): Goal, Decisions, Out of scope, Allowed files, Steps, Norms and safeguards, Acceptance checks, Report, PR text, Change log | Allowed files and out of scope make scope creep checkable; the PR text is written once |
+| Spec first | A difference between plan and reality was settled in code or by a fix-up prompt | The spec is corrected and committed before the code changes, with a dated change-log line | The merged spec stays a true record of what was built |
+| Escalation | Stop and report, with no written criteria | The table in `AGENTS.md` §11: three attempts at a mechanical failure, then escalate; ambiguity, files outside the allowed list, invariants, financial semantics, provenance, persisted shapes and the API contract beyond the spec, dependencies, migrations and irreversible steps always escalate | Mechanical failures stop reaching the project owner; design questions always do |
+| Communication | The project owner relayed every message between agents | The spec author and the implementer exchange questions and review findings directly; the project owner receives decision lists, escalations the approved decisions do not settle, and the pull request ready to open | Removes waiting and copying without removing any approval |
+| Quality gate | The tiered gate of #273 | Slice check after each spec step that changes executable files, full gate once before push, CI as the authority across versions and operating systems; 3.5.5a's spec adds an agent hook that runs the slice check when the implementer ends its turn | The implementer cannot report a step done on a failing check |
+| Review | No fixed order | Behaviour first, then architecture and invariants, then logic and financial correctness, then scope; each finding tagged spec change or code fix; a small defect is fixed in the branch or filed as an issue, never deferred in a note | Code that does not work is not reviewed line by line; deferred findings get lost |
+| Pilot scope | None | Every 3.5.5 sub-slice; other work keeps the prompt handoff until the outcome is recorded | One work package gives enough sub-slices to judge the workflow |
+| Measures and outcome | None | The measures in [the spec workflow §7](../../../SPEC_WORKFLOW.md#7-pilot-on-355), recorded per sub-slice in the 3.5.5 slice plan; after 3.5.5's last sub-slice merges and before the 3.5.4 slice plan is accepted, the project owner decides adopt, adjust or drop, recorded as a decision record in this appendix | A pilot needs criteria fixed before it starts and a recorded end |
+| Left out | Proposed in the 2026-11-14 and 2026-11-15 discussion | Separate analysis documents and design canvases, generated user stories and test prompts, workflow slash commands, a baton or loop-state file, orchestration through GitHub Actions, separate worktrees | Built for team auditing or parallel work; here one unit runs at a time and the agents message each other directly |
+| Desktop repository | Not covered | Receives the same documents only if the outcome is adopt | The pilot runs in this repository only |
