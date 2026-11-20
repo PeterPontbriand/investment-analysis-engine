@@ -104,6 +104,11 @@ def use_providers(monkeypatch: pytest.MonkeyPatch, sec: FakeSec, yahoo: FakeYaho
     monkeypatch.setattr("investment_analysis_engine.application.instrument_profiles.YFinanceClient", lambda: yahoo)
 
 
+def use_yahoo_only(monkeypatch: pytest.MonkeyPatch, yahoo: FakeYahoo) -> None:
+    """Make the lookup use ``yahoo`` as its provider and leave the SEC adapter to its real settings check."""
+    monkeypatch.setattr("investment_analysis_engine.application.instrument_profiles.YFinanceClient", lambda: yahoo)
+
+
 def store_profile(
     context: ApplicationContext, *, refreshed_at: datetime, anchor: str = ANCHOR, ticker: str = "KO"
 ) -> None:

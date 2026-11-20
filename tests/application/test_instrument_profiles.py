@@ -12,9 +12,10 @@ from investment_analysis_engine.application.instrument_profiles import (
 )
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.failure_codes import PROVIDER_CODE_BY_KIND, FailureReasonCode
-from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError, InvalidParameterError
+from investment_analysis_engine.core.operator_errors import InvalidParameterError
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.repositories.instrument_profiles import INSTRUMENT_PROFILE_SCHEMA_VERSION
 from tests._instrument_profile_fakes import (
     ANCHOR,
@@ -25,6 +26,7 @@ from tests._instrument_profile_fakes import (
     set_profile_version,
     store_profile,
     use_providers,
+    use_yahoo_only,
 )
 
 
@@ -199,12 +201,62 @@ def test_the_most_serious_provider_failure_wins(context: ApplicationContext, mon
     assert (error.value.kind, error.value.provider_id) == (ProviderFailureKind.UNREACHABLE, "yfinance")
 
 
-def test_a_lookup_without_an_sec_identity_is_a_configuration_error_that_names_no_setting(
-    isolated_cli_settings: ProjectSettings,
+def test_a_lookup_without_an_sec_identity_answers_yahoo_alone_and_stores_nothing(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    with pytest.raises(AnalysisConfigurationError) as error:
+    context = profile_context(isolated_cli_settings, sec_identity=False)
+    use_yahoo_only(monkeypatch, FakeYahoo())
+
+    looked_up = lookup_instrument_profile(context, "ko")
+
+    identity = looked_up.profile.identity
+    assert identity is not None
+    assert (identity.provider_id, identity.instrument_name, identity.issuer_identifier) == (
+        "yfinance",
+        "The Coca-Cola Company",
+        None,
+    )
+    assert looked_up.profile.kind_evidence is not None
+    assert looked_up.profile.kind_evidence.kind is InstrumentKind.EQUITY
+    with pytest.raises(InstrumentProfileNotFoundError):
+        get_instrument_profile(context, "KO")
+
+
+def test_a_lookup_without_an_sec_identity_answers_an_existing_stored_profile_unchanged(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    context = profile_context(isolated_cli_settings, sec_identity=False)
+    store_profile(context, refreshed_at=OLD)
+    use_yahoo_only(monkeypatch, FakeYahoo())
+
+    looked_up = lookup_instrument_profile(context, "KO")
+
+    assert looked_up.refreshed_at == OLD
+    assert looked_up.profile.identity is not None
+    assert looked_up.profile.identity.issuer_identifier == ANCHOR
+    assert get_instrument_profile(context, "KO").refreshed_at == OLD
+
+
+@pytest.mark.parametrize("kind", list(ProviderFailureKind))
+def test_a_lookup_without_an_sec_identity_reports_a_yahoo_failure_under_its_code(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch, kind: ProviderFailureKind
+) -> None:
+    use_yahoo_only(monkeypatch, FakeYahoo(failure=kind))
+
+    with pytest.raises(DataFetchError) as error:
         lookup_instrument_profile(profile_context(isolated_cli_settings, sec_identity=False), "KO")
 
-    assert error.value.reason_code is FailureReasonCode.CONFIGURATION_ERROR
-    assert "SEC_USER_AGENT" not in str(error.value)
-    assert str(error.value) == "Looking up an instrument profile needs an SEC identity, and none is set up."
+    assert error.value.reason_code is PROVIDER_CODE_BY_KIND[kind]
+    assert error.value.provider_id == "yfinance"
+
+
+def test_a_lookup_without_an_sec_identity_in_which_yahoo_identifies_nothing_is_no_data(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_yahoo_only(monkeypatch, FakeYahoo(identity=False))
+
+    with pytest.raises(DataFetchError) as error:
+        lookup_instrument_profile(profile_context(isolated_cli_settings, sec_identity=False), "ZZZZ")
+
+    assert error.value.reason_code is FailureReasonCode.PROVIDER_NO_DATA
+    assert str(error.value) == "Unable to look up ZZZZ: Yahoo Finance returned no data for it."

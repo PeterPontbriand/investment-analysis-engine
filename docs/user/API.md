@@ -196,8 +196,9 @@ client reads it once and can offer a lookup when there is nothing to show.
   answered and not stored, so the next `GET` is still 404. It sends no body and can run while a refresh job runs. When no
   provider identifies the ticker it fails with `provider_no_data`, and a provider that failed gives its own `provider_*` code
   (`provider_unreachable`, `provider_rate_limited` or `provider_unexpected_response`); these codes are answered with status
-  500, as they are everywhere else, so branch on `reason_code`. A server started without an SEC identity answers
-  `configuration_error`. A lookup is called a lookup, never a refresh, because a refresh runs a watchlist.
+  500, as they are everywhere else, so branch on `reason_code`. A server started without an SEC identity still looks the
+  profile up, with Yahoo as the only provider; the result has no issuer identifier, so it is answered and not stored, and a
+  stored profile is answered as before. A lookup is called a lookup, never a refresh, because a refresh runs a watchlist.
 
 The ticker in the path is trimmed and upper-cased; a blank one is `invalid_parameter`. There is one ticker per request.
 

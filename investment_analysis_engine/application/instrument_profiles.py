@@ -20,12 +20,13 @@ from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentProfile,
+    InstrumentProfileCandidate,
     InstrumentProfileCapability,
     profile_identity_resolution,
 )
 from investment_analysis_engine.data.instrument_profile_cache import StoredInstrumentProfile, read_stored_profile
 from investment_analysis_engine.data.repositories.instrument_profiles import SQLiteInstrumentProfileRepository
-from investment_analysis_engine.data.yfinance.client import YFinanceClient
+from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
 from investment_analysis_engine.reporting.presentation import provider_display_name
 from investment_analysis_engine.strategies._shared.profile import compose_production_profile
 
@@ -38,9 +39,6 @@ _LOOKUP_MESSAGES = {
     ProviderFailureKind.NO_DATA: "Unable to look up {ticker}: {provider} returned no data for it.",
 }
 """One message for each kind of provider failure a lookup reports; the same wording as an analysis, for a lookup."""
-
-_NOT_CONFIGURED_MESSAGE = "Looking up an instrument profile needs an SEC identity, and none is set up."
-"""The message of a lookup attempted before an SEC identity is set up."""
 
 
 class InstrumentProfileNotFoundError(ValueError):
@@ -107,8 +105,9 @@ def lookup_instrument_profile(context: ApplicationContext, ticker: str) -> Store
 
     The profile comes from the durable cache when it is within the freshness window and otherwise from the data
     providers. A result is stored only when it has an identity anchor, as the cache stores it for an analysis; one
-    without an anchor is returned with the time its identity was resolved and is not stored. When a provider cannot
-    confirm an anchor and a profile is already stored, the stored profile is returned, as an analysis uses it.
+    without an anchor is returned with the time its identity was resolved and is not stored. With no SEC identity set
+    up, Yahoo is the only identity and kind provider, so the result has no anchor and is not stored. When a provider
+    cannot confirm an anchor and a profile is already stored, the stored profile is returned, as an analysis uses it.
 
     Args:
         context: What the operation needs from its caller.
@@ -116,23 +115,24 @@ def lookup_instrument_profile(context: ApplicationContext, ticker: str) -> Store
 
     Raises:
         InvalidParameterError: If ``ticker`` is blank.
-        AnalysisConfigurationError: If no SEC identity is set up.
         DataFetchError: If no provider identified the ticker; its kind is the provider failure observed, or
             ``no_data`` when every provider answered with nothing.
         DatabaseReadinessError: If the database is missing, busy or not at the expected revision.
     """
     normalized = _ticker(ticker)
     try:
-        primary = build_sec_production_provider(context)
+        primary: object | None = build_sec_production_provider(context)
     except AnalysisConfigurationError:
-        raise AnalysisConfigurationError(_NOT_CONFIGURED_MESSAGE) from None
+        primary = None
     with open_database(context) as database:
-        profile = compose_production_profile(
-            normalized,
-            primary_provider=primary,
-            yahoo_provider=YFinanceClient(),
-            profile_cache=production_instrument_profile_cache(context, database, clock=utc_now),
-        )
+        cache = production_instrument_profile_cache(context, database, clock=utc_now)
+        if primary is not None:
+            profile = compose_production_profile(
+                normalized, primary_provider=primary, yahoo_provider=YFinanceClient(), profile_cache=cache
+            )
+        else:
+            yahoo = InstrumentProfileCandidate(YFINANCE_PROVIDER_ID, YFinanceClient())
+            profile = cache.resolve(normalized, identity_candidates=(yahoo,), kind_candidate=yahoo)
         stored = read_stored_profile(SQLiteInstrumentProfileRepository(database), normalized)
     identity = profile.identity
     if identity is None:

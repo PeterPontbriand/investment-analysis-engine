@@ -16,6 +16,7 @@ from tests._instrument_profile_fakes import (
     profile_context,
     store_profile,
     use_providers,
+    use_yahoo_only,
 )
 
 runner = CliRunner()
@@ -143,3 +144,51 @@ def test_the_command_is_listed_in_the_help() -> None:
 
     assert "instrument" in result.output
     assert "--lookup" in normalize_cli_output(runner.invoke(app, ["instrument", "show", "--help"]).output)
+
+
+@pytest.fixture
+def no_sec_context(isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch) -> ApplicationContext:
+    """A context with no SEC identity set up, with the command pointed at it."""
+    context = profile_context(isolated_cli_settings, sec_identity=False)
+    monkeypatch.setattr("investment_analysis_engine.cli_support.settings", context.settings)
+    return context
+
+
+@pytest.mark.usefixtures("no_sec_context")
+def test_lookup_without_an_sec_identity_answers_yahoo_alone_and_stores_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_yahoo_only(monkeypatch, FakeYahoo())
+
+    looked_up = runner.invoke(app, ["instrument", "show", "KO", "--lookup"])
+
+    assert looked_up.exit_code == 0, looked_up.output
+    assert "The Coca-Cola Company (KO)" in looked_up.stdout
+    assert "Identity from: Yahoo Finance" in looked_up.stdout
+    assert runner.invoke(app, ["instrument", "show", "KO"]).exit_code == 1
+
+
+@pytest.mark.usefixtures("no_sec_context")
+def test_lookup_without_an_sec_identity_in_which_yahoo_identifies_nothing_is_no_data(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_yahoo_only(monkeypatch, FakeYahoo(identity=False))
+
+    result = runner.invoke(app, ["instrument", "show", "ZZZZ", "--lookup", "--json"])
+
+    assert result.exit_code == 1
+    assert json.loads(result.stdout)["reason_code"] == "provider_no_data"
+
+
+def test_lookup_without_an_sec_identity_answers_an_existing_stored_profile_unchanged(
+    no_sec_context: ApplicationContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store_profile(no_sec_context, refreshed_at=OLD)
+    use_yahoo_only(monkeypatch, FakeYahoo())
+
+    looked_up = runner.invoke(app, ["instrument", "show", "KO", "--lookup", "--json"])
+    stored = runner.invoke(app, ["instrument", "show", "KO", "--json"])
+
+    assert looked_up.exit_code == 0, looked_up.output
+    assert looked_up.stdout == stored.stdout
+    assert json.loads(looked_up.stdout)["refreshed_at"] == OLD.isoformat()

@@ -419,7 +419,7 @@ the stored details however old they are. A ticker the engine has never analyzed 
 so and exits 1.
 
 `--lookup` looks the instrument up as an analysis does: the stored details are used while they are fresh, and otherwise the
-data providers are asked and the result is stored. A lookup needs an SEC identity to be set up. `--json` prints the
+data providers are asked and the result is stored. Without an SEC identity set up, a lookup asks Yahoo alone; its answer has no issuer identifier and is shown but not stored, and an already stored profile is shown as before. `--json` prints the
 instrument profile document, `schemas/instrument-profile.schema.json`, whose `schema_version` is 1; a failure is the usual
 failure document. Details stored by an earlier version of the engine are looked up again the next time the ticker is
 analyzed or looked up.
