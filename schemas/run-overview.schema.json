@@ -301,6 +301,95 @@
       ],
       "title": "RunOutcome",
       "type": "string"
+    },
+    "SecurityIdentityPart": {
+      "additionalProperties": false,
+      "description": "The identity snapshot a run retains; every descriptive field is null when the provider returned none.",
+      "properties": {
+        "instrument_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Identifier"
+        },
+        "instrument_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Instrument Name"
+        },
+        "issuer_identifier": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Issuer Identifier"
+        },
+        "listing_venue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Listing Venue"
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Id"
+        },
+        "resolved_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Resolved At"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticker",
+        "instrument_name",
+        "listing_venue",
+        "issuer_identifier",
+        "instrument_identifier",
+        "provider_id",
+        "resolved_at"
+      ],
+      "title": "SecurityIdentityPart",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -379,10 +468,14 @@
       "title": "Requested As Of"
     },
     "schema_version": {
-      "const": 2,
-      "default": 2,
+      "const": 3,
+      "default": 3,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "security_identity": {
+      "$ref": "#/$defs/SecurityIdentityPart",
+      "description": "The identity snapshot the run retained when it ran. Show a ticker tied to this run with it, never with the ticker's current profile, which can describe a different company after a ticker reuse. Every descriptive field is null when no provider gave one."
     },
     "strategy": {
       "$ref": "#/$defs/CompareStrategyDocument",
@@ -396,6 +489,7 @@
   "required": [
     "analysis_run_id",
     "ticker",
+    "security_identity",
     "outcome",
     "completed_at",
     "refresh_id",
