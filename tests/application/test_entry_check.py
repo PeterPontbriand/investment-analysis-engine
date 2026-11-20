@@ -178,7 +178,7 @@ def _readiness(reason: ReadinessReason) -> BaseException:
 
 def _locked() -> BaseException:
     error = sqlite3.OperationalError("database is locked")
-    error.sqlite_errorcode = sqlite3.SQLITE_BUSY  # type: ignore[attr-defined]
+    error.sqlite_errorcode = sqlite3.SQLITE_BUSY
     return error
 
 
