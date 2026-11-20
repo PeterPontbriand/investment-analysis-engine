@@ -30,6 +30,7 @@ _STATUS = {
     "endpoint_not_found": 404,
     "help_term_not_found": 404,
     "help_document_not_found": 404,
+    "instrument_profile_not_found": 404,
     "database_busy": 503,
 }
 _PROVIDER_KIND = {code: kind for kind, code in PROVIDER_CODE_BY_KIND.items()}
@@ -73,7 +74,7 @@ def test_each_reason_code_reaches_the_status_of_the_table_and_is_a_failure_envel
 
     assert response.status_code == _STATUS.get(code.value, 500)
     body = response.json()
-    assert body["schema_version"] == 15
+    assert body["schema_version"] == 16
     assert body["reason_code"] == code.value
     assert body["result"] is None
     assert body["status"] in ("error", "input_unavailable")

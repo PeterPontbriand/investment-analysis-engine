@@ -65,6 +65,10 @@ from investment_analysis_engine.api.selection_forms import build_selection_form_
 from investment_analysis_engine.application.analysis import analyze
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.failures import SavingFailureError, describe_failure
+from investment_analysis_engine.application.instrument_profiles import (
+    get_instrument_profile,
+    lookup_instrument_profile,
+)
 from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.application.refresh import (
     RefreshEntries,
@@ -107,6 +111,7 @@ from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.help.bundle import load_help_bundle
 from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
+from investment_analysis_engine.reporting.documents.instrument_profile import build_instrument_profile_document
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
 from investment_analysis_engine.reporting.presentation import PresentationMode
 from investment_analysis_engine.reporting.replay_inputs import TextPresentationMode
@@ -345,6 +350,14 @@ def _run_text(context: ApplicationContext, parameters: RequestParameters) -> Bas
     return build_replay_text_document(mode, replay_run_text(context, run_id, mode))
 
 
+def _instrument_profile(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+    return build_instrument_profile_document(get_instrument_profile(context, parameters.path["ticker"]))
+
+
+def _instrument_profile_lookup(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
+    return build_instrument_profile_document(lookup_instrument_profile(context, parameters.path["ticker"]))
+
+
 def _compare(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:
     return compare_refresh_runs(context, parse_refresh_id(parameters.path["refresh_id"], name="refresh_id"))
 
@@ -571,6 +584,8 @@ def operations(settings: ProjectSettings, refresh_jobs: RefreshJobsOfServer) -> 
         "get_run_text": _run_text,
         "compare_refresh": _compare,
         "get_selection_form": _selection_form,
+        "get_instrument_profile": _instrument_profile,
+        "look_up_instrument_profile": _instrument_profile_lookup,
         "get_help_index": _help_index,
         "get_help_term": _help_term,
         "get_help_document": _help_document,

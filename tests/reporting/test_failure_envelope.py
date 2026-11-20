@@ -211,7 +211,7 @@ def test_the_document_has_the_documented_keys_and_stable_formatting() -> None:
     )
     text = failure_document_json(envelope)
     assert json.loads(text) == {
-        "schema_version": 15,
+        "schema_version": 16,
         "status": "input_unavailable",
         "reason_code": "provider_error",
         "reason": "No usable history.",
@@ -436,7 +436,7 @@ def test_the_element_accepts_only_provider_codes_and_at_least_one_input() -> Non
 def test_the_failure_envelope_is_version_11_and_its_json_carries_the_element_keys() -> None:
     envelope = failure_envelope(FailureReasonCode.INVALID_INPUT, "s")
     document = json.loads(failure_document_json(envelope))
-    assert document["schema_version"] == 15
+    assert document["schema_version"] == 16
     assert document["parameters"] is None
     assert document["provider_failure"] is None
     assert document["provider_check"] is None
