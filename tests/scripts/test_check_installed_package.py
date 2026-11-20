@@ -6,6 +6,8 @@ import json
 
 from scripts.check_installed_package import (
     PACKAGE_NAME,
+    UV_BUILD_NOTICES,
+    build_warnings,
     bundle_difference,
     clean_environment,
     comparable,
@@ -82,3 +84,24 @@ def test_an_installed_bundle_is_compared_with_the_repositorys_as_a_whole() -> No
     )
 
     assert "did not print a bundle as JSON" in str(bundle_difference("Traceback", repository_file))
+
+
+def test_a_copied_file_whose_name_contains_warning_is_not_a_build_warning() -> None:
+    output = "copying investment_analysis_engine/core/entry_warnings.py -> build/lib/investment_analysis_engine/core"
+
+    assert build_warnings(output) == []
+
+
+def test_a_warning_line_and_a_python_warning_category_are_build_warnings() -> None:
+    plain = "warning: something"
+    category = "/tmp/build/x.py:1: SetuptoolsDeprecationWarning: something"
+    output = "\n".join(["copying a.py -> b", plain, "WARNING: Shouty", category, "done"])
+
+    assert build_warnings(output) == [plain, "WARNING: Shouty", category]
+
+
+def test_the_two_notices_uv_prints_itself_are_not_build_warnings() -> None:
+    assert len(UV_BUILD_NOTICES) == 2
+    output = "\n".join(f"  {notice}" for notice in sorted(UV_BUILD_NOTICES))
+
+    assert build_warnings(output) == []
