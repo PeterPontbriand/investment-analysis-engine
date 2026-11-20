@@ -1,4 +1,4 @@
-"""``watchlist add-selection`` refuses a duplicate: the same ticker with an equal selection, in the add or stored."""
+"""``watchlist add-selection`` refuses a duplicate: same ticker, strategy, as-of date and options, added or stored."""
 
 import json
 
@@ -30,8 +30,7 @@ def test_a_ticker_repeated_within_one_add_is_refused_and_nothing_is_written() ->
 
     assert code == 1
     assert output.strip() == (
-        f"TICKER must not duplicate an entry: AAPL is listed twice for {_LABEL} with an equal selection in this "
-        "request."
+        f"TICKER must not duplicate an entry: AAPL is listed twice for {_LABEL} with the same as-of date and options."
     )
     shown = runner.invoke(app, ["watchlist", "show", "Core", "--json"])
     assert json.loads(shown.stdout)["entries"] == []
@@ -45,8 +44,8 @@ def test_an_entry_the_watchlist_already_holds_is_refused() -> None:
 
     assert code == 1
     assert output.strip() == (
-        f"TICKER must not duplicate an entry: AAPL is already listed for {_LABEL} with an equal selection in the "
-        "watchlist."
+        f"TICKER must not duplicate an entry: AAPL is already in the watchlist for {_LABEL} with the same as-of date "
+        "and options."
     )
     shown = runner.invoke(app, ["watchlist", "show", "Core", "--json"])
     assert [entry["ticker"] for entry in json.loads(shown.stdout)["entries"]] == ["AAPL"]

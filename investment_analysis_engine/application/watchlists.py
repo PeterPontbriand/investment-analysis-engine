@@ -46,8 +46,8 @@ class DuplicateTwin(StrEnum):
 
 _DUPLICATE_TEMPLATES: Final[Mapping[DuplicateTwin, str]] = MappingProxyType(
     {
-        DuplicateTwin.REQUEST: "is listed twice for {strategy} with an equal selection in this request.",
-        DuplicateTwin.WATCHLIST: "is already listed for {strategy} with an equal selection in the watchlist.",
+        DuplicateTwin.REQUEST: "is listed twice for {strategy} with the same as-of date and options.",
+        DuplicateTwin.WATCHLIST: "is already in the watchlist for {strategy} with the same as-of date and options.",
     }
 )
 """The text after ``{ticker}`` in the message of each kind of duplicate."""

@@ -111,7 +111,7 @@ class RefreshRequest(RequestBody):
         default=None,
         description=(
             "The entries to refresh, which belong to no watchlist. Give this or watchlist_id, not both. The same "
-            "ticker with an equal selection may not appear twice."
+            "ticker under the same strategy with the same as-of date and options may not appear twice."
         ),
     )
     workers: int = Field(

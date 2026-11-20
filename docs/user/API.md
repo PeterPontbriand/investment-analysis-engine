@@ -311,14 +311,14 @@ before the 202, and its failure is the response:
 
 | Status | `reason_code` | Cause |
 | :--- | :--- | :--- |
-| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].selection.short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker with an equal selection (rule `entries.duplicate`, whose `arguments` are `ticker` and `strategy`, the strategy's label) |
+| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].selection.short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker, strategy, as-of date and options (rule `entries.duplicate`, whose `arguments` are `ticker` and `strategy`, the strategy's label) |
 | 404 | `watchlist_not_found` | no watchlist has that ID |
 | 409 | `watchlist_empty` | the watchlist has no entries |
 | 409 | `stored_selection_unreadable` | the watchlist holds an entry this version cannot read |
 | 409 | `refresh_job_running` | a job is already running; a server runs one at a time |
 | 503 | `database_busy` | the database is busy |
 
-The same ticker with the same method under a different selection is not a duplicate. The 202 carries the job document, as a
+The same ticker with the same method under a different as-of date or different options is not a duplicate. The 202 carries the job document, as a
 poll at `after` 0 would give it (the events recorded so far, normally none), and a `Location` header naming the job's URL. `GET /v1/refreshes/{refresh_id}/job` returns the job (404
 `refresh_job_not_found` for an ID the server does not keep), and `GET /v1/refreshes/job` returns the server's latest job,
 or 404 `refresh_job_not_found` when it has started none. The server keeps only the latest job: a job that has ended stays
