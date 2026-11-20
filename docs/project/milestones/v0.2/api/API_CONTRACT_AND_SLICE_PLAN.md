@@ -65,6 +65,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.12 | [The stored run envelope's outcome](#api12--the-stored-run-envelopes-outcome) | Complete | 2026-11-17 |
 | API.14 | [Option terms and the duplicate message](#api14--option-terms-and-the-duplicate-message) | Complete | 2026-11-18 |
 | API.15 | [Instrument profiles](#api15--instrument-profiles) | Complete | 2026-11-20 |
+| API.16 | [Ticker check on adding entries, duplicate wording and provider statuses](#api16--ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses) | In progress | |
 
 ## 3. The slices
 
@@ -440,6 +441,26 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-instrument-profiles`.
 - **Detail:** no separate slice plan; decisions in [A.13](#a13-instrument-profiles-2026-11-20).
 
+### API.16 — Ticker check on adding entries, duplicate wording and provider statuses
+
+- **Problem:** adding a watchlist entry accepts any non-blank ticker, so a mistyped ticker fails on every refresh until
+  someone notices (engine issue 269). The duplicate-entry message says "with an equal selection", which does not tell a
+  person what to change (engine issue 275). The `provider_*` failure codes and `configuration_error` answer HTTP 500 on
+  every endpoint, so a client cannot tell a provider problem from a server fault by status (engine issue 269's comment).
+- **Decision:** adding entries looks each distinct ticker up once, after the entries are written, and answers a new
+  document that carries the watchlist and one warning for each ticker that could not be confirmed; nothing is ever
+  refused for it. The two duplicate templates name the as-of date and the options. The provider failure codes and
+  `configuration_error` get their own statuses ([A.14](#a14-ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses-2026-11-20),
+  P1 to P12).
+- **Scope:** `application/watchlists.py` and a new application operation for the check, which uses
+  `application/instrument_profiles.py`; `POST /v1/watchlists/{watchlist_id}/entries` and
+  `ian watchlist add-selection`, with the new `EntriesAddedDocument` and its schema; the two warning codes with glossary
+  entries served through the term references; `STATUS_BY_CODE` and the documented responses of every endpoint it
+  reaches; the `entries` body description in `api/request_bodies.py`; `schemas/openapi.json`; `docs/user/API.md`,
+  `docs/user/USAGE.md` and `docs/user/WORKSPACE.md`; this plan; tests.
+- **Branch:** `feat/api-entry-check`.
+- **Detail:** no separate slice plan; decisions in [A.14](#a14-ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses-2026-11-20).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -541,6 +562,18 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   help bundle, the schemas and `openapi.json` pass their drift checks; `docs/user/API.md`, `docs/user/USAGE.md` and
   `docs/user/DATABASE.md` describe it; `FailureEnvelope` is version 16, and the strategy documents, the database
   maintenance report and the refresh summary are regenerated without a bump, as J44 says.
+- API.16: `POST /v1/watchlists/{watchlist_id}/entries` and `ian watchlist add-selection --json` answer an
+  `EntriesAddedDocument` (`schema_version` 1) with the unchanged watchlist document and a `warnings` list, empty when
+  every ticker was confirmed; a ticker no provider recognizes gets `ticker_not_recognized` and one that could not be
+  checked gets `ticker_not_checked` with the provider failure as its `reason_code`; every entry is added whatever the
+  warnings; each distinct ticker is looked up once, and after the first `provider_unreachable` or
+  `provider_rate_limited` no further ticker is looked up; duplicates, blank tickers, an unreadable stored entry and an
+  unknown watchlist are refused before any provider is asked; the text output prints the watchlist and then a
+  `Warnings:` section; both warning codes have glossary terms; `entries.duplicate` says "the same as-of date and
+  options" in both templates, the `entries` body description, `docs/user/API.md` and `docs/user/WORKSPACE.md`;
+  `provider_no_data` answers 404, `provider_unreachable`, `provider_unexpected_response` and `provider_error` 502,
+  `provider_rate_limited` 429 and `configuration_error` 409 on every endpoint that can return them, each documented in
+  `openapi.json` and `docs/user/API.md`; the schemas and `openapi.json` pass their drift checks.
 - API.12: a new run stores `outcome` and `run_schema_version` 4 in `envelope_json` and in the column, and reads back; a
   version 3 run is refused with `unsupported_run_version` by `runs show` (text and `--json`), the run endpoint, the run
   overview and replay, logs no exception, and still appears in `runs list` and the refreshes list with its outcome and in
@@ -797,3 +830,22 @@ Approved by the project owner on 2026-11-20. On 2026-11-20 the owner also confir
 | I11 | Recording. API.15 in this plan with this appendix entry. The desktop application's GUI.4 slice plan names API.15 as its prerequisite; that is the desktop repository's work, not this slice's. |
 | I12 | A lookup with no SEC identity uses Yahoo alone. Amends I2. When no SEC identity is set up, the lookup composes the profile with Yahoo as its only identity and kind provider, through the existing composition code, and answers the result without storing it, as the no-anchor path does. A stored profile, if one exists, is answered as before. When Yahoo identifies nothing the lookup fails with `provider_no_data`, and a provider failure uses its `provider_*` code, as with an SEC identity. Rejected: failing without an SEC identity, which leaves ticker details empty on a fresh install. |
 | I13 | Lookup while a refresh job runs. An API test starts a refresh job with the existing test doubles and, while it runs, performs a lookup that succeeds. |
+
+### A.14 Ticker check on adding entries, duplicate wording and provider statuses (2026-11-20)
+
+Approved by the project owner on 2026-11-20. Closes engine issues 269 and 275. No database migration, stored shape, formula or classification changes.
+
+| # | Decision |
+| :--- | :--- |
+| P1 | Scope. This slice does three things: the ticker check on adding entries (issue 269), the HTTP statuses of provider failures (issue 269's comment), and the duplicate-entry rewording (issue 275). Issues 248 and 268 are out of scope. |
+| P2 | Where the check runs. Only when entries are added to a watchlist: `ian watchlist add-selection` and `POST /v1/watchlists/{watchlist_id}/entries`. Not a refresh of entries and not `/v1/analyses`, whose own results already report an unknown ticker. Rejected: checking before those too, which would add provider calls and delay to work that reports the problem anyway. |
+| P3 | Warn, never refuse. Every entry that passes today's checks is added. Each ticker that could not be confirmed gets one warning, of one of two kinds: `ticker_not_recognized` when the providers answered and none identified the ticker, and `ticker_not_checked` when it could not be checked. Rejected: refusing an unrecognized ticker, because a provider occasionally answers nothing for a valid ticker, a refusal would need an override option, and an add should still work offline. |
+| P4 | What the check consults. API.15's lookup operation (`lookup_instrument_profile`), called once per distinct ticker of the request, in order of first appearance. A stored profile within the freshness window answers with no network request; otherwise the providers are asked, with Yahoo alone when no SEC identity is set up ([A.13](#a13-instrument-profiles-2026-11-20), I12). A result with an identity anchor is stored, as every lookup stores it. Outcomes: resolved gives no warning; `provider_no_data` gives `ticker_not_recognized`; `provider_unreachable`, `provider_rate_limited`, `provider_unexpected_response` and `provider_error` give `ticker_not_checked`, with that code as its `reason_code`. The check runs only after the entries have been written successfully, so today's refusals (duplicates, blank tickers, an unreadable stored entry, an unknown watchlist) happen before any provider is asked and are unchanged. The check never turns a successful add into a failure. |
+| P5 | Stop asking after a network failure. After the first `provider_unreachable` or `provider_rate_limited`, the remaining tickers are not looked up. Each gets `ticker_not_checked` with that same `reason_code`. `provider_unexpected_response` and `provider_error` do not stop the check. Rejected: asking for every ticker, which makes an offline add of many tickers wait out one timeout per ticker. |
+| P6 | Ticker reuse. No extra handling. The lookup's resolver already retires a reused ticker's old profile, and an entry stores only its ticker. |
+| P7 | The result document. `POST /v1/watchlists/{watchlist_id}/entries` and `ian watchlist add-selection --json` answer a new `EntriesAddedDocument` with `schema_version` 1 and two fields: `watchlist`, today's `WatchlistDocument`, unchanged; and `warnings`, a list, empty when every ticker was confirmed. Each item has `ticker`; `code` (`ticker_not_recognized` or `ticker_not_checked`); `reason_code`, the provider failure code for `ticker_not_checked` and null for `ticker_not_recognized`; and `template`, `arguments` and `message`, with the same shape and rules as API.13's rule errors (the filled template equals `message`). The two warning codes form their own closed set, separate from the failure reason codes. Each gets a glossary entry served through the term references, the way failure codes are. The document's JSON schema is added and `schemas/openapi.json` regenerated. Other endpoints keep answering `WatchlistDocument`. Rejected: a `warnings` field on `WatchlistDocument`, which would sit empty in every other response. |
+| P8 | The warning messages, in US spelling as the user docs use, one template per case. Not recognized: "No data provider recognizes {ticker}. Check the ticker, and remove the entry if it is wrong." Not checked, unreachable: "{ticker} could not be checked, because the data providers could not be reached." Not checked, rate-limited: "{ticker} could not be checked, because a data provider asked the engine to wait before asking again." Not checked, unexpected response or provider error: "{ticker} could not be checked, because a data provider gave an unexpected answer." A ticker skipped under P5 gets the message of the failure that stopped the check. |
+| P9 | Command-line text output prints the watchlist exactly as today, then, when there are warnings, a `Warnings:` line followed by each warning's message indented by two spaces, on standard output. The exit status stays 0. |
+| P10 | The duplicate-entry wording, as issue 275 proposes, in both templates, the `entries` body description in `api/request_bodies.py`, `docs/user/API.md` and `docs/user/WORKSPACE.md`. The filled examples of the issue are the expected output: "{parameter} must not duplicate an entry: {ticker} is already in the watchlist for {strategy} with the same as-of date and options." and "{parameter} must not duplicate an entry: {ticker} is listed twice for {strategy} with the same as-of date and options." The rule identifier, its parameters, its arguments and the one-placeholder-namespace rule are unchanged. |
+| P11 | HTTP statuses of provider failures, in `STATUS_BY_CODE`: `provider_no_data` 404; `provider_unreachable`, `provider_unexpected_response` and `provider_error` 502; `provider_rate_limited` 429; `configuration_error` 409. They apply on every endpoint that can return them, each documented in the OpenAPI description and `docs/user/API.md`, which no longer says these codes answer 500. Clients still branch on `reason_code`. The failure envelope's shape and version do not change. |
+| P12 | Recording. API.16 and this appendix entry in this plan. The pull request closes issues 269 and 275 and sets API.16's status row to Complete, dated the day it is opened. Any desktop follow-up is the desktop repository's work, not this slice's. |
