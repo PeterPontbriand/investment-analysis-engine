@@ -81,6 +81,20 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:  # n
 
 
 @pytest.fixture(autouse=True)
+def confirm_every_added_ticker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the ticker check of an add confirm every ticker without asking a provider.
+
+    A test of the check puts the real lookup back, or its own, with ``monkeypatch.setattr`` on the module's
+    ``lookup_instrument_profile``; every other test that adds entries sees no warning and reaches no provider.
+    """
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    from investment_analysis_engine.application import entry_check  # noqa: PLC0415
+
+    monkeypatch.setattr(entry_check, "lookup_instrument_profile", MagicMock(name="confirmed_lookup"))
+
+
+@pytest.fixture(autouse=True)
 def cleanup_logging_handlers() -> Generator[None, None, None]:
     """Automatically flush and detach logging handlers after every test to prevent process hangs."""
     yield

@@ -72,7 +72,7 @@ Add `--json` to `watchlist show` for the complete, machine-readable document —
 ian watchlist show "Core Holdings" --json
 ```
 
-The document is described by `schemas/watchlist.schema.json`, which `watchlist create --json` and `watchlist add-selection --json` share. Its first key is `schema_version` (currently `1`). Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`; its `as_of`, when set, is written the same way (`+00:00`; it was `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
+The document is described by `schemas/watchlist.schema.json`, which `watchlist show --json` and `watchlist create --json` share, and which the document of an add nests. Its first key is `schema_version` (currently `2`). Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`; its `as_of`, when set, is written the same way (`+00:00`; it was `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
 
 List every watchlist you have:
 
@@ -97,6 +97,15 @@ Add one method across one or more tickers to an existing watchlist with `add-sel
 ian watchlist add-selection graham-number "Core Holdings" AAPL MSFT
 ```
 
+After the entries are added, `add-selection` checks each new ticker once with the data providers, using the stored profile with no request when it is recent. A ticker that could not be confirmed is still added, and the command prints the watchlist and then a `Warnings:` section with one line for it, and exits 0:
+
+```text
+Warnings:
+  No data provider recognizes KOO. Check the ticker, and remove the entry if it is wrong.
+```
+
+A ticker that no provider recognizes (`ticker_not_recognized`) and a ticker that could not be checked (`ticker_not_checked`: the providers could not be reached, asked the engine to wait, answered unexpectedly, or the engine's database was not available) are the two warnings. After the first failure to reach the providers, or to ask them again soon, or of the database, the remaining tickers are not asked and each gets the same warning. Only an add checks tickers; a refresh does not.
+
 Adding the same method again for a ticker that already has it with a different as-of date or different options does not replace anything — it appends a second entry, so you can compare configurations side by side. An entry that repeats another, the same ticker, method, as-of date and options, is refused with `TICKER must not duplicate an entry: AAPL is already in the watchlist for Graham Number with the same as-of date and options.` and nothing is written; the same rule refuses a ticker that appears twice in one `add-selection` command and an entry that the API's watchlist entries endpoint would repeat:
 
 ```bash
@@ -116,7 +125,7 @@ ian watchlist remove-ticker "Core Holdings" KO
 ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
 
-Add `--json` to `add-selection` to print only the updated watchlist, as the `watchlist show --json` document, on standard output. Add `--json` to `remove-entry`, `remove-ticker` or `remove-method` to print the removal document, described by `schemas/watchlist-removal.schema.json`: `schema_version` (currently `1`), `removed` (the number of entries removed, 0 when nothing matched), `watchlist` (the watchlist read back, as the `watchlist show --json` document) and `unreadable`. After a removal the confirmation (`Removed 1 entry for KO from watchlist 'Core Holdings'.`, or `No entries for ZZZ in watchlist 'Core Holdings'.` when there was nothing to remove) goes to standard error, so standard output holds only the document. If the watchlist holds an entry saved by an earlier version that this version can no longer read, a removal still happens. Its confirmation goes to standard error and, with `--json`, standard output holds the removal document with `watchlist` set to `null` and `unreadable` naming the first such entry (`entry_number`, `ticker`, `method_id` as stored, and a `reason` that names no command), with exit `1`. Exactly one of `watchlist` and `unreadable` is set. Without `--json` the message that names the entry and the `remove-entry` command that removes it goes to standard error, with exit `1`. `add-selection` writes nothing to such a watchlist and reports the same failure. A rejected argument or a missing watchlist writes the failure document in every case.
+Add `--json` to `add-selection` to print the entries-added document, described by `schemas/entries-added.schema.json`, on standard output: `schema_version` (currently `1`), `watchlist` (the updated watchlist, as the `watchlist show --json` document) and `warnings` (empty when every ticker was confirmed; see above). Add `--json` to `remove-entry`, `remove-ticker` or `remove-method` to print the removal document, described by `schemas/watchlist-removal.schema.json`: `schema_version` (currently `1`), `removed` (the number of entries removed, 0 when nothing matched), `watchlist` (the watchlist read back, as the `watchlist show --json` document) and `unreadable`. After a removal the confirmation (`Removed 1 entry for KO from watchlist 'Core Holdings'.`, or `No entries for ZZZ in watchlist 'Core Holdings'.` when there was nothing to remove) goes to standard error, so standard output holds only the document. If the watchlist holds an entry saved by an earlier version that this version can no longer read, a removal still happens. Its confirmation goes to standard error and, with `--json`, standard output holds the removal document with `watchlist` set to `null` and `unreadable` naming the first such entry (`entry_number`, `ticker`, `method_id` as stored, and a `reason` that names no command), with exit `1`. Exactly one of `watchlist` and `unreadable` is set. Without `--json` the message that names the entry and the `remove-entry` command that removes it goes to standard error, with exit `1`. `add-selection` writes nothing to such a watchlist and reports the same failure. A rejected argument or a missing watchlist writes the failure document in every case.
 
 Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (the `--analysis` values in the [strategy table](#strategies-and-their-watchlist-options)). `--json` output keeps the stored method identifiers, listed in the same table, which never change.
 

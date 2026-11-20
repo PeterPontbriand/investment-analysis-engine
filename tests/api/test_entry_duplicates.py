@@ -59,4 +59,4 @@ def test_a_repeat_of_a_stored_entry_is_a_400_and_another_selection_is_accepted(
         f"is already in the watchlist for {_DESCRIPTOR.label} with the same as-of date and options."
     )
     assert other.status_code == 200
-    assert [entry["ticker"] for entry in other.json()["entries"]] == ["KO", "KO"]
+    assert [entry["ticker"] for entry in other.json()["watchlist"]["entries"]] == ["KO", "KO"]

@@ -273,7 +273,7 @@ run's record can be read. A refresh with no saved run, an unknown ID and a refre
 | `POST /v1/watchlists` | `name` | 201, the watchlist document |
 | `PATCH /v1/watchlists/{watchlist_id}` | `name` | 200, the rename document |
 | `DELETE /v1/watchlists/{watchlist_id}` | none | 200, the delete document |
-| `POST /v1/watchlists/{watchlist_id}/entries` | `method_id`, `tickers`, `selection` | 200, the watchlist document |
+| `POST /v1/watchlists/{watchlist_id}/entries` | `method_id`, `tickers`, `selection` | 200, the entries-added document |
 | `DELETE /v1/watchlists/{watchlist_id}/entries/{entry_number}` | none | 200, the removal document |
 | `POST /v1/watchlists/{watchlist_id}/remove-tickers` | `tickers` | 200, the removal document |
 | `POST /v1/watchlists/{watchlist_id}/remove-method` | `method_id` | 200, the removal document |
@@ -288,6 +288,19 @@ then found an entry this version cannot read answers 200 with that entry in `unr
 `method_id` as stored and a `reason` that names no command). Adding to a watchlist that holds such an entry is refused
 with 409 `stored_selection_unreadable` and writes nothing. A delete answers `deleted` true; the command line's
 `--missing-ok` has no counterpart, because a missing watchlist is 404.
+
+`POST /v1/watchlists/{watchlist_id}/entries` adds one entry per ticker and then checks each distinct ticker once, in
+order of first appearance, with the same lookup as `POST /v1/instrument-profiles/{ticker}/lookup`: a stored profile
+within the freshness window answers with no request to a data provider. The entries-added document (`schema_version` 1)
+holds `watchlist`, the watchlist document, and `warnings`, empty when every ticker was confirmed. A ticker is never
+refused for it, and a check never makes the add fail; a duplicate, a blank ticker, an unreadable stored entry or a missing
+watchlist is refused before any provider is asked. A warning holds `ticker`, `code`, `reason_code`, `arguments`,
+`message` and `template`, with the `message` and `template` rules of a rule error (filling the template gives the
+message). `code` is `ticker_not_recognized` (the providers answered and none identified the ticker; `reason_code` is
+`null`) or `ticker_not_checked` (`reason_code` is the failure that kept the ticker from being checked: a `provider_*`
+code or a `database_*` code). After the first `provider_unreachable`, `provider_rate_limited` or `database_*` failure the
+remaining tickers are not asked, and each gets the same warning. `GET /v1/help/references` gives each warning code its
+term. A refresh of entries and `POST /v1/analyses` do not check tickers; their own results report an unknown ticker.
 
 `POST /v1/analyses` analyzes one ticker under one selection. The ticker is trimmed and upper-cased. `save` is optional
 and defaults to `false`; `provider_check` is optional and defaults to the `IAN_PROVIDER_CHECK` choice the server was

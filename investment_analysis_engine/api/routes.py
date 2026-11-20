@@ -40,6 +40,7 @@ from investment_analysis_engine.workspace_documents.run_overview import RunOverv
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
 from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
 from investment_analysis_engine.workspace_documents.watchlist import (
+    EntriesAddedDocument,
     WatchlistDeleteDocument,
     WatchlistDocument,
     WatchlistListDocument,
@@ -356,9 +357,9 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         "POST",
         "/v1/watchlists/{watchlist_id}/entries",
         "add_watchlist_entries",
-        "Add one entry per ticker for one strategy's selection.",
+        "Add one entry per ticker for one strategy's selection, and warn of each ticker no data provider confirms.",
         (_uuid_path("watchlist_id", "The watchlist's ID."),),
-        _responses((WatchlistDocument,), lookup=True, database=True, conflict=True),
+        _responses((EntriesAddedDocument,), lookup=True, database=True, conflict=True),
         AddEntriesRequest,
     ),
     RouteSpec(
