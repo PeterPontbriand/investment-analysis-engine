@@ -64,6 +64,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.13 | [Form labels, error templates, refresh totals and provider names](#api13--form-labels-error-templates-refresh-totals-and-provider-names) | Complete | 2026-11-16 |
 | API.12 | [The stored run envelope's outcome](#api12--the-stored-run-envelopes-outcome) | Complete | 2026-11-17 |
 | API.14 | [Option terms and the duplicate message](#api14--option-terms-and-the-duplicate-message) | Complete | 2026-11-18 |
+| API.15 | [Instrument profiles](#api15--instrument-profiles) | In progress | |
 
 ## 3. The slices
 
@@ -420,6 +421,23 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-option-terms`.
 - **Detail:** no separate slice plan; decisions in [A.12](#a12-option-terms-and-the-duplicate-message-2026-11-18).
 
+### API.15 — Instrument profiles
+
+- **Problem:** the desktop application cannot tell a reader which company a ticker is, except on a saved run's detail
+  screen. The engine keeps a durable instrument profile for every ticker it has analyzed, but serves it nowhere; desktop
+  issue #19 asks for a ticker's details wherever a ticker appears in a table or a heading.
+- **Decision:** a read of the stored profile that never contacts a provider, a separate live lookup, and one document
+  for both; a run's overview carries the identity the run retained; the stored profile gains the quote currency, under
+  one payload version bump ([A.13](#a13-instrument-profiles-2026-11-20), I1 to I11).
+- **Scope:** `GET /v1/instrument-profiles/{ticker}` and `POST /v1/instrument-profiles/{ticker}/lookup`; the
+  `InstrumentProfileDocument`; the `instrument_profile_not_found` failure code with its glossary entry, and glossary entries
+  for the three instrument kinds; `ian instrument show` with `--lookup` and `--json`; `security_identity` on the run
+  overview (version 2 to 3); `quote_currency` on the stored profile (`INSTRUMENT_PROFILE_SCHEMA_VERSION` 3 to 4); the
+  application-layer operations the CLI and the API share; `docs/user/API.md`, `docs/user/USAGE.md` and
+  `docs/user/DATABASE.md`; the help bundle, the schemas and `schemas/openapi.json`; this plan; tests.
+- **Branch:** `feat/api-instrument-profiles`.
+- **Detail:** no separate slice plan; decisions in [A.13](#a13-instrument-profiles-2026-11-20).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -445,6 +463,9 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - A command-line counterpart of the run overview. The command line shows a run through `runs show`, whose concise text
   already leads with the headline values; the overview exists for clients that lay out their own display
   ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13), U10).
+- A sector or an industry for an instrument. Several competing classification schemes exist, and choosing among them is
+  a portfolio-organization judgement that belongs to a future portfolio analysis and rebalancing feature set outside the
+  engine ([A.13](#a13-instrument-profiles-2026-11-20), I9).
 
 ## 5. Acceptance criteria
 
@@ -508,6 +529,15 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   the API and on the command line; `FailureEnvelope` is version 15; the help bundle, `openapi.json` and
   `failure.schema.json` pass their drift checks; `docs/user/GLOSSARY.md`, `docs/user/API.md` and `docs/user/USAGE.md`
   describe it.
+- API.15: `GET /v1/instrument-profiles/{ticker}` serves the ticker's current stored profile, however old, with no provider
+  call, and fails with `instrument_profile_not_found` (404) when there is none, a profile stored under another payload
+  version included; `POST /v1/instrument-profiles/{ticker}/lookup` resolves through the cached resolver as an analysis
+  does, stores only an identity-anchored result, serves the same document, and fails with the existing `provider_*`
+  codes when no provider identifies the ticker; `ian instrument show` prints the same document, as text or `--json`,
+  through the same application-layer operations; the run overview is version 3 and carries the run's own
+  `security_identity`; `INSTRUMENT_PROFILE_SCHEMA_VERSION` is 4; every instrument kind value has a glossary term; the
+  help bundle, the schemas and `openapi.json` pass their drift checks; `docs/user/API.md`, `docs/user/USAGE.md` and
+  `docs/user/DATABASE.md` describe it.
 - API.12: a new run stores `outcome` and `run_schema_version` 4 in `envelope_json` and in the column, and reads back; a
   version 3 run is refused with `unsupported_run_version` by `runs show` (text and `--json`), the run endpoint, the run
   overview and replay, logs no exception, and still appears in `runs list` and the refreshes list with its outcome and in
@@ -744,3 +774,21 @@ Approved by the project owner on 2026-11-17 (O1 to O3) and 2026-11-18 (O4 to O15
 | O13 | Glossary placement: in the Free Cash Flow & Earnings Growth Strategy terms section, the overview and other entries come first in their existing order, then the value entries, grouped by overview in the order the overviews appear and, within a group, in the order of the overview's "The values are explained in" line. Entries move whole and no entry's text changes. The Graham Growth Value Strategy terms section already follows the rule. |
 | O14 | Option-terms test: it looks each set up in the shared registry merged with every strategy's tables (`code_terms_by_component`), and a separate test requires the walk to find at least one closed set across the declared strategies' selection schemas, so the check cannot pass with nothing to check. |
 | O15 | Runbook versions: `docs/project/PROVIDER_DEBUGGING.md` states no version number; it links to the published schemas that describe the documents, as `docs/user/DATABASE.md` does (A.10 N10), and drops the sentence "No stored version changed.". It names no strategy: it describes the strategy schemas by their naming pattern in `schemas/` (the strategy's command alias) and does not list them. Its description of the check after a command failure names no strategy either; it previously omitted Piotroski. |
+
+### A.13 Instrument profiles (2026-11-20)
+
+Approved by the project owner on 2026-11-20. The stored instrument profile's payload changes shape and its version goes up (I9); no database migration, formula or classification changes.
+
+| # | Decision |
+| :--- | :--- |
+| I1 | A read that never contacts a provider. `GET /v1/instrument-profiles/{ticker}` returns the ticker's current stored instrument profile, even when it is older than the configured freshness window (`instrument_profile_ttl_seconds`); `refreshed_at` tells the reader when it was last checked. It never contacts a data provider. With no current stored profile, it answers 404 with a new failure code, `instrument_profile_not_found`. A profile stored under another payload version counts as absent, as the cache already treats it. Rejected: resolving live on read, because a popup that opens on hover must answer at once and must not use provider quota. |
+| I2 | A separate live lookup. `POST /v1/instrument-profiles/{ticker}/lookup` resolves the profile exactly as an analysis does, through the existing cached resolver without `force_refresh`: the stored profile when it is within the freshness window, otherwise live. It stores the result only under the resolver's existing identity-anchor rule. On success it returns the same document as I1. When the providers return nothing that identifies the ticker, it fails with the existing `provider_no_data`. Provider failures use the matching existing `provider_*` codes, with the HTTP statuses those codes already have. A lookup is allowed while a refresh job runs. Rejected: no lookup in this slice, which would leave newly added tickers with no details until a refresh runs. |
+| I3 | The word "lookup". The action is called a lookup in the path, the command line, the glossary and the documents, never a "refresh", because Refresh is a glossary term for refreshing a watchlist or a list of entries. |
+| I4 | Paths. `/v1/instrument-profiles/{ticker}` and `/v1/instrument-profiles/{ticker}/lookup`, named after the Instrument Profile glossary term. The ticker is trimmed and upper-cased as elsewhere. Rejected: `/v1/tickers/{ticker}`, because a ticker is not the thing described. |
+| I5 | One ticker per request. No batch endpoint. Rejected for now: a batch read, which can come when a company-name column is wanted. |
+| I6 | The document. `InstrumentProfileDocument`, with its own `schema_version` starting at 1, and the same document for I1 and I2. Fields: `ticker`; `refreshed_at` (ISO 8601 instant with offset); `instrument_name`, `listing_venue`, `issuer_identifier`, `instrument_identifier`, each nullable; `kind`, nullable, one of the reviewed instrument kinds; `quote_currency`, nullable (I9); `provider_id`, the provider of the identity, whose name the application takes from `/v1/info`'s `providers`. No status field: the document always describes a resolved, stored profile, and anything else is a failure (I1, I2). Each instrument kind value (equity, ETF, cryptocurrency) gets its own glossary entry and is served through the term references, as API.14 did for selection options, so a reader of the document can show its term's name. The Instrument Kind entry links to them. Rejected: a `status` field, which on the read could hold only one value. |
+| I7 | Only the current profile. Profiles retired by a ticker reuse are not served. |
+| I8 | A run's own identity on its overview. `RunOverviewDocument` gains `security_identity`, the identity snapshot the run retains (the existing `SecurityIdentityPart`), so a client showing a ticker tied to a past run uses that run's identity and never relabels it with the ticker's current meaning. The overview document's `schema_version` goes from 2 to 3. Rejected: serving only the current profile, which could name a different company for a reused ticker. |
+| I9 | Quote currency in, sector out. The stored profile gains the trading currency, `quote_currency`: the currency the listing's price is quoted in. It is read from the yfinance metadata already fetched for the identity, never from a new request. `INSTRUMENT_PROFILE_SCHEMA_VERSION` goes from 3 to 4, once, with no migration: as the cache already does, an older record counts as absent and is overwritten by the next anchored resolution, so until a ticker is next analyzed or looked up, `GET /v1/instrument-profiles/{ticker}` answers `instrument_profile_not_found` for it. The stored Analysis Run envelope keeps its shape: it does not retain the quote currency. Reporting currency is not added. Sector and industry are out of scope for the engine: several competing classification schemes exist, and choosing among them is a portfolio-organization judgement that belongs to a future portfolio analysis and rebalancing feature set outside the engine ([Out of scope](#4-out-of-scope)). |
+| I10 | Command-line parity. `ian instrument show <ticker>` prints the stored profile (I1). `--lookup` resolves it as I2 does. `--json` prints the document. The command line and the API call the same application-layer operations. Plain text output follows the existing read commands' style. Rejected: `ian profile ...`, which reads like a user profile. |
+| I11 | Recording. API.15 in this plan with this appendix entry. The desktop application's GUI.4 slice plan names API.15 as its prerequisite; that is the desktop repository's work, not this slice's. |
