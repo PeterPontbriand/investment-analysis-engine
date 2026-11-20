@@ -60,7 +60,7 @@ partly anchored is rejected, as described under [Choose the database location](#
 Exit 0 means ready or successfully initialized/upgraded; exit 1 means not ready
 or an operational failure, including a rejected `--database-url`; exit 2 means the parser rejected the command line. A completed
 inspection of non-ready storage has report `status=success` but exit 1. JSON
-reports have `schema_version=2`, `command`, `status`, `database_path`, `state`,
+reports have `schema_version=3`, `command`, `status`, `database_path`, `state`,
 `current_revision`, `expected_revision`, `reason_code` (the stable code) and `reason`
 (a message for people); unavailable fields are null. Version 1 named the code
 `reason` and the message `message`, so a reader written for version 1 must check
