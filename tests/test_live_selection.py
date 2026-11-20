@@ -2,8 +2,11 @@
 
 Each case runs a tiny inner test session that loads the real hook and guard fixtures, so selection behaves
 exactly as it does for the project's own suite, including under ``-o addopts=`` as the managed wrappers run it.
-The synthetic marked test makes no network call.
+The synthetic marked test makes no network call. A last test keeps coverage options out of pytest's ``addopts``.
 """
+
+import shlex
+import tomllib
 
 import pytest
 
@@ -90,3 +93,15 @@ def test_marked_test_is_exempt_from_the_guards_and_an_unmarked_one_is_not(
         # A subprocess keeps the outer session's own guards out of the inner session.
         result = pytester.runpytest_subprocess("-p", "no:cacheprovider", *(["--live"] if live else []))
         result.assert_outcomes(passed=1, deselected=1)
+
+
+def test_pytest_addopts_holds_no_coverage_option() -> None:
+    """Coverage is requested explicitly by the gate scripts and CI, never by the pytest configuration."""
+    with (REPOSITORY_ROOT / "pyproject.toml").open("rb") as handle:
+        addopts = tomllib.load(handle)["tool"]["pytest"]["ini_options"].get("addopts", "")
+    options = shlex.split(addopts) if isinstance(addopts, str) else list(addopts)
+    coverage_options = [option for option in options if option.startswith("--cov")]
+    assert not coverage_options, (
+        f"pyproject.toml's pytest addopts holds {coverage_options}; a hand-typed pytest command would pay for "
+        "coverage again. Pass coverage options explicitly in the gate scripts and CI instead."
+    )

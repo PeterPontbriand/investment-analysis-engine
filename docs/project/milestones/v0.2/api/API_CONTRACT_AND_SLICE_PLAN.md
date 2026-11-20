@@ -64,7 +64,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.13 | [Form labels, error templates, refresh totals and provider names](#api13--form-labels-error-templates-refresh-totals-and-provider-names) | Complete | 2026-11-16 |
 | API.12 | [The stored run envelope's outcome](#api12--the-stored-run-envelopes-outcome) | Complete | 2026-11-17 |
 | API.14 | [Option terms and the duplicate message](#api14--option-terms-and-the-duplicate-message) | Complete | 2026-11-18 |
-| API.15 | [Instrument profiles](#api15--instrument-profiles) | In progress | |
+| API.15 | [Instrument profiles](#api15--instrument-profiles) | Complete | 2026-11-20 |
 
 ## 3. The slices
 

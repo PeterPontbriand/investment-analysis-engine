@@ -121,7 +121,6 @@ convention = "google"
 minversion = "8.0"
 pythonpath = ["."]  # Ensures your tests runner accurately finds investment_analysis_engine.* from the repository root
 python_files = ["test_*.py"]
-addopts = "--cov=investment_analysis_engine --cov-report=term-missing --cov-report=html"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = ["slow: takes tens of seconds or more; left out of the slice check, run by the full gate and CI"]
