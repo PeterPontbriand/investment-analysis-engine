@@ -25,7 +25,7 @@ from investment_analysis_engine.data.repositories.schema import instrument_profi
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.data.security_identity import _normalized_required
 
-INSTRUMENT_PROFILE_SCHEMA_VERSION = 3
+INSTRUMENT_PROFILE_SCHEMA_VERSION = 4
 """The version of the stored profile record and its evidence payload; bumped whenever the payload's shape changes."""
 
 

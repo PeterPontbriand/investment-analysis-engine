@@ -172,7 +172,7 @@ Security identity is best-effort metadata recorded at a resolution time. A ticke
 ### Instrument Profile
 A security's identity plus a normalized kind of instrument, such as equity or ETF, each with its own provenance. It is kept so that repeated analyses do not look up details that rarely change.
 
-The engine keeps a durable copy of an instrument profile; a stored profile expires after a configured freshness window and is refreshed live when it does. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.
+The engine keeps a durable copy of an instrument profile and can show it without contacting a provider. A stored profile expires after a configured freshness window and is looked up again live when it does, and a lookup can also be asked for directly. A profile includes the [quote currency](#quote-currency) of the listing. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.
 
 <a id="financial-facts"></a>
 ### Company Financial Facts / Fundamentals
@@ -266,6 +266,26 @@ The kind of security a ticker names: an equity, an exchange-traded fund or a cry
 
 A strategy that is built for company financial statements reports an instrument kind it does not cover as not applicable. See [instrument profile](#instrument-profile).
 
+The kinds are explained in [Equity](#instrument-kind-equity), [ETF](#instrument-kind-etf) and [Cryptocurrency](#instrument-kind-cryptocurrency).
+
+<a id="instrument-kind-equity"></a>
+### Equity
+A share of ownership in a company, such as a common stock.
+
+An equity is the kind of instrument that the strategies built for company financial statements cover. See [instrument kind](#instrument-kind).
+
+<a id="instrument-kind-etf"></a>
+### ETF
+An exchange-traded fund: a fund that holds a collection of securities and is bought and sold on an exchange like a share.
+
+An ETF has no financial statements of its own, so a strategy built for company financial statements reports it as not applicable. See [instrument kind](#instrument-kind).
+
+<a id="instrument-kind-cryptocurrency"></a>
+### Cryptocurrency
+A digital currency or token whose price is quoted on cryptocurrency markets.
+
+A cryptocurrency has no financial statements, so a strategy built for company financial statements reports it as not applicable. See [instrument kind](#instrument-kind).
+
 <a id="quote-freshness"></a>
 ### Quote Freshness
 How recent the price quote behind a comparison is: recently retrieved, expired, of unknown retrieval time, dated in the future, supplied by you, or historical.
@@ -278,7 +298,13 @@ The values are explained in [Recently Retrieved Quote](#quote-recent), [Expired 
 ### Reporting Currency
 The currency a company states its financial figures in, written as a three-letter ISO 4217 code such as USD.
 
-A method that combines figures with a price needs the filing currency and the quote currency to agree. A selection can require annual facts in one reporting currency.
+A method that combines figures with a price needs the filing currency and the [quote currency](#quote-currency) to agree. A selection can require annual facts in one reporting currency.
+
+<a id="quote-currency"></a>
+### Quote Currency
+The currency a listing's price is quoted in, as the data provider reports it, such as USD.
+
+It can differ from the reporting currency of the company's statements. A provider may report a smaller unit of a currency, such as pence. See [reporting currency](#reporting-currency) and [instrument profile](#instrument-profile).
 
 ---
 
@@ -1198,6 +1224,12 @@ The run stays in the database and is refused by its version; it is never read as
 The watchlist, entry, saved run, refresh job, help term, help document or address that was asked for does not exist.
 
 Check the identifier. A refresh job exists only while the server that started it runs.
+
+<a id="failure-instrument-profile-not-found"></a>
+### Instrument Profile Not Found
+No instrument profile is stored for the ticker, so there are no details to show.
+
+A profile is stored the first time the ticker is analyzed or looked up. A profile kept by an earlier version of the engine counts as absent until then. See [instrument profile](#instrument-profile).
 
 <a id="failure-watchlist-empty"></a>
 ### Empty Watchlist

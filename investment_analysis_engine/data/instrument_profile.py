@@ -128,6 +128,28 @@ class InstrumentKindProvider(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class QuoteCurrencyRequest:
+    """Request the currency a listing's price is quoted in from one named provider."""
+
+    ticker: str
+    provider_id: str
+
+    def __post_init__(self) -> None:
+        """Normalize the venue-scoped ticker and provider identifier."""
+        object.__setattr__(self, "ticker", _normalized_required(self.ticker, "ticker", uppercase=True))
+        object.__setattr__(self, "provider_id", _normalized_required(self.provider_id, "provider_id"))
+
+
+@runtime_checkable
+class QuoteCurrencyProvider(Protocol):
+    """Narrow optional provider capability for the currency a listing's price is quoted in."""
+
+    def resolve_quote_currency(self, request: QuoteCurrencyRequest) -> str | None:
+        """Return the quote currency exactly as the provider reports it, when supported and available."""
+        ...
+
+
 class InstrumentProfileCapability(StrEnum):
     """Optional evidence capability attempted during profile composition."""
 
@@ -172,6 +194,8 @@ class InstrumentProfile:
     diagnostics: tuple[InstrumentProfileDiagnostic, ...]
     security_unit_evidence: SecurityUnitEvidence | None = None
     security_unit_resolution: SecurityUnitResolution | None = None
+    quote_currency: str | None = None
+    """The currency the listing's price is quoted in, as the provider reports it; ``None`` when none reported one."""
 
     def __post_init__(self) -> None:
         """Normalize the ticker and reject evidence for another instrument."""
@@ -309,7 +333,24 @@ def compose_instrument_profile(
         identity=identity,
         kind_evidence=kind_evidence,
         diagnostics=tuple(diagnostics),
+        quote_currency=_resolve_quote_currency(normalized_ticker, kind_candidate),
     )
+
+
+def _resolve_quote_currency(ticker: str, candidate: InstrumentProfileCandidate | None) -> str | None:
+    """Return the quote currency the kind candidate's provider reports, or ``None``.
+
+    The currency is read from the provider's metadata, which the kind lookup has already fetched, so it costs no
+    further request. It is optional evidence: a provider that does not offer it, or that fails, leaves it absent and
+    adds no diagnostic.
+    """
+    if candidate is None or not isinstance(candidate.provider, QuoteCurrencyProvider):
+        return None
+    try:
+        currency = candidate.provider.resolve_quote_currency(QuoteCurrencyRequest(ticker, candidate.provider_id))
+    except (DataFetchError, FinancialProviderError):
+        return None
+    return None if currency is None else _normalized_required(currency, "quote_currency")
 
 
 def _validate_identity_candidates(candidates: tuple[InstrumentProfileCandidate, ...]) -> None:
@@ -429,9 +470,9 @@ def _rejected_answer(provider_id: str) -> ProviderFailureRecord:
 
 INSTRUMENT_KIND_TERMS: Final[Mapping[str, str]] = MappingProxyType(
     {
-        InstrumentKind.EQUITY.value: "instrument-kind",
-        InstrumentKind.ETF.value: "instrument-kind",
-        InstrumentKind.CRYPTOCURRENCY.value: "instrument-kind",
+        InstrumentKind.EQUITY.value: "instrument-kind-equity",
+        InstrumentKind.ETF.value: "instrument-kind-etf",
+        InstrumentKind.CRYPTOCURRENCY.value: "instrument-kind-cryptocurrency",
     }
 )
-"""The glossary term that explains each instrument kind."""
+"""The glossary term that explains each instrument kind, one entry for each value."""

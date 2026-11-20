@@ -11,10 +11,17 @@ identifiers and finite-value guarantees.
 
 from collections.abc import Mapping
 from datetime import date
-from typing import ClassVar, Final, Literal
+from typing import Any, ClassVar, Final, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from investment_analysis_engine.analysis.run_models import (
     EffectiveBoundary,
@@ -95,6 +102,18 @@ class AnalysisRun(_FrozenModel):
     result_evidence: StrictJsonMapping | None = None
     presentation_inputs: StrictJsonMapping | None = None
     instrument_profile: InstrumentProfile | None = None
+
+    @field_serializer("instrument_profile", mode="wrap")
+    def _omit_quote_currency(self, value: InstrumentProfile | None, handler: SerializerFunctionWrapHandler) -> Any:
+        """Write the retained profile without its quote currency, so the stored envelope keeps its shape.
+
+        The quote currency is a property of the ticker's current profile, which the instrument-profile cache stores;
+        a run does not retain it, and a stored run is read back with none.
+        """
+        dumped = handler(value)
+        if isinstance(dumped, dict):
+            dumped.pop("quote_currency", None)
+        return dumped
 
     @field_validator("ticker")
     @classmethod

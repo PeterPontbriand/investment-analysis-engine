@@ -19,6 +19,7 @@ from investment_analysis_engine.api.term_references import (
     SHARED_CODE_TERMS,
     code_terms_by_component,
 )
+from investment_analysis_engine.data.instrument_profile import INSTRUMENT_KIND_TERMS, InstrumentKind
 from investment_analysis_engine.help.bundle import TERM_LINK_PREFIX, HelpBundle, load_help_bundle
 from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.reporting.headline import CELL_STATUS_TERMS
@@ -287,3 +288,12 @@ def test_the_glossary_site_fails_a_missing_or_unknown_term() -> None:
         names, context_with(replace(momentum, headline_terms={"trend": "rsi", "rsi": "rsi"}))
     )
     assert any("headline cell trend carries the term" in gap.message for gap in wrong_cell)
+
+
+def test_every_instrument_kind_has_its_own_glossary_term() -> None:
+    terms = {kind: INSTRUMENT_KIND_TERMS[kind.value] for kind in InstrumentKind}
+
+    assert set(INSTRUMENT_KIND_TERMS) == {kind.value for kind in InstrumentKind}
+    assert len(set(terms.values())) == len(InstrumentKind), "Each kind has an entry of its own."
+    assert set(terms.values()) <= set(_bundle().terms)
+    assert "instrument-kind" not in terms.values(), "The overview entry explains no value."
