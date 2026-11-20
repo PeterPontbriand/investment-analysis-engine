@@ -428,7 +428,9 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   issue #19 asks for a ticker's details wherever a ticker appears in a table or a heading.
 - **Decision:** a read of the stored profile that never contacts a provider, a separate live lookup, and one document
   for both; a run's overview carries the identity the run retained; the stored profile gains the quote currency, under
-  one payload version bump ([A.13](#a13-instrument-profiles-2026-11-20), I1 to I11).
+  one payload version bump ([A.13](#a13-instrument-profiles-2026-11-20), I1 to I11). The new failure code raises
+  `FailureEnvelope` from 15 to 16, the only document that can carry it
+  ([J44](API_4_SLICE_PLAN.md#j44-a-new-reason-code-bumps-the-documents-that-can-carry-it-2026-11-07)).
 - **Scope:** `GET /v1/instrument-profiles/{ticker}` and `POST /v1/instrument-profiles/{ticker}/lookup`; the
   `InstrumentProfileDocument`; the `instrument_profile_not_found` failure code with its glossary entry, and glossary entries
   for the three instrument kinds; `ian instrument show` with `--lookup` and `--json`; `security_identity` on the run
@@ -537,7 +539,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   through the same application-layer operations; the run overview is version 3 and carries the run's own
   `security_identity`; `INSTRUMENT_PROFILE_SCHEMA_VERSION` is 4; every instrument kind value has a glossary term; the
   help bundle, the schemas and `openapi.json` pass their drift checks; `docs/user/API.md`, `docs/user/USAGE.md` and
-  `docs/user/DATABASE.md` describe it.
+  `docs/user/DATABASE.md` describe it; `FailureEnvelope` is version 16, and the strategy documents, the database
+  maintenance report and the refresh summary are regenerated without a bump, as J44 says.
 - API.12: a new run stores `outcome` and `run_schema_version` 4 in `envelope_json` and in the column, and reads back; a
   version 3 run is refused with `unsupported_run_version` by `runs show` (text and `--json`), the run endpoint, the run
   overview and replay, logs no exception, and still appears in `runs list` and the refreshes list with its outcome and in

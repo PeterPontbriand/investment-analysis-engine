@@ -140,6 +140,10 @@ URI query parameters are not.
   financial facts are required. Cache reuse preserves provider provenance and reports cache resolution.
 - Historical prices do not become live quotes. Quote requests and optional
   instrument-profile enrichment retain their provider boundaries.
+- The durable instrument profile of a ticker is stored once, under a payload version. A profile stored under an older
+  version counts as absent: it is never decoded, `ian instrument show` and the instrument profile endpoint report it as
+  not stored, and the next analysis or lookup of the ticker that confirms an issuer identifier overwrites it. Nothing is
+  migrated. The quote currency is stored with the profile, and a saved Analysis Run does not retain it.
 - `IAN_TELEMETRY_SINK=sqlite` selects SQLite trajectory storage where the runtime
   creates a recorder. `IAN_TELEMETRY_SINK=jsonl` is the default;
   `IAN_TELEMETRY_LEVEL=OFF` disables recording. Telemetry failures remain fail-open;

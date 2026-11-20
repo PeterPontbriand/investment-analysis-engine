@@ -106,7 +106,7 @@ or path parameter, or the body field by its path (see [Request bodies](#request-
 | :--- | :--- |
 | 400 | `invalid_parameter`, `host_not_allowed`, `origin_not_allowed` |
 | 401 | `not_authenticated` |
-| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `help_term_not_found`, `help_document_not_found`, `endpoint_not_found` |
+| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `help_term_not_found`, `help_document_not_found`, `instrument_profile_not_found`, `endpoint_not_found` |
 | 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add or a refresh that an unreadable entry of the watchlist refuses), `watchlist_empty` (a watchlist to refresh has no entries), `refresh_job_running` |
 | 405 | `endpoint_not_found` (a method the endpoint does not declare, `HEAD` included), with an `Allow` header naming the declared method |
 | 503 | `database_busy` |
@@ -149,6 +149,7 @@ The endpoints that read use `GET`; the actions are below.
 | `/v1/refreshes` | `watchlist_id`, `limit`, `offset` | the refreshes list document (see [Refreshes list](#refreshes-list)) |
 | `/v1/refreshes/{refresh_id}/compare` | none | the runs compare document (see [Runs comparison](#runs-comparison)) |
 | `/v1/strategies/{method_id}/selection` | none | `schema_version`, `schema` and `defaults` (see [Selection forms](#selection-forms)) |
+| `/v1/instrument-profiles/{ticker}` | none | the ticker's stored instrument profile document (see [Instrument profiles](#instrument-profiles)) |
 | `/v1/help` | none | the help index document (see [Help](#help)) |
 | `/v1/help/terms/{term_id}` | none | one glossary term |
 | `/v1/help/documents/{document_id}` | none | one help document with its sections |
@@ -165,7 +166,7 @@ parameter filters by it and each item of the runs list carries it. The name `sta
 ### Run overview
 
 `GET /v1/runs/{analysis_run_id}/overview` gives one saved run's headline for a client that lays out its own display. The
-document is `{schema_version, analysis_run_id, ticker, outcome, completed_at, refresh_id, requested_as_of, strategy, headline, headline_unavailable}`.
+document is `{schema_version, analysis_run_id, ticker, security_identity, outcome, completed_at, refresh_id, requested_as_of, strategy, headline, headline_unavailable}`.
 `strategy` and `headline` have the shapes the compare document uses, and the headline is built the same way, so a run reads the
 same in both. Exactly one of `headline` and `headline_unavailable` is set. A run of a strategy this version no longer declares
 is shown by what its stored row records: `strategy.declared` is false, `strategy.label` is its stored method identifier,
@@ -174,6 +175,56 @@ holds no result has `headline_unavailable` `no_result_stored`. The endpoint fail
 run that does not exist is 404 `analysis_run_not_found`, one stored under a version this one cannot read is refused by
 version, and one whose stored record is invalid is `invalid_stored_run`. The command line has no counterpart; `ian runs show`
 prints the same run as text.
+
+`security_identity` is the identity snapshot the run retained when it ran: `ticker`, `instrument_name`, `listing_venue`,
+`issuer_identifier`, `instrument_identifier`, `provider_id` and `resolved_at`, each null when no provider gave one, as a strategy
+document carries it. Show a ticker that belongs to a run with this identity and never with the ticker's current profile, which
+can describe a different company after a ticker reuse. Use `/v1/instrument-profiles/{ticker}` for the ticker's current profile.
+
+### Instrument profiles
+
+An instrument profile says which instrument a ticker names. Two endpoints serve it, and both answer the same document, so a
+client reads it once and can offer a lookup when there is nothing to show.
+
+- `GET /v1/instrument-profiles/{ticker}` gives the ticker's current stored profile. It never contacts a data provider, so a
+  popup that opens on hover can call it. It serves a stored profile even when the profile is older than the engine's
+  freshness window; `refreshed_at` says when it was last checked. A ticker with no current stored profile is 404
+  `instrument_profile_not_found`. A profile stored by an earlier version of the engine counts as absent and is stored again by
+  the next analysis or lookup of the ticker. A profile retired by a ticker reuse is not served.
+- `POST /v1/instrument-profiles/{ticker}/lookup` looks the profile up as an analysis does: the stored profile while it is
+  within the freshness window, otherwise the data providers. A profile with an identity anchor is stored; one without is
+  answered and not stored, so the next `GET` is still 404. It sends no body and can run while a refresh job runs. When no
+  provider identifies the ticker it fails with `provider_no_data`, and a provider that failed gives its own `provider_*` code
+  (`provider_unreachable`, `provider_rate_limited` or `provider_unexpected_response`); these codes are answered with status
+  500, as they are everywhere else, so branch on `reason_code`. A server started without an SEC identity answers
+  `configuration_error`. A lookup is called a lookup, never a refresh, because a refresh runs a watchlist.
+
+The ticker in the path is trimmed and upper-cased; a blank one is `invalid_parameter`. There is one ticker per request.
+
+The document is `{schema_version, ticker, refreshed_at, instrument_name, listing_venue, issuer_identifier,
+instrument_identifier, kind, quote_currency, provider_id}` (`schema_version` 1):
+
+```json
+{
+  "schema_version": 1,
+  "ticker": "KO",
+  "refreshed_at": "2026-11-20T14:02:12+00:00",
+  "instrument_name": "Coca-Cola Co",
+  "listing_venue": "NYSE",
+  "issuer_identifier": "0000021344",
+  "instrument_identifier": null,
+  "kind": "equity",
+  "quote_currency": "USD",
+  "provider_id": "sec_edgar"
+}
+```
+
+`instrument_name`, `listing_venue`, `issuer_identifier`, `instrument_identifier`, `kind` and `quote_currency` are each null
+when no provider gave one. `kind` is `equity`, `etf` or `cryptocurrency`, and `GET /v1/help/references` names the glossary term
+of each. `quote_currency` is the currency the listing's price is quoted in, as the provider writes it; a provider may report a
+smaller unit, such as pence (`GBp`). `provider_id` is the provider of the identity; `/v1/info` lists each provider's name.
+The document has no status field: it always describes a profile, and anything else is a failure. The command line writes the
+same document with `ian instrument show TICKER --json`, and with `--lookup` for the lookup.
 
 ### Cell units
 
@@ -222,6 +273,7 @@ run's record can be read. A refresh with no saved run, an unknown ID and a refre
 | `POST /v1/watchlists/{watchlist_id}/remove-tickers` | `tickers` | 200, the removal document |
 | `POST /v1/watchlists/{watchlist_id}/remove-method` | `method_id` | 200, the removal document |
 | `POST /v1/analyses` | `ticker`, `method_id`, `selection`, `save`, `provider_check` | 200, the analysis document |
+| `POST /v1/instrument-profiles/{ticker}/lookup` | none | 200, the instrument profile document (see [Instrument profiles](#instrument-profiles)) |
 | `POST /v1/refreshes` | `watchlist_id` or `entries`, `workers`, `save`, `provider_check` | 202, the refresh job document, with a `Location` header |
 | `POST /v1/refreshes/{refresh_id}/job/stop` | none (query: `after`) | 200, the refresh job document |
 

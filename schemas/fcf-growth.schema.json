@@ -921,7 +921,8 @@
         "refresh_job_running",
         "port_unavailable",
         "help_term_not_found",
-        "help_document_not_found"
+        "help_document_not_found",
+        "instrument_profile_not_found"
       ],
       "title": "FailureReasonCode",
       "type": "string"
