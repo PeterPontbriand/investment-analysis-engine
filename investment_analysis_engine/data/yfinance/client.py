@@ -29,6 +29,7 @@ from investment_analysis_engine.data.financial.provenance import SourceKind
 from investment_analysis_engine.data.instrument_profile import (
     InstrumentKindEvidence,
     InstrumentKindRequest,
+    QuoteCurrencyRequest,
     reviewed_instrument_kind,
 )
 from investment_analysis_engine.data.market_data import (
@@ -408,6 +409,19 @@ class YFinanceClient(BaseDataClient):
             provider_id=YFINANCE_PROVIDER_ID,
             resolved_at=snapshot.resolved_at,
         )
+
+    def resolve_quote_currency(self, request: QuoteCurrencyRequest) -> str | None:
+        """Return the Yahoo ``currency`` of the listing exactly as reported, such as ``USD`` or ``GBp``.
+
+        The currency is read only from the metadata this client has already fetched for the ticker, for its identity
+        or its kind; it never makes a request of its own, and answers ``None`` when no metadata was fetched.
+        """
+        if request.provider_id != YFINANCE_PROVIDER_ID:
+            return None
+        snapshot = self._metadata_by_ticker.get(request.ticker)
+        if not isinstance(snapshot, _YFinanceMetadataSnapshot) or snapshot.metadata is None:
+            return None
+        return _first_metadata_text(snapshot.metadata, "currency")
 
     def _fetch_metadata_snapshot(self, ticker: str) -> _YFinanceMetadataSnapshot:
         """Fetch and retain one metadata result per client/ticker, including failure."""

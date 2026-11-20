@@ -59,6 +59,7 @@ class FailureReasonCode(StrEnum):
     PORT_UNAVAILABLE = "port_unavailable"
     HELP_TERM_NOT_FOUND = "help_term_not_found"
     HELP_DOCUMENT_NOT_FOUND = "help_document_not_found"
+    INSTRUMENT_PROFILE_NOT_FOUND = "instrument_profile_not_found"
 
 
 type FailureStatus = Literal["error", "input_unavailable"]
@@ -142,6 +143,7 @@ FAILURE_REASON_CODE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
         FailureReasonCode.PORT_UNAVAILABLE.value: "failure-port-unavailable",
         FailureReasonCode.HELP_TERM_NOT_FOUND.value: "failure-not-found",
         FailureReasonCode.HELP_DOCUMENT_NOT_FOUND.value: "failure-not-found",
+        FailureReasonCode.INSTRUMENT_PROFILE_NOT_FOUND.value: "failure-instrument-profile-not-found",
     }
 )
 """The glossary term that explains each failure code; codes that differ only in detail share one term."""

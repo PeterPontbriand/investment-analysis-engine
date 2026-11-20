@@ -96,7 +96,8 @@
         "refresh_job_running",
         "port_unavailable",
         "help_term_not_found",
-        "help_document_not_found"
+        "help_document_not_found",
+        "instrument_profile_not_found"
       ],
       "title": "FailureReasonCode",
       "type": "string"
@@ -412,8 +413,8 @@
       "type": "null"
     },
     "schema_version": {
-      "const": 15,
-      "default": 15,
+      "const": 16,
+      "default": 16,
       "title": "Schema Version",
       "type": "integer"
     },

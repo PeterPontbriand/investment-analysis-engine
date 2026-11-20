@@ -17,6 +17,7 @@ from investment_analysis_engine.reporting.documents.about import AboutDocument
 from investment_analysis_engine.reporting.documents.database import DatabaseMaintenanceReport
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
 from investment_analysis_engine.reporting.documents.health import ProviderHealthDocument
+from investment_analysis_engine.reporting.documents.instrument_profile import InstrumentProfileDocument
 from investment_analysis_engine.workspace_documents.refresh import RefreshSummaryDocument
 from investment_analysis_engine.workspace_documents.refreshes import RefreshesListDocument
 from investment_analysis_engine.workspace_documents.run_overview import RunOverviewDocument
@@ -70,6 +71,7 @@ DOCUMENTS: Final = (
     JsonDocument("refresh-summary.schema.json", RefreshSummaryDocument, ("refresh",)),
     JsonDocument("provider-health.schema.json", ProviderHealthDocument, ("health",)),
     JsonDocument("about.schema.json", AboutDocument, ("about",)),
+    JsonDocument("instrument-profile.schema.json", InstrumentProfileDocument, ("instrument show",)),
 )
 """Every document this module lists, in the order the schemas are published."""
 

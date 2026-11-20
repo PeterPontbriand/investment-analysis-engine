@@ -33,6 +33,7 @@ from investment_analysis_engine.api.request_bodies import (
 )
 from investment_analysis_engine.api.selection_forms import SelectionFormDocument
 from investment_analysis_engine.reporting.documents.failure import FailureEnvelope
+from investment_analysis_engine.reporting.documents.instrument_profile import InstrumentProfileDocument
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from investment_analysis_engine.workspace_documents.refreshes import RefreshesListDocument
 from investment_analysis_engine.workspace_documents.run_overview import RunOverviewDocument
@@ -119,6 +120,10 @@ def _uuid_path(name: str, description: str) -> ParameterSpec:
 
 def _help_path(name: str, description: str) -> ParameterSpec:
     return ParameterSpec(name, "path", True, description, (("type", "string"),))
+
+
+def _ticker_path() -> ParameterSpec:
+    return ParameterSpec("ticker", "path", True, "The ticker, which is trimmed and upper-cased.", (("type", "string"),))
 
 
 def _after(description: str) -> ParameterSpec:
@@ -279,6 +284,14 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
     ),
     RouteSpec(
         "GET",
+        "/v1/instrument-profiles/{ticker}",
+        "get_instrument_profile",
+        "Show the stored instrument profile of a ticker, however old, without contacting a data provider.",
+        (_ticker_path(),),
+        _responses((InstrumentProfileDocument,), lookup=True, database=True),
+    ),
+    RouteSpec(
+        "GET",
         "/v1/help",
         "get_help_index",
         "List the help terms by group and the help documents.",
@@ -387,6 +400,15 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         (),
         _responses((AnalysisDocument,), lookup=False, database=True),
         AnalysisRequest,
+    ),
+    RouteSpec(
+        "POST",
+        "/v1/instrument-profiles/{ticker}/lookup",
+        "look_up_instrument_profile",
+        "Look up the instrument profile of a ticker as an analysis does: the stored one while it is fresh, else a "
+        "live lookup.",
+        (_ticker_path(),),
+        _responses((InstrumentProfileDocument,), lookup=False, database=True),
     ),
     RouteSpec(
         "POST",

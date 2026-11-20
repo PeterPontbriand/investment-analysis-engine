@@ -12,7 +12,7 @@ unwrapped, and nothing is written to the durable repository for it.
 
 import threading
 from collections.abc import Callable, Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 
@@ -139,6 +139,7 @@ def _encode_profile(profile: InstrumentProfile) -> dict[str, Any]:
         "identity": _identity_payload(profile.identity),
         "kind_evidence": instrument_kind_evidence_payload(profile.kind_evidence),
         "diagnostics": _diagnostics_payload(profile.diagnostics),
+        "quote_currency": profile.quote_currency,
     }
 
 
@@ -149,12 +150,44 @@ def _decode_profile(ticker: str, evidence: Mapping[str, Any]) -> InstrumentProfi
         identity=_identity_from_payload(evidence["identity"]),
         kind_evidence=_kind_evidence_from_payload(ticker, evidence["kind_evidence"]),
         diagnostics=_diagnostics_from_payload(evidence["diagnostics"]),
+        quote_currency=evidence["quote_currency"],
     )
 
 
 def _with_diagnostic(profile: InstrumentProfile, diagnostic: InstrumentProfileDiagnostic) -> InstrumentProfile:
     """Append one cache-provenance diagnostic without disturbing composed evidence."""
     return replace(profile, diagnostics=(*profile.diagnostics, diagnostic))
+
+
+def _current_version(stored: InstrumentProfileRecord | None) -> InstrumentProfileRecord | None:
+    """Treat a record written under another payload version as absent, on every path that would reuse it.
+
+    Nothing is migrated: the record is neither decoded nor reused, and the next anchored resolution overwrites it.
+    """
+    if stored is None or stored.schema_version != INSTRUMENT_PROFILE_SCHEMA_VERSION:
+        return None
+    return stored
+
+
+@dataclass(frozen=True)
+class StoredInstrumentProfile:
+    """The current durable profile of one ticker and when it was last checked."""
+
+    profile: InstrumentProfile
+    refreshed_at: datetime
+
+
+def read_stored_profile(repository: SQLiteInstrumentProfileRepository, ticker: str) -> StoredInstrumentProfile | None:
+    """Return the ticker's current stored profile, however old, or ``None``; no provider is contacted.
+
+    A record written under another payload version counts as absent, as it does for the resolver; it is not decoded.
+    A superseded profile is never returned.
+    """
+    normalized_ticker = _normalized_required(ticker, "ticker", uppercase=True)
+    stored = _current_version(repository.get(normalized_ticker))
+    if stored is None:
+        return None
+    return StoredInstrumentProfile(_decode_profile(normalized_ticker, stored.evidence), stored.refreshed_at)
 
 
 @runtime_checkable
@@ -241,7 +274,7 @@ class CachedInstrumentProfileResolver:
         normalized_ticker = _normalized_required(ticker, "ticker", uppercase=True)
         with self._lock_for(normalized_ticker):
             now = self._now()
-            stored = self._current_version(self._repository.get(normalized_ticker))
+            stored = _current_version(self._repository.get(normalized_ticker))
             if not force_refresh and stored is not None and self._is_fresh(stored, now):
                 return _with_diagnostic(
                     _decode_profile(normalized_ticker, stored.evidence),
@@ -273,16 +306,6 @@ class CachedInstrumentProfileResolver:
                     ),
                 )
             return live
-
-    @staticmethod
-    def _current_version(stored: InstrumentProfileRecord | None) -> InstrumentProfileRecord | None:
-        """Treat a record written under another payload version as absent, on every path that would reuse it.
-
-        Nothing is migrated: the record is neither decoded nor reused, and the next anchored resolution overwrites it.
-        """
-        if stored is None or stored.schema_version != INSTRUMENT_PROFILE_SCHEMA_VERSION:
-            return None
-        return stored
 
     def _lock_for(self, ticker: str) -> threading.Lock:
         """Return this instance's serialization lock for one normalized ticker.
@@ -317,4 +340,9 @@ class CachedInstrumentProfileResolver:
         return not any(item.outcome is QualityOutcome.FAIL for item in decisions)
 
 
-__all__ = ["CachedInstrumentProfileResolver", "InstrumentProfileResolver"]
+__all__ = [
+    "CachedInstrumentProfileResolver",
+    "InstrumentProfileResolver",
+    "StoredInstrumentProfile",
+    "read_stored_profile",
+]

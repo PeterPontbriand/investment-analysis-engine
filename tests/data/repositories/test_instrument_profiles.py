@@ -8,6 +8,7 @@ import pytest
 
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.instrument_profiles import (
+    INSTRUMENT_PROFILE_SCHEMA_VERSION,
     InstrumentProfileRecord,
     SQLiteInstrumentProfileRepository,
 )
@@ -40,7 +41,7 @@ def test_put_mints_a_new_profile_on_first_resolution(repository: SQLiteInstrumen
         identity_anchor="0000021344",
         cached_at=NOW,
         refreshed_at=NOW,
-        schema_version=3,
+        schema_version=INSTRUMENT_PROFILE_SCHEMA_VERSION,
         evidence={"provider_id": "yfinance", "kind": "equity"},
     )
     assert record.superseded_at is None

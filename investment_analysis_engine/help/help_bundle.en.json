@@ -856,8 +856,12 @@
         "accounting-scope",
         "capex-sign-convention",
         "instrument-kind",
+        "instrument-kind-equity",
+        "instrument-kind-etf",
+        "instrument-kind-cryptocurrency",
         "quote-freshness",
-        "reporting-currency"
+        "reporting-currency",
+        "quote-currency"
       ],
       "title": "Market data and timing"
     },
@@ -1045,6 +1049,7 @@
         "failure-stored-data-unreadable",
         "failure-unsupported-run-version",
         "failure-not-found",
+        "failure-instrument-profile-not-found",
         "failure-watchlist-empty",
         "failure-name-conflict",
         "failure-request-refused",
@@ -1394,6 +1399,12 @@
       "group": "outcomes-statuses-and-reasons",
       "name": "Historical Data Quality Failure"
     },
+    "failure-instrument-profile-not-found": {
+      "body": "A profile is stored the first time the ticker is analyzed or looked up. A profile kept by an earlier version of the engine counts as absent until then. See [instrument profile](help:terms/instrument-profile).",
+      "definition": "No instrument profile is stored for the ticker, so there are no details to show.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Instrument Profile Not Found"
+    },
     "failure-invalid-parameter": {
       "body": "Nothing was calculated or saved. Correct the named value and ask again.",
       "definition": "A value in the request, such as a ticker, a date or a window, was rejected before any analysis ran. The message names what was wrong.",
@@ -1707,13 +1718,31 @@
       "name": "Industry Class"
     },
     "instrument-kind": {
-      "body": "A strategy that is built for company financial statements reports an instrument kind it does not cover as not applicable. See [instrument profile](help:terms/instrument-profile).",
+      "body": "A strategy that is built for company financial statements reports an instrument kind it does not cover as not applicable. See [instrument profile](help:terms/instrument-profile).\n\nThe kinds are explained in [Equity](help:terms/instrument-kind-equity), [ETF](help:terms/instrument-kind-etf) and [Cryptocurrency](help:terms/instrument-kind-cryptocurrency).",
       "definition": "The kind of security a ticker names: an equity, an exchange-traded fund or a cryptocurrency.",
       "group": "market-data-and-timing",
       "name": "Instrument Kind"
     },
+    "instrument-kind-cryptocurrency": {
+      "body": "A cryptocurrency has no financial statements, so a strategy built for company financial statements reports it as not applicable. See [instrument kind](help:terms/instrument-kind).",
+      "definition": "A digital currency or token whose price is quoted on cryptocurrency markets.",
+      "group": "market-data-and-timing",
+      "name": "Cryptocurrency"
+    },
+    "instrument-kind-equity": {
+      "body": "An equity is the kind of instrument that the strategies built for company financial statements cover. See [instrument kind](help:terms/instrument-kind).",
+      "definition": "A share of ownership in a company, such as a common stock.",
+      "group": "market-data-and-timing",
+      "name": "Equity"
+    },
+    "instrument-kind-etf": {
+      "body": "An ETF has no financial statements of its own, so a strategy built for company financial statements reports it as not applicable. See [instrument kind](help:terms/instrument-kind).",
+      "definition": "An exchange-traded fund: a fund that holds a collection of securities and is bought and sold on an exchange like a share.",
+      "group": "market-data-and-timing",
+      "name": "ETF"
+    },
     "instrument-profile": {
-      "body": "The engine keeps a durable copy of an instrument profile; a stored profile expires after a configured freshness window and is refreshed live when it does. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.",
+      "body": "The engine keeps a durable copy of an instrument profile and can show it without contacting a provider. A stored profile expires after a configured freshness window and is looked up again live when it does, and a lookup can also be asked for directly. A profile includes the [quote currency](help:terms/quote-currency) of the listing. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.",
       "definition": "A security's identity plus a normalized kind of instrument, such as equity or ETF, each with its own provenance. It is kept so that repeated analyses do not look up details that rarely change.",
       "group": "market-data-and-timing",
       "name": "Instrument Profile"
@@ -1934,6 +1963,12 @@
       "group": "outcomes-statuses-and-reasons",
       "name": "Provider Unreachable"
     },
+    "quote-currency": {
+      "body": "It can differ from the reporting currency of the company's statements. A provider may report a smaller unit of a currency, such as pence. See [reporting currency](help:terms/reporting-currency) and [instrument profile](help:terms/instrument-profile).",
+      "definition": "The currency a listing's price is quoted in, as the data provider reports it, such as USD.",
+      "group": "market-data-and-timing",
+      "name": "Quote Currency"
+    },
     "quote-expired": {
       "body": "See [Quote Freshness](help:terms/quote-freshness) for the whole set of values.",
       "definition": "A quote retrieved longer ago than the freshness limit, so it is no longer treated as current.",
@@ -2103,7 +2138,7 @@
       "name": "Refresh Event"
     },
     "reporting-currency": {
-      "body": "A method that combines figures with a price needs the filing currency and the quote currency to agree. A selection can require annual facts in one reporting currency.",
+      "body": "A method that combines figures with a price needs the filing currency and the [quote currency](help:terms/quote-currency) to agree. A selection can require annual facts in one reporting currency.",
       "definition": "The currency a company states its financial figures in, written as a three-letter ISO 4217 code such as USD.",
       "group": "market-data-and-timing",
       "name": "Reporting Currency"

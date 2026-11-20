@@ -1,0 +1,124 @@
+{
+  "$defs": {
+    "InstrumentKind": {
+      "description": "Reviewed provider-neutral instrument classifications.",
+      "enum": [
+        "equity",
+        "etf",
+        "cryptocurrency"
+      ],
+      "title": "InstrumentKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One ticker's instrument profile: its identity, its kind and the currency its price is quoted in.\n\n``schema_version`` is this document's own lineage and is independent of every other document's.",
+  "properties": {
+    "instrument_identifier": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The data provider's own identifier of the instrument; null when it gave none.",
+      "title": "Instrument Identifier"
+    },
+    "instrument_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The instrument's name; null when no provider gave one.",
+      "title": "Instrument Name"
+    },
+    "issuer_identifier": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The identifier of the issuer, such as an SEC central index key; null when unknown.",
+      "title": "Issuer Identifier"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InstrumentKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The kind of instrument, from the reviewed list; null when the provider's value is not on it."
+    },
+    "listing_venue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The exchange or venue the instrument is listed on; null when unknown.",
+      "title": "Listing Venue"
+    },
+    "provider_id": {
+      "description": "The data provider that gave the identity; /v1/info lists the providers with their names.",
+      "title": "Provider Id",
+      "type": "string"
+    },
+    "quote_currency": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The currency the listing's price is quoted in, as the provider reports it, such as USD; null when the provider reported none.",
+      "title": "Quote Currency"
+    },
+    "refreshed_at": {
+      "description": "When the profile was last checked with a data provider, as an ISO 8601 instant with its offset. A profile that has not been checked within the configured freshness window is still served.",
+      "format": "date-time",
+      "title": "Refreshed At",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "ticker": {
+      "description": "The ticker the profile describes, trimmed and upper-cased.",
+      "title": "Ticker",
+      "type": "string"
+    }
+  },
+  "required": [
+    "ticker",
+    "refreshed_at",
+    "instrument_name",
+    "listing_venue",
+    "issuer_identifier",
+    "instrument_identifier",
+    "kind",
+    "quote_currency",
+    "provider_id"
+  ],
+  "title": "InstrumentProfileDocument",
+  "type": "object"
+}

@@ -37,6 +37,7 @@ def test_the_overview_of_a_saved_run_of_each_strategy_is_its_headline(
         "schema_version",
         "analysis_run_id",
         "ticker",
+        "security_identity",
         "outcome",
         "completed_at",
         "refresh_id",
@@ -45,7 +46,7 @@ def test_the_overview_of_a_saved_run_of_each_strategy_is_its_headline(
         "headline",
         "headline_unavailable",
     ]
-    assert document["schema_version"] == 2
+    assert document["schema_version"] == 3
     assert (document["analysis_run_id"], document["ticker"], document["outcome"]) == (
         str(run.analysis_run_id),
         run.ticker,
