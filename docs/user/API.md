@@ -106,11 +106,15 @@ or path parameter, or the body field by its path (see [Request bodies](#request-
 | :--- | :--- |
 | 400 | `invalid_parameter`, `host_not_allowed`, `origin_not_allowed` |
 | 401 | `not_authenticated` |
-| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `help_term_not_found`, `help_document_not_found`, `instrument_profile_not_found`, `endpoint_not_found` |
-| 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add or a refresh that an unreadable entry of the watchlist refuses), `watchlist_empty` (a watchlist to refresh has no entries), `refresh_job_running` |
+| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `help_term_not_found`, `help_document_not_found`, `instrument_profile_not_found`, `provider_no_data`, `endpoint_not_found` |
+| 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add or a refresh that an unreadable entry of the watchlist refuses), `watchlist_empty` (a watchlist to refresh has no entries), `refresh_job_running`, `configuration_error` |
+| 429 | `provider_rate_limited` |
 | 405 | `endpoint_not_found` (a method the endpoint does not declare, `HEAD` included), with an `Allow` header naming the declared method |
+| 502 | `provider_unreachable`, `provider_unexpected_response`, `provider_error` |
 | 503 | `database_busy` |
 | 500 | every other code, including every other `database_*` code and `execution_error` |
+
+The provider codes and `configuration_error` have statuses of their own, so a client can tell a data provider's problem from a fault of the engine: `provider_no_data` is 404, `provider_rate_limited` 429 and `provider_unreachable`, `provider_unexpected_response` and `provider_error` 502. Only `POST /v1/instrument-profiles/{ticker}/lookup` answers them today, since an analysis or a refresh reports a provider failure inside its own document. A client still branches on `reason_code`.
 
 An unexpected failure, whether in an endpoint or in the checks before it, is `execution_error` with a fixed message and
 status 500; its detail goes to the log. `port_unavailable` occurs only
@@ -195,8 +199,8 @@ client reads it once and can offer a lookup when there is nothing to show.
   within the freshness window, otherwise the data providers. A profile with an identity anchor is stored; one without is
   answered and not stored, so the next `GET` is still 404. It sends no body and can run while a refresh job runs. When no
   provider identifies the ticker it fails with `provider_no_data`, and a provider that failed gives its own `provider_*` code
-  (`provider_unreachable`, `provider_rate_limited` or `provider_unexpected_response`); these codes are answered with status
-  500, as they are everywhere else, so branch on `reason_code`. A server started without an SEC identity still looks the
+  (`provider_unreachable`, `provider_rate_limited` or `provider_unexpected_response`); the statuses are 404, 502, 429 and
+  502 ([Errors](#errors)), and a client still branches on `reason_code`. A server started without an SEC identity still looks the
   profile up, with Yahoo as the only provider; the result has no issuer identifier, so it is answered and not stored, and a
   stored profile is answered as before. A lookup is called a lookup, never a refresh, because a refresh runs a watchlist.
 
@@ -269,7 +273,7 @@ run's record can be read. A refresh with no saved run, an unknown ID and a refre
 | `POST /v1/watchlists` | `name` | 201, the watchlist document |
 | `PATCH /v1/watchlists/{watchlist_id}` | `name` | 200, the rename document |
 | `DELETE /v1/watchlists/{watchlist_id}` | none | 200, the delete document |
-| `POST /v1/watchlists/{watchlist_id}/entries` | `method_id`, `tickers`, `selection` | 200, the watchlist document |
+| `POST /v1/watchlists/{watchlist_id}/entries` | `method_id`, `tickers`, `selection` | 200, the entries-added document |
 | `DELETE /v1/watchlists/{watchlist_id}/entries/{entry_number}` | none | 200, the removal document |
 | `POST /v1/watchlists/{watchlist_id}/remove-tickers` | `tickers` | 200, the removal document |
 | `POST /v1/watchlists/{watchlist_id}/remove-method` | `method_id` | 200, the removal document |
@@ -284,6 +288,19 @@ then found an entry this version cannot read answers 200 with that entry in `unr
 `method_id` as stored and a `reason` that names no command). Adding to a watchlist that holds such an entry is refused
 with 409 `stored_selection_unreadable` and writes nothing. A delete answers `deleted` true; the command line's
 `--missing-ok` has no counterpart, because a missing watchlist is 404.
+
+`POST /v1/watchlists/{watchlist_id}/entries` adds one entry per ticker and then checks each distinct ticker once, in
+order of first appearance, with the same lookup as `POST /v1/instrument-profiles/{ticker}/lookup`: a stored profile
+within the freshness window answers with no request to a data provider. The entries-added document (`schema_version` 1)
+holds `watchlist`, the watchlist document, and `warnings`, empty when every ticker was confirmed. A ticker is never
+refused for it, and a check never makes the add fail; a duplicate, a blank ticker, an unreadable stored entry or a missing
+watchlist is refused before any provider is asked. A warning holds `ticker`, `code`, `reason_code`, `arguments`,
+`message` and `template`, with the `message` and `template` rules of a rule error (filling the template gives the
+message). `code` is `ticker_not_recognized` (the providers answered and none identified the ticker; `reason_code` is
+`null`) or `ticker_not_checked` (`reason_code` is the failure that kept the ticker from being checked: a `provider_*`
+code or a `database_*` code). After the first `provider_unreachable`, `provider_rate_limited` or `database_*` failure the
+remaining tickers are not asked, and each gets the same warning. `GET /v1/help/references` gives each warning code its
+term. A refresh of entries and `POST /v1/analyses` do not check tickers; their own results report an unknown ticker.
 
 `POST /v1/analyses` analyzes one ticker under one selection. The ticker is trimmed and upper-cased. `save` is optional
 and defaults to `false`; `provider_check` is optional and defaults to the `IAN_PROVIDER_CHECK` choice the server was
@@ -307,14 +324,14 @@ before the 202, and its failure is the response:
 
 | Status | `reason_code` | Cause |
 | :--- | :--- | :--- |
-| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].selection.short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker with an equal selection (rule `entries.duplicate`, whose `arguments` are `ticker` and `strategy`, the strategy's label) |
+| 400 | `invalid_parameter` | neither or both of `watchlist_id` and `entries`; a bad ID; `workers` outside 1 to 4; an empty list (rule `refresh.entries_empty`); an entry that is rejected, named by its 0-based index and field such as `entries[2].selection.short_window`, every rejected entry being listed in `errors`; an entry that repeats an earlier one, the same ticker, strategy, as-of date and options (rule `entries.duplicate`, whose `arguments` are `ticker` and `strategy`, the strategy's label) |
 | 404 | `watchlist_not_found` | no watchlist has that ID |
 | 409 | `watchlist_empty` | the watchlist has no entries |
 | 409 | `stored_selection_unreadable` | the watchlist holds an entry this version cannot read |
 | 409 | `refresh_job_running` | a job is already running; a server runs one at a time |
 | 503 | `database_busy` | the database is busy |
 
-The same ticker with the same method under a different selection is not a duplicate. The 202 carries the job document, as a
+The same ticker with the same method under a different as-of date or different options is not a duplicate. The 202 carries the job document, as a
 poll at `after` 0 would give it (the events recorded so far, normally none), and a `Location` header naming the job's URL. `GET /v1/refreshes/{refresh_id}/job` returns the job (404
 `refresh_job_not_found` for an ID the server does not keep), and `GET /v1/refreshes/job` returns the server's latest job,
 or 404 `refresh_job_not_found` when it has started none. The server keeps only the latest job: a job that has ended stays

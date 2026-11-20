@@ -15,6 +15,7 @@ from pydantic import (
     ConfigDict,
     Field,
     GetJsonSchemaHandler,
+    JsonValue,
     SerializerFunctionWrapHandler,
     field_serializer,
     model_validator,
@@ -22,6 +23,8 @@ from pydantic import (
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
+from investment_analysis_engine.core.entry_warnings import EntryWarning, EntryWarningCode, fill_template
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.reporting.documents.shared_parts import UnreadableEntryDocument
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp, document_json_value
 from investment_analysis_engine.workspace.repositories.watchlists import (
@@ -81,8 +84,8 @@ class WatchlistEntryDocument(BaseModel):
 class WatchlistDocument(BaseModel):
     """The complete watchlist, as every command that writes one with ``--json`` prints it.
 
-    These are ``watchlist show``, ``create`` and ``add-selection``; the API serves it for a watchlist, for a created
-    watchlist and for an added entry, and the result documents below nest it.
+    These are ``watchlist show`` and ``create``; the API serves it for a watchlist and for a created watchlist, and the
+    result documents below nest it, the one of an add included.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -93,6 +96,56 @@ class WatchlistDocument(BaseModel):
     created_at: DocumentTimestamp
     updated_at: DocumentTimestamp | None = Field(description="Null until the watchlist is first changed.")
     entries: tuple[WatchlistEntryDocument, ...]
+
+
+class EntryWarningDocument(BaseModel):
+    """One warning about a ticker that was added but could not be confirmed.
+
+    It has the shape of a rule error: filling every placeholder of ``template`` with its ``arguments`` gives
+    ``message``.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    ticker: str
+    code: EntryWarningCode = Field(description="Why the ticker could not be confirmed.")
+    reason_code: FailureReasonCode | None = Field(
+        description=(
+            "The failure reason code that kept the ticker from being checked: a provider failure code or a database "
+            "failure code. Null when the ticker was not recognized."
+        )
+    )
+    arguments: dict[str, JsonValue] = Field(description="The values the message shows, by name.")
+    message: str = Field(description="The warning for a person; it carries no guarantee.")
+    template: str = Field(
+        description=(
+            "The message with each value written as a placeholder named as in arguments, such as {ticker}; replacing "
+            "every placeholder with its text gives message. A template never contains a literal brace."
+        )
+    )
+
+    @model_validator(mode="after")
+    def _filled_template_is_the_message(self) -> Self:
+        """Require that the filled template equals the message, and that only arguments are placeholders."""
+        filled = fill_template(self.template, {name: str(value) for name, value in self.arguments.items()})
+        if filled != self.message:
+            raise ValueError("the filled template must equal the message.")
+        return self
+
+
+class EntriesAddedDocument(BaseModel):
+    """The outcome of ``watchlist add-selection --json`` and of adding entries through the API.
+
+    Every entry is added whatever the warnings; a warning only says that a ticker could not be confirmed.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_version: Literal[1] = 1
+    watchlist: WatchlistDocument
+    warnings: tuple[EntryWarningDocument, ...] = Field(
+        description="One warning for each ticker that could not be confirmed; empty when every ticker was."
+    )
 
 
 def _exactly_one(watchlist: object | None, unreadable: object | None) -> None:
@@ -189,6 +242,24 @@ class WatchlistListDocument(BaseModel):
     items: tuple[WatchlistSummaryDocument, ...]
 
 
+def build_entries_added_document(watchlist: Watchlist, warnings: Sequence[EntryWarning]) -> EntriesAddedDocument:
+    """Build the document of an add: the watchlist and one warning for each unconfirmed ticker."""
+    return EntriesAddedDocument(
+        watchlist=build_watchlist_document(watchlist),
+        warnings=tuple(
+            EntryWarningDocument(
+                ticker=item.ticker,
+                code=item.code,
+                reason_code=item.reason_code,
+                arguments=dict(item.arguments),
+                message=item.message,
+                template=item.template,
+            )
+            for item in warnings
+        ),
+    )
+
+
 def build_watchlist_document(watchlist: Watchlist) -> WatchlistDocument:
     """Build the watchlist document: the flat, ordered entry list, each carrying the 1-based index a user sees."""
     return WatchlistDocument(
@@ -259,6 +330,8 @@ def build_watchlist_list_document(summaries: Sequence[WatchlistSummary]) -> Watc
 
 
 __all__ = [
+    "EntriesAddedDocument",
+    "EntryWarningDocument",
     "WatchlistDeleteDocument",
     "WatchlistDocument",
     "WatchlistEntryDocument",
@@ -270,6 +343,7 @@ __all__ = [
     "build_removal_document",
     "build_rename_document",
     "build_unreadable_entry_document",
+    "build_entries_added_document",
     "build_watchlist_document",
     "build_watchlist_list_document",
 ]

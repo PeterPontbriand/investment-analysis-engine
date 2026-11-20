@@ -1,4 +1,4 @@
-"""An add refuses an entry that repeats another, the same ticker with an equal selection (``entries.duplicate``)."""
+"""An add refuses an entry that repeats another: same ticker, strategy, as-of date and options (a duplicate)."""
 
 from pathlib import Path
 
@@ -37,14 +37,13 @@ def test_a_repeat_within_the_request_is_refused_before_the_database_opens(tmp_pa
     error = caught.value
     assert error.rule == "entries.duplicate"
     assert error.template == (
-        "{tickers} must not duplicate an entry: {ticker} is listed twice for {strategy} with an equal selection in "
-        "this request."
+        "{tickers} must not duplicate an entry: {ticker} is listed twice for {strategy} with the same as-of date "
+        "and options."
     )
     assert error.arguments == {"ticker": "AAPL", "strategy": "Momentum"}
     assert error.action_parameters == ("tickers",)
     assert str(error) == (
-        "tickers must not duplicate an entry: AAPL is listed twice for Momentum with an equal selection in this "
-        "request."
+        "tickers must not duplicate an entry: AAPL is listed twice for Momentum with the same as-of date and options."
     )
 
 
@@ -69,7 +68,7 @@ def test_a_repeat_of_a_stored_entry_is_refused_and_nothing_is_written(isolated_c
 
     assert caught.value.rule == "entries.duplicate"
     assert caught.value.arguments == {"ticker": "AAPL", "strategy": "Momentum"}
-    assert str(caught.value).endswith("is already listed for Momentum with an equal selection in the watchlist.")
+    assert str(caught.value).endswith("is already in the watchlist for Momentum with the same as-of date and options.")
     assert [entry.ticker for entry in get_watchlist_by_name(context, "Core").entries] == ["AAPL"]
 
 

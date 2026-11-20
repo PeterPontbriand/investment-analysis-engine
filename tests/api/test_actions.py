@@ -259,10 +259,17 @@ def test_adding_entries_stores_one_entry_per_normalized_ticker_for_every_strateg
     stored = get_watchlist_by_name(_context(isolated_cli_settings), "Core")
     assert response.status_code == 200
     assert response.json() == json.loads(
-        json.dumps(build_watchlist_document(stored).model_dump(mode="json"), ensure_ascii=False)
+        json.dumps(
+            {
+                "schema_version": 1,
+                "watchlist": build_watchlist_document(stored).model_dump(mode="json"),
+                "warnings": [],
+            },
+            ensure_ascii=False,
+        )
     )
-    assert [entry["ticker"] for entry in response.json()["entries"]] == ["KO", "MSFT"]
-    assert [entry["index"] for entry in response.json()["entries"]] == [1, 2]
+    assert [entry["ticker"] for entry in response.json()["watchlist"]["entries"]] == ["KO", "MSFT"]
+    assert [entry["index"] for entry in response.json()["watchlist"]["entries"]] == [1, 2]
     assert {entry.selection.method_id for entry in stored.entries} == {descriptor.method_id}
 
 
@@ -281,8 +288,8 @@ def test_an_omitted_selection_field_takes_its_configured_value(isolated_cli_sett
 
     expected = build_selection(_context(isolated_cli_settings), descriptor.method_id, fields)
     assert response.status_code == 200
-    assert response.json()["entries"][0]["selection"] == expected.model_dump(mode="json") | {
-        "as_of": response.json()["entries"][0]["selection"]["as_of"]
+    assert response.json()["watchlist"]["entries"][0]["selection"] == expected.model_dump(mode="json") | {
+        "as_of": response.json()["watchlist"]["entries"][0]["selection"]["as_of"]
     }
 
 
@@ -300,7 +307,7 @@ def test_a_selection_as_of_is_text_parsed_under_its_path(isolated_cli_settings: 
         naive = client.post(url, json=body | {"selection": fields | {"as_of": "2025-12-31T10:00:00"}}, headers=AUTH)
 
     assert ok.status_code == 200
-    assert ok.json()["entries"][0]["selection"]["as_of"] == "2025-12-31"
+    assert ok.json()["watchlist"]["entries"][0]["selection"]["as_of"] == "2025-12-31"
     failure = _failure(bad_text, 400, "invalid_parameter")
     assert failure["parameters"] == ["selection.as_of"]
     assert failure["errors"][0]["rule"] == "selection.as_of_syntax"  # type: ignore[index]

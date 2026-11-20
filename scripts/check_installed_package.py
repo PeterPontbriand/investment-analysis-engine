@@ -30,6 +30,7 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -50,6 +51,8 @@ VALID_USER_SETTINGS = "rsi_period = 21\n"
 INVALID_USER_SETTINGS = "rsi_period = -1\n"
 STEP_TIMEOUT_SECONDS = 900
 # The two lines uv itself prints because it builds with byte-compiling off; they say nothing about the project.
+WARNING_LINE = re.compile(r"warning:", re.IGNORECASE)
+"""What marks a line of build output as a warning."""
 UV_BUILD_NOTICES = frozenset(
     {
         "warning: build_py: byte-compiling is disabled, skipping.",
@@ -207,6 +210,16 @@ def check_wheel(results: Results, repository: Path, wheel: Path) -> None:
     results.record("wheel holds no data file beyond package-data", not unexpected, f"found {unexpected[:3]}")
 
 
+def build_warnings(output: str) -> list[str]:
+    """Return the lines of build output that are warnings, leaving out the two notices uv prints itself.
+
+    A line is a warning when it contains ``warning:`` in any case: that is how uv and setuptools write one
+    (``warning: ...``) and how Python writes a warning category (``SetuptoolsDeprecationWarning: ...``). A file name
+    that contains the word, such as a ``copying ...entry_warnings.py`` line, is not a warning.
+    """
+    return [line for line in output.splitlines() if WARNING_LINE.search(line) and line.strip() not in UV_BUILD_NOTICES]
+
+
 def build_wheel(results: Results, repository: Path, destination: Path) -> Path | None:
     """Build the wheel into ``destination``; a warning in the build output fails the check."""
     uv = shutil.which("uv")
@@ -220,9 +233,7 @@ def build_wheel(results: Results, repository: Path, destination: Path) -> Path |
     wheels = sorted(destination.glob("*.whl"))
     built = completed.returncode == 0 and len(wheels) == 1
     results.record("uv build --wheel succeeds", built, tail(completed))
-    warned = [
-        line for line in output.splitlines() if "warning" in line.lower() and line.strip() not in UV_BUILD_NOTICES
-    ]
+    warned = build_warnings(output)
     results.record("uv build prints no warning", not warned, " | ".join(warned[:3]))
     return wheels[0] if built else None
 

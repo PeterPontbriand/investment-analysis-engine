@@ -1050,6 +1050,8 @@
         "failure-unsupported-run-version",
         "failure-not-found",
         "failure-instrument-profile-not-found",
+        "entry-warning-ticker-not-recognized",
+        "entry-warning-ticker-not-checked",
         "failure-watchlist-empty",
         "failure-name-conflict",
         "failure-request-refused",
@@ -1344,6 +1346,18 @@
       "definition": "One ticker paired with one selection inside a watchlist. The same method can appear in several entries, for different tickers or for one ticker with different configuration.",
       "group": "local-research-workspace",
       "name": "Entry"
+    },
+    "entry-warning-ticker-not-checked": {
+      "body": "The check asks the data providers about each new ticker once. After the providers could not be reached, asked the engine to wait, or the database was not available, the remaining tickers are not asked. Adding the entry again is not needed; a refresh shows whether the ticker works. See [provider unreachable](help:terms/provider-unreachable) and [provider rate-limited](help:terms/provider-rate-limited).",
+      "definition": "When an entry was added, the ticker could not be checked, because a data provider or the engine's database was not available. The entry was still added.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Ticker Not Checked"
+    },
+    "entry-warning-ticker-not-recognized": {
+      "body": "A ticker that is mistyped, or no longer trades, fails on every refresh. Check the ticker, and remove the entry if it is wrong. A provider sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](help:terms/ticker) and [provider returned no data](help:terms/provider-no-data).",
+      "definition": "When an entry was added, the data providers answered and none of them identified the ticker. The entry was still added.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Ticker Not Recognized"
     },
     "eps": {
       "body": "Its basis and period must always be identified.",

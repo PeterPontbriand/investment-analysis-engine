@@ -17,6 +17,7 @@ from investment_analysis_engine.analysis.shared.split_adjustment import ADJUSTME
 from investment_analysis_engine.api.refresh_documents import REFRESH_EVENT_KIND_TERMS
 from investment_analysis_engine.core.analysis_status import CALCULATION_STATUS_TERMS
 from investment_analysis_engine.core.constants import TREND_STATUS_TERMS
+from investment_analysis_engine.core.entry_warnings import ENTRY_WARNING_CODE_TERMS
 from investment_analysis_engine.core.failure_codes import FAILURE_REASON_CODE_TERMS, FAILURE_STATUS_TERMS
 from investment_analysis_engine.core.metric_result import METRIC_STATUS_TERMS, REASON_CODE_TERMS
 from investment_analysis_engine.core.provider_check_element import PROVIDER_CHECK_VERDICT_TERMS
@@ -38,6 +39,7 @@ SHARED_CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = {
     "CalculationStatus": CALCULATION_STATUS_TERMS,
     "CapitalExpenditureSign": CAPITAL_EXPENDITURE_SIGN_TERMS,
     "CellStatusValue": CELL_STATUS_TERMS,
+    "EntryWarningCode": ENTRY_WARNING_CODE_TERMS,
     "FailureReasonCode": FAILURE_REASON_CODE_TERMS,
     "FailureStatus": FAILURE_STATUS_TERMS,
     "HeadlineUnavailable": HEADLINE_UNAVAILABLE_TERMS,

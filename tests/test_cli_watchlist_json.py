@@ -62,8 +62,9 @@ def test_add_selection_json_with_several_tickers_writes_the_document_with_all_of
 
     document = json.loads(stdout)
     assert (code, stderr) == (0, "")
-    assert [entry["ticker"] for entry in document["entries"]] == ["KO", "MSFT"]
-    assert [entry["index"] for entry in document["entries"]] == [1, 2]
+    assert (document["schema_version"], document["warnings"]) == (1, [])
+    assert [entry["ticker"] for entry in document["watchlist"]["entries"]] == ["KO", "MSFT"]
+    assert [entry["index"] for entry in document["watchlist"]["entries"]] == [1, 2]
 
 
 def test_create_json_failures_write_the_failure_document_and_nothing_to_standard_error() -> None:
@@ -81,15 +82,17 @@ def test_create_json_failures_write_the_failure_document_and_nothing_to_standard
     assert [json.loads(_run("watchlist", "list", "--json")[1])["items"][0]["display_name"]] == ["Core"]
 
 
-def test_add_selection_json_writes_the_updated_watchlist_document() -> None:
+def test_add_selection_json_writes_the_entries_added_document() -> None:
     _run("watchlist", "create", "Core")
 
     code, stdout, stderr = _run("watchlist", "add-selection", _GRAHAM, "core", "KO", "--json")
 
     document = json.loads(stdout)
     assert (code, stderr) == (0, "")
-    assert (document["display_name"], [entry["ticker"] for entry in document["entries"]]) == ("Core", ["KO"])
-    assert document["updated_at"] is not None
+    watchlist = document["watchlist"]
+    assert (watchlist["display_name"], [entry["ticker"] for entry in watchlist["entries"]]) == ("Core", ["KO"])
+    assert watchlist["updated_at"] is not None
+    assert document["warnings"] == []
 
 
 def test_add_selection_json_failures_write_the_failure_document(isolated_cli_settings: ProjectSettings) -> None:
@@ -288,3 +291,33 @@ def test_a_rejected_argument_is_reported_even_when_the_database_is_not_ready(
     code, stdout, stderr = _run(*arguments)
 
     assert (code, stdout, stderr) == (1, "", message)
+
+
+def test_add_selection_prints_the_watchlist_and_then_each_warning(monkeypatch: pytest.MonkeyPatch) -> None:
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    from investment_analysis_engine.application import entry_check  # noqa: PLC0415
+    from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind  # noqa: PLC0415
+    from investment_analysis_engine.data.base_client import DataFetchError  # noqa: PLC0415
+
+    def answer(_context: object, ticker: str) -> None:
+        if ticker == "KOO":
+            raise DataFetchError("none", kind=ProviderFailureKind.NO_DATA, provider_id="yfinance")
+
+    monkeypatch.setattr(entry_check, "lookup_instrument_profile", MagicMock(side_effect=answer))
+    _run("watchlist", "create", "Core")
+
+    plain_code, plain, _ = _run("watchlist", "add-selection", _GRAHAM, "Core", "KO")
+    code, text, stderr = _run("watchlist", "add-selection", _GRAHAM, "Core", "KOO", "MSFT")
+    json_code, document, _ = _run("watchlist", "add-selection", _GRAHAM, "Core", "KOOO", "--json")
+
+    assert (plain_code, "Warnings:" in plain) == (0, False)
+    assert (code, stderr) == (0, "")
+    lines = text.splitlines()
+    assert lines[-2:] == [
+        "Warnings:",
+        "  No data provider recognizes KOO. Check the ticker, and remove the entry if it is wrong.",
+    ]
+    assert lines[0] == "Watchlist: Core"
+    assert json_code == 0
+    assert json.loads(document)["warnings"] == []

@@ -37,13 +37,18 @@ STATUS_DESCRIPTIONS = {
     202: "The refresh job was accepted; its document says where it is and the Location header names its URL.",
     400: "A rejected parameter, or a Host or Origin the server does not allow.",
     401: "No valid bearer token.",
-    404: "No such resource.",
+    404: "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
     409: (
-        "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty "
-        "watchlist to refresh, or a refresh job already running."
+        "The stored data or the setup refuses the request: a name already in use, an entry this version cannot read, "
+        "an empty watchlist to refresh, a refresh job already running, or a setup the request needs that is missing."
     ),
     405: "The endpoint does not accept this method.",
+    429: "A data provider asked the engine to wait before asking again.",
     500: "An unexpected failure.",
+    502: (
+        "No data provider gave a usable answer: none could be reached, or one answered in a form the engine does "
+        "not read."
+    ),
     503: "The database is busy.",
 }
 """What each status means, in the words of the description."""

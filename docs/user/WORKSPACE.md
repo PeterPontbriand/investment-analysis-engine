@@ -72,7 +72,7 @@ Add `--json` to `watchlist show` for the complete, machine-readable document —
 ian watchlist show "Core Holdings" --json
 ```
 
-The document is described by `schemas/watchlist.schema.json`, which `watchlist create --json` and `watchlist add-selection --json` share. Its first key is `schema_version` (currently `1`). Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`; its `as_of`, when set, is written the same way (`+00:00`; it was `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
+The document is described by `schemas/watchlist.schema.json`, which `watchlist show --json` and `watchlist create --json` share, and which the document of an add nests. Its first key is `schema_version` (currently `2`). Its `created_at` and `updated_at` (`null` until the watchlist is first changed) are written with their UTC offset, as `+00:00`. Each entry's `selection` is the stored selection of that entry's method, told apart by its `method_id`; its `as_of`, when set, is written the same way (`+00:00`; it was `Z` before the workspace documents were typed, so a reader that matched the literal `Z` must accept the offset form).
 
 List every watchlist you have:
 
@@ -97,7 +97,16 @@ Add one method across one or more tickers to an existing watchlist with `add-sel
 ian watchlist add-selection graham-number "Core Holdings" AAPL MSFT
 ```
 
-Adding the same method again for a ticker that already has it with a different selection does not replace anything — it appends a second entry, so you can compare configurations side by side. An entry that repeats another, the same ticker and method with an equal selection, is refused with `TICKER must not duplicate an entry: AAPL is already listed for Graham Number with an equal selection in the watchlist.` and nothing is written; the same rule refuses a ticker that appears twice in one `add-selection` command and an entry that the API's watchlist entries endpoint would repeat:
+After the entries are added, `add-selection` checks each new ticker once with the data providers, using the stored profile with no request when it is recent. A ticker that could not be confirmed is still added, and the command prints the watchlist and then a `Warnings:` section with one line for it, and exits 0:
+
+```text
+Warnings:
+  No data provider recognizes KOO. Check the ticker, and remove the entry if it is wrong.
+```
+
+A ticker that no provider recognizes (`ticker_not_recognized`) and a ticker that could not be checked (`ticker_not_checked`: the providers could not be reached, asked the engine to wait, answered unexpectedly, or the engine's database was not available) are the two warnings. After the first failure to reach the providers, or to ask them again soon, or of the database, the remaining tickers are not asked and each gets the same warning. Only an add checks tickers; a refresh does not.
+
+Adding the same method again for a ticker that already has it with a different as-of date or different options does not replace anything — it appends a second entry, so you can compare configurations side by side. An entry that repeats another, the same ticker, method, as-of date and options, is refused with `TICKER must not duplicate an entry: AAPL is already in the watchlist for Graham Number with the same as-of date and options.` and nothing is written; the same rule refuses a ticker that appears twice in one `add-selection` command and an entry that the API's watchlist entries endpoint would repeat:
 
 ```bash
 ian watchlist add-selection graham-number "Core Holdings" AAPL --bvps 12.5
@@ -116,7 +125,7 @@ ian watchlist remove-ticker "Core Holdings" KO
 ian watchlist remove-method "Core Holdings" --analysis graham-number
 ```
 
-Add `--json` to `add-selection` to print only the updated watchlist, as the `watchlist show --json` document, on standard output. Add `--json` to `remove-entry`, `remove-ticker` or `remove-method` to print the removal document, described by `schemas/watchlist-removal.schema.json`: `schema_version` (currently `1`), `removed` (the number of entries removed, 0 when nothing matched), `watchlist` (the watchlist read back, as the `watchlist show --json` document) and `unreadable`. After a removal the confirmation (`Removed 1 entry for KO from watchlist 'Core Holdings'.`, or `No entries for ZZZ in watchlist 'Core Holdings'.` when there was nothing to remove) goes to standard error, so standard output holds only the document. If the watchlist holds an entry saved by an earlier version that this version can no longer read, a removal still happens. Its confirmation goes to standard error and, with `--json`, standard output holds the removal document with `watchlist` set to `null` and `unreadable` naming the first such entry (`entry_number`, `ticker`, `method_id` as stored, and a `reason` that names no command), with exit `1`. Exactly one of `watchlist` and `unreadable` is set. Without `--json` the message that names the entry and the `remove-entry` command that removes it goes to standard error, with exit `1`. `add-selection` writes nothing to such a watchlist and reports the same failure. A rejected argument or a missing watchlist writes the failure document in every case.
+Add `--json` to `add-selection` to print the entries-added document, described by `schemas/entries-added.schema.json`, on standard output: `schema_version` (currently `1`), `watchlist` (the updated watchlist, as the `watchlist show --json` document) and `warnings` (empty when every ticker was confirmed; see above). Add `--json` to `remove-entry`, `remove-ticker` or `remove-method` to print the removal document, described by `schemas/watchlist-removal.schema.json`: `schema_version` (currently `2`), `removed` (the number of entries removed, 0 when nothing matched), `watchlist` (the watchlist read back, as the `watchlist show --json` document) and `unreadable`. After a removal the confirmation (`Removed 1 entry for KO from watchlist 'Core Holdings'.`, or `No entries for ZZZ in watchlist 'Core Holdings'.` when there was nothing to remove) goes to standard error, so standard output holds only the document. If the watchlist holds an entry saved by an earlier version that this version can no longer read, a removal still happens. Its confirmation goes to standard error and, with `--json`, standard output holds the removal document with `watchlist` set to `null` and `unreadable` naming the first such entry (`entry_number`, `ticker`, `method_id` as stored, and a `reason` that names no command), with exit `1`. Exactly one of `watchlist` and `unreadable` is set. Without `--json` the message that names the entry and the `remove-entry` command that removes it goes to standard error, with exit `1`. `add-selection` writes nothing to such a watchlist and reports the same failure. A rejected argument or a missing watchlist writes the failure document in every case.
 
 Every command that removes entries starts with `remove-`, and text output names methods by the same hyphenated names you type (the `--analysis` values in the [strategy table](#strategies-and-their-watchlist-options)). `--json` output keeps the stored method identifiers, listed in the same table, which never change.
 
@@ -126,7 +135,7 @@ Every command that removes entries starts with `remove-`, and text output names 
 ian watchlist rename "Core Holdings" "Long-Term Holdings"
 ```
 
-Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the rename document, described by `schemas/watchlist-rename.schema.json`, whose keys are `schema_version` (currently `1`), `watchlist` (the `watchlist show --json` document) and `unreadable`; on a failure it prints the failure document described in [USAGE](USAGE.md#--json--machine-readable-output). The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is an `invalid_parameter` failure (exit `1`).
+Renaming is not destructive, so it never asks for confirmation. It prints `Renamed watchlist 'Core Holdings' to 'Long-Term Holdings'.` and then the renamed watchlist as `watchlist show` would. With `--json` it prints only the rename document, described by `schemas/watchlist-rename.schema.json`, whose keys are `schema_version` (currently `2`), `watchlist` (the `watchlist show --json` document) and `unreadable`; on a failure it prints the failure document described in [USAGE](USAGE.md#--json--machine-readable-output). The watchlist keeps its ID and its entries. Changing only the capitalization (`core holdings` to `Core Holdings`) is allowed; renaming to another watchlist's name is exit `1`, and a blank new name is an `invalid_parameter` failure (exit `1`).
 
 Saved Analysis Runs keep the name the watchlist had when they ran, by design: each run stores its own snapshot of the watchlist's name and ID, and a rename changes neither the snapshot nor anything else about a saved run. Today `runs list` and `runs show` do not print that snapshot.
 
@@ -155,8 +164,8 @@ ian watchlist delete "Scratch" --yes --missing-ok
 `--json` prints one document, with `watchlist` holding the same document `watchlist show --json` prints for the watchlist as it was just before deletion (or `null` when nothing was deleted). `deleted` is false only for `--missing-ok` on a name that does not exist; then `watchlist` and `unreadable` are both `null`:
 
 ```text
-{"schema_version": 1, "deleted": true, "watchlist": {...}, "unreadable": null}
-{"schema_version": 1, "deleted": false, "watchlist": null, "unreadable": null}
+{"schema_version": 2, "deleted": true, "watchlist": {...}, "unreadable": null}
+{"schema_version": 2, "deleted": false, "watchlist": null, "unreadable": null}
 ```
 
 The document is described by `schemas/watchlist-delete.schema.json`. It no longer has `requested_name`: you passed the name.
@@ -306,7 +315,7 @@ ian runs list --json
 {"schema_version": 2, "has_more": false, "items": [{"analysis_run_id": "3f9b...", "ticker": "AAPL", "method_id": "sma_crossover", "outcome": "completed", "completed_at": "2026-09-19T14:02:11+00:00", "refresh_id": null}]}
 ```
 
-A listing with no matching runs prints `{"schema_version": 1, "has_more": false, "items": []}`. Before this object existed the command printed the bare array of items, so a program that read the array reads `items` instead.
+A listing with no matching runs prints `{"schema_version": 2, "has_more": false, "items": []}`. Before this object existed the command printed the bare array of items, so a program that read the array reads `items` instead.
 
 Show one saved run in full, exactly as it was originally captured — replaying a saved run never re-fetches data or recalculates anything, so it always shows the same result it showed the moment it was saved, even if your configuration or a data provider has since changed:
 

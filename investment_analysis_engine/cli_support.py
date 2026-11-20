@@ -15,11 +15,13 @@ from pydantic import BaseModel
 from investment_analysis_engine.analysis.selection_base import FrozenSelection
 from investment_analysis_engine.application.analysis import AnalysisOutcome, analyze, exit_code_of
 from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.entry_check import add_watchlist_entries_checked
 from investment_analysis_engine.application.failures import SavingFailureError, describe_failure
 from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.application.selections import build_selection, parse_as_of_text
-from investment_analysis_engine.application.watchlists import add_watchlist_entries, alias_for_method_id
+from investment_analysis_engine.application.watchlists import alias_for_method_id
 from investment_analysis_engine.config import settings
+from investment_analysis_engine.core.entry_warnings import EntryWarning
 from investment_analysis_engine.core.failure_classification import classify_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
@@ -35,7 +37,10 @@ from investment_analysis_engine.telemetry.run_context import RunContext, get_cur
 from investment_analysis_engine.workspace.runs import Watchlist, WatchlistEntry
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection, SelectionMember
 from investment_analysis_engine.workspace.watchlists import StoredSelectionError, WatchlistName
-from investment_analysis_engine.workspace_documents.watchlist import build_watchlist_document
+from investment_analysis_engine.workspace_documents.watchlist import (
+    build_entries_added_document,
+    build_watchlist_document,
+)
 
 logger = logging.getLogger(__name__)
 # Without a configured handler (``--no-logging``) Python's last-resort handler would write the logged failure and its
@@ -540,13 +545,26 @@ def watchlist_json(watchlist: Watchlist) -> str:
 _ADD_SELECTION_PARAMETERS = {"tickers": "TICKER"}
 
 
-def add_selection_entries(name: str, tickers: Sequence[str], selection: SelectionMember, *, json_output: bool) -> None:
-    """Add one entry per ticker for ``selection`` to the named watchlist and print the watchlist.
+def entries_added_text(watchlist: Watchlist, warnings: Sequence[EntryWarning]) -> str:
+    """Render the watchlist as ``watchlist show`` does, then a ``Warnings:`` section when there are warnings."""
+    lines = [watchlist_text(watchlist)]
+    if warnings:
+        lines.append("Warnings:")
+        lines.extend(f"  {warning.message}" for warning in warnings)
+    return "\n".join(lines)
 
-    Used by every strategy's ``add-selection`` command once it has built its selection. The watchlist is printed as
-    text, or with ``json_output`` as the watchlist document.
+
+def add_selection_entries(name: str, tickers: Sequence[str], selection: SelectionMember, *, json_output: bool) -> None:
+    """Add one entry per ticker for ``selection`` to the named watchlist and print the result.
+
+    Used by every strategy's ``add-selection`` command once it has built its selection. Every ticker is checked once,
+    after the entries are added; a ticker that could not be confirmed is a warning and never a failure. The result is
+    printed as text, the watchlist and then its warnings, or with ``json_output`` as the entries-added document.
     """
     entries = [(ticker, selection) for ticker in tickers]
     with watchlist_action("watchlist add-selection", _ADD_SELECTION_PARAMETERS, json_output=json_output):
-        watchlist = add_watchlist_entries(application_context(), WatchlistName(name), entries)
-    typer.echo(watchlist_json(watchlist) if json_output else watchlist_text(watchlist))
+        added = add_watchlist_entries_checked(application_context(), WatchlistName(name), entries)
+    if json_output:
+        typer.echo(document_json(build_entries_added_document(added.watchlist, added.warnings)))
+    else:
+        typer.echo(entries_added_text(added.watchlist, added.warnings))

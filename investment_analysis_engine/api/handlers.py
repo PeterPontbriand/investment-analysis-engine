@@ -64,6 +64,7 @@ from investment_analysis_engine.api.routes import (
 from investment_analysis_engine.api.selection_forms import build_selection_form_document
 from investment_analysis_engine.application.analysis import analyze
 from investment_analysis_engine.application.context import ApplicationContext
+from investment_analysis_engine.application.entry_check import add_watchlist_entries_checked
 from investment_analysis_engine.application.failures import SavingFailureError, describe_failure
 from investment_analysis_engine.application.instrument_profiles import (
     get_instrument_profile,
@@ -93,7 +94,6 @@ from investment_analysis_engine.application.runs import (
 )
 from investment_analysis_engine.application.selections import build_selection
 from investment_analysis_engine.application.watchlists import (
-    add_watchlist_entries,
     create_watchlist,
     delete_watchlist,
     get_watchlist_by_id,
@@ -121,6 +121,7 @@ from investment_analysis_engine.workspace_documents.refreshes import build_refre
 from investment_analysis_engine.workspace_documents.runs import build_runs_list_document
 from investment_analysis_engine.workspace_documents.watchlist import (
     build_delete_document,
+    build_entries_added_document,
     build_removal_document,
     build_rename_document,
     build_watchlist_document,
@@ -423,9 +424,8 @@ def _add_entries(context: ApplicationContext, parameters: RequestParameters) -> 
     body = _body(parameters, AddEntriesRequest)
     selection = _selection(context, body.method_id, body.selection)
     with _api_names({"entries": "tickers", "tickers": "tickers"}):
-        return build_watchlist_document(
-            add_watchlist_entries(context, ref, [(ticker, selection) for ticker in body.tickers])
-        )
+        added = add_watchlist_entries_checked(context, ref, [(ticker, selection) for ticker in body.tickers])
+    return build_entries_added_document(added.watchlist, added.warnings)
 
 
 def _remove_entry(context: ApplicationContext, parameters: RequestParameters) -> BaseModel:

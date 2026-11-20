@@ -1,0 +1,728 @@
+{
+  "$defs": {
+    "EntryWarningCode": {
+      "description": "Why a ticker added to a watchlist could not be confirmed; a value is never renamed or removed.",
+      "enum": [
+        "ticker_not_recognized",
+        "ticker_not_checked"
+      ],
+      "title": "EntryWarningCode",
+      "type": "string"
+    },
+    "EntryWarningDocument": {
+      "additionalProperties": false,
+      "description": "One warning about a ticker that was added but could not be confirmed.\n\nIt has the shape of a rule error: filling every placeholder of ``template`` with its ``arguments`` gives\n``message``.",
+      "properties": {
+        "arguments": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "The values the message shows, by name.",
+          "title": "Arguments",
+          "type": "object"
+        },
+        "code": {
+          "$ref": "#/$defs/EntryWarningCode",
+          "description": "Why the ticker could not be confirmed."
+        },
+        "message": {
+          "description": "The warning for a person; it carries no guarantee.",
+          "title": "Message",
+          "type": "string"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FailureReasonCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The failure reason code that kept the ticker from being checked: a provider failure code or a database failure code. Null when the ticker was not recognized."
+        },
+        "template": {
+          "description": "The message with each value written as a placeholder named as in arguments, such as {ticker}; replacing every placeholder with its text gives message. A template never contains a literal brace.",
+          "title": "Template",
+          "type": "string"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticker",
+        "code",
+        "reason_code",
+        "arguments",
+        "message",
+        "template"
+      ],
+      "title": "EntryWarningDocument",
+      "type": "object"
+    },
+    "FCFClassificationBasis": {
+      "description": "Free-cash-flow measure controlling classification.",
+      "enum": [
+        "total_fcf",
+        "fcf_per_share"
+      ],
+      "title": "FCFClassificationBasis",
+      "type": "string"
+    },
+    "FCFGrowthSelection": {
+      "additionalProperties": false,
+      "description": "Historical FCF/Earnings Growth request options, independent of Graham configs.",
+      "properties": {
+        "analysis_id": {
+          "const": "fcf_earnings_growth",
+          "default": "fcf_earnings_growth",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+          "title": "As of",
+          "x-term": "as-of-date"
+        },
+        "config_schema_version": {
+          "const": 3,
+          "default": 3,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "currency": {
+          "default": "USD",
+          "description": "Three-letter ISO 4217 code of the reporting currency the annual facts must use.",
+          "title": "Reporting currency",
+          "type": "string",
+          "x-term": "reporting-currency"
+        },
+        "method_id": {
+          "const": "reported_fcf_eps_cagr",
+          "default": "reported_fcf_eps_cagr",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/FCFPolicySnapshot",
+          "description": "The growth horizon, classification and forward-evidence rules.",
+          "title": "Growth policy",
+          "x-term": "fcf-growth-strategy"
+        },
+        "use_cache": {
+          "default": true,
+          "description": "Whether the analysis may read and write the local cache of fetched data.",
+          "title": "Use cached data",
+          "type": "boolean",
+          "x-term": "cache"
+        }
+      },
+      "title": "FCFGrowthSelection",
+      "type": "object"
+    },
+    "FCFPolicySnapshot": {
+      "additionalProperties": false,
+      "description": "Validated immutable copy of the existing FCF policy and its native enums.",
+      "properties": {
+        "classification_basis": {
+          "$ref": "#/$defs/FCFClassificationBasis",
+          "default": "total_fcf",
+          "description": "Whether growth is classified on total free cash flow or on free cash flow per share.",
+          "title": "Classification basis",
+          "x-term": "classification-basis"
+        },
+        "forward_policy": {
+          "$ref": "#/$defs/ForwardPolicy",
+          "default": "display_only",
+          "description": "How forward-looking evidence affects the result: shown only, required to confirm, or a hard gate.",
+          "title": "Forward policy",
+          "x-term": "forward-policy"
+        },
+        "historical_horizon": {
+          "$ref": "#/$defs/HistoricalHorizon",
+          "default": "longest_available",
+          "description": "How many elapsed years of history to require; the default picks the longest available up to five.",
+          "title": "Historical horizon",
+          "x-term": "historical-horizon"
+        }
+      },
+      "title": "FCFPolicySnapshot",
+      "type": "object"
+    },
+    "FailureReasonCode": {
+      "description": "Stable failure categories a caller may branch on.\n\nA value is never renamed, repurposed or removed within the public contract. New values may be\nadded, so a caller must treat an unrecognized value as a generic failure and use ``status`` for the\ncategory.",
+      "enum": [
+        "execution_error",
+        "historical_quality",
+        "provider_error",
+        "provider_unreachable",
+        "provider_rate_limited",
+        "provider_unexpected_response",
+        "provider_no_data",
+        "configuration_error",
+        "no_eligible_observations",
+        "invalid_input",
+        "invalid_parameter",
+        "database_upgrade_required",
+        "database_incompatible_schema",
+        "database_busy",
+        "database_permission_denied",
+        "database_invalid_file",
+        "database_io_error",
+        "database_resources_unavailable",
+        "database_initialization_failed",
+        "database_migration_failed",
+        "invalid_stored_run",
+        "unsupported_run_version",
+        "watchlist_not_found",
+        "watchlist_entry_not_found",
+        "watchlist_empty",
+        "watchlist_name_conflict",
+        "analysis_run_not_found",
+        "stored_selection_unreadable",
+        "unsupported_projection",
+        "not_authenticated",
+        "host_not_allowed",
+        "origin_not_allowed",
+        "endpoint_not_found",
+        "refresh_job_not_found",
+        "refresh_job_running",
+        "port_unavailable",
+        "help_term_not_found",
+        "help_document_not_found",
+        "instrument_profile_not_found"
+      ],
+      "title": "FailureReasonCode",
+      "type": "string"
+    },
+    "ForwardPolicy": {
+      "description": "How forward consensus evidence affects the headline result.",
+      "enum": [
+        "display_only",
+        "confirmation",
+        "hard_gate"
+      ],
+      "title": "ForwardPolicy",
+      "type": "string"
+    },
+    "GrahamGrowthSelection": {
+      "additionalProperties": false,
+      "description": "Graham growth-value selection requiring explicit growth and AAA yield percentages.",
+      "properties": {
+        "aaa_yield_override": {
+          "description": "Current AAA corporate-bond yield, in percentage points.",
+          "title": "AAA corporate bond yield",
+          "type": "number",
+          "x-term": "override"
+        },
+        "analysis_id": {
+          "const": "graham_growth_value",
+          "default": "graham_growth_value",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+          "title": "As of",
+          "x-term": "as-of-date"
+        },
+        "config_schema_version": {
+          "const": 3,
+          "default": 3,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "eps_basis": {
+          "$ref": "#/$defs/GrahamGrowthSelectionEPSBasis",
+          "default": "three_year_average",
+          "description": "Which earnings figure to use: the three-year average, or one completed fiscal year.",
+          "title": "EPS basis",
+          "x-term": "eps-basis"
+        },
+        "eps_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
+          "title": "Earnings per share override",
+          "x-term": "override"
+        },
+        "expected_growth": {
+          "description": "Expected annual earnings growth, in percentage points.",
+          "title": "Expected growth rate",
+          "type": "number",
+          "x-term": "expected-growth-rate"
+        },
+        "method_id": {
+          "const": "graham_growth_value",
+          "default": "graham_growth_value",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "quote_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Share price to use instead of the current quote; leave empty to use the quote.",
+          "title": "Share price override",
+          "x-term": "override"
+        },
+        "use_cache": {
+          "default": true,
+          "description": "Whether the analysis may read and write the local cache of fetched data.",
+          "title": "Use cached data",
+          "type": "boolean",
+          "x-term": "cache"
+        }
+      },
+      "required": [
+        "expected_growth",
+        "aaa_yield_override"
+      ],
+      "title": "GrahamGrowthSelection",
+      "type": "object"
+    },
+    "GrahamGrowthSelectionEPSBasis": {
+      "enum": [
+        "three_year_average",
+        "fiscal_year"
+      ],
+      "type": "string"
+    },
+    "GrahamNumberSelection": {
+      "additionalProperties": false,
+      "description": "Immutable Graham Number selection with an optional book-value override.",
+      "properties": {
+        "analysis_id": {
+          "const": "graham_number",
+          "default": "graham_number",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+          "title": "As of",
+          "x-term": "as-of-date"
+        },
+        "bvps_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Book value per share to use instead of the reported figure; leave empty to use it.",
+          "title": "Book value per share override",
+          "x-term": "override"
+        },
+        "config_schema_version": {
+          "const": 4,
+          "default": 4,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "eps_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Earnings per share to use instead of the reported figure; leave empty to use it.",
+          "title": "Earnings per share override",
+          "x-term": "override"
+        },
+        "method_id": {
+          "const": "graham_number",
+          "default": "graham_number",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "quote_override": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Share price to use instead of the current quote; leave empty to use the quote.",
+          "title": "Share price override",
+          "x-term": "override"
+        },
+        "use_cache": {
+          "default": true,
+          "description": "Whether the analysis may read and write the local cache of fetched data.",
+          "title": "Use cached data",
+          "type": "boolean",
+          "x-term": "cache"
+        }
+      },
+      "title": "GrahamNumberSelection",
+      "type": "object"
+    },
+    "HistoricalHorizon": {
+      "description": "Requested historical elapsed-year horizon for classification.",
+      "enum": [
+        "longest_available",
+        "3",
+        "4",
+        "5"
+      ],
+      "title": "HistoricalHorizon",
+      "type": "string"
+    },
+    "JsonValue": {},
+    "MomentumSelection": {
+      "additionalProperties": false,
+      "description": "Immutable snapshot of the effective Momentum configuration.\n\nThe canonical analysis/method identifiers are fixed to the contract matrix values\n(``momentum`` / ``sma_crossover``) and cannot be overridden or made to disagree\nwith one another. Window and RSI values are materialized from explicit inputs or\nthe current configured policy at creation time; later settings changes do not\naffect an existing selection. ``as_of`` and ``use_cache`` are persisted with the\nselection, so a saved or refreshed run reuses the boundary and cache choice it was\ncreated with.",
+      "properties": {
+        "analysis_id": {
+          "const": "momentum",
+          "default": "momentum",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+          "title": "As of",
+          "x-term": "as-of-date"
+        },
+        "config_schema_version": {
+          "const": 2,
+          "default": 2,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "long_window": {
+          "description": "Number of trading days in the long moving average; it must be larger than the short one.",
+          "exclusiveMinimum": 0,
+          "title": "Long window",
+          "type": "integer",
+          "x-term": "sma-windows"
+        },
+        "method_id": {
+          "const": "sma_crossover",
+          "default": "sma_crossover",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "rsi_period": {
+          "description": "Number of trading days the relative strength index looks back over.",
+          "exclusiveMinimum": 0,
+          "title": "RSI period",
+          "type": "integer",
+          "x-term": "rsi"
+        },
+        "short_window": {
+          "description": "Number of trading days in the short moving average.",
+          "exclusiveMinimum": 0,
+          "title": "Short window",
+          "type": "integer",
+          "x-term": "sma-windows"
+        },
+        "use_cache": {
+          "default": true,
+          "description": "Whether the analysis may read and write the local cache of fetched data.",
+          "title": "Use cached data",
+          "type": "boolean",
+          "x-term": "cache"
+        }
+      },
+      "required": [
+        "short_window",
+        "long_window",
+        "rsi_period"
+      ],
+      "title": "MomentumSelection",
+      "type": "object"
+    },
+    "PiotroskiSelection": {
+      "additionalProperties": false,
+      "description": "The Piotroski F-Score selection: the shared point-in-time and cache fields.",
+      "properties": {
+        "analysis_id": {
+          "const": "piotroski",
+          "default": "piotroski",
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "as_of": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run the analysis as of this date (the end of that day, UTC) or this moment, which needs a timezone offset; leave empty for the latest data.",
+          "title": "As of",
+          "x-term": "as-of-date"
+        },
+        "config_schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Config Schema Version",
+          "type": "integer"
+        },
+        "method_id": {
+          "const": "piotroski",
+          "default": "piotroski",
+          "title": "Method Id",
+          "type": "string"
+        },
+        "use_cache": {
+          "default": true,
+          "description": "Whether the analysis may read and write the local cache of fetched data.",
+          "title": "Use cached data",
+          "type": "boolean",
+          "x-term": "cache"
+        }
+      },
+      "title": "PiotroskiSelection",
+      "type": "object"
+    },
+    "WatchlistDocument": {
+      "additionalProperties": false,
+      "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show`` and ``create``; the API serves it for a watchlist and for a created watchlist, and the\nresult documents below nest it, the one of an add included.",
+      "properties": {
+        "created_at": {
+          "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/WatchlistEntryDocument"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 2,
+          "default": 2,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Null until the watchlist is first changed.",
+          "title": "Updated At"
+        },
+        "watchlist_id": {
+          "format": "uuid",
+          "title": "Watchlist Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "watchlist_id",
+        "display_name",
+        "created_at",
+        "updated_at",
+        "entries"
+      ],
+      "title": "WatchlistDocument",
+      "type": "object"
+    },
+    "WatchlistEntryDocument": {
+      "additionalProperties": false,
+      "description": "One entry of a watchlist: its 1-based position, its ticker and the selection stored for it.",
+      "properties": {
+        "index": {
+          "description": "The 1-based position a user sees and passes to 'remove-entry'.",
+          "title": "Index",
+          "type": "integer"
+        },
+        "selection": {
+          "description": "The stored selection; its method_id says which strategy. Its as_of is a date when a date was given, else an instant with its UTC offset.",
+          "discriminator": {
+            "mapping": {
+              "graham_growth_value": "#/$defs/GrahamGrowthSelection",
+              "graham_number": "#/$defs/GrahamNumberSelection",
+              "piotroski": "#/$defs/PiotroskiSelection",
+              "reported_fcf_eps_cagr": "#/$defs/FCFGrowthSelection",
+              "sma_crossover": "#/$defs/MomentumSelection"
+            },
+            "propertyName": "method_id"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/MomentumSelection"
+            },
+            {
+              "$ref": "#/$defs/GrahamNumberSelection"
+            },
+            {
+              "$ref": "#/$defs/GrahamGrowthSelection"
+            },
+            {
+              "$ref": "#/$defs/FCFGrowthSelection"
+            },
+            {
+              "$ref": "#/$defs/PiotroskiSelection"
+            }
+          ],
+          "title": "Selection"
+        },
+        "ticker": {
+          "title": "Ticker",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "ticker",
+        "selection"
+      ],
+      "title": "WatchlistEntryDocument",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The outcome of ``watchlist add-selection --json`` and of adding entries through the API.\n\nEvery entry is added whatever the warnings; a warning only says that a ticker could not be confirmed.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "warnings": {
+      "description": "One warning for each ticker that could not be confirmed; empty when every ticker was.",
+      "items": {
+        "$ref": "#/$defs/EntryWarningDocument"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "watchlist": {
+      "$ref": "#/$defs/WatchlistDocument"
+    }
+  },
+  "required": [
+    "watchlist",
+    "warnings"
+  ],
+  "title": "EntriesAddedDocument",
+  "type": "object"
+}

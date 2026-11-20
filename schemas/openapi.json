@@ -690,6 +690,97 @@
         "title": "DiagnosticPart",
         "type": "object"
       },
+      "EntriesAddedDocument": {
+        "additionalProperties": false,
+        "description": "The outcome of ``watchlist add-selection --json`` and of adding entries through the API.\n\nEvery entry is added whatever the warnings; a warning only says that a ticker could not be confirmed.",
+        "properties": {
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "warnings": {
+            "description": "One warning for each ticker that could not be confirmed; empty when every ticker was.",
+            "items": {
+              "$ref": "#/components/schemas/EntryWarningDocument"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "watchlist": {
+            "$ref": "#/components/schemas/WatchlistDocument"
+          }
+        },
+        "required": [
+          "watchlist",
+          "warnings"
+        ],
+        "title": "EntriesAddedDocument",
+        "type": "object"
+      },
+      "EntryWarningCode": {
+        "description": "Why a ticker added to a watchlist could not be confirmed; a value is never renamed or removed.",
+        "enum": [
+          "ticker_not_recognized",
+          "ticker_not_checked"
+        ],
+        "title": "EntryWarningCode",
+        "type": "string"
+      },
+      "EntryWarningDocument": {
+        "additionalProperties": false,
+        "description": "One warning about a ticker that was added but could not be confirmed.\n\nIt has the shape of a rule error: filling every placeholder of ``template`` with its ``arguments`` gives\n``message``.",
+        "properties": {
+          "arguments": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "The values the message shows, by name.",
+            "title": "Arguments",
+            "type": "object"
+          },
+          "code": {
+            "$ref": "#/components/schemas/EntryWarningCode",
+            "description": "Why the ticker could not be confirmed."
+          },
+          "message": {
+            "description": "The warning for a person; it carries no guarantee.",
+            "title": "Message",
+            "type": "string"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FailureReasonCode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The failure reason code that kept the ticker from being checked: a provider failure code or a database failure code. Null when the ticker was not recognized."
+          },
+          "template": {
+            "description": "The message with each value written as a placeholder named as in arguments, such as {ticker}; replacing every placeholder with its text gives message. A template never contains a literal brace.",
+            "title": "Template",
+            "type": "string"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker",
+          "code",
+          "reason_code",
+          "arguments",
+          "message",
+          "template"
+        ],
+        "title": "EntryWarningDocument",
+        "type": "object"
+      },
       "FCFClassificationBasis": {
         "description": "Free-cash-flow measure controlling classification.",
         "enum": [
@@ -5379,7 +5470,7 @@
               }
             ],
             "default": null,
-            "description": "The entries to refresh, which belong to no watchlist. Give this or watchlist_id, not both. The same ticker with an equal selection may not appear twice.",
+            "description": "The entries to refresh, which belong to no watchlist. Give this or watchlist_id, not both. The same ticker under the same strategy with the same as-of date and options may not appear twice.",
             "title": "Entries"
           },
           "provider_check": {
@@ -6767,7 +6858,7 @@
       },
       "WatchlistDocument": {
         "additionalProperties": false,
-        "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show``, ``create`` and ``add-selection``; the API serves it for a watchlist, for a created\nwatchlist and for an added entry, and the result documents below nest it.",
+        "description": "The complete watchlist, as every command that writes one with ``--json`` prints it.\n\nThese are ``watchlist show`` and ``create``; the API serves it for a watchlist and for a created watchlist, and the\nresult documents below nest it, the one of an add included.",
         "properties": {
           "created_at": {
             "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",
@@ -7553,7 +7644,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -7923,7 +8014,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -8293,7 +8384,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -8520,6 +8611,36 @@
               }
             }
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "405": {
             "content": {
               "application/json": {
@@ -8550,6 +8671,36 @@
               }
             }
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "A data provider asked the engine to wait before asking again.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "500": {
             "content": {
               "application/json": {
@@ -8559,6 +8710,36 @@
               }
             },
             "description": "An unexpected failure.",
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Language": {
+                "description": "The tag of the locale the engine's text is in.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Vary": {
+                "description": "Names Accept-Language, and also Origin for a request from an allowed origin.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FailureEnvelope"
+                }
+              }
+            },
+            "description": "No data provider gave a usable answer: none could be reached, or one answered in a form the engine does not read.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -8963,7 +9144,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -9023,7 +9204,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running.",
+            "description": "The stored data or the setup refuses the request: a name already in use, an entry this version cannot read, an empty watchlist to refresh, a refresh job already running, or a setup the request needs that is missing.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -9229,7 +9410,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -9435,7 +9616,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -9681,7 +9862,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -9897,7 +10078,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -10372,7 +10553,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -10608,7 +10789,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -10858,7 +11039,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -11663,7 +11844,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running.",
+            "description": "The stored data or the setup refuses the request: a name already in use, an entry this version cannot read, an empty watchlist to refresh, a refresh job already running, or a setup the request needs that is missing.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -11869,7 +12050,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -12103,7 +12284,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -12163,7 +12344,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running.",
+            "description": "The stored data or the setup refuses the request: a name already in use, an entry this version cannot read, an empty watchlist to refresh, a refresh job already running, or a setup the request needs that is missing.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -12377,7 +12558,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -12437,7 +12618,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running.",
+            "description": "The stored data or the setup refuses the request: a name already in use, an entry this version cannot read, an empty watchlist to refresh, a refresh job already running, or a setup the request needs that is missing.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -12553,7 +12734,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WatchlistDocument"
+                  "$ref": "#/components/schemas/EntriesAddedDocument"
                 }
               }
             },
@@ -12653,7 +12834,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -12713,7 +12894,7 @@
                 }
               }
             },
-            "description": "The stored data refuses the change: a name already in use, an entry this version cannot read, an empty watchlist to refresh, or a refresh job already running.",
+            "description": "The stored data or the setup refuses the request: a name already in use, an entry this version cannot read, an empty watchlist to refresh, a refresh job already running, or a setup the request needs that is missing.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -12796,7 +12977,7 @@
             }
           }
         },
-        "summary": "Add one entry per ticker for one strategy's selection."
+        "summary": "Add one entry per ticker for one strategy's selection, and warn of each ticker no data provider confirms."
       }
     },
     "/v1/watchlists/{watchlist_id}/entries/{entry_number}": {
@@ -12929,7 +13110,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -13175,7 +13356,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",
@@ -13421,7 +13602,7 @@
                 }
               }
             },
-            "description": "No such resource.",
+            "description": "No such resource, or, for a request that asks a data provider, no data provider has data for it.",
             "headers": {
               "Cache-Control": {
                 "description": "no-store",

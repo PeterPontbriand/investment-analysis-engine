@@ -367,7 +367,8 @@ def _read_file(database: SQLiteDatabase) -> Iterator[Connection]:
         engine.dispose()
 
 
-def _storage_reason(error: Exception) -> ReadinessReason:
+def storage_reason(error: Exception) -> ReadinessReason:
+    """Return the readiness category of a storage failure: busy, permission denied, an invalid file or an I/O error."""
     if isinstance(error, ReadinessLockTimeoutError):
         return ReadinessReason.BUSY
     original = error.orig if isinstance(error, DBAPIError) else error
@@ -413,7 +414,7 @@ def _initialize(database: SQLiteDatabase, resources: MigrationResources) -> Read
                 )
             )
             raise DatabaseReadinessError(
-                _storage_reason(exc) if storage_failure else ReadinessReason.INITIALIZATION_FAILED,
+                storage_reason(exc) if storage_failure else ReadinessReason.INITIALIZATION_FAILED,
                 database.database_path,
                 resources.head,
             ) from exc
@@ -441,7 +442,7 @@ def ensure_database_ready(database: SQLiteDatabase) -> ReadinessOutcome:
     except _UpgradeRequiredError as exc:
         raise DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, path, resources.head) from exc
     except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
-        raise DatabaseReadinessError(_storage_reason(exc), path, resources.head) from exc
+        raise DatabaseReadinessError(storage_reason(exc), path, resources.head) from exc
 
 
 def _inspect_connection(connection: Connection, resources: MigrationResources) -> DatabaseInspection:
@@ -484,7 +485,7 @@ def inspect_database(database: SQLiteDatabase) -> DatabaseInspection:
     try:
         return _inspection(database, resources)
     except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
-        raise DatabaseReadinessError(_storage_reason(exc), database.database_path, resources.head) from exc
+        raise DatabaseReadinessError(storage_reason(exc), database.database_path, resources.head) from exc
 
 
 def upgrade_database(database: SQLiteDatabase) -> tuple[ReadinessOutcome, str]:
@@ -515,7 +516,7 @@ def upgrade_database(database: SQLiteDatabase) -> tuple[ReadinessOutcome, str]:
             except DatabaseReadinessError:
                 raise
             except Exception as exc:
-                reason = _storage_reason(exc)
+                reason = storage_reason(exc)
                 original = exc.orig if isinstance(exc, DBAPIError) else exc
                 # SQL syntax/migration logic failures are migration failures, not I/O.
                 if not isinstance(original, OSError) and reason is ReadinessReason.IO_ERROR:
@@ -529,4 +530,4 @@ def upgrade_database(database: SQLiteDatabase) -> tuple[ReadinessOutcome, str]:
                 raise DatabaseReadinessError(reason, path, resources.head) from exc
             return ReadinessOutcome.UPGRADED, resources.head
     except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
-        raise DatabaseReadinessError(_storage_reason(exc), path, resources.head) from exc
+        raise DatabaseReadinessError(storage_reason(exc), path, resources.head) from exc

@@ -1231,6 +1231,18 @@ No instrument profile is stored for the ticker, so there are no details to show.
 
 A profile is stored the first time the ticker is analyzed or looked up. A profile kept by an earlier version of the engine counts as absent until then. See [instrument profile](#instrument-profile).
 
+<a id="entry-warning-ticker-not-recognized"></a>
+### Ticker Not Recognized
+When an entry was added, the data providers answered and none of them identified the ticker. The entry was still added.
+
+A ticker that is mistyped, or no longer trades, fails on every refresh. Check the ticker, and remove the entry if it is wrong. A provider sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](#ticker) and [provider returned no data](#provider-no-data).
+
+<a id="entry-warning-ticker-not-checked"></a>
+### Ticker Not Checked
+When an entry was added, the ticker could not be checked, because a data provider or the engine's database was not available. The entry was still added.
+
+The check asks the data providers about each new ticker once. After the providers could not be reached, asked the engine to wait, or the database was not available, the remaining tickers are not asked. Adding the entry again is not needed; a refresh shows whether the ticker works. See [provider unreachable](#provider-unreachable) and [provider rate-limited](#provider-rate-limited).
+
 <a id="failure-watchlist-empty"></a>
 ### Empty Watchlist
 The watchlist has no entries, so there is nothing to refresh.

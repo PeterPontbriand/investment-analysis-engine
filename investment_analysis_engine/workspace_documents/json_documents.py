@@ -24,6 +24,7 @@ from investment_analysis_engine.workspace_documents.run_overview import RunOverv
 from investment_analysis_engine.workspace_documents.runs import RunsListDocument
 from investment_analysis_engine.workspace_documents.runs_compare import RunsCompareDocument
 from investment_analysis_engine.workspace_documents.watchlist import (
+    EntriesAddedDocument,
     WatchlistDeleteDocument,
     WatchlistDocument,
     WatchlistListDocument,
@@ -51,12 +52,9 @@ DOCUMENTS: Final = (
     JsonDocument(
         "watchlist.schema.json",
         WatchlistDocument,
-        (
-            "watchlist show",
-            "watchlist create",
-            "watchlist add-selection",
-        ),
+        ("watchlist show", "watchlist create"),
     ),
+    JsonDocument("entries-added.schema.json", EntriesAddedDocument, ("watchlist add-selection",)),
     JsonDocument("watchlist-rename.schema.json", WatchlistRenameDocument, ("watchlist rename",)),
     JsonDocument(
         "watchlist-removal.schema.json",
