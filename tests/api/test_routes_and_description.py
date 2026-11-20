@@ -36,6 +36,12 @@ def test_every_route_declares_its_success_document_and_each_failure_status() -> 
         assert dict(route.responses)[400][0].__name__ == "FailureEnvelope"
 
 
+def test_the_lookup_declares_the_statuses_of_a_provider_failure() -> None:
+    lookup = next(route for route in ROUTES if route.operation_id == "look_up_instrument_profile")
+
+    assert {status for status, _models in lookup.responses} == {200, 400, 401, 404, 405, 429, 500, 502, 503}
+
+
 def test_the_description_is_openapi_3_1_with_every_route_and_response_by_status() -> None:
     description = openapi_description()
     assert description["openapi"] == "3.1.0"

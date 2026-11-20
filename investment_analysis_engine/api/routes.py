@@ -141,19 +141,23 @@ def _responses(  # noqa: PLR0913
     database: bool,
     status: int = 200,
     conflict: bool = False,
+    provider: bool = False,
 ) -> tuple[tuple[int, tuple[type[BaseModel], ...]], ...]:
     """Return the responses of an endpoint by status: its success document and each failure status it can give.
 
     Every endpoint can answer 400 (the Host and Origin checks, or a rejected parameter), 401, 405 and 500; ``lookup``
-    adds 404 for a missing resource, ``conflict`` adds 409 for a change the stored data refuses and ``database`` adds
-    503 for a busy database. ``status`` is the success status.
+    adds 404 for a missing resource, ``conflict`` adds 409 for a change the stored data refuses, ``database`` adds
+    503 for a busy database and ``provider`` adds 404, 429 and 502 for a request that asks a data provider and fails
+    with its failure (no data, a request limit, no usable answer). ``status`` is the success status.
     """
     failure = (FailureEnvelope,)
     statuses: list[tuple[int, tuple[type[BaseModel], ...]]] = [(status, success), (400, failure), (401, failure)]
-    if lookup:
+    if lookup or provider:
         statuses.append((404, failure))
     if conflict:
         statuses.append((409, failure))
+    if provider:
+        statuses.extend([(429, failure), (502, failure)])
     statuses.append((405, failure))
     statuses.append((500, failure))
     if database:
@@ -408,7 +412,7 @@ ROUTES: Final[tuple[RouteSpec, ...]] = (
         "Look up the instrument profile of a ticker as an analysis does: the stored one while it is fresh, else a "
         "live lookup.",
         (_ticker_path(),),
-        _responses((InstrumentProfileDocument,), lookup=False, database=True),
+        _responses((InstrumentProfileDocument,), lookup=False, database=True, provider=True),
     ),
     RouteSpec(
         "POST",

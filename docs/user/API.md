@@ -106,11 +106,15 @@ or path parameter, or the body field by its path (see [Request bodies](#request-
 | :--- | :--- |
 | 400 | `invalid_parameter`, `host_not_allowed`, `origin_not_allowed` |
 | 401 | `not_authenticated` |
-| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `help_term_not_found`, `help_document_not_found`, `instrument_profile_not_found`, `endpoint_not_found` |
-| 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add or a refresh that an unreadable entry of the watchlist refuses), `watchlist_empty` (a watchlist to refresh has no entries), `refresh_job_running` |
+| 404 | `analysis_run_not_found`, `watchlist_not_found`, `watchlist_entry_not_found`, `refresh_job_not_found`, `help_term_not_found`, `help_document_not_found`, `instrument_profile_not_found`, `provider_no_data`, `endpoint_not_found` |
+| 409 | `watchlist_name_conflict`, `stored_selection_unreadable` (an add or a refresh that an unreadable entry of the watchlist refuses), `watchlist_empty` (a watchlist to refresh has no entries), `refresh_job_running`, `configuration_error` |
+| 429 | `provider_rate_limited` |
 | 405 | `endpoint_not_found` (a method the endpoint does not declare, `HEAD` included), with an `Allow` header naming the declared method |
+| 502 | `provider_unreachable`, `provider_unexpected_response`, `provider_error` |
 | 503 | `database_busy` |
 | 500 | every other code, including every other `database_*` code and `execution_error` |
+
+The provider codes and `configuration_error` have statuses of their own, so a client can tell a data provider's problem from a fault of the engine: `provider_no_data` is 404, `provider_rate_limited` 429 and `provider_unreachable`, `provider_unexpected_response` and `provider_error` 502. Only `POST /v1/instrument-profiles/{ticker}/lookup` answers them today, since an analysis or a refresh reports a provider failure inside its own document. A client still branches on `reason_code`.
 
 An unexpected failure, whether in an endpoint or in the checks before it, is `execution_error` with a fixed message and
 status 500; its detail goes to the log. `port_unavailable` occurs only
@@ -195,8 +199,8 @@ client reads it once and can offer a lookup when there is nothing to show.
   within the freshness window, otherwise the data providers. A profile with an identity anchor is stored; one without is
   answered and not stored, so the next `GET` is still 404. It sends no body and can run while a refresh job runs. When no
   provider identifies the ticker it fails with `provider_no_data`, and a provider that failed gives its own `provider_*` code
-  (`provider_unreachable`, `provider_rate_limited` or `provider_unexpected_response`); these codes are answered with status
-  500, as they are everywhere else, so branch on `reason_code`. A server started without an SEC identity still looks the
+  (`provider_unreachable`, `provider_rate_limited` or `provider_unexpected_response`); the statuses are 404, 502, 429 and
+  502 ([Errors](#errors)), and a client still branches on `reason_code`. A server started without an SEC identity still looks the
   profile up, with Yahoo as the only provider; the result has no issuer identifier, so it is answered and not stored, and a
   stored profile is answered as before. A lookup is called a lookup, never a refresh, because a refresh runs a watchlist.
 

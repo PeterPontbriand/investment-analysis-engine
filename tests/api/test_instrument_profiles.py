@@ -147,8 +147,17 @@ def test_a_lookup_without_an_identity_anchor_is_served_and_not_stored(
     assert read.status_code == 404
 
 
+_PROVIDER_STATUS = {
+    ProviderFailureKind.NO_DATA: 404,
+    ProviderFailureKind.UNREACHABLE: 502,
+    ProviderFailureKind.UNEXPECTED_RESPONSE: 502,
+    ProviderFailureKind.RATE_LIMITED: 429,
+}
+"""The status each kind of provider failure answers with, written out so a change to the table fails a test."""
+
+
 @pytest.mark.parametrize("kind", list(ProviderFailureKind))
-def test_a_lookup_that_fails_on_a_provider_answers_its_code_and_the_status_that_code_already_has(
+def test_a_lookup_that_fails_on_a_provider_answers_its_code_and_the_status_of_that_code(
     isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch, kind: ProviderFailureKind
 ) -> None:
     context = profile_context(isolated_cli_settings)
@@ -159,7 +168,7 @@ def test_a_lookup_that_fails_on_a_provider_answers_its_code_and_the_status_that_
 
     body = response.json()
     assert body["reason_code"] == PROVIDER_CODE_BY_KIND[kind].value
-    assert response.status_code == 500
+    assert response.status_code == _PROVIDER_STATUS[kind]
     assert body["provider_failure"]["inputs"][0]["provider_id"] == "sec_edgar"
 
 
@@ -173,6 +182,7 @@ def test_a_lookup_in_which_no_provider_identifies_the_ticker_is_provider_no_data
         response = client.post("/v1/instrument-profiles/ZZZZ/lookup", headers=AUTH)
 
     body = response.json()
+    assert response.status_code == 404
     assert (body["reason_code"], body["reason"]) == (
         "provider_no_data",
         "Unable to look up ZZZZ: Yahoo Finance returned no data for it.",

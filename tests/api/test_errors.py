@@ -31,6 +31,12 @@ _STATUS = {
     "help_term_not_found": 404,
     "help_document_not_found": 404,
     "instrument_profile_not_found": 404,
+    "provider_no_data": 404,
+    "provider_unreachable": 502,
+    "provider_unexpected_response": 502,
+    "provider_error": 502,
+    "provider_rate_limited": 429,
+    "configuration_error": 409,
     "database_busy": 503,
 }
 _PROVIDER_KIND = {code: kind for kind, code in PROVIDER_CODE_BY_KIND.items()}
