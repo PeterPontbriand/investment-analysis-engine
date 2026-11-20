@@ -245,6 +245,8 @@ def run_scenario() -> list[Step]:
                 return_value=None,
             )
         )
+        # Adding entries checks each ticker; the scenario confirms every one, so no provider is asked.
+        stack.enter_context(patch("investment_analysis_engine.application.entry_check.lookup_instrument_profile"))
         runner = CliRunner()
         substitutions = {
             "<new>": f"sqlite:///{(root / 'new' / 'one.sqlite3').as_posix()}",
