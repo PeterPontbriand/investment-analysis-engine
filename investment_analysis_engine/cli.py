@@ -15,6 +15,7 @@ from investment_analysis_engine.application.providers import load_all_component_
 from investment_analysis_engine.cli_about import register as register_about_command
 from investment_analysis_engine.cli_database import app as database_app
 from investment_analysis_engine.cli_health import register as register_health_command
+from investment_analysis_engine.cli_instrument import register as register_instrument_commands
 from investment_analysis_engine.cli_serve import register as register_serve_command
 from investment_analysis_engine.cli_strategy_wiring import add_strategy_commands
 from investment_analysis_engine.cli_support import get_cli_run_context, parameter_failures
@@ -50,6 +51,7 @@ app = typer.Typer(
 )
 app.add_typer(database_app, name="db", hidden=True)
 register_workspace_commands(app)
+register_instrument_commands(app)
 register_about_command(app)
 register_health_command(app)
 register_serve_command(app)

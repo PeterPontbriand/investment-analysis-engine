@@ -22,3 +22,4 @@ report.
 watchlist Manage named watchlists of tickers and their analysis
 selections.
 runs Browse persisted Analysis Run history.
+instrument Show what the engine knows about an instrument.
