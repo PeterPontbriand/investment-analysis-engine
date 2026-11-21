@@ -23,6 +23,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
     SecEdgarFinancialFactsAdapter,
 )
+from tests._sec_ticker_file import exchange_file, one_row_file
 
 NOW = datetime(2026, 8, 29, 16, 0, tzinfo=UTC)
 CIK = 320193
@@ -34,7 +35,7 @@ class FakeSecFetcher:
     def __init__(self, company_facts: object, *, ticker_rows: object | None = None) -> None:
         """Initialize deterministic endpoint responses."""
         self._company_facts = company_facts
-        self._ticker_rows = ticker_rows or {"0": {"cik_str": CIK, "ticker": "AAPL", "title": "Apple"}}
+        self._ticker_rows = ticker_rows or one_row_file(cik=CIK, ticker="AAPL", name="Apple")
 
     def __call__(
         self,
@@ -46,8 +47,8 @@ class FakeSecFetcher:
     ) -> object:
         """Return the fixture associated with an SEC URL."""
         assert headers["User-Agent"] == "D3 fixture tests@example.invalid"
-        if "company_tickers.json" in url:
-            return self._ticker_rows
+        if "company_tickers_exchange.json" in url:
+            return exchange_file(self._ticker_rows)
         if "/companyfacts/" in url:
             return self._company_facts
         if "/submissions/" in url:
@@ -199,7 +200,7 @@ def test_rejects_conflicting_equal_rank_and_unsupported_shapes() -> None:
     multi_ticker = {
         "0": {"cik_str": CIK, "ticker": "AAPL", "title": "Apple"},
         "1": {"cik_str": CIK, "ticker": "AAPL-A", "title": "Apple"},
-    }
+    }  # older layout; the fake fetcher serves it as the exchange file
 
     assert _adapter(_payload(conflict)).fetch_facts(_request(observation_count=1), effective_as_of=NOW) == ()
     assert (
@@ -286,7 +287,7 @@ def _nvda_payload() -> dict[str, Any]:
 
 
 def _nvda_adapter() -> SecEdgarFinancialFactsAdapter:
-    rows = {"0": {"cik_str": _NVDA_CIK, "ticker": "NVDA", "title": "NVIDIA"}}
+    rows = one_row_file(cik=_NVDA_CIK, ticker="NVDA", name="NVIDIA")
     return _adapter(_nvda_payload(), ticker_rows=rows)
 
 

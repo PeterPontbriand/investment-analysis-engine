@@ -16,6 +16,7 @@ from investment_analysis_engine.data.sec_edgar.filing_document import FilingRead
 from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.data.sec_edgar.security_unit import UnitMappingError, parse_unit_document
 from investment_analysis_engine.data.security_unit import SecurityUnitRequest, SecurityUnitResolutionReason
+from tests._sec_ticker_file import one_row_file
 
 NOW = datetime(2026, 9, 9, tzinfo=UTC)
 ACCESSION = "0001628280-26-010047"
@@ -136,8 +137,8 @@ class FilingFixture:
 
     def json(self, url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:  # noqa: ARG002
         assert headers["User-Agent"]
-        if url.endswith("company_tickers.json"):
-            return {"0": {"ticker": "KO", "cik_str": 21344, "title": "Synthetic KO"}}
+        if url.endswith("company_tickers_exchange.json"):
+            return one_row_file(cik=21344, ticker="KO", name="Synthetic KO")
         if "/companyfacts/" in url:
             return self.facts
         if "/submissions/" in url:

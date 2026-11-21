@@ -66,6 +66,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.14 | [Option terms and the duplicate message](#api14--option-terms-and-the-duplicate-message) | Complete | 2026-11-18 |
 | API.15 | [Instrument profiles](#api15--instrument-profiles) | Complete | 2026-11-20 |
 | API.16 | [Ticker check on adding entries, duplicate wording and provider statuses](#api16--ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses) | Complete | 2026-11-20 |
+| API.17 | [Listing venue for profiles identified by SEC EDGAR](#api17--listing-venue-for-profiles-identified-by-sec-edgar) | Complete | 2026-11-21 |
 
 ## 3. The slices
 
@@ -462,6 +463,21 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-entry-check`.
 - **Detail:** no separate slice plan; decisions in [A.14](#a14-ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses-2026-11-20).
 
+### API.17 — Listing venue for profiles identified by SEC EDGAR
+
+- **Problem:** an instrument profile identified by SEC EDGAR has a null `listing_venue`, because the ticker file the engine
+  reads (`company_tickers.json`) carries no exchange (engine issue 282).
+- **Decision:** the engine reads SEC's `company_tickers_exchange.json` as its one SEC ticker file, so the venue comes from
+  the same provider and request as the rest of the identity. It is served as SEC writes it; a missing exchange stays null;
+  explaining venues to users is engine issue 284 ([A.15](#a15-listing-venue-for-profiles-identified-by-sec-edgar-2026-11-21),
+  L1 to L8).
+- **Scope:** `data/sec_edgar/financial_facts.py` (the file URL, its parsing and the identity's `listing_venue`),
+  `data/provider_checks.py` (the SEC check's URL and fields), the evaluation fixtures that serve the file, the three
+  documents that name the file (`ARCHITECTURE.md`, `PROVIDER_DEBUGGING.md`, `EVIDENCE_PROVIDER_ROADMAP.md`), this plan;
+  tests.
+- **Branch:** `feat/api-sec-listing-venue`.
+- **Detail:** no separate slice plan; decisions in [A.15](#a15-listing-venue-for-profiles-identified-by-sec-edgar-2026-11-21).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -576,6 +592,11 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   `provider_no_data` answers 404, `provider_unreachable`, `provider_unexpected_response` and `provider_error` 502,
   `provider_rate_limited` 429 and `configuration_error` 409 on every endpoint that can return them, each documented in
   `openapi.json` and `docs/user/API.md`; the schemas and `openapi.json` pass their drift checks.
+- API.17: an instrument profile, a run overview and a run's identity identified by SEC EDGAR serve the exchange SEC's
+  `company_tickers_exchange.json` lists for the ticker, as SEC writes it (`Nasdaq`, `NYSE`, `OTC`, `CBOE`), and null when
+  the file gives none; a ticker the file lists under more than one CIK is still refused, and a reviewed override still
+  wins and says `cik_source=override`; a Yahoo identity keeps Yahoo's wording; no stored shape or version changes; the
+  live suite checks that the real file still has `cik`, `name`, `ticker` and `exchange`.
 - API.12: a new run stores `outcome` and `run_schema_version` 4 in `envelope_json` and in the column, and reads back; a
   version 3 run is refused with `unsupported_run_version` by `runs show` (text and `--json`), the run endpoint, the run
   overview and replay, logs no exception, and still appears in `runs list` and the refreshes list with its outcome and in
@@ -853,3 +874,18 @@ Approved by the project owner on 2026-11-20. Closes engine issues 269 and 275. N
 | P12 | Recording. API.16 and this appendix entry in this plan. The pull request closes issues 269 and 275 and sets API.16's status row to Complete, dated the day it is opened. Any desktop follow-up is the desktop repository's work, not this slice's. |
 | P13 | The lookup's database failure. Amends P4, P5, P7 and P8. The lookup opens the database, so it can raise `DatabaseReadinessError` after the entries were written. During the check, that error gives its ticker `ticker_not_checked`; no new warning code is added and `provider_error` is not used for it. P7's `reason_code` is the failure reason code that kept the ticker from being checked: a provider failure code, or the readiness error's own failure reason code (for example `database_busy`); it is still null for `ticker_not_recognized`. P5's stop rule applies to a readiness error as it does to `provider_unreachable` and `provider_rate_limited`: the remaining tickers are not looked up and each gets `ticker_not_checked` with the same `reason_code` and message. P8 gains one template: "{ticker} could not be checked, because the engine's database was not available." Any other exception the lookup raises still propagates. Rejected: letting a readiness error propagate, which would turn an add whose entries are stored into a failure. Amended by P14. |
 | P14 | Raw storage errors during the check. Amends P13. Every database error the lookup raises during the check gives its ticker `ticker_not_checked`, applies P5's stop and uses P13's message: `DatabaseReadinessError`, and the raw storage errors `OSError`, `sqlite3.Error` and `SQLAlchemyError` that the profile cache can raise after the readiness check. The `reason_code` of a raw storage error is the failure reason code of the category the engine already classifies it into, `storage_reason` in `data/repositories/readiness.py` (made public under that name, behavior unchanged), mapped to its failure reason code as a readiness error's is, so a locked database gives `database_busy` and an I/O failure `database_io_error`. Each caught database error is logged with its traceback through the operational logging. An exception that is neither a provider failure nor a database error still propagates. Rejected: one blanket `database_io_error`, which mislabels a locked database. |
+
+### A.15 Listing venue for profiles identified by SEC EDGAR (2026-11-21)
+
+Approved by the project owner on 2026-11-21. Closes engine issue 282. No stored shape, version, formula or classification changes.
+
+| # | Decision |
+| :--- | :--- |
+| L1 | This slice is API.17, on branch `feat/api-sec-listing-venue`, recorded as this entry. |
+| L2 | Source. SEC's `company_tickers_exchange.json` replaces `company_tickers.json` as the engine's one SEC ticker file, so an SEC EDGAR identity's `listing_venue` comes from the same provider and the same request as the rest of the identity. Before the change, current copies of both files were compared on 2026-11-21: 10,399 rows each, the same 10,399 tickers, the same CIK for every ticker, and no ticker under more than one CIK in either. The exchange file is `{"fields": ["cik", "name", "ticker", "exchange"], "data": [[cik, name, ticker, exchange], ...]}`; a missing exchange is written as `null` (155 rows). The exchanges it lists were `Nasdaq`, `NYSE`, `OTC`, `CBOE` and `TXSE`. The adapter refuses a document with other fields as an unexpected response. Rejected: Yahoo's exchange name inside an SEC identity, because the profile would name SEC EDGAR for a value Yahoo supplied; the anchor filing's cover exchange, because it describes the filing's date, not today. |
+| L3 | Venue values are served as SEC writes them, with no mapping to full names; a missing or blank exchange stays null; a Yahoo-identified profile keeps Yahoo's wording. Explaining venues to users, by serving a code with a glossary entry, is a requirement recorded in engine issue 284. |
+| L4 | No instrument profile schema version bump. A stored profile gains its venue when it next refreshes after the freshness window. A bump would make every stored profile read as not found (404) until looked up again. |
+| L5 | Saved runs are unchanged. A run keeps the identity it had when it ran, a null venue included. No migration. |
+| L6 | The internal CIK provenance value `CIK_SOURCE_TICKER_FILE` is renamed from `company_tickers` to `ticker_file`: the engine no longer reads that file, and the new value names the kind of source rather than a file, so it does not go stale if SEC's file changes again. Nothing stores or serves the value (only `cik_source=override` is written to a fact's notes), so there is no compatibility concern. |
+| L7 | `ARCHITECTURE.md`, `PROVIDER_DEBUGGING.md` and `EVIDENCE_PROVIDER_ROADMAP.md` name the new file and describe the SEC identity's venue. Offline tests use the exchange layout and cover a venue served for an SEC identity, a missing exchange served as null, the duplicate-CIK refusal, the reviewed override (it wins over the file, and the provenance says `cik_source=override`) and a document in another layout. The live suite's SEC check requires the fields `cik`, `name`, `ticker` and `exchange` in the real file. |
+| L8 | No desktop slice. The desktop application re-vendors in its GUI.4b slice. |

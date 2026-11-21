@@ -56,6 +56,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SecEdgarFinancialFactsAdapter,
 )
 from tests._sec_instants import ANNUAL_FIXTURES, REGRESSION_SET, FixtureFetcher, load
+from tests._sec_ticker_file import one_row_file
 from tests.analysis.shared._issuer_inputs import synthetic
 from tests.analysis.shared._metric_input_rig import (
     LIVE_NOW,
@@ -1020,8 +1021,8 @@ class _MetaSec:
         self.cover_urls: list[str] = []
 
     def json(self, url: str, **_kwargs: object) -> object:
-        if url.endswith("company_tickers.json"):
-            return {"0": {"cik_str": 1326801, "ticker": "META", "title": "Meta Platforms, Inc."}}
+        if url.endswith("company_tickers_exchange.json"):
+            return one_row_file(cik=1326801, ticker="META", name="Meta Platforms, Inc.")
         if "/companyfacts/" in url:
             return {"cik": 1326801, "entityName": "Meta", "facts": {"us-gaap": {}}}
         return {

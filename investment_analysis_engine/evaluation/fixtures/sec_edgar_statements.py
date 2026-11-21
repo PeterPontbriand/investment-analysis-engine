@@ -83,12 +83,11 @@ class StatementsFetcher:
         if self._documents is None:
             balance, annual = _load("instant_facts", self._stem), _load("annual_facts", self._stem)
             self._documents = {
-                "company_tickers.json": {
-                    "0": {
-                        "cik_str": balance["cik"],
-                        "ticker": self._stem.upper(),
-                        "title": balance["companyfacts"]["entityName"],
-                    }
+                "company_tickers_exchange.json": {
+                    "fields": ["cik", "name", "ticker", "exchange"],
+                    "data": [
+                        [balance["cik"], balance["companyfacts"]["entityName"], self._stem.upper(), None],
+                    ],
                 },
                 "/companyfacts/": self._companyfacts or _merged_facts(balance["companyfacts"], annual["companyfacts"]),
                 "/submissions/": self._submissions

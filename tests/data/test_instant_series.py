@@ -37,6 +37,7 @@ from tests._sec_instants import (
     load,
     series,
 )
+from tests._sec_ticker_file import one_row_file
 
 _REASON = InstantAbsenceReason
 
@@ -82,7 +83,7 @@ def _document(  # noqa: PLR0913
 
 def _fetcher(companyfacts: object, submissions: object) -> FixtureFetcher:
     fetcher = FixtureFetcher("WMT", companyfacts=companyfacts, submissions=submissions)
-    fetcher.documents["company_tickers.json"] = {"0": {"cik_str": 1, "ticker": "SYN", "title": "Synthetic"}}
+    fetcher.documents["company_tickers_exchange.json"] = one_row_file(cik=1, ticker="SYN", name="Synthetic")
     return fetcher
 
 

@@ -264,13 +264,13 @@ The check reads the ticker map and one company-facts document for the probe tick
 | `not configured`: `SEC EDGAR access is not configured` | `SEC_USER_AGENT` is not set (locally, or the repository secret for the cloud run). |
 | `unreachable`: `FinancialProviderError: HTTP request failed ... 403` | SEC refused the request. A blocked client and a rejected identity both get HTTP 403, so it cannot be told apart from a rejected identity and stays `unreachable`. SEC requires a declared identity; check the value of `SEC_USER_AGENT`. |
 | `rate limited`: `FinancialProviderError: HTTP request failed ... 429` | SEC is limiting the request rate. Wait, and check that nothing else was calling at the same time. |
-| `unexpected response`: `ticker map entries are missing fields: ...`, `ticker map entry for AAPL is missing fields: ...`, `ticker map has no entry for AAPL` | The ticker map document changed. Read `_ticker_cik_map` in [`investment_analysis_engine/data/sec_edgar/financial_facts.py`](../../investment_analysis_engine/data/sec_edgar/financial_facts.py). |
+| `unexpected response`: `ticker map entries are missing fields: ...` (the file must carry `cik`, `name`, `ticker` and `exchange`), `ticker map has no entries`, `ticker map entry for AAPL has a non-numeric cik`, `ticker map has no entry for AAPL` | The ticker map document (SEC's `company_tickers_exchange.json`) changed. Read `_ticker_rows` in [`investment_analysis_engine/data/sec_edgar/financial_facts.py`](../../investment_analysis_engine/data/sec_edgar/financial_facts.py). |
 | `unexpected response`: `company facts document has no 'facts' mapping` or no `'us-gaap'` mapping | The company-facts document changed. Read how the same module parses `facts`. |
 | `unreachable`: `timed out after 20 s` | The network, or SEC is slow; retry once. |
 
 #### Which registrant a ticker names
 
-A ticker names the registrant SEC's `company_tickers.json` maps it to today, and a run with `--as-of` studies that registrant's evidence as filed or priced at the boundary ([Architecture](ARCHITECTURE.md#which-registrant-a-ticker-names)). The messages below follow from that, and each names the CIK and the override that fixes it:
+A ticker names the registrant SEC's `company_tickers_exchange.json` maps it to today, and a run with `--as-of` studies that registrant's evidence as filed or priced at the boundary ([Architecture](ARCHITECTURE.md#which-registrant-a-ticker-names)). The messages below follow from that, and each names the CIK and the override that fixes it:
 
 | Message | What it means | What to do |
 | :--- | :--- | :--- |

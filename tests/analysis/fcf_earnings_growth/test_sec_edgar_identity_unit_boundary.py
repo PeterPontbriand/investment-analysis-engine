@@ -16,6 +16,7 @@ from investment_analysis_engine.data.financial.facts import FinancialFactRequest
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_ROOT
+from tests._sec_ticker_file import exchange_file
 
 NOW = datetime(2026, 9, 1, 2, 0, tzinfo=UTC)
 
@@ -42,8 +43,8 @@ class _FrozenSecFetcher:
         provider_id: str,  # noqa: ARG002
     ) -> object:
         assert headers["User-Agent"] == "A0 fixture tests@example.invalid"
-        if "company_tickers.json" in url:
-            return self._ticker_rows
+        if "company_tickers_exchange.json" in url:
+            return exchange_file(self._ticker_rows)
         if "/companyfacts/" in url:
             return self._company_facts
         if "/submissions/" in url:

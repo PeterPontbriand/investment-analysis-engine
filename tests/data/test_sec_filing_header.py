@@ -36,6 +36,7 @@ from investment_analysis_engine.data.sec_edgar.filing_header import (
     parse_filing_header,
 )
 from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
+from tests._sec_ticker_file import one_row_file
 
 FIXTURES = PACKAGE_ROOT / "evaluation" / "fixtures" / "sec_edgar" / "filing_headers"
 NOW = datetime(2026, 10, 25, tzinfo=UTC)
@@ -397,8 +398,8 @@ class _Sec:
 
     def json(self, url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:  # noqa: ARG002
         assert headers["User-Agent"]
-        if url.endswith("company_tickers.json"):
-            return {"0": {"ticker": "JPM", "cik_str": 19617, "title": "JPMorgan Chase"}}
+        if url.endswith("company_tickers_exchange.json"):
+            return one_row_file(cik=19617, ticker="JPM", name="JPMorgan Chase")
         if "/companyfacts/" in url:
             return {"cik": 19617, "entityName": "JPM", "facts": {"us-gaap": {}}}
         return self.submissions

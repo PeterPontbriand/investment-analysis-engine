@@ -128,9 +128,9 @@ YAHOO_SPEC = YahooCheckSpec(
 )
 SEC_EDGAR_SPEC = SecEdgarCheckSpec(
     probe_ticker="AAPL",
-    ticker_map_url="https://www.sec.gov/files/company_tickers.json",
+    ticker_map_url="https://www.sec.gov/files/company_tickers_exchange.json",
     company_facts_url="https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json",
-    ticker_entry_fields=("cik_str", "ticker", "title"),
+    ticker_entry_fields=("cik", "name", "ticker", "exchange"),
     taxonomy="us-gaap",
     timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
 )
@@ -421,24 +421,25 @@ def _probe_cik(ticker_map: object, spec: SecEdgarCheckSpec) -> str:
     if not isinstance(ticker_map, Mapping) or not ticker_map:
         msg = "ticker map is not a non-empty object"
         raise _wrong_shape(msg)
-    first_entry = next((entry for entry in ticker_map.values() if isinstance(entry, Mapping)), None)
-    if first_entry is None:
-        msg = "ticker map has no entries"
-        raise _wrong_shape(msg)
-    missing_fields = [field for field in spec.ticker_entry_fields if field not in first_entry]
+    fields = ticker_map.get("fields")
+    names = [field for field in fields if isinstance(field, str)] if isinstance(fields, (list, tuple)) else []
+    missing_fields = [field for field in spec.ticker_entry_fields if field not in names]
     if missing_fields:
         msg = f"ticker map entries are missing fields: {', '.join(missing_fields)}"
         raise _wrong_shape(msg)
-    for entry in ticker_map.values():
+    data = ticker_map.get("data")
+    if not isinstance(data, (list, tuple)) or not data:
+        msg = "ticker map has no entries"
+        raise _wrong_shape(msg)
+    ticker_at, cik_at = names.index("ticker"), names.index("cik")
+    for row in data:
         # A provider's own entry, which may be blank; compared, not validated.
-        if isinstance(entry, Mapping) and str(entry.get("ticker", "")).strip().upper() == spec.probe_ticker:
-            missing = [field for field in spec.ticker_entry_fields if field not in entry]
-            if missing:
-                msg = f"ticker map entry for {spec.probe_ticker} is missing fields: {', '.join(missing)}"
-                raise _wrong_shape(msg)
-            cik = str(entry["cik_str"]).strip()
+        if not isinstance(row, (list, tuple)) or len(row) != len(names):
+            continue
+        if str(row[ticker_at]).strip().upper() == spec.probe_ticker:
+            cik = str(row[cik_at]).strip()
             if not cik.isdigit():
-                msg = f"ticker map entry for {spec.probe_ticker} has a non-numeric cik_str"
+                msg = f"ticker map entry for {spec.probe_ticker} has a non-numeric cik"
                 raise _wrong_shape(msg)
             return cik.zfill(10)
     msg = f"ticker map has no entry for {spec.probe_ticker}"

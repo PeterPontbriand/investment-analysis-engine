@@ -17,6 +17,7 @@ from investment_analysis_engine.strategies.fcf_growth.input_resolver import Prod
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthConfig, FCFEarningsGrowthPolicy
 from investment_analysis_engine.strategies.fcf_growth.presenter import render_fcf_earnings_growth
 from tests._fcf_market_data import CLOCK, fcf_market_data
+from tests._sec_ticker_file import one_row_file
 
 _CIK = 1045810
 _PERIODS = (
@@ -116,8 +117,8 @@ class _Fetcher:
         not_found: ProviderFailureKind,  # noqa: ARG002
         provider_id: str,  # noqa: ARG002
     ) -> object:
-        if "company_tickers.json" in url:
-            return {"0": {"cik_str": _CIK, "ticker": "NVDA", "title": "NVIDIA"}}
+        if "company_tickers_exchange.json" in url:
+            return one_row_file(cik=_CIK, ticker="NVDA", name="NVIDIA")
         if "/companyfacts/" in url:
             return _company_facts()
         if "/submissions/" in url:

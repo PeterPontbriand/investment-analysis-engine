@@ -24,6 +24,7 @@ from investment_analysis_engine.evaluation.fixtures.graham import NOW as EFFECTI
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_ROOT
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
 from investment_analysis_engine.strategies.graham_number.service import run_graham_number_analysis
+from tests._sec_ticker_file import exchange_file
 
 NOW = datetime(2026, 9, 1, 14, 0, tzinfo=UTC)
 
@@ -51,8 +52,8 @@ class _SnapshotFetcher:
     ) -> object:
         assert headers["User-Agent"] == "B1-A fixture tests@example.invalid"
         self.calls.append(url)
-        if "company_tickers.json" in url:
-            return _fixture("company_tickers.json")
+        if "company_tickers_exchange.json" in url:
+            return exchange_file(_fixture("company_tickers.json"))
         if "/companyfacts/" in url:
             return self.company_facts
         if "/submissions/" in url:
