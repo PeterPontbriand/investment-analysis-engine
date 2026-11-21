@@ -99,7 +99,7 @@ from investment_analysis_engine.data.security_unit import (
 )
 
 SEC_PROVIDER_ID = "sec_edgar"
-CIK_SOURCE_TICKER_FILE = "company_tickers"
+CIK_SOURCE_TICKER_FILE = "ticker_file"
 CIK_SOURCE_OVERRIDE = "override"
 CIK_SOURCE_NOTE = "cik_source"
 SEC_EPS_FIELD = "us-gaap:EarningsPerShareDiluted"
