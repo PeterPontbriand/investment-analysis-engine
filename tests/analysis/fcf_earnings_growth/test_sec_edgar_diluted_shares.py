@@ -21,6 +21,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_WEIGHTED_AVERAGE_DILUTED_SHARES_FIELD,
     SecEdgarFinancialFactsAdapter,
 )
+from tests._sec_ticker_file import one_row_file
 
 NOW = datetime(2026, 8, 29, 16, 0, tzinfo=UTC)
 CIK = 320193
@@ -39,8 +40,8 @@ class _Fetcher:
         provider_id: str,  # noqa: ARG002
     ) -> object:
         assert headers["User-Agent"] == "E2 fixture tests@example.invalid"
-        if "company_tickers.json" in url:
-            return {"0": {"cik_str": CIK, "ticker": "AAPL", "title": "Apple"}}
+        if "company_tickers_exchange.json" in url:
+            return one_row_file(cik=CIK, ticker="AAPL", name="Apple")
         if "/companyfacts/" in url:
             return {
                 "cik": CIK,

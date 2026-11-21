@@ -16,6 +16,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
     SecEdgarFinancialFactsAdapter,
 )
+from tests._sec_ticker_file import exchange_file, one_row_file
 
 NOW = datetime(2026, 8, 28, 16, 0, tzinfo=UTC)
 CIK = 789019
@@ -35,7 +36,7 @@ class FakeSecFetcher:
         """Initialize deterministic endpoint responses."""
         self._company_facts = company_facts
         self._submissions = submissions or {"filings": {"recent": {}}}
-        self._ticker_rows = ticker_rows or {"0": {"cik_str": CIK, "ticker": "MSFT", "title": "Microsoft Corporation"}}
+        self._ticker_rows = ticker_rows or one_row_file(cik=CIK, ticker="MSFT", name="Microsoft Corporation")
         self.calls: list[str] = []
 
     def __call__(
@@ -49,8 +50,8 @@ class FakeSecFetcher:
         """Return the fixture associated with an SEC URL."""
         assert headers["User-Agent"] == "D1 fixture tests@example.invalid"
         self.calls.append(url)
-        if "company_tickers.json" in url:
-            return self._ticker_rows
+        if "company_tickers_exchange.json" in url:
+            return exchange_file(self._ticker_rows)
         if "/companyfacts/" in url:
             return self._company_facts
         if "/submissions/" in url:

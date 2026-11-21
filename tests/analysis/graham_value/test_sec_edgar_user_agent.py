@@ -11,6 +11,7 @@ from investment_analysis_engine.core.provider_failure_kind import ProviderFailur
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from tests._sec_ticker_file import one_row_file
 
 
 class HeaderCaptureFetcher:
@@ -30,8 +31,8 @@ class HeaderCaptureFetcher:
     ) -> object:
         """Record one request and return the minimal payload needed for the URL."""
         self.calls.append((url, dict(headers)))
-        if "company_tickers.json" in url:
-            return {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}}
+        if "company_tickers_exchange.json" in url:
+            return one_row_file(cik=320193, ticker="AAPL", name="Apple Inc.")
         if "/companyfacts/" in url:
             return {"facts": {"us-gaap": {"EarningsPerShareDiluted": {"units": {}}}}}
         if "/submissions/" in url:

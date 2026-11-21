@@ -13,6 +13,7 @@ from investment_analysis_engine.data.financial.production import ProductionFinan
 from investment_analysis_engine.data.sec_edgar.financial_facts import SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.strategies.fcf_growth.input_resolver import ProductionAnnualGrowthSeriesResolver
 from investment_analysis_engine.strategies.fcf_growth.models import FCFEarningsGrowthPolicy
+from tests._sec_ticker_file import one_row_file
 
 NOW = datetime(2026, 8, 29, 16, 0, tzinfo=UTC)
 CIK = 789019
@@ -34,8 +35,8 @@ class _SecFixtureFetcher:
     ) -> object:
         """Return the fixture matching the requested SEC endpoint."""
         assert headers["User-Agent"] == "D5 integration tests@example.invalid"
-        if "company_tickers.json" in url:
-            return {"0": {"cik_str": CIK, "ticker": "MSFT", "title": "Microsoft Corporation"}}
+        if "company_tickers_exchange.json" in url:
+            return one_row_file(cik=CIK, ticker="MSFT", name="Microsoft Corporation")
         if "/companyfacts/" in url:
             return self._company_facts
         if "/submissions/" in url:

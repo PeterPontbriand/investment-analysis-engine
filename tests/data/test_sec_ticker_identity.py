@@ -28,6 +28,8 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SEC_PROVIDER_ID,
     SecEdgarFinancialFactsAdapter,
 )
+from investment_analysis_engine.data.security_identity import SecurityIdentityRequest
+from tests._sec_ticker_file import TICKER_FILE_FIELDS
 
 NOW = datetime(2026, 10, 27, 12, tzinfo=UTC)
 _OLD_CIK, _NEW_CIK = 34088, 2115436
@@ -89,8 +91,11 @@ class _Sec:
         submissions: Mapping[int, dict[str, Any]],
         covers: Mapping[str, str] | None = None,
         facts_form: str = "10-K",
+        exchanges: Mapping[str, str | None] | None = None,
     ) -> None:
         self.facts_form = facts_form
+        self.exchanges = dict(exchanges or {})
+        self.ticker_document: object | None = None
         self.rows = rows
         self.submissions = dict(submissions)
         self.covers = dict(covers or {})
@@ -100,10 +105,12 @@ class _Sec:
     def json(self, url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:
         assert headers["User-Agent"]
         self.urls.append(url)
-        if url.endswith("company_tickers.json"):
+        if url.endswith("company_tickers_exchange.json"):
+            if self.ticker_document is not None:
+                return self.ticker_document
             return {
-                str(index): {"cik_str": cik, "ticker": ticker, "title": f"Issuer {cik}"}
-                for index, (ticker, cik) in enumerate(self.rows)
+                "fields": list(TICKER_FILE_FIELDS),
+                "data": [[cik, f"Issuer {cik}", ticker, self.exchanges.get(ticker)] for ticker, cik in self.rows],
             }
         cik = int(url.rsplit("CIK", 1)[1][:10])
         if cik not in self.submissions:
@@ -187,6 +194,56 @@ def test_an_override_resolves_a_ticker_listed_under_two_ciks() -> None:
     snapshot = adapter.create_analysis_snapshot(subject_id="XOM", as_of=None)
     assert snapshot.cik == f"{_OLD_CIK:010d}"
     assert snapshot.cik_source == CIK_SOURCE_OVERRIDE
+
+
+# --- the listing venue of an SEC identity -----------------------------------------------------
+
+
+def test_an_sec_identity_serves_the_exchange_the_ticker_file_lists_as_sec_writes_it() -> None:
+    sec = _Sec(
+        [("XOM", _OLD_CIK), ("OTCX", _NEW_CIK)],
+        {},
+        exchanges={"XOM": " NYSE ", "OTCX": "OTC"},
+    )
+    adapter = sec.adapter()
+
+    xom = adapter.resolve_security_identity(SecurityIdentityRequest("XOM", SEC_PROVIDER_ID))
+    otc = adapter.resolve_security_identity(SecurityIdentityRequest("OTCX", SEC_PROVIDER_ID))
+
+    assert xom is not None
+    assert xom.listing_venue == "NYSE"
+    assert otc is not None
+    assert otc.listing_venue == "OTC"
+    assert len(sec.urls) == 1
+
+
+@pytest.mark.parametrize("exchange", [None, "", "   "])
+def test_a_missing_exchange_is_served_as_no_venue(exchange: str | None) -> None:
+    sec = _Sec([("XOM", _OLD_CIK)], {}, exchanges={"XOM": exchange})
+
+    identity = sec.adapter().resolve_security_identity(SecurityIdentityRequest("XOM", SEC_PROVIDER_ID))
+
+    assert identity is not None
+    assert identity.listing_venue is None
+    assert identity.issuer_identifier == f"{_OLD_CIK:010d}"
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        {"data": [[1, "Name", "XOM", "NYSE"]]},
+        {"fields": ["cik_str", "ticker", "title"], "data": [[1, "XOM", "Name"]]},
+        {"fields": ["cik", "name", "ticker", "exchange"], "data": "rows"},
+    ],
+)
+def test_a_ticker_file_in_another_layout_is_an_unexpected_response(document: dict[str, Any]) -> None:
+    sec = _Sec([], {})
+    sec.ticker_document = document
+
+    with pytest.raises(FinancialProviderError) as caught:
+        sec.adapter().resolve_security_identity(SecurityIdentityRequest("XOM", SEC_PROVIDER_ID))
+
+    assert caught.value.kind is ProviderFailureKind.UNEXPECTED_RESPONSE
 
 
 # --- an override --------------------------------------------------------------------------------

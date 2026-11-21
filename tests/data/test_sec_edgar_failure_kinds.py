@@ -15,9 +15,10 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SecEdgarFinancialFactsAdapter,
     _MissingCikError,
 )
+from tests._sec_ticker_file import one_row_file
 
 NOW = datetime(2026, 8, 29, 16, 0, tzinfo=UTC)
-_TICKER_ROWS = {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple"}}
+_TICKER_ROWS = one_row_file(cik=320193, ticker="AAPL", name="Apple")
 _COMPANY_FACTS = {"cik": 320193, "entityName": "Apple", "facts": {"us-gaap": {}}}
 _UNREACHABLE = FinancialProviderError(
     "ticker map outage", kind=ProviderFailureKind.UNREACHABLE, provider_id=SEC_PROVIDER_ID
@@ -29,7 +30,7 @@ class _Fetcher:
 
     def __init__(self, **overrides: object) -> None:
         self.documents: dict[str, object] = {
-            "company_tickers.json": _TICKER_ROWS,
+            "company_tickers_exchange.json": _TICKER_ROWS,
             "/companyfacts/": _COMPANY_FACTS,
             "/submissions/": {
                 "filings": {
@@ -92,7 +93,7 @@ def test_each_document_is_requested_with_its_own_404_kind_and_the_provider() -> 
     _adapter(fetcher).create_analysis_snapshot(subject_id="AAPL", as_of=NOW)
 
     kinds = {
-        ("company_tickers.json" in url, "/companyfacts/" in url, "/submissions/" in url): kind
+        ("company_tickers_exchange.json" in url, "/companyfacts/" in url, "/submissions/" in url): kind
         for url, kind, _ in fetcher.calls
     }
     assert kinds == {
@@ -123,7 +124,7 @@ def test_a_ticker_with_no_cik_mapping_is_a_no_data_failure_for_the_other_fields(
 
 
 def test_a_ticker_map_outage_is_not_turned_into_an_empty_snapshot() -> None:
-    adapter = _adapter(_Fetcher(**{"company_tickers.json": _UNREACHABLE}))
+    adapter = _adapter(_Fetcher(**{"company_tickers_exchange.json": _UNREACHABLE}))
     with pytest.raises(FinancialProviderError) as caught:
         adapter.create_analysis_snapshot(subject_id="AAPL", as_of=NOW)
     assert caught.value is _UNREACHABLE
@@ -131,7 +132,7 @@ def test_a_ticker_map_outage_is_not_turned_into_an_empty_snapshot() -> None:
 
 @pytest.mark.parametrize("field", _FIELDS)
 def test_a_ticker_map_outage_is_not_turned_into_an_empty_fact_tuple(field: FinancialField) -> None:
-    adapter = _adapter(_Fetcher(**{"company_tickers.json": _UNREACHABLE}))
+    adapter = _adapter(_Fetcher(**{"company_tickers_exchange.json": _UNREACHABLE}))
     with pytest.raises(FinancialProviderError) as caught:
         adapter.fetch_facts(_request(field), effective_as_of=NOW)
     assert caught.value is _UNREACHABLE
@@ -145,7 +146,7 @@ def test_a_per_company_404_arrives_with_the_kind_the_transport_gave_it() -> None
     assert caught.value is missing
 
 
-@pytest.mark.parametrize("name", ["company_tickers.json", "/companyfacts/", "/submissions/"])
+@pytest.mark.parametrize("name", ["company_tickers_exchange.json", "/companyfacts/", "/submissions/"])
 @pytest.mark.parametrize("document", [[], "text", None])
 def test_a_document_that_is_not_an_object_is_an_unexpected_response(name: str, document: object) -> None:
     adapter = _adapter(_Fetcher(**{name: document}))

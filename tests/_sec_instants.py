@@ -21,6 +21,7 @@ from investment_analysis_engine.data.financial.facts import (
 )
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
+from tests._sec_ticker_file import one_row_file
 
 FIXTURES = PACKAGE_ROOT / "evaluation" / "fixtures" / "sec_edgar" / "instant_facts"
 ANNUAL_FIXTURES = PACKAGE_ROOT / "evaluation" / "fixtures" / "sec_edgar" / "annual_facts"
@@ -62,7 +63,7 @@ class FixtureFetcher:
         """Serve the fixture of ``ticker``, with either document replaced when given."""
         document = load(ticker, folder)
         self.documents: dict[str, object] = {
-            "company_tickers.json": {"0": {"cik_str": document["cik"], "ticker": ticker, "title": ticker}},
+            "company_tickers_exchange.json": one_row_file(cik=document["cik"], ticker=ticker, name=ticker),
             "/companyfacts/": document["companyfacts"] if companyfacts is None else companyfacts,
             "/submissions/": document["submissions"] if submissions is None else submissions,
         }

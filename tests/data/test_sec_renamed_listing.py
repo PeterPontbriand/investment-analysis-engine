@@ -26,6 +26,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
     SecEdgarAnalysisSnapshot,
     SecEdgarFinancialFactsAdapter,
 )
+from tests._sec_ticker_file import one_row_file
 
 FIXTURES = PACKAGE_ROOT / "evaluation" / "fixtures" / "sec_edgar" / "cover_pages"
 NOW = datetime(2026, 10, 27, 12, tzinfo=UTC)
@@ -211,8 +212,8 @@ class _Sec:
         )
 
     def json(self, url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:  # noqa: ARG002
-        if url.endswith("company_tickers.json"):
-            return {"0": {"cik_str": 1326801, "ticker": "META", "title": "Meta Platforms, Inc."}}
+        if url.endswith("company_tickers_exchange.json"):
+            return one_row_file(cik=1326801, ticker="META", name="Meta Platforms, Inc.")
         if "/companyfacts/" in url:
             return {"cik": 1326801, "entityName": "Meta", "facts": {"us-gaap": {}}}
         accepted = [item[2] for item in self.filings]

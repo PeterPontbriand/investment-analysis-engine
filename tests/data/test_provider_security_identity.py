@@ -13,6 +13,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVID
 from investment_analysis_engine.data.security_identity import SecurityIdentityRequest
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID, YFinanceClient
 from investment_analysis_engine.data.yfinance.financial_facts import YFinanceFinancialFactsAdapter
+from tests._sec_ticker_file import one_row_file
 from tests.analysis.graham_value.conftest import SEC_TEST_USER_AGENT
 
 NOW = datetime(2026, 8, 29, 20, 0, tzinfo=UTC)
@@ -24,15 +25,9 @@ def test_sec_retains_ticker_title_and_cik_without_duplicate_mapping_fetch() -> N
     def fetcher(url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:  # noqa: ARG001
         nonlocal calls
         calls += 1
-        assert url.endswith("company_tickers.json")
+        assert url.endswith("company_tickers_exchange.json")
         assert headers["User-Agent"] == SEC_TEST_USER_AGENT
-        return {
-            "0": {
-                "ticker": "KO",
-                "title": "  The   Coca-Cola Company ",
-                "cik_str": 21344,
-            }
-        }
+        return one_row_file(cik=21344, ticker="KO", name="  The   Coca-Cola Company ", exchange="NYSE")
 
     adapter = SecEdgarFinancialFactsAdapter(
         json_fetcher=fetcher,
@@ -51,7 +46,7 @@ def test_sec_retains_ticker_title_and_cik_without_duplicate_mapping_fetch() -> N
     assert first.ticker == "KO"
     assert first.instrument_name == "The Coca-Cola Company"
     assert first.issuer_identifier == "0000021344"
-    assert first.listing_venue is None
+    assert first.listing_venue == "NYSE"
     assert first.resolved_at == NOW
 
 

@@ -15,6 +15,7 @@ from investment_analysis_engine.data.financial.facts import FinancialFactRequest
 from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.evaluation.fixtures.sec_edgar_fpi import SEC_FPI_FIXTURE_ROOT
+from tests._sec_ticker_file import exchange_file
 
 NOW = datetime(2026, 9, 1, 14, 0, tzinfo=UTC)
 ANNUAL_DURATION_FIELDS = (
@@ -45,9 +46,9 @@ class _FrozenSecFetcher:
         provider_id: str,  # noqa: ARG002
     ) -> object:
         assert headers["User-Agent"] == "A1 fixture tests@example.invalid"
-        if "company_tickers.json" in url:
+        if "company_tickers_exchange.json" in url:
             rows = _fixture("company_tickers.json")
-            return {key: row for key, row in rows.items() if row["ticker"] == "ASML"}
+            return exchange_file({key: row for key, row in rows.items() if row["ticker"] == "ASML"})
         if "/companyfacts/" in url:
             return self._company_facts
         if "/submissions/" in url:

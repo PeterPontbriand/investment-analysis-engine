@@ -49,10 +49,18 @@ class _FrozenSecFetcher:
         del not_found, provider_id  # frozen payloads never fail
         if headers["User-Agent"] != _USER_AGENT:
             raise AssertionError("Unexpected deterministic SEC user agent.")
-        if "company_tickers.json" in url:
+        if "company_tickers_exchange.json" in url:
+            # The frozen evidence is SEC's older ticker file; it is served in the layout the adapter now reads.
             rows: dict[str, dict[str, object]] = _load("company_tickers.json")
             ticker = self._issuer.upper()
-            return {key: row for key, row in rows.items() if row["ticker"] == ticker}
+            return {
+                "fields": ["cik", "name", "ticker", "exchange"],
+                "data": [
+                    [row["cik_str"], row["title"], row["ticker"], None]
+                    for row in rows.values()
+                    if row["ticker"] == ticker
+                ],
+            }
         if "/companyfacts/" in url:
             return _load(f"{self._issuer}_companyfacts.json")
         if "/submissions/" in url:

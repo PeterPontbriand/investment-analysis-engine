@@ -15,6 +15,7 @@ from investment_analysis_engine.data.financial.provenance import FinancialSubjec
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID, SecEdgarFinancialFactsAdapter
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from tests._sec_ticker_file import one_row_file
 
 NOW = datetime(2026, 8, 23, 16, 0, tzinfo=UTC)
 PERIOD_END = "2025-12-31"
@@ -42,8 +43,8 @@ class FakeJsonFetcher:
     ) -> object:
         del headers
         self.calls.append(url)
-        if "company_tickers.json" in url:
-            return {"0": {"cik_str": 123456, "ticker": self._ticker, "title": "Fixture Corp"}}
+        if "company_tickers_exchange.json" in url:
+            return one_row_file(cik=123456, ticker=self._ticker, name="Fixture Corp")
         if "/companyfacts/" in url:
             return self._payload
         if "/submissions/" in url:

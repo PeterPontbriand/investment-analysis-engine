@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
 from types import MappingProxyType
-from typing import Protocol, cast, runtime_checkable
+from typing import NamedTuple, Protocol, cast, runtime_checkable
 from zoneinfo import ZoneInfo
 
 from investment_analysis_engine.core.clock import utc_now
@@ -121,7 +121,7 @@ _DERIVED_PROVIDER_FIELD = re.compile(rf"derived:(?P<parts>{_TAXONOMY_PART}(?:-{_
 _PART_BOUNDARY = re.compile(rf"-(?={_TAXONOMY_PART})")
 _SEC_INFERRED_PREFERRED_ABSENCE_FIELD = "inferred:sec-company-facts:no-issued-preferred-equity"
 _PREFERRED_NEUTRAL_CONCEPTS = frozenset({"PreferredStockSharesAuthorized", "PreferredStockParOrStatedValuePerShare"})
-_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers_exchange.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 _SUBMISSION_PAGE_URL = "https://data.sec.gov/submissions/{name}"
@@ -1423,10 +1423,11 @@ class SecEdgarFinancialFactsAdapter:
         )
         _require_mapping(payload, "company-ticker")
         resolved_at = self._clock()
-        self._ticker_to_cik = _ticker_cik_map(payload)
-        self._ambiguous_tickers = _ambiguous_ticker_ciks(payload)
-        self._cik_to_tickers = _cik_tickers_map(payload)
-        self._security_identities = _ticker_identity_map(payload, resolved_at=resolved_at)
+        rows = _ticker_rows(payload)
+        self._ticker_to_cik = _ticker_cik_map(rows)
+        self._ambiguous_tickers = _ambiguous_ticker_ciks(rows)
+        self._cik_to_tickers = _cik_tickers_map(rows)
+        self._security_identities = _ticker_identity_map(rows, resolved_at=resolved_at)
 
     def _has_single_ticker_identity(self, cik: str) -> bool:
         """Return whether the resolved CIK has exactly one listed SEC ticker."""
@@ -1477,90 +1478,106 @@ def _resolve_sec_user_agent(user_agent: str) -> str:
     return user_agent.strip()
 
 
-def _ticker_cik_map(payload: object) -> dict[str, str]:
-    """Parse SEC ``company_tickers.json`` into ticker -> zero-padded CIK."""
+class _TickerRow(NamedTuple):
+    """One row of SEC's ticker file, with the CIK as SEC writes it and the exchange as SEC writes it, or ``None``."""
+
+    cik: object
+    name: object
+    ticker: object
+    exchange: object
+
+
+_TICKER_FILE_FIELDS = ("cik", "name", "ticker", "exchange")
+
+
+def _ticker_rows(payload: object) -> tuple[_TickerRow, ...]:
+    """Read the rows of SEC ``company_tickers_exchange.json``, refusing a layout other than the expected one."""
     if not isinstance(payload, Mapping):
         msg = "SEC company-ticker payload is not an object."
         raise ValueError(msg)
+    fields, data = payload.get("fields"), payload.get("data")
+    if (
+        not isinstance(fields, (list, tuple))
+        or tuple(fields) != _TICKER_FILE_FIELDS
+        or not isinstance(data, (list, tuple))
+    ):
+        msg = f"SEC company-ticker document does not have the fields {_TICKER_FILE_FIELDS} and a data list."
+        raise FinancialProviderError(msg, kind=ProviderFailureKind.UNEXPECTED_RESPONSE, provider_id=SEC_PROVIDER_ID)
+    rows: list[_TickerRow] = []
+    for item in data:
+        if isinstance(item, (list, tuple)) and len(item) == len(_TICKER_FILE_FIELDS):
+            rows.append(_TickerRow(*item))
+    return tuple(rows)
 
+
+def _row_cik(row: _TickerRow) -> str | None:
+    """Return the row's zero-padded CIK, or ``None`` when SEC wrote none that is a number."""
+    if isinstance(row.cik, bool) or not isinstance(row.cik, (int, str)):
+        return None
+    cik_text = str(row.cik).strip()
+    return cik_text.zfill(10) if cik_text.isdigit() else None
+
+
+def _ticker_cik_map(rows: Sequence[_TickerRow]) -> dict[str, str]:
+    """Map each ticker in SEC's ticker file to its zero-padded CIK."""
     result: dict[str, str] = {}
-    for item in payload.values():
-        if not isinstance(item, Mapping):
-            continue
-        ticker = item.get("ticker")
-        cik = item.get("cik_str")
-        if not isinstance(ticker, str) or not isinstance(cik, (int, str)):
-            continue
-        cik_text = str(cik).strip()
-        if not cik_text.isdigit():
+    for row in rows:
+        cik = _row_cik(row)
+        if not isinstance(row.ticker, str) or cik is None:
             continue
         # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
-        result[ticker.strip().upper()] = cik_text.zfill(10)
+        result[row.ticker.strip().upper()] = cik
     return result
 
 
-def _ambiguous_ticker_ciks(payload: object) -> dict[str, tuple[str, ...]]:
+def _ambiguous_ticker_ciks(rows: Sequence[_TickerRow]) -> dict[str, tuple[str, ...]]:
     """Return, for every ticker SEC's file lists under more than one CIK, those CIKs zero-padded and sorted."""
-    if not isinstance(payload, Mapping):
-        return {}
     found: dict[str, set[str]] = {}
-    for item in payload.values():
-        if not isinstance(item, Mapping):
-            continue
-        ticker, cik = item.get("ticker"), item.get("cik_str")
-        if not isinstance(ticker, str) or not isinstance(cik, (int, str)) or not str(cik).strip().isdigit():
+    for row in rows:
+        cik = _row_cik(row)
+        if not isinstance(row.ticker, str) or cik is None:
             continue
         # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
-        found.setdefault(ticker.strip().upper(), set()).add(str(cik).strip().zfill(10))
+        found.setdefault(row.ticker.strip().upper(), set()).add(cik)
     return {ticker: tuple(sorted(ciks)) for ticker, ciks in found.items() if len(ciks) > 1}
 
 
-def _cik_tickers_map(payload: object) -> dict[str, frozenset[str]]:
-    """Parse SEC ticker data into zero-padded CIK -> distinct listed tickers."""
-    if not isinstance(payload, Mapping):
-        return {}
-
+def _cik_tickers_map(rows: Sequence[_TickerRow]) -> dict[str, frozenset[str]]:
+    """Map each zero-padded CIK in SEC's ticker file to its distinct listed tickers."""
     mutable: dict[str, set[str]] = {}
-    for item in payload.values():
-        if not isinstance(item, Mapping):
+    for row in rows:
+        cik = _row_cik(row)
+        if not isinstance(row.ticker, str) or cik is None:
             continue
-        ticker = item.get("ticker")
-        cik = item.get("cik_str")
-        if not isinstance(ticker, str) or not isinstance(cik, (int, str)):
-            continue
-        cik_text = str(cik).strip()
         # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
-        ticker_text = ticker.strip().upper()
-        if not cik_text.isdigit() or not ticker_text:
-            continue
-        mutable.setdefault(cik_text.zfill(10), set()).add(ticker_text)
+        ticker_text = row.ticker.strip().upper()
+        if ticker_text:
+            mutable.setdefault(cik, set()).add(ticker_text)
     return {cik: frozenset(tickers) for cik, tickers in mutable.items()}
 
 
-def _ticker_identity_map(payload: object, *, resolved_at: datetime) -> dict[str, SecurityIdentity]:
-    """Parse current SEC ticker-title/CIK evidence into identity snapshots."""
-    if not isinstance(payload, Mapping):
-        return {}
+def _ticker_identity_map(rows: Sequence[_TickerRow], *, resolved_at: datetime) -> dict[str, SecurityIdentity]:
+    """Build identity snapshots from SEC's ticker file: the name, the CIK and the exchange SEC lists today.
 
+    A row whose exchange is missing or blank gives a ``None`` listing venue; any other exchange is served as SEC
+    writes it, trimmed of surrounding space.
+    """
     result: dict[str, SecurityIdentity] = {}
-    for item in payload.values():
-        if not isinstance(item, Mapping):
-            continue
-        ticker = item.get("ticker")
-        title = item.get("title")
-        cik = item.get("cik_str")
-        if not isinstance(ticker, str) or not isinstance(title, str) or not isinstance(cik, (int, str)):
+    for row in rows:
+        cik = _row_cik(row)
+        if not isinstance(row.ticker, str) or not isinstance(row.name, str) or cik is None:
             continue
         # SEC's own entry, which may be blank; compared as SEC writes it, not validated.
-        ticker_text = ticker.strip().upper()
-        cik_text = str(cik).strip()
-        if not ticker_text or not title.strip() or not cik_text.isdigit():
+        ticker_text = row.ticker.strip().upper()
+        if not ticker_text or not row.name.strip():
             continue
+        exchange = row.exchange.strip() if isinstance(row.exchange, str) else ""
         result[ticker_text] = SecurityIdentity(
             ticker=ticker_text,
-            instrument_name=title,
-            issuer_identifier=cik_text.zfill(10),
+            instrument_name=row.name,
+            issuer_identifier=cik,
             provider_id=SEC_PROVIDER_ID,
+            listing_venue=exchange or None,
             resolved_at=resolved_at,
         )
     return result

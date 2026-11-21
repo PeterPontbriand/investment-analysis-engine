@@ -286,14 +286,17 @@ class _FakeSec:
         return document
 
 
-_TICKER_ENTRY: dict[str, object] = {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}
-_OTHER_ENTRY: dict[str, object] = {"cik_str": 1, "ticker": "OTHR", "title": "Other Inc."}
+_FIELDS = ["cik", "name", "ticker", "exchange"]
+_TICKER_ENTRY: list[object] = [320193, "Apple Inc.", "AAPL", "Nasdaq"]
+_OTHER_ENTRY: list[object] = [1, "Other Inc.", "OTHR", None]
 _FACTS_URL = SEC_EDGAR_SPEC.company_facts_url.format(cik="0000320193")
 
 
 def _documents(ticker_map: object | None = None, facts: object | None = None) -> dict[str, object]:
     return {
-        SEC_EDGAR_SPEC.ticker_map_url: {"0": _TICKER_ENTRY, "1": _OTHER_ENTRY} if ticker_map is None else ticker_map,
+        SEC_EDGAR_SPEC.ticker_map_url: {"fields": _FIELDS, "data": [_TICKER_ENTRY, _OTHER_ENTRY]}
+        if ticker_map is None
+        else ticker_map,
         _FACTS_URL: {"facts": {"us-gaap": {"Assets": {}}}} if facts is None else facts,
     }
 
@@ -317,30 +320,27 @@ def test_sec_well_formed_documents_pass_within_the_request_budget() -> None:
 
 @pytest.mark.parametrize("field", SEC_EDGAR_SPEC.ticker_entry_fields)
 def test_sec_missing_ticker_entry_field_fails_and_names_it(field: str) -> None:
-    entry = {key: value for key, value in _TICKER_ENTRY.items() if key != field}
+    fields = [name for name in _FIELDS if name != field]
 
-    result = _sec(_FakeSec(_documents(ticker_map={"0": entry})))
+    result = _sec(_FakeSec(_documents(ticker_map={"fields": fields, "data": [_TICKER_ENTRY]})))
 
     assert result.detail == f"ticker map entries are missing fields: {field}"
-
-
-@pytest.mark.parametrize("field", ["cik_str", "title"])
-def test_sec_probe_entry_missing_a_field_fails_and_names_it(field: str) -> None:
-    entry = {key: value for key, value in _TICKER_ENTRY.items() if key != field}
-
-    result = _sec(_FakeSec(_documents(ticker_map={"0": _OTHER_ENTRY, "1": entry})))
-
-    assert result.detail == f"ticker map entry for AAPL is missing fields: {field}"
 
 
 @pytest.mark.parametrize(
     ("ticker_map", "detail"),
     [
         ([], "ticker map is not a non-empty object"),
-        ({"0": "not an entry"}, "ticker map has no entries"),
         ({}, "ticker map is not a non-empty object"),
-        ({"0": _OTHER_ENTRY}, "ticker map has no entry for AAPL"),
-        ({"0": {**_TICKER_ENTRY, "cik_str": "abc"}}, "ticker map entry for AAPL has a non-numeric cik_str"),
+        ({"fields": _FIELDS}, "ticker map has no entries"),
+        ({"fields": _FIELDS, "data": []}, "ticker map has no entries"),
+        ({"fields": _FIELDS, "data": [_OTHER_ENTRY]}, "ticker map has no entry for AAPL"),
+        ({"fields": _FIELDS, "data": ["not an entry"]}, "ticker map has no entry for AAPL"),
+        ({"fields": _FIELDS, "data": [[320193, "Apple Inc.", "AAPL"]]}, "ticker map has no entry for AAPL"),
+        (
+            {"fields": _FIELDS, "data": [["abc", "Apple Inc.", "AAPL", "Nasdaq"]]},
+            "ticker map entry for AAPL has a non-numeric cik",
+        ),
     ],
 )
 def test_sec_ticker_map_shape_failures(ticker_map: object, detail: str) -> None:
@@ -543,7 +543,7 @@ def test_yahoo_wrong_shape_is_an_unexpected_response(client: _FakeYahoo) -> None
     "documents",
     [
         _documents(ticker_map=[]),
-        _documents(ticker_map={"0": _OTHER_ENTRY}),
+        _documents(ticker_map={"fields": _FIELDS, "data": [_OTHER_ENTRY]}),
         _documents(facts=[]),
         _documents(facts={"facts": {}}),
     ],

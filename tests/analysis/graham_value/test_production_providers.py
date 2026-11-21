@@ -27,6 +27,7 @@ from investment_analysis_engine.data.sec_edgar.financial_facts import (
 )
 from investment_analysis_engine.data.yfinance.client import YFINANCE_PROVIDER_ID
 from investment_analysis_engine.strategies.graham_number.calculation import GrahamNumberInputResolver
+from tests._sec_ticker_file import one_row_file
 from tests.analysis.graham_value.conftest import SEC_TEST_USER_AGENT
 
 NOW = datetime(2026, 8, 21, 18, 0, tzinfo=UTC)
@@ -254,7 +255,7 @@ def _submissions_payload() -> object:
 def _sec_fetcher(company_facts: object | None = None) -> FakeJsonFetcher:
     return FakeJsonFetcher(
         {
-            "company_tickers.json": {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}},
+            "company_tickers_exchange.json": one_row_file(cik=320193, ticker="AAPL", name="Apple Inc."),
             "/companyfacts/": company_facts if company_facts is not None else _sec_payload(),
             "/submissions/": _submissions_payload(),
         }
@@ -480,13 +481,7 @@ def test_wfc_negative_control_material_preferred_stock_blocks_bvps_derivation() 
 
     fetcher = FakeJsonFetcher(
         {
-            "company_tickers.json": {
-                "0": {
-                    "cik_str": 72971,
-                    "ticker": "WFC",
-                    "title": "Wells Fargo & Company",
-                }
-            },
+            "company_tickers_exchange.json": one_row_file(cik=72971, ticker="WFC", name="Wells Fargo & Company"),
             "/companyfacts/": payload,
             "/submissions/": _submissions_payload(),
         }

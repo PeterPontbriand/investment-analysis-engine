@@ -34,6 +34,7 @@ from investment_analysis_engine.data.yfinance.client import YFinanceQuote
 from investment_analysis_engine.reporting.documents.health import ProviderHealthDocument, ProviderLibrary
 from scripts.repository_root import REPOSITORY_ROOT
 from tests._cli_helpers import normalize_cli_output
+from tests._sec_ticker_file import one_row_file
 
 runner = CliRunner()
 _SEC_AGENT = "Test Agent test@example.com"
@@ -55,8 +56,8 @@ class _FakeYahoo:
 
 def _sec_fetcher(*, facts: object | None = None) -> object:
     def fetch(url: str, *, headers: Mapping[str, str], not_found: ProviderFailureKind, provider_id: str) -> object:  # noqa: ARG001
-        if url.endswith("company_tickers.json"):
-            return {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}}
+        if url.endswith("company_tickers_exchange.json"):
+            return one_row_file(cik=320193, ticker="AAPL", name="Apple Inc.")
         return {"facts": {"us-gaap": {}}} if facts is None else facts
 
     return fetch

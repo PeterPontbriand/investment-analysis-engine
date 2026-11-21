@@ -27,6 +27,7 @@ from investment_analysis_engine.data.sec_edgar.instant_series import (
     select_instant_series,
 )
 from tests._sec_instants import NOW, FixtureFetcher, adapter_for
+from tests._sec_ticker_file import one_row_file
 
 _SHARES = FinancialField.COMMON_SHARES_OUTSTANDING
 _OLD, _MID, _NEW = "0000000001-24-000001", "0000000001-25-000001", "0000000001-26-000001"
@@ -60,7 +61,7 @@ def _adapter(concepts: dict[str, list[dict[str, Any]]], *, namespace: str = "us-
     fetcher = FixtureFetcher(
         "WMT", companyfacts={"cik": 1, "entityName": "Synthetic", "facts": facts}, submissions=submissions
     )
-    fetcher.documents["company_tickers.json"] = {"0": {"cik_str": 1, "ticker": "SYN", "title": "Synthetic"}}
+    fetcher.documents["company_tickers_exchange.json"] = one_row_file(cik=1, ticker="SYN", name="Synthetic")
     return adapter_for("WMT", fetcher)
 
 
