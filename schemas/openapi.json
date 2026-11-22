@@ -5212,6 +5212,7 @@
           "consensus_unavailable",
           "market_cap_unavailable",
           "provider_error",
+          "provider_no_data",
           "invalid_request",
           "instrument_kind_not_applicable",
           "industry_class_not_applicable",
@@ -5631,8 +5632,8 @@
             "type": "array"
           },
           "schema_version": {
-            "const": 4,
-            "default": 4,
+            "const": 5,
+            "default": 5,
             "title": "Schema Version",
             "type": "integer"
           },

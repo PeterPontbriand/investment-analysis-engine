@@ -149,7 +149,7 @@ def _run(evidence: MomentumRun | None = None) -> AnalysisRun:
         started_at=STAMP,
         completed_at=STAMP,
         method_version=1,
-        result_schema_version=5,
+        result_schema_version=6,
         evidence_codec_version=4,
         outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(evidence or _evidence()),
@@ -227,7 +227,7 @@ def test_previous_result_schema_version_is_rejected_before_decoding() -> None:
     def unexpected_decode(_payload: object, _ticker: str) -> MomentumRun:
         raise AssertionError("Unsupported versions must be rejected before evidence decoding.")
 
-    for previous in (1, 4):
+    for previous in (1, 4, 5):
         with pytest.raises(UnsupportedRunVersionError, match="Unsupported"):
             decode_evidence(
                 _run().model_copy(update={"result_schema_version": previous}), codecs_with_decode(unexpected_decode)

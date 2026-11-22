@@ -115,7 +115,7 @@ def test_execute_assembles_and_inserts_a_completed_run() -> None:
     assert run.method_id == "sma_crossover"
     assert run.config_schema_version == 2
     assert run.method_version == 1
-    assert run.result_schema_version == 5
+    assert run.result_schema_version == 6
     assert run.evidence_codec_version == 4
     assert run.projection_version == 1
     assert run.outcome is RunOutcome.COMPLETED

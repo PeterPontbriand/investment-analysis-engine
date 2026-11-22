@@ -147,7 +147,7 @@ def test_apple_names_its_anchor_filing_class_taxonomy_and_source_filings() -> No
     assert result.taxonomy == "us-gaap"
     assert result.warnings == ()
     assert {item.accession for item in result.source_filings} == {"0000320193-23-000106", "0000320193-24-000123"}
-    assert (result.schema_version, result.method_version) == (2, 2)
+    assert (result.schema_version, result.method_version) == (3, 2)
 
 
 def test_monster_is_a_partial_score_of_five_of_six_with_net_income_tests_unavailable() -> None:

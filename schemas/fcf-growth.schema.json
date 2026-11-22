@@ -1271,6 +1271,7 @@
         "consensus_unavailable",
         "market_cap_unavailable",
         "provider_error",
+        "provider_no_data",
         "invalid_request",
         "instrument_kind_not_applicable",
         "industry_class_not_applicable",

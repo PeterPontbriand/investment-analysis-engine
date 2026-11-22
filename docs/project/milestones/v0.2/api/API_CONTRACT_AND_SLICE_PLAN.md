@@ -67,6 +67,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.15 | [Instrument profiles](#api15--instrument-profiles) | Complete | 2026-11-20 |
 | API.16 | [Ticker check on adding entries, duplicate wording and provider statuses](#api16--ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses) | Complete | 2026-11-20 |
 | API.17 | [Listing venue for profiles identified by SEC EDGAR](#api17--listing-venue-for-profiles-identified-by-sec-edgar) | Complete | 2026-11-21 |
+| API.18 | [Provider no-data is an unavailable input](#api18--provider-no-data-is-an-unavailable-input) | Complete | 2026-11-21 |
 
 ## 3. The slices
 
@@ -478,6 +479,26 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-sec-listing-venue`.
 - **Detail:** no separate slice plan; decisions in [A.15](#a15-listing-venue-for-profiles-identified-by-sec-edgar-2026-11-21).
 
+### API.18 — Provider no-data is an unavailable input
+
+- **Problem:** a run for an unknown ticker is recorded as `provider_error` and the outcome `failed`, although the provider
+  answered correctly and has nothing for the ticker (engine issue 281). A client cannot tell it from a provider that is
+  down. The SEC-backed strategies reported such a ticker as a missing annual filing, with no provider failure at all.
+- **Decision:** a run whose failed required inputs are all of kind `no_data` is `input_unavailable`, outcome
+  `unavailable`, with the new reason code `provider_no_data`, a `provider_failure` element, a message that names the
+  provider, and a null failure code. The provider check still runs. A ticker absent from SEC's ticker list stops a run of
+  a strategy that needs SEC EDGAR the same way ([A.16](#a16-provider-no-data-is-an-unavailable-input-2026-11-21), E1 to
+  E13).
+- **Scope:** the one function in `core/failure_classification.py` from a recorded failure to a status, and the rule every
+  validator applies; `ReasonCode.PROVIDER_NO_DATA`; `reporting/provider_messages.py`; the five strategies' status, code and
+  message; `workspace/capture.py`, `workspace/refresh.py` and `workspace_documents/refresh.py`; the shared document model;
+  the SEC adapter's missing-CIK handling (`data/sec_edgar/financial_facts.py`) and the typed fields that carry a failure's
+  message and unlisted ticker (`data/base_client.py`, `data/financial/facts.py`, `data/provider_failure.py`); each
+  strategy's document and result versions; the schemas, `openapi.json` and the help bundle; `docs/user/USAGE.md`,
+  `WORKSPACE.md`, `GLOSSARY.md` and `FINANCE_MATH.md`; the note at PH.2's D13; this plan; tests.
+- **Branch:** `fix/provider-no-data-unavailable`.
+- **Detail:** no separate slice plan; decisions in [A.16](#a16-provider-no-data-is-an-unavailable-input-2026-11-21).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -592,6 +613,15 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   `provider_no_data` answers 404, `provider_unreachable`, `provider_unexpected_response` and `provider_error` 502,
   `provider_rate_limited` 429 and `configuration_error` 409 on every endpoint that can return them, each documented in
   `openapi.json` and `docs/user/API.md`; the schemas and `openapi.json` pass their drift checks.
+- API.18: an unknown ticker run through every declared strategy is `input_unavailable` with `provider_no_data`, a
+  `provider_failure` of kind `no_data`, the outcome `unavailable` and a null run `failure_reason_code`, for a ticker
+  absent from SEC's ticker list and for a listed ticker whose company documents answer 404; a failure while loading the
+  ticker list keeps its own kind and is a `provider_error`; a run with any other kind among its failed required inputs
+  is a `provider_error`; every validator enforces the same rule for `provider_failure` and the status; the automatic
+  provider check runs after a no-data run, in a direct command, the refresh summary and the text first line, and the
+  verdict is never stored; each strategy's document and result version and the refresh summary's version are bumped, and
+  a run stored under an older version is refused by version; no run that completed before the change changes; the
+  schemas, `openapi.json` and the help bundle pass their drift checks.
 - API.17: an instrument profile, a run overview and a run's identity identified by SEC EDGAR serve the exchange SEC's
   `company_tickers_exchange.json` lists for the ticker, as SEC writes it (`Nasdaq`, `NYSE`, `OTC`, `CBOE`), and null when
   the file gives none; a ticker the file lists under more than one CIK is still refused, and a reviewed override still
@@ -889,3 +919,35 @@ Approved by the project owner on 2026-11-21. Closes engine issue 282. No stored 
 | L6 | The internal CIK provenance value `CIK_SOURCE_TICKER_FILE` is renamed from `company_tickers` to `ticker_file`: the engine no longer reads that file, and the new value names the kind of source rather than a file, so it does not go stale if SEC's file changes again. Nothing stores or serves the value (only `cik_source=override` is written to a fact's notes), so there is no compatibility concern. |
 | L7 | `ARCHITECTURE.md`, `PROVIDER_DEBUGGING.md` and `EVIDENCE_PROVIDER_ROADMAP.md` name the new file and describe the SEC identity's venue. Offline tests use the exchange layout and cover a venue served for an SEC identity, a missing exchange served as null, the duplicate-CIK refusal, the reviewed override (it wins over the file, and the provenance says `cik_source=override`) and a document in another layout. The live suite's SEC check requires the fields `cik`, `name`, `ticker` and `exchange` in the real file. |
 | L8 | No desktop slice. The desktop application re-vendors in its GUI.4b slice. |
+
+### A.16 Provider no-data is an unavailable input (2026-11-21)
+
+Approved by the project owner on 2026-11-21. Closes engine issue 281. A ticker absent from SEC's ticker list is decided in E13, which amends [PH.2](../provider-health/PH2_FAILURE_CLASSIFICATION_SLICE_PLAN.md) D13.
+
+| # | Decision |
+| :--- | :--- |
+| E1 | A run whose failed required inputs are all of kind `no_data` has the calculation status `input_unavailable`, so its outcome is `unavailable`, not `failed`. The provider answered correctly and has nothing; no input was invalid and no provider failed. |
+| E2 | A run with any other kind among its failed required inputs stays `provider_error`, and the existing kind precedence (unreachable, rate-limited, unexpected response, no data) picks its code. Optional inputs, such as a Graham quote or FCF Growth's market capitalization, are unchanged. |
+| E3 | The `provider_failure` element stays. Every strategy result, capture and codec, and the shared document model, enforce one rule: `provider_error` comes with a failure whose code is anything except `provider_no_data`, or with none; `input_unavailable` may come with a failure whose code is `provider_no_data` only; every other status has none. |
+| E4 | The automatic provider check still runs after a no-data run that is unavailable: in a direct command, in the refresh summary and as the first line of text output. `ExecutionCapture` keeps `provider_failure` for an unavailable run whose failure code is `provider_no_data`. The refresh summary's `provider_check` is filled when a job failed on a provider or ended unavailable with a `provider_no_data` failure. The verdict is never stored, so a replayed run carries none. |
+| E5 | One function in `core` maps the recorded provider failure to the status of a run a provider stopped, and every strategy calls it. A test runs an unknown ticker through each declared strategy, iterating the declared strategies, and asserts `input_unavailable`, a `provider_failure` with `provider_no_data`, the outcome `unavailable` and a null run `failure_reason_code`; a second test does the same for a listed ticker whose company documents answer 404. A unit test of the function covers E2's mixed kinds. |
+| E6 | A new reason code, `provider_no_data`, in `ReasonCode`, explained by the existing glossary term `provider-no-data`. |
+| E7 | The reason message names the provider and what it returned none of, in the form "<provider> returned no <what> for <ticker>.", for example "Yahoo Finance returned no price history for ZZZZQ.". It uses no internal shorthand and never says the ticker does not exist. A ticker absent from SEC's list reads "SEC EDGAR's ticker list does not include ZZZZQ.". Amended by E7a. |
+| E7a | A `no_data` failure whose adapter message names the SEC override file uses the adapter's own message as the run's reason, unchanged. Those are the ambiguous CIK in `_resolve_cik`, the override CIK for which SEC has no company data in `_fetch_registrant_document`, and the registrant with no annual report in `_annual_filing_gap`. Every other `no_data` failure uses E7's message. The two are told apart by a typed field on the error, never by reading the message, and the adapter messages are not reworded. |
+| E8 | An unavailable run has a null `failure_reason_code`, and its refresh result has a null `reason_code`. |
+| E9 | Each strategy's document and result schema versions and the refresh summary's `schema_version` are bumped, as the table below shows. No migration or compatibility decoder is written: a run stored under an older version stays in the database and is refused by version when read. `run_schema_version` and the database schema are unchanged. |
+| E10 | The user documents (`USAGE.md`, `WORKSPACE.md`, `GLOSSARY.md`, `FINANCE_MATH.md`), the help bundle, `openapi.json` and the JSON Schemas change in the same pull request. |
+| E11 | Recording. API.18 and this entry in this plan. The pull request closes engine issue 281 and sets API.18's status row to Complete, dated the day it is opened. The desktop repository gets one issue, opened after the pull request is approved, that lists what the engine now serves differently; its GUI.4b re-vendor picks the changes up. |
+| E12 | The ambiguous-CIK failure stays kind `no_data`, so a run it stops is `input_unavailable`. SEC answered correctly, so `unexpected_response` is rejected: a provider check would report SEC healthy. SEC's file listed no ticker under more than one CIK when [A.15](#a15-listing-venue-for-profiles-identified-by-sec-edgar-2026-11-21) L2 compared it on 2026-11-21. |
+| E13 | A ticker absent from SEC's ticker list stops a run of a strategy that needs SEC EDGAR the same way an unknown ticker stops Momentum: `input_unavailable`, `provider_no_data`, a `provider_failure` naming `sec_edgar`, kind `no_data` and the required input that needed the CIK, and the provider check runs. The reason is "SEC EDGAR's ticker list does not include ZZZZQ.". The previous message, "no annual filing accepted by the boundary", was wrong for this case; the lookup, the entry check and Momentum already give `provider_no_data` for the same ticker; under E1 a `no_data` failure is already an unavailable input, so D13's separate absence path protected nothing; and this slice bumps every strategy's versions anyway. D13's other half stands: a failure while loading the ticker list keeps its own kind and is never a missing CIK, and `_MissingCikError` remains the only condition that means no CIK. Mechanism: the analysis snapshot carries the missing-CIK failure, and the anchor lookup raises it; the SEC annual series reads raise it. Not changed, so no run that completed before changes: the plain scope of a Graham run with both inputs overridden, the instant series and the single-fact read. |
+
+Versions bumped by E9:
+
+| Item | Old | New |
+| :--- | :--- | :--- |
+| Momentum document, result | 12, 5 | 13, 6 |
+| Graham Number document, result | 13, 4 | 14, 5 |
+| Graham Growth document, result | 13, 4 | 14, 5 |
+| FCF Growth document, result | 13, 9 | 14, 10 |
+| Piotroski document, result | 4, 2 | 5, 3 |
+| Refresh summary `schema_version` | 4 | 5 |

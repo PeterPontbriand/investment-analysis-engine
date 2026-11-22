@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from investment_analysis_engine.analysis.run_models import RunOutcome, StrictJsonMapping
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.failure_classification import failure_reason_code
+from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.workspace.strategy_types import NativeEvidence
@@ -19,8 +20,8 @@ class ExecutionCapture:
     strategy reports; ``presentation_inputs``; and the ``provider_failure``
     it recorded, if any. The capture derives the rest. ``outcome`` is :meth:`RunOutcome.from_status` of the native
     status. ``failure_reason_code`` is the stable code of a ``failed`` outcome and ``None`` for every other outcome.
-    ``provider_failure`` is kept only for a ``failed`` outcome; it is carried in memory for the automatic provider check
-    and is never stored.
+    ``provider_failure`` is kept for a ``failed`` outcome and for an ``unavailable`` outcome whose element's code is
+    ``provider_no_data``; it is carried in memory for the automatic provider check and is never stored.
     """
 
     native_evidence: NativeEvidence
@@ -32,13 +33,19 @@ class ExecutionCapture:
     failure_reason_code: str | None = field(init=False)
 
     def __post_init__(self) -> None:
-        """Derive the outcome, the failure code of a failed outcome, and the provider failure a failed outcome keeps."""
+        """Derive the outcome, the failure code of a failed outcome, and the provider failure the outcome keeps."""
         status = self.native_status
         outcome = RunOutcome.from_status(status)
         code: str | None = None
         kept: ProviderFailure | None = None
         if outcome is RunOutcome.FAILED:
             code = failure_reason_code(status, self.provider_failure).value
+            kept = self.provider_failure
+        elif (
+            outcome is RunOutcome.UNAVAILABLE
+            and self.provider_failure is not None
+            and self.provider_failure.reason_code is FailureReasonCode.PROVIDER_NO_DATA
+        ):
             kept = self.provider_failure
         object.__setattr__(self, "outcome", outcome)
         object.__setattr__(self, "failure_reason_code", code)

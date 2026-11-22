@@ -78,8 +78,9 @@ def _typed(kind: ProviderFailureKind) -> FinancialProviderError:
 def test_a_failed_required_field_stores_its_kind_and_provider(field: FinancialField, kind: ProviderFailureKind) -> None:
     result = _resolve(_FailingField(field, _typed(kind)), FCFClassificationBasis.TOTAL_FCF)
 
-    assert result.status is CalculationStatus.PROVIDER_ERROR
-    assert result.reason_code is ReasonCode.PROVIDER_ERROR
+    no_data = kind is ProviderFailureKind.NO_DATA
+    assert result.status is (CalculationStatus.INPUT_UNAVAILABLE if no_data else CalculationStatus.PROVIDER_ERROR)
+    assert result.reason_code is (ReasonCode.PROVIDER_NO_DATA if no_data else ReasonCode.PROVIDER_ERROR)
     assert result.provider_failure == ProviderFailureRecord(kind=kind, provider_id=SEC_PROVIDER_ID, input=field.value)
 
 
@@ -98,7 +99,9 @@ def test_a_failed_diluted_share_field_is_a_failure_only_under_the_per_share_basi
 
     per_share = _resolve(provider, FCFClassificationBasis.FCF_PER_SHARE)
 
-    assert per_share.status is CalculationStatus.PROVIDER_ERROR
+    assert per_share.status is (
+        CalculationStatus.INPUT_UNAVAILABLE if kind is ProviderFailureKind.NO_DATA else CalculationStatus.PROVIDER_ERROR
+    )
     assert per_share.provider_failure == ProviderFailureRecord(
         kind=kind, provider_id=SEC_PROVIDER_ID, input="weighted_average_diluted_shares"
     )

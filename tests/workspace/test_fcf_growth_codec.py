@@ -212,7 +212,7 @@ def _run(result: FCFEarningsGrowthResult | None = None) -> AnalysisRun:
         started_at=STAMP,
         completed_at=STAMP,
         method_version=3,
-        result_schema_version=9,
+        result_schema_version=10,
         evidence_codec_version=4,
         outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(result or _result()),
@@ -227,7 +227,7 @@ def test_full_native_result_round_trip() -> None:
     assert restored == original
     assert restored.diagnostics == original.diagnostics
     assert restored.annual_observations[0].free_cash_flow is not original.annual_observations[0].free_cash_flow
-    assert (restored.method_version, restored.schema_version) == (3, 9)
+    assert (restored.method_version, restored.schema_version) == (3, 10)
     assert encode_native(restored) == run.result_evidence
 
 
@@ -492,8 +492,8 @@ def test_cached_history_and_absent_per_share_evidence_round_trip() -> None:
     assert decode_evidence(_run(result), EVIDENCE_BY_KEY) == result
 
 
-def test_a_run_stored_under_result_schema_5_is_refused_by_version() -> None:
-    run = _run().model_copy(update={"result_schema_version": 5})
+def test_a_run_stored_under_result_schema_9_is_refused_by_version() -> None:
+    run = _run().model_copy(update={"result_schema_version": 9})
     with pytest.raises(UnsupportedRunVersionError):
         decode_evidence(run, EVIDENCE_BY_KEY)
 

@@ -68,6 +68,45 @@ def provider_failure_of(records: Iterable[ProviderFailureRecord | None]) -> Prov
     return ProviderFailure(reason_code=PROVIDER_CODE_BY_KIND[kind], inputs=inputs)
 
 
+def provider_stopped_status(provider_failure: ProviderFailure | None) -> CalculationStatus:
+    """Return the calculation status of a run a provider failure stopped: the one rule every strategy applies.
+
+    A run whose failed required inputs are all of kind ``no_data`` is ``input_unavailable``, because the provider
+    answered and has nothing. A run with any other failed kind, or with a failure the adapter did not classify
+    (``None``), is ``provider_error``. The element's code is that of the highest-precedence kind, so it is
+    ``provider_no_data`` exactly when every failed input was ``no_data``.
+    """
+    if provider_failure is not None and provider_failure.reason_code is FailureReasonCode.PROVIDER_NO_DATA:
+        return CalculationStatus.INPUT_UNAVAILABLE
+    return CalculationStatus.PROVIDER_ERROR
+
+
+def provider_stopped_status_of_record(record: ProviderFailureRecord | None) -> CalculationStatus:
+    """Return :func:`provider_stopped_status` of the one failure record a strategy's assembly stopped at."""
+    return provider_stopped_status(provider_failure_of((record,)))
+
+
+def provider_failure_fits_status(status: CalculationStatus, provider_failure: ProviderFailure | None) -> bool:
+    """Return whether a run of ``status`` may carry ``provider_failure``, the rule every validator applies.
+
+    ``provider_error`` comes with a failure whose code is anything except ``provider_no_data``, or with none
+    (unclassified); ``input_unavailable`` may come with a failure whose code is ``provider_no_data`` only; every
+    other status has none.
+    """
+    if provider_failure is None:
+        return True
+    if status is CalculationStatus.PROVIDER_ERROR:
+        return provider_failure.reason_code is not FailureReasonCode.PROVIDER_NO_DATA
+    if status is CalculationStatus.INPUT_UNAVAILABLE:
+        return provider_failure.reason_code is FailureReasonCode.PROVIDER_NO_DATA
+    return False
+
+
+def provider_record_fits_status(status: CalculationStatus, record: ProviderFailureRecord | None) -> bool:
+    """Return :func:`provider_failure_fits_status` of the one failure record a result holds."""
+    return provider_failure_fits_status(status, provider_failure_of((record,)))
+
+
 def provider_failure_of_exception(exception: BaseException) -> ProviderFailure | None:
     """Return the ``provider_failure`` element of a raised provider failure, or ``None``.
 
@@ -157,7 +196,11 @@ __all__ = [
     "classify_failure",
     "failure_reason_code",
     "parameters_of_exception",
+    "provider_failure_fits_status",
     "provider_failure_of",
     "provider_failure_of_exception",
+    "provider_record_fits_status",
+    "provider_stopped_status",
+    "provider_stopped_status_of_record",
     "violations_of_exception",
 ]

@@ -43,6 +43,7 @@ class ReasonCode(StrEnum):
     CONSENSUS_UNAVAILABLE = "consensus_unavailable"
     MARKET_CAP_UNAVAILABLE = "market_cap_unavailable"
     PROVIDER_ERROR = "provider_error"
+    PROVIDER_NO_DATA = "provider_no_data"
     INVALID_REQUEST = "invalid_request"
     INSTRUMENT_KIND_NOT_APPLICABLE = "instrument_kind_not_applicable"
     INDUSTRY_CLASS_NOT_APPLICABLE = "industry_class_not_applicable"
@@ -126,6 +127,7 @@ REASON_CODE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
         ReasonCode.CONSENSUS_UNAVAILABLE.value: "reason-missing-input",
         ReasonCode.MARKET_CAP_UNAVAILABLE.value: "reason-missing-input",
         ReasonCode.PROVIDER_ERROR.value: "status-provider-error",
+        ReasonCode.PROVIDER_NO_DATA.value: "provider-no-data",
         ReasonCode.INVALID_REQUEST.value: "reason-invalid-request",
         ReasonCode.INSTRUMENT_KIND_NOT_APPLICABLE.value: "reason-security-not-applicable",
         ReasonCode.INDUSTRY_CLASS_NOT_APPLICABLE.value: "reason-security-not-applicable",

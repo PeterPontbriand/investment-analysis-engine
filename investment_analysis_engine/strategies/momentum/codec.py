@@ -15,6 +15,7 @@ from investment_analysis_engine.analysis.run_models import (
 )
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
+from investment_analysis_engine.core.failure_classification import provider_record_fits_status
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.tickers import is_normalized_ticker
 from investment_analysis_engine.strategies.momentum.analyzer import MomentumRun
@@ -52,15 +53,16 @@ def _validate_status(run: MomentumRun) -> None:
     """Require the status, the reasons, the metrics and the provider failure to agree.
 
     ``ok`` has metrics with a bullish or bearish trend and no reason. ``input_unavailable`` has a reason and either
-    metrics with an unknown trend (``insufficient_history``) or none (``not_available_as_of`` or no code).
+    metrics with an unknown trend (``insufficient_history``) or none (``not_available_as_of``, ``provider_no_data``
+    with its ``no_data`` provider failure, or no code).
     ``provider_error`` has no metrics, a reason and ``provider_error``. No other status is produced.
     """
     metrics = run.metrics
     if metrics is not None and (metrics.ticker != run.ticker or metrics.timestamp != run.effective_as_of):
         raise ValueError("Momentum metrics do not match the run's ticker and time.")
     status = run.execution_status
-    if run.provider_failure is not None and status is not CalculationStatus.PROVIDER_ERROR:
-        raise ValueError("A Momentum provider failure requires the provider_error status.")
+    if not provider_record_fits_status(status, run.provider_failure):
+        raise ValueError("A Momentum provider failure requires provider_error, or input_unavailable for no_data.")
     if status is CalculationStatus.OK:
         _validate_ok(run)
     elif status is CalculationStatus.INPUT_UNAVAILABLE:
@@ -87,8 +89,13 @@ def _validate_unavailable(run: MomentumRun) -> None:
     if run.metrics is not None:
         if run.metrics.status is not TrendStatus.UNKNOWN or run.reason_code is not ReasonCode.INSUFFICIENT_HISTORY:
             raise ValueError("An unavailable Momentum run with metrics requires an unknown trend and its code.")
-    elif run.reason_code not in (None, ReasonCode.NOT_AVAILABLE_AS_OF):
-        raise ValueError("An unavailable Momentum run without metrics carries no code or not_available_as_of.")
+    elif run.reason_code is ReasonCode.PROVIDER_NO_DATA:
+        if run.provider_failure is None:
+            raise ValueError("A Momentum provider_no_data run requires its no_data provider failure.")
+    elif run.reason_code not in (None, ReasonCode.NOT_AVAILABLE_AS_OF) or run.provider_failure is not None:
+        raise ValueError(
+            "An unavailable Momentum run without metrics carries no code, not_available_as_of or provider_no_data."
+        )
 
 
 def encode_momentum(evidence: MomentumRun) -> StrictJsonMapping:

@@ -129,9 +129,9 @@ def test_the_runs_list_schema_is_version_two_with_a_paging_flag_and_items() -> N
     assert "unversioned" not in schema["description"]
 
 
-def test_the_refresh_summary_schema_is_version_four_and_its_watchlist_is_nullable() -> None:
+def test_the_refresh_summary_schema_is_version_five_and_its_watchlist_is_nullable() -> None:
     schema = json.loads(expected_schemas()["refresh-summary.schema.json"])
-    assert schema["properties"]["schema_version"]["const"] == 4
+    assert schema["properties"]["schema_version"]["const"] == 5
     assert {"type": "null"} in schema["properties"]["watchlist_id"]["anyOf"]
     assert {"type": "null"} in schema["properties"]["watchlist_name"]["anyOf"]
     assert "unversioned" not in schema["description"]
@@ -382,7 +382,7 @@ def test_the_refresh_summary_reports_an_unsaved_outcome_and_a_failed_job() -> No
         "counts",
         "provider_check",
     ]
-    assert document["schema_version"] == 4
+    assert document["schema_version"] == 5
     assert document["provider_check"] is None
     assert document["results"] == [
         {

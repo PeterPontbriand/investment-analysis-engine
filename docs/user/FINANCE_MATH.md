@@ -50,6 +50,8 @@ A calculation may instead report that:
 - supplied data is invalid; or
 - the method is not applicable to otherwise valid facts.
 
+A data provider that answers and has nothing for a required input makes that input unavailable; it is not an error of the provider. An unknown ticker is the common case. The run is `input_unavailable` with the reason code `provider_no_data`, and its reason names the provider: Momentum reads `Yahoo Finance returned no price history for ZZZZQ.`, and a strategy that reads SEC EDGAR reads `SEC EDGAR's ticker list does not include ZZZZQ.` for a ticker the list does not hold, or `SEC EDGAR returned no <input> for ZZZZQ.` for a listed company SEC has no data for. A provider that did not answer, was limiting requests or answered in a form the engine does not read is a `provider_error` instead, and a run with both kinds among its failed required inputs is a `provider_error`.
+
 ## Momentum Strategy
 
 Momentum currently implements a deterministic simple-moving-average/crossover calculation.
@@ -392,7 +394,7 @@ A partial score is always shown as "*x* of *n*" with the unavailable tests named
 
 ### Execution status and applicability
 
-The status is `ok` for a complete or partial score, `input_unavailable` below six available tests, `provider_error` after a provider failure while the inputs were assembled (the result then holds the failure and no tests), and `not_applicable` for a provider-confirmed ETF. A financial issuer is applicable with a warning, because the gross-margin and current-ratio tests are typically unavailable for it. The industry class is that of the SIC code on the anchor filing, as filed; an unknown class runs and says so.
+The status is `ok` for a complete or partial score, `input_unavailable` below six available tests, `provider_error` after a provider failure other than an absent answer while the inputs were assembled (the result then holds the failure and no tests), and `input_unavailable` with the reason code `provider_no_data`, the failure and no tests, when the provider answered with nothing for a required input, and `not_applicable` for a provider-confirmed ETF. A financial issuer is applicable with a warning, because the gross-margin and current-ratio tests are typically unavailable for it. The industry class is that of the SIC code on the anchor filing, as filed; an unknown class runs and says so.
 
 The result records one taxonomy, us-gaap or ifrs-full, only when every resolved operand states the same one; otherwise it records none.
 

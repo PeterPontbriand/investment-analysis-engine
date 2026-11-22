@@ -14,6 +14,7 @@ from investment_analysis_engine.analysis.shared.financial_resolution import (
 )
 from investment_analysis_engine.analysis.shared.metric_evidence import LeftOutYear, left_out_years_of
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.failure_classification import provider_record_fits_status
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.data.financial.facts import FinancialFactRequest, FinancialField
@@ -70,7 +71,8 @@ class GrahamNumberInputAssembly:
         resolution_trace: Ordered resolver events across attempted method inputs.
         method: Always ``"graham_number"``.
         provider_failure: The kind and provider of the input whose provider failed, recorded against that input,
-            when ``status`` is ``PROVIDER_ERROR`` and the adapter classified the failure.
+            when ``status`` is ``PROVIDER_ERROR`` and the adapter classified the failure, or ``INPUT_UNAVAILABLE`` and
+            the failure is ``no_data``.
         anchor_filing: The anchor annual filing the filing inputs were taken at, with its next due date and whether it
             is stale at the boundary; ``None`` when it was not resolved (an ETF, a failure before it, or every
             filing input overridden).
@@ -98,8 +100,10 @@ class GrahamNumberInputAssembly:
 
     def __post_init__(self) -> None:
         """Keep each recorded provider failure tied to the provider-error status it explains."""
-        if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
-            raise ValueError("provider_failure requires a provider_error assembly.")
+        if not provider_record_fits_status(self.status, self.provider_failure):
+            raise ValueError(
+                "provider_failure requires a provider_error assembly, or an input_unavailable one for no_data."
+            )
         if self.quote_provider_failure is not None and self.quote_status is not CalculationStatus.PROVIDER_ERROR:
             raise ValueError("quote_provider_failure requires a provider_error quote status.")
         if (self.reason_code is None) is (self.status is not CalculationStatus.OK):
@@ -251,16 +255,16 @@ class GrahamNumberInputResolver(InputResolver):
         )
         trace = eps_result.resolution_trace
         if eps_result.status is not CalculationStatus.OK:
-            code, message = failed_input_outcome(
+            failed = failed_input_outcome(
                 eps_result, security_subject_id=security_subject_id, label="Earnings per share"
             )
             return GrahamNumberInputAssembly(
-                status=eps_result.status,
-                reason=message,
+                status=failed.status,
+                reason=failed.message,
                 resolution_trace=trace,
                 provider_failure=_recorded(eps_result, "eps"),
                 left_out_years=left_out_years_of("eps", eps_result.left_out),
-                reason_code=code,
+                reason_code=failed.code,
             )
         eps_input = eps_result.resolved_input
 
@@ -281,16 +285,16 @@ class GrahamNumberInputResolver(InputResolver):
         )
         trace = trace.extend(bvps_result.resolution_trace)
         if bvps_result.status is not CalculationStatus.OK:
-            code, message = failed_input_outcome(
+            failed = failed_input_outcome(
                 bvps_result, security_subject_id=security_subject_id, label="Book value per share"
             )
             return GrahamNumberInputAssembly(
-                status=bvps_result.status,
+                status=failed.status,
                 eps=eps_input,
-                reason=message,
+                reason=failed.message,
                 resolution_trace=trace,
                 provider_failure=_recorded(bvps_result, "bvps"),
-                reason_code=code,
+                reason_code=failed.code,
             )
         bvps_input = bvps_result.resolved_input
         assert bvps_input is not None
@@ -306,16 +310,14 @@ class GrahamNumberInputResolver(InputResolver):
         )
         trace = trace.extend(quote_result.resolution_trace)
         if quote_result.status is CalculationStatus.INVALID_INPUT:
-            code, message = failed_input_outcome(
-                quote_result, security_subject_id=security_subject_id, label="Share price"
-            )
+            failed = failed_input_outcome(quote_result, security_subject_id=security_subject_id, label="Share price")
             return GrahamNumberInputAssembly(
                 status=CalculationStatus.INVALID_INPUT,
                 eps=eps_input,
                 bvps=bvps_input,
-                reason=message,
+                reason=failed.message,
                 resolution_trace=trace,
-                reason_code=code,
+                reason_code=failed.code,
             )
         if quote_result.status is not CalculationStatus.OK:
             return GrahamNumberInputAssembly(

@@ -205,7 +205,7 @@
           "heading": "Missing data",
           "id": "missing-data",
           "level": 3,
-          "markdown": "Unknown or unavailable financial data does not silently become zero.\n\nA calculation may instead report that:\n\n- required data is unavailable;\n- supplied data is invalid; or\n- the method is not applicable to otherwise valid facts."
+          "markdown": "Unknown or unavailable financial data does not silently become zero.\n\nA calculation may instead report that:\n\n- required data is unavailable;\n- supplied data is invalid; or\n- the method is not applicable to otherwise valid facts.\n\nA data provider that answers and has nothing for a required input makes that input unavailable; it is not an error of the provider. An unknown ticker is the common case. The run is `input_unavailable` with the reason code `provider_no_data`, and its reason names the provider: Momentum reads `Yahoo Finance returned no price history for ZZZZQ.`, and a strategy that reads SEC EDGAR reads `SEC EDGAR's ticker list does not include ZZZZQ.` for a ticker the list does not hold, or `SEC EDGAR returned no <input> for ZZZZQ.` for a listed company SEC has no data for. A provider that did not answer, was limiting requests or answered in a form the engine does not read is a `provider_error` instead, and a run with both kinds among its failed required inputs is a `provider_error`."
         },
         {
           "heading": "Momentum Strategy",
@@ -379,7 +379,7 @@
           "heading": "Execution status and applicability",
           "id": "execution-status-and-applicability",
           "level": 3,
-          "markdown": "The status is `ok` for a complete or partial score, `input_unavailable` below six available tests, `provider_error` after a provider failure while the inputs were assembled (the result then holds the failure and no tests), and `not_applicable` for a provider-confirmed ETF. A financial issuer is applicable with a warning, because the gross-margin and current-ratio tests are typically unavailable for it. The industry class is that of the SIC code on the anchor filing, as filed; an unknown class runs and says so.\n\nThe result records one taxonomy, us-gaap or ifrs-full, only when every resolved operand states the same one; otherwise it records none.\n\nSee the [Piotroski F-Score Strategy Guide](help:documents/piotroski)."
+          "markdown": "The status is `ok` for a complete or partial score, `input_unavailable` below six available tests, `provider_error` after a provider failure other than an absent answer while the inputs were assembled (the result then holds the failure and no tests), and `input_unavailable` with the reason code `provider_no_data`, the failure and no tests, when the provider answered with nothing for a required input, and `not_applicable` for a provider-confirmed ETF. A financial issuer is applicable with a warning, because the gross-margin and current-ratio tests are typically unavailable for it. The industry class is that of the SIC code on the anchor filing, as filed; an unknown class runs and says so.\n\nThe result records one taxonomy, us-gaap or ifrs-full, only when every resolved operand states the same one; otherwise it records none.\n\nSee the [Piotroski F-Score Strategy Guide](help:documents/piotroski)."
         },
         {
           "heading": "Shared metrics",
@@ -1354,7 +1354,7 @@
       "name": "Ticker Not Checked"
     },
     "entry-warning-ticker-not-recognized": {
-      "body": "A ticker that is mistyped, or no longer trades, fails on every refresh. Check the ticker, and remove the entry if it is wrong. A provider sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](help:terms/ticker) and [provider returned no data](help:terms/provider-no-data).",
+      "body": "A ticker that is mistyped, or no longer trades, is unavailable on every refresh. Check the ticker, and remove the entry if it is wrong. A provider sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](help:terms/ticker) and [provider returned no data](help:terms/provider-no-data).",
       "definition": "When an entry was added, the data providers answered and none of them identified the ticker. The entry was still added.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Ticker Not Recognized"
@@ -1858,13 +1858,13 @@
       "name": "Completed"
     },
     "outcome-failed": {
-      "body": "It is the outcome of a run whose calculation status is [invalid input](help:terms/status-invalid-input) or [provider error](help:terms/status-provider-error). The run's failure code says which.",
+      "body": "It is the outcome of a run whose calculation status is [invalid input](help:terms/status-invalid-input) or [provider error](help:terms/status-provider-error). The run's failure code says which. A provider that answered with nothing does not make a run failed; see [provider returned no data](help:terms/provider-no-data).",
       "definition": "A run outcome meaning the analysis stopped because an input was invalid or a data provider failed. No result was produced.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Failed"
     },
     "outcome-unavailable": {
-      "body": "It is the outcome of a run whose calculation status is [input unavailable](help:terms/status-input-unavailable). The run is saved so that it can be revisited; nothing is estimated or replaced by zero.",
+      "body": "It is the outcome of a run whose calculation status is [input unavailable](help:terms/status-input-unavailable), which includes a run whose data provider answered and had nothing for a required input, such as an unknown ticker. The run is saved so that it can be revisited; nothing is estimated or replaced by zero.",
       "definition": "A run outcome meaning the analysis could not be calculated because an input it needs was not available.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Unavailable"
@@ -1948,7 +1948,7 @@
       "name": "Provider Healthy"
     },
     "provider-no-data": {
-      "body": "Unlike an unreachable provider, the provider worked; it holds no data for what was asked.",
+      "body": "Unlike an unreachable provider, the provider worked; it holds no data for what was asked. A run it stops is [unavailable](help:terms/outcome-unavailable), not failed, with the reason code `provider_no_data`, and the provider check still runs, so a mistyped ticker can be told from a provider that is down.",
       "definition": "The data provider answered correctly and has nothing for this request.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Provider Returned No Data"
@@ -2260,7 +2260,7 @@
       "name": "Split-Adjustment Window"
     },
     "status-input-unavailable": {
-      "body": "It is the calculation status of an [unavailable run](help:terms/outcome-unavailable). It is also the category of a failure whose data could not be used, such as a data-quality failure, a lack of observations or a provider that did not deliver.",
+      "body": "It is the calculation status of an [unavailable run](help:terms/outcome-unavailable). It is also the category of a failure whose data could not be used, such as a data-quality failure, a lack of observations or a provider that answered with nothing for a required input.",
       "definition": "A required input could not be found for the date and the data the analysis was asked to use. The analysis is not calculated rather than guessed.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Input Unavailable"
@@ -2278,8 +2278,8 @@
       "name": "OK Status"
     },
     "status-provider-error": {
-      "body": "It is the calculation status that makes a run [failed](help:terms/outcome-failed). The failure code of the same name is used when the provider's failure could not be classified; a classified failure has its own entry: [unreachable](help:terms/provider-unreachable), [rate-limited](help:terms/provider-rate-limited), [unexpected response](help:terms/provider-unexpected-response) or [no data](help:terms/provider-no-data).",
-      "definition": "A data provider failed in a way that is not an absent fact, so the analysis could not be calculated.",
+      "body": "It is the calculation status that makes a run [failed](help:terms/outcome-failed). The failure code of the same name is used when the provider's failure could not be classified; a classified failure has its own entry: [unreachable](help:terms/provider-unreachable), [rate-limited](help:terms/provider-rate-limited) or [unexpected response](help:terms/provider-unexpected-response). A provider that answered with nothing is not a provider error; see [no data](help:terms/provider-no-data).",
+      "definition": "A data provider failed in a way that is not an absent answer, so the analysis could not be calculated.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Provider Error"
     },

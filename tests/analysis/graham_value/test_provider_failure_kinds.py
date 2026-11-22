@@ -426,9 +426,12 @@ def test_graham_number_records_the_failed_input(kind: ProviderFailureKind) -> No
         {FinancialField.EPS: _three_fy_facts(SEC_PROVIDER_ID), FinancialField.BVPS: _error(kind, SEC_PROVIDER_ID)}
     )
 
-    assert eps.status is CalculationStatus.PROVIDER_ERROR
+    expected = (
+        CalculationStatus.INPUT_UNAVAILABLE if kind is ProviderFailureKind.NO_DATA else CalculationStatus.PROVIDER_ERROR
+    )
+    assert eps.status is expected
     assert eps.provider_failure == _record(kind, SEC_PROVIDER_ID).for_input("eps")
-    assert bvps.status is CalculationStatus.PROVIDER_ERROR
+    assert bvps.status is expected
     assert bvps.provider_failure == _record(kind, SEC_PROVIDER_ID).for_input("bvps")
 
 

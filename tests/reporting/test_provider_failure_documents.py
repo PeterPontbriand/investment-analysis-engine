@@ -47,9 +47,10 @@ def test_the_document_the_replay_and_the_saved_run_agree_on_the_code(name: str, 
     assert json.loads(direct.stdout)["provider_check"] == [{"provider_id": "sec_edgar", "verdict": "not_checked"}]
     assert json.loads(replayed.stdout)["provider_check"] is None
     assert without_excluded_keys(direct.stdout) == without_excluded_keys(replayed.stdout)
-    assert json.loads(direct.stdout)["status"] == "provider_error"
-    assert run.outcome is RunOutcome.FAILED
-    assert run.failure_reason_code == code
+    no_data = kind is ProviderFailureKind.NO_DATA
+    assert json.loads(direct.stdout)["status"] == ("input_unavailable" if no_data else "provider_error")
+    assert run.outcome is (RunOutcome.UNAVAILABLE if no_data else RunOutcome.FAILED)
+    assert run.failure_reason_code == (None if no_data else code)
 
 
 def test_the_one_deliberate_unclassified_failure_is_a_provider_error_with_no_element_and_the_generic_code() -> None:

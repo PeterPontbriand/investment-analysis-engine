@@ -4,7 +4,8 @@ The document carries ``schema_version``, its own lineage, first among its keys. 
 the ``rate_limited`` provider failure code; ``reason_code`` was added to every result before that without a version.
 Version 2 ends the document with ``provider_check``. Version 3 lets ``watchlist_id`` and ``watchlist_name`` be null,
 both together, for a refresh of a list of entries that belongs to no watchlist. Version 4 calls a result's run
-outcome ``outcome``; it was ``status``.
+outcome ``outcome``; it was ``status``. Version 5 reports a run whose provider returned no data as ``unavailable``,
+with its ``provider_check`` when that run's provider was checked; it was ``failed``.
 """
 
 from typing import Literal, Self
@@ -71,7 +72,7 @@ class RefreshSummaryDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[4] = 4
+    schema_version: Literal[5] = 5
     refresh_id: UUID
     watchlist_id: UUID | None = Field(description="The watchlist refreshed; null for a refresh of a list of entries.")
     watchlist_name: str | None = Field(

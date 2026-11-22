@@ -323,15 +323,26 @@ class FinancialProviderError(Exception):
     result tuple represents unavailability.
 
     ``kind`` and ``provider_id`` say what the adapter observed and which provider it was; both are
-    ``None`` for a failure the adapter did not classify.
+    ``None`` for a failure the adapter did not classify. ``message_is_shown`` is true when the adapter wrote the
+    message to be shown as the reason of the run the failure stops. ``ticker_unlisted`` is true when the provider's
+    ticker list does not include the ticker.
     """
 
-    def __init__(self, *args: object, kind: ProviderFailureKind | None = None, provider_id: str | None = None) -> None:
+    def __init__(
+        self,
+        *args: object,
+        kind: ProviderFailureKind | None = None,
+        provider_id: str | None = None,
+        message_is_shown: bool = False,
+        ticker_unlisted: bool = False,
+    ) -> None:
         """Carry the failure kind and the provider that failed beside the message."""
         require_provider_identity(kind, provider_id)
         super().__init__(*args)
         self.kind = kind
         self.provider_id = provider_id
+        self.message_is_shown = message_is_shown
+        self.ticker_unlisted = ticker_unlisted
 
     @property
     def reason_code(self) -> FailureReasonCode:
