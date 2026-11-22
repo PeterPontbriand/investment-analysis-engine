@@ -1004,4 +1004,4 @@ Implementation notes, which follow from K1 to K4 and add no decision:
 - `SQLiteDatabase` cannot import `readiness.py`, which imports it, so `DatabaseError`, `DatabaseReason`, the messages and `storage_reason` live in `data/repositories/database_errors.py`, which `readiness.py`, `sqlite.py` and their callers import.
 - Readiness keeps its own results. It reports an error it cannot classify as `database_io_error`, as before, and it gives a storage error that a scope raised while it initializes or upgrades the verified revision, as before.
 - The command line's text for `database_busy` follows K4's wording, because the old text named readiness.
-- A write attempted inside a `read()` scope is refused by SQLite as read-only, so it is now a `DatabaseError` with `database_permission_denied`; it is a defect in the caller, which no production code does.
+- A read-only error inside a `read()` scope is left raw and stays an `execution_error`, because that scope is query-only, so SQLite refuses a write there as read-only and it is a defect in the caller, not a permission problem.

@@ -95,11 +95,8 @@ def test_reader_keeps_snapshot_while_writer_commits(database: SQLiteDatabase) ->
 
 
 def test_read_scope_rejects_writes(database: SQLiteDatabase) -> None:
-    with pytest.raises(DatabaseError) as caught, database.read() as reader:
+    with pytest.raises(OperationalError, match="readonly"), database.read() as reader:
         reader.exec_driver_sql("CREATE TABLE forbidden (id INTEGER)")
-    assert caught.value.reason is DatabaseReason.PERMISSION_DENIED
-    assert isinstance(caught.value.__cause__, OperationalError)
-    assert "readonly" in str(caught.value.__cause__)
 
 
 def test_competing_writer_fails_at_configured_timeout(database: SQLiteDatabase) -> None:

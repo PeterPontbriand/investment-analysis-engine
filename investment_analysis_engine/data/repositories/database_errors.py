@@ -149,3 +149,10 @@ def storage_reason(error: Exception) -> DatabaseReason | None:
             else DatabaseReason.IO_ERROR
         )
     return None
+
+
+def is_read_only_error(error: Exception) -> bool:
+    """Return whether a SQLite error's primary result code is read-only, extended codes included."""
+    original = error.orig if isinstance(error, DBAPIError) else error
+    code = getattr(original, "sqlite_errorcode", None)
+    return isinstance(code, int) and code & 0xFF == sqlite3.SQLITE_READONLY

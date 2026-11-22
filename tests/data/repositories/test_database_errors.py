@@ -87,7 +87,8 @@ def test_a_scope_re_raises_a_storage_error_as_the_typed_error_chained_from_the_r
     database: SQLiteDatabase, code: int, reason: DatabaseReason
 ) -> None:
     raw = _raw(code)
-    for scope in (database.transaction, database.read):
+    scopes = [database.transaction] if code == sqlite3.SQLITE_READONLY else [database.transaction, database.read]
+    for scope in scopes:
         with pytest.raises(DatabaseError) as caught, scope():
             raise raw
         assert caught.value.reason is reason
@@ -96,11 +97,19 @@ def test_a_scope_re_raises_a_storage_error_as_the_typed_error_chained_from_the_r
         assert "driver text" not in str(caught.value)
 
 
-def test_a_scope_converts_a_storage_error_a_statement_raises(database: SQLiteDatabase) -> None:
-    with pytest.raises(DatabaseError) as caught, database.read() as reader:
+def test_a_read_only_error_inside_a_read_scope_is_a_caller_defect_and_stays_raw(database: SQLiteDatabase) -> None:
+    with pytest.raises(OperationalError, match="readonly"), database.read() as reader:
         reader.exec_driver_sql("CREATE TABLE forbidden (id INTEGER)")
+    for code in (sqlite3.SQLITE_READONLY, sqlite3.SQLITE_READONLY | (5 << 8)):
+        raw = _raw(code)
+        with pytest.raises(sqlite3.OperationalError) as caught, database.read():
+            raise raw
+        assert caught.value is raw
 
-    assert isinstance(caught.value.__cause__, OperationalError)
+
+def test_a_read_only_error_in_a_transaction_scope_is_still_converted(database: SQLiteDatabase) -> None:
+    with pytest.raises(DatabaseError) as caught, database.transaction():
+        raise _raw(sqlite3.SQLITE_READONLY)
     assert caught.value.reason is DatabaseReason.PERMISSION_DENIED
 
 
@@ -124,6 +133,18 @@ def test_a_real_lock_is_database_busy_when_the_connection_opens(database: SQLite
 
     with held_lock(path, block_reads=True), pytest.raises(DatabaseError) as caught, database.read():
         pass
+
+    assert caught.value.reason is DatabaseReason.BUSY
+
+
+def test_a_busy_lock_inside_a_read_scope_is_database_busy(database: SQLiteDatabase) -> None:
+    path = database.database_path
+    assert path is not None
+    with database.transaction() as connection:
+        connection.exec_driver_sql("CREATE TABLE sample (id INTEGER)")
+
+    with pytest.raises(DatabaseError) as caught, database.read() as reader, held_lock(path, block_reads=True):
+        reader.exec_driver_sql("SELECT count(*) FROM sample").all()
 
     assert caught.value.reason is DatabaseReason.BUSY
 
