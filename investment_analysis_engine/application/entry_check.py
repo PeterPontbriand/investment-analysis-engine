@@ -20,7 +20,7 @@ from investment_analysis_engine.core.failure_codes import FailureReasonCode, pro
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.core.tickers import normalize_ticker
 from investment_analysis_engine.data.base_client import DataFetchError
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, storage_reason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, storage_reason
 from investment_analysis_engine.workspace.runs import Watchlist
 from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import WatchlistRef
@@ -49,8 +49,8 @@ class AddedEntries:
 def check_tickers(context: ApplicationContext, tickers: Sequence[str]) -> tuple[EntryWarning, ...]:
     """Look each distinct ticker up once, in order of first appearance, and return a warning for each unconfirmed one.
 
-    After the first ``provider_unreachable``, ``provider_rate_limited`` or database failure (a readiness error or a raw
-    storage error, classified as the readiness check classifies it) no further ticker is
+    After the first ``provider_unreachable``, ``provider_rate_limited`` or database failure (a database error or a raw
+    storage error, classified by :func:`storage_reason`) no further ticker is
     looked up: each remaining one is warned as not checked, with that failure's code. Any other failure the lookup
     raises propagates.
     """
@@ -71,12 +71,15 @@ def check_tickers(context: ApplicationContext, tickers: Sequence[str]) -> tuple[
             warnings.append(not_checked_warning(ticker, code))
             if code in _STOPPING_CODES:
                 stopped_by = code
-        except DatabaseReadinessError as exc:
+        except DatabaseError as exc:
             stopped_by = exc.reason_code
             logger.error("The database was not ready while checking %s.", ticker, exc_info=exc)
             warnings.append(not_checked_warning(ticker, stopped_by))
         except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
-            stopped_by = FailureReasonCode(storage_reason(exc).value)
+            reason = storage_reason(exc)
+            if reason is None:
+                raise
+            stopped_by = FailureReasonCode(reason.value)
             logger.error("A storage error occurred while checking %s.", ticker, exc_info=exc)
             warnings.append(not_checked_warning(ticker, stopped_by))
     return tuple(warnings)

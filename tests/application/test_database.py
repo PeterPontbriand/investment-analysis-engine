@@ -8,7 +8,7 @@ import pytest
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from tests.application._unready_database import unready_database_url
 
@@ -33,13 +33,13 @@ def test_the_database_is_closed_when_the_block_raises(isolated_cli_settings: Pro
 def test_a_readiness_error_passes_through_unchanged_and_the_database_is_closed(
     isolated_cli_settings: ProjectSettings, tmp_path: Path
 ) -> None:
-    error = DatabaseReadinessError(ReadinessReason.BUSY, tmp_path / "x.sqlite3")
+    error = DatabaseError(DatabaseReason.BUSY, tmp_path / "x.sqlite3")
     with (
         patch("investment_analysis_engine.application.database.ensure_database_ready", side_effect=error),
         patch.object(SQLiteDatabase, "close", autospec=True, side_effect=SQLiteDatabase.close) as close,
     ):
         with (
-            pytest.raises(DatabaseReadinessError) as caught,
+            pytest.raises(DatabaseError) as caught,
             open_database(ApplicationContext(settings=isolated_cli_settings)),
         ):
             raise AssertionError("the block must not run")
@@ -49,5 +49,5 @@ def test_a_readiness_error_passes_through_unchanged_and_the_database_is_closed(
 
 def test_a_database_that_was_never_migrated_is_a_readiness_error(tmp_path: Path) -> None:
     settings = ProjectSettings(database_url=unready_database_url(tmp_path))
-    with pytest.raises(DatabaseReadinessError), open_database(ApplicationContext(settings=settings)):
+    with pytest.raises(DatabaseError), open_database(ApplicationContext(settings=settings)):
         raise AssertionError("the block must not run")

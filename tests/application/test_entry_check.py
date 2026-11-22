@@ -19,7 +19,7 @@ from investment_analysis_engine.core.entry_warnings import EntryWarningCode
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._instrument_profile_fakes import (
@@ -172,8 +172,8 @@ def test_an_unexpected_answer_or_an_unclassified_failure_does_not_stop_the_check
     assert added.warnings[0].message == _UNEXPECTED.format(ticker="KO")
 
 
-def _readiness(reason: ReadinessReason) -> BaseException:
-    return DatabaseReadinessError(reason, None)
+def _readiness(reason: DatabaseReason) -> BaseException:
+    return DatabaseError(reason, None)
 
 
 def _locked() -> BaseException:
@@ -189,8 +189,8 @@ def _io() -> BaseException:
 @pytest.mark.parametrize(
     ("raised", "code"),
     [
-        (lambda: _readiness(ReadinessReason.BUSY), FailureReasonCode.DATABASE_BUSY),
-        (lambda: _readiness(ReadinessReason.UPGRADE_REQUIRED), FailureReasonCode.DATABASE_UPGRADE_REQUIRED),
+        (lambda: _readiness(DatabaseReason.BUSY), FailureReasonCode.DATABASE_BUSY),
+        (lambda: _readiness(DatabaseReason.UPGRADE_REQUIRED), FailureReasonCode.DATABASE_UPGRADE_REQUIRED),
         (_locked, FailureReasonCode.DATABASE_BUSY),
         (_io, FailureReasonCode.DATABASE_IO_ERROR),
     ],
@@ -226,6 +226,18 @@ def test_any_other_exception_propagates(
     _answers(monkeypatch, {"KO": RuntimeError("defect")})
 
     with pytest.raises(RuntimeError, match="defect"):
+        _add(context, "KO")
+
+
+def test_a_sqlite_error_that_is_not_a_storage_error_propagates(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    defect = sqlite3.OperationalError("near SELEKT: syntax error")
+    defect.sqlite_errorcode = sqlite3.SQLITE_ERROR
+    _answers(monkeypatch, {"KO": defect})
+
+    with pytest.raises(sqlite3.OperationalError, match="syntax"):
         _add(context, "KO")
 
 
@@ -309,7 +321,7 @@ def test_an_unknown_watchlist_and_an_unready_database_are_refused_before_any_loo
     unready = ApplicationContext(
         settings=ProjectSettings(database_url=unready_database_url(tmp_path_factory.mktemp("unready")))
     )
-    with pytest.raises(DatabaseReadinessError):
+    with pytest.raises(DatabaseError):
         add_watchlist_entries_checked(unready, _REF, [("KO", _SELECTION)])
 
     assert asked == []

@@ -15,10 +15,9 @@ from sqlalchemy.engine import Connection
 
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories import migrations, readiness
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.readiness import (
-    DatabaseReadinessError,
     ReadinessOutcome,
-    ReadinessReason,
     ensure_database_ready,
 )
 from investment_analysis_engine.data.repositories.readiness_lock import readiness_lock
@@ -156,9 +155,9 @@ def test_ownership_timeout_is_classified_and_sidecar_is_retained(tmp_path: Path)
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}", database_busy_timeout_ms=10))
     try:
         with readiness_lock(path, 10):
-            with pytest.raises(DatabaseReadinessError) as caught:
+            with pytest.raises(DatabaseError) as caught:
                 ensure_database_ready(database)
-            assert caught.value.reason is ReadinessReason.BUSY
+            assert caught.value.reason is DatabaseReason.BUSY
             assert not path.exists()
         assert Path(str(path) + ".readiness.lock").exists()
         assert ensure_database_ready(database) is ReadinessOutcome.INITIALIZED

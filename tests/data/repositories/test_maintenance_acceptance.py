@@ -11,11 +11,10 @@ from sqlalchemy.engine import Connection
 
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories import migrations, readiness
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.readiness import (
-    DatabaseReadinessError,
     DatabaseState,
     ReadinessOutcome,
-    ReadinessReason,
 )
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
@@ -54,9 +53,9 @@ def test_status_classifies_real_sqlite_exclusive_lock_without_sidecar(tmp_path: 
         with closing(sqlite3.connect(path, autocommit=True)) as writer:
             writer.execute("CREATE TABLE existing(value TEXT)")
             writer.execute("BEGIN EXCLUSIVE")
-            with pytest.raises(DatabaseReadinessError) as caught:
+            with pytest.raises(DatabaseError) as caught:
                 readiness.inspect_database(database)
-            assert caught.value.reason is ReadinessReason.BUSY
+            assert caught.value.reason is DatabaseReason.BUSY
             assert not Path(str(path) + ".readiness.lock").exists()
             writer.rollback()
     finally:
@@ -99,9 +98,9 @@ def test_structurally_older_schema_is_validated_then_migrated(tmp_path: Path, dr
             observed = readiness.inspect_database(database)
             if drift:
                 assert observed.state is DatabaseState.INCOMPATIBLE
-                with pytest.raises(DatabaseReadinessError) as caught:
+                with pytest.raises(DatabaseError) as caught:
                     readiness.upgrade_database(database)
-                assert caught.value.reason is ReadinessReason.INCOMPATIBLE_SCHEMA
+                assert caught.value.reason is DatabaseReason.INCOMPATIBLE_SCHEMA
                 assert path.read_bytes() == before
             else:
                 assert observed.state is DatabaseState.UPGRADE_REQUIRED
@@ -138,9 +137,9 @@ def test_status_and_upgrade_preserve_inconsistent_storage(tmp_path: Path, versio
         report = readiness.inspect_database(database)
         assert report.state is DatabaseState.INCOMPATIBLE
         assert report.current_revision is None
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             readiness.upgrade_database(database)
-        assert caught.value.reason is ReadinessReason.INCOMPATIBLE_SCHEMA
+        assert caught.value.reason is DatabaseReason.INCOMPATIBLE_SCHEMA
         assert "private-" not in str(caught.value)
         assert path.read_bytes() == before
     finally:
@@ -167,9 +166,9 @@ def test_upgrade_rolls_back_failed_head_verification_and_releases_lock(tmp_path:
             patch.object(readiness, "migration_resources", return_value=graph),
             patch.object(readiness, "upgrade_database_revision", side_effect=inconsistent_head),
         ):
-            with pytest.raises(DatabaseReadinessError) as caught:
+            with pytest.raises(DatabaseError) as caught:
                 readiness.upgrade_database(database)
-            assert caught.value.reason is ReadinessReason.MIGRATION_FAILED
+            assert caught.value.reason is DatabaseReason.MIGRATION_FAILED
         assert readiness.upgrade_database(database)[0] is ReadinessOutcome.READY
         with database.read() as connection:
             assert connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE name='partial_upgrade'").all() == []

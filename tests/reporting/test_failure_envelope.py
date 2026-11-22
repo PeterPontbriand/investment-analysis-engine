@@ -29,7 +29,7 @@ from investment_analysis_engine.data.quality import (
     QualityContext,
     evaluate_historical_quality,
 )
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.reporting.documents.database import DatabaseMaintenanceReport
 from investment_analysis_engine.reporting.documents.failure import FailureDatabase, FailureDiagnostic, FailureEnvelope
 from investment_analysis_engine.reporting.failure_envelope import failure_envelope
@@ -105,9 +105,9 @@ def _sample(exception_type: type[BaseException]) -> BaseException:
 
 def test_every_readiness_reason_is_a_failure_reason_code() -> None:
     """T18: the database codes of both shapes are one vocabulary."""
-    assert {item.value for item in ReadinessReason} <= {item.value for item in FailureReasonCode}
-    for reason in ReadinessReason:
-        classified = classify_failure(DatabaseReadinessError(reason, Path("x.sqlite3")))
+    assert {item.value for item in DatabaseReason} <= {item.value for item in FailureReasonCode}
+    for reason in DatabaseReason:
+        classified = classify_failure(DatabaseError(reason, Path("x.sqlite3")))
         assert classified.reason_code.value == reason.value
         assert classified.status == "error"
 
@@ -189,13 +189,13 @@ def test_historical_quality_failure_is_input_unavailable_and_keeps_its_rule_diag
 
 
 def test_database_facts_come_from_the_readiness_error_and_nothing_else() -> None:
-    error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, Path("data") / "x.sqlite3", "0001_head")
+    error = DatabaseError(DatabaseReason.UPGRADE_REQUIRED, Path("data") / "x.sqlite3", "0001_head")
     envelope = failure_envelope(FailureReasonCode.DATABASE_UPGRADE_REQUIRED, str(error), cause=error)
     assert envelope.database == FailureDatabase(
         database_path=str(Path("data") / "x.sqlite3"), expected_revision="0001_head"
     )
     in_memory = failure_envelope(
-        FailureReasonCode.DATABASE_BUSY, "busy", cause=DatabaseReadinessError(ReadinessReason.BUSY, None)
+        FailureReasonCode.DATABASE_BUSY, "busy", cause=DatabaseError(DatabaseReason.BUSY, None)
     )
     assert in_memory.database == FailureDatabase(database_path=None, expected_revision=None)
     assert failure_envelope(FailureReasonCode.EXECUTION_ERROR, "x", cause=RuntimeError("x")).database is None
@@ -306,7 +306,7 @@ def test_no_command_remediates_for_the_caller(monkeypatch: pytest.MonkeyPatch) -
 
     monkeypatch.setattr("investment_analysis_engine.data.repositories.readiness.upgrade_database", refuse)
     monkeypatch.setattr("investment_analysis_engine.cli_database.upgrade_database", refuse)
-    error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, Path("x.sqlite3"), "0001_head")
+    error = DatabaseError(DatabaseReason.UPGRADE_REQUIRED, Path("x.sqlite3"), "0001_head")
     monkeypatch.setattr(
         "investment_analysis_engine.application.providers.ensure_database_ready",
         lambda _database: (_ for _ in ()).throw(error),

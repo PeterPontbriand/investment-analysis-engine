@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 
@@ -103,8 +104,11 @@ def test_competing_writer_fails_at_configured_timeout(database: SQLiteDatabase) 
         connection.exec_driver_sql("CREATE TABLE sample (id INTEGER)")
     with database.transaction() as first:
         first.exec_driver_sql("INSERT INTO sample VALUES (1)")
-        with pytest.raises(OperationalError, match="locked"), database.transaction() as second:
+        with pytest.raises(DatabaseError) as caught, database.transaction() as second:
             second.exec_driver_sql("INSERT INTO sample VALUES (2)")
+        assert caught.value.reason is DatabaseReason.BUSY
+        assert isinstance(caught.value.__cause__, OperationalError)
+        assert "locked" in str(caught.value.__cause__)
     with database.read() as reader:
         assert reader.exec_driver_sql("SELECT id FROM sample").scalars().all() == [1]
 

@@ -27,9 +27,8 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import TrendStatus
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
 from investment_analysis_engine.data.market_data import MarketDataContext
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.readiness import (
-    DatabaseReadinessError,
-    ReadinessReason,
     ensure_database_ready,
 )
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
@@ -271,7 +270,7 @@ def test_momentum_save_run_with_rejected_storage_makes_no_provider_request(
 ) -> None:
     """A storage failure on the --save-run path stops the command before the profile or the analysis."""
     del isolated_save_run_database
-    error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, Path("selected.sqlite3"), "0001_persistence")
+    error = DatabaseError(DatabaseReason.UPGRADE_REQUIRED, Path("selected.sqlite3"), "0001_persistence")
 
     with (
         patch("investment_analysis_engine.application.analysis.ensure_database_ready", side_effect=error),

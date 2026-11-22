@@ -15,7 +15,7 @@ from investment_analysis_engine.application.watchlists import (
     watchlist_repository,
 )
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.watchlists import WatchlistName, WatchlistNotFoundError, WatchlistSpec
 from tests.application._unready_database import unready_database_url
@@ -99,5 +99,5 @@ def test_an_unready_database_is_a_readiness_error(
     operation: Callable[[ApplicationContext], object], tmp_path: Path
 ) -> None:
     context = ApplicationContext(settings=ProjectSettings(database_url=unready_database_url(tmp_path)))
-    with pytest.raises(DatabaseReadinessError):
+    with pytest.raises(DatabaseError):
         operation(context)

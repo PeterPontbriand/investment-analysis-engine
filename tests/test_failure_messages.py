@@ -43,7 +43,7 @@ from investment_analysis_engine.core.strategy_errors import undeclared
 from investment_analysis_engine.data.base_client import DataFetchError
 from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.market_data import NoEligibleObservationsError
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.strategy_wiring import BY_ALIAS
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError
 from investment_analysis_engine.workspace.repositories.analysis_runs import (
@@ -151,7 +151,7 @@ ROWS = (
     ),
     Row(
         "8",
-        lambda: DatabaseReadinessError(ReadinessReason.BUSY, Path("x.sqlite3")),
+        lambda: DatabaseError(DatabaseReason.BUSY, Path("x.sqlite3")),
         "executor",
         "database_busy",
         RAISED,
@@ -394,7 +394,7 @@ def test_the_same_exception_gives_the_same_code_and_message_from_a_direct_comman
     document = json.loads(result.stdout)
     # A database failure is worded for the command line by the command, and bare by the application.
     served = str(job["error"])
-    if isinstance(direct_exception, DatabaseReadinessError):
+    if isinstance(direct_exception, DatabaseError):
         served = operator_message(direct_exception)
     assert (document["reason_code"], document["reason"].replace("AAPL", "BTC-USD")) == (
         job["reason_code"],

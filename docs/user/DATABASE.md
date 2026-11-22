@@ -185,6 +185,13 @@ published schema is `schemas/failure.schema.json`.
 | `database_initialization_failed` | Preserve the file and inspect diagnostics; no partial schema was accepted. |
 | `database_migration_failed` | Preserve the database and inspect diagnostics; the migration transaction was rolled back. |
 
+The same codes are reported when a storage problem arises after the readiness check has
+passed, for example another process holds a lock on the database for longer than the
+bounded wait, or the disk fails while a command is writing. The command or request fails
+with that code and the same `database` element, and a refresh reports it for the entry
+it affects while the other entries finish. An error that is not a storage condition, such
+as a defect, is still an `execution_error`.
+
 There is no fallback database, automatic repair, downgrade, deletion or existing-data
 upgrade. Retry interrupted initialization only after resolving the cause; the next
 inspection must prove fresh or ready storage before analysis can proceed.
