@@ -246,8 +246,9 @@ Pytest runs on up to four worker processes by default (`-Workers <n>` /
 one process). The mypy cache is shared by every run at `.tmp/mypy-cache`, so only
 the first run after a change is slow; deleting that folder resets it. A failure
 with `winerror` 10055, or a `socket snapshot` section in the output, is evidence
-for issue #116: keep the run directory, re-run nothing, and report the evidence to
-the project owner instead of retrying.
+for issue #116: copy the whole run directory outside `.tmp/quality-runs/` before 20
+more gate runs, report the evidence to the project owner, and re-run nothing
+instead of retrying.
 
 The wrappers derive the repository root at runtime and create a unique ignored
 directory below `/.tmp/quality-runs/` for that invocation. They isolate pytest
@@ -267,6 +268,21 @@ it prints is the path of that file. Keep that file as the evidence of a run; do
 not filter or retype the output. Each step prints its elapsed time when it
 ends, each pytest pass lists its failing and erroring tests by full name, and a
 closing summary shows every step with its time and result and the total time.
+
+A run keeps only what it needs afterwards. When every step has passed, the step
+`clean run folder` deletes everything in the run's own directory except
+`gate-output.txt` (pytest's base temp, the UV and Ruff caches, `.coverage`,
+`htmlcov`, `step-output.txt`), just before the closing summary; the coverage
+report and missing lines are already in `gate-output.txt`. A run that fails at
+any step keeps its whole directory. At the start of each run the step
+`prune old runs` deletes whole run directories under `.tmp/quality-runs/` beyond
+the newest 20, except any directory less than 24 hours old and any whose name is
+not a gate run directory's (a hand-made folder is left alone). Newest and age come
+from modification times. Both steps are in `scripts/prune_quality_runs.py`, run
+with system Python; a deletion that fails (a locked file, for example) is a
+warning and never fails the gate. The path a run prints for `gate-output.txt`
+stays valid only until its directory is pruned, so quote or copy the output you
+need as evidence before 20 more runs.
 
 Run the complete gate, and any other long verification such as the live
 provider checks, to completion within the same turn: start it, wait for it to

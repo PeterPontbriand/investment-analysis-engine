@@ -26,6 +26,13 @@ param(
 # Each step prints its elapsed time when it ends, a closing summary lists every step with its
 # time and result, and each pytest pass lists its failing and erroring tests by full name and its
 # 20 slowest tests. The last line printed is the path of the output file.
+#
+# Housekeeping: the first step, "prune old runs", deletes whole run directories under
+# .tmp/quality-runs/ beyond the newest 20 (never one under 24 hours old, never one whose name is not a
+# gate run directory's). When every step has passed, the step "clean run folder" deletes everything in
+# this run's directory except gate-output.txt; a run that fails keeps its whole directory. The rules
+# live in scripts/prune_quality_runs.py, run with system Python. A deletion that fails is a warning and
+# never fails the gate. A run's gate-output.txt path stays valid only until its directory is pruned.
 
 $ErrorActionPreference = "Stop"
 
@@ -151,14 +158,19 @@ function Invoke-Step {
         [string]$Name,
         [Parameter(Mandatory = $true)]
         [string]$Executable,
-        [string[]]$Arguments = @()
+        [string[]]$Arguments = @(),
+        # The step deletes this run's directory contents, so it must not hold step-output.txt open.
+        [switch]$NoStepOutput
     )
 
     Write-Gate ""
     Write-Gate "== Step: $Name =="
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
-    $stepWriter = New-Object System.IO.StreamWriter($stepOutputFile, $false, $utf8)
-    $stepWriter.AutoFlush = $true
+    $stepWriter = $null
+    if (-not $NoStepOutput) {
+        $stepWriter = New-Object System.IO.StreamWriter($stepOutputFile, $false, $utf8)
+        $stepWriter.AutoFlush = $true
+    }
     $previousPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
@@ -166,13 +178,13 @@ function Invoke-Step {
             $line = if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.Exception.Message } else { "$_" }
             Write-Host $line
             $script:LogWriter.WriteLine($line)
-            $stepWriter.WriteLine($line)
+            if ($null -ne $stepWriter) { $stepWriter.WriteLine($line) }
         }
         $code = $LASTEXITCODE
     }
     finally {
         $ErrorActionPreference = $previousPreference
-        $stepWriter.Dispose()
+        if ($null -ne $stepWriter) { $stepWriter.Dispose() }
     }
 
     $elapsed = Format-Seconds $timer.ElapsedMilliseconds
@@ -222,6 +234,8 @@ try {
     else {
         throw "No system Python found (tried: py -3, python); cannot run Markdown checks"
     }
+    $pruneScript = "scripts/prune_quality_runs.py"
+    Invoke-Step -Name "prune old runs" -Executable $systemPython -Arguments ($systemPythonPrefix + @($pruneScript, "prune", (Join-Path $repositoryRoot ".tmp\quality-runs"), $runRoot))
     Invoke-Step -Name "check_doc_links" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_doc_links.py"))
     Invoke-Step -Name "check_help_content" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_help_content.py"))
     Invoke-Step -Name "check_sequence_tables" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_sequence_tables.py"))
@@ -285,6 +299,9 @@ try {
             ))
         Write-Gate "Second-pass tests passed on Python $extraVersion, pandas $extraPandas."
     }
+
+    # Every step passed: keep only gate-output.txt in this run's directory.
+    Invoke-Step -Name "clean run folder" -Executable $systemPython -Arguments ($systemPythonPrefix + @($pruneScript, "clean", $runRoot)) -NoStepOutput
 }
 catch {
     $exitCode = 1

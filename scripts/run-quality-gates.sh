@@ -21,6 +21,13 @@ set -euo pipefail
 # Each step prints its elapsed time when it ends, a closing summary lists every step with its
 # time and result, and each pytest pass lists its failing and erroring tests by full name and its
 # 20 slowest tests. The last line printed is the path of the output file.
+#
+# Housekeeping: the first step, "prune old runs", deletes whole run directories under
+# .tmp/quality-runs/ beyond the newest 20 (never one under 24 hours old, never one whose name is not a
+# gate run directory's). When every step has passed, the step "clean run folder" deletes everything in
+# this run's directory except gate-output.txt; a run that fails keeps its whole directory. The rules
+# live in scripts/prune_quality_runs.py, run with system Python. A deletion that fails is a warning and
+# never fails the gate. A run's gate-output.txt path stays valid only until its directory is pruned.
 usage() {
     printf 'Usage: %s [--slice | --extra-python <major.minor>] [--workers <n>]; --slice cannot be combined with --extra-python\n' "$0" >&2
     exit 2
@@ -73,17 +80,22 @@ coverage_html="$run_root/htmlcov"
 mypy_cache="$repository_root/.tmp/mypy-cache"
 log_file="$run_root/gate-output.txt"
 step_output="$run_root/step-output.txt"
+# Where a step's output copy goes; the final cleanup step sends it to /dev/null so that nothing holds
+# step-output.txt open while the step deletes it.
+step_sink="$step_output"
 
 mkdir -p "$run_root"
 
 if command -v cygpath >/dev/null 2>&1; then
     windows_run_root="$(cygpath -m "$run_root")"
+    windows_runs_root="$(cygpath -m "$repository_root/.tmp/quality-runs")"
     windows_pytest_root="$(cygpath -m "$pytest_root")"
     windows_coverage_html="$(cygpath -m "$coverage_html")"
     windows_mypy_cache="$(cygpath -m "$mypy_cache")"
     printed_log_path="$(cygpath -w "$log_file")"
 else
     windows_run_root="$run_root"
+    windows_runs_root="$repository_root/.tmp/quality-runs"
     windows_pytest_root="$pytest_root"
     windows_coverage_html="$coverage_html"
     windows_mypy_cache="$mypy_cache"
@@ -153,7 +165,7 @@ run_step() {
     start_ms="$(now_ms)"
     printf '\n== Step: %s ==\n' "$name"
     set +e
-    "$@" 2>&1 | tee "$step_output"
+    "$@" 2>&1 | tee "$step_sink"
     code="${PIPESTATUS[0]}"
     set -e
     elapsed="$(format_seconds "$(($(now_ms) - start_ms))")"
@@ -203,6 +215,7 @@ main() {
         printf 'No working system Python found (tried: py -3, python3, python); cannot run Markdown checks\n' >&2
         exit 1
     fi
+    run_step "prune old runs" "${system_python[@]}" scripts/prune_quality_runs.py prune "$windows_runs_root" "$windows_run_root"
     run_step "check_doc_links" "${system_python[@]}" scripts/check_doc_links.py
     run_step "check_help_content" "${system_python[@]}" scripts/check_help_content.py
     run_step "check_sequence_tables" "${system_python[@]}" scripts/check_sequence_tables.py
@@ -266,6 +279,9 @@ main() {
             tests
         printf 'Second-pass tests passed on Python %s, pandas %s.\n' "$extra_version" "$extra_pandas"
     fi
+
+    # Every step passed: keep only gate-output.txt in this run's directory.
+    step_sink=/dev/null run_step "clean run folder" "${system_python[@]}" scripts/prune_quality_runs.py clean "$windows_run_root"
 
     print_summary "passed"
 }
