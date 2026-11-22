@@ -1,5 +1,6 @@
 """SQLite infrastructure tests use isolated files and test-only tables."""
 
+import errno
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -150,3 +151,31 @@ def test_construction_is_lazy_and_file_handles_are_released(tmp_path: Path) -> N
     # Windows refuses this rename if an open connection retains the file handle.
     renamed = path.rename(tmp_path / "released.sqlite3")
     assert renamed.exists()
+
+
+@pytest.mark.parametrize(
+    ("error", "reason"),
+    [
+        (PermissionError(errno.EACCES, "permission denied"), DatabaseReason.PERMISSION_DENIED),
+        (OSError(errno.EIO, "input/output error"), DatabaseReason.IO_ERROR),
+    ],
+    ids=["permission", "io"],
+)
+def test_a_folder_error_while_a_connection_opens_is_a_database_error(
+    database: SQLiteDatabase, monkeypatch: pytest.MonkeyPatch, error: OSError, reason: DatabaseReason
+) -> None:
+    def refuse(*_args: object, **_kwargs: object) -> None:
+        raise error
+
+    monkeypatch.setattr(Path, "mkdir", refuse)
+    with pytest.raises(DatabaseError) as raised, database.read():
+        pass
+    assert raised.value.reason is reason
+    assert raised.value.database_path == database.database_path
+    assert raised.value.__cause__ is error
+
+
+def test_an_os_error_inside_a_transaction_body_propagates_raw(database: SQLiteDatabase) -> None:
+    with pytest.raises(OSError, match="not a database failure") as raised, database.transaction():
+        raise OSError(errno.EIO, "not a database failure")
+    assert not isinstance(raised.value, DatabaseError)
