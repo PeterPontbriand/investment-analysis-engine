@@ -116,6 +116,10 @@ or path parameter, or the body field by its path (see [Request bodies](#request-
 
 The provider codes and `configuration_error` have statuses of their own, so a client can tell a data provider's problem from a fault of the engine: `provider_no_data` is 404, `provider_rate_limited` 429 and `provider_unreachable`, `provider_unexpected_response` and `provider_error` 502. Only `POST /v1/instrument-profiles/{ticker}/lookup` answers them today, since an analysis or a refresh reports a provider failure inside its own document. A client still branches on `reason_code`.
 
+A storage error while an endpoint reads or writes the database, after the engine has checked that the database is ready, is
+reported under its own `database_*` code, with the `database` element, as a readiness failure is: a lock held past the busy
+wait is `database_busy` with 503, and the other storage codes are 500. In a refresh, the failed entry carries the code.
+
 An unexpected failure, whether in an endpoint or in the checks before it, is `execution_error` with a fixed message and
 status 500; its detail goes to the log. `port_unavailable` occurs only
 at launch.

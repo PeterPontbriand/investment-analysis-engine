@@ -68,6 +68,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.16 | [Ticker check on adding entries, duplicate wording and provider statuses](#api16--ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses) | Complete | 2026-11-20 |
 | API.17 | [Listing venue for profiles identified by SEC EDGAR](#api17--listing-venue-for-profiles-identified-by-sec-edgar) | Complete | 2026-11-21 |
 | API.18 | [Provider no-data is an unavailable input](#api18--provider-no-data-is-an-unavailable-input) | Complete | 2026-11-21 |
+| API.19 | [Database errors after the readiness check](#api19--database-errors-after-the-readiness-check) | Complete | 2026-11-21 |
 
 ## 3. The slices
 
@@ -499,6 +500,27 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `fix/provider-no-data-unavailable`.
 - **Detail:** no separate slice plan; decisions in [A.16](#a16-provider-no-data-is-an-unavailable-input-2026-11-21).
 
+### API.19 — Database errors after the readiness check
+
+- **Problem:** a raw `sqlite3` or SQLAlchemy error raised after the readiness check has passed, such as a database locked
+  by another process or an I/O failure, reaches a user as `execution_error` (HTTP 500) with a generic message, instead of
+  the precise database code the readiness check gives (engine issue 279). API.16 handled it only inside the ticker check
+  on adding entries.
+- **Decision:** `SQLiteDatabase` itself re-raises a storage error, raised while it opens a connection or inside a
+  `transaction()` or `read()` scope, as the typed database error that readiness already raises, so every repository, the
+  command line, the API, refresh jobs and the instrument-profile cache are covered without changes of their own. The
+  error type is renamed `DatabaseError` and its reasons `DatabaseReason`. Only SQLite errors of the storage families
+  are converted; any other error stays raw and stays an `execution_error`. The `database_busy` message no longer
+  mentions readiness. A storage error while one refresh entry is analyzed or saved is that entry's failure, with its
+  precise code ([A.17](#a17-database-errors-after-the-readiness-check-2026-11-21), K1 to K8).
+- **Scope:** `data/repositories/sqlite.py`; a new `data/repositories/database_errors.py` that holds `DatabaseError`,
+  `DatabaseReason`, their messages and `storage_reason` (moved out of `readiness.py`, which `sqlite.py` cannot import);
+  `data/repositories/readiness.py`, `application/entry_check.py`, `cli_support.py`, `cli_database.py` and
+  `reporting/failure_envelope.py`, for the rename and the one rule; the application docstrings that name the type;
+  `docs/user/API.md` and `docs/user/DATABASE.md`; this plan; tests. `openapi.json` and the JSON Schemas do not change.
+- **Branch:** `fix/database-storage-errors`.
+- **Detail:** no separate slice plan; decisions in [A.17](#a17-database-errors-after-the-readiness-check-2026-11-21).
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
@@ -613,6 +635,16 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   `provider_no_data` answers 404, `provider_unreachable`, `provider_unexpected_response` and `provider_error` 502,
   `provider_rate_limited` 429 and `configuration_error` 409 on every endpoint that can return them, each documented in
   `openapi.json` and `docs/user/API.md`; the schemas and `openapi.json` pass their drift checks.
+- API.19: a storage error raised after the readiness check, while a connection opens or inside a `transaction()` or
+  `read()` scope (busy or locked, read-only, permission or auth, not a database or corrupt, I/O, full or can't-open), is
+  a `DatabaseError` chained from the driver's error, with the reason `storage_reason` gives, the database path and a null
+  expected revision; any other error, a constraint violation or an unrecognized SQLite code included, is raised
+  unchanged and is an `execution_error`; a read endpoint and a write endpoint answer `database_busy` with 503 and the
+  message "The database is in use by another operation and did not become free within the configured wait. Close other
+  database operations and retry." while a second connection holds a real lock; `ian runs list --json` and
+  `ian watchlist create --json` write the same code with the `database` element; a refresh entry whose save meets the
+  lock fails with `database_busy` and the other entries finish; readiness's own codes are unchanged and its messages
+  are unchanged apart from `database_busy`; `openapi.json`, the JSON Schemas and every `schema_version` are unchanged.
 - API.18: an unknown ticker run through every declared strategy is `input_unavailable` with `provider_no_data`, a
   `provider_failure` of kind `no_data`, the outcome `unavailable` and a null run `failure_reason_code`, for a ticker
   absent from SEC's ticker list and for a listed ticker whose company documents answer 404; a failure while loading the
@@ -951,3 +983,25 @@ Versions bumped by E9:
 | FCF Growth document, result | 13, 9 | 14, 10 |
 | Piotroski document, result | 4, 2 | 5, 3 |
 | Refresh summary `schema_version` | 4 | 5 |
+
+### A.17 Database errors after the readiness check (2026-11-21)
+
+Approved by the project owner on 2026-11-21. Closes engine issue 279. It builds on [A.14](#a14-ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses-2026-11-20) P14, which classified a raw storage error only inside the ticker check.
+
+| # | Decision |
+| :--- | :--- |
+| K1 | Where storage errors are classified. In `SQLiteDatabase` itself (`data/repositories/sqlite.py`): a storage error raised while it opens a connection, or inside a `transaction()` or `read()` scope, leaves that scope as the typed database error of K3, chained from the raw error. Every repository, the command line, the API, refresh jobs, the instrument-profile cache and the operations that open `SQLiteDatabase` themselves (`application/analysis.py`, `application/providers.py`) are covered without changes of their own. Not `open_database`: it misses those operations, and provider work inside its scope can raise `OSError` subclasses that are not database errors. |
+| K2 | What counts as a storage error. Only SQLite errors whose primary result code is busy or locked; read-only, permission or auth; not a database or corrupt; I/O error, full or can't-open. That is the set readiness's `_initialize` already treats as storage failures. Their reasons are as `storage_reason` gives them: busy or locked, `database_busy`; read-only, permission or auth, `database_permission_denied`; not a database or corrupt, `database_invalid_file`; I/O, full or can't-open, `database_io_error`. Any other error, such as a constraint violation or a programming error, is left raw and stays an `execution_error`, because it is a defect, not a database state. `storage_reason` states this rule in one place, and readiness and `entry_check` use it. It no longer returns `database_io_error` for an unrecognized SQLite code. A raw `OSError` is classified only where readiness already classifies it, `database_permission_denied` for `EACCES` and `EPERM` and `database_io_error` otherwise; K1's scopes do not convert `OSError`. |
+| K3 | The error type. `DatabaseReadinessError` is renamed `DatabaseError` and `ReadinessReason` `DatabaseReason`, and both serve readiness failures and K1's storage errors. `ReadinessOutcome` keeps its name. The reason values (the failure codes) do not change. The failure envelope's `database` element, the command line's per-reason details and remedies, and `classify_failure` (through the class's own `reason_code`) apply unchanged to the new uses. A K1 error carries the database path as readiness errors do, and an expected revision of null. The rename covers code, tests and current contributor and user documentation; historical text, such as decision records and completed slices' reports and evidence, stays as written. |
+| K4 | Messages. The `database_busy` message, shared by readiness and K1, is "The database is in use by another operation and did not become free within the configured wait. Close other database operations and retry." The other storage messages (permission denied, invalid file, I/O error) are unchanged. The command line's added target and remedy are unchanged. |
+| K5 | HTTP statuses are unchanged: `database_busy` answers 503, and the other database codes answer the status they already answer as readiness failures. The OpenAPI description already documents 503 on every endpoint that opens the database and 500 on every endpoint, so it does not change. |
+| K6 | Refresh. A storage error while one entry is analyzed or saved becomes that entry's failure, with its precise database code, through the existing per-job failure description. The refresh carries on with the remaining entries, as for any one entry's failure. There is no new stopping behavior. |
+| K7 | Tests. Unit tests: each K2 code family maps to its reason, a constraint violation stays raw and an unrecognized SQLite code stays raw. Real-lock tests: a second connection holding a write lock on a temporary file database, with a short busy timeout set through settings, covering a read endpoint and a write endpoint answering `database_busy` with 503 and the K4 message; one command-line command each way with `--json`, writing the failure document with `database_busy` and its `database` element; and one refresh entry whose save meets the lock, giving that entry's failure `database_busy` while the other entries finish. Readiness's own codes and messages are unchanged apart from K4's wording. No test waits longer than the short busy timeout. |
+| K8 | Recording. API.19 and this entry in this plan. The pull request closes engine issue 279 and sets API.19's status row to Complete, dated the day it is opened. Any desktop follow-up is the desktop repository's work, not this slice's. |
+
+Implementation notes, which follow from K1 to K4 and add no decision:
+
+- `SQLiteDatabase` cannot import `readiness.py`, which imports it, so `DatabaseError`, `DatabaseReason`, the messages and `storage_reason` live in `data/repositories/database_errors.py`, which `readiness.py`, `sqlite.py` and their callers import.
+- Readiness keeps its own results. It reports an error it cannot classify as `database_io_error`, as before, and it gives a storage error that a scope raised while it initializes or upgrades the verified revision, as before.
+- The command line's text for `database_busy` follows K4's wording, because the old text named readiness.
+- A write attempted inside a `read()` scope is refused by SQLite as read-only, so it is now a `DatabaseError` with `database_permission_denied`; it is a defect in the caller, which no production code does.
