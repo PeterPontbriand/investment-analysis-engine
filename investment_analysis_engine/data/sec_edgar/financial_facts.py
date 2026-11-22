@@ -364,6 +364,8 @@ class SecEdgarAnalysisSnapshot:
     """Set when the registrant's annual filings all came after the boundary: the message to show."""
     anchor_search_message: str | None = None
     """Set when the search for an original annual report reached the page cap without finding one: the message."""
+    missing_cik: FinancialProviderError | None = None
+    """Set when SEC's ticker list does not include the ticker: the failure that says so, for a run that needs a CIK."""
 
 
 _ACTIVE_SNAPSHOT: ContextVar[SecEdgarAnalysisSnapshot | None] = ContextVar("sec_edgar_analysis_snapshot", default=None)
@@ -433,9 +435,10 @@ class SecEdgarFinancialFactsAdapter:
         effective_as_of = as_of or retrieved_at
         try:
             cik = self._resolve_cik(ticker)
-        except _MissingCikError:
+        except _MissingCikError as missing:
             return SecEdgarAnalysisSnapshot(
                 subject_id=ticker,
+                missing_cik=missing,
                 cik=None,
                 as_of=effective_as_of,
                 retrieved_at=retrieved_at,
@@ -604,6 +607,10 @@ class SecEdgarFinancialFactsAdapter:
         opened, so no request is made. A registrant whose annual filings all came after the boundary gives the
         adapter's own message. A filing with no report date, or one that is not a date, gives no year-end: it is never
         guessed from the facts.
+
+        Raises:
+            FinancialProviderError: A ``no_data`` failure when SEC's ticker list does not include the ticker, because a
+                run that needs the anchor filing needs a CIK.
         """
         snapshot = _ACTIVE_SNAPSHOT.get()
         if request.provider_id != SEC_PROVIDER_ID or snapshot is None:
@@ -616,6 +623,8 @@ class SecEdgarFinancialFactsAdapter:
                 reason=AnchorYearEndUnavailableReason.SUBJECT_MISMATCH,
                 message=f"The active analysis scope is for {snapshot.subject_id}, not {request.ticker}.",
             )
+        if snapshot.missing_cik is not None:
+            raise snapshot.missing_cik
         accession = snapshot.latest_annual_accession
         if snapshot.cik is not None and accession is None and snapshot.after_boundary_message is not None:
             return AnchorYearEndResolution(
@@ -1066,9 +1075,13 @@ class SecEdgarFinancialFactsAdapter:
 
         The earlier-basis facts are reported only when the series itself is not empty; the conflicting period is
         reported whether or not it is.
+
+        Raises:
+            FinancialProviderError: A ``no_data`` failure when SEC's ticker list does not include the ticker, because a
+                series is read only by a run that needs it.
         """
         left_out = _SeriesLeftOut()
-        facts = self._fetch_facts(request, effective_as_of=effective_as_of, left_out=left_out)
+        facts = self._fetch_facts(request, effective_as_of=effective_as_of, left_out=left_out, missing_cik_stops=True)
         return AnnualSeriesFacts(
             facts=self._with_override_note(request, facts),
             earlier_basis=self._with_override_note(request, tuple(left_out.earlier_basis)) if facts else (),
@@ -1090,6 +1103,7 @@ class SecEdgarFinancialFactsAdapter:
         *,
         effective_as_of: datetime,
         left_out: _SeriesLeftOut | None = None,
+        missing_cik_stops: bool = False,
     ) -> tuple[ProviderFact, ...]:
         """Return supported SEC facts, or explicit unavailability.
 
@@ -1100,6 +1114,8 @@ class SecEdgarFinancialFactsAdapter:
                 this adapter's own retrieval clock (used only to stamp ``retrieved_at``).
             left_out: When given, receives one fact for each requested EPS or diluted-share period left out, by
                 reason: reported only on an earlier basis, or latest versions that disagree.
+            missing_cik_stops: When true, a ticker SEC's list does not include raises its ``no_data`` failure for every
+                field; otherwise the fields of ``_SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY`` give no facts.
         """
         if not self._supports(request):
             return ()
@@ -1108,7 +1124,7 @@ class SecEdgarFinancialFactsAdapter:
             try:
                 cik = self._resolve_cik(request.subject_id)
             except _MissingCikError:
-                if request.field_name in _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY:
+                if not missing_cik_stops and request.field_name in _SEC_FIELDS_WITH_UNAVAILABLE_MISSING_IDENTITY:
                     return ()
                 raise
             # An overridden CIK the ticker file does not list has its tickers read from the submissions data instead.
@@ -1308,12 +1324,16 @@ class SecEdgarFinancialFactsAdapter:
                 f"does not decide. Set an override in {_OVERRIDE_FILE} to name the registrant: "
                 f"{_OVERRIDE_EXAMPLE.format(ticker=ticker, cik='<cik>')}."
             )
-            raise FinancialProviderError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID)
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID, message_is_shown=True
+            )
         try:
             return ticker_to_cik[ticker]
         except KeyError as exc:
             msg = f"SEC EDGAR has no CIK mapping for ticker {ticker!r}."
-            raise _MissingCikError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID) from exc
+            raise _MissingCikError(
+                msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID, ticker_unlisted=True
+            ) from exc
 
     def _cik_source(self, ticker: str) -> str:
         """Return where the CIK of a ticker comes from: an override, else SEC's ticker file."""
@@ -1335,7 +1355,9 @@ class SecEdgarFinancialFactsAdapter:
                 f"The override {ticker} = {int(cik)} in {_OVERRIDE_FILE} names a CIK ({cik}) for which SEC has no "
                 "company data."
             )
-            raise FinancialProviderError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID) from exc
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID, message_is_shown=True
+            ) from exc
 
     def _annual_filing_gap(  # noqa: PLR0913
         self,
@@ -1389,7 +1411,9 @@ class SecEdgarFinancialFactsAdapter:
             if _reports_annual_form(company_facts):
                 return None
             msg = f"{before} has filed no annual report. {override}."
-            raise FinancialProviderError(msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID)
+            raise FinancialProviderError(
+                msg, kind=ProviderFailureKind.NO_DATA, provider_id=SEC_PROVIDER_ID, message_is_shown=True
+            )
         accepted = [acceptance.get(accession) for accession in annual]
         if any(item is None or item <= boundary for item in accepted):
             return None

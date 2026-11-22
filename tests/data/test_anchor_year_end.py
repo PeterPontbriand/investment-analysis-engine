@@ -20,6 +20,7 @@ from investment_analysis_engine.data.financial.facts import (
     ProviderFact,
 )
 from investment_analysis_engine.data.financial.production import ProductionFinancialFactsProvider
+from investment_analysis_engine.data.financial.provenance import FinancialSubjectKind
 from investment_analysis_engine.data.market_data import DatedSplitAdjustedHistoryProvider, SplitAdjustedHistoryProvider
 from investment_analysis_engine.data.sec_edgar import financial_facts
 from investment_analysis_engine.data.sec_edgar.financial_facts import (
@@ -228,13 +229,41 @@ def test_the_cached_client_satisfies_the_dated_protocol_and_the_yahoo_client_sta
     assert dated["as_of"].default is None
 
 
-def test_a_ticker_with_no_cik_has_no_anchor_filing() -> None:
+def test_a_ticker_with_no_cik_stops_the_anchor_lookup_with_a_no_data_failure_naming_the_unlisted_ticker() -> None:
     adapter = adapter_for("WMT")
-    with adapter.analysis_scope(subject_id="ZZZZ", provider_id=SEC_PROVIDER_ID, as_of=None):
-        resolution = adapter.resolve_anchor_year_end(AnchorYearEndRequest("ZZZZ", SEC_PROVIDER_ID))
-    assert resolution.reason is AnchorYearEndUnavailableReason.NO_ANCHOR_FILING
-    assert resolution.message is not None
-    assert "ZZZZ" in resolution.message
+    with (
+        adapter.analysis_scope(subject_id="ZZZZ", provider_id=SEC_PROVIDER_ID, as_of=None),
+        pytest.raises(FinancialProviderError) as raised,
+    ):
+        adapter.resolve_anchor_year_end(AnchorYearEndRequest("ZZZZ", SEC_PROVIDER_ID))
+    assert raised.value.kind is ProviderFailureKind.NO_DATA
+    assert raised.value.provider_id == SEC_PROVIDER_ID
+    assert raised.value.ticker_unlisted
+    assert not raised.value.message_is_shown
+
+
+def _operating_cash_flow_request(ticker: str) -> FinancialFactRequest:
+    return FinancialFactRequest(
+        FinancialSubjectKind.SECURITY,
+        ticker,
+        FinancialField.OPERATING_CASH_FLOW,
+        SEC_PROVIDER_ID,
+        basis="fiscal_year",
+        observation_count=4,
+    )
+
+
+def test_an_annual_series_of_a_ticker_with_no_cik_raises_a_no_data_failure_naming_the_unlisted_ticker() -> None:
+    adapter = adapter_for("WMT")
+    with pytest.raises(FinancialProviderError) as raised:
+        adapter.fetch_annual_series(_operating_cash_flow_request("ZZZZ"), effective_as_of=NOW)
+    assert raised.value.kind is ProviderFailureKind.NO_DATA
+    assert raised.value.ticker_unlisted
+
+
+def test_a_single_fact_of_a_ticker_with_no_cik_stays_absent_for_the_fields_that_allow_it() -> None:
+    adapter = adapter_for("WMT")
+    assert adapter.fetch_facts(_operating_cash_flow_request("ZZZZ"), effective_as_of=NOW) == ()
 
 
 def test_an_anchor_filing_without_a_form_gives_no_year_end() -> None:

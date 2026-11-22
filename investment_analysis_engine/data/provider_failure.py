@@ -45,7 +45,12 @@ def failure_record(error: DataFetchError | FinancialProviderError) -> ProviderFa
     """Return the stored record of a typed provider failure, or ``None`` when the adapter did not classify it."""
     if error.kind is None or error.provider_id is None:
         return None
-    return ProviderFailureRecord(kind=error.kind, provider_id=error.provider_id)
+    return ProviderFailureRecord(
+        kind=error.kind,
+        provider_id=error.provider_id,
+        own_message=str(error) if error.message_is_shown else None,
+        ticker_unlisted=error.ticker_unlisted,
+    )
 
 
 def classify_library_exception(error: BaseException, rules: Sequence[FailureRule]) -> Outcome:

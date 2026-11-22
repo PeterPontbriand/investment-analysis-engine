@@ -106,8 +106,8 @@ def test_a_failing_command_flushes_its_records_to_the_file_before_exiting(tmp_pa
     # The suite switches the automatic provider check off (tests/conftest.py), which the first line says.
     lines = run.stderr.strip().splitlines()
     assert lines[0] == "Yahoo Finance was not checked (the provider check is turned off)."
-    assert "Status: provider error" in lines
-    assert "Reason: Historical prices could not be retrieved from the market-data provider." in lines
+    assert "Status: input unavailable" in lines
+    assert "Reason: Yahoo Finance returned no price history for OFFLINE." in lines
 
 
 def test_third_party_records_at_info_reach_the_file(tmp_path: Path) -> None:
@@ -130,7 +130,7 @@ def test_json_stdout_is_byte_identical_with_and_without_logging(tmp_path: Path) 
     assert _without_run_time(logged.stdout) == _without_run_time(unlogged.stdout)
     assert logged.stderr == unlogged.stderr == ""
     assert logged.stdout.startswith("{")
-    assert json.loads(logged.stdout)["status"] == "provider_error"
+    assert json.loads(logged.stdout)["status"] == "input_unavailable"
     assert DOWNLOAD_RECORD in logged.log
     assert unlogged.log == ""
 

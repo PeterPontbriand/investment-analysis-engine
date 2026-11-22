@@ -1087,13 +1087,13 @@ It is the outcome of a run whose calculation status is [ok](#status-ok). It says
 ### Unavailable
 A run outcome meaning the analysis could not be calculated because an input it needs was not available.
 
-It is the outcome of a run whose calculation status is [input unavailable](#status-input-unavailable). The run is saved so that it can be revisited; nothing is estimated or replaced by zero.
+It is the outcome of a run whose calculation status is [input unavailable](#status-input-unavailable), which includes a run whose data provider answered and had nothing for a required input, such as an unknown ticker. The run is saved so that it can be revisited; nothing is estimated or replaced by zero.
 
 <a id="outcome-failed"></a>
 ### Failed
 A run outcome meaning the analysis stopped because an input was invalid or a data provider failed. No result was produced.
 
-It is the outcome of a run whose calculation status is [invalid input](#status-invalid-input) or [provider error](#status-provider-error). The run's failure code says which.
+It is the outcome of a run whose calculation status is [invalid input](#status-invalid-input) or [provider error](#status-provider-error). The run's failure code says which. A provider that answered with nothing does not make a run failed; see [provider returned no data](#provider-no-data).
 
 <a id="status-ok"></a>
 ### OK Status
@@ -1111,7 +1111,7 @@ A metric that is unavailable usually comes with a reason code that says why. See
 ### Input Unavailable
 A required input could not be found for the date and the data the analysis was asked to use. The analysis is not calculated rather than guessed.
 
-It is the calculation status of an [unavailable run](#outcome-unavailable). It is also the category of a failure whose data could not be used, such as a data-quality failure, a lack of observations or a provider that did not deliver.
+It is the calculation status of an [unavailable run](#outcome-unavailable). It is also the category of a failure whose data could not be used, such as a data-quality failure, a lack of observations or a provider that answered with nothing for a required input.
 
 <a id="status-invalid-input"></a>
 ### Invalid Input
@@ -1121,9 +1121,9 @@ It is the calculation status that makes a run [failed](#outcome-failed), and the
 
 <a id="status-provider-error"></a>
 ### Provider Error
-A data provider failed in a way that is not an absent fact, so the analysis could not be calculated.
+A data provider failed in a way that is not an absent answer, so the analysis could not be calculated.
 
-It is the calculation status that makes a run [failed](#outcome-failed). The failure code of the same name is used when the provider's failure could not be classified; a classified failure has its own entry: [unreachable](#provider-unreachable), [rate-limited](#provider-rate-limited), [unexpected response](#provider-unexpected-response) or [no data](#provider-no-data).
+It is the calculation status that makes a run [failed](#outcome-failed). The failure code of the same name is used when the provider's failure could not be classified; a classified failure has its own entry: [unreachable](#provider-unreachable), [rate-limited](#provider-rate-limited) or [unexpected response](#provider-unexpected-response). A provider that answered with nothing is not a provider error; see [no data](#provider-no-data).
 
 <a id="provider-unreachable"></a>
 ### Provider Unreachable
@@ -1147,7 +1147,7 @@ The provider may have changed its format. Nothing in the answer is used.
 ### Provider Returned No Data
 The data provider answered correctly and has nothing for this request.
 
-Unlike an unreachable provider, the provider worked; it holds no data for what was asked.
+Unlike an unreachable provider, the provider worked; it holds no data for what was asked. A run it stops is [unavailable](#outcome-unavailable), not failed, with the reason code `provider_no_data`, and the provider check still runs, so a mistyped ticker can be told from a provider that is down.
 
 <a id="provider-healthy"></a>
 ### Provider Healthy
@@ -1235,7 +1235,7 @@ A profile is stored the first time the ticker is analyzed or looked up. A profil
 ### Ticker Not Recognized
 When an entry was added, the data providers answered and none of them identified the ticker. The entry was still added.
 
-A ticker that is mistyped, or no longer trades, fails on every refresh. Check the ticker, and remove the entry if it is wrong. A provider sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](#ticker) and [provider returned no data](#provider-no-data).
+A ticker that is mistyped, or no longer trades, is unavailable on every refresh. Check the ticker, and remove the entry if it is wrong. A provider sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](#ticker) and [provider returned no data](#provider-no-data).
 
 <a id="entry-warning-ticker-not-checked"></a>
 ### Ticker Not Checked

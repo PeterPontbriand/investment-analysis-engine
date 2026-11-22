@@ -1,5 +1,5 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "analysis": "piotroski",
   "method": "piotroski",
   "ticker": "AAPL",
@@ -26,7 +26,7 @@
     "resolved_at": "<wall-clock>"
   },
   "instrument_kind": null,
-  "result_schema_version": 2,
+  "result_schema_version": 3,
   "method_version": 2,
   "reason_code": null,
   "reason": null,

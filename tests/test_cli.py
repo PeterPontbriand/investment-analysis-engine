@@ -365,7 +365,7 @@ def test_cli_momentum_json_uses_null_not_nan_and_semantic_state(mock_run: MagicM
     assert result.exit_code == 1
     assert "NaN" not in result.output
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == 12
+    assert payload["schema_version"] == 13
     assert payload["status"] == "input_unavailable"
     assert payload["reason_code"] == "insufficient_history"
     assert payload["result"]["short_sma"] is None
@@ -546,7 +546,7 @@ def test_cli_graham_number_json_has_schema_and_provenance(fixture_resolver: Grah
 
     assert result.exit_code == 0
     payload = json.loads(result.output)
-    assert payload["schema_version"] == 13
+    assert payload["schema_version"] == 14
     assert payload["analysis"] == "graham_number"
     assert payload["method"] == "graham_number"
     assert payload["ticker"] == SECURITY_ID
@@ -921,9 +921,11 @@ def test_cli_momentum_swallowed_download_fault_is_no_data_and_does_not_call_the_
     assert text.exit_code == 1
     lines = text.stderr.strip().splitlines()
     assert lines[0] == _YAHOO_NOT_CHECKED_SWITCHED_OFF
-    assert f"Reason: {_PROVIDER_FAILURE_REASON}" in lines
-    assert document["status"] == "provider_error"
-    assert document["reason"] == _PROVIDER_FAILURE_REASON
+    assert "Status: input unavailable" in lines
+    assert "Reason: Yahoo Finance returned no price history for FCIM." in lines
+    assert document["status"] == "input_unavailable"
+    assert document["reason_code"] == "provider_no_data"
+    assert document["reason"] == "Yahoo Finance returned no price history for FCIM."
     assert document["provider_failure"]["reason_code"] == "provider_no_data"
     for claim in ("unknown", "invalid", "does not exist", "not found", "delisted"):
         assert claim not in text.stderr.lower()

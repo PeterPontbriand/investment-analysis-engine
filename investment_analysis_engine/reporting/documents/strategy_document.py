@@ -19,7 +19,9 @@ The header's key order is part of the contract:
     verdict.
 ``provider_failure``
     Why the status is a provider failure: the single code and the failed inputs, each with its provider and kind;
-    null when the outcome is not a provider failure whose kind the adapter recorded. The element is the one the
+    null when the outcome is not a provider failure whose kind the adapter recorded. Beside ``provider_error`` its code
+    is any but ``provider_no_data``; beside ``input_unavailable`` it is ``provider_no_data`` only, for a provider that
+    answered and has nothing; beside every other status it is null. The element is the one the
     failure envelope carries, :class:`~investment_analysis_engine.core.provider_failure_element.ProviderFailure`.
 ``provider_check``
     What one test request found for each provider that element names, as
@@ -50,6 +52,7 @@ from typing import Self
 from pydantic import BaseModel, model_validator
 
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.failure_classification import provider_failure_fits_status
 from investment_analysis_engine.core.provider_check_element import ProviderCheckItem, require_check_matches_failure
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
 from investment_analysis_engine.reporting.documents.shared_parts import (
@@ -101,6 +104,16 @@ class StrategyDocumentHeader[AnalysisIdT: str, MethodIdT: str](DocumentPart):
     def _check_follows_failure(self) -> Self:
         """Require ``provider_check`` to be null or to name exactly the providers ``provider_failure`` names."""
         require_check_matches_failure(self.provider_failure, self.provider_check)
+        return self
+
+    @model_validator(mode="after")
+    def _failure_fits_status(self) -> Self:
+        """Require ``provider_failure`` to fit ``status``: ``provider_no_data`` only beside ``input_unavailable``."""
+        if not provider_failure_fits_status(self.status, self.provider_failure):
+            raise ValueError(
+                "provider_failure fits only provider_error with any code but provider_no_data, or input_unavailable "
+                "with provider_no_data."
+            )
         return self
 
 

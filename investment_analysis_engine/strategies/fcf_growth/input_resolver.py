@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import ExitStack
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 from investment_analysis_engine.analysis.shared.cash_flow import compute_free_cash_flow
 from investment_analysis_engine.analysis.shared.metric_evidence import LeftOutYear, left_out_years_of
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.failure_classification import (
+    provider_record_fits_status,
+    provider_stopped_status_of_record,
+)
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.core.tickers import normalize_ticker
@@ -21,6 +26,7 @@ from investment_analysis_engine.data.financial.facts import (
     FinancialFactRequest,
     FinancialFactsProvider,
     FinancialField,
+    FinancialProviderError,
     FinancialUnit,
     ProviderFact,
     financial_facts_analysis_scope,
@@ -49,9 +55,11 @@ from investment_analysis_engine.data.financial.resolver import (
     LeftOutObservation,
     LeftOutReason,
 )
+from investment_analysis_engine.data.provider_failure import failure_record
 from investment_analysis_engine.data.quality import QualityContext, QualityDecision, QualityOutcome
 from investment_analysis_engine.data.quality_reporting import publish_quality
 from investment_analysis_engine.data.sec_edgar.financial_facts import SEC_PROVIDER_ID
+from investment_analysis_engine.reporting.provider_messages import input_label, is_no_data, no_data_message
 from investment_analysis_engine.strategies.fcf_growth.calculators import compute_cagr, compute_fcf_per_diluted_share
 from investment_analysis_engine.strategies.fcf_growth.models import (
     AnnualGrowthObservation,
@@ -108,13 +116,27 @@ class ProductionAnnualGrowthSeriesResolver:
         effective_as_of: datetime,
         use_cache: bool = True,
     ) -> AnnualGrowthSeriesAssembly:
-        """Resolve the strategy inputs from SEC EDGAR."""
-        with financial_facts_analysis_scope(
+        """Resolve the strategy inputs from SEC EDGAR.
+
+        A classified provider failure while the SEC analysis scope opens stops the run at the first annual field, which
+        is the first input the run reads.
+        """
+        scope = financial_facts_analysis_scope(
             self._provider,
             subject_id=subject_id,
             provider_id=SEC_PROVIDER_ID,
             as_of=as_of,
-        ):
+        )
+        with ExitStack() as stack:
+            try:
+                stack.enter_context(scope)
+            except FinancialProviderError as exc:
+                record = failure_record(exc)
+                if record is None:
+                    raise
+                return _scope_failure(
+                    policy, normalize_ticker(subject_id), record.for_input(_ANNUAL_FIELDS[0].value), exc
+                )
             return resolve_annual_growth_series(
                 policy=policy,
                 subject_id=subject_id,
@@ -174,8 +196,10 @@ class AnnualGrowthSeriesAssembly:
 
     def __post_init__(self) -> None:
         """Enforce success/failure and selected-span invariants."""
-        if self.provider_failure is not None and self.status is not CalculationStatus.PROVIDER_ERROR:
-            raise ValueError("provider_failure requires a provider_error assembly.")
+        if not provider_record_fits_status(self.status, self.provider_failure):
+            raise ValueError(
+                "provider_failure requires a provider_error assembly, or an input_unavailable one for no_data."
+            )
         if self.selected_observation_count != len(self.observations):
             raise ValueError("selected_observation_count must equal len(observations).")
         if self.selected_horizon_years is not None and len(self.observations) != self.selected_horizon_years + 1:
@@ -272,6 +296,27 @@ def _failure_assembly(  # noqa: PLR0913
         resolution_trace=trace,
         provider_failure=provider_failure,
         left_out_years=left_out_years,
+    )
+
+
+def _scope_failure(
+    policy: FCFEarningsGrowthPolicy, subject_id: str, record: ProviderFailureRecord, error: FinancialProviderError
+) -> AnnualGrowthSeriesAssembly:
+    """Return the assembly of a run stopped by a classified provider failure while the SEC analysis scope opened."""
+    no_data = is_no_data(record)
+    return _failure_assembly(
+        status=provider_stopped_status_of_record(record),
+        code=ReasonCode.PROVIDER_NO_DATA if no_data else ReasonCode.PROVIDER_ERROR,
+        reason=(
+            no_data_message(record, what=input_label(record.input or ""), ticker=subject_id)
+            if no_data
+            else f"Provider error: {error}"
+        ),
+        policy=policy,
+        common_count=0,
+        longest_count=0,
+        trace=ResolutionTrace(),
+        provider_failure=record,
     )
 
 
@@ -573,9 +618,17 @@ def _cached_field_valid(
     return True
 
 
-def _entry_failure(field: FinancialField, answer: AnnualSeriesResolution) -> _FieldResolution:
+def _entry_failure(field: FinancialField, answer: AnnualSeriesResolution, subject_id: str) -> _FieldResolution:
     """Map a non-OK answer of the shared annual-series entry to this strategy's field outcome."""
     if answer.status is CalculationStatus.PROVIDER_ERROR:
+        record = answer.provider_failure
+        if record is not None and is_no_data(record):
+            return _FieldResolution(
+                reason_code=ReasonCode.PROVIDER_NO_DATA,
+                reason=no_data_message(record, what=input_label(field.value), ticker=subject_id),
+                provider_error=True,
+                provider_failure=record,
+            )
         reason = answer.reason or ""
         if answer.provider_error_detail is not None:
             reason = f"{field.value} provider failed: {answer.provider_error_detail}"
@@ -652,7 +705,7 @@ def _resolve_field(  # noqa: PLR0913
     answer = resolver.resolve_annual_series(request)
     trace = trace.extend(answer.resolution_trace)
     if answer.status is not CalculationStatus.OK:
-        return _entry_failure(field, answer), trace
+        return _entry_failure(field, answer, subject_id), trace
     resolution = _select_provider_facts(
         tuple(_provider_fact_of(item, subject_id) for item in answer.inputs),
         field,
@@ -930,7 +983,9 @@ def resolve_annual_growth_series(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915, P
                 resolved_fields[field] = ()
                 continue
             status = (
-                CalculationStatus.PROVIDER_ERROR if resolution.provider_error else CalculationStatus.INPUT_UNAVAILABLE
+                provider_stopped_status_of_record(resolution.provider_failure)
+                if resolution.provider_error
+                else CalculationStatus.INPUT_UNAVAILABLE
             )
             return _failure_assembly(
                 status=status,

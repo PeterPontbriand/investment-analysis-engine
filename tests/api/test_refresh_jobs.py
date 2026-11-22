@@ -132,7 +132,7 @@ def test_each_strategy_is_refreshed_through_the_endpoints_from_a_list_of_entries
     assert all(item["result"] is None and item["analysis"] is None for item in started_events)
     summary = ended["summary"]
     assert isinstance(summary, dict)
-    assert summary["schema_version"] == 4
+    assert summary["schema_version"] == 5
     assert ended["schema_version"] == 3
     assert (summary["watchlist_id"], summary["watchlist_name"]) == (None, None)
     assert ended["failure"] is None

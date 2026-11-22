@@ -138,9 +138,10 @@ class RefreshJobResult:
     ``reason_code`` is the stable code of a failure: the code the caller's ``describe`` assigned to the
     exception when the job raised, or the failed run's (or unsaved outcome's) own stored code. It is set if and
     only if the job raised or its run or outcome is ``failed``; an ``unavailable`` run is an analysis outcome,
-    not a failure, and carries none. ``provider_failure`` is the typed ``provider_failure`` element of a failure
-    whose cause was a classified provider failure, whichever of the three ways the job ended; it lets the caller
-    probe the implicated provider, is held in memory only, and is never stored or reported by the refresh document.
+    not a failure, and carries no ``reason_code``. ``provider_failure`` is the typed ``provider_failure`` element of a
+    failure whose cause was a classified provider failure, or of an ``unavailable`` run whose provider returned no
+    data, whichever of the three ways the job ended; it lets the caller probe the implicated provider, is held in
+    memory only, and is never stored or reported by the refresh document.
     """
 
     ticker: str
@@ -163,8 +164,11 @@ class RefreshJobResult:
         )
         if failed != (self.reason_code is not None):
             raise ValueError("reason_code is set if and only if the job raised or its run is failed.")
-        if self.provider_failure is not None and not failed:
-            raise ValueError("provider_failure requires a failed job.")
+        unavailable = (self.run is not None and self.run.outcome is RunOutcome.UNAVAILABLE) or (
+            self.outcome is RunOutcome.UNAVAILABLE
+        )
+        if self.provider_failure is not None and not failed and not unavailable:
+            raise ValueError("provider_failure requires a failed or an unavailable job.")
 
 
 @dataclass(frozen=True)
@@ -423,7 +427,7 @@ def _saved(ticker: str, selection: AnalysisSelection, run: AnalysisRun, capture:
         method_id=selection.method_id,
         run=run,
         reason_code=run.failure_reason_code,
-        provider_failure=capture.provider_failure if run.outcome is RunOutcome.FAILED else None,
+        provider_failure=capture.provider_failure,
     )
 
 

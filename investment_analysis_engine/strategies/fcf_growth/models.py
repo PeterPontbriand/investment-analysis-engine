@@ -20,6 +20,7 @@ from investment_analysis_engine.analysis.shared.anchor_filing import AnchorFilin
 from investment_analysis_engine.analysis.shared.market_cap import MarketCapEvidence
 from investment_analysis_engine.analysis.shared.metric_evidence import LeftOutYear
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.failure_classification import provider_record_fits_status
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.core.tickers import normalize_ticker
@@ -45,7 +46,7 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
 # ---------------------------------------------------------------------------
 
 METHOD_VERSION = 3
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 
 # ---------------------------------------------------------------------------
@@ -421,7 +422,8 @@ class FCFEarningsGrowthResult:
         warnings: Material data-quality warnings for the run.
         diagnostics: Ordered resolver trace for investor-facing diagnostics.
         provider_failure: The kind and provider of the input whose provider failed, when ``execution_status`` is
-            ``provider_error`` and the adapter classified the failure.
+            ``provider_error`` and the adapter classified the failure, or ``input_unavailable`` and the failure is
+            ``no_data``.
     """
 
     schema_version: int = field(init=False, default=SCHEMA_VERSION)
@@ -529,8 +531,8 @@ class FCFEarningsGrowthResult:
 
     def _validate_provider_failure(self) -> None:
         """Require a recorded provider failure to accompany a provider-error outcome."""
-        if self.provider_failure is not None and self.execution_status is not CalculationStatus.PROVIDER_ERROR:
-            msg = "provider_failure requires execution_status=provider_error."
+        if not provider_record_fits_status(self.execution_status, self.provider_failure):
+            msg = "provider_failure requires execution_status=provider_error, or input_unavailable for no_data."
             raise ValueError(msg)
 
     def _validate_not_applicable_result(self) -> None:

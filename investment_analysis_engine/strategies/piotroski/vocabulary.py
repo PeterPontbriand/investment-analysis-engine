@@ -22,7 +22,7 @@ CONFIG_SCHEMA_VERSION: Final[ConfigSchemaVersion] = 1
 METHOD_VERSION: Final = 2
 """The version of the method's semantics: the nine tests, their operands, the score's rule and the anchor rule."""
 
-RESULT_SCHEMA_VERSION: Final = 2
+RESULT_SCHEMA_VERSION: Final = 3
 """The version of the stored result's shape."""
 
 

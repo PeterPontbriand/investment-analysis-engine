@@ -49,17 +49,24 @@ class ProviderFailureRecord:
 
     ``input`` names the strategy input the failure was recorded against; it is ``None`` until a strategy's input
     assembly records it, and for a failure of an optional capability such as the instrument profile.
+    ``own_message`` is the adapter's own message, set only for a failure whose message the adapter wrote to be shown
+    as the reason of the run it stops; ``None`` for every other failure. ``ticker_unlisted`` is true for a ``no_data``
+    failure that says the provider's ticker list does not include the ticker.
     """
 
     kind: ProviderFailureKind
     provider_id: str
     input: str | None = None
+    own_message: str | None = None
+    ticker_unlisted: bool = False
 
     def __post_init__(self) -> None:
         """Reject a blank provider or input name."""
         require_provider_identity(self.kind, self.provider_id)
         if self.input is not None and not self.input.strip():
             raise ValueError("input must not be blank.")
+        if self.own_message is not None and not self.own_message.strip():
+            raise ValueError("own_message must not be blank.")
 
     def for_input(self, input_name: str) -> "ProviderFailureRecord":
         """Return this failure recorded against the strategy input ``input_name``."""

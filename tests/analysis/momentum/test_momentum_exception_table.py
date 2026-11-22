@@ -81,13 +81,25 @@ def test_row_1_a_classified_provider_failure_is_stored_with_its_record(
 ) -> None:
     run = _run(_provider(error=DataFetchError(SECRET, kind=kind, provider_id="yfinance")), as_of=as_of)
 
-    assert_not_calculated(run, CalculationStatus.PROVIDER_ERROR, code=ReasonCode.PROVIDER_ERROR)
+    no_data = kind is ProviderFailureKind.NO_DATA
+    assert_not_calculated(
+        run,
+        CalculationStatus.INPUT_UNAVAILABLE if no_data else CalculationStatus.PROVIDER_ERROR,
+        code=ReasonCode.PROVIDER_NO_DATA if no_data else ReasonCode.PROVIDER_ERROR,
+    )
     assert_no_series_resolved(run)
     assert run.provider_failure == ProviderFailureRecord(kind, "yfinance", "historical_close")
-    assert run.reason == "Historical prices could not be retrieved from the market-data provider."
+    assert run.reason == (
+        "Yahoo Finance returned no price history for ACME."
+        if no_data
+        else "Historical prices could not be retrieved from the market-data provider."
+    )
     assert "abc123" not in run.reason
     assert "abc123" not in repr(run.resolution_trace)
-    assert [event.outcome.value for event in run.resolution_trace.events] == ["attempted", "error"]
+    assert [event.outcome.value for event in run.resolution_trace.events] == [
+        "attempted",
+        "unavailable" if no_data else "error",
+    ]
 
 
 def test_row_1_an_unclassified_provider_failure_is_stored_without_a_record() -> None:

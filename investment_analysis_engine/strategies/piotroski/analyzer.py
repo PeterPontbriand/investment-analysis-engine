@@ -10,7 +10,7 @@ provider failure stops the assembly: the result then holds the failure and no te
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import Final
 
@@ -49,6 +49,7 @@ from investment_analysis_engine.analysis.shared.metric_inputs import (
 )
 from investment_analysis_engine.analysis.shared.operating_metrics import compute_gross_profit
 from investment_analysis_engine.core.analysis_status import CalculationStatus
+from investment_analysis_engine.core.failure_classification import provider_stopped_status_of_record
 from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.core.tickers import normalize_ticker
@@ -57,6 +58,7 @@ from investment_analysis_engine.data.financial.provenance import ResolvedInput
 from investment_analysis_engine.data.financial.resolver import InputResolver
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.data.sec_edgar.financial_facts import AnchorYearEnd
+from investment_analysis_engine.reporting.provider_messages import input_label, is_no_data, no_data_message
 from investment_analysis_engine.strategies.piotroski.calculation import (
     PiotroskiInputs,
     PiotroskiScoreResult,
@@ -125,17 +127,18 @@ class PiotroskiResult:
     """The complete evidence of one Piotroski F-Score run.
 
     A run that assembled its inputs holds the calculation's nine tests in ``f_score``; a run that did not holds none:
-    a provider-confirmed ETF (``not_applicable``) or a provider failure while assembling (``provider_error``, with the
-    failure in ``input_failure``). A year-end or a value that is unavailable is not a failure: the calculation ran and
-    its tests carry the reasons.
+    a provider-confirmed ETF (``not_applicable``) or a provider failure while assembling (``provider_error``, or
+    ``input_unavailable`` when every failed input was ``no_data``), with the failure in ``input_failure``. A year-end
+    or a value that is unavailable is not a failure: the calculation ran and its tests carry the reasons.
 
     Attributes:
         ticker: The normalized ticker.
         requested_as_of: The requested point-in-time boundary, or ``None``.
         effective_as_of: The boundary the run applied.
         instrument_profile: The identity evidence the run was given.
-        execution_status: ``ok`` for a score of six to nine available tests, ``input_unavailable`` below six,
-            ``provider_error`` after a provider failure and ``not_applicable`` for an ETF.
+        execution_status: ``ok`` for a score of six to nine available tests, ``input_unavailable`` below six or after a
+            ``no_data`` provider failure (``provider_no_data``), ``provider_error`` after any other provider failure and
+            ``not_applicable`` for an ETF.
         reason_code: Why the run is not ``ok``; ``None`` for ``ok``.
         reason: A non-empty explanation exactly when ``reason_code`` is set.
         industry_class: The class of the as-filed SIC code, ``None`` when it is unknown or was not resolved.
@@ -180,11 +183,22 @@ class PiotroskiResult:
             raise ValueError("A reason code is set exactly when the run is not ok.")
         if (self.reason_code is None) != (self.reason is None):
             raise ValueError("A reason is set exactly when there is a reason code.")
-        ran = status in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE)
-        if ran != (self.f_score is not None):
-            raise ValueError("The tests are held exactly when the calculation ran.")
-        if (status is CalculationStatus.PROVIDER_ERROR) != (self.input_failure is not None):
-            raise ValueError("A provider failure is held exactly when the run is a provider error.")
+        ran = self.f_score is not None
+        if self.input_failure is None:
+            if status is CalculationStatus.PROVIDER_ERROR:
+                raise ValueError("A provider failure is held exactly when the run is stopped by one.")
+            if ran != (status in (CalculationStatus.OK, CalculationStatus.INPUT_UNAVAILABLE)):
+                raise ValueError("The tests are held exactly when the calculation ran.")
+        else:
+            if ran or status is not provider_stopped_status_of_record(self.input_failure.provider_failure):
+                raise ValueError("A run a provider failure stopped holds no tests and the status that failure gives.")
+            expected = (
+                ReasonCode.PROVIDER_NO_DATA
+                if status is CalculationStatus.INPUT_UNAVAILABLE
+                else ReasonCode.PROVIDER_ERROR
+            )
+            if self.reason_code is not expected:
+                raise ValueError(f"A run a provider failure stopped has the reason code {expected.value}.")
         if ran and (self.industry_class is None) == (self.industry_class_unknown is None):
             raise ValueError("A run that ran holds exactly one of the industry class and why it is unknown.")
 
@@ -430,16 +444,27 @@ class PiotroskiAnalyzer(BaseAnalyzer[PiotroskiResult]):
     ) -> PiotroskiResult:
         """Return the outcome of a provider failure: the failure and no tests.
 
+        A ``no_data`` failure is ``input_unavailable`` with ``provider_no_data`` and the message the provider names;
+        any other failure is ``provider_error``.
+
         A failure after the anchor was resolved keeps the anchor filing and, when it is stale, the warning; a failure
         before the anchor was resolved has neither.
         """
+        record = failure.provider_failure
+        if record is not None and is_no_data(record):
+            failure = replace(
+                failure, reason=no_data_message(record, what=input_label(failure.input_name), ticker=ticker)
+            )
+            reason_code = ReasonCode.PROVIDER_NO_DATA
+        else:
+            reason_code = failure.reason_code
         return PiotroskiResult(
             ticker=ticker,
             requested_as_of=context.as_of,
             effective_as_of=context.effective_as_of,
             instrument_profile=context.instrument_profile,
-            execution_status=CalculationStatus.PROVIDER_ERROR,
-            reason_code=failure.reason_code,
+            execution_status=provider_stopped_status_of_record(record),
+            reason_code=reason_code,
             reason=failure.reason,
             industry_class=None,
             industry_class_unknown=None,

@@ -830,9 +830,15 @@ def test_case_a_a_registrant_with_no_annual_report_is_the_typed_failure_with_its
     with anchor_year_end_scope(chosen.resolver, ticker="WMT", as_of=None) as outcome:
         assert isinstance(outcome, MetricInputsFailure)
     assert outcome.input_name == "anchor_year_end"
-    assert outcome.provider_failure == ProviderFailureRecord(
-        ProviderFailureKind.NO_DATA, SEC_PROVIDER_ID, "anchor_year_end"
+    record = outcome.provider_failure
+    assert record is not None
+    assert (record.kind, record.provider_id, record.input) == (
+        ProviderFailureKind.NO_DATA,
+        SEC_PROVIDER_ID,
+        "anchor_year_end",
     )
+    assert record.own_message is not None
+    assert "has filed no annual report" in record.own_message
     assert "has filed no annual report" in outcome.reason
     assert outcome.reason_code is ReasonCode.PROVIDER_ERROR
     assert chosen.production.fact_requests == []

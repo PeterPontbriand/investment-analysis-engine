@@ -170,7 +170,7 @@ def _graham_run(
         started_at=NOW,
         completed_at=NOW,
         method_version=2,
-        result_schema_version=4,
+        result_schema_version=5,
         evidence_codec_version=6,
         outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis),
@@ -573,7 +573,7 @@ def _growth_run(
         started_at=NOW,
         completed_at=NOW,
         method_version=2,
-        result_schema_version=4,
+        result_schema_version=5,
         evidence_codec_version=6,
         outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(analysis),
@@ -836,7 +836,7 @@ def _fcf_run(
         started_at=NOW,
         completed_at=NOW,
         method_version=3,
-        result_schema_version=9,
+        result_schema_version=10,
         evidence_codec_version=4,
         outcome=RunOutcome.COMPLETED,
         result_evidence=encode_native(result),
@@ -910,7 +910,7 @@ def test_fcf_project_run_json_matches_the_stored_result() -> None:
     run = _fcf_run()
     payload = _document_payload(run)
     assert payload["ticker"] == "KO"
-    assert payload["result_schema_version"] == 9
+    assert payload["result_schema_version"] == 10
 
 
 def test_fcf_project_run_defaults_to_concise() -> None:

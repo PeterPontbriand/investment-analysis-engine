@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field, model_validator
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext, BaseAnalyzer
 from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.core.constants import DataColumns, TrendStatus
+from investment_analysis_engine.core.failure_classification import provider_stopped_status_of_record
 from investment_analysis_engine.core.metric_result import MetricResult, MetricStatus, ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureRecord
 from investment_analysis_engine.core.tickers import normalize_ticker
@@ -42,8 +43,10 @@ from investment_analysis_engine.data.quality import (
     evaluate_historical_quality,
 )
 from investment_analysis_engine.data.quality_reporting import publish_quality
+from investment_analysis_engine.reporting.provider_messages import is_no_data, no_data_message
 
 _PRICE_INPUT: Final = "historical_close"
+_PRICE_HISTORY_LABEL: Final = "price history"
 _PROVIDER_FAILURE_MESSAGE: Final = "Historical prices could not be retrieved from the market-data provider."
 _NO_OBSERVATION_MESSAGE: Final = "No price history is available at or before the requested --as-of boundary."
 
@@ -79,11 +82,12 @@ class MomentumMetrics:
 class MomentumRun:
     """One Momentum attempt: its result-level status, the metrics when a calculation ran, and the retained context.
 
-    ``execution_status`` is ``ok`` for a bullish or bearish trend, ``input_unavailable`` for an ``UNKNOWN`` trend, for
-    no observation at or before the boundary and for a failed data-quality check, and ``provider_error`` for a
-    provider failure. ``metrics`` is absent exactly when no calculation ran. ``market_data`` and ``price_inputs`` are
-    empty when no series resolved. ``reason_code`` is set only where a ``ReasonCode`` names the cause, and
-    ``provider_failure`` only for a classified provider failure.
+    ``execution_status`` is ``ok`` for a bullish or bearish trend, ``input_unavailable`` for an ``UNKNOWN`` trend,
+    for no observation at or before the boundary, for a failed data-quality check and for a provider that returned
+    no price history (``provider_no_data``), and ``provider_error`` for any other provider failure. ``metrics`` is
+    absent exactly when no calculation ran. ``market_data`` and ``price_inputs`` are empty when no series resolved.
+    ``reason_code`` is set only where a ``ReasonCode`` names the cause, and ``provider_failure`` only for a
+    classified provider failure.
     """
 
     ticker: str
@@ -331,7 +335,8 @@ class MomentumUnresolved:
 
     ``reason`` is a fixed message for a provider failure, never the provider's exception text, which may carry
     provider data. For a failed quality check it is the message the quality error builds from field and date
-    evidence. ``reason_code`` is set only for ``provider_error`` and for no observation at or before the boundary.
+    evidence. ``reason_code`` is set only for ``provider_error``, ``provider_no_data`` and no observation at or
+    before the boundary.
     """
 
     status: CalculationStatus
@@ -409,15 +414,30 @@ class MomentumInputResolver:
             return self._provider.fetch_historical_data(ticker, start_date, end_date, use_cache=use_cache)
         except DataFetchError as error:
             record = failure_record(error)
+            status = provider_stopped_status_of_record(record)
+            if record is not None and is_no_data(record):
+                reason = no_data_message(record, what=_PRICE_HISTORY_LABEL, ticker=ticker)
+                code = ReasonCode.PROVIDER_NO_DATA
+            else:
+                reason = _PROVIDER_FAILURE_MESSAGE
+                code = ReasonCode.PROVIDER_ERROR
+            outcome = (
+                ResolutionOutcome.UNAVAILABLE
+                if status is CalculationStatus.INPUT_UNAVAILABLE
+                else ResolutionOutcome.ERROR
+            )
             return MomentumUnresolved(
-                status=CalculationStatus.PROVIDER_ERROR,
-                reason=_PROVIDER_FAILURE_MESSAGE,
+                status=status,
+                reason=reason,
                 resolution_trace=trace.append(
                     ResolutionEvent(
-                        _PRICE_INPUT, ResolutionStage.PROVIDER, ResolutionOutcome.ERROR, _PROVIDER_FAILURE_MESSAGE
+                        _PRICE_INPUT,
+                        ResolutionStage.PROVIDER,
+                        outcome,
+                        reason,
                     )
                 ),
-                reason_code=ReasonCode.PROVIDER_ERROR,
+                reason_code=code,
                 provider_failure=None if record is None else record.for_input(_PRICE_INPUT),
             )
         except HistoricalDataQualityError as error:

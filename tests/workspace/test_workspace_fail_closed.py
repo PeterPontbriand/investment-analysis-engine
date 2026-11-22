@@ -54,7 +54,7 @@ def _run(analysis_id: str = "momentum", method_id: str = "sma_crossover") -> Ana
         started_at=STAMP,
         completed_at=STAMP,
         method_version=1,
-        result_schema_version=5,
+        result_schema_version=6,
         evidence_codec_version=4,
         outcome=RunOutcome.FAILED,
         failure_reason_code="execution_error",

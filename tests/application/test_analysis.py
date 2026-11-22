@@ -17,6 +17,7 @@ from typing import Literal, get_args, get_type_hints
 from unittest.mock import patch
 from uuid import UUID
 
+import pandas as pd
 import pytest
 from pydantic import BaseModel
 from typer.testing import CliRunner
@@ -317,6 +318,33 @@ def test_no_application_module_holds_a_module_level_probe() -> None:
                     if isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
                 }
                 assert not called & {"ProviderProbe", "build_provider_probe"}, (path.name, node.lineno)
+
+
+@pytest.mark.usefixtures("stub_yahoo_identity_metadata")
+def test_an_unavailable_run_stopped_by_a_no_data_failure_still_runs_the_check_and_replays_without_it(
+    context: ApplicationContext,
+) -> None:
+    probe = _Probe()
+
+    with (
+        patch("investment_analysis_engine.data.yfinance.client.yf.download", return_value=pd.DataFrame()),
+        injected_probe(probe),
+    ):
+        outcome = analyze(context, "ZZZZQ", _SELECTIONS["momentum"], save=True, provider_check=True)
+
+    assert outcome.outcome is RunOutcome.UNAVAILABLE
+    assert exit_code_of(outcome.outcome) == 1
+    assert [call[1] for call in probe.calls] == [True]
+    document = json.loads(strategy_document_json(outcome.document))
+    assert document["status"] == "input_unavailable"
+    assert [item["verdict"] for item in document["provider_check"]] == [ProviderCheckVerdict.UNREACHABLE.value]
+    first_line = outcome.render_text(PresentationMode.CONCISE).splitlines()[0]
+    assert "is not answering: a test request also failed." in first_line
+    assert outcome.analysis_run_id is not None
+    replayed = json.loads(strategy_document_json(replay_run_document(context, outcome.analysis_run_id)))
+    assert replayed["status"] == "input_unavailable"
+    assert replayed["provider_failure"]["reason_code"] == "provider_no_data"
+    assert replayed["provider_check"] is None
 
 
 def test_a_completed_analysis_never_runs_the_check(context: ApplicationContext) -> None:

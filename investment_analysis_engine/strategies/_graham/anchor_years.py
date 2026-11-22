@@ -19,7 +19,7 @@ from investment_analysis_engine.core.provider_failure_kind import ProviderFailur
 from investment_analysis_engine.data.financial.provenance import SourceKind
 from investment_analysis_engine.data.financial.resolver import InputResolutionResult, InputResolver
 from investment_analysis_engine.data.sec_edgar.financial_facts import AnchorYearEnd
-from investment_analysis_engine.strategies._graham.outcome import provider_error_message
+from investment_analysis_engine.strategies._graham.outcome import provider_stop
 
 
 class GrahamFilingInput(StrEnum):
@@ -88,13 +88,14 @@ class AnchorStop:
     """Why a Graham run stopped before it read any filing input: the anchor filing could not be resolved.
 
     Attributes:
-        status: ``provider_error`` for a provider failure, ``input_unavailable`` when there is no anchor.
-        reason: The explanation; the provider-error message for a provider failure, and the anchor's own message when
+        status: ``provider_error`` for a provider failure, ``input_unavailable`` for a ``no_data`` failure and when
             there is no anchor.
+        reason: The explanation; the provider message for a provider failure, and the anchor's own message when there
+            is no anchor.
         provider_failure: The failure recorded against ``anchor_year_end``; ``None`` for an unclassified failure and
             when there is no failure.
-        reason_code: ``provider_error`` for a provider failure, and the anchor's own reason code when there is no
-            anchor.
+        reason_code: ``provider_error`` or ``provider_no_data`` for a provider failure, and the anchor's own reason
+            code when there is no anchor.
     """
 
     status: CalculationStatus
@@ -106,15 +107,12 @@ class AnchorStop:
 def anchor_stop(anchor: InputUnavailable | MetricInputsFailure, security_subject_id: str) -> AnchorStop:
     """Return the outcome of an anchor that is not an ``AnchorYearEnd``.
 
-    A provider failure is ``provider_error``, with its code and message, and the failure recorded against
+    A provider failure is ``provider_error`` (``input_unavailable`` and ``provider_no_data`` when it is ``no_data``),
+    with its code and message, and the failure recorded against
     ``anchor_year_end``. No anchor, for any reason, is ``input_unavailable`` with the anchor's message: the newest facts
     are never used in its place.
     """
     if isinstance(anchor, MetricInputsFailure):
-        return AnchorStop(
-            CalculationStatus.PROVIDER_ERROR,
-            provider_error_message(security_subject_id),
-            anchor.provider_failure,
-            ReasonCode.PROVIDER_ERROR,
-        )
+        stop = provider_stop(anchor.provider_failure, security_subject_id=security_subject_id, what="annual filings")
+        return AnchorStop(stop.status, stop.message, anchor.provider_failure, stop.code)
     return AnchorStop(CalculationStatus.INPUT_UNAVAILABLE, anchor.reason, None, anchor.reason_code)

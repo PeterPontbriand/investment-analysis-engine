@@ -232,7 +232,7 @@ def test_no_failed_input_is_no_element() -> None:
 # --- the code a failed run stores ----------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("kind", _KINDS)
+@pytest.mark.parametrize("kind", [kind for kind in _KINDS if kind is not ProviderFailureKind.NO_DATA])
 def test_a_failed_run_of_each_strategy_stores_the_mapped_provider_code(kind: ProviderFailureKind) -> None:
     captures = [
         _number_capture(_number(CalculationStatus.PROVIDER_ERROR, _record(kind, "eps"))),
@@ -242,6 +242,22 @@ def test_a_failed_run_of_each_strategy_stores_the_mapped_provider_code(kind: Pro
 
     assert [capture.outcome for capture in captures] == [RunOutcome.FAILED] * 3
     assert {capture.failure_reason_code for capture in captures} == {PROVIDER_CODE_BY_KIND[kind].value}
+
+
+def test_a_no_data_run_of_each_strategy_is_unavailable_with_no_code_and_keeps_its_provider_failure() -> None:
+    captures = [
+        _number_capture(_number(CalculationStatus.INPUT_UNAVAILABLE, _record(ProviderFailureKind.NO_DATA, "eps"))),
+        _growth_capture(_growth(CalculationStatus.INPUT_UNAVAILABLE, _record(ProviderFailureKind.NO_DATA, "eps"))),
+        _fcf_capture(
+            _fcf(CalculationStatus.INPUT_UNAVAILABLE, _record(ProviderFailureKind.NO_DATA, "operating_cash_flow"))
+        ),
+    ]
+
+    assert [capture.outcome for capture in captures] == [RunOutcome.UNAVAILABLE] * 3
+    assert {capture.failure_reason_code for capture in captures} == {None}
+    assert {capture.provider_failure.reason_code if capture.provider_failure else None for capture in captures} == {
+        FailureReasonCode.PROVIDER_NO_DATA
+    }
 
 
 def test_a_failed_run_without_a_recorded_kind_stores_the_generic_provider_code() -> None:

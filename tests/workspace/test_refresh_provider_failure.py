@@ -131,7 +131,7 @@ def test_an_unclassified_provider_failed_run_carries_no_element() -> None:
 
 
 def test_the_element_requires_a_failed_job() -> None:
-    with pytest.raises(ValueError, match="provider_failure requires a failed job"):
+    with pytest.raises(ValueError, match="provider_failure requires a failed or an unavailable job"):
         RefreshJobResult(
             ticker="AAPL",
             method_id="m",
@@ -151,3 +151,34 @@ def test_a_capture_carries_the_element_only_when_failed() -> None:
     )
 
     assert capture.provider_failure is None
+
+
+_NO_DATA = provider_failure_of((ProviderFailureRecord(ProviderFailureKind.NO_DATA, "yfinance"),))
+
+
+def _unavailable_capture(ticker: str, provider_failure: ProviderFailure | None) -> ExecutionCapture:
+    completed = _momentum_capture(ticker)
+    return ExecutionCapture(
+        native_evidence=completed.native_evidence,
+        profile=None,
+        native_status=CalculationStatus.INPUT_UNAVAILABLE,
+        provider_failure=provider_failure,
+    )
+
+
+def test_an_unavailable_capture_keeps_a_no_data_element_and_no_other() -> None:
+    assert _unavailable_capture("AAPL", _NO_DATA).provider_failure == _NO_DATA
+    assert _unavailable_capture("AAPL", _NO_DATA).failure_reason_code is None
+    assert _unavailable_capture("AAPL", _UNREACHABLE).provider_failure is None
+
+
+@pytest.mark.parametrize("save", [True, False])
+def test_an_unavailable_no_data_job_carries_the_element_and_no_reason_code(save: bool) -> None:
+    def executor(ticker: str, selection: AnalysisSelection) -> ExecutionCapture:
+        return _unavailable_capture(ticker, _NO_DATA) if ticker == "BROKEN" else _executor(ticker, selection)
+
+    unavailable = _refresh(executor, save=save).results[1]
+
+    assert unavailable.reason_code is None
+    assert unavailable.provider_failure == _NO_DATA
+    assert (unavailable.run.outcome if unavailable.run is not None else unavailable.outcome) is RunOutcome.UNAVAILABLE
