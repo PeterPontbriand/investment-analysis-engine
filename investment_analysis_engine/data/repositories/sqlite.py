@@ -14,6 +14,7 @@ from sqlalchemy.pool import NullPool, StaticPool
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories.database_errors import (
     DatabaseError,
+    DatabaseReason,
     is_read_only_error,
     storage_reason,
 )
@@ -56,7 +57,10 @@ class SQLiteDatabase:
 
     def _connect(self) -> sqlite3.Connection:
         if not self._memory:
-            Path(self._database).parent.mkdir(parents=True, exist_ok=True)
+            try:
+                Path(self._database).parent.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                raise DatabaseError(storage_reason(exc) or DatabaseReason.IO_ERROR, self.database_path) from exc
         connection = sqlite3.connect(
             self._database, timeout=self._timeout_ms / 1_000, autocommit=True, check_same_thread=False
         )

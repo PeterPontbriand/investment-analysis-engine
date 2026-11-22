@@ -1,6 +1,5 @@
 """Adding entries checks each distinct ticker once, warns of each unconfirmed one and never refuses or fails."""
 
-import errno
 import logging
 import sqlite3
 from collections.abc import Callable
@@ -176,25 +175,13 @@ def _readiness(reason: DatabaseReason) -> BaseException:
     return DatabaseError(reason, None)
 
 
-def _locked() -> BaseException:
-    error = sqlite3.OperationalError("database is locked")
-    error.sqlite_errorcode = sqlite3.SQLITE_BUSY
-    return error
-
-
-def _io() -> BaseException:
-    return OSError(errno.EIO, "input/output error")
-
-
 @pytest.mark.parametrize(
     ("raised", "code"),
     [
         (lambda: _readiness(DatabaseReason.BUSY), FailureReasonCode.DATABASE_BUSY),
         (lambda: _readiness(DatabaseReason.UPGRADE_REQUIRED), FailureReasonCode.DATABASE_UPGRADE_REQUIRED),
-        (_locked, FailureReasonCode.DATABASE_BUSY),
-        (_io, FailureReasonCode.DATABASE_IO_ERROR),
     ],
-    ids=["readiness-busy", "readiness-upgrade", "raw-locked", "raw-io"],
+    ids=["readiness-busy", "readiness-upgrade"],
 )
 def test_a_database_error_on_the_first_lookup_stops_the_check_and_the_add_still_succeeds(
     isolated_cli_settings: ProjectSettings,
@@ -325,3 +312,13 @@ def test_an_unknown_watchlist_and_an_unready_database_are_refused_before_any_loo
         add_watchlist_entries_checked(unready, _REF, [("KO", _SELECTION)])
 
     assert asked == []
+
+
+def test_a_raw_storage_error_is_no_longer_classified_here_and_propagates(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    _answers(monkeypatch, {"KO": OSError("raw")})
+
+    with pytest.raises(OSError, match="raw"):
+        _add(context, "KO")

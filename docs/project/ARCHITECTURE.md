@@ -624,6 +624,8 @@ This table is the single declaration of the top-level units under `investment_an
 
 The provider/resolver/cache seams live with the narrowest responsible package rather than inside `BaseDataClient`. `data` owns the SQLite database layer (connection, schema, migrations and readiness) and the provider-data, cache and trajectory repositories, under `investment_analysis_engine/data/repositories/`; `workspace` owns the repositories of its own records, analysis runs and watchlists, under `investment_analysis_engine/workspace/repositories/`; callers consume typed domain objects rather than SQL rows.
 
+`data/repositories/` owns all SQLite-specific code: importing `sqlite3`, importing `sqlalchemy.dialects`, raw SQL (`exec_driver_sql` and `sqlalchemy.text`) and reading `sqlite_errorcode`. Every other module that touches storage, `workspace/repositories/` included, uses dialect-neutral SQLAlchemy Core only (`select`, `insert`, `update`, `delete`, `func`, `Connection`, `RowMapping`, the exceptions in `sqlalchemy.exc`, and URL parsing). `scripts/check_database_boundary.py` enforces it and lists no exceptions; code that needs SQLite-specific behavior moves into `data/repositories/`. Issue #291 records why: a PostgreSQL option stays contained only while that code stays in one place.
+
 ---
 
 ## 14. Contributor guardrails
