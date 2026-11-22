@@ -32,6 +32,9 @@ jobs:
       - name: Check Package Dependency Table
         run: python scripts/check_package_dependencies.py
 
+      - name: Check Database Boundary
+        run: python scripts/check_database_boundary.py
+
   quality-and-test:
     name: Validate on ${{ matrix.os }} (Python ${{ matrix.python-version }})
     strategy:

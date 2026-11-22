@@ -377,7 +377,7 @@ Momentum, Graham, Free Cash Flow & Earnings Growth, and the Step 3.5 quantitativ
 
 Every Pull Request must pass the following automated GitHub Actions pipeline before merge approval. Dependabot pull requests are never merged: reapply the same version bump on a project branch, and Dependabot then closes its own pull request. Commits on `main` are authored by project contributors only.
 
-1. **Lint & Code Style:** `ruff check . && ruff format --check .`, plus the Markdown checks `scripts/check_doc_links.py`, `scripts/check_sequence_tables.py`, and `scripts/check_package_dependencies.py`
+1. **Lint & Code Style:** `ruff check . && ruff format --check .`, plus the Markdown checks `scripts/check_doc_links.py`, `scripts/check_sequence_tables.py`, and `scripts/check_package_dependencies.py`, and the database boundary check `scripts/check_database_boundary.py`
 2. **Strict Static Analysis:** `mypy --strict`, over the folders listed in the `[tool.mypy]` section of `pyproject.toml`
 3. **Unit Tests & Coverage:** `pytest --cov=investment_analysis_engine --cov-report=term-missing`
 4. **Security & Dependency Audit:** `uv audit` / `pip-audit` for known vulnerabilities.

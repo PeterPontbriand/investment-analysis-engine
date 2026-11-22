@@ -240,6 +240,7 @@ try {
     Invoke-Step -Name "check_help_content" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_help_content.py"))
     Invoke-Step -Name "check_sequence_tables" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_sequence_tables.py"))
     Invoke-Step -Name "check_package_dependencies" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_package_dependencies.py"))
+    Invoke-Step -Name "check_database_boundary" -Executable $systemPython -Arguments ($systemPythonPrefix + @("scripts/check_database_boundary.py"))
     Invoke-Step -Name "generate_openapi --check" -Executable "uv" -Arguments @("run", "--no-sync", "python", "-m", "scripts.generate_openapi", "--check")
     Invoke-Step -Name "generate_help --check" -Executable "uv" -Arguments @("run", "--no-sync", "python", "-m", "scripts.generate_help", "--check")
     Invoke-Step -Name "ruff check" -Executable "uv" -Arguments @("run", "--no-sync", "ruff", "check", "--no-cache", ".")
