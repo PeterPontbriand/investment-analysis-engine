@@ -42,6 +42,22 @@ A valid outcome meaning the method should not be used for the supplied facts, fo
 
 The code value is `not_applicable`. It is not the same as a software failure or a zero valuation.
 
+<a id="analysis-warning"></a>
+### Analysis Warning
+A note in one analysis result about something in that run that may affect how far you can rely on it, such as a value you entered instead of provider data, or a fallback the method had to use.
+
+Warnings depend on the run: two runs of the same strategy can carry different warnings, or none.
+
+Related terms: [analysis limitation](#analysis-limitation).
+
+<a id="analysis-limitation"></a>
+### Analysis Limitation
+A caveat about what an analysis strategy's method can and cannot tell you, such as that a passing result is not an investment recommendation.
+
+Most limitations come with every result of a strategy, and a few appear only when the data the method used calls for them. A limitation is not a sign of a problem with the run.
+
+Related terms: [analysis warning](#analysis-warning).
+
 <a id="as-filed-sic-code"></a>
 ### As-Filed SIC Code
 The four-digit industry code that the SEC header of an annual filing assigns to the issuer on the filing date. It is read from the filing an analysis is anchored to.
