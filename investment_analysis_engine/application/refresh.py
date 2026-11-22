@@ -226,7 +226,7 @@ def _watchlist_snapshot(context: ApplicationContext, ref: WatchlistRef) -> Refre
         WatchlistNotFoundError: If no watchlist matches ``ref``.
         EmptyRefreshTargetError: If the watchlist has no entries.
         StoredSelectionError: If an entry of the watchlist cannot be read.
-        DatabaseReadinessError: If the database is missing, busy or not at the expected revision.
+        DatabaseError: If the database is missing, busy or not at the expected revision.
     """
     with open_database(context) as database:
         repository = watchlist_repository(database)
@@ -276,7 +276,7 @@ def prepare_refresh(
         WatchlistNotFoundError: If no watchlist matches the target.
         EmptyRefreshTargetError: If the watchlist has no entries.
         StoredSelectionError: If an entry of the watchlist cannot be read.
-        DatabaseReadinessError: If the database is missing, busy or not at the expected revision.
+        DatabaseError: If the database is missing, busy or not at the expected revision.
     """
     _check_workers(workers)
     if isinstance(target, RefreshEntries):
@@ -402,7 +402,7 @@ def run_refresh(
         The summary document, whether any job failed and the text renderer.
 
     Raises:
-        DatabaseReadinessError: If the database is missing, busy or not at the expected revision when the jobs
+        DatabaseError: If the database is missing, busy or not at the expected revision when the jobs
             begin.
     """
     with open_database(context) as database:

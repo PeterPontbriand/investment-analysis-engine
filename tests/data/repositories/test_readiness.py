@@ -12,10 +12,9 @@ from sqlalchemy.engine import Connection
 
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.repositories import migrations, readiness
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.readiness import (
-    DatabaseReadinessError,
     ReadinessOutcome,
-    ReadinessReason,
     ensure_database_ready,
 )
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
@@ -118,9 +117,9 @@ def test_nonempty_unversioned_storage_is_preserved(tmp_path: Path, sql: str) -> 
     before = path.read_bytes()
     database = database_for(path)
     try:
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.INCOMPATIBLE_SCHEMA
+        assert caught.value.reason is DatabaseReason.INCOMPATIBLE_SCHEMA
         assert path.read_bytes() == before
         with closing(sqlite3.connect(path, autocommit=True)) as connection:
             assert connection.execute("PRAGMA journal_mode").fetchone() == ("delete",)
@@ -157,9 +156,9 @@ def test_head_stamp_does_not_hide_schema_drift(tmp_path: Path, sql: str) -> None
         ensure_database_ready(database)
         execute(path, sql)
         before = path.read_bytes()
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.INCOMPATIBLE_SCHEMA
+        assert caught.value.reason is DatabaseReason.INCOMPATIBLE_SCHEMA
         assert "untrusted-secret-version" not in str(caught.value)
         assert path.read_bytes() == before
     finally:
@@ -171,9 +170,9 @@ def test_corrupt_file_is_not_initialized(tmp_path: Path) -> None:
     path.write_bytes(b"private payload that is not SQLite")
     database = database_for(path)
     try:
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.INVALID_FILE
+        assert caught.value.reason is DatabaseReason.INVALID_FILE
         assert "private payload" not in str(caught.value)
         assert path.read_bytes() == b"private payload that is not SQLite"
     finally:
@@ -215,9 +214,9 @@ def test_failed_initialization_rolls_back_and_can_be_retried(
     try:
         with monkeypatch.context() as context:
             context.setattr(readiness, "upgrade_fresh_database", fail_upgrade)
-            with pytest.raises(DatabaseReadinessError) as caught:
+            with pytest.raises(DatabaseError) as caught:
                 ensure_database_ready(database)
-            assert caught.value.reason is ReadinessReason.INITIALIZATION_FAILED
+            assert caught.value.reason is DatabaseReason.INITIALIZATION_FAILED
             assert "private migration exception" not in str(caught.value)
         with database.read() as connection:
             assert connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").all() == []
@@ -235,9 +234,9 @@ def test_missing_resources_precede_all_storage_access(tmp_path: Path, monkeypatc
 
     monkeypatch.setattr(readiness, "migration_resources", missing)
     try:
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.RESOURCES_UNAVAILABLE
+        assert caught.value.reason is DatabaseReason.RESOURCES_UNAVAILABLE
         assert not path.parent.exists()
         assert "private installation path" not in str(caught.value)
     finally:
@@ -252,9 +251,9 @@ def test_known_ancestor_requires_explicit_upgrade(tmp_path: Path, monkeypatch: p
         original = migrations.migration_resources()
         synthetic = replace(original, head="synthetic_next", ancestors=frozenset({original.head}))
         monkeypatch.setattr(readiness, "migration_resources", lambda: synthetic)
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
+        assert caught.value.reason is DatabaseReason.UPGRADE_REQUIRED
         assert "synthetic_next" in str(caught.value)
         assert "ian " not in str(caught.value)
         assert "--" not in str(caught.value)
@@ -288,9 +287,9 @@ def test_real_predecessor_requires_explicit_upgrade_and_retains_existing_data(tm
         inspection = readiness.inspect_database(database)
         assert inspection.state is readiness.DatabaseState.UPGRADE_REQUIRED
         assert inspection.current_revision == "0001_persistence"
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.UPGRADE_REQUIRED
+        assert caught.value.reason is DatabaseReason.UPGRADE_REQUIRED
 
         assert readiness.upgrade_database(database) == (ReadinessOutcome.UPGRADED, "0006_run_watchlist_columns")
         assert ensure_database_ready(database) is ReadinessOutcome.READY
@@ -337,9 +336,9 @@ def test_upgrade_database_synthetic_older_schema_rollback_on_failure(
         before = path.read_bytes()
         resources = _synthetic_migration_resources(tmp_path, failing=True)
         monkeypatch.setattr(readiness, "migration_resources", lambda: resources)
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             readiness.upgrade_database(database)
-        assert caught.value.reason is ReadinessReason.MIGRATION_FAILED
+        assert caught.value.reason is DatabaseReason.MIGRATION_FAILED
         assert "synthetic failure" not in str(caught.value)
         with closing(sqlite3.connect(path, autocommit=True)) as connection:
             tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_schema WHERE type='table'")}
@@ -370,21 +369,21 @@ def test_upgrade_database_synthetic_newer_schema_returns_ready(tmp_path: Path, m
 @pytest.mark.parametrize(
     ("code", "reason"),
     [
-        (sqlite3.SQLITE_BUSY, ReadinessReason.BUSY),
-        (sqlite3.SQLITE_LOCKED, ReadinessReason.BUSY),
-        (sqlite3.SQLITE_READONLY, ReadinessReason.PERMISSION_DENIED),
-        (sqlite3.SQLITE_AUTH, ReadinessReason.PERMISSION_DENIED),
-        (sqlite3.SQLITE_PERM, ReadinessReason.PERMISSION_DENIED),
-        (sqlite3.SQLITE_CORRUPT, ReadinessReason.INVALID_FILE),
-        (sqlite3.SQLITE_NOTADB, ReadinessReason.INVALID_FILE),
-        (sqlite3.SQLITE_IOERR, ReadinessReason.IO_ERROR),
-        (sqlite3.SQLITE_CANTOPEN, ReadinessReason.IO_ERROR),
-        (sqlite3.SQLITE_FULL, ReadinessReason.IO_ERROR),
-        (sqlite3.SQLITE_BUSY | (2 << 8), ReadinessReason.BUSY),
+        (sqlite3.SQLITE_BUSY, DatabaseReason.BUSY),
+        (sqlite3.SQLITE_LOCKED, DatabaseReason.BUSY),
+        (sqlite3.SQLITE_READONLY, DatabaseReason.PERMISSION_DENIED),
+        (sqlite3.SQLITE_AUTH, DatabaseReason.PERMISSION_DENIED),
+        (sqlite3.SQLITE_PERM, DatabaseReason.PERMISSION_DENIED),
+        (sqlite3.SQLITE_CORRUPT, DatabaseReason.INVALID_FILE),
+        (sqlite3.SQLITE_NOTADB, DatabaseReason.INVALID_FILE),
+        (sqlite3.SQLITE_IOERR, DatabaseReason.IO_ERROR),
+        (sqlite3.SQLITE_CANTOPEN, DatabaseReason.IO_ERROR),
+        (sqlite3.SQLITE_FULL, DatabaseReason.IO_ERROR),
+        (sqlite3.SQLITE_BUSY | (2 << 8), DatabaseReason.BUSY),
     ],
 )
 def test_storage_codes_are_classified_without_exception_text(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, code: int, reason: ReadinessReason
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, code: int, reason: DatabaseReason
 ) -> None:
     database = database_for(tmp_path / "codes.sqlite3")
 
@@ -396,10 +395,30 @@ def test_storage_codes_are_classified_without_exception_text(
 
     monkeypatch.setattr(readiness, "_file_ready", broken)
     try:
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
         assert caught.value.reason is reason
         assert "private SQL" not in str(caught.value)
+    finally:
+        database.close()
+
+
+def test_readiness_reports_a_sqlite_error_it_cannot_classify_as_an_io_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = database_for(tmp_path / "unclassified.sqlite3")
+
+    def broken(database: SQLiteDatabase, resources: migrations.MigrationResources) -> bool:
+        del database, resources
+        error = sqlite3.OperationalError("private SQL and parameters")
+        error.sqlite_errorcode = sqlite3.SQLITE_MISUSE
+        raise error
+
+    monkeypatch.setattr(readiness, "_file_ready", broken)
+    try:
+        with pytest.raises(DatabaseError) as caught:
+            ensure_database_ready(database)
+        assert caught.value.reason is DatabaseReason.IO_ERROR
     finally:
         database.close()
 
@@ -416,9 +435,9 @@ def test_sidecar_open_permission_failure_is_not_lock_contention(
 
     monkeypatch.setattr("investment_analysis_engine.data.repositories.readiness_lock.os.open", denied)
     try:
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.PERMISSION_DENIED
+        assert caught.value.reason is DatabaseReason.PERMISSION_DENIED
     finally:
         database.close()
 
@@ -448,9 +467,9 @@ def test_constraints_and_column_shapes_are_verified(tmp_path: Path, old: str, ne
             assert old in sql
             connection.execute("DROP TABLE market_price_observations")
             connection.execute(sql.replace(old, new))
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.INCOMPATIBLE_SCHEMA
+        assert caught.value.reason is DatabaseReason.INCOMPATIBLE_SCHEMA
     finally:
         database.close()
 
@@ -479,9 +498,9 @@ def test_migration_sql_error_is_initialization_failure(tmp_path: Path, monkeypat
 
     monkeypatch.setattr(readiness, "upgrade_fresh_database", invalid_sql)
     try:
-        with pytest.raises(DatabaseReadinessError) as caught:
+        with pytest.raises(DatabaseError) as caught:
             ensure_database_ready(database)
-        assert caught.value.reason is ReadinessReason.INITIALIZATION_FAILED
+        assert caught.value.reason is DatabaseReason.INITIALIZATION_FAILED
         with database.read() as connection:
             assert connection.exec_driver_sql("SELECT name FROM sqlite_schema WHERE type='table'").all() == []
     finally:

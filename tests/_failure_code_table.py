@@ -31,7 +31,7 @@ from investment_analysis_engine.data.quality import (
     QualityContext,
     evaluate_historical_quality,
 )
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.reporting.replay_inputs import UnsupportedProjectionError
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from investment_analysis_engine.workspace.refresh import EmptyRefreshTargetError
@@ -69,8 +69,8 @@ def _plain(exception_type: type[BaseException]) -> Callable[[], BaseException]:
     return lambda: exception_type("x")
 
 
-def _readiness(reason: ReadinessReason) -> Callable[[], BaseException]:
-    return lambda: DatabaseReadinessError(reason, Path("x.sqlite3"))
+def _readiness(reason: DatabaseReason) -> Callable[[], BaseException]:
+    return lambda: DatabaseError(reason, Path("x.sqlite3"))
 
 
 def _provider(
@@ -89,9 +89,9 @@ def _row(
     )
 
 
-def _readiness_row(reason: ReadinessReason, reason_code: str) -> PinnedClassification:
+def _readiness_row(reason: DatabaseReason, reason_code: str) -> PinnedClassification:
     return PinnedClassification(
-        f"DatabaseReadinessError[{reason.name}]", DatabaseReadinessError, _readiness(reason), reason_code, "error"
+        f"DatabaseError[{reason.name}]", DatabaseError, _readiness(reason), reason_code, "error"
     )
 
 
@@ -144,15 +144,15 @@ PINNED_CLASSIFICATIONS: tuple[PinnedClassification, ...] = (
     _row(WatchlistConflictError, "watchlist_name_conflict", "error"),
     _row(AnalysisRunConflictError, "execution_error", "error"),
     _row(InternalDefectError, "execution_error", "error"),
-    _readiness_row(ReadinessReason.UPGRADE_REQUIRED, "database_upgrade_required"),
-    _readiness_row(ReadinessReason.INCOMPATIBLE_SCHEMA, "database_incompatible_schema"),
-    _readiness_row(ReadinessReason.BUSY, "database_busy"),
-    _readiness_row(ReadinessReason.PERMISSION_DENIED, "database_permission_denied"),
-    _readiness_row(ReadinessReason.INVALID_FILE, "database_invalid_file"),
-    _readiness_row(ReadinessReason.IO_ERROR, "database_io_error"),
-    _readiness_row(ReadinessReason.RESOURCES_UNAVAILABLE, "database_resources_unavailable"),
-    _readiness_row(ReadinessReason.INITIALIZATION_FAILED, "database_initialization_failed"),
-    _readiness_row(ReadinessReason.MIGRATION_FAILED, "database_migration_failed"),
+    _readiness_row(DatabaseReason.UPGRADE_REQUIRED, "database_upgrade_required"),
+    _readiness_row(DatabaseReason.INCOMPATIBLE_SCHEMA, "database_incompatible_schema"),
+    _readiness_row(DatabaseReason.BUSY, "database_busy"),
+    _readiness_row(DatabaseReason.PERMISSION_DENIED, "database_permission_denied"),
+    _readiness_row(DatabaseReason.INVALID_FILE, "database_invalid_file"),
+    _readiness_row(DatabaseReason.IO_ERROR, "database_io_error"),
+    _readiness_row(DatabaseReason.RESOURCES_UNAVAILABLE, "database_resources_unavailable"),
+    _readiness_row(DatabaseReason.INITIALIZATION_FAILED, "database_initialization_failed"),
+    _readiness_row(DatabaseReason.MIGRATION_FAILED, "database_migration_failed"),
     _provider_row(DataFetchError, None, "provider_error"),
     _provider_row(DataFetchError, ProviderFailureKind.UNREACHABLE, "provider_unreachable"),
     _provider_row(DataFetchError, ProviderFailureKind.RATE_LIMITED, "provider_rate_limited"),

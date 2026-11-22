@@ -21,7 +21,7 @@ from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.clock import utc_now
 from investment_analysis_engine.core.trajectory_events import TrajectoryEventType
 from investment_analysis_engine.data.repositories import migrations, readiness
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.telemetry.recorder import TrajectoryRecord, TrajectoryRecorder
 from investment_analysis_engine.telemetry.run_context import RunContext
@@ -40,13 +40,13 @@ def arguments(command: str) -> list[str]:
 
 @pytest.mark.parametrize("command", COMMANDS)
 @pytest.mark.parametrize("mode", [[], ["--details"], ["--diagnostics"], ["--json"]])
-@pytest.mark.parametrize("reason", list(ReadinessReason))
+@pytest.mark.parametrize("reason", list(DatabaseReason))
 def test_typed_readiness_failure_preserves_envelope_and_closes_storage(
-    tmp_path: Path, command: str, mode: list[str], reason: ReadinessReason
+    tmp_path: Path, command: str, mode: list[str], reason: DatabaseReason
 ) -> None:
     path = tmp_path / "selected % café.sqlite3"
     database = SQLiteDatabase(ProjectSettings(database_url=f"sqlite:///{path.as_posix()}"))
-    error = DatabaseReadinessError(reason, path, "0001_persistence")
+    error = DatabaseError(reason, path, "0001_persistence")
     error.__cause__ = RuntimeError("private SQL parameters and credentials")
     with (
         patch("investment_analysis_engine.application.providers.SQLiteDatabase", return_value=database),
@@ -91,12 +91,12 @@ def test_real_rejected_storage_precedes_provider_calls(
     selected = ProjectSettings(database_url=f"sqlite:///{path.as_posix()}")
     if state == "corrupt":
         path.write_bytes(b"private-invalid-file")
-        reason = ReadinessReason.INVALID_FILE
+        reason = DatabaseReason.INVALID_FILE
     elif state == "incompatible":
         with closing(sqlite3.connect(path)) as connection:
             connection.execute("CREATE TABLE private_records(value TEXT)")
             connection.commit()
-        reason = ReadinessReason.INCOMPATIBLE_SCHEMA
+        reason = DatabaseReason.INCOMPATIBLE_SCHEMA
     else:
         database = SQLiteDatabase(selected)
         try:
@@ -109,7 +109,7 @@ def test_real_rejected_storage_precedes_provider_calls(
             "migration_resources",
             lambda: replace(resources, head="synthetic_head", ancestors=frozenset({resources.head})),
         )
-        reason = ReadinessReason.UPGRADE_REQUIRED
+        reason = DatabaseReason.UPGRADE_REQUIRED
     before = path.read_bytes()
     with (
         patch("investment_analysis_engine.cli_support.settings", selected),
@@ -173,11 +173,11 @@ def test_optional_telemetry_failure_does_not_control_cache_readiness(tmp_path: P
         context = ApplicationContext(settings=selected)
         if incompatible:
             with (
-                pytest.raises(DatabaseReadinessError) as caught,
+                pytest.raises(DatabaseError) as caught,
                 production_financial_cache(context, use_cache=True, clock=utc_now),
             ):
                 pytest.fail("Invalid storage was accepted.")
-            assert caught.value.reason is ReadinessReason.INVALID_FILE
+            assert caught.value.reason is DatabaseReason.INVALID_FILE
         else:
             with production_financial_cache(context, use_cache=True, clock=utc_now):
                 assert cache_path.exists()

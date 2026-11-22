@@ -9,10 +9,9 @@ from investment_analysis_engine.cli_database_target import file_backed_settings
 from investment_analysis_engine.cli_support import database_message, parameter_failures, report_failure
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
 from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.readiness import (
-    DatabaseReadinessError,
     DatabaseState,
-    ReadinessReason,
     inspect_database,
     upgrade_database,
 )
@@ -66,11 +65,11 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
                 inspection = inspect_database(database)
                 state = inspection.state
                 reason = {
-                    DatabaseState.UPGRADE_REQUIRED: ReadinessReason.UPGRADE_REQUIRED,
-                    DatabaseState.INCOMPATIBLE: ReadinessReason.INCOMPATIBLE_SCHEMA,
+                    DatabaseState.UPGRADE_REQUIRED: DatabaseReason.UPGRADE_REQUIRED,
+                    DatabaseState.INCOMPATIBLE: DatabaseReason.INCOMPATIBLE_SCHEMA,
                 }.get(state)
                 reason_text = (
-                    database_message(DatabaseReadinessError(reason, path, inspection.expected_revision))
+                    database_message(DatabaseError(reason, path, inspection.expected_revision))
                     if reason is not None
                     else "Database is ready."
                     if state is DatabaseState.READY
@@ -90,7 +89,7 @@ def _run(*, upgrade: bool, database_url: str | None, json_output: bool) -> None:
                     reason=reason_text,
                 )
                 code = 0 if state is DatabaseState.READY else 1
-        except DatabaseReadinessError as exc:
+        except DatabaseError as exc:
             report = DatabaseMaintenanceReport(
                 command=command,
                 status="error",

@@ -8,9 +8,11 @@ from threading import Lock
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection, make_url
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool, StaticPool
 
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, storage_reason
 
 
 class SQLiteDatabase:
@@ -20,6 +22,10 @@ class SQLiteDatabase:
     In-memory databases retain one connection for sequential test use only;
     overlapping scopes are rejected. Call close after all scopes have exited.
     Callers must not commit, roll back, or change connection policy themselves.
+
+    A storage error raised while a connection opens or inside a scope (busy or locked, read-only or permission
+    denied, not a database or corrupt, an I/O error, full or can't-open) leaves the scope as a :class:`DatabaseError`
+    chained from the driver's error. Any other error, such as a constraint violation, leaves it unchanged.
     """
 
     def __init__(self, settings: ProjectSettings) -> None:
@@ -74,6 +80,17 @@ class SQLiteDatabase:
         return connection
 
     @contextmanager
+    def _storage_errors(self) -> Iterator[None]:
+        """Re-raise a storage error as a :class:`DatabaseError`; any other error passes through unchanged."""
+        try:
+            yield
+        except (sqlite3.Error, SQLAlchemyError) as exc:
+            reason = storage_reason(exc)
+            if reason is None:
+                raise
+            raise DatabaseError(reason, self.database_path) from exc
+
+    @contextmanager
     def _connection(self) -> Iterator[Connection]:
         with self._lock:
             if self._closed:
@@ -82,7 +99,7 @@ class SQLiteDatabase:
                 raise RuntimeError("In-memory SQLite supports only sequential connection scopes.")
             self._active += 1
         try:
-            with self._engine.connect() as connection:
+            with self._storage_errors(), self._engine.connect() as connection:
                 yield connection
         finally:
             with self._lock:

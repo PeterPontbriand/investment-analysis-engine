@@ -17,7 +17,7 @@ from investment_analysis_engine.api.routes import ROUTES
 from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.database import open_database
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from tests.api._support import AUTH, client_for, filled_template
@@ -269,7 +269,7 @@ def test_a_missing_watchlist_an_empty_one_and_an_unreadable_one_are_refused_befo
 
 
 def test_a_busy_database_is_a_503_before_the_202(isolated_cli_settings: ProjectSettings) -> None:
-    busy = DatabaseReadinessError(ReadinessReason.BUSY, None)
+    busy = DatabaseError(DatabaseReason.BUSY, None)
     with (
         client_for(isolated_cli_settings) as client,
         patch("investment_analysis_engine.application.refresh.open_database", side_effect=busy),
@@ -519,7 +519,7 @@ def test_a_job_that_fails_after_the_202_is_failed(isolated_cli_settings: Project
     def open_once(context: ApplicationContext) -> AbstractContextManager[SQLiteDatabase]:
         calls.append(context)
         if len(calls) > 1:
-            raise DatabaseReadinessError(ReadinessReason.BUSY, None)
+            raise DatabaseError(DatabaseReason.BUSY, None)
         return real(context)
 
     body = {"entries": [_entry(_MOMENTUM, "KO")], "save": True}

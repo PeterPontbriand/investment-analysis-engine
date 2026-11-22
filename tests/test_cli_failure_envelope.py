@@ -17,7 +17,7 @@ from investment_analysis_engine.cli import app
 from investment_analysis_engine.cli_support import database_message
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.data.base_client import DataFetchError
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError, ReadinessReason
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.capture import ExecutionCapture
@@ -194,7 +194,7 @@ def test_removing_a_missing_entry_is_reported_under_its_own_code() -> None:
 
 
 def test_runs_list_json_failure_on_a_readiness_error_carries_the_database_facts(tmp_path: Path) -> None:
-    error = DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, tmp_path / "cli.sqlite3", "0001_head")
+    error = DatabaseError(DatabaseReason.UPGRADE_REQUIRED, tmp_path / "cli.sqlite3", "0001_head")
     with patch("investment_analysis_engine.application.database.ensure_database_ready", side_effect=error):
         result = runner.invoke(app, ["runs", "list", "--json"])
 
@@ -207,7 +207,7 @@ def test_runs_list_json_failure_on_a_readiness_error_carries_the_database_facts(
 
 
 def test_a_readiness_error_without_json_stays_text_on_standard_error(tmp_path: Path) -> None:
-    error = DatabaseReadinessError(ReadinessReason.BUSY, tmp_path / "cli.sqlite3")
+    error = DatabaseError(DatabaseReason.BUSY, tmp_path / "cli.sqlite3")
     with patch("investment_analysis_engine.application.database.ensure_database_ready", side_effect=error):
         result = runner.invoke(app, ["watchlist", "list"])
 
@@ -232,7 +232,7 @@ def test_refresh_json_gives_each_failed_job_a_stable_code_and_one_message(
         "AAPL": DataFetchError("provider down"),
         "MSFT": RuntimeError("boom"),
         "KO": ValueError("bad value"),
-        "IBM": DatabaseReadinessError(ReadinessReason.BUSY, None),
+        "IBM": DatabaseError(DatabaseReason.BUSY, None),
     }
 
     def failing_executor(

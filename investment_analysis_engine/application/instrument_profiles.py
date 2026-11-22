@@ -72,7 +72,7 @@ def get_instrument_profile(context: ApplicationContext, ticker: str) -> StoredIn
     Raises:
         InvalidParameterError: If ``ticker`` is blank.
         InstrumentProfileNotFoundError: If no current profile is stored for the ticker.
-        DatabaseReadinessError: If the database is missing, busy or not at the expected revision.
+        DatabaseError: If the database is missing, busy or not at the expected revision.
     """
     normalized = _ticker(ticker)
     with open_database(context) as database:
@@ -117,7 +117,7 @@ def lookup_instrument_profile(context: ApplicationContext, ticker: str) -> Store
         InvalidParameterError: If ``ticker`` is blank.
         DataFetchError: If no provider identified the ticker; its kind is the provider failure observed, or
             ``no_data`` when every provider answered with nothing.
-        DatabaseReadinessError: If the database is missing, busy or not at the expected revision.
+        DatabaseError: If the database is missing, busy or not at the expected revision.
     """
     normalized = _ticker(ticker)
     try:

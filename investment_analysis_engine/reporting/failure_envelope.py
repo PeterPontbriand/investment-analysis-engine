@@ -19,7 +19,7 @@ from investment_analysis_engine.core.failure_codes import FailureReasonCode, sta
 from investment_analysis_engine.core.operator_errors import RuleViolation
 from investment_analysis_engine.core.provider_failure_element import ProviderFailure
 from investment_analysis_engine.data.quality import HistoricalDataQualityError, QualityOutcome
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError
 from investment_analysis_engine.reporting.documents.failure import (
     FailureDatabase,
     FailureDiagnostic,
@@ -91,7 +91,7 @@ def failure_envelope(  # noqa: PLR0913
             for item in cause.decisions
             if item.outcome is QualityOutcome.FAIL
         )
-    if isinstance(cause, DatabaseReadinessError):
+    if isinstance(cause, DatabaseError):
         path = cause.database_path
         database = FailureDatabase(
             database_path=None if path is None else str(path), expected_revision=cause.expected_revision

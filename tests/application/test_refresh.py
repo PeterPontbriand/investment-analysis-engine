@@ -25,7 +25,7 @@ from investment_analysis_engine.application.watchlists import (
 )
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.operator_errors import InvalidParameterError
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.strategy_wiring import MOMENTUM
@@ -146,7 +146,7 @@ def test_the_arguments_are_checked_before_the_database_opens_and_the_database_be
     with fakes(Probe(), runs):
         with pytest.raises(ActionParameterError):
             prepare_refresh(unready, target, workers=9, save=False, provider_check=True)
-        with pytest.raises(DatabaseReadinessError):
+        with pytest.raises(DatabaseError):
             prepare_refresh(unready, target, workers=1, save=False, provider_check=True)
 
     assert runs.calls == []

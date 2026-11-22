@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
 
@@ -94,8 +95,11 @@ def test_reader_keeps_snapshot_while_writer_commits(database: SQLiteDatabase) ->
 
 
 def test_read_scope_rejects_writes(database: SQLiteDatabase) -> None:
-    with pytest.raises(OperationalError, match="readonly"), database.read() as reader:
+    with pytest.raises(DatabaseError) as caught, database.read() as reader:
         reader.exec_driver_sql("CREATE TABLE forbidden (id INTEGER)")
+    assert caught.value.reason is DatabaseReason.PERMISSION_DENIED
+    assert isinstance(caught.value.__cause__, OperationalError)
+    assert "readonly" in str(caught.value.__cause__)
 
 
 def test_competing_writer_fails_at_configured_timeout(database: SQLiteDatabase) -> None:
@@ -103,8 +107,11 @@ def test_competing_writer_fails_at_configured_timeout(database: SQLiteDatabase) 
         connection.exec_driver_sql("CREATE TABLE sample (id INTEGER)")
     with database.transaction() as first:
         first.exec_driver_sql("INSERT INTO sample VALUES (1)")
-        with pytest.raises(OperationalError, match="locked"), database.transaction() as second:
+        with pytest.raises(DatabaseError) as caught, database.transaction() as second:
             second.exec_driver_sql("INSERT INTO sample VALUES (2)")
+        assert caught.value.reason is DatabaseReason.BUSY
+        assert isinstance(caught.value.__cause__, OperationalError)
+        assert "locked" in str(caught.value.__cause__)
     with database.read() as reader:
         assert reader.exec_driver_sql("SELECT id FROM sample").scalars().all() == [1]
 

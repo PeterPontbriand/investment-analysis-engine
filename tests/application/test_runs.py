@@ -19,7 +19,7 @@ from investment_analysis_engine.application.runs import (
 )
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError
 from investment_analysis_engine.data.repositories.schema import analysis_runs
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
@@ -222,5 +222,5 @@ def test_an_unready_database_is_a_readiness_error(
     operation: Callable[[ApplicationContext], object], tmp_path: Path
 ) -> None:
     context = _context(ProjectSettings(database_url=unready_database_url(tmp_path)))
-    with pytest.raises(DatabaseReadinessError):
+    with pytest.raises(DatabaseError):
         operation(context)

@@ -1,6 +1,5 @@
 """Conservative SQLite readiness with atomic initialization of empty storage."""
 
-import errno
 import re
 import sqlite3
 from collections.abc import Iterator
@@ -12,17 +11,17 @@ from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.engine import Connection
-from sqlalchemy.exc import DBAPIError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool
 
-from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason, storage_reason
 from investment_analysis_engine.data.repositories.migrations import (
     MigrationResources,
     migration_resources,
     upgrade_database_revision,
     upgrade_fresh_database,
 )
-from investment_analysis_engine.data.repositories.readiness_lock import ReadinessLockTimeoutError, readiness_lock
+from investment_analysis_engine.data.repositories.readiness_lock import readiness_lock
 from investment_analysis_engine.data.repositories.schema import metadata
 from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 
@@ -33,101 +32,6 @@ class ReadinessOutcome(StrEnum):
     READY = "ready"
     INITIALIZED = "initialized"
     UPGRADED = "upgraded"
-
-
-class ReadinessReason(StrEnum):
-    """Stable failure categories independent of driver exception wording."""
-
-    UPGRADE_REQUIRED = "database_upgrade_required"
-    INCOMPATIBLE_SCHEMA = "database_incompatible_schema"
-    BUSY = "database_busy"
-    PERMISSION_DENIED = "database_permission_denied"
-    INVALID_FILE = "database_invalid_file"
-    IO_ERROR = "database_io_error"
-    RESOURCES_UNAVAILABLE = "database_resources_unavailable"
-    INITIALIZATION_FAILED = "database_initialization_failed"
-    MIGRATION_FAILED = "database_migration_failed"
-
-
-_MESSAGES = {
-    ReadinessReason.MIGRATION_FAILED: (
-        "Database schema migration did not complete. Preserve this database and inspect application diagnostics; "
-        "the migration transaction was rolled back."
-    ),
-    ReadinessReason.UPGRADE_REQUIRED: (
-        "Database schema upgrade required to revision {expected_revision}. This is a one-time upgrade of your "
-        "existing local database, not new setup — your data is not lost. Back up the database file before "
-        "upgrading it, and let any other process using it finish first."
-    ),
-    ReadinessReason.INCOMPATIBLE_SCHEMA: (
-        "Database schema is incompatible or incomplete. Preserve this database and inspect it with the matching "
-        "application version; automatic initialization was not performed."
-    ),
-    ReadinessReason.BUSY: (
-        "Database readiness could not acquire storage access within the configured wait. "
-        "Close other database operations and retry."
-    ),
-    ReadinessReason.PERMISSION_DENIED: (
-        "Database access was denied. Check permissions for the database file and its parent directory."
-    ),
-    ReadinessReason.INVALID_FILE: (
-        "The database file is not a readable SQLite database or is corrupt. "
-        "Preserve it and inspect or restore it before retrying."
-    ),
-    ReadinessReason.IO_ERROR: (
-        "Database storage could not be accessed. Check the database location, available storage and filesystem health."
-    ),
-    ReadinessReason.RESOURCES_UNAVAILABLE: (
-        "Database migration resources are unavailable or inconsistent. Use a complete matching source installation; "
-        "the database was not initialized."
-    ),
-    ReadinessReason.INITIALIZATION_FAILED: (
-        "Database fresh initialization did not complete. "
-        "Preserve this file and inspect application diagnostics before retrying; "
-        "no partial schema was accepted."
-    ),
-}
-"""The message of each category: only the state of the database, with no command, option, variable or path.
-
-A caller that can name a remedy or the target, as the command line does, adds them to this message itself; the target
-is :attr:`DatabaseReadinessError.database_path`.
-"""
-
-
-class DatabaseReadinessError(RuntimeError):
-    """Sanitized storage error with read-only safe evidence and a chained cause."""
-
-    def __init__(
-        self, reason: ReadinessReason, database_path: Path | None, expected_revision: str | None = None
-    ) -> None:
-        """Retain the category/target without incorporating raw driver messages."""
-        self._reason = reason
-        self._database_path = database_path
-        self._expected_revision = expected_revision
-        message = _MESSAGES[reason]
-        if reason is ReadinessReason.UPGRADE_REQUIRED:
-            message = message.format(expected_revision=expected_revision or "the required revision")
-        super().__init__(message)
-
-    @property
-    def reason(self) -> ReadinessReason:
-        """Return the stable error category."""
-        return self._reason
-
-    @property
-    def reason_code(self) -> FailureReasonCode:
-        """Return the stable failure code of the category."""
-        return FailureReasonCode(self._reason.value)
-
-    @property
-    def database_path(self) -> Path | None:
-        """Return the configured target, never a fallback database."""
-        return self._database_path
-
-    @property
-    def expected_revision(self) -> str | None:
-        """Return the verified bundled revision, when resource discovery succeeded."""
-        return self._expected_revision
 
 
 class _SchemaMismatchError(Exception):
@@ -367,23 +271,18 @@ def _read_file(database: SQLiteDatabase) -> Iterator[Connection]:
         engine.dispose()
 
 
-def storage_reason(error: Exception) -> ReadinessReason:
-    """Return the readiness category of a storage failure: busy, permission denied, an invalid file or an I/O error."""
-    if isinstance(error, ReadinessLockTimeoutError):
-        return ReadinessReason.BUSY
-    original = error.orig if isinstance(error, DBAPIError) else error
-    code = getattr(original, "sqlite_errorcode", None)
-    if isinstance(code, int):
-        primary = code & 0xFF
-        if primary in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
-            return ReadinessReason.BUSY
-        if primary in (sqlite3.SQLITE_READONLY, sqlite3.SQLITE_PERM, sqlite3.SQLITE_AUTH):
-            return ReadinessReason.PERMISSION_DENIED
-        if primary in (sqlite3.SQLITE_NOTADB, sqlite3.SQLITE_CORRUPT):
-            return ReadinessReason.INVALID_FILE
-    if isinstance(original, OSError) and original.errno in (errno.EACCES, errno.EPERM):
-        return ReadinessReason.PERMISSION_DENIED
-    return ReadinessReason.IO_ERROR
+def _readiness_reason(error: Exception) -> DatabaseReason:
+    """Return the category of a failure readiness met: its storage category, else ``database_io_error``.
+
+    Readiness has always reported an error it could not classify as an I/O error; only a storage scope elsewhere
+    leaves such an error raw.
+    """
+    return storage_reason(error) or DatabaseReason.IO_ERROR
+
+
+def _with_revision(error: DatabaseError, path: Path | None, revision: str) -> DatabaseError:
+    """Return a storage error a database scope raised as readiness reports it: with the verified revision."""
+    return DatabaseError(error.reason, path, revision)
 
 
 def _initialize(database: SQLiteDatabase, resources: MigrationResources) -> ReadinessOutcome:
@@ -395,28 +294,8 @@ def _initialize(database: SQLiteDatabase, resources: MigrationResources) -> Read
             if not _schema_ready(connection, resources):
                 raise _SchemaMismatchError()
         except Exception as exc:
-            original = exc.orig if isinstance(exc, DBAPIError) else exc
-            code = getattr(original, "sqlite_errorcode", None)
-            storage_failure = isinstance(original, OSError) or (
-                isinstance(code, int)
-                and (code & 0xFF)
-                in (
-                    sqlite3.SQLITE_BUSY,
-                    sqlite3.SQLITE_LOCKED,
-                    sqlite3.SQLITE_READONLY,
-                    sqlite3.SQLITE_PERM,
-                    sqlite3.SQLITE_AUTH,
-                    sqlite3.SQLITE_NOTADB,
-                    sqlite3.SQLITE_CORRUPT,
-                    sqlite3.SQLITE_IOERR,
-                    sqlite3.SQLITE_FULL,
-                    sqlite3.SQLITE_CANTOPEN,
-                )
-            )
-            raise DatabaseReadinessError(
-                storage_reason(exc) if storage_failure else ReadinessReason.INITIALIZATION_FAILED,
-                database.database_path,
-                resources.head,
+            raise DatabaseError(
+                storage_reason(exc) or DatabaseReason.INITIALIZATION_FAILED, database.database_path, resources.head
             ) from exc
     return ReadinessOutcome.INITIALIZED
 
@@ -431,18 +310,22 @@ def ensure_database_ready(database: SQLiteDatabase) -> ReadinessOutcome:
     try:
         resources = migration_resources()
     except Exception as exc:
-        raise DatabaseReadinessError(ReadinessReason.RESOURCES_UNAVAILABLE, path) from exc
+        raise DatabaseError(DatabaseReason.RESOURCES_UNAVAILABLE, path) from exc
     try:
         with readiness_lock(path, database.busy_timeout_ms):
             if path is not None and _file_ready(database, resources):
                 return ReadinessOutcome.READY
             return _initialize(database, resources)
     except _SchemaMismatchError as exc:
-        raise DatabaseReadinessError(ReadinessReason.INCOMPATIBLE_SCHEMA, path, resources.head) from exc
+        raise DatabaseError(DatabaseReason.INCOMPATIBLE_SCHEMA, path, resources.head) from exc
     except _UpgradeRequiredError as exc:
-        raise DatabaseReadinessError(ReadinessReason.UPGRADE_REQUIRED, path, resources.head) from exc
+        raise DatabaseError(DatabaseReason.UPGRADE_REQUIRED, path, resources.head) from exc
+    except DatabaseError as exc:
+        if exc.expected_revision is not None:
+            raise
+        raise _with_revision(exc, path, resources.head) from exc.__cause__
     except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
-        raise DatabaseReadinessError(storage_reason(exc), path, resources.head) from exc
+        raise DatabaseError(_readiness_reason(exc), path, resources.head) from exc
 
 
 def _inspect_connection(connection: Connection, resources: MigrationResources) -> DatabaseInspection:
@@ -476,7 +359,7 @@ def _resources(database: SQLiteDatabase) -> MigrationResources:
     try:
         return migration_resources()
     except Exception as exc:
-        raise DatabaseReadinessError(ReadinessReason.RESOURCES_UNAVAILABLE, database.database_path) from exc
+        raise DatabaseError(DatabaseReason.RESOURCES_UNAVAILABLE, database.database_path) from exc
 
 
 def inspect_database(database: SQLiteDatabase) -> DatabaseInspection:
@@ -485,7 +368,7 @@ def inspect_database(database: SQLiteDatabase) -> DatabaseInspection:
     try:
         return _inspection(database, resources)
     except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
-        raise DatabaseReadinessError(storage_reason(exc), database.database_path, resources.head) from exc
+        raise DatabaseError(_readiness_reason(exc), database.database_path, resources.head) from exc
 
 
 def upgrade_database(database: SQLiteDatabase) -> tuple[ReadinessOutcome, str]:
@@ -498,7 +381,7 @@ def upgrade_database(database: SQLiteDatabase) -> tuple[ReadinessOutcome, str]:
         with readiness_lock(path, database.busy_timeout_ms):
             observed = _inspection(database, resources)
             if observed.state is DatabaseState.INCOMPATIBLE:
-                raise DatabaseReadinessError(ReadinessReason.INCOMPATIBLE_SCHEMA, path, resources.head)
+                raise DatabaseError(DatabaseReason.INCOMPATIBLE_SCHEMA, path, resources.head)
             if observed.state is DatabaseState.READY:
                 return ReadinessOutcome.READY, resources.head
             if observed.state in (DatabaseState.MISSING, DatabaseState.FRESH):
@@ -509,25 +392,20 @@ def upgrade_database(database: SQLiteDatabase) -> tuple[ReadinessOutcome, str]:
                     if rechecked.state is DatabaseState.READY:
                         return ReadinessOutcome.READY, resources.head
                     if rechecked.state is not DatabaseState.UPGRADE_REQUIRED:
-                        raise DatabaseReadinessError(ReadinessReason.INCOMPATIBLE_SCHEMA, path, resources.head)
+                        raise DatabaseError(DatabaseReason.INCOMPATIBLE_SCHEMA, path, resources.head)
                     upgrade_database_revision(connection, resources, resources.head)
                     if not _schema_ready(connection, resources):
                         raise _SchemaMismatchError()
-            except DatabaseReadinessError:
+            except DatabaseError:
                 raise
             except Exception as exc:
-                reason = storage_reason(exc)
-                original = exc.orig if isinstance(exc, DBAPIError) else exc
-                # SQL syntax/migration logic failures are migration failures, not I/O.
-                if not isinstance(original, OSError) and reason is ReadinessReason.IO_ERROR:
-                    code = getattr(original, "sqlite_errorcode", None)
-                    if not isinstance(code, int) or (code & 0xFF) not in (
-                        sqlite3.SQLITE_IOERR,
-                        sqlite3.SQLITE_FULL,
-                        sqlite3.SQLITE_CANTOPEN,
-                    ):
-                        reason = ReadinessReason.MIGRATION_FAILED
-                raise DatabaseReadinessError(reason, path, resources.head) from exc
+                # SQL syntax/migration logic failures are migration failures, not storage errors.
+                reason = storage_reason(exc) or DatabaseReason.MIGRATION_FAILED
+                raise DatabaseError(reason, path, resources.head) from exc
             return ReadinessOutcome.UPGRADED, resources.head
+    except DatabaseError as exc:
+        if exc.expected_revision is not None:
+            raise
+        raise _with_revision(exc, path, resources.head) from exc.__cause__
     except (OSError, sqlite3.Error, SQLAlchemyError) as exc:
-        raise DatabaseReadinessError(storage_reason(exc), path, resources.head) from exc
+        raise DatabaseError(_readiness_reason(exc), path, resources.head) from exc

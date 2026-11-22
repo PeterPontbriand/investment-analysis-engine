@@ -13,7 +13,7 @@ def open_database(context: ApplicationContext) -> Iterator[SQLiteDatabase]:
     """Open the context's database, check that it is ready, yield it and close it.
 
     Raises:
-        DatabaseReadinessError: If the database is missing, busy or not at the expected revision; the error
+        DatabaseError: If the database is missing, busy or not at the expected revision; the error
             passes through unchanged.
     """
     database = SQLiteDatabase(context.settings)

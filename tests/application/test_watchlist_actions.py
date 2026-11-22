@@ -23,7 +23,7 @@ from investment_analysis_engine.application.watchlists import (
     rename_watchlist,
 )
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.data.repositories.readiness import DatabaseReadinessError
+from investment_analysis_engine.data.repositories.database_errors import DatabaseError
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
 from investment_analysis_engine.workspace.repositories.watchlists import (
@@ -454,7 +454,7 @@ def test_a_bad_argument_is_reported_even_when_the_database_is_not_ready(
 def test_a_valid_call_on_a_database_that_is_not_ready_is_a_readiness_error(
     operation: Callable[[ApplicationContext], object], tmp_path: Path
 ) -> None:
-    with pytest.raises(DatabaseReadinessError):
+    with pytest.raises(DatabaseError):
         operation(_unready(tmp_path))
 
 
