@@ -36,18 +36,25 @@ class Lock:
     def __init__(self, path: Path, *, block_reads: bool) -> None:
         """Take the lock now: a write transaction that is never committed."""
         self._connection = sqlite3.connect(path, isolation_level=None, check_same_thread=False, timeout=0)
-        if block_reads:
-            self._connection.execute("PRAGMA locking_mode=EXCLUSIVE")
-        self._connection.execute("BEGIN IMMEDIATE")
-        self._connection.execute("CREATE TABLE lock_probe (x INTEGER)")
         self._held = True
+        try:
+            if block_reads:
+                self._connection.execute("PRAGMA locking_mode=EXCLUSIVE")
+            self._connection.execute("BEGIN IMMEDIATE")
+            self._connection.execute("CREATE TABLE lock_probe (x INTEGER)")
+        except BaseException:
+            self._held = False
+            self._connection.close()
+            raise
 
     def release(self) -> None:
-        """Roll the transaction back and close the connection; a second call does nothing."""
+        """Roll back and close, even if the rollback fails; a second call does nothing."""
         if self._held:
             self._held = False
-            self._connection.execute("ROLLBACK")
-            self._connection.close()
+            try:
+                self._connection.execute("ROLLBACK")
+            finally:
+                self._connection.close()
 
 
 @contextmanager
