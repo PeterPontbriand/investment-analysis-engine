@@ -74,7 +74,7 @@ def _warn(result: CleanupResult, path: Path, error: BaseException) -> None:
 
 
 def _delete(path: Path, result: CleanupResult) -> bool:
-    """Delete a file, link or folder tree; report a failure as a warning. Return whether it is gone."""
+    """Delete a file, link or folder tree; report every failure as a warning. Return whether it is gone."""
     failed = False
 
     def on_error(function: Callable[..., object], failing: str, error: BaseException) -> None:
@@ -99,7 +99,11 @@ def _delete(path: Path, result: CleanupResult) -> bool:
     except OSError as error:
         failed = True
         _warn(result, path, error)
-    return not failed and not path.exists()
+    if not failed and path.exists():
+        # The attempt neither raised nor removed the path: it is still a failed deletion and is reported.
+        _warn(result, path, OSError("still present after the deletion attempt"))
+        return False
+    return not failed
 
 
 def prune_old_runs(
@@ -108,7 +112,6 @@ def prune_old_runs(
     *,
     now: float | None = None,
     keep_count: int = KEEP_COUNT,
-    min_age_seconds: float = MIN_AGE_SECONDS,
 ) -> CleanupResult:
     """Delete recognized gate run directories under ``runs_root`` beyond the newest ``keep_count``.
 
@@ -117,7 +120,6 @@ def prune_old_runs(
         own_run: The calling run's own directory; it is counted among the kept ones and never deleted.
         now: The current time in epoch seconds; the system clock when omitted.
         keep_count: How many of the newest recognized directories to keep.
-        min_age_seconds: A directory younger than this is never deleted.
 
     Returns:
         The directories removed and the warnings printed for deletions that failed.
@@ -142,7 +144,7 @@ def prune_old_runs(
         candidates.append((activity, entry.name, entry))
     candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
     for activity, name, entry in candidates[keep_count:]:
-        if name == own_name or current - activity < min_age_seconds:
+        if name == own_name or current - activity < MIN_AGE_SECONDS:
             continue
         if _delete(entry, result):
             result.removed.append(entry)

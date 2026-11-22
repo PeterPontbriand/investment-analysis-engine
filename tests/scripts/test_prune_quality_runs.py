@@ -215,6 +215,25 @@ def test_a_deletion_failure_is_reported_without_raising(
     assert f"could not delete {old}" in capsys.readouterr().err
 
 
+def test_a_deletion_that_leaves_the_path_in_place_is_reported_and_not_counted_as_removed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    old = make_run(tmp_path, powershell_name(1), OLD)
+    own = make_run(tmp_path, powershell_name(900), NOW - 1)
+
+    def does_nothing(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(shutil, "rmtree", does_nothing)
+
+    result = prune_old_runs(tmp_path, own, now=NOW, keep_count=1)
+
+    assert result.removed == []
+    assert len(result.failures) == 1
+    assert old.exists()
+    assert f"could not delete {old}" in capsys.readouterr().err
+
+
 def test_a_locked_file_inside_a_run_is_reported_and_the_rest_is_deleted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
