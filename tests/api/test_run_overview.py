@@ -1,5 +1,7 @@
 """The run overview endpoint, and the outcome name every run list uses, in process."""
 
+from datetime import UTC, datetime
+
 import pytest
 from typer.testing import CliRunner
 
@@ -8,6 +10,8 @@ from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.runs import get_run_overview
 from investment_analysis_engine.cli import app
 from investment_analysis_engine.config import ProjectSettings
+from investment_analysis_engine.data.instrument_profile import InstrumentProfile
+from investment_analysis_engine.data.security_identity import SecurityIdentity
 from investment_analysis_engine.reporting.headline import CellKind, CellUnit
 from investment_analysis_engine.strategy_wiring import STRATEGIES, StrategyDescriptor
 from tests._cli_helpers import normalize_cli_output
@@ -46,7 +50,7 @@ def test_the_overview_of_a_saved_run_of_each_strategy_is_its_headline(
         "headline",
         "headline_unavailable",
     ]
-    assert document["schema_version"] == 3
+    assert document["schema_version"] == 4
     assert (document["analysis_run_id"], document["ticker"], document["outcome"]) == (
         str(run.analysis_run_id),
         run.ticker,
@@ -214,3 +218,38 @@ def test_the_command_lists_and_filters_by_outcome(isolated_cli_settings: Project
     assert "--outcome" in help_words
     assert "--status" not in help_words
     assert old_option.exit_code == 2
+
+
+@pytest.mark.parametrize(
+    ("provider_id", "stored_text", "code"),
+    [
+        ("sec_edgar", "NYSE", "nyse_group"),
+        ("yfinance", "NYSE", "nyse"),
+        ("yfinance", "NasdaqGS", "nasdaq"),
+        ("yfinance", "CCC", None),
+        ("another_provider", "NYSE", None),
+    ],
+)
+def test_a_saved_run_gains_the_venue_code_of_its_stored_text_with_no_migration(
+    isolated_cli_settings: ProjectSettings, provider_id: str, stored_text: str, code: str | None
+) -> None:
+    """The overview and the replay work the code out from the stored text and the identity's provider."""
+    plain = runs_by_alias()[STRATEGIES[0].alias]
+    identity = SecurityIdentity(
+        ticker=plain.ticker,
+        provider_id=provider_id,
+        resolved_at=datetime(2026, 1, 2, tzinfo=UTC),
+        instrument_name="A Company",
+        listing_venue=stored_text,
+    )
+    profile = InstrumentProfile(ticker=plain.ticker, identity=identity, kind_evidence=None, diagnostics=())
+    run = plain.model_copy(update={"instrument_profile": profile})
+    store(isolated_cli_settings, run)
+
+    with client_for(isolated_cli_settings) as client:
+        overview = client.get(f"/v1/runs/{run.analysis_run_id}/overview", headers=AUTH).json()
+        shown = client.get(f"/v1/runs/{run.analysis_run_id}", headers=AUTH).json()
+
+    expected = {"code": code, "provider_value": stored_text}
+    assert overview["security_identity"]["listing_venue"] == expected
+    assert shown["security_identity"]["listing_venue"] == expected

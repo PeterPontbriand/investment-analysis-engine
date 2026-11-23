@@ -1,14 +1,19 @@
 """The instrument profile endpoints, and the identity a run overview carries, in process."""
 
+import json
 import threading
 
 import pytest
+import sqlalchemy as sa
 
+from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.config import ProjectSettings
 from investment_analysis_engine.core.failure_codes import PROVIDER_CODE_BY_KIND
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.instrument_profile import profile_identity_resolution
 from investment_analysis_engine.data.repositories.instrument_profiles import INSTRUMENT_PROFILE_SCHEMA_VERSION
+from investment_analysis_engine.data.repositories.schema import instrument_profiles
+from investment_analysis_engine.data.repositories.sqlite import SQLiteDatabase
 from investment_analysis_engine.reporting.documents.shared_parts import security_identity_part
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from tests._instrument_profile_fakes import (
@@ -65,7 +70,7 @@ def test_the_read_serves_an_expired_stored_profile_and_contacts_no_provider(
     document = response.json()
     assert list(document) == _KEYS
     assert document == {
-        "schema_version": 1,
+        "schema_version": 2,
         "ticker": "KO",
         "refreshed_at": OLD.isoformat(),
         "instrument_name": "Coca-Cola Co",
@@ -292,3 +297,46 @@ def test_a_lookup_succeeds_while_a_refresh_job_runs(
     assert running == "running"
     assert looked_up.status_code == 200
     assert looked_up.json()["instrument_name"] == "Coca-Cola Co"
+
+
+def _store_venue_text(context: ApplicationContext, venue: str) -> None:
+    """Write ``venue`` as the stored text of every identity's listing venue, as a profile cached before codes had it."""
+
+    def fill(node: object) -> object:
+        if isinstance(node, dict):
+            return {key: venue if key == "listing_venue" else fill(item) for key, item in node.items()}
+        if isinstance(node, list):
+            return [fill(item) for item in node]
+        return node
+
+    database = SQLiteDatabase(context.settings)
+    try:
+        with database.transaction() as connection:
+            for row in connection.execute(sa.select(instrument_profiles)).mappings().all():
+                connection.execute(
+                    instrument_profiles.update()
+                    .where(instrument_profiles.c.profile_id == row["profile_id"])
+                    .values(evidence_json=json.dumps(fill(json.loads(row["evidence_json"])), ensure_ascii=False))
+                )
+    finally:
+        database.close()
+
+
+@pytest.mark.parametrize(
+    ("stored_text", "code"),
+    [("NYSE", "nyse_group"), ("Nasdaq", "nasdaq"), ("Toronto", None)],
+)
+def test_a_profile_cached_before_codes_gains_its_venue_code_with_no_migration(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch, stored_text: str, code: str | None
+) -> None:
+    """The code is worked out on every read from the stored text and the identity's provider; nothing is stored."""
+    context = profile_context(isolated_cli_settings)
+    store_profile(context, refreshed_at=OLD)
+    _store_venue_text(context, stored_text)
+    _no_provider(monkeypatch)
+
+    with client_for(context.settings) as client:
+        document = client.get("/v1/instrument-profiles/ko", headers=AUTH).json()
+
+    assert document["provider_id"] == "sec_edgar"
+    assert document["listing_venue"] == {"code": code, "provider_value": stored_text}

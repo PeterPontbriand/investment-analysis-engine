@@ -252,6 +252,48 @@
       ],
       "type": "string"
     },
+    "ListingVenue": {
+      "description": "A reviewed listing venue: one exchange, a group of exchanges or the over-the-counter market.",
+      "enum": [
+        "nasdaq",
+        "nyse",
+        "nyse_group",
+        "nyse_arca",
+        "nyse_american",
+        "cboe",
+        "cboe_bzx",
+        "txse",
+        "otc"
+      ],
+      "title": "ListingVenue",
+      "type": "string"
+    },
+    "ListingVenuePart": {
+      "additionalProperties": false,
+      "description": "A listing venue: the provider's own wording and the reviewed code it maps to.\n\nThe code is null when no reviewed table lists the provider's wording; the wording is always served.",
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListingVenue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_value": {
+          "title": "Provider Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "provider_value"
+      ],
+      "title": "ListingVenuePart",
+      "type": "object"
+    },
     "ReasonCode": {
       "description": "Machine-readable reasons shared by deterministic metric results.",
       "enum": [
@@ -343,13 +385,12 @@
         "listing_venue": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/ListingVenuePart"
             },
             {
               "type": "null"
             }
-          ],
-          "title": "Listing Venue"
+          ]
         },
         "provider_id": {
           "anyOf": [
@@ -469,8 +510,8 @@
       "title": "Requested As Of"
     },
     "schema_version": {
-      "const": 3,
-      "default": 3,
+      "const": 4,
+      "default": 4,
       "title": "Schema Version",
       "type": "integer"
     },

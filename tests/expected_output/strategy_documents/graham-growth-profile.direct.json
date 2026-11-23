@@ -1,5 +1,5 @@
 {
-  "schema_version": 14,
+  "schema_version": 15,
   "analysis": "graham_growth_value",
   "method": "graham_growth_value",
   "ticker": "SYNTH",
@@ -19,7 +19,10 @@
   "security_identity": {
     "ticker": "SYNTH",
     "instrument_name": "Fixture Holdings Inc.",
-    "listing_venue": "NYSE",
+    "listing_venue": {
+      "code": "nyse",
+      "provider_value": "NYSE"
+    },
     "issuer_identifier": "0000000001",
     "instrument_identifier": "FIX-0001",
     "provider_id": "yfinance",

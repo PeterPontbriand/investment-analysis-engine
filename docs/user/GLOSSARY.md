@@ -302,6 +302,68 @@ A digital currency or token whose price is quoted on cryptocurrency markets.
 
 A cryptocurrency has no financial statements, so a strategy built for company financial statements reports it as not applicable. See [instrument kind](#instrument-kind).
 
+<a id="listing-venue"></a>
+### Listing Venue
+The market where an instrument's shares or units are listed for trading, written as the data provider reports it.
+
+The engine shows the provider's own wording and, when it recognizes that wording, the name of the market it stands for. A venue the engine does not recognize is shown in the provider's words alone, and this entry explains it. The venue is as the provider reports it, and a provider can report a different venue from another provider for the same ticker. A cryptocurrency is not listed on an exchange, and a provider's venue text for one may name where its price comes from rather than an exchange. See [instrument profile](#instrument-profile) and [security identity](#security-identity).
+
+The markets the engine recognizes are explained in [Nasdaq Stock Market](#listing-venue-nasdaq), [New York Stock Exchange](#listing-venue-nyse), [NYSE Group Exchange](#listing-venue-nyse-group), [NYSE Arca](#listing-venue-nyse-arca), [NYSE American](#listing-venue-nyse-american), [Cboe U.S. Equities Exchange](#listing-venue-cboe), [Cboe BZX Exchange](#listing-venue-cboe-bzx), [Texas Stock Exchange](#listing-venue-txse) and [Over-the-Counter Market](#listing-venue-otc).
+
+<a id="listing-venue-nasdaq"></a>
+### Nasdaq Stock Market
+The Nasdaq Stock Market, a national securities exchange in the United States, with the market identifier code XNAS.
+
+Nasdaq lists companies in three tiers, the Global Select Market, the Global Market and the Capital Market, which a provider may write as NasdaqGS, NasdaqGM and NasdaqCM. The engine shows all three as the Nasdaq Stock Market and keeps the provider's wording beside it. See [listing venue](#listing-venue).
+
+<a id="listing-venue-nyse"></a>
+### New York Stock Exchange
+The New York Stock Exchange, a national securities exchange in the United States, with the market identifier code XNYS.
+
+It is the oldest and largest of the exchanges that carry the NYSE name, and it lists many of the largest US companies. See [listing venue](#listing-venue) and [NYSE Group Exchange](#listing-venue-nyse-group).
+
+<a id="listing-venue-nyse-group"></a>
+### NYSE Group Exchange
+One of the exchanges of the NYSE group, which the data source names as NYSE without saying which one.
+
+The group runs the New York Stock Exchange, NYSE American and NYSE Arca, all national securities exchanges in the United States. The source does not say which of them the security is listed on, so the engine does not either. See [New York Stock Exchange](#listing-venue-nyse), [NYSE American](#listing-venue-nyse-american), [NYSE Arca](#listing-venue-nyse-arca) and [listing venue](#listing-venue).
+
+<a id="listing-venue-nyse-arca"></a>
+### NYSE Arca
+NYSE Arca, a national securities exchange in the United States, with the market identifier code ARCX.
+
+Most exchange-traded funds are listed on NYSE Arca. See [ETF](#instrument-kind-etf) and [listing venue](#listing-venue).
+
+<a id="listing-venue-nyse-american"></a>
+### NYSE American
+NYSE American, a national securities exchange in the United States, with the market identifier code XASE.
+
+It lists mostly smaller companies, and it was formerly called the American Stock Exchange. See [listing venue](#listing-venue).
+
+<a id="listing-venue-cboe"></a>
+### Cboe U.S. Equities Exchange
+One of the Cboe group's national securities exchanges for stocks in the United States, which the data source names as Cboe without saying which one.
+
+The Cboe group runs four such exchanges: Cboe BZX (market identifier code BATS), Cboe BYX (BATY), Cboe EDGX (EDGX) and Cboe EDGA (EDGA). The source does not say which of them the security is listed on, so the engine does not either. Many bitcoin and volatility funds are listed there. See [Cboe BZX Exchange](#listing-venue-cboe-bzx) and [listing venue](#listing-venue).
+
+<a id="listing-venue-cboe-bzx"></a>
+### Cboe BZX Exchange
+Cboe BZX Exchange, a national securities exchange in the United States, with the market identifier code BATS.
+
+It is the Cboe group's main exchange for listing stocks and funds. See [Cboe U.S. Equities Exchange](#listing-venue-cboe) and [listing venue](#listing-venue).
+
+<a id="listing-venue-txse"></a>
+### Texas Stock Exchange
+The Texas Stock Exchange, a national securities exchange in the United States, with the market identifier code TXSE.
+
+It is a new exchange, and some companies list on it as well as on an older exchange. See [listing venue](#listing-venue).
+
+<a id="listing-venue-otc"></a>
+### Over-the-Counter Market
+A market in the United States where brokers trade shares directly with each other instead of through a national securities exchange, run by OTC Markets Group with the market identifier code OTCM.
+
+Over-the-counter shares usually trade less often than exchange-listed shares and face lighter listing and reporting requirements, so prices can move more and be harder to rely on. Providers write it as OTC, OTCPK, OTCID or OTCQX, which are the market's tiers. See [listing venue](#listing-venue).
+
 <a id="quote-freshness"></a>
 ### Quote Freshness
 How recent the price quote behind a comparison is: recently retrieved, expired, of unknown retrieval time, dated in the future, supplied by you, or historical.

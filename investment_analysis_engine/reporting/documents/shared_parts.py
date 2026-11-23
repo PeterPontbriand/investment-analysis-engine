@@ -34,6 +34,13 @@ from investment_analysis_engine.data.instrument_profile import (
     InstrumentProfile,
     InstrumentProfileDiagnostic,
 )
+from investment_analysis_engine.data.listing_venue import (
+    ListingVenue,
+    ListingVenueReading,
+    VenueSource,
+    read_identity_listing_venue,
+    read_listing_venue,
+)
 from investment_analysis_engine.data.security_identity import IdentityResolutionStatus, SecurityIdentityResolution
 from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf, DocumentTimestamp
 
@@ -54,12 +61,22 @@ class DocumentPart(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
 
 
+class ListingVenuePart(DocumentPart):
+    """A listing venue: the provider's own wording and the reviewed code it maps to.
+
+    The code is null when no reviewed table lists the provider's wording; the wording is always served.
+    """
+
+    code: ListingVenue | None
+    provider_value: str
+
+
 class SecurityIdentityPart(DocumentPart):
     """The identity snapshot a run retains; every descriptive field is null when the provider returned none."""
 
     ticker: str
     instrument_name: str | None
-    listing_venue: str | None
+    listing_venue: ListingVenuePart | None
     issuer_identifier: str | None
     instrument_identifier: str | None
     provider_id: str | None
@@ -193,7 +210,7 @@ class SecurityUnitDocumentPart(DocumentPart):
     context_ids: tuple[str, ...]
     available_at: DocumentTimestamp
     retrieved_at: DocumentTimestamp
-    listing_venue: str | None
+    listing_venue: ListingVenuePart | None
 
 
 class SecurityUnitProvenancePart(DocumentPart):
@@ -223,6 +240,23 @@ DiagnosticEntry = DiagnosticPart | ProviderDiagnosticPart
 """A diagnostics entry: the shape without a provider, or the shape with one."""
 
 
+def listing_venue_part(reading: ListingVenueReading | None) -> ListingVenuePart | None:
+    """Return the venue part for ``reading``, or ``None`` when the source gave no venue."""
+    if reading is None:
+        return None
+    return ListingVenuePart(code=reading.code, provider_value=reading.provider_value)
+
+
+def identity_listing_venue_part(provider_id: str | None, provider_value: str | None) -> ListingVenuePart | None:
+    """Return the venue part of an identity's venue text, read with the table of the identity's provider."""
+    return listing_venue_part(read_identity_listing_venue(provider_id, provider_value))
+
+
+def filing_cover_venue_part(provider_value: str | None) -> ListingVenuePart | None:
+    """Return the venue part of a filing cover's exchange text; a cover that states no exchange gives ``None``."""
+    return listing_venue_part(read_listing_venue(VenueSource.FILING_COVER, provider_value))
+
+
 def security_identity_part(ticker: str, resolution: SecurityIdentityResolution | None) -> SecurityIdentityPart:
     """Return the identity part for ``ticker``, taken from ``resolution`` when it resolved an identity.
 
@@ -236,7 +270,9 @@ def security_identity_part(ticker: str, resolution: SecurityIdentityResolution |
     return SecurityIdentityPart(
         ticker=normalized,
         instrument_name=identity.instrument_name if identity is not None else None,
-        listing_venue=identity.listing_venue if identity is not None else None,
+        listing_venue=(
+            identity_listing_venue_part(identity.provider_id, identity.listing_venue) if identity is not None else None
+        ),
         issuer_identifier=identity.issuer_identifier if identity is not None else None,
         instrument_identifier=identity.instrument_identifier if identity is not None else None,
         provider_id=identity.provider_id if identity is not None else None,
@@ -430,7 +466,7 @@ def price_comparison_part(comparison: PriceComparison | None) -> PriceComparison
                     context_ids=item.context_ids,
                     available_at=item.available_at,
                     retrieved_at=item.retrieved_at,
-                    listing_venue=item.listing_venue,
+                    listing_venue=filing_cover_venue_part(item.listing_venue),
                 )
                 for item in provenance.documents
             ),

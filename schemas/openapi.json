@@ -3573,14 +3573,13 @@
           "listing_venue": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/ListingVenuePart"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "The exchange or venue the instrument is listed on; null when unknown.",
-            "title": "Listing Venue"
+            "description": "The exchange or venue the instrument is listed on, as the data provider reports it, with the reviewed code it maps to; null when the provider gave none."
           },
           "provider_id": {
             "description": "The data provider that gave the identity; /v1/info lists the providers with their names.",
@@ -3606,8 +3605,8 @@
             "type": "string"
           },
           "schema_version": {
-            "const": 1,
-            "default": 1,
+            "const": 2,
+            "default": 2,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -3688,6 +3687,48 @@
           "components"
         ],
         "title": "LineagePart",
+        "type": "object"
+      },
+      "ListingVenue": {
+        "description": "A reviewed listing venue: one exchange, a group of exchanges or the over-the-counter market.",
+        "enum": [
+          "nasdaq",
+          "nyse",
+          "nyse_group",
+          "nyse_arca",
+          "nyse_american",
+          "cboe",
+          "cboe_bzx",
+          "txse",
+          "otc"
+        ],
+        "title": "ListingVenue",
+        "type": "string"
+      },
+      "ListingVenuePart": {
+        "additionalProperties": false,
+        "description": "A listing venue: the provider's own wording and the reviewed code it maps to.\n\nThe code is null when no reviewed table lists the provider's wording; the wording is always served.",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ListingVenue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provider_value": {
+            "title": "Provider Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "provider_value"
+        ],
+        "title": "ListingVenuePart",
         "type": "object"
       },
       "LocaleItem": {
@@ -6186,8 +6227,8 @@
             "title": "Requested As Of"
           },
           "schema_version": {
-            "const": 3,
-            "default": 3,
+            "const": 4,
+            "default": 4,
             "title": "Schema Version",
             "type": "integer"
           },
@@ -6432,13 +6473,12 @@
           "listing_venue": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/ListingVenuePart"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Listing Venue"
+            ]
           },
           "provider_id": {
             "anyOf": [
@@ -6505,13 +6545,12 @@
           "listing_venue": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/ListingVenuePart"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Listing Venue"
+            ]
           },
           "retrieved_at": {
             "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",

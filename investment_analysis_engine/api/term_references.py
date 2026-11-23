@@ -30,6 +30,7 @@ from investment_analysis_engine.data.financial.provenance import (
 )
 from investment_analysis_engine.data.financial.quote_freshness import QUOTE_FRESHNESS_STATUS_TERMS
 from investment_analysis_engine.data.instrument_profile import INSTRUMENT_KIND_TERMS
+from investment_analysis_engine.data.listing_venue import LISTING_VENUE_TERMS
 from investment_analysis_engine.reporting.headline import CELL_STATUS_TERMS
 from investment_analysis_engine.workspace_documents.runs_compare import HEADLINE_UNAVAILABLE_TERMS
 
@@ -45,6 +46,7 @@ SHARED_CODE_TERMS: Final[Mapping[str, Mapping[str, str]]] = {
     "HeadlineUnavailable": HEADLINE_UNAVAILABLE_TERMS,
     "IndustryClass": INDUSTRY_CLASS_TERMS,
     "InstrumentKind": INSTRUMENT_KIND_TERMS,
+    "ListingVenue": LISTING_VENUE_TERMS,
     "MetricStatus": METRIC_STATUS_TERMS,
     "PeriodKind": PERIOD_KIND_TERMS,
     "PriceComparisonStatus": PRICE_COMPARISON_STATUS_TERMS,

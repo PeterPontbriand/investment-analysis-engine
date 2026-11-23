@@ -16,7 +16,13 @@ from investment_analysis_engine.application.context import ApplicationContext
 from investment_analysis_engine.application.providers import build_provider_clients
 from investment_analysis_engine.config import settings
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
-from investment_analysis_engine.data.provider_checks import PROVIDER_CHECKS, ProviderCheckEntry
+from investment_analysis_engine.data.listing_venue import unmapped_ticker_file_message
+from investment_analysis_engine.data.provider_checks import (
+    PROVIDER_CHECKS,
+    SEC_EDGAR_SPEC,
+    ProviderCheckEntry,
+    SecTransport,
+)
 from investment_analysis_engine.data.sec_edgar.cover_listing import (
     CoverReaderPolicy,
     cover_url,
@@ -51,6 +57,20 @@ def test_yahoo_response_shape() -> None:
 
 def test_sec_edgar_response_shape() -> None:
     _assert_passes(SEC_PROVIDER_ID)
+
+
+def test_sec_ticker_file_lists_only_exchanges_the_venue_table_knows() -> None:
+    """Request SEC's ticker file once and fail, naming each exchange, when one is missing from the SEC table."""
+    clients = build_provider_clients(ApplicationContext(settings=settings))
+    assert isinstance(clients.sec, SecTransport), "SEC access is not configured: set SEC_USER_AGENT."
+    ticker_map = clients.sec.json_fetcher(
+        SEC_EDGAR_SPEC.ticker_map_url,
+        headers={"User-Agent": clients.sec.user_agent, "Accept": "application/json"},
+        not_found=ProviderFailureKind.UNEXPECTED_RESPONSE,
+        provider_id=SEC_PROVIDER_ID,
+    )
+    message = unmapped_ticker_file_message(ticker_map)
+    assert message is None, message
 
 
 def test_sec_edgar_filing_header_response_shape() -> None:

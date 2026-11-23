@@ -58,7 +58,7 @@ def test_show_json_prints_the_one_document(context: ApplicationContext) -> None:
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.stdout) == {
-        "schema_version": 1,
+        "schema_version": 2,
         "ticker": "KO",
         "refreshed_at": OLD.isoformat(),
         "instrument_name": "Coca-Cola Co",
@@ -111,7 +111,7 @@ def test_show_with_lookup_prints_text_for_a_profile_without_an_anchor(monkeypatc
     assert result.stdout.splitlines()[:5] == [
         "The Coca-Cola Company (KO)",
         "Kind: equity",
-        "Listing venue: NYSE",
+        "Listing venue: New York Stock Exchange (NYSE)",
         "Quote currency: USD",
         "Issuer identifier: unknown",
     ]
