@@ -110,6 +110,14 @@ Three applications divide the work. Each does one job and talks to the others on
 
 The Investment Analysis Desktop is the GUI application recorded in [API plan A.1](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md#a1-a-separate-gui-application-over-a-local-api-2026-10-30).
 
+### Interfaces and separate computers
+
+Approved by the project owner on 2026-11-22.
+
+1. **Every interface offers every function.** Every function the engine offers a user is available through both the command line and the versioned local HTTP API, so a person, or an agent acting for them, can use the command line, the desktop application or the API interchangeably. The [local HTTP API rules](ARCHITECTURE.md#local-http-api-rules)' "one front door" applies it to the API. `ian serve` itself is the named exception.
+2. **No new same-computer assumption.** Every new interaction between the desktop application and the engine goes through the API. None goes through environment variables, files or command-line calls, apart from starting `ian serve`. Today the desktop application starts `ian serve` itself and reads its port and token from standard output, and the engine accepts only local connections with a per-launch token and no TLS. Those are deliberate local-only choices; serving another computer is a separate future work package, not a change made in passing.
+3. **The engine controls its storage.** No document or output names a storage path that a client is expected to act on, so a future database other than SQLite keeps every interface working. The sample workspace ([API.20](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md#api20--sample-workspace)) is the first feature built this way.
+
 ### Future predictive evaluator
 
 The evaluator is a planned future application. It is unscheduled and has no repository yet. Three rules bind it:

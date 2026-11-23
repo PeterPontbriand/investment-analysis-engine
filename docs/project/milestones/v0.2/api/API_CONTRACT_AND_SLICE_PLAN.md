@@ -69,6 +69,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.17 | [Listing venue for profiles identified by SEC EDGAR](#api17--listing-venue-for-profiles-identified-by-sec-edgar) | Complete | 2026-11-21 |
 | API.18 | [Provider no-data is an unavailable input](#api18--provider-no-data-is-an-unavailable-input) | Complete | 2026-11-21 |
 | API.19 | [Database errors after the readiness check](#api19--database-errors-after-the-readiness-check) | Complete | 2026-11-21 |
+| API.20 | [Sample workspace](#api20--sample-workspace) | Planned | |
+| API.21 | [The SEC identity through the API](#api21--the-sec-identity-through-the-api) | Planned | |
 
 ## 3. The slices
 
@@ -521,14 +523,49 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `fix/database-storage-errors`.
 - **Detail:** no separate slice plan; decisions in [A.17](#a17-database-errors-after-the-readiness-check-2026-11-21).
 
+### API.20 — Sample workspace
+
+- **Problem:** a new user starts with an empty database, so every screen of the desktop application and every listing
+  command is empty until the user has learned enough to fill it. Runs are append-only and cannot be deleted
+  ([Architecture](../../../ARCHITECTURE.md)), so sample rows cannot be added to the user's own database and taken out
+  again.
+- **Decision:** the engine keeps a separate sample workspace beside the user's own, built on the user's machine from a
+  versioned sample definition the engine owns. The engine never works on the pristine sample: opening the sample
+  workspace always makes a fresh working copy, and switching back discards it. The engine alone controls where the
+  pristine sample and the copy are stored; no document or output names a path. The CLI and the API offer the same
+  operations, the active workspace is engine-wide, and every interface makes it unmistakable that the sample is in use
+  and that anything added there is not kept ([A.18](#a18-sample-workspace-and-the-sec-identity-through-the-api-2026-11-22), W1 to W10).
+- **Scope:** the sample definition; the application operations to build, remove, open and leave the sample workspace;
+  `GET` and `POST /v1/workspace`, `POST` and `DELETE /v1/sample`; `ian workspace show`, `ian workspace use sample`,
+  `ian workspace use mine`, `ian sample build` and `ian sample remove`; the `IAN-Workspace` response header and its field
+  in `GET /v1/info`; the standard-error notice of the command line; a "Sample workspace" glossary term; a migration for
+  the active-workspace record; `openapi.json`, the JSON Schemas, `docs/user/API.md`, `docs/user/WORKSPACE.md` and
+  `docs/user/DATABASE.md`; tests.
+- **Branch:** `feat/sample-workspace`.
+- **Detail:** ⚠ no slice plan yet. The slice plan fixes the sample's entries (W5), the storage layout under
+  `data/repositories/`, the endpoint documents and the failure codes before implementation starts.
+
+### API.21 — The SEC identity through the API
+
+- **Problem:** the desktop application's plan passes the user's SEC identity to `ian serve` as the `SEC_USER_AGENT`
+  environment variable when it starts the server. That works only while the application and the engine run on the same
+  computer, and it is a setting the command line sets one way and the API cannot set at all.
+- **Decision:** the engine accepts the SEC identity through an API operation and a matching `ian` command, and keeps
+  it in its own storage, never in the settings folder ([A.18](#a18-sample-workspace-and-the-sec-identity-through-the-api-2026-11-22), W11 and W12).
+- **Scope:** the application operation, its endpoint and command, the stored setting and its migration, the reading order of W12 and the
+  field that names the source in `GET /v1/info` and `ian about`; `openapi.json`,
+  `docs/user/API.md` and `docs/user/INSTALLATION.md`; tests.
+- **Branch:** `feat/sec-identity-setting`.
+- **Detail:** ⚠ no slice plan yet. The reading order is W12.
+
 ## 4. Out of scope
 
 - A GUI, HTML pages or static web assets in this repository.
 - Access from another computer, user accounts, or any authentication beyond the per-launch token.
 - An MCP server and Parquet/Arrow export; they stay with the
   [deferred delivery-surfaces note](../deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md).
-- Writing to the settings folder. The GUI passes `SEC_USER_AGENT` to the `ian serve` process it
-  starts.
+- Writing to the settings folder. API.21 keeps the SEC identity in the engine's own storage instead
+  ([A.18](#a18-sample-workspace-and-the-sec-identity-through-the-api-2026-11-22), W11).
 - Serving installation, quick-start, usage, workspace, database, hardware or smoke-testing documents, or
   `docs/user/API.md`, the client authors' reference written in API.2b
   ([S5](API_2_SLICE_PLAN.md#s5-the-client-reference-is-docsuserapimd-2026-11-03)); the GUI writes its own help on
@@ -536,7 +573,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - HTML in any help response, and contributor terms in the served help.
 - Local-model synthesis endpoints; they belong to
   [Step 3.6](../IMPLEMENTATION_PLAN.md#412-step-36--light-mode-support).
-- Database maintenance, provider health, evaluation and settings editing through the API.
+- Database maintenance, provider health, evaluation and settings editing through the API, except the sample workspace (API.20) and the SEC identity (API.21).
 - A change to any stored shape, formula or classification, or to existing CLI output, except the two list documents
   of [S3](API_2_SLICE_PLAN.md#s3-the-list-documents-are-versioned-objects-2026-11-03), the two summary columns that
   API.7's migration adds to `analysis_runs` ([A.6](#a6-refreshes-list-2026-11-10), L3), the changes API.8 records
@@ -672,6 +709,14 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   completion in the form `ian runs refreshes` prints, with no outcome counts; the refreshes list is unchanged and
   byte-identical; the JSON Schemas, `openapi.json` and the term-reference test pass; no stored shape, migration or served
   name other than these changes; `docs/user/API.md` and `docs/user/WORKSPACE.md` describe it.
+- API.20: building, opening, leaving and removing the sample workspace give the same results through the CLI and the API;
+  opening it twice in a row starts from the same pristine sample each time; leaving it discards every change made there
+  and leaves the user's own workspace byte-for-byte unchanged; switching is refused while a refresh job runs; every API
+  response carries `IAN-Workspace: sample` while the sample is active, and every command prints the notice on standard
+  error with `--json` output unchanged; no document or output names a storage path; the tests build the sample with
+  fake providers under the network guard.
+- API.21: the SEC identity set through the API or the command is the one the next provider request uses, survives a
+  restart of `ian serve`, and is never written to the settings folder; the reading order of W12 holds.
 
 ## 6. Background
 
@@ -1005,3 +1050,28 @@ Implementation notes, which follow from K1 to K4 and add no decision:
 - Readiness keeps its own results. It reports an error it cannot classify as `database_io_error`, as before, and it gives a storage error that a scope raised while it initializes or upgrades the verified revision, as before.
 - The command line's text for `database_busy` follows K4's wording, because the old text named readiness.
 - A read-only error inside a `read()` scope is left raw and stays an `execution_error`, because that scope is query-only, so SQLite refuses a write there as read-only and it is a defect in the caller, not a permission problem.
+
+### A.18 Sample workspace and the SEC identity through the API (2026-11-22)
+
+Approved by the project owner on 2026-11-22. The desktop application's matching decisions are recorded in its v0.1
+implementation plan, under GUI.5.
+
+| # | Decision |
+| :--- | :--- |
+| W1 | Where the sample lives. In a separate sample workspace, not in the user's own database. Runs are append-only and a refresh is only a tag on its runs, so sample rows mixed into the user's database could not be removed without breaking that rule; a separate workspace cannot touch the user's data by construction. Rejected: tagged sample rows in the user's database with a delete path for them. |
+| W2 | Real or synthetic data. Real data, built on the user's machine from the sample definition by the engine's own analyses, calling the data providers. Rejected: synthetic tickers, which the ticker check and instrument profiles would reject and which teach nothing real; a pre-built sample shipped with the installer, which would redistribute data the providers do not license for redistribution, go stale, and need rebuilding for every schema or envelope version. |
+| W3 | Who owns the sample. The engine owns the versioned sample definition (which tickers, strategies and as-of dates make a good demonstration is analysis content) and builds the pristine sample from it. The desktop application asks for it through the API and never defines sample content of its own. |
+| W4 | A fresh copy every time. The engine never opens the pristine sample. Opening the sample workspace makes a new working copy of the pristine sample and makes it active; switching back to the user's own workspace discards the copy. Both are stated before they happen: a switch asks for confirmation on a terminal and needs `--yes` elsewhere, as `watchlist delete` does, and the desktop application asks before it switches. |
+| W5 | What the sample holds. One watchlist named "Sample: well-known US companies" with about five well-known tickers across the shipped strategies, some entries pinned to a past as-of date to show point-in-time analysis, one completed refresh so the comparison has content, and one saved direct analysis. Every name starts with "Sample". The slice plan fixes the exact entries. |
+| W6 | Storage belongs to the engine. Where the pristine sample and the copy are kept is decided by the storage layer: for SQLite, files beside the user's database in the engine's data folder; for a future database server, separate databases or schemas. No API document, CLI output or desktop setting names a path, and no other application deletes or copies them. |
+| W7 | Operations. `GET /v1/workspace` serves the active workspace (`user` or `sample`) and the pristine sample's state (absent, building, ready or failed) and version. `POST /v1/workspace` with `kind` `sample` makes the copy and switches to it; with `kind` `user` it switches back and discards the copy. `POST /v1/sample` builds or rebuilds the pristine sample as a job with progress, as a refresh job does. `DELETE /v1/sample` removes it and is refused while the sample is active. The command line offers the same operations as `ian workspace show`, `ian workspace use sample`, `ian workspace use mine`, `ian sample build` and `ian sample remove`, through the same application operations. |
+| W8 | One active workspace for every interface. The active workspace is recorded in the engine's own storage, in the user's database, not in the settings folder. A running `ian serve` reads it for each request, so a switch made from the command line shows in the desktop application at once, and the reverse. A switch is refused while a refresh job is running. |
+| W9 | Unmistakable in every interface. While the sample is active, every API response carries the header `IAN-Workspace: sample` and `GET /v1/info` serves the active workspace; every command prints one line on standard error, "Sample workspace: anything you add is discarded when you switch back. Run `ian workspace use mine` to return.", so `--json` output is unchanged; the glossary gains a "Sample workspace" term that every interface links to. |
+| W10 | Failure and upgrades. A build that fails leaves no pristine sample and reports what failed; a rebuild starts from nothing. An engine upgrade upgrades the pristine sample with the user's database, or rebuilds it when the sample definition's version has changed. |
+| W11 | The SEC identity through the API. The engine accepts the SEC identity through an API operation and a matching `ian` command and keeps it in its own storage, never in the settings folder. It replaces the desktop application passing `SEC_USER_AGENT` to the server it starts, which works only on one computer. |
+| W12 | Reading order. A stored value, which exists only after someone sets it through W11's operation or command, comes first; then `SEC_USER_AGENT`; then the settings folder's `.env`. Existing command-line setups therefore behave as before, and a value the desktop application sets is never silently overridden. `GET /v1/info` and `ian about` say which of the three is in use, without showing the value. |
+
+Recording: API.20 and API.21 in this plan, the interface rules in the
+[Master Plan's Product boundaries](../../../MASTER_PLAN.md#interfaces-and-separate-computers), and one engine issue that
+the API.20 and API.21 pull requests close.
+
