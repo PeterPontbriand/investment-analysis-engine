@@ -567,11 +567,11 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   source gave no venue. The code comes from one reviewed table per source, each value backed by a captured specimen,
   and is worked out each time a document is built, so nothing stored changes. Each code and the field itself have a
   glossary term, and every text rendering writes the term's name with the provider's wording in parentheses when it
-  differs ([A.19](#a19-listing-venue-codes-2026-11-23), V1 to V12).
+  differs ([A.19](#a19-listing-venue-codes-2026-11-23), V1 to V19).
 - **Scope:** `data/listing_venue.py` (the codes, the three tables, the one reading function, the glossary term table and
   the live check's exchange test); `ListingVenuePart` and the venue parts in `reporting/documents/shared_parts.py`;
   the instrument profile document, the run overview and every strategy document's identity part and share-unit
-  provenance, each with a raised `schema_version`; `reporting/listing_venue_text.py` and the places that print a venue
+  provenance, each with a raised `schema_version` (the specimen strategy's fixture included); `reporting/listing_venue_text.py` and the places that print a venue
   (`evidence_presentation.py`, `valuation_presentation.py`, the instrument profile text and the FCF Growth and Momentum
   presenters); the term-reference registry; the `help` import of `reporting` in
   [Architecture §13](../../../ARCHITECTURE.md#13-module-boundaries); the glossary terms and the help bundle; the JSON
@@ -742,7 +742,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   restart of `ian serve`, and is never written to the settings folder; the reading order of W12 holds.
 - API.22: every venue the API serves is `{code, provider_value}` or null (the instrument profile document at
   `schema_version` 2, the run overview at 4, FCF Growth, Graham Growth and Graham Number at 15, Momentum at 14 and
-  Piotroski at 6); each value of each table has a captured specimen in the mapping record and a value no table lists
+  Piotroski at 6, and the specimen strategy's fixture at 2); each value of each table has a captured specimen in the mapping record and a value no table lists
   has a null code with its wording served; a run saved and a profile cached before the change gain their codes with no
   migration and no stored-shape change; every text rendering writes the term's name with the wording in parentheses
   when it differs; `ListingVenue` and the `Listing Venue` term are in the term references and the help bundle; the
@@ -1108,7 +1108,7 @@ the API.20 and API.21 pull requests close.
 
 ### A.19 Listing venue codes (2026-11-23)
 
-Approved by the project owner on 2026-11-23, with the decisions made while the slice was built recorded as amendments.
+Approved by the project owner on 2026-11-23, with the decisions made while the slice was built and reviewed recorded as amendments (V4, V6, V10) and additions (V13 to V19).
 Closes engine issue 284. The evidence behind every mapped value is in the
 [mapping record](API_22_LISTING_VENUE_MAPPING_RECORD.md).
 
@@ -1116,7 +1116,7 @@ Closes engine issue 284. The evidence behind every mapped value is in the
 | :--- | :--- |
 | V1 | Slice identity: API.22, branch `feat/api-listing-venue-codes`, decisions recorded as this entry. Closes engine issue 284. |
 | V2 | All three venue sources get a code: the identity's venue wherever it is served (the instrument profile document, the run overview, every strategy document's identity part and the replay documents) and the filing cover's venue in the share-unit provenance. One rule everywhere; no venue is left with provider wording alone because of where it appears. |
-| V3 | Document shape. `listing_venue` becomes `ListingVenuePart \| null`, mirroring `InstrumentKindPart`: `{code: ListingVenue \| null, provider_value: str}`. The part is null exactly when the source gave no venue. This is an incompatible change made before the first release under [U2](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13): the instrument profile document goes from `schema_version` 1 to 2, the run overview from 3 to 4, FCF Growth, Graham Growth and Graham Number from 14 to 15, Momentum from 13 to 14 and Piotroski from 5 to 6; the JSON Schemas, `openapi.json` and the help bundle are regenerated. Rejected: a sibling `listing_venue_code` field beside the unchanged string (two fields for one concept, and a silent change for clients). |
+| V3 | Document shape. `listing_venue` becomes `ListingVenuePart \| null`, mirroring `InstrumentKindPart`: `{code: ListingVenue \| null, provider_value: str}`. The part is null exactly when the source gave no venue. This is an incompatible change made before the first release under [U2](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13): the instrument profile document goes from `schema_version` 1 to 2, the run overview from 3 to 4, FCF Growth, Graham Growth and Graham Number from 14 to 15, Momentum from 13 to 14 and Piotroski from 5 to 6 and the specimen strategy's fixture from 1 to 2; the JSON Schemas, `openapi.json` and the help bundle are regenerated. Rejected: a sibling `listing_venue_code` field beside the unchanged string (two fields for one concept, and a silent change for clients). |
 | V4 | Code granularity. A code means exactly what its source asserts. Amended on 2026-11-23: a code is exchange-level when the source names one exchange, and group-level when the source names only the group. The codes are `nasdaq`, `nyse`, `nyse_group`, `nyse_arca`, `nyse_american`, `cboe`, `cboe_bzx`, `txse` and `otc`. Tiers stay in `provider_value` (Yahoo's `NasdaqGS`, `NasdaqGM` and `NasdaqCM` map to `nasdaq`). The check the owner required of SEC's `NYSE` and `CBOE` found that `NYSE` covers listings on the New York Stock Exchange, NYSE American and NYSE Arca, so it maps to the group-level `nyse_group` with the term "NYSE Group Exchange". SEC's `CBOE` and Yahoo's `Cboe US` map to `cboe`, whose term says the source does not name which Cboe U.S. equities exchange. A filing cover's `Cboe BZX Exchange, Inc` and `CboeBZX` name one exchange and map to `cboe_bzx` ("Cboe BZX Exchange"). A bare `NYSE` on a cover is written by filers of all three NYSE exchanges and maps to `nyse_group`. |
 | V5 | Unmapped values. A value in no reviewed table gets `code: null` with `provider_value` still served. The new glossary term "Listing Venue" explains the field itself, so every venue has at least that help; the venue field's term reference points to it. Its text says only that the venue is as the provider reports it, never that it is the primary listing, and that a cryptocurrency is not listed on an exchange and a provider's venue text for one may name where its price comes from. Non-US venues are out of scope and stay unmapped. Yahoo's `CCC` stays unmapped: no source was found for what it denotes, which the mapping record states. |
 | V6 | Where the mapping lives. One module, `investment_analysis_engine/data/listing_venue.py`, holds the `ListingVenue` enum, one reviewed table per source (SEC ticker file, Yahoo, filing cover), the one function from a source and a provider's text to a code, and `LISTING_VENUE_TERMS`, registered as `ListingVenue` in `SHARED_CODE_TERMS`. Every value in a table has a captured specimen in the mapping record. Amended on 2026-11-23: the Yahoo table holds the `fullExchangeName` values and the `exchange` fallback codes the identity can store, captured under the same rule (`NMS`, `NGM`, `NCM`, `NYQ`, `PCX`, `ASE`, `BTS`, `TEX`, `PNK`, `OID`, `OQX`). |
@@ -1128,5 +1128,9 @@ Closes engine issue 284. The evidence behind every mapped value is in the
 | V12 | No desktop work in this slice. After the branch is pushed an issue on the desktop repository, "Venue term help and re-vendor to engine API.22", asks GUI.4c to re-vendor to API.22's merge commit, adapt ticker details and run detail to the `listing_venue` part, and show the venue's term help in the popups. |
 | V13 | A filing cover's `SecurityExchangeName` of `NONE`, in any letter case, is the filer stating no exchange. It gives a null part, as V3 does for a source that gave no venue, never `code: null` with `provider_value` "NONE". Energy Transfer's latest cover says `NONE` for its common units although SEC's file and Yahoo list the ticker as `TXSE`; the mapping record states the finding. |
 | V14 | A joined cover value (distinct values joined with `; `) is not in the table and stays unmapped, with its whole text as `provider_value`. |
-| V15 | The specimen strategy's checked-in schema, a test fixture, is regenerated for the shared identity part. The specimen's own `DOCUMENT_SCHEMA_VERSION` is a fixture constant and is not raised. |
+| V15 | The specimen strategy's checked-in schema, a test fixture, is regenerated for the shared identity part (its version: V18). |
+| V16 | Market identifier codes. Every MIC named in the glossary (`XNAS`, `XNYS`, `ARCX`, `XASE`, `BATS`, `BATY`, `EDGX`, `EDGA`, `TXSE`, `OTCM`) was verified on 2026-11-23 against the official ISO 10383 list published by the registration authority at iso20022.org, and a MIC is kept only where that list confirms it for that market. All ten were confirmed and none removed; the mapping record names the list and each entry. |
+| V17 | Glossary wording. NYSE Arca says "Many" exchange-traded funds are listed on it. The over-the-counter entry no longer says the market is run by OTC Markets Group: it says OTC Markets Group operates the main US over-the-counter quotation system, that OTCQX, OTCID and OTCPK (Pink) are tiers of that system, and that SEC's list writes OTC without naming a tier. |
+| V18 | Specimen strategy. Its document's shape changed with the identity and provenance parts, so its fixture `DOCUMENT_SCHEMA_VERSION` rises from 1 to 2, per V3. The generator's template for a new strategy still starts at 1. |
+| V19 | Text locale. `reporting/listing_venue_text.py` requests English by the named constant `_TEXT_LOCALE = "en"`, not through `DEFAULT_LOCALE`, which is the fallback for requests and may change independently of the language the text renderings are written in. The help package has no named constant for a single locale other than `DEFAULT_LOCALE`. |
 

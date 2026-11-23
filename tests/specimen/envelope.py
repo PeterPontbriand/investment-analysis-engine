@@ -9,7 +9,7 @@ from investment_analysis_engine.reporting.documents.strategy_document import (
 )
 from tests.specimen.vocabulary import AnalysisId, MethodId
 
-DOCUMENT_SCHEMA_VERSION: Final = 1
+DOCUMENT_SCHEMA_VERSION: Final = 2
 
 
 class SpecimenResultPart(DocumentPart):

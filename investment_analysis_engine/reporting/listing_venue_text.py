@@ -13,11 +13,14 @@ from investment_analysis_engine.data.listing_venue import (
     read_listing_venue,
 )
 from investment_analysis_engine.help.bundle import load_help_bundle
-from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.reporting.documents.shared_parts import ListingVenuePart
 
-_TEXT_LOCALE = DEFAULT_LOCALE
-"""The locale of the engine's text renderings, named here so the venue names never follow a requested locale."""
+_TEXT_LOCALE = "en"
+"""The tag of the locale the engine's text renderings are written in.
+
+It is the tag itself, not ``DEFAULT_LOCALE``: that constant is the fallback for a request that names no available
+locale and may change independently of the language the text renderings are written in.
+"""
 
 
 def listing_venue_name(code: ListingVenue) -> str:

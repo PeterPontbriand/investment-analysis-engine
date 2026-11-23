@@ -332,7 +332,7 @@ The group runs the New York Stock Exchange, NYSE American and NYSE Arca, all nat
 ### NYSE Arca
 NYSE Arca, a national securities exchange in the United States, with the market identifier code ARCX.
 
-Most exchange-traded funds are listed on NYSE Arca. See [ETF](#instrument-kind-etf) and [listing venue](#listing-venue).
+Many exchange-traded funds are listed on NYSE Arca. See [ETF](#instrument-kind-etf) and [listing venue](#listing-venue).
 
 <a id="listing-venue-nyse-american"></a>
 ### NYSE American
@@ -360,9 +360,9 @@ It is a new exchange, and some companies list on it as well as on an older excha
 
 <a id="listing-venue-otc"></a>
 ### Over-the-Counter Market
-A market in the United States where brokers trade shares directly with each other instead of through a national securities exchange, run by OTC Markets Group with the market identifier code OTCM.
+The over-the-counter market in the United States, where brokers trade shares directly with each other instead of through a national securities exchange, with the market identifier code OTCM.
 
-Over-the-counter shares usually trade less often than exchange-listed shares and face lighter listing and reporting requirements, so prices can move more and be harder to rely on. Providers write it as OTC, OTCPK, OTCID or OTCQX, which are the market's tiers. See [listing venue](#listing-venue).
+OTC Markets Group operates the main US over-the-counter quotation system, which the code OTCM names. OTCQX, OTCID and OTCPK (Pink) are tiers of OTC Markets Group's system, and SEC's list writes OTC without naming a tier. Over-the-counter shares usually trade less often than exchange-listed shares and face lighter listing and reporting requirements, so prices can move more and be harder to rely on. See [listing venue](#listing-venue).
 
 <a id="quote-freshness"></a>
 ### Quote Freshness

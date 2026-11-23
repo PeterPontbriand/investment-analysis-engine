@@ -130,13 +130,26 @@ filer that no specimen covers (for example `NASDAQ` in capitals, or a cover nami
 
 ## 5. Market identifier codes in the glossary
 
-The glossary entries name each venue's ISO 10383 market identifier code (MIC). Sources: the ISO 10383 annexes
-(April 2026 lists `XNAS` as "Nasdaq - all markets", `ARCX` as NYSE Arca and `XASE` as NYSE American; the April 2025 annex
-lists `XNYS` as the New York Stock Exchange and `OTCM` as OTC Link ATS - OTC Markets); the Texas Stock Exchange's own
-[ID codes page](https://www.txse.com/regulations/id-codes), which lists `TXSE`, a code not found in the ISO annexes
-read for this record; and a data vendor's mapping of the Cboe BZX U.S. Equities Exchange to `BATS`, which was not found
-as a standalone ISO annex entry in the searches made. The Cboe group's other U.S. equities exchanges (BYX, EDGX and EDGA)
-are named by the group-level `cboe` entry with their codes `BATY`, `EDGX` and `EDGA`, as a vendor writes them.
+The glossary entries name each venue's ISO 10383 market identifier code (MIC). Every MIC was checked on 2026-11-23
+against the official list, the file `ISO10383_MIC.csv` that the registration authority publishes at
+`https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.csv` (2,893 rows; its most recent row update is
+dated 2026-11-23, the list carries no other publication date). A MIC is kept only where that list confirms it for that
+market. All ten were confirmed and none was removed:
+
+| MIC | The list's entry | Status | Used for |
+| :--- | :--- | :--- | :--- |
+| `XNAS` | NASDAQ - ALL MARKETS (NASDAQ, INC.) | active | Nasdaq Stock Market |
+| `XNYS` | NEW YORK STOCK EXCHANGE, INC. | active | New York Stock Exchange |
+| `ARCX` | NYSE ARCA (segment of XNYS) | active | NYSE Arca |
+| `XASE` | NYSE AMERICAN LLC (segment of XNYS) | active | NYSE American |
+| `BATS` | CBOE BZX U.S. EQUITIES EXCHANGE (segment of XCBO) | active | Cboe BZX Exchange |
+| `BATY` | CBOE BYX U.S. EQUITIES EXCHANGE (segment of XCBO) | active | Cboe group entry |
+| `EDGX` | CBOE EDGX U.S. EQUITIES EXCHANGE (segment of XCBO) | active | Cboe group entry |
+| `EDGA` | CBOE EDGA U.S. EQUITIES EXCHANGE (segment of XCBO) | active | Cboe group entry |
+| `TXSE` | TEXAS STOCK EXCHANGE (TEXAS STOCK EXCHANGE LLC), created 2025-11-24 | active | Texas Stock Exchange |
+| `OTCM` | OTC LINK ATS - OTC MARKETS (OTC MARKETS GROUP INC.) | active | the over-the-counter quotation system of OTC Markets Group |
+
+`PINX` (OTC Pink Marketplace) is on the list as expired, so no entry names it.
 
 ## 6. Keeping the tables current
 

@@ -187,3 +187,19 @@ def test_a_cover_that_states_no_exchange_has_no_filing_venue_line_and_a_null_par
     assert part is not None
     assert part.provenance is not None
     assert part.provenance.documents[0].listing_venue is None
+
+
+def test_the_text_locale_is_english_by_its_own_tag_and_not_the_fallback_for_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requested: list[str] = []
+    real = load_help_bundle
+
+    def record(locale: str) -> object:
+        requested.append(locale)
+        return real(locale)
+
+    monkeypatch.setattr("investment_analysis_engine.reporting.listing_venue_text.load_help_bundle", record)
+    monkeypatch.setattr("investment_analysis_engine.help.locales.DEFAULT_LOCALE", "pt-br")
+    assert listing_venue_name(ListingVenue.NYSE) == "New York Stock Exchange"
+    assert requested == ["en"]

@@ -204,3 +204,15 @@ def test_the_live_checks_failure_message_names_every_exchange_the_table_does_not
 
 def test_the_live_check_passes_a_ticker_file_of_known_exchanges() -> None:
     assert unmapped_ticker_file_message(_ticker_file("Nasdaq", "NYSE", "OTC", "CBOE", "TXSE", None)) is None
+
+
+def test_the_glossary_entries_word_the_otc_market_and_nyse_arca_as_reviewed() -> None:
+    terms = load_help_bundle(DEFAULT_LOCALE).terms
+    otc = terms[LISTING_VENUE_TERMS[ListingVenue.OTC.value]]
+    text = f"{otc.definition} {otc.body}"
+    assert "OTC Markets Group operates the main US over-the-counter quotation system" in text
+    assert "OTCQX, OTCID and OTCPK (Pink) are tiers of OTC Markets Group's system" in text
+    assert "SEC's list writes OTC without naming a tier" in text
+    assert "run by" not in text
+    arca = terms[LISTING_VENUE_TERMS[ListingVenue.NYSE_ARCA.value]]
+    assert "Many exchange-traded funds are listed on NYSE Arca." in f"{arca.definition} {arca.body}"
