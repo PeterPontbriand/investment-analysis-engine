@@ -75,3 +75,9 @@ def test_failure_summary_without_steps_keeps_the_last_40_lines() -> None:
 def test_issue_116_evidence_replaces_the_summary() -> None:
     assert summarize_failure("OSError: WinError 10055 no buffer space") == ISSUE_116_MESSAGE
     assert summarize_failure("...\nsocket snapshot\n...") == ISSUE_116_MESSAGE
+
+
+def test_failure_summary_leaves_out_the_total_row() -> None:
+    output = "  mypy   FAILED      1.0 s\n  total   FAILED      5.0 s\n"
+    assert summarize_failure(output).startswith("Failing steps: mypy")
+    assert "total" not in summarize_failure(output)

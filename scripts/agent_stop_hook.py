@@ -81,7 +81,7 @@ def summarize_failure(output: str) -> str:
     if any(marker in lowered for marker in ISSUE_116_MARKERS):
         return ISSUE_116_MESSAGE
     lines = output.splitlines()
-    failed_steps = [match.group("name") for match in FAILED_STEP_PATTERN.finditer(output)]
+    failed_steps = [name for name in (m.group("name") for m in FAILED_STEP_PATTERN.finditer(output)) if name != "total"]
     if failed_steps:
         report = ["Failing steps: " + ", ".join(failed_steps)]
     else:
