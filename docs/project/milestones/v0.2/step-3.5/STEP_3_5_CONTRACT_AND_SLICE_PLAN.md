@@ -255,7 +255,7 @@ its own quality gate and authorization.
   uses gross interest expense only. ROIC uses one NOPAT definition and a guarded three-year
   incremental view. Every 3.5.5 sub-slice is handed off through a spec under `specs/` in this folder, as the pilot of
   the [spec workflow](../../../SPEC_WORKFLOW.md) ([A.21](#a21-spec-workflow-pilot-on-355-2026-11-19)); the pilot's
-  measures and its adopt, adjust or drop outcome are in [its §7](../../../SPEC_WORKFLOW.md#7-pilot-on-355).
+  measures and its adopt, adjust or drop outcome are in [its §7](../../../SPEC_WORKFLOW.md#7-pilot).
 - **Scope:** three analyzers with the same completeness as 3.5.3, and the pilot measures table in the slice plan's
   implementation record.
 - **Detail:** [Strategy specifications §4, §6, §7](STEP_3_5_STRATEGY_SPECIFICATIONS.md#4-cash-flow-valuation-multiples)
@@ -749,6 +749,6 @@ work package. Its documents land in one documentation-only pull request before 3
 | Quality gate | The tiered gate of #273 | Slice check after each spec step that changes executable files, full gate once before push, CI as the authority across versions and operating systems; 3.5.5a's spec adds an agent hook that runs the slice check when the implementer ends its turn | The implementer cannot report a step done on a failing check |
 | Review | No fixed order | Behaviour first, then architecture and invariants, then logic and financial correctness, then scope; each finding tagged spec change or code fix; a small defect is fixed in the branch or filed as an issue, never deferred in a note | Code that does not work is not reviewed line by line; deferred findings get lost |
 | Pilot scope | None | Every 3.5.5 sub-slice; other work keeps the prompt handoff until the outcome is recorded | One work package gives enough sub-slices to judge the workflow |
-| Measures and outcome | None | The measures in [the spec workflow §7](../../../SPEC_WORKFLOW.md#7-pilot-on-355), recorded per sub-slice in the 3.5.5 slice plan; after 3.5.5's last sub-slice merges and before the 3.5.4 slice plan is accepted, the project owner decides adopt, adjust or drop, recorded as a decision record in this appendix | A pilot needs criteria fixed before it starts and a recorded end |
+| Measures and outcome | None | The measures in [the spec workflow §7](../../../SPEC_WORKFLOW.md#7-pilot), recorded per sub-slice in the 3.5.5 slice plan; after 3.5.5's last sub-slice merges and before the 3.5.4 slice plan is accepted, the project owner decides adopt, adjust or drop, recorded as a decision record in this appendix | A pilot needs criteria fixed before it starts and a recorded end |
 | Left out | Proposed in the 2026-11-14 and 2026-11-15 discussion | Separate analysis documents and design canvases, generated user stories and test prompts, workflow slash commands, a baton or loop-state file, orchestration through GitHub Actions, separate worktrees | Built for team auditing or parallel work; here one unit runs at a time and the agents message each other directly |
 | Desktop repository | Not covered | Receives the same documents only if the outcome is adopt | The pilot runs in this repository only |
