@@ -360,7 +360,7 @@ It is a new exchange, and some companies list on it as well as on an older excha
 
 <a id="listing-venue-otc"></a>
 ### Over-the-Counter Market
-The over-the-counter market in the United States, where brokers trade shares directly with each other instead of through a national securities exchange, with the market identifier code OTCM.
+The over-the-counter market in the United States, where brokers trade shares directly with each other instead of through a national securities exchange.
 
 OTC Markets Group operates the main US over-the-counter quotation system, which the code OTCM names. OTCQX, OTCID and OTCPK (Pink) are tiers of OTC Markets Group's system, and SEC's list writes OTC without naming a tier. Over-the-counter shares usually trade less often than exchange-listed shares and face lighter listing and reporting requirements, so prices can move more and be harder to rely on. See [listing venue](#listing-venue).
 
