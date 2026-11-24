@@ -5,8 +5,47 @@ on:
     branches: [main, master, develop]
   pull_request:
     branches: [main, master, develop]
+  workflow_dispatch:
 
 jobs:
+  changes:
+    name: Classify the change
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+
+    steps:
+      - name: Check out Repository Code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Decide whether only documentation changed
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          range=""
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            range="$PR_BASE_SHA...$PR_HEAD_SHA"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            range="$PUSH_BEFORE..$PUSH_AFTER"
+          fi
+          if [ -z "$range" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only -z --no-renames "$range" | python scripts/ci_changes.py >> "$GITHUB_OUTPUT"
+          fi
+
   markdown-checks:
     name: Check Markdown links, sequence tables, and package dependencies
     runs-on: ubuntu-latest
@@ -35,8 +74,107 @@ jobs:
       - name: Check Database Boundary
         run: python scripts/check_database_boundary.py
 
+  docs:
+    name: Documentation checks and fast tests
+    needs: changes
+    if: needs.changes.outputs.docs_only == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Repository Code
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install Project and Dependencies
+        run: uv sync --frozen
+
+      - name: Check the OpenAPI Description Is Current
+        run: uv run python -m scripts.generate_openapi --check
+
+      - name: Check the Help Bundle Is Current
+        run: uv run python -m scripts.generate_help --check
+
+      - name: Enforce Code Formatting (Ruff)
+        run: uv run ruff format --check .
+
+      - name: Enforce Linting Rules (Ruff)
+        run: uv run ruff check .
+
+      - name: Execute Fast Test Suite
+        run: uv run pytest -rs -n auto -m "not slow"
+
+  # Pull requests run Ubuntu with the oldest and newest supported Python; the full matrix runs on main.
+  pr-test:
+    name: Validate on ubuntu-latest (Python ${{ matrix.python-version }})
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.docs_only == 'false'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
+
+    runs-on: ubuntu-latest
+
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+
+    steps:
+      - name: Check out Repository Code
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Project and Dependencies
+        run: uv sync --frozen
+
+      - name: Verify Python ${{ matrix.python-version }} is the interpreter under test
+        shell: bash
+        run: uv run python -c "import sys; want='${{ matrix.python-version }}'; got='%d.%d' % sys.version_info[:2]; print(sys.version); assert got == want, f'expected {want}, got {got}'"
+
+      - name: Check the OpenAPI Description Is Current
+        run: uv run python -m scripts.generate_openapi --check
+
+      - name: Check the Help Bundle Is Current
+        run: uv run python -m scripts.generate_help --check
+
+      - name: Enforce Code Formatting (Ruff)
+        run: uv run ruff format --check .
+
+      - name: Enforce Linting Rules (Ruff)
+        run: uv run ruff check .
+
+      - name: Enforce Static Type Safety (MyPy)
+        run: uv run mypy --strict
+
+      - name: Execute Test Suite with Coverage
+        run: uv run pytest -rs -n auto --cov=investment_analysis_engine --cov-report=term-missing --cov-fail-under=85
+
+      - name: Prove the installed package runs outside the repository
+        run: uv run python -m scripts.check_installed_package --real-user-folders
+
   quality-and-test:
     name: Validate on ${{ matrix.os }} (Python ${{ matrix.python-version }})
+    needs: changes
+    if: github.event_name != 'pull_request' && needs.changes.outputs.docs_only == 'false'
     strategy:
       fail-fast: false
       matrix:
@@ -90,3 +228,66 @@ jobs:
 
       - name: Prove the installed package runs outside the repository
         run: uv run python -m scripts.check_installed_package --real-user-folders
+
+  quality:
+    name: quality
+    needs: [changes, markdown-checks, docs, pr-test, quality-and-test]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check the jobs this change and event call for
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CHANGES: ${{ needs.changes.result }}
+          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
+          MARKDOWN: ${{ needs.markdown-checks.result }}
+          DOCS: ${{ needs.docs.result }}
+          PR_TEST: ${{ needs.pr-test.result }}
+          FULL: ${{ needs.quality-and-test.result }}
+        run: |
+          echo "event=$EVENT_NAME docs_only=$DOCS_ONLY"
+          echo "changes=$CHANGES markdown-checks=$MARKDOWN docs=$DOCS pr-test=$PR_TEST quality-and-test=$FULL"
+          if [ "$CHANGES" != "success" ] || [ "$MARKDOWN" != "success" ]; then
+            echo "changes and markdown-checks must succeed"; exit 1
+          fi
+          if [ "$DOCS_ONLY" = "true" ]; then
+            want_docs=success; want_pr=skipped; want_full=skipped
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            want_docs=skipped; want_pr=success; want_full=skipped
+          else
+            want_docs=skipped; want_pr=skipped; want_full=success
+          fi
+          if [ "$DOCS" != "$want_docs" ] || [ "$PR_TEST" != "$want_pr" ] || [ "$FULL" != "$want_full" ]; then
+            echo "expected docs=$want_docs pr-test=$want_pr quality-and-test=$want_full"; exit 1
+          fi
+
+  main-status:
+    name: Report a failure on main
+    needs: [changes, markdown-checks, docs, pr-test, quality-and-test]
+    if: always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Check out Repository Code
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Open or update the main-red issue when a job failed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_RESULTS: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          title="$(printf '%s' "$HEAD_MESSAGE" | head -n 1)"
+          export COMMIT_TITLE="${title:-manual run}"
+          python scripts/ci_main_status.py
