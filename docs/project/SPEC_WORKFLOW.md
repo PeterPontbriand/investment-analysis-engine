@@ -92,7 +92,8 @@ Three tiers, each owning one question:
   implementer, `scripts/agent_stop_hook.py`, run by the Stop hook in `.claude/settings.json`, does this whenever a
   turn ends with files changed since the last passing run: it runs the documentation checks for a documentation-only
   change and the slice check otherwise, sends any failure back to the implementer, never loops (it does not run on the
-  turn end that follows its own failure report, so the next turn end checks the fix), and stops the implementer on issue #116 evidence.
+  turn end that follows its own failure report, so the next turn end checks the fix), and stops the implementer on
+  issue #116 evidence.
 - **Pull-request CI: the full check.** Ubuntu, Python 3.12 and 3.14, with coverage and the `slow` tests. No full gate
   runs locally before the push; the wrapper with no mode option is for reproducing a CI failure, or when the project
   owner or a spec asks for it.
