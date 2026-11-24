@@ -22,6 +22,7 @@ planning document: it follows this template instead of the planning document str
 - **Owning plan:** link to the plan section that owns the unit.
 - **Branch:** the branch name, as the owning plan names it, and the `main` commit it starts from.
 - **Decisions approved:** the date the project owner approved the decision list.
+- **Lane:** normal, or fast (a change with no decision in it, as the spec workflow defines).
 
 ## Goal
 
@@ -47,8 +48,8 @@ escalation.
 
 Numbered steps, in order. Each says exactly what to change and ends with its check: the slice check when the step
 changes Python source, tests or a file the gate's tooling parses or executes; otherwise the documentation checks. The
-last steps run the full gate, commit with the title from PR text, and push the branch. The implementer does not open
-the pull request.
+last steps run the slice check, commit with the title from PR text, push the branch and report. After the spec
+author's clean review, the implementer opens the pull request with the PR text.
 
 ## Norms and safeguards
 
@@ -64,9 +65,9 @@ HTTP API), and `git --no-pager diff --stat origin/main...HEAD` listing only allo
 
 ## Report
 
-What the implementer reports when it finishes: at least the commit hash, the diff stat, the `gate-output.txt` path of
-the full gate run, the result of each acceptance check, every escalation with the table row that triggered it, and
-the counts the pilot measures ask for.
+What the implementer reports when it finishes: at least the commit hash, the diff stat, the last slice-check
+result, the result of each acceptance check, every escalation with the table row that triggered it, and a "Pilot
+measures" line with the counts the pilot measures ask for.
 
 ## PR text
 
