@@ -12,7 +12,10 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from investment_analysis_engine.analysis.run_models import RunOutcome
-from investment_analysis_engine.reporting.documents.shared_parts import SecurityIdentityPart
+from investment_analysis_engine.reporting.documents.shared_parts import (
+    SecurityIdentityPart,
+    identity_listing_venue_part,
+)
 from investment_analysis_engine.reporting.documents.timestamp import DocumentAsOf, DocumentTimestamp
 from investment_analysis_engine.workspace.codecs import InvalidStoredRunError, UnsupportedRunVersionError
 from investment_analysis_engine.workspace.repositories.analysis_runs import StoredRun
@@ -34,7 +37,7 @@ class RunOverviewDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[3] = 3
+    schema_version: Literal[4] = 4
     analysis_run_id: UUID
     ticker: str
     security_identity: SecurityIdentityPart = Field(
@@ -112,7 +115,7 @@ def _security_identity(record: StoredRun) -> SecurityIdentityPart:
     return SecurityIdentityPart(
         ticker=record.ticker,
         instrument_name=identity.instrument_name,
-        listing_venue=identity.listing_venue,
+        listing_venue=identity_listing_venue_part(identity.provider_id, identity.listing_venue),
         issuer_identifier=identity.issuer_identifier,
         instrument_identifier=identity.instrument_identifier,
         provider_id=identity.provider_id,

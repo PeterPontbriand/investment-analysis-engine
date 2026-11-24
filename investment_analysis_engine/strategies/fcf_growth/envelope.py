@@ -46,7 +46,7 @@ from investment_analysis_engine.strategies.fcf_growth.vocabulary import (
     TrendClassification,
 )
 
-DOCUMENT_SCHEMA_VERSION: Final = 14
+DOCUMENT_SCHEMA_VERSION: Final = 15
 
 
 class FCFResolvedInputPart(DocumentPart):

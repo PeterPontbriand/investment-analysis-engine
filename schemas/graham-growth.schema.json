@@ -357,6 +357,48 @@
       "title": "LineagePart",
       "type": "object"
     },
+    "ListingVenue": {
+      "description": "A reviewed listing venue: one exchange, a group of exchanges or the over-the-counter market.",
+      "enum": [
+        "nasdaq",
+        "nyse",
+        "nyse_group",
+        "nyse_arca",
+        "nyse_american",
+        "cboe",
+        "cboe_bzx",
+        "txse",
+        "otc"
+      ],
+      "title": "ListingVenue",
+      "type": "string"
+    },
+    "ListingVenuePart": {
+      "additionalProperties": false,
+      "description": "A listing venue: the provider's own wording and the reviewed code it maps to.\n\nThe code is null when no reviewed table lists the provider's wording; the wording is always served.",
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListingVenue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_value": {
+          "title": "Provider Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "provider_value"
+      ],
+      "title": "ListingVenuePart",
+      "type": "object"
+    },
     "PriceComparisonPart": {
       "additionalProperties": false,
       "description": "The relationship between a method's value and the current price, with the evidence behind it.",
@@ -984,13 +1026,12 @@
         "listing_venue": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/ListingVenuePart"
             },
             {
               "type": "null"
             }
-          ],
-          "title": "Listing Venue"
+          ]
         },
         "provider_id": {
           "anyOf": [
@@ -1057,13 +1098,12 @@
         "listing_venue": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/ListingVenuePart"
             },
             {
               "type": "null"
             }
-          ],
-          "title": "Listing Venue"
+          ]
         },
         "retrieved_at": {
           "description": "An ISO 8601 instant with its UTC offset, e.g. +00:00.",

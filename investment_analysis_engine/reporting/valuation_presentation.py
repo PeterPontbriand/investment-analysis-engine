@@ -18,6 +18,7 @@ from investment_analysis_engine.core.analysis_status import CalculationStatus
 from investment_analysis_engine.data.financial.provenance import ResolvedInput, SourceKind
 from investment_analysis_engine.data.financial.quote_freshness import evaluate_quote_freshness
 from investment_analysis_engine.reporting.evidence_presentation import basis_display_name
+from investment_analysis_engine.reporting.listing_venue_text import cover_venue_text
 from investment_analysis_engine.reporting.presentation import (
     format_date,
     format_money,
@@ -90,8 +91,9 @@ def investor_comparison_evidence(comparison: PriceComparison | None) -> list[str
     resolution = comparison.security_unit_resolution
     if resolution is not None and resolution.provenance is not None:
         for document in resolution.provenance.documents:
-            if document.listing_venue:
-                lines.append(f"Filing lists {document.listing_venue}; current venue not independently verified.")
+            venue = cover_venue_text(document.listing_venue)
+            if venue is not None:
+                lines.append(f"Filing lists {venue}; current venue not independently verified.")
             lines.append(f"Filing accepted {format_date(document.available_at)}: {document.url}")
     return lines
 
@@ -137,10 +139,10 @@ def comparison_details(comparison: PriceComparison | None) -> list[str]:
         provenance = resolution.provenance
         lines.extend([f"Share-unit mapping: {provenance.mapping_id}", f"Share class: {provenance.class_title}"])
         for document in provenance.documents:
-            if document.listing_venue:
+            venue = cover_venue_text(document.listing_venue)
+            if venue is not None:
                 lines.append(
-                    f"Filing listing venue: {document.listing_venue} "
-                    f"(filing available {format_utc_minute(document.available_at)})"
+                    f"Filing listing venue: {venue} (filing available {format_utc_minute(document.available_at)})"
                 )
             lines.append(
                 f"Share evidence: SEC EDGAR {document.accession}; "

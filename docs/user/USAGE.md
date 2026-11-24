@@ -239,7 +239,7 @@ The same rule covers every published JSON document, whether a command writes it 
 - **Additions, which keep a document's version path:**
   - a new endpoint or optional request parameter;
   - a new document field;
-  - a new value of an open vocabulary: a `status`, a run outcome, a calculation status, a `reason_code`, a warning code or a `method_id`;
+  - a new value of an open vocabulary: a `status`, a run outcome, a calculation status, a `reason_code`, a warning code, a listing-venue code or a `method_id`;
   - a new strategy;
   - a `schema_version` increase made only for an addition;
   - a changed calculation for new runs, recorded under its `method_version`.
@@ -420,13 +420,27 @@ ian instrument show KO --json
 
 `ian instrument show` prints the details the engine has stored for a ticker: its name, kind (equity, ETF or
 cryptocurrency), listing venue, quote currency, issuer and instrument identifiers, the data provider that gave the identity
-and when the details were last checked. A detail no provider gave reads `unknown`. It contacts no data provider, and it shows
+and when the details were last checked. A detail no provider gave reads `unknown`.
+
+The listing venue is written as the name of the market the engine recognizes, followed by the provider's own wording in
+parentheses when the wording is not already that name; a venue the engine does not recognize is written in the provider's
+words alone. The same rule writes every venue the commands print, in an analysis's identity lines and in the filing's
+listing line of a price comparison:
+
+```text
+Listing venue: Nasdaq Stock Market (NasdaqGS)
+Listing venue: New York Stock Exchange (NYSE)
+Listing venue: Toronto
+Filing lists New York Stock Exchange (NYSE); current venue not independently verified.
+```
+
+Each name is a glossary term, and `Listing Venue` explains the field and what a provider's wording means. It contacts no data provider, and it shows
 the stored details however old they are. A ticker the engine has never analyzed or looked up has none, and the command says
 so and exits 1.
 
 `--lookup` looks the instrument up as an analysis does: the stored details are used while they are fresh, and otherwise the
 data providers are asked and the result is stored. Without an SEC identity set up, a lookup asks Yahoo alone; its answer has no issuer identifier and is shown but not stored, and an already stored profile is shown as before. `--json` prints the
-instrument profile document, `schemas/instrument-profile.schema.json`, whose `schema_version` is 1; a failure is the usual
+instrument profile document, `schemas/instrument-profile.schema.json`, whose `schema_version` is 2; a failure is the usual
 failure document. Details stored by an earlier version of the engine are looked up again the next time the ticker is
 analyzed or looked up.
 

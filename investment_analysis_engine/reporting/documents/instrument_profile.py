@@ -10,7 +10,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from investment_analysis_engine.data.instrument_profile import InstrumentKind
 from investment_analysis_engine.data.instrument_profile_cache import StoredInstrumentProfile
+from investment_analysis_engine.reporting.documents.shared_parts import ListingVenuePart, identity_listing_venue_part
 from investment_analysis_engine.reporting.documents.timestamp import DocumentTimestamp
+from investment_analysis_engine.reporting.listing_venue_text import part_venue_text
 from investment_analysis_engine.reporting.presentation import provider_display_name
 
 _UNKNOWN = "unknown"
@@ -29,7 +31,7 @@ class InstrumentProfileDocument(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     ticker: str = Field(description="The ticker the profile describes, trimmed and upper-cased.")
     refreshed_at: DocumentTimestamp = Field(
         description=(
@@ -38,8 +40,11 @@ class InstrumentProfileDocument(BaseModel):
         )
     )
     instrument_name: str | None = Field(description="The instrument's name; null when no provider gave one.")
-    listing_venue: str | None = Field(
-        description="The exchange or venue the instrument is listed on; null when unknown."
+    listing_venue: ListingVenuePart | None = Field(
+        description=(
+            "The exchange or venue the instrument is listed on, as the data provider reports it, with the reviewed "
+            "code it maps to; null when the provider gave none."
+        )
     )
     issuer_identifier: str | None = Field(
         description="The identifier of the issuer, such as an SEC central index key; null when unknown."
@@ -77,7 +82,7 @@ def build_instrument_profile_document(stored: StoredInstrumentProfile) -> Instru
         ticker=profile.ticker,
         refreshed_at=stored.refreshed_at,
         instrument_name=identity.instrument_name,
-        listing_venue=identity.listing_venue,
+        listing_venue=identity_listing_venue_part(identity.provider_id, identity.listing_venue),
         issuer_identifier=identity.issuer_identifier,
         instrument_identifier=identity.instrument_identifier,
         kind=None if evidence is None else evidence.kind,
@@ -93,7 +98,7 @@ def render_instrument_profile_text(document: InstrumentProfileDocument) -> str:
     lines = (
         heading,
         f"Kind: {kind}",
-        f"Listing venue: {document.listing_venue or _UNKNOWN}",
+        f"Listing venue: {_UNKNOWN if document.listing_venue is None else part_venue_text(document.listing_venue)}",
         f"Quote currency: {document.quote_currency or _UNKNOWN}",
         f"Issuer identifier: {document.issuer_identifier or _UNKNOWN}",
         f"Instrument identifier: {document.instrument_identifier or _UNKNOWN}",

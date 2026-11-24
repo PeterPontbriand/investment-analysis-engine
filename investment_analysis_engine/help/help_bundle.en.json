@@ -861,6 +861,16 @@
         "instrument-kind-equity",
         "instrument-kind-etf",
         "instrument-kind-cryptocurrency",
+        "listing-venue",
+        "listing-venue-nasdaq",
+        "listing-venue-nyse",
+        "listing-venue-nyse-group",
+        "listing-venue-nyse-arca",
+        "listing-venue-nyse-american",
+        "listing-venue-cboe",
+        "listing-venue-cboe-bzx",
+        "listing-venue-txse",
+        "listing-venue-otc",
         "quote-freshness",
         "reporting-currency",
         "quote-currency"
@@ -1786,6 +1796,66 @@
       "definition": "The tangible capital employed: net working capital plus net property, plant and equipment, with goodwill and intangibles excluded.",
       "group": "company-financial-measures",
       "name": "Invested Capital"
+    },
+    "listing-venue": {
+      "body": "The engine shows the provider's own wording and, when it recognizes that wording, the name of the market it stands for. A venue the engine does not recognize is shown in the provider's words alone, and this entry explains it. The venue is as the provider reports it, and a provider can report a different venue from another provider for the same ticker. A cryptocurrency is not listed on an exchange, and a provider's venue text for one may name where its price comes from rather than an exchange. See [instrument profile](help:terms/instrument-profile) and [security identity](help:terms/security-identity).\n\nThe markets the engine recognizes are explained in [Nasdaq Stock Market](help:terms/listing-venue-nasdaq), [New York Stock Exchange](help:terms/listing-venue-nyse), [NYSE Group Exchange](help:terms/listing-venue-nyse-group), [NYSE Arca](help:terms/listing-venue-nyse-arca), [NYSE American](help:terms/listing-venue-nyse-american), [Cboe U.S. Equities Exchange](help:terms/listing-venue-cboe), [Cboe BZX Exchange](help:terms/listing-venue-cboe-bzx), [Texas Stock Exchange](help:terms/listing-venue-txse) and [Over-the-Counter Market](help:terms/listing-venue-otc).",
+      "definition": "The market where an instrument's shares or units are listed for trading, written as the data provider reports it.",
+      "group": "market-data-and-timing",
+      "name": "Listing Venue"
+    },
+    "listing-venue-cboe": {
+      "body": "The Cboe group runs four such exchanges: Cboe BZX (market identifier code BATS), Cboe BYX (BATY), Cboe EDGX (EDGX) and Cboe EDGA (EDGA). The source does not say which of them the security is listed on, so the engine does not either. Many bitcoin and volatility funds are listed there. See [Cboe BZX Exchange](help:terms/listing-venue-cboe-bzx) and [listing venue](help:terms/listing-venue).",
+      "definition": "One of the Cboe group's national securities exchanges for stocks in the United States, which the data source names as Cboe without saying which one.",
+      "group": "market-data-and-timing",
+      "name": "Cboe U.S. Equities Exchange"
+    },
+    "listing-venue-cboe-bzx": {
+      "body": "It is the Cboe group's main exchange for listing stocks and funds. See [Cboe U.S. Equities Exchange](help:terms/listing-venue-cboe) and [listing venue](help:terms/listing-venue).",
+      "definition": "Cboe BZX Exchange, a national securities exchange in the United States, with the market identifier code BATS.",
+      "group": "market-data-and-timing",
+      "name": "Cboe BZX Exchange"
+    },
+    "listing-venue-nasdaq": {
+      "body": "Nasdaq lists companies in three tiers, the Global Select Market, the Global Market and the Capital Market, which a provider may write as NasdaqGS, NasdaqGM and NasdaqCM. The engine shows all three as the Nasdaq Stock Market and keeps the provider's wording beside it. See [listing venue](help:terms/listing-venue).",
+      "definition": "The Nasdaq Stock Market, a national securities exchange in the United States, with the market identifier code XNAS.",
+      "group": "market-data-and-timing",
+      "name": "Nasdaq Stock Market"
+    },
+    "listing-venue-nyse": {
+      "body": "It is the oldest and largest of the exchanges that carry the NYSE name, and it lists many of the largest US companies. See [listing venue](help:terms/listing-venue) and [NYSE Group Exchange](help:terms/listing-venue-nyse-group).",
+      "definition": "The New York Stock Exchange, a national securities exchange in the United States, with the market identifier code XNYS.",
+      "group": "market-data-and-timing",
+      "name": "New York Stock Exchange"
+    },
+    "listing-venue-nyse-american": {
+      "body": "It lists mostly smaller companies, and it was formerly called the American Stock Exchange. See [listing venue](help:terms/listing-venue).",
+      "definition": "NYSE American, a national securities exchange in the United States, with the market identifier code XASE.",
+      "group": "market-data-and-timing",
+      "name": "NYSE American"
+    },
+    "listing-venue-nyse-arca": {
+      "body": "Many exchange-traded funds are listed on NYSE Arca. See [ETF](help:terms/instrument-kind-etf) and [listing venue](help:terms/listing-venue).",
+      "definition": "NYSE Arca, a national securities exchange in the United States, with the market identifier code ARCX.",
+      "group": "market-data-and-timing",
+      "name": "NYSE Arca"
+    },
+    "listing-venue-nyse-group": {
+      "body": "The group runs the New York Stock Exchange, NYSE American and NYSE Arca, all national securities exchanges in the United States. The source does not say which of them the security is listed on, so the engine does not either. See [New York Stock Exchange](help:terms/listing-venue-nyse), [NYSE American](help:terms/listing-venue-nyse-american), [NYSE Arca](help:terms/listing-venue-nyse-arca) and [listing venue](help:terms/listing-venue).",
+      "definition": "One of the exchanges of the NYSE group, which the data source names as NYSE without saying which one.",
+      "group": "market-data-and-timing",
+      "name": "NYSE Group Exchange"
+    },
+    "listing-venue-otc": {
+      "body": "OTC Markets Group operates the main US over-the-counter quotation system, which the code OTCM names. OTCQX, OTCID and OTCPK (Pink) are tiers of OTC Markets Group's system, and SEC's list writes OTC without naming a tier. Over-the-counter shares usually trade less often than exchange-listed shares and face lighter listing and reporting requirements, so prices can move more and be harder to rely on. See [listing venue](help:terms/listing-venue).",
+      "definition": "The over-the-counter market in the United States, where brokers trade shares directly with each other instead of through a national securities exchange.",
+      "group": "market-data-and-timing",
+      "name": "Over-the-Counter Market"
+    },
+    "listing-venue-txse": {
+      "body": "It is a new exchange, and some companies list on it as well as on an older exchange. See [listing venue](help:terms/listing-venue).",
+      "definition": "The Texas Stock Exchange, a national securities exchange in the United States, with the market identifier code TXSE.",
+      "group": "market-data-and-timing",
+      "name": "Texas Stock Exchange"
     },
     "look-ahead-bias": {
       "body": "Tracking availability dates separately from reporting periods helps prevent it.",

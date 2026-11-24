@@ -413,6 +413,8 @@ The rule applies to every published document, CLI `--json` included.
   the rule applies from the first engine release that includes the API. Until then an incompatible change inside `/v1`,
   CLI `--json` included, is allowed when the slice that makes it records it and raises the affected document's
   `schema_version`.
+- **Amendment (2026-11-23, [A.19](API_CONTRACT_AND_SLICE_PLAN.md#a19-listing-venue-codes-2026-11-23), V9):** a new
+  value of the listing-venue code set (`ListingVenue`) is an open-vocabulary addition within `/v1`.
 
 ### S5 The client reference is docs/user/API.md (2026-11-03)
 

@@ -186,7 +186,7 @@ prints the same run as text.
 
 `security_identity` is the identity snapshot the run retained when it ran: `ticker`, `instrument_name`, `listing_venue`,
 `issuer_identifier`, `instrument_identifier`, `provider_id` and `resolved_at`, each null when no provider gave one, as a strategy
-document carries it. Show a ticker that belongs to a run with this identity and never with the ticker's current profile, which
+document carries it. `listing_venue` is a [listing venue](#listing-venues). Show a ticker that belongs to a run with this identity and never with the ticker's current profile, which
 can describe a different company after a ticker reuse. Use `/v1/instrument-profiles/{ticker}` for the ticker's current profile.
 
 ### Instrument profiles
@@ -211,15 +211,15 @@ client reads it once and can offer a lookup when there is nothing to show.
 The ticker in the path is trimmed and upper-cased; a blank one is `invalid_parameter`. There is one ticker per request.
 
 The document is `{schema_version, ticker, refreshed_at, instrument_name, listing_venue, issuer_identifier,
-instrument_identifier, kind, quote_currency, provider_id}` (`schema_version` 1):
+instrument_identifier, kind, quote_currency, provider_id}` (`schema_version` 2):
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "ticker": "KO",
   "refreshed_at": "2026-11-20T14:02:12+00:00",
   "instrument_name": "Coca-Cola Co",
-  "listing_venue": "NYSE",
+  "listing_venue": {"code": "nyse_group", "provider_value": "NYSE"},
   "issuer_identifier": "0000021344",
   "instrument_identifier": null,
   "kind": "equity",
@@ -234,6 +234,25 @@ of each. `quote_currency` is the currency the listing's price is quoted in, as t
 smaller unit, such as pence (`GBp`). `provider_id` is the provider of the identity; `/v1/info` lists each provider's name.
 The document has no status field: it always describes a profile, and anything else is a failure. The command line writes the
 same document with `ian instrument show TICKER --json`, and with `--lookup` for the lookup.
+
+### Listing venues
+
+Every listing venue the API serves, in an instrument profile, a run overview, a strategy document's `security_identity` and
+a replayed run, and the filing's venue in a price comparison's share-unit provenance, is a part with two fields:
+`{"code": ..., "provider_value": ...}`. `provider_value` is the provider's own wording, as the provider reports it, which
+is not necessarily the primary listing. `code` is the reviewed code the engine maps that wording to, or null when the
+engine does not recognize it. The part itself is null when the source gave no venue; a filing cover that states no exchange
+counts as giving none.
+
+A code means what its source says. A source that names one exchange gets that exchange's code (`nasdaq`, `nyse`,
+`nyse_arca`, `nyse_american`, `cboe_bzx`, `txse`), and a source that names only a group of exchanges gets the group's code
+(`nyse_group` for SEC's `NYSE`, `cboe` for `CBOE` or Yahoo's `Cboe US`); `otc` is the over-the-counter market. The code is
+worked out each time a document is built, from the stored wording and the identity's provider, so a run or a profile saved
+before a value was recognized gains its code, and a code can appear on a replay of a run that showed none before.
+`GET /v1/help/references` names the glossary term of each code, and the `Listing Venue` term explains the field.
+
+The codes are an open vocabulary: a new code is an addition within `/v1`. A client treats a code it does not know like a
+null one and shows `provider_value`.
 
 ### Cell units
 

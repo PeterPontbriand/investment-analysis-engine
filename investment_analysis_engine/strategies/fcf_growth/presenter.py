@@ -25,6 +25,7 @@ from investment_analysis_engine.reporting.documents.shared_parts import (
 )
 from investment_analysis_engine.reporting.documents.strategy_document import strategy_document_json
 from investment_analysis_engine.reporting.input_provenance import input_detail_lines, investor_value
+from investment_analysis_engine.reporting.listing_venue_text import identity_venue_text
 from investment_analysis_engine.reporting.presentation import (
     PresentationMode,
     format_date,
@@ -396,9 +397,10 @@ def _identity_detail_lines(resolution: SecurityIdentityResolution | None) -> lis
     if resolution is None or resolution.identity is None:
         return ["Security identity: unavailable"]
     identity = resolution.identity
+    venue = identity_venue_text(identity.provider_id, identity.listing_venue)
     return [
         f"Instrument name: {identity.instrument_name or 'unavailable'}",
-        f"Current listing venue: {identity.listing_venue or 'not supplied by selected identity provider'}",
+        f"Current listing venue: {venue or 'not supplied by selected identity provider'}",
         f"Identity provider: {provider_display_name(identity.provider_id)}",
         f"Identity resolved: {format_datetime(identity.resolved_at)} (current descriptive metadata)",
     ]

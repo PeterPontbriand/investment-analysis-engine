@@ -1,5 +1,5 @@
 {
-  "schema_version": 14,
+  "schema_version": 15,
   "analysis": "fcf_earnings_growth",
   "method": "reported_fcf_eps_cagr",
   "ticker": "KO",
@@ -12,7 +12,10 @@
   "security_identity": {
     "ticker": "KO",
     "instrument_name": "Coca-Cola",
-    "listing_venue": "NYSE",
+    "listing_venue": {
+      "code": "nyse_group",
+      "provider_value": "NYSE"
+    },
     "issuer_identifier": "123",
     "instrument_identifier": null,
     "provider_id": "sec_edgar",

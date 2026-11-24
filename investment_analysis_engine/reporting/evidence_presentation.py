@@ -25,6 +25,7 @@ from investment_analysis_engine.reporting.input_provenance import (
     input_detail_lines,
     input_source_label,
 )
+from investment_analysis_engine.reporting.listing_venue_text import identity_venue_text
 from investment_analysis_engine.reporting.presentation import (
     format_as_of,
     format_date,
@@ -142,9 +143,10 @@ def identity_detail_lines(resolution: SecurityIdentityResolution | None) -> list
     if resolution is None or resolution.identity is None:
         return ["Security identity: unavailable"]
     identity = resolution.identity
+    venue = identity_venue_text(identity.provider_id, identity.listing_venue)
     return [
         f"Instrument name: {identity.instrument_name or 'unavailable'}",
-        f"Current listing venue: {identity.listing_venue or 'not supplied by selected identity provider'}",
+        f"Current listing venue: {venue or 'not supplied by selected identity provider'}",
         f"Identity provider: {provider_display_name(identity.provider_id)}",
         f"Identity resolved: {format_utc_minute(identity.resolved_at)} (current descriptive metadata)",
     ]
