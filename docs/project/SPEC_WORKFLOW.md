@@ -18,7 +18,8 @@ unit in both repositories from IAD issue #39 on ([A.21](milestones/v0.2/step-3.5
   - A spec is complete when it is committed: no placeholder, no open question, no template guidance left in it.
   - The spec is corrected first whenever reality differs from it ([§4](#4-when-reality-differs-from-the-spec)).
   - The implementer escalates by the table in [`AGENTS.md` §11](../../AGENTS.md#escalation-in-a-spec-driven-unit).
-  - The project owner approves every decision list and every pull request opening, and merges every pull request
+  - The project owner approves every decision list, which also approves opening the unit's pull request once the
+    spec author's review is clean, and merges every pull request
     ([`AGENTS.md` §11](../../AGENTS.md#11-user-approval-gates)).
 - **Where it applies:** during the pilot, every unit in both repositories from IAD issue #39 on. The desktop
   repository receives the same documents in its own pull request.
@@ -27,7 +28,7 @@ unit in both repositories from IAD issue #39 on ([A.21](milestones/v0.2/step-3.5
 
 | Role | Who | What they do |
 | :--- | :--- | :--- |
-| Project owner | The repository owner | Approves or amends each decision list; answers escalations that would change a decision, scope, a dependency or anything that cannot be undone; approves opening each pull request; merges |
+| Project owner | The repository owner | Approves or amends each decision list; answers escalations that would change a decision, scope, a dependency or anything that cannot be undone; approving a decision list also approves opening the unit's pull request after a clean review; merges |
 | Spec author | The agent that drafts the decision list and reviews the work | Writes the spec (and the slice plan, when the unit needs one); answers the implementer's questions within the approved decisions; corrects the spec; reviews; escalates to the project owner what the approved decisions do not settle |
 | Implementer | A coding agent (currently Sonnet 5.5 in Claude Code) on the project owner's development machine, started by the spec author through Remote Control in the owner's checkout; the owner's machine stays on while a unit runs | Implements the spec within its allowed files; runs the slice check; reports; opens the unit's pull request after a clean review; escalates by the table in [`AGENTS.md` §11](../../AGENTS.md#escalation-in-a-spec-driven-unit) |
 
@@ -35,13 +36,13 @@ unit in both repositories from IAD issue #39 on ([A.21](milestones/v0.2/step-3.5
 
 1. **Decision list.** The spec author lists the unit's open decisions, each with a recommendation, in one list per
    slice that covers all its sub-slices. The project owner approves or amends them; approving the list also approves
-   opening the unit's pull request once the spec author's review is clean. The approved decisions are recorded with their identifiers in the decision appendix of
-   the plan that owns the unit, as before.
+   opening the unit's pull request once the spec author's review is clean. The approved decisions are recorded with
+   their identifiers in the decision appendix of the plan that owns the unit, as before.
 2. **Spec.** The spec author copies the [spec template](SPEC_TEMPLATE.md) to `specs/<unit>.md` in the folder of the
    plan that owns the unit (for 3.5.5a: `docs/project/milestones/v0.2/step-3.5/specs/3.5.5a.md`), fills every
    section, and writes it into the owner's checkout; the implementer commits it as the first commit of the unit's
-   branch, named as the owning plan says. All GitHub writes happen on the owner's machine under the owner's identity. When the unit's
-   slice plan does not exist yet, the first spec's steps write it, as 3.5.3a did.
+   branch, named as the owning plan says. All GitHub writes happen on the owner's machine under the owner's identity.
+   When the unit's slice plan does not exist yet, the first spec's steps write it, as 3.5.3a did.
 3. **Implementation.** The implementer checks out the branch and implements the spec's steps in order, changing only
    its allowed files. It runs the slice check after each step that changes Python source, tests or a file the gate's
    tooling parses or executes, enforced by the Stop hook, and runs no full gate before pushing
@@ -90,8 +91,8 @@ Three tiers, each owning one question:
   documentation-only step runs the documentation checks that [Quality gates](README.md#quality-gates) names. For the
   implementer, `scripts/agent_stop_hook.py`, run by the Stop hook in `.claude/settings.json`, does this whenever a
   turn ends with files changed since the last passing run: it runs the documentation checks for a documentation-only
-  change and the slice check otherwise, sends any failure back to the implementer (so it cannot report a step done on
-  a failing check), never loops, and stops the implementer on issue #116 evidence.
+  change and the slice check otherwise, sends any failure back to the implementer, never loops (it does not run on the
+  turn end that follows its own failure report, so the next turn end checks the fix), and stops the implementer on issue #116 evidence.
 - **Pull-request CI: the full check.** Ubuntu, Python 3.12 and 3.14, with coverage and the `slow` tests. No full gate
   runs locally before the push; the wrapper with no mode option is for reproducing a CI failure, or when the project
   owner or a spec asks for it.
@@ -108,7 +109,7 @@ checks them before the unit's pull request opens.
 | Measure | Target |
 | :--- | :--- |
 | Prompts, PR texts or review findings the project owner copied by hand between agents | 0 |
-| Project owner actions beyond approving decisions, answering escalations, approving the pull request opening and merging | 0 |
+| Project owner actions beyond approving decisions, answering escalations and merging | 0 |
 | Changes outside the allowed files, or in an escalation category, made without an escalation | 0 |
 | Escalations, each with the table row that triggered it | Recorded; no target |
 | Review rounds after the first review | At most one per unit, on average across the pilot |
