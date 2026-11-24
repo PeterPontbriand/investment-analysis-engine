@@ -150,10 +150,10 @@ When editing a legacy file that currently uses a different logging pattern, do n
 - Tests close every socket, file, event loop and `HTTPError` they create; the suite fails on `ResourceWarning`. A leak warning can fail a test other than the one that created the object, because the warning is reported when the object is freed. The leak's source, for that case and for a failure reported at session end with no test named, is found by rerunning with `PYTHONTRACEMALLOC=25`.
 - Project target: ≥85% line coverage overall; new financial-analysis code should directly exercise meaningful branches and edge cases.
 - After each sub-slice (each implementation step that is reported as done) that touches Python source, tests, or a file the tooling actually parses/executes, run the slice check: the managed wrapper with `-Slice` / `--slice` (§10).
-- Before pushing a branch for a pull request, run the full gate once: the wrapper with no mode option. Also run it for a sub-slice that changes `scripts/new_strategy.py`, `scripts/strategy_sites.py`, `scripts/strategy_sites.toml`, `scripts/strategy_templates/`, `tests/scripts/generator_fills/` or `investment_analysis_engine/strategy_wiring.py`, because the `slow` tests that the slice check leaves out cover those files. The full gate and green CI are what a pull request is reviewed against.
+- The slice check after each step is the local check before a push; for an agent the Stop hook (`scripts/agent_stop_hook.py`, configured in `.claude/settings.json`) runs it whenever a turn ends with unchecked changes. The pull request's CI is the full check (Ubuntu, Python 3.12 and 3.14, with coverage and the `slow` tests), and every Python version and operating system runs after merge. The wrapper with no mode option is for reproducing a CI failure, or when the project owner or a spec asks for it. Green CI and the slice check are what a pull request is reviewed against. A test that fails and then passes with no code change gets an issue the same day naming the run (the flake rule; pytest has no quarantine tag in this repository).
 - While working, run only the tests for the code you change: the matching files under `tests/` and any test file that names the changed module. Do not run the whole suite to find failures.
 - After a failure, rerun only what failed: name the failing tests, or use `--last-failed`. Never pass `-p no:cacheprovider` outside the gate scripts, because it disables `--last-failed`.
-- Run the slice check once at the end of each sub-slice, and the full gate once before pushing. After a failed slice check, fix and rerun only the failing tests, then run the slice check once more.
+- Run the slice check once at the end of each sub-slice. After a failed slice check, fix and rerun only the failing tests, then run the slice check once more.
 - The `-ExtraPython 3.14` / `--extra-python 3.14` pass is not part of either tier. CI on a pull request runs Ubuntu with Python 3.12 and 3.14, or, for a docs-only change, the documentation checks and pytest without `slow` tests; a push to `main` or a manual run runs Python 3.12, 3.13 and 3.14 on all three operating systems, and a failure there is reported in the open `main-red` issue. Use the extra pass only to reproduce a version-specific CI failure locally.
 - A change confined to non-executable declarative metadata (e.g. a single `pyproject.toml` project-metadata field such as `license`) or a prose-only documentation edit does not require the full pytest run — see `docs/project/README.md`'s Quality gates section for the exact boundary. When in doubt, run the full gate.
 - For a documentation-only change, run `python scripts/check_doc_links.py`, `python scripts/check_sequence_tables.py`, `python scripts/check_package_dependencies.py`, and both Ruff checks (`uv run ruff check .` and `uv run ruff format --check .`). Ruff also lints and formats Python code blocks in Markdown. CI runs pytest for every pull request and MyPy for every pull request that is not docs-only; the documentation-only local gate may omit those unless the change also affects code or test behavior. A change to a served document must also pass the commands that the [Quality gates](docs/project/README.md#quality-gates) section of `docs/project/README.md` names for it.
@@ -230,7 +230,7 @@ interactive developer account can use them.
 There are two tiers (§7), both run by the wrapper matching the active shell from
 any repository subdirectory.
 
-The full gate, once per pull request before the branch is pushed:
+The full gate, to reproduce a CI failure or when asked:
 
 - PowerShell: `& (Join-Path (git rev-parse --show-toplevel) 'scripts/run-quality-gates.ps1')`
 - Git Bash/Cline: `bash "$(git rev-parse --show-toplevel)/scripts/run-quality-gates.sh"`
@@ -396,14 +396,14 @@ Require explicit user confirmation before:
 - destructive file deletion;
 - git reset/force-push;
 - database migrations against user data;
-- opening or merging PRs;
+- merging PRs, and opening a PR, except that in a spec-driven unit the implementer opens the unit's PR once the spec author's review is clean, because the owner's approval of the decision list covers it ([spec workflow](docs/project/SPEC_WORKFLOW.md));
 - structural repository changes not already authorized by the active implementation plan.
 
 Dependabot pull requests are never merged: reapply the same version bump on a project branch, and Dependabot then closes its own pull request. Commits on `main` are authored by project contributors only.
 
 ### Escalation in a spec-driven unit
 
-Temporary rule: it applies to units handed off through a spec while the [spec workflow](docs/project/SPEC_WORKFLOW.md) is piloted, and the change that records the pilot's outcome keeps, rewrites or removes it. The implementer handles each situation as the table says; the roles are defined in the spec workflow.
+Temporary rule: it applies to every unit handed off through a spec while the [spec workflow](docs/project/SPEC_WORKFLOW.md) is piloted, and the change that records the pilot's outcome keeps, rewrites or removes it. The implementer handles each situation as the table says; the roles are defined in the spec workflow.
 
 | Situation | What the implementer does |
 | :--- | :--- |
@@ -413,6 +413,7 @@ Temporary rule: it applies to units handed off through a spec while the [spec wo
 | The work needs a file outside the spec's allowed files | Stops and escalates to the spec author (§4, implementation preservation) |
 | The work would change an architectural invariant, a financial formula or convention, provenance, or a persisted shape or the local HTTP API beyond what the spec names | Stops and escalates to the spec author, who takes it to the project owner |
 | The work needs a new dependency, a `pyproject.toml` or `uv.lock` change, a migration against user data, or a step this section or §3 reserves for the project owner | Stops and escalates to the spec author, who takes it to the project owner |
+| The work needs a GitHub action other than pushing the unit's branch, opening its pull request after a clean review, starting or cancelling a CI run on that branch, or filing an issue the flake rule calls for | Stops and escalates to the spec author, who takes it to the project owner |
 | A run shows evidence for issue #116 | Stops and keeps the evidence (§10) |
 
 An escalation names the table row, the step, and what was found. The spec author settles what the approved decisions already cover and records it in the spec; anything that would change a decision, the scope, a dependency, or a step that cannot be undone goes to the project owner.
