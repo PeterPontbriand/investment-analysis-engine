@@ -2,8 +2,8 @@
 
 How a unit of work goes from an approved decision list to a merged pull request through a spec committed on the
 unit's branch, instead of a prompt pasted into the implementer's session. The workflow is being piloted on every
-unit in both repositories from IAD issue #39 on (A.21, widened by A.22 in the Step 3.5 plan's
-[decision records](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#appendix-a-decision-records-and-history));
+unit in both repositories from IAD issue #39 on ([A.21](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a21-spec-workflow-pilot-on-355-2026-11-18), widened by
+[A.22](milestones/v0.2/step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a22-spec-workflow-widened-and-ci-as-the-full-check-2026-11-23));
 [§7](#7-pilot) says how the pilot is judged and what happens after it.
 
 ## 1. At a glance
