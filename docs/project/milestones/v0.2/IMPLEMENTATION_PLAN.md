@@ -70,6 +70,8 @@ current codes:
   and a versioned local HTTP API both call, so that a separate GUI application can use the engine. Its row is numbered
   `15A`; it runs after Step 3.5's 3.5.3e, 3.5.3e1c, [issue 207](https://github.com/PeterPontbriand/investment-analysis-engine/issues/207) and [issue 210](https://github.com/PeterPontbriand/investment-analysis-engine/issues/210) ([order](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)), and before the remaining Step 3.5 strategies, while Step 3.5 stays in progress.
 
+- `CAN` — short for "Canadian listings" (umbrella [issue #301](https://github.com/PeterPontbriand/investment-analysis-engine/issues/301)): makes the strategies that read company financial facts usable for tickers listed in Canada. CAN.0 gathers evidence and writes the plan; CAN.1 links a Canadian ticker to its SEC filer and folds in #293; CAN.2 converts currencies for price comparisons; CAN.3, only if approved later, adds a source for companies that do not file with the SEC. Its row is numbered `15B`. Approved by the project owner on 2026-11-25 (decisions C12 to C22, [API plan A.20](api/API_CONTRACT_AND_SLICE_PLAN.md#a20-sec-edgar-ticker-coverage-explained-and-warned-2026-11-25)). Engine order from that date: API.23, #304, #305, API.24, CAN.0, CAN.1, #307, API.20 and API.21, CAN.2, then Step 3.5's 3.5.5.
+
 PC (PC.1 to PC.4) and GR (GR.1 to GR.3) are complete; Step 3.5 is in progress
 ([order](layering/LAY_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)).
 
@@ -103,6 +105,7 @@ sequencing meaning.
 | 14A | [Gate reliability (GR)](gate-reliability/GR_GATE_RELIABILITY_PLAN.md#2-sequence-and-status) | Complete | 2026-10-21 |
 | 15A | [Local HTTP API for the GUI application (API)](api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | Complete | 2026-11-10 |
 | 15 | [Quantitative screens (3.5)](step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status) | In progress | |
+| 15B | [Canadian listings (CAN)](https://github.com/PeterPontbriand/investment-analysis-engine/issues/301) | Planned | |
 | 16 | [Light Mode (3.6)](#412-step-36--light-mode-support) | Planned | |
 | Deferred | [ETF aggregation (P2-ETF)](#47a-p2--durable-instrument-profiles--etf-aggregate-fcf-growth) | Deferred | |
 | Deferred | [Standard delivery surfaces (MCP server, Parquet/Arrow export)](deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md) | Deferred | |

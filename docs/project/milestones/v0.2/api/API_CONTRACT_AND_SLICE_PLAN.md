@@ -70,6 +70,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.18 | [Provider no-data is an unavailable input](#api18--provider-no-data-is-an-unavailable-input) | Complete | 2026-11-21 |
 | API.19 | [Database errors after the readiness check](#api19--database-errors-after-the-readiness-check) | Complete | 2026-11-21 |
 | API.22 | [Listing venue codes](#api22--listing-venue-codes) | Complete | 2026-11-23 |
+| API.23 | [SEC EDGAR ticker coverage, explained and warned](#api23--sec-edgar-ticker-coverage-explained-and-warned) | Next | |
+| API.24 | [Explain why a result has no number](#api24--explain-why-a-result-has-no-number) | Planned | |
 | API.20 | [Sample workspace](#api20--sample-workspace) | Planned | |
 | API.21 | [The SEC identity through the API](#api21--the-sec-identity-through-the-api) | Planned | |
 
@@ -580,6 +582,34 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `feat/api-listing-venue-codes`.
 - **Detail:** no separate slice plan; decisions in [A.19](#a19-listing-venue-codes-2026-11-23), evidence in the
   [mapping record](API_22_LISTING_VENUE_MAPPING_RECORD.md).
+
+### API.23 — SEC EDGAR ticker coverage, explained and warned
+
+- **Problem:** a ticker that is not in SEC EDGAR's ticker list, such as NTR.TO (Nutrien on the Toronto Stock Exchange),
+  makes the strategies that read SEC filings unavailable with no explanation of why, and Yahoo's "Toronto" venue has no
+  named code (engine issue 302).
+- **Decision:** the run's reason names the input and says SEC lists companies under US ticker symbols only; adding an
+  entry gives a new warning, `ticker_not_in_sec_list`; each strategy declares whether a selection reads SEC EDGAR; four
+  Canadian listing venues get codes and glossary entries; the plans record the Canadian-listings work package and the
+  engine order ([A.20](#a20-sec-edgar-ticker-coverage-explained-and-warned-2026-11-25), C1 to C11).
+- **Scope:** `reporting/provider_messages.py`; `core/entry_warnings.py`; `application/entry_check.py`; one method of the
+  SEC financial-facts adapter; `data/listing_venue.py` and its mapping record; `strategy_wiring.py`, each strategy's
+  `selection.py` and the strategy generator, its conformance check and the specimen; the regenerated help bundle and
+  schemas; the glossary and `docs/user/` documents that quote the old text or list the codes; this plan, the
+  implementation plan's `CAN` entry and Step 3.5's order line; tests.
+- **Branch:** `feat/api-sec-coverage`.
+- **Detail:** this slice's spec: [specs/api-23.md](specs/api-23.md); decisions in
+  [A.20](#a20-sec-edgar-ticker-coverage-explained-and-warned-2026-11-25).
+
+### API.24 — Explain why a result has no number
+
+- **Problem:** a result without a number gives a short reason that does not say what the method needed, what was
+  found, why a guessed number would mislead, or what the investor can do (engine issue 306).
+- **Decision:** every result without a number gets an explanation built from the stored structured fields
+  ([A.21](#a21-explain-why-a-result-has-no-number-2026-11-25), C23 to C30).
+- **Scope:** every strategy's documents and text, the glossary, tests.
+- **Branch:** `feat/api-no-answer-explanations`.
+- **Detail:** ⚠ no slice plan yet.
 
 ## 4. Out of scope
 
@@ -1135,3 +1165,50 @@ Closes engine issue 284. The evidence behind every mapped value is in the
 | V18 | Specimen strategy. Its document's shape changed with the identity and provenance parts, so its fixture `DOCUMENT_SCHEMA_VERSION` rises from 1 to 2, per V3. The generator's template for a new strategy still starts at 1. |
 | V19 | Text locale. `reporting/listing_venue_text.py` requests English by the named constant `_TEXT_LOCALE = "en"`, not through `DEFAULT_LOCALE`, which is the fallback for requests and may change independently of the language the text renderings are written in. The help package has no named constant for a single locale other than `DEFAULT_LOCALE`. |
 
+### A.20 SEC EDGAR ticker coverage, explained and warned (2026-11-25)
+
+Approved by the project owner on 2026-11-25, as decisions C1 to C22 of one list that also planned the Canadian-listings
+work package and the engine order. Closes engine issue 302. Umbrella for Canadian listings: engine issue 301.
+
+| # | Decision |
+| :--- | :--- |
+| C1 | A new investor glossary entry, SEC EDGAR Ticker List (`sec-ticker-list`): SEC's list of the companies that file with it, each under its US ticker symbol, so a ticker on an exchange outside the United States, such as NTR.TO, is not in it even when the company files with the SEC (Nutrien is NTR on the New York Stock Exchange). Linked from EDGAR, Provider Returned No Data, the entry of each strategy that reads SEC filings, the new warning's entry and each Canadian venue entry. Rejected: extending the EDGAR entry, which would mix what EDGAR is with which companies it lists. |
+| C2 | The reason of a run stopped because SEC's ticker list does not include the ticker reads "SEC EDGAR's ticker list does not include {ticker}, so {input} could not be read from SEC filings. SEC EDGAR lists companies under their US ticker symbols only.", where `{input}` is the label of the required input that needed the company identifier, which the failure record already carries. One template for every strategy that reads SEC filings. Amends the message of [A.16](#a16-provider-no-data-is-an-unavailable-input-2026-11-21) E7 and E13 for this case only; a `ticker_unlisted` failure of another provider keeps its message. |
+| C3 | New runs get C2's message; stored runs keep theirs, since runs are append-only. No method, result-schema, evidence-codec or document version changes: the status, reason code, failure element and every shape stay the same. |
+| C4 | Each strategy declares in its behavior bundle a predicate saying whether a selection reads SEC EDGAR. A selection that supplies every filing input as an override does not (Graham Number with both EPS and book value per share overridden, Graham Growth with EPS overridden); Momentum never does. Rejected: one flag per strategy, which would warn wrongly for fully overridden selections. |
+| C5 | A new entry warning, `ticker_not_in_sec_list`, an addition to the open warning-code vocabulary within `/v1`, with its own glossary entry. It is given when the add-entries check identified the ticker, an SEC identity is set up, at least one entry just added for the ticker reads SEC EDGAR, and SEC's ticker file, once loaded, lists no such ticker and no CIK override names it. At most one warning per ticker; `reason_code` null; the entry is never refused. A failure while asking SEC gives no warning and does not stop the check. |
+| C6 | Its message: "{ticker} is not in SEC EDGAR's ticker list, so {strategies} will be unavailable for it: they read the company's financial statements from SEC filings. SEC EDGAR lists a company only under its US ticker symbol, so a ticker on an exchange outside the United States is not in the list even when the company files with the SEC." `{strategies}` joins the labels of the affected entries' strategies. |
+| C7 | With no SEC identity set up, no new warning: SEC's list cannot be asked, and the strategies report the missing identity themselves. |
+| C8 | No warning before a direct analysis; its result carries C2's reason. Same reasoning as [A.14](#a14-ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses-2026-11-20) P2. |
+| C9 | Listing-venue codes `tsx`, `tsxv`, `cboe_canada` and `cse` for the Toronto Stock Exchange, TSX Venture Exchange, Cboe Canada and Canadian Securities Exchange, each mapped only from Yahoo values captured live and recorded in the [mapping record](API_22_LISTING_VENUE_MAPPING_RECORD.md), each with an investor glossary entry linking `sec-ticker-list`. New codes are additions under [A.19](#a19-listing-venue-codes-2026-11-23) V9. |
+| C10 | The command line prints the new warning as it prints the others ([A.14](#a14-ticker-check-on-adding-entries-duplicate-wording-and-provider-statuses-2026-11-20) P9). |
+| C11 | No desktop change in this slice; the desktop repository re-vendors and shows the warning and venue names in its own work. |
+| C12 | A new v0.2 work package, `CAN` (Canadian listings), row 15B of the [implementation plan](../IMPLEMENTATION_PLAN.md#sequence-and-status), with its own plan written by CAN.0. Milestone v0.4's Step 5 in the [Master Plan](../../../MASTER_PLAN.md#step-5-localization-engine-for-canadian-markets-en-ca--fr-ca) stays language and number formatting; CAN.0 adds a line there pointing to CAN for Canadian market data, and names CAN in the [Evidence Provider Roadmap](../../../EVIDENCE_PROVIDER_ROADMAP.md)'s security-identity row. |
+| C13 | Order of coverage. First, a Canadian-listed ticker whose company files annual reports with the SEC (10-K, 20-F or 40-F), which covers most large companies on the Toronto Stock Exchange. Companies that file only in Canada are researched in CAN.0 with no commitment until a data source is approved (C17). |
+| C14 | Slices. CAN.0: evidence and plan, documentation only (captures for about ten issuers, linking methods, the currency-rate source and its licence, a survey of sources for companies that do not file with the SEC, and how many targets file under IFRS). CAN.1: link a Canadian ticker to its SEC filer, so the strategies that read financial facts run; price comparisons stay suppressed where currencies differ; folds in engine issue 293. CAN.2: currency conversion for price comparisons, which also serves US listings of companies that report in Canadian dollars. CAN.3, only if approved later: a source for companies that do not file with the SEC. CAN.0 places engine issue 294 (IFRS book value per share) from its IFRS count. |
+| C15 | Linking a Canadian ticker to its SEC filer is deterministic, never fuzzy name matching (company names already differ between sources). CAN.0 evaluates matching the share-class FIGI of the Canadian and US listings through OpenFIGI, a reviewed link table built from captured evidence, and a link the investor declares, including the existing CIK override file. The link and its evidence show in the instrument profile; like today's identity, it is current only. |
+| C16 | Never compare across currencies without conversion. CAN.2 converts with an official, free, point-in-time rate whose publication time is known and recorded in provenance; Bank of Canada daily rates are the first candidate, its licence confirmed in CAN.0. A new outbound host goes through the guarded-egress rule with its own decision. |
+| C17 | No source is chosen for companies that do not file with the SEC. CAN.0 surveys candidates (licence for local use, cost, point-in-time, coverage) and brings a separate decision; until then those tickers get C1's and C9's explanation. |
+| C18 | Engine order from 2026-11-25: API.23, engine issue 304 (fast lane), engine issue 305, API.24, CAN.0, CAN.1, engine issue 307, API.20 and API.21, CAN.2, then Step 3.5's 3.5.5 and 3.5.4 as planned. |
+| C19 | 3.5.5 follows CAN.2; [A.15](../step-3.5/STEP_3_5_CONTRACT_AND_SLICE_PLAN.md#a15-355-before-354-2026-11-02) (3.5.5 before 3.5.4) is unchanged. |
+| C20 | New investor text in this slice follows engine issue 305's wording rule (no "the engine", no "the provider"); issue 305 rewords the rest of the glossary. |
+| C21 | When this slice merges, the spec-workflow pilot's measures go to the project owner for the adopt, adjust or drop decision of the [spec workflow §7](../../../SPEC_WORKFLOW.md#7-pilot), if it is the third spec-driven unit. |
+| C22 | Recording: API.23 and API.24, and records A.20 and A.21, in this plan; work package CAN and the engine order in the implementation plan's `CAN` entry; one line in Step 3.5's sequence. |
+
+### A.21 Explain why a result has no number (2026-11-25)
+
+Approved by the project owner on 2026-11-25, as decisions C23 to C31, after a Graham Number run for MSFT read
+"Book value per share is unavailable: The preferred share count could not be resolved: Provider returned no data for
+the requested field. Missing preferred-share data is not assumed to be zero." Built by API.24; engine issue 306.
+
+| # | Decision |
+| :--- | :--- |
+| C23 | Every result without a number (`input_unavailable`, `not_applicable` and the provider-failure statuses, every strategy) gets an explanation beside its short reason, in up to four parts: what the method needs (the input and why the method uses it), what was found (what the named data source had), why there is no number (the guess the method declines to make, and why a guessed number would mislead), and what the investor can do (an override, another strategy, checking the ticker, or nothing). |
+| C24 | The explanation is built when a document or text is produced, from the stored structured fields (reason code, failed input, failed component where the trace records it, data source, failure kind), never from message text. It is an additive `explanation` part of each strategy's run document and appears in the command-line text; each document's `schema_version` goes up by one. No stored result, evidence codec, method or result-schema version changes, so saved runs get the explanation too. |
+| C25 | Where the stored structure is not specific enough, the explanation falls back to the reason-code level, still in four parts. Adding structure to new results is a separate decision, never done by reading text. |
+| C26 | API.24's spec catalogues every combination of status, reason code and input each strategy produces, with its explanation; a test fails when a combination has none, so every later strategy ships with explanations. |
+| C27 | Investor wording only: no "resolved", "provider", "field" or "the engine"; the data source by name. The shared resolver's "Provider returned no data for the requested field." is reworded for new runs to name the source and the input. |
+| C28 | A new investor glossary entry, Why a Result Can Be Unavailable (`unavailable-by-design`): an analysis gives no number rather than one built on a guess, and an unavailable result is information about the company's filings, not a fault. Linked from the Unavailable outcome entry and from every explanation. |
+| C29 | Example voice, for MSFT: needs "Book value per share is stockholders' equity, less any preferred stock, divided by the common share count."; found "Microsoft's SEC filings do not report a preferred share count."; no number "A company that has no preferred stock often does not report the count at all, but a missing count can also hide preferred stock that should be subtracted. Assuming zero could overstate book value, so the Graham Number is not calculated."; you can "If you know the book value per share, enter it as an override and run the analysis again." Final texts are in API.24's spec. |
+| C30 | The desktop application shows the explanation under the reason after re-vendoring, in its own work. |
+| C31 | Explaining is not enough where the gap is in coverage: engine issue 307 asks for a third verified evidence path for zero preferred shares (for example a filing's balance sheet with no preferred stock line, or a reported preferred stock value of zero), captured on MSFT and similar filers, never assumed from absence. It follows CAN.1. |

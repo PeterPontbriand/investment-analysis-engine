@@ -92,6 +92,7 @@ Once Step 3.5 closes, a person, not an AI agent, reviews [`docs/project/STRATEGY
 
 3.5.5 starts after work package API's API.8 merges ([API plan](../api/API_CONTRACT_AND_SLICE_PLAN.md#2-sequence-and-status)),
 and 3.5.4 follows 3.5.5 ([A.15](#a15-355-before-354-2026-11-02)).
+3.5.5 waits for the engine order recorded in the implementation plan's `CAN` entry (2026-11-25).
 3.5.5 is handed off through the [spec workflow](../../../SPEC_WORKFLOW.md); the project owner records the pilot's outcome after the first three spec-driven units merge ([A.21](#a21-spec-workflow-pilot-on-355-2026-11-18), [A.22](#a22-spec-workflow-widened-and-ci-as-the-full-check-2026-11-23)).
 From 3.5.5 on, "the same completeness as 3.5.3" also covers the glossary-terms edit site that API.6 adds: an
 investor glossary entry for each term the strategy's headline cells, statuses and selection fields name
