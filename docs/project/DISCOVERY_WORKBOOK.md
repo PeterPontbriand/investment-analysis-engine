@@ -582,7 +582,10 @@ With each Analysis Run, record a few dated questions that time will settle, such
 The same evidence and Answer Record shape could serve an assistant the user already has, through the deferred MCP server. The local `ian ask` path and an outside assistant would then be two ways to reach the same evidence.
 
 ### Screening and portfolio construction
-An earlier vision had a loop: select analyses, run them, rank and gate the results with a model, then let the person decide. The project no longer plans to own the ranking step. The loop can still be served: a screening or portfolio-construction workflow could consume the same evidence, stated-preference filters and Answer Records, with the project staying the evidence provider and the person, or their own tool, deciding.
+An earlier vision had a loop: select analyses, run them, rank and gate the results with a model, then let the person decide. The project no longer plans to own the ranking step. The loop can still be served by applications outside the engine that consume the same evidence, stated-preference filters and Answer Records, with the person deciding ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)):
+
+- **Discovery.** A future loop could scan a universe of instruments, applying the filters an investor states to the engine's evidence for each one. Screens and rankings the project would design or validate itself belong to the future predictive evaluator.
+- **Portfolios.** A [future portfolio application](MASTER_PLAN.md#future-portfolio-application) keeps the investor's holdings, tracks their performance and rebalances toward the investor's targets, asking the engine for evidence about each instrument and about holdings it supplies.
 
 ### A shared fixed-question reader
 The reader behind filing reading and the answer check (text in, one of a few fixed answers out, with measured accuracy) is not specific to finance. Its interface and measuring harness are defined once in v0.3. It could become its own package if a second user appears.
@@ -592,6 +595,7 @@ The reader behind filing reading and the answer check (text in, one of a few fix
 # 21. Non-Goals
 
 - A GUI/frontend inside this repository, or a full-screen TUI. The GUI is a separate application.
+- Keeping an investor's holdings or transactions. A [future portfolio application](MASTER_PLAN.md#future-portfolio-application) keeps them.
 - Investment advice, or any score, rank or probability about an instrument's prospects.
 - A model ranking or comparing instruments by its own judgment.
 - Filters that carry weights or scores, or conditions the investor did not state.

@@ -607,8 +607,9 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
   already leads with the headline values; the overview exists for clients that lay out their own display
   ([A.7](#a7-structured-units-run-overview-and-command-free-database-messages-2026-11-13), U10).
 - A sector or an industry for an instrument. Several competing classification schemes exist, and choosing among them is
-  a portfolio-organization judgement that belongs to a future portfolio analysis and rebalancing feature set outside the
-  engine ([A.13](#a13-instrument-profiles-2026-11-20), I9).
+  a portfolio-organization judgement that belongs to the
+  [future portfolio application](../../../MASTER_PLAN.md#future-portfolio-application), outside the engine
+  ([A.13](#a13-instrument-profiles-2026-11-20), I9).
 
 ## 5. Acceptance criteria
 
