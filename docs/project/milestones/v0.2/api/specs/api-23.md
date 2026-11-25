@@ -109,16 +109,16 @@ Tests:
      API.20. Keep the table's status order.
    - API plan §3: section **API.23** with Problem (issue #302), Decision (C1 to C11, link to A.20), Scope (this spec's
      allowed files, summarized), Branch `feat/api-sec-coverage`, Detail "this slice's spec:
-     [specs/api-23.md](specs/api-23.md); decisions in A.20". Section **API.24** with Problem (issue #306), Decision
+     `[specs/api-23.md](specs/api-23.md)`; decisions in A.20". Section **API.24** with Problem (issue #306), Decision
      (C23 to C30, link to A.21), Scope "every strategy's documents and text, the glossary, tests", Branch
      `feat/api-no-answer-explanations`, Detail `⚠ no slice plan yet`.
    - API plan Appendix A, after A.19: the two records under [Records to add](#records-to-add) below, verbatim.
    - v0.2 implementation plan: a `CAN` bullet in the codes list: "`CAN` — short for "Canadian listings" (umbrella
-     [issue #301](https://github.com/PeterPontbriand/investment-analysis-engine/issues/301)): makes the strategies that
+     `[issue #301](https://github.com/PeterPontbriand/investment-analysis-engine/issues/301)`): makes the strategies that
      read company financial facts usable for tickers listed in Canada. CAN.0 gathers evidence and writes the plan;
      CAN.1 links a Canadian ticker to its SEC filer and folds in #293; CAN.2 converts currencies for price comparisons;
      CAN.3, only if approved later, adds a source for companies that do not file with the SEC. Its row is numbered
-     `15B`. Approved by the project owner on 2026-11-25 (decisions C12 to C22, [API plan A.20](api/API_CONTRACT_AND_SLICE_PLAN.md#a20-sec-edgar-ticker-coverage-explained-and-warned-2026-11-25)).
+     `15B`. Approved by the project owner on 2026-11-25 (decisions C12 to C22, `[API plan A.20](api/API_CONTRACT_AND_SLICE_PLAN.md#a20-sec-edgar-ticker-coverage-explained-and-warned-2026-11-25)`).
      Engine order from that date: API.23, #304, #305, API.24, CAN.0, CAN.1, #307, API.20 and API.21, CAN.2, then
      Step 3.5's 3.5.5." Add row `15B | Canadian listings (CAN) | Planned |` linking to issue #301, placed by the
      sequence-table rules.
@@ -188,33 +188,29 @@ Tests:
      outside the United States appears only under its US symbol, if it has one. Nutrien is NTR on the New York Stock
      Exchange, and NTR.TO on the Toronto Stock Exchange is not in the list. A company that does not file with the SEC is
      not in it at all. An analysis that reads a company's financial statements from SEC filings finds the company
-     through this list, so it is unavailable for a ticker the list does not include. See [EDGAR](#edgar) and
-     [listing venue](#listing-venue)."
+     through this list, so it is unavailable for a ticker the list does not include. See `[EDGAR](#edgar)` and
+     `[listing venue](#listing-venue)`."
    - `entry-warning-ticker-not-in-sec-list`, **Ticker Not in SEC EDGAR's List**, beside the two existing entry
      warnings. Definition: "When an entry was added, the ticker was recognized but is not in SEC EDGAR's ticker list.
      The entry was still added." Body: "The strategies of the new entries that read financial statements from SEC
      filings will be unavailable for this ticker. Strategies that use only prices still work. A company listed outside
-     the United States may file with the SEC under its US ticker symbol; see [SEC EDGAR ticker list](#sec-ticker-list)."
+     the United States may file with the SEC under its US ticker symbol; see `[SEC EDGAR ticker list](#sec-ticker-list)`."
    - `listing-venue-tsx`, **Toronto Stock Exchange**: definition "The Toronto Stock Exchange, Canada's main exchange
      for senior companies, with the market identifier code XTSE." Body: "Many of Canada's largest companies are listed
-     there, and some are also listed in the United States under a US ticker symbol. See [listing venue](#listing-venue)
-     and [SEC EDGAR ticker list](#sec-ticker-list)."
+     there, and some are also listed in the United States under a US ticker symbol. See `[listing venue](#listing-venue)`
+     and `[SEC EDGAR ticker list](#sec-ticker-list)`."
    - `listing-venue-tsxv`, **TSX Venture Exchange**: definition "The TSX Venture Exchange, a Canadian exchange for
      early-stage and smaller companies, with the market identifier code XTSX." Body: "Its companies are usually smaller
-     and trade less often than those on the Toronto Stock Exchange, and few of them file with the SEC. See [listing
-     venue](#listing-venue) and [SEC EDGAR ticker list](#sec-ticker-list)."
+     and trade less often than those on the Toronto Stock Exchange, and few of them file with the SEC. See `[listing venue](#listing-venue)` and `[SEC EDGAR ticker list](#sec-ticker-list)`."
    - `listing-venue-cboe-canada`, **Cboe Canada**: definition "Cboe Canada, a Canadian exchange formerly called the NEO
      Exchange, with the market identifier code NEOE." Body: "It lists companies and many exchange-traded funds. See
-     [listing venue](#listing-venue) and [SEC EDGAR ticker list](#sec-ticker-list)."
+     `[listing venue](#listing-venue)` and `[SEC EDGAR ticker list](#sec-ticker-list)`."
    - `listing-venue-cse`, **Canadian Securities Exchange**: definition "The Canadian Securities Exchange, a Canadian
      exchange for smaller and emerging companies, with the market identifier code XCNQ." Body: "Its companies are
-     usually small, and few of them file with the SEC. See [listing venue](#listing-venue) and [SEC EDGAR ticker
-     list](#sec-ticker-list)."
-   - Links to `sec-ticker-list`: append "Which companies it lists is explained in [SEC EDGAR ticker
-     list](#sec-ticker-list)." to EDGAR's body; append "A ticker that is not in SEC EDGAR's ticker list is the common
-     case for an analysis that reads SEC filings; see [SEC EDGAR ticker list](#sec-ticker-list)." to Provider Returned
-     No Data; and append "It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker
-     list](#sec-ticker-list)." to the Graham Number Strategy, Graham Growth Value Strategy, Free Cash Flow & Earnings
+     usually small, and few of them file with the SEC. See `[listing venue](#listing-venue)` and `[SEC EDGAR ticker list](#sec-ticker-list)`."
+   - Links to `sec-ticker-list`: append "Which companies it lists is explained in `[SEC EDGAR ticker list](#sec-ticker-list)`." to EDGAR's body; append "A ticker that is not in SEC EDGAR's ticker list is the common
+     case for an analysis that reads SEC filings; see `[SEC EDGAR ticker list](#sec-ticker-list)`." to Provider Returned
+     No Data; and append "It reads the company's financial statements from SEC filings; see `[SEC EDGAR ticker list](#sec-ticker-list)`." to the Graham Number Strategy, Graham Growth Value Strategy, Free Cash Flow & Earnings
      Growth Strategy and Piotroski strategy entries. Add the four venues to the list in Listing Venue's last paragraph.
    - Regenerate the help bundle (`uv run python -m scripts.generate_help`) and the schemas. Update `docs/user/API.md`
      (warning codes and venue codes lists) and `docs/user/WORKSPACE.md` (warning list) to name the new code and venues.
@@ -364,4 +360,4 @@ the requested field. Missing preferred-share data is not assumed to be zero." Bu
 
 ## Change log
 
-None.
+- 2026-11-25: links in steps 1 and 7 that are text to paste into other files are written as code spans, because the documentation link check resolved them against this spec (implementer escalation, step 1).
