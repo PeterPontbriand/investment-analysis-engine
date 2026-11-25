@@ -90,7 +90,7 @@ The decisions are recorded by this unit in the new "Decision record: portfolio a
 
 2. **Master Plan §2.5.** In `docs/project/MASTER_PLAN.md`, §2.5 only:
 
-   a. Replace the opening paragraph's first and third sentences, so the paragraph reads:
+   a. Replace the opening paragraph with:
 
    ```markdown
    Separate applications divide the work. Each does one job and talks to the others only through a stated route. The engine is this repository; the Investment Analysis Desktop is built in its own repository, and the others are only planned.
@@ -210,7 +210,7 @@ The decisions are recorded by this unit in the new "Decision record: portfolio a
   the served-content commands do not apply; if a check says otherwise, escalate.
 - No name for the portfolio application anywhere (B11), including in commit messages and the PR text.
 - No AI or tool attribution in commits, the issue or the PR text.
-- Where an exact text in a step no longer matches `main` (for example a sentence was reworded since `4e82469`),
+- Where an exact text in a step no longer matches `main` (for example a passage was reworded since `4e82469`),
   escalate rather than adapt it.
 
 ## Acceptance checks
@@ -226,6 +226,8 @@ The decisions are recorded by this unit in the new "Decision record: portfolio a
   pattern from matching this line.
 - `git grep -l "future-portfolio-application" -- docs ':!docs/project/specs'` lists exactly `MASTER_PLAN.md`,
   `DISCOVERY_WORKBOOK.md` and `API_CONTRACT_AND_SLICE_PLAN.md`.
+- `uv run pytest tests/test_documented_conventions.py` passes. It scans the documentation, this spec included, for
+  conventions the documentation checks do not cover.
 - `git --no-pager diff --stat origin/main...HEAD` lists only the allowed files.
 - The desktop issue exists, with the title and body of step 1.
 
@@ -261,3 +263,5 @@ Spec: `docs/project/specs/portfolio-application-boundary.md`. Documentation only
   pattern in this spec; both checks now say exactly what they expect.
 - 2026-11-24: the check on the old count wording matched its own pattern in this spec, and the anchor check also
   listed this spec; both corrected the same way.
+- 2026-11-24: two wordings in this spec reworded to pass the word scan in `tests/test_documented_conventions.py`,
+  which CI caught, and that test added to the acceptance checks.
