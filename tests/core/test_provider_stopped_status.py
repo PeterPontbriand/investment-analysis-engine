@@ -12,8 +12,10 @@ from investment_analysis_engine.core.failure_classification import (
     provider_stopped_status,
     provider_stopped_status_of_record,
 )
+from investment_analysis_engine.core.metric_result import ReasonCode
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind, ProviderFailureRecord
 from investment_analysis_engine.reporting.provider_messages import no_data_message
+from investment_analysis_engine.strategies._graham.outcome import provider_stop
 
 _OTHER_KINDS = (
     ProviderFailureKind.UNREACHABLE,
@@ -119,12 +121,33 @@ def test_a_no_data_message_names_the_provider_and_what_it_returned_none_of() -> 
     )
 
 
-def test_a_no_data_message_for_a_ticker_absent_from_the_provider_list_names_the_list() -> None:
+def test_a_no_data_message_for_a_ticker_absent_from_sec_edgars_list_names_the_input_and_the_us_symbols() -> None:
     record = _record(ProviderFailureKind.NO_DATA, provider_id="sec_edgar", ticker_unlisted=True)
 
+    assert no_data_message(record, what="earnings per share", ticker="NTR.TO") == (
+        "SEC EDGAR's ticker list does not include NTR.TO, so earnings per share could not be read from SEC filings. "
+        "SEC EDGAR lists companies under their US ticker symbols only."
+    )
+
+
+def test_a_no_data_message_for_a_ticker_absent_from_another_providers_list_keeps_its_text() -> None:
+    record = _record(ProviderFailureKind.NO_DATA, provider_id="yfinance", ticker_unlisted=True)
+
     assert (
-        no_data_message(record, what="annual filings", ticker="ZZZZQ")
-        == "SEC EDGAR's ticker list does not include ZZZZQ."
+        no_data_message(record, what="price history", ticker="ZZZZQ")
+        == "Yahoo Finance's ticker list does not include ZZZZQ."
+    )
+
+
+def test_graham_names_the_input_when_sec_edgars_list_lacks_the_ticker() -> None:
+    record = _record(ProviderFailureKind.NO_DATA, provider_id="sec_edgar", ticker_unlisted=True)
+
+    outcome = provider_stop(record, security_subject_id="NTR.TO", what="book value per share")
+
+    assert outcome.code is ReasonCode.PROVIDER_NO_DATA
+    assert outcome.message == (
+        "SEC EDGAR's ticker list does not include NTR.TO, so book value per share could not be read from SEC "
+        "filings. SEC EDGAR lists companies under their US ticker symbols only."
     )
 
 

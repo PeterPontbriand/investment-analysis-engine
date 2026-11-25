@@ -34,6 +34,14 @@ _TICKER = "ZZZZQ"
 _REQUIRED_OPTIONS = {"graham-growth": ("--expected-growth", "5", "--aaa-yield", "4.5")}
 _SEC_STRATEGIES = tuple(item for item in STRATEGIES if item.alias != "momentum")
 
+_FIRST_INPUT = {
+    "graham-number": "annual filings",
+    "graham-growth": "annual filings",
+    "fcf-growth": "operating cash flow",
+    "piotroski": "annual report filings",
+}
+"""The input each strategy's message names: the first the run reads, which needed the company identifier."""
+
 Fetcher = Callable[..., object]
 
 
@@ -120,7 +128,10 @@ def test_the_messages_name_the_provider_and_never_say_the_ticker_does_not_exist(
 
     assert messages["momentum"] == f"Yahoo Finance returned no price history for {_TICKER}."
     for descriptor in _SEC_STRATEGIES:
-        assert messages[descriptor.alias].startswith(f"SEC EDGAR's ticker list does not include {_TICKER}")
+        assert messages[descriptor.alias] == (
+            f"SEC EDGAR's ticker list does not include {_TICKER}, so {_FIRST_INPUT[descriptor.alias]} could not be "
+            "read from SEC filings. SEC EDGAR lists companies under their US ticker symbols only."
+        )
     assert not any("exist" in message for message in messages.values())
 
 
