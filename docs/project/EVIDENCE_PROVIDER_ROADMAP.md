@@ -154,10 +154,10 @@ inputs.
 | Filing behavior and ownership | Large holders (13D/13G, 13F) | Activist stakes; institutional changes with the 45-day 13F lag encoded | New | Partial |
 | Filing behavior and ownership | Buybacks executed vs. authorized | Whether announced programs happen | New | Partial |
 | Macro and rates | ALFRED point-in-time macro | Yield-curve regime, real rates, equity risk premium from dated data vintages | New | No |
-| Portfolio and account | Look-through aggregation | Holdings-weighted evidence with coverage, for portfolios and ETFs | New | Partial |
-| Portfolio and account | Concentration and drift | Concentration measures, issuer and sector caps, drift from targets | New | Yes |
-| Portfolio and account | Tax-rule windows | US wash-sale and Canadian superficial-loss window detection from trade dates | New | Yes |
-| Portfolio and account | Suitability checks | Holdings tested against a stated risk profile, every judgment traceable | New | Yes |
+| Portfolio and account | Look-through aggregation | Holdings-weighted evidence with coverage, for portfolios and ETFs | New. Engine scope only from holdings supplied with a request; the holdings belong to the future portfolio application ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)) | Partial |
+| Portfolio and account | Concentration and drift | Concentration measures, issuer and sector caps, drift from targets | New. Engine scope only from holdings and targets supplied with a request; sector-level measures only from a classification the request supplies, since the engine chooses no classification scheme ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)) | Yes |
+| Portfolio and account | Tax-rule windows | US wash-sale and Canadian superficial-loss window detection from trade dates | Moved to the future portfolio application on 2026-11-24 ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)); not engine scope | Yes |
+| Portfolio and account | Suitability checks | Holdings tested against a stated risk profile, every judgment traceable | Moved to the future portfolio application on 2026-11-24 ([Product boundaries](MASTER_PLAN.md#25-product-boundaries)); not engine scope | Yes |
 | Portfolio and account | ETF-specific evidence | Expense ratio, tracking difference, premium or discount to NAV | New | Partial |
 | Verification for agents | Fact-supply strategies for external claim verification | Additional simple, narrowly-scoped fact strategies — not a claim-verification engine itself — that an external system could combine to confirm, contradict, or flag a claim as unverifiable | New — claim verification itself does not fit this project's heterogeneous-strategy model (Core Design Principle #8) and may never be built directly in this project; only supporting fact-supply strategies for an external consumer are in scope (project owner decision), and even those are not planned further right now | Yes |
 
@@ -175,12 +175,12 @@ named integration.
 
 | Consumer | What they need most |
 | --- | --- |
-| Wealth and advisory platforms | Suitability checks, portfolio look-through, change attribution |
+| Wealth and advisory platforms | Portfolio look-through, concentration and drift, change attribution |
 | Credit and lending | Altman and Ohlson scores, coverage ratios, filing red flags |
 | Compliance and audit | Reproducibility receipts, restatement history, filing red flags |
 | Screeners and fintech apps | Three-valued composable screens, license-aware data, liquidity gates |
 | Research and investor relations | Peer-relative percentiles, point-in-time EV multiples |
-| Tax and accounting tools | Wash-sale and superficial-loss windows, corporate-actions ledger |
+| Tax and accounting tools | Corporate-actions ledger |
 | Agent frameworks | MCP tools, fact-supply strategies for external claim verification, typed unavailable outcomes with reason codes |
 | Education | Progressive-disclosure explanations, conformance fixtures as worked examples |
 

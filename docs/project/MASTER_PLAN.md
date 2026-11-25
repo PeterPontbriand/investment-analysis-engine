@@ -100,13 +100,14 @@ A model has four narrow jobs here: understand the question, read a named part of
 
 ## 2.5 Product boundaries
 
-Three applications divide the work. Each does one job and talks to the others only through a stated route. The engine is this repository; the other two are separate applications, one built in its own repository and one only planned.
+Separate applications divide the work. Each does one job and talks to the others only through a stated route. The engine is this repository; the Investment Analysis Desktop is built in its own repository, and the others are only planned.
 
 | Application | Its job | What it must not do | How it talks to the others |
 | :--- | :--- | :--- | :--- |
-| **Investment Analysis Engine (IAN)** | Compute deterministic, point-in-time evidence for an instrument, keep it as Analysis Runs, and let an investor filter on it | Generate trading signals or orders; simulate portfolios or backtests; score its own predictions; show an investor any outcome it is later measured against; design, weight or validate its own composite scores or rankings. IAN implements published, fully specified methods, such as the Piotroski F-Score's nine tests, exactly as specified, and makes no claim that they predict anything | Serves the versioned [local HTTP API](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md). Calls no other application |
+| **Investment Analysis Engine (IAN)** | Compute deterministic, point-in-time evidence for an instrument, keep it as Analysis Runs, and let an investor filter on it | Generate trading signals or orders; simulate portfolios or backtests; keep an investor's holdings or transactions; score its own predictions; show an investor any outcome it is later measured against; design, weight or validate its own composite scores or rankings. IAN implements published, fully specified methods, such as the Piotroski F-Score's nine tests, exactly as specified, and makes no claim that they predict anything | Serves the versioned [local HTTP API](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md). Calls no other application |
 | **Investment Analysis Desktop (IAD)** | The desktop application an investor uses: installs the engine, shows its results side by side, and starts its actions | Calculate anything; read the engine's database; import its Python code; merge several strategies' results into one score | Reads and acts only through the engine's local HTTP API |
 | **Future predictive evaluator** | Test whether a stated predictive claim about the engine's evidence held up over time, including the composite scores, rankings and screens that the project would design or validate itself | Change a strategy's calculation; feed its results back into the engine's investor views; let the engine see the outcomes it scores | Requests results from the engine's local HTTP API only, as of past dates |
+| **Future portfolio application** | Keep an investor's holdings and transactions, value them, track their performance, organize them (classifications, targets) and rebalance toward targets the investor states | Compute an instrument's evidence itself (it asks the engine); recommend trades or place orders; read the engine's database or import its code | Requests evidence from the engine's local HTTP API, passing holdings as request input when an analysis needs them. See [Future portfolio application](#future-portfolio-application) |
 
 The Investment Analysis Desktop is the GUI application recorded in [API plan A.1](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md#a1-a-separate-gui-application-over-a-local-api-2026-10-30).
 
@@ -137,6 +138,18 @@ These move to the evaluator's own repository when it gets one.
 - Historical results depend on point-in-time data quality, including delisted companies; survivorship-biased universes are reported as a limitation.
 - A model-generated hypothesis is tested only on data after that model's training cutoff.
 
+### Future portfolio application
+
+The portfolio application is a planned future application. It is unscheduled, has no repository and has no name yet. Two rules bind it:
+
+1. Its only route into IAN is the versioned local HTTP API: no database reads and no Python imports.
+2. Holdings stay with it. IAN keeps no record of an investor's holdings or transactions. It receives holdings only as input to a request, for evidence that depends on them, such as look-through aggregation or concentration.
+
+Open questions, each decided when the work that needs it starts:
+
+- **Its user interface.** The Investment Analysis Desktop extended to cover it, or a separate GUI application. Both remain options until that decision is taken.
+- **Holdings in saved runs.** Whether a saved Analysis Run of evidence computed from holdings keeps those holdings as its input. Decided when the first such analysis is specified.
+
 ### Future MCP adapter
 
 An MCP (Model Context Protocol) adapter would let an assistant the investor already uses call the engine. It is planned for after v1.0, is unscheduled, and is recorded in the [deferred delivery-surfaces record](milestones/v0.2/deferred/DEFERRED_STANDARD_DELIVERY_SURFACES.md). Three rules bind it:
@@ -159,6 +172,16 @@ Approved by the project owner on 2026-11-01.
 - Predictive testing belongs to a separate future evaluator that reaches IAN only through the local HTTP API. The forecast ledger (v0.3 FL.1 and its scoring) and Step 4.3's composite screens, universe screening and cross-sectional ranking, where the project would design or validate them itself, moved to that evaluator's scope. Published, fully specified screens stay in IAN.
 - Per-instrument risk measures stay in IAN as ordinary deterministic analyses (Step 4.3).
 - Direct-analysis and run endpoints accept an optional `as_of` and echo the effective value, matching `--as-of` on the CLI (API.3 and API.4).
+- No new plan document was created: this section is the record.
+
+### Decision record: portfolio application (2026-11-24)
+
+Approved by the project owner on 2026-11-24.
+
+- Portfolios belong in a separate [future portfolio application](#future-portfolio-application), not in IAN. Keeping holdings and transactions, valuing them and tracking performance are bookkeeping, not point-in-time evidence, and IAN does not simulate portfolios. The application has no name yet.
+- IAN computes portfolio-level evidence only from holdings supplied with a request: look-through aggregation, issuer concentration and drift against targets the request supplies, and sector-level measures only from a classification the request supplies. IAN chooses no classification scheme ([API plan A.13](milestones/v0.2/api/API_CONTRACT_AND_SLICE_PLAN.md#a13-instrument-profiles-2026-11-20), I9).
+- Wash-sale and superficial-loss windows, and suitability checks, are portfolio-application candidates, not engine scope. The first is bookkeeping on the investor's own trades; the second would apply judgements the project designs itself ([design principle 16](#3-core-design-principles)).
+- Discovery across a universe of instruments (a market scan) is a candidate for a future loop outside IAN, applying the filters an investor states to IAN's evidence for each instrument. Screens and rankings the project would design or validate itself stay with the future predictive evaluator ([decision record of 2026-11-01](#decision-record-product-boundaries-2026-11-01)).
 - No new plan document was created: this section is the record.
 
 ## 3. Core Design Principles
