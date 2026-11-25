@@ -218,14 +218,14 @@ The decisions are recorded by this unit in the new "Decision record: portfolio a
 - The documentation checks pass: `python scripts/check_doc_links.py`, `python scripts/check_help_content.py`,
   `python scripts/check_sequence_tables.py`, `python scripts/check_package_dependencies.py`, `uv run ruff check .` and
   `uv run ruff format --check .`.
-- `git grep -n "Three applications" -- docs` prints nothing.
+- `git grep -n "Thre[e] applications" -- docs` prints nothing. The brackets keep the pattern from matching this line.
 - `git grep -n "portfolio analysis and rebalancing feature set" -- docs ':!docs/project/specs'` prints exactly one
   line: A.13's I9 row in `API_CONTRACT_AND_SLICE_PLAN.md`, which stays as written (B9). The spec is excluded because
   step 5 quotes the old text.
 - `git grep -n -i -e "P[M]N" -e "Portfolio [M]anagement Engine" -- docs` prints nothing. The brackets keep the
   pattern from matching this line.
-- `git grep -n "future-portfolio-application" -- docs` lists links in `MASTER_PLAN.md`, `DISCOVERY_WORKBOOK.md` and
-  `API_CONTRACT_AND_SLICE_PLAN.md`.
+- `git grep -l "future-portfolio-application" -- docs ':!docs/project/specs'` lists exactly `MASTER_PLAN.md`,
+  `DISCOVERY_WORKBOOK.md` and `API_CONTRACT_AND_SLICE_PLAN.md`.
 - `git --no-pager diff --stat origin/main...HEAD` lists only the allowed files.
 - The desktop issue exists, with the title and body of step 1.
 
@@ -259,3 +259,5 @@ Spec: `docs/project/specs/portfolio-application-boundary.md`. Documentation only
 - 2026-11-24: acceptance checks on the old sector wording and on the working name corrected. The old wording
   legitimately remains in A.13's I9 row (B9) and in step 5's quotation, and the working-name check matched its own
   pattern in this spec; both checks now say exactly what they expect.
+- 2026-11-24: the check on the old count wording matched its own pattern in this spec, and the anchor check also
+  listed this spec; both corrected the same way.
