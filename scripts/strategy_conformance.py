@@ -158,6 +158,7 @@ BEHAVIOR_MEMBERS: frozenset[str] = frozenset(
         "headline",
         "project",
         "document",
+        "reads_sec_edgar",
     }
 )
 """The documented members of a strategy's behavior bundle."""
@@ -195,6 +196,7 @@ VIEW_ACCESSORS: frozenset[str] = frozenset(
         "bind_handler",
         "project_for",
         "document_for",
+        "reads_sec_edgar_for",
     }
 )
 """The behavior members that generic consumers can reach, through the erased view."""
@@ -1247,6 +1249,9 @@ def undeclared_input_gaps(  # noqa: PLR0913, PLR0917
             gaps, f"{label(item)} native_status_of(subclass)", partial(behavior.native_status_of, subclass_instance)
         )
         _expect_undeclared(gaps, f"{label(item)} headline_for(object)", partial(behavior.headline_for, object()))
+        _expect_undeclared(
+            gaps, f"{label(item)} reads_sec_edgar_for(object)", partial(behavior.reads_sec_edgar_for, object())
+        )
         _expect_undeclared(
             gaps, f"{label(item)} headline_for(subclass)", partial(behavior.headline_for, subclass_instance)
         )

@@ -21,7 +21,7 @@ The workflow uses these project terms. Each is explained in more depth under [Ba
 | Term | What it means here |
 | :--- | :--- |
 | Descriptor | The strategy's one entry in `STRATEGIES` (`investment_analysis_engine/strategy_wiring.py`): its identifiers, versions, types and references to its functions. The generator writes it. |
-| Behavior | The bundle of the strategy's own functions that the descriptor carries (encode, decode, render, replay, headline and the like), so shared code can call the strategy without naming it. |
+| Behavior | The bundle of the strategy's own functions that the descriptor carries (encode, decode, render, replay, headline, whether a selection reads SEC EDGAR, and the like), so shared code can call the strategy without naming it. |
 | Tier | A small table that pairs each strategy with the functions one layer needs but cannot import by name: the CLI tier (`cli_strategy_wiring.py`), the application tier (`application/tier.py`) and the evaluation tier (`evaluation/strategy_fixtures.py`). The generator adds the strategy's row to each. |
 | Tool, tool name | Each strategy is also exposed to a local model as a tool; the tool name identifies it there and in the Golden cases. |
 | Selection | The stored, typed record of the parameters a run used (the `as_of` boundary, the cache choice and any strategy parameter). A watchlist entry holds one. |
@@ -39,7 +39,7 @@ The workflow uses these project terms. Each is explained in more depth under [Ba
 | :--- | :--- |
 | The financial question, the formulas, the classifications and any policy | The identifiers, the tool name and the entries in the existing wiring files |
 | The result's own fields, after its common ones | The result's common fields: ticker, requested and effective boundaries, instrument profile, execution status, reason code and reason, input failure, warnings and diagnostics |
-| The analyzer's body, `compose_<module_name>`, the codec, the presenter, the replay projectors and headline function, and the evaluation `compose` | The direct command, `run`, the tool handler, the execution adapter and its normalizer, and run persistence |
+| The analyzer's body, `compose_<module_name>`, the selection's `reads_sec_edgar`, the codec, the presenter, the replay projectors and headline function, and the evaluation `compose` | The direct command, `run`, the tool handler, the execution adapter and its normalizer, and run persistence |
 | The vocabulary's enumerations, the reason messages and the investor-facing guide | The shared document header and tail and the shared presentation helpers |
 | The settings model and its `settings.toml`, when the strategy has user-tunable defaults | Nothing: the generator writes no settings |
 | The Golden cases, fixtures and catalog entries, and a reading of every stored output | The status command, the conformance tests, the schema and list generators and the quality gate |
@@ -53,6 +53,7 @@ The generator writes these files into `investment_analysis_engine/strategies/<mo
 | `vocabulary.py` | The strategy's identifiers and its own enumerations | Keep the identifiers; add the enumerations the strategy needs, such as its classifications |
 | `analyzer.py` | The result type and the analyzer, and the configuration when there is one | Write the analyzer's body, and add the result's own fields after the common ones |
 | `evaluation.py` | How the evaluation tier builds the strategy over fixture data, and a sample selection | Write `compose` and choose the fixture ids. Do this early: see [step 3](#3-fill-the-stubs) |
+| `selection.py` | The stored selection, and `reads_sec_edgar`, which says whether a selection reads SEC EDGAR (a selection that overrides every input it would read from filings does not) | Write `reads_sec_edgar`; the add-entries check uses it to warn when SEC EDGAR's ticker list lacks the ticker |
 | `codec.py` | Saving a result and reading it back | Write the encoder, the decoder and the native-status function |
 | `application.py` | Building the analyzer and its providers (`compose_<module_name>`), and `run` | Write `compose_<module_name>`; leave `run` as generated |
 | `presenter.py` | The text output in each mode, and the `--json` document | Write both |

@@ -61,3 +61,9 @@ class SpecimenSelection(FrozenSelection):
     def to_analysis_context(self, executed_at: datetime) -> AnalysisContext:
         """Return the run context for this snapshot's persisted ``as_of`` and ``use_cache``."""
         return AnalysisContext(as_of=self.as_of, executed_at=executed_at, use_cache=self.use_cache)
+
+
+def reads_sec_edgar(selection: SpecimenSelection) -> bool:
+    """Return whether the selection reads SEC EDGAR: never, because the specimen reads no filings."""
+    del selection
+    return False

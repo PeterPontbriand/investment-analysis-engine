@@ -136,3 +136,8 @@ class GrahamGrowthSelection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
+
+
+def reads_sec_edgar(selection: GrahamGrowthSelection) -> bool:
+    """Return whether the selection reads SEC EDGAR: unless it overrides earnings per share."""
+    return selection.eps_override is None

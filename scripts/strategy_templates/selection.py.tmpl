@@ -6,6 +6,7 @@ from pydantic import AwareDatetime, Field
 
 from investment_analysis_engine.analysis.base_analyzer import AnalysisContext
 from investment_analysis_engine.analysis.selection_base import FrozenSelection
+from investment_analysis_engine.core.strategy_stub import unfilled_stub
 from investment_analysis_engine.data.instrument_profile import InstrumentProfile
 from investment_analysis_engine.strategies.$module.vocabulary import (
     ANALYSIS_ID,
@@ -50,3 +51,9 @@ class ${Class}Selection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
+
+
+def reads_sec_edgar(selection: ${Class}Selection) -> bool:
+    """Return whether the selection reads SEC EDGAR: true when any input comes from SEC filings."""
+    del selection
+    unfilled_stub("selection")

@@ -102,3 +102,8 @@ class GrahamNumberSelection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
+
+
+def reads_sec_edgar(selection: GrahamNumberSelection) -> bool:
+    """Return whether the selection reads SEC EDGAR: unless it overrides both earnings and book value per share."""
+    return selection.eps_override is None or selection.bvps_override is None

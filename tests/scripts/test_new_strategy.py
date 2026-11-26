@@ -478,7 +478,7 @@ def test_the_templates_leave_unfilled_only_the_strategy_specific_bodies() -> Non
     expected = {
         "analyzer": {"run_analysis"},
         "tool": set(),
-        "selection": set(),
+        "selection": {"reads_sec_edgar"},
         "codec": {"encode_fresh_probe", "decode_fresh_probe", "fresh_probe_native_status"},
         "workspace": set(),
         "application": {"compose_fresh_probe"},
