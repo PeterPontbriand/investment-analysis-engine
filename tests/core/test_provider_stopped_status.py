@@ -130,6 +130,15 @@ def test_a_no_data_message_for_a_ticker_absent_from_sec_edgars_list_names_the_in
     )
 
 
+def test_a_no_data_message_for_an_unlisted_ticker_without_a_named_input_never_prints_a_blank() -> None:
+    record = _record(ProviderFailureKind.NO_DATA, provider_id="sec_edgar", ticker_unlisted=True)
+
+    assert no_data_message(record, what="", ticker="ZZZZQ") == (
+        "SEC EDGAR's ticker list does not include ZZZZQ, so the company's financial statements could not be read from "
+        "SEC filings. SEC EDGAR lists companies under their US ticker symbols only."
+    )
+
+
 def test_a_no_data_message_for_a_ticker_absent_from_another_providers_list_keeps_its_text() -> None:
     record = _record(ProviderFailureKind.NO_DATA, provider_id="yfinance", ticker_unlisted=True)
 

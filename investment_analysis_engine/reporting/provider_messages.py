@@ -24,6 +24,9 @@ _INPUT_LABELS: Final = {
 }
 """How an input is named in a message when its name alone would be shorthand."""
 
+_UNNAMED_INPUT: Final = "the company's financial statements"
+"""What SEC EDGAR's unlisted-ticker message says could not be read when the caller names no input."""
+
 
 def input_label(input_name: str) -> str:
     """Return an input's name as a message states it, without underscores or shorthand."""
@@ -36,7 +39,8 @@ def no_data_message(record: ProviderFailureRecord, *, what: str, ticker: str) ->
     Args:
         record: The failure; its kind is ``no_data``.
         what: What the provider returned none of, as a message states it, such as ``"price history"``; for SEC EDGAR's
-            unlisted ticker, the input that needed the company identifier, such as ``"earnings per share"``.
+            unlisted ticker, the input that needed the company identifier, such as ``"earnings per share"``; empty
+            when the failure record names none, which that message words as "the company's financial statements".
         ticker: The ticker the run is for.
 
     Returns:
@@ -54,8 +58,9 @@ def no_data_message(record: ProviderFailureRecord, *, what: str, ticker: str) ->
     if record.own_message is not None:
         return record.own_message
     if record.ticker_unlisted and record.provider_id == SEC_PROVIDER_ID:
+        read = what or _UNNAMED_INPUT
         return (
-            f"{provider_display_name(record.provider_id)}'s ticker list does not include {ticker}, so {what} could not "
+            f"{provider_display_name(record.provider_id)}'s ticker list does not include {ticker}, so {read} could not "
             "be read from SEC filings. SEC EDGAR lists companies under their US ticker symbols only."
         )
     if record.ticker_unlisted:
