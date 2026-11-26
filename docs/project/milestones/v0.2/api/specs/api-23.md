@@ -98,6 +98,7 @@ Tests:
   `tests/workspace_documents/test_entries_added_document.py`, `tests/core/test_provider_stopped_status.py`,
   `tests/test_unknown_ticker_unavailable.py`, `tests/data/test_listing_venue.py`, `tests/reporting/test_provider_messages.py`
   (new if absent), and a new `tests/test_reads_sec_edgar.py`.
+- `tests/test_strategy_import_layering.py`: `investment_analysis_engine.application.entry_check` added to `_ROOT_IMPORTERS` only.
 - `tests/scripts/test_new_strategy.py` and `tests/scripts/test_new_strategy_end_to_end.py`: only the `selection` stub expectations for `reads_sec_edgar`; new `tests/scripts/generator_fills/selection.py.fill`.
 - Any other test file that fails only because it pins the old reason text or the closed list of venue codes or warning
   codes: listed by name in the report.
@@ -159,8 +160,8 @@ Tests:
    `ENTRY_WARNING_CODE_TERMS`, C6's template with arguments `ticker` and `strategies`, and
    `not_in_sec_list_warning(ticker, strategy_labels)` which joins labels in order of first appearance as "A", "A and B",
    "A, B and C". In `application/entry_check.py`: `check_tickers` takes the entries (ticker and selection) instead of
-   tickers. For each distinct ticker that the lookup identified (no other warning), when an SEC provider was built
-   (`build_sec_production_provider` succeeds, once per check) and at least one of that ticker's new entries reads SEC
+   tickers. For each distinct ticker that the lookup identified (no other warning), when the SEC adapter was built
+   (`build_sec_edgar_adapter` from `application/providers.py` succeeds, once per check) and at least one of that ticker's new entries reads SEC
    EDGAR, ask `lists_ticker`; `False` gives the warning with the labels of those entries' strategies, each once, in
    order of first appearance. A failure while asking (a `DataFetchError`, `FinancialProviderError` or database error)
    gives no warning for that ticker, is logged with its traceback through operational logging, and does not stop the
@@ -218,7 +219,7 @@ Tests:
    - Check: slice check (served documents changed).
 8. **Smoke checks.** Run the acceptance checks below. For checks 2 and 3, copy the `SEC_USER_AGENT` line of the `.env` file in the owner's real
    settings folder into `.tmp/api-23/config/.env` (create the folder); never print the value, and never commit it.
-9. **Finish.** Slice check, commit with the PR title, push the branch, report. After the spec author's clean review,
+9. **Finish.** In the API plan's §2 table, set API.23 to `Complete` dated the day the pull request opens and API.24 to `Next`, keeping the table's order rules. Slice check, commit with the PR title, push the branch, report. After the spec author's clean review,
    open the pull request with the PR text.
 
 ## Norms and safeguards
@@ -237,7 +238,7 @@ Tests:
 ## Acceptance checks
 
 All `ian` commands run from the repository root with `IAN_CONFIG_DIR`, `IAN_DATA_DIR` and `IAN_LOG_DIR` set under
-`.tmp/api-23/` in the same invocation (AGENTS.md §10), after `uv run ian database init` if the command asks for it.
+`.tmp/api-23/` in the same invocation (AGENTS.md §10).
 
 1. The slice check passes; `git --no-pager diff --stat origin/main...HEAD` lists only allowed files.
 2. `uv run ian graham-number NTR.TO --json` with an SEC identity set up: `status` `input_unavailable`, `reason_code`
@@ -364,3 +365,5 @@ the requested field. Missing preferred-share data is not assumed to be zero." Bu
 - 2026-11-25: links in steps 1 and 7 that are text to paste into other files are written as code spans, because the documentation link check resolved them against this spec (implementer escalation, step 1).
 - 2026-11-25: step 2 gains a wording for an empty `what`, so no call site can print a blank input (implementer observation on FCF Growth's scope-failure site, step 2).
 - 2026-11-25: allowed files gain the two generator tests and a new `selection.py.fill`, which the new behavior-bundle member needs as `STRATEGY_DEVELOPMENT.md`'s platform-change checklist says (implementer escalation, step 3).
+- 2026-11-26: step 5 builds the SEC adapter with `build_sec_edgar_adapter`, which owns `lists_ticker`, and `entry_check` joins the layering test's list of composition-root importers (implementer escalation, step 5).
+- 2026-11-26: review: acceptance checks drop `ian database init`, which no command has; step 9 marks API.23 Complete and API.24 Next, as AGENTS.md §12 asks of the completing change (spec author's review).
