@@ -89,7 +89,8 @@ def test_an_unmapped_value_is_the_providers_wording() -> None:
 def test_an_identity_venue_is_read_with_its_providers_table() -> None:
     assert identity_venue_text("yfinance", "NYSE") == "New York Stock Exchange (NYSE)"
     assert identity_venue_text("sec_edgar", "NYSE") == "NYSE Group Exchange (NYSE)"
-    assert identity_venue_text("yfinance", "Toronto") == "Toronto"
+    assert identity_venue_text("yfinance", "Toronto") == "Toronto Stock Exchange (Toronto)"
+    assert identity_venue_text("yfinance", "LSE") == "LSE"
     assert identity_venue_text("yfinance", None) is None
 
 
@@ -106,7 +107,9 @@ def test_the_identity_lines_of_a_run_write_the_venue_the_same_way() -> None:
     assert "Current listing venue: Nasdaq Stock Market (NasdaqGS)" in identity_detail_lines(
         _resolution("yfinance", "NasdaqGS")
     )
-    assert "Current listing venue: Toronto" in identity_detail_lines(_resolution("yfinance", "Toronto"))
+    assert "Current listing venue: Toronto Stock Exchange (Toronto)" in identity_detail_lines(
+        _resolution("yfinance", "Toronto")
+    )
     assert "Current listing venue: not supplied by selected identity provider" in identity_detail_lines(
         _resolution("yfinance", None)
     )

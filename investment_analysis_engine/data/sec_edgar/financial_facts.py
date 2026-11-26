@@ -1309,6 +1309,26 @@ class SecEdgarFinancialFactsAdapter:
             and request.observation_count == 1
         )
 
+    def lists_ticker(self, ticker: str) -> bool:
+        """Return whether SEC EDGAR can name a company for the ticker.
+
+        Args:
+            ticker: The normalized ticker.
+
+        Returns:
+            ``True`` when the ticker has a CIK override or SEC's ticker file lists it, under one CIK or several;
+            ``False`` only when the file was loaded and does not list it and there is no override.
+
+        Raises:
+            FinancialProviderError: What loading SEC's ticker file raises.
+        """
+        if ticker in self._ticker_overrides:
+            return True
+        self._load_ticker_metadata()
+        ticker_to_cik = self._ticker_to_cik
+        assert ticker_to_cik is not None
+        return ticker in ticker_to_cik or ticker in self._ambiguous_tickers
+
     def _resolve_cik(self, ticker: str) -> str:
         """Return the CIK a ticker names: its override, else SEC's ticker file, which must list it under one CIK."""
         overridden = self._ticker_overrides.get(ticker)

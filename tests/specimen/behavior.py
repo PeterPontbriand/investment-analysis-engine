@@ -24,7 +24,7 @@ from tests.specimen.closed_types import (
 )
 from tests.specimen.codec import decode_specimen, encode_specimen, specimen_native_status, specimen_ticker
 from tests.specimen.replay import headline_specimen, project_specimen, project_specimen_document
-from tests.specimen.selection import SpecimenSelection
+from tests.specimen.selection import SpecimenSelection, reads_sec_edgar
 from tests.specimen.tool import SpecimenToolDependencies, SpecimenToolHandler
 
 
@@ -87,3 +87,9 @@ class SpecimenBehavior:
         if type(selection) is not SpecimenSelection:
             raise undeclared("selection type", type(selection))
         return project_specimen_document(inputs, evidence, selection)
+
+    def reads_sec_edgar_for(self, selection: object, /) -> bool:
+        """Return whether ``selection``, which must be exactly the specimen's selection type, reads SEC EDGAR."""
+        if type(selection) is not SpecimenSelection:
+            raise undeclared("selection type", type(selection))
+        return reads_sec_edgar(selection)

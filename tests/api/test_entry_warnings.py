@@ -92,3 +92,36 @@ def test_a_refused_add_asks_no_provider_and_answers_its_failure(
 
     assert response.status_code == 400
     assert lookup.call_count == 0
+
+
+class _UnlistedSec:
+    """Stands in for the SEC adapter whose ticker list lacks every ticker."""
+
+    def lists_ticker(self, ticker: str) -> bool:
+        del ticker
+        return False
+
+
+def test_an_unlisted_ticker_for_a_strategy_that_reads_sec_filings_is_added_with_the_sec_list_warning(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _lookup(monkeypatch, {})
+    monkeypatch.setattr(entry_check, "build_sec_edgar_adapter", lambda _context: _UnlistedSec())
+    graham = next(item for item in STRATEGIES if item.alias == "graham-number")
+    with client_for(isolated_cli_settings) as client:
+        created = _create(client)
+        response = _add(client, created["watchlist_id"], graham, "ntr.to")
+
+    body = response.json()
+    assert response.status_code == 200
+    assert [entry["ticker"] for entry in body["watchlist"]["entries"]] == ["NTR.TO"]
+    (warning,) = body["warnings"]
+    assert warning["code"] == "ticker_not_in_sec_list"
+    assert warning["reason_code"] is None
+    assert warning["arguments"] == {"ticker": "NTR.TO", "strategies": "Graham Number"}
+    assert (
+        warning["template"].replace("{ticker}", "NTR.TO").replace("{strategies}", "Graham Number") == warning["message"]
+    )
+    assert warning["message"].startswith(
+        "NTR.TO is not in SEC EDGAR's ticker list, so Graham Number will be unavailable"
+    )

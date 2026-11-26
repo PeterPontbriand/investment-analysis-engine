@@ -325,7 +325,7 @@ as a current quote, on an analysis that otherwise succeeded.
 
 A ticker the provider has nothing for gets the line too. An unknown ticker is an `input_unavailable` run, not a
 failure, whose `reason` says what the provider returned (for example `Yahoo Finance returned no price history for
-ZZZZQ.`, or `SEC EDGAR's ticker list does not include ZZZZQ.` for the commands that read SEC EDGAR), and its first
+ZZZZQ.`, or `SEC EDGAR's ticker list does not include ZZZZQ, so annual filings could not be read from SEC filings. SEC EDGAR lists companies under their US ticker symbols only.` for the commands that read SEC EDGAR), and its first
 line says whether the provider is answering, so you can tell a mistyped ticker from a provider that is down.
 
 A command sends the test request at most once per provider per run, and `refresh` sends it once after the whole

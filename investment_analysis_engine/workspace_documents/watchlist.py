@@ -99,7 +99,7 @@ class WatchlistDocument(BaseModel):
 
 
 class EntryWarningDocument(BaseModel):
-    """One warning about a ticker that was added but could not be confirmed.
+    """One warning about a ticker that was added: it could not be confirmed, or SEC EDGAR's list does not include it.
 
     It has the shape of a rule error: filling every placeholder of ``template`` with its ``arguments`` gives
     ``message``.
@@ -108,11 +108,13 @@ class EntryWarningDocument(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     ticker: str
-    code: EntryWarningCode = Field(description="Why the ticker could not be confirmed.")
+    code: EntryWarningCode = Field(
+        description="Why the ticker could not be confirmed, or that SEC EDGAR's list does not include it."
+    )
     reason_code: FailureReasonCode | None = Field(
         description=(
             "The failure reason code that kept the ticker from being checked: a provider failure code or a database "
-            "failure code. Null when the ticker was not recognized."
+            "failure code. Null when the ticker was not recognized or is not in SEC EDGAR's ticker list."
         )
     )
     arguments: dict[str, JsonValue] = Field(description="The values the message shows, by name.")
@@ -136,7 +138,8 @@ class EntryWarningDocument(BaseModel):
 class EntriesAddedDocument(BaseModel):
     """The outcome of ``watchlist add-selection --json`` and of adding entries through the API.
 
-    Every entry is added whatever the warnings; a warning only says that a ticker could not be confirmed.
+    Every entry is added whatever the warnings; a warning only says that a ticker could not be confirmed or is not in
+    SEC EDGAR's ticker list.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -144,7 +147,10 @@ class EntriesAddedDocument(BaseModel):
     schema_version: Literal[1] = 1
     watchlist: WatchlistDocument
     warnings: tuple[EntryWarningDocument, ...] = Field(
-        description="One warning for each ticker that could not be confirmed; empty when every ticker was."
+        description=(
+            "One warning for each ticker that could not be confirmed or is not in SEC EDGAR's ticker list; "
+            "empty when there is none."
+        )
     )
 
 

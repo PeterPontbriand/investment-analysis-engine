@@ -125,3 +125,9 @@ class MomentumSelection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
+
+
+def reads_sec_edgar(selection: MomentumSelection) -> bool:
+    """Return whether the selection reads SEC EDGAR: never, because Momentum reads prices only."""
+    del selection
+    return False

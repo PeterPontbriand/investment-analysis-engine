@@ -346,6 +346,7 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
         _strategy_import(spec, "envelope", [f"{cls}Document"]),
         _strategy_import(spec, "replay", [f"headline_{module}", f"project_{module}", f"project_{module}_document"]),
         _strategy_import(spec, "selection", [f"{cls}Selection"]),
+        _strategy_import(spec, "selection", [f"reads_sec_edgar as {module}_reads_sec_edgar"]),
         _strategy_import(spec, "tool", [f"{cls}ToolArguments", f"{cls}ToolDependencies", f"{cls}ToolHandler"]),
         _strategy_import(spec, "vocabulary", [f"ANALYSIS_ID as {upper}_ANALYSIS_ID"]),
         _strategy_import(spec, "vocabulary", [f"CONFIG_SCHEMA_VERSION as {upper}_CONFIG_SCHEMA_VERSION"]),
@@ -366,6 +367,7 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
         f"    headline=headline_{module},\n"
         f"    project=project_{module},\n"
         f"    document=project_{module}_document,\n"
+        f"    reads_sec_edgar={module}_reads_sec_edgar,\n"
         ")\n"
     )
     descriptor = (
@@ -392,6 +394,7 @@ def _wiring_edit(spec: Spec, source: str, where: str) -> tuple[str, tuple[str, .
     )
     introduced = (
         f"{upper}_BEHAVIOR",
+        f"{module}_reads_sec_edgar",
         upper,
         f"{upper}_ANALYSIS_ID",
         f"{upper}_METHOD_ID",

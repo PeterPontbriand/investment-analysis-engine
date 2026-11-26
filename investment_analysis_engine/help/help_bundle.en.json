@@ -205,7 +205,7 @@
           "heading": "Missing data",
           "id": "missing-data",
           "level": 3,
-          "markdown": "Unknown or unavailable financial data does not silently become zero.\n\nA calculation may instead report that:\n\n- required data is unavailable;\n- supplied data is invalid; or\n- the method is not applicable to otherwise valid facts.\n\nA data provider that answers and has nothing for a required input makes that input unavailable; it is not an error of the provider. An unknown ticker is the common case. The run is `input_unavailable` with the reason code `provider_no_data`, and its reason names the provider: Momentum reads `Yahoo Finance returned no price history for ZZZZQ.`, and a strategy that reads SEC EDGAR reads `SEC EDGAR's ticker list does not include ZZZZQ.` for a ticker the list does not hold, or `SEC EDGAR returned no <input> for ZZZZQ.` for a listed company SEC has no data for. A provider that did not answer, was limiting requests or answered in a form the engine does not read is a `provider_error` instead, and a run with both kinds among its failed required inputs is a `provider_error`."
+          "markdown": "Unknown or unavailable financial data does not silently become zero.\n\nA calculation may instead report that:\n\n- required data is unavailable;\n- supplied data is invalid; or\n- the method is not applicable to otherwise valid facts.\n\nA data provider that answers and has nothing for a required input makes that input unavailable; it is not an error of the provider. An unknown ticker is the common case. The run is `input_unavailable` with the reason code `provider_no_data`, and its reason names the provider: Momentum reads `Yahoo Finance returned no price history for ZZZZQ.`, and a strategy that reads SEC EDGAR reads `SEC EDGAR's ticker list does not include ZZZZQ, so annual filings could not be read from SEC filings. SEC EDGAR lists companies under their US ticker symbols only.` for a ticker the list does not hold (the message names the input that needed the company identifier), or `SEC EDGAR returned no <input> for ZZZZQ.` for a listed company SEC has no data for. A provider that did not answer, was limiting requests or answered in a form the engine does not read is a `provider_error` instead, and a run with both kinds among its failed required inputs is a `provider_error`."
         },
         {
           "heading": "Momentum Strategy",
@@ -835,6 +835,7 @@
         "data-provider",
         "sec",
         "edgar",
+        "sec-ticker-list",
         "cache",
         "cache-states",
         "historical-market-data",
@@ -871,6 +872,10 @@
         "listing-venue-cboe-bzx",
         "listing-venue-txse",
         "listing-venue-otc",
+        "listing-venue-tsx",
+        "listing-venue-tsxv",
+        "listing-venue-cboe-canada",
+        "listing-venue-cse",
         "quote-freshness",
         "reporting-currency",
         "quote-currency"
@@ -1064,6 +1069,7 @@
         "failure-instrument-profile-not-found",
         "entry-warning-ticker-not-recognized",
         "entry-warning-ticker-not-checked",
+        "entry-warning-ticker-not-in-sec-list",
         "failure-watchlist-empty",
         "failure-name-conflict",
         "failure-request-refused",
@@ -1348,7 +1354,7 @@
       "name": "EBITDA"
     },
     "edgar": {
-      "body": "See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data).",
+      "body": "See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data). Which companies it lists is explained in [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
       "definition": "The SEC's Electronic Data Gathering, Analysis, and Retrieval system, which gives public access to company filings and structured filing data.",
       "group": "market-data-and-timing",
       "name": "EDGAR"
@@ -1376,6 +1382,12 @@
       "definition": "When an entry was added, the ticker could not be checked, because a data provider or the engine's database was not available. The entry was still added.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Ticker Not Checked"
+    },
+    "entry-warning-ticker-not-in-sec-list": {
+      "body": "The strategies of the new entries that read financial statements from SEC filings will be unavailable for this ticker. Strategies that use only prices still work. A company listed outside the United States may file with the SEC under its US ticker symbol; see [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
+      "definition": "When an entry was added, the ticker was recognized but is not in SEC EDGAR's ticker list. The entry was still added.",
+      "group": "outcomes-statuses-and-reasons",
+      "name": "Ticker Not in SEC EDGAR's List"
     },
     "entry-warning-ticker-not-recognized": {
       "body": "A ticker that is mistyped, or no longer trades, is unavailable on every refresh. Check the ticker, and remove the entry if it is wrong. A provider sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](help:terms/ticker) and [provider returned no data](help:terms/provider-no-data).",
@@ -1528,7 +1540,7 @@
       "name": "FCF Growth Pass"
     },
     "fcf-growth-strategy": {
-      "body": "It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.\n\nRelated terms: [total-company FCF](help:terms/total-company-fcf), [FCF per diluted share](help:terms/fcf-per-diluted-share), [weighted-average diluted shares](help:terms/weighted-average-diluted-shares), [operating cash flow](help:terms/operating-cash-flow).",
+      "body": "It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation. It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker list](help:terms/sec-ticker-list).\n\nRelated terms: [total-company FCF](help:terms/total-company-fcf), [FCF per diluted share](help:terms/fcf-per-diluted-share), [weighted-average diluted shares](help:terms/weighted-average-diluted-shares), [operating cash flow](help:terms/operating-cash-flow).",
       "definition": "A historical screen asking whether free cash flow and diluted EPS both grew at positive, meaningful compound annual rates over one compatible period. It is not a valuation.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Free Cash Flow & Earnings Growth Strategy"
@@ -1618,7 +1630,7 @@
       "name": "Free Cash Flow (FCF)"
     },
     "graham-growth-value-strategy": {
-      "body": "It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply.\n\nRelated terms: [Graham growth-value formula](help:terms/growth-value-formula), [growth multiplier](help:terms/growth-multiplier), [base P/E](help:terms/base-pe), [growth-estimation policy](help:terms/growth-estimation-policy), [AAA corporate bond yield](help:terms/aaa-corporate-bond-yield), [baseline AAA yield](help:terms/baseline-aaa-yield), [current AAA yield](help:terms/current-aaa-yield).",
+      "body": "It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply. It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker list](help:terms/sec-ticker-list).\n\nRelated terms: [Graham growth-value formula](help:terms/growth-value-formula), [growth multiplier](help:terms/growth-multiplier), [base P/E](help:terms/base-pe), [growth-estimation policy](help:terms/growth-estimation-policy), [AAA corporate bond yield](help:terms/aaa-corporate-bond-yield), [baseline AAA yield](help:terms/baseline-aaa-yield), [current AAA yield](help:terms/current-aaa-yield).",
       "definition": "A forecast-dependent strategy that estimates a value from earnings, an expected growth rate and a current AAA corporate-bond yield.",
       "group": "graham-growth-value-strategy-terms",
       "name": "Graham Growth Value Strategy"
@@ -1636,7 +1648,7 @@
       "name": "Factor 22.5"
     },
     "graham-number-strategy": {
-      "body": "It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one.\n\nRelated terms: [Graham Number factor](help:terms/graham-number-factor), [defensive investor](help:terms/defensive-investor).",
+      "body": "It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one. It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker list](help:terms/sec-ticker-list).\n\nRelated terms: [Graham Number factor](help:terms/graham-number-factor), [defensive investor](help:terms/defensive-investor).",
       "definition": "A screening strategy that combines positive earnings per share and book value per share to estimate a conservative maximum indicated price.",
       "group": "graham-number-strategy-terms",
       "name": "Graham Number Strategy"
@@ -1798,7 +1810,7 @@
       "name": "Invested Capital"
     },
     "listing-venue": {
-      "body": "The engine shows the provider's own wording and, when it recognizes that wording, the name of the market it stands for. A venue the engine does not recognize is shown in the provider's words alone, and this entry explains it. The venue is as the provider reports it, and a provider can report a different venue from another provider for the same ticker. A cryptocurrency is not listed on an exchange, and a provider's venue text for one may name where its price comes from rather than an exchange. See [instrument profile](help:terms/instrument-profile) and [security identity](help:terms/security-identity).\n\nThe markets the engine recognizes are explained in [Nasdaq Stock Market](help:terms/listing-venue-nasdaq), [New York Stock Exchange](help:terms/listing-venue-nyse), [NYSE Group Exchange](help:terms/listing-venue-nyse-group), [NYSE Arca](help:terms/listing-venue-nyse-arca), [NYSE American](help:terms/listing-venue-nyse-american), [Cboe U.S. Equities Exchange](help:terms/listing-venue-cboe), [Cboe BZX Exchange](help:terms/listing-venue-cboe-bzx), [Texas Stock Exchange](help:terms/listing-venue-txse) and [Over-the-Counter Market](help:terms/listing-venue-otc).",
+      "body": "The engine shows the provider's own wording and, when it recognizes that wording, the name of the market it stands for. A venue the engine does not recognize is shown in the provider's words alone, and this entry explains it. The venue is as the provider reports it, and a provider can report a different venue from another provider for the same ticker. A cryptocurrency is not listed on an exchange, and a provider's venue text for one may name where its price comes from rather than an exchange. See [instrument profile](help:terms/instrument-profile) and [security identity](help:terms/security-identity).\n\nThe markets the engine recognizes are explained in [Nasdaq Stock Market](help:terms/listing-venue-nasdaq), [New York Stock Exchange](help:terms/listing-venue-nyse), [NYSE Group Exchange](help:terms/listing-venue-nyse-group), [NYSE Arca](help:terms/listing-venue-nyse-arca), [NYSE American](help:terms/listing-venue-nyse-american), [Cboe U.S. Equities Exchange](help:terms/listing-venue-cboe), [Cboe BZX Exchange](help:terms/listing-venue-cboe-bzx), [Texas Stock Exchange](help:terms/listing-venue-txse), [Over-the-Counter Market](help:terms/listing-venue-otc), [Toronto Stock Exchange](help:terms/listing-venue-tsx), [TSX Venture Exchange](help:terms/listing-venue-tsxv), [Cboe Canada](help:terms/listing-venue-cboe-canada) and [Canadian Securities Exchange](help:terms/listing-venue-cse).",
       "definition": "The market where an instrument's shares or units are listed for trading, written as the data provider reports it.",
       "group": "market-data-and-timing",
       "name": "Listing Venue"
@@ -1814,6 +1826,18 @@
       "definition": "Cboe BZX Exchange, a national securities exchange in the United States, with the market identifier code BATS.",
       "group": "market-data-and-timing",
       "name": "Cboe BZX Exchange"
+    },
+    "listing-venue-cboe-canada": {
+      "body": "It lists companies and many exchange-traded funds. See [listing venue](help:terms/listing-venue) and [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
+      "definition": "Cboe Canada, a Canadian exchange formerly called the NEO Exchange, with the market identifier code NEOE.",
+      "group": "market-data-and-timing",
+      "name": "Cboe Canada"
+    },
+    "listing-venue-cse": {
+      "body": "Its companies are usually small, and few of them file with the SEC. See [listing venue](help:terms/listing-venue) and [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
+      "definition": "The Canadian Securities Exchange, a Canadian exchange for smaller and emerging companies, with the market identifier code XCNQ.",
+      "group": "market-data-and-timing",
+      "name": "Canadian Securities Exchange"
     },
     "listing-venue-nasdaq": {
       "body": "Nasdaq lists companies in three tiers, the Global Select Market, the Global Market and the Capital Market, which a provider may write as NasdaqGS, NasdaqGM and NasdaqCM. The engine shows all three as the Nasdaq Stock Market and keeps the provider's wording beside it. See [listing venue](help:terms/listing-venue).",
@@ -1850,6 +1874,18 @@
       "definition": "The over-the-counter market in the United States, where brokers trade shares directly with each other instead of through a national securities exchange.",
       "group": "market-data-and-timing",
       "name": "Over-the-Counter Market"
+    },
+    "listing-venue-tsx": {
+      "body": "Many of Canada's largest companies are listed there, and some are also listed in the United States under a US ticker symbol. See [listing venue](help:terms/listing-venue) and [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
+      "definition": "The Toronto Stock Exchange, Canada's main exchange for senior companies, with the market identifier code XTSE.",
+      "group": "market-data-and-timing",
+      "name": "Toronto Stock Exchange"
+    },
+    "listing-venue-tsxv": {
+      "body": "Its companies are usually smaller and trade less often than those on the Toronto Stock Exchange, and few of them file with the SEC. See [listing venue](help:terms/listing-venue) and [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
+      "definition": "The TSX Venture Exchange, a Canadian exchange for early-stage and smaller companies, with the market identifier code XTSX.",
+      "group": "market-data-and-timing",
+      "name": "TSX Venture Exchange"
     },
     "listing-venue-txse": {
       "body": "It is a new exchange, and some companies list on it as well as on an older exchange. See [listing venue](help:terms/listing-venue).",
@@ -1984,7 +2020,7 @@
       "name": "Period Kind"
     },
     "piotroski-strategy": {
-      "body": "It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not an investment recommendation.\n\nRelated terms: [ROA](help:terms/roa), [current ratio](help:terms/current-ratio), [gross margin](help:terms/gross-margin), [asset turnover](help:terms/asset-turnover), [net dilution](help:terms/net-dilution).",
+      "body": "It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not an investment recommendation. It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker list](help:terms/sec-ticker-list).\n\nRelated terms: [ROA](help:terms/roa), [current ratio](help:terms/current-ratio), [gross margin](help:terms/gross-margin), [asset turnover](help:terms/asset-turnover), [net dilution](help:terms/net-dilution).",
       "definition": "A financial-strength screen that runs nine pass/fail tests on three consecutive fiscal years of reported statements and counts those passed. It is not a valuation.",
       "group": "piotroski-f-score-strategy-terms",
       "name": "Piotroski F-Score Strategy"
@@ -2032,7 +2068,7 @@
       "name": "Provider Healthy"
     },
     "provider-no-data": {
-      "body": "Unlike an unreachable provider, the provider worked; it holds no data for what was asked. A run it stops is [unavailable](help:terms/outcome-unavailable), not failed, with the reason code `provider_no_data`, and the provider check still runs, so a mistyped ticker can be told from a provider that is down.",
+      "body": "Unlike an unreachable provider, the provider worked; it holds no data for what was asked. A run it stops is [unavailable](help:terms/outcome-unavailable), not failed, with the reason code `provider_no_data`, and the provider check still runs, so a mistyped ticker can be told from a provider that is down. A ticker that is not in SEC EDGAR's ticker list is the common case for an analysis that reads SEC filings; see [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
       "definition": "The data provider answered correctly and has nothing for this request.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Provider Returned No Data"
@@ -2288,6 +2324,12 @@
       "definition": "The United States Securities and Exchange Commission, the federal securities regulator. The engine uses its public data as a source of company financial facts.",
       "group": "market-data-and-timing",
       "name": "SEC"
+    },
+    "sec-ticker-list": {
+      "body": "A company listed on an exchange outside the United States appears only under its US symbol, if it has one. Nutrien is NTR on the New York Stock Exchange, and NTR.TO on the Toronto Stock Exchange is not in the list. A company that does not file with the SEC is not in it at all. An analysis that reads a company's financial statements from SEC filings finds the company through this list, so it is unavailable for a ticker the list does not include. See [EDGAR](help:terms/edgar) and [listing venue](help:terms/listing-venue).",
+      "definition": "The SEC's list of the companies that file with it, each under its US ticker symbol.",
+      "group": "market-data-and-timing",
+      "name": "SEC EDGAR Ticker List"
     },
     "security-identity": {
       "body": "Security identity is best-effort metadata recorded at a resolution time. A ticker is not permanent identity and may be reused. Missing identity metadata never changes a financial result, and historical Analysis Runs retain their original identity snapshot rather than silently re-resolving the ticker later.",

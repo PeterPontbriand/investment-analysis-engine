@@ -692,7 +692,7 @@
       },
       "EntriesAddedDocument": {
         "additionalProperties": false,
-        "description": "The outcome of ``watchlist add-selection --json`` and of adding entries through the API.\n\nEvery entry is added whatever the warnings; a warning only says that a ticker could not be confirmed.",
+        "description": "The outcome of ``watchlist add-selection --json`` and of adding entries through the API.\n\nEvery entry is added whatever the warnings; a warning only says that a ticker could not be confirmed or is not in\nSEC EDGAR's ticker list.",
         "properties": {
           "schema_version": {
             "const": 1,
@@ -701,7 +701,7 @@
             "type": "integer"
           },
           "warnings": {
-            "description": "One warning for each ticker that could not be confirmed; empty when every ticker was.",
+            "description": "One warning for each ticker that could not be confirmed or is not in SEC EDGAR's ticker list; empty when there is none.",
             "items": {
               "$ref": "#/components/schemas/EntryWarningDocument"
             },
@@ -723,14 +723,15 @@
         "description": "Why a ticker added to a watchlist could not be confirmed; a value is never renamed or removed.",
         "enum": [
           "ticker_not_recognized",
-          "ticker_not_checked"
+          "ticker_not_checked",
+          "ticker_not_in_sec_list"
         ],
         "title": "EntryWarningCode",
         "type": "string"
       },
       "EntryWarningDocument": {
         "additionalProperties": false,
-        "description": "One warning about a ticker that was added but could not be confirmed.\n\nIt has the shape of a rule error: filling every placeholder of ``template`` with its ``arguments`` gives\n``message``.",
+        "description": "One warning about a ticker that was added: it could not be confirmed, or SEC EDGAR's list does not include it.\n\nIt has the shape of a rule error: filling every placeholder of ``template`` with its ``arguments`` gives\n``message``.",
         "properties": {
           "arguments": {
             "additionalProperties": {
@@ -742,7 +743,7 @@
           },
           "code": {
             "$ref": "#/components/schemas/EntryWarningCode",
-            "description": "Why the ticker could not be confirmed."
+            "description": "Why the ticker could not be confirmed, or that SEC EDGAR's list does not include it."
           },
           "message": {
             "description": "The warning for a person; it carries no guarantee.",
@@ -758,7 +759,7 @@
                 "type": "null"
               }
             ],
-            "description": "The failure reason code that kept the ticker from being checked: a provider failure code or a database failure code. Null when the ticker was not recognized."
+            "description": "The failure reason code that kept the ticker from being checked: a provider failure code or a database failure code. Null when the ticker was not recognized or is not in SEC EDGAR's ticker list."
           },
           "template": {
             "description": "The message with each value written as a placeholder named as in arguments, such as {ticker}; replacing every placeholder with its text gives message. A template never contains a literal brace.",
@@ -3700,7 +3701,11 @@
           "cboe",
           "cboe_bzx",
           "txse",
-          "otc"
+          "otc",
+          "tsx",
+          "tsxv",
+          "cboe_canada",
+          "cse"
         ],
         "title": "ListingVenue",
         "type": "string"

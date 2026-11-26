@@ -53,6 +53,14 @@ _YAHOO = [
     ("PNK", ListingVenue.OTC),
     ("OID", ListingVenue.OTC),
     ("OQX", ListingVenue.OTC),
+    ("Toronto", ListingVenue.TSX),
+    ("TOR", ListingVenue.TSX),
+    ("TSXV", ListingVenue.TSXV),
+    ("VAN", ListingVenue.TSXV),
+    ("Cboe CA", ListingVenue.CBOE_CANADA),
+    ("NEO", ListingVenue.CBOE_CANADA),
+    ("Canadian Sec", ListingVenue.CSE),
+    ("CNQ", ListingVenue.CSE),
 ]
 _COVER = [
     ("The Nasdaq Stock Market LLC", ListingVenue.NASDAQ),
@@ -92,7 +100,6 @@ def test_each_table_holds_exactly_its_captured_values() -> None:
         (VenueSource.SEC_TICKER_FILE, "Toronto"),
         (VenueSource.SEC_TICKER_FILE, "nasdaq"),
         (VenueSource.YAHOO, "CCC"),
-        (VenueSource.YAHOO, "Toronto"),
         (VenueSource.YAHOO, "LSE"),
         (VenueSource.FILING_COVER, "NASDAQ"),
         (VenueSource.FILING_COVER, "NYSE; The Nasdaq Stock Market LLC"),

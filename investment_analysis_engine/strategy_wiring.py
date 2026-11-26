@@ -46,6 +46,7 @@ from investment_analysis_engine.strategies.fcf_growth.replay import (
     project_fcf_growth_document,
 )
 from investment_analysis_engine.strategies.fcf_growth.selection import FCFGrowthSelection
+from investment_analysis_engine.strategies.fcf_growth.selection import reads_sec_edgar as fcf_growth_reads_sec_edgar
 from investment_analysis_engine.strategies.fcf_growth.tool import (
     FCFEarningsGrowthToolArguments,
     FCFEarningsGrowthToolDependencies,
@@ -71,6 +72,9 @@ from investment_analysis_engine.strategies.graham_growth.replay import (
     project_graham_growth_document,
 )
 from investment_analysis_engine.strategies.graham_growth.selection import GrahamGrowthSelection
+from investment_analysis_engine.strategies.graham_growth.selection import (
+    reads_sec_edgar as graham_growth_reads_sec_edgar,
+)
 from investment_analysis_engine.strategies.graham_growth.service import GrahamGrowthAnalysis
 from investment_analysis_engine.strategies.graham_growth.settings import GrahamGrowthSettings
 from investment_analysis_engine.strategies.graham_growth.tool import (
@@ -100,6 +104,9 @@ from investment_analysis_engine.strategies.graham_number.replay import (
     project_graham_number_document,
 )
 from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
+from investment_analysis_engine.strategies.graham_number.selection import (
+    reads_sec_edgar as graham_number_reads_sec_edgar,
+)
 from investment_analysis_engine.strategies.graham_number.service import GrahamNumberAnalysis
 from investment_analysis_engine.strategies.graham_number.tool import (
     GrahamNumberToolArguments,
@@ -129,6 +136,7 @@ from investment_analysis_engine.strategies.momentum.replay import (
     project_momentum_document,
 )
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.momentum.selection import reads_sec_edgar as momentum_reads_sec_edgar
 from investment_analysis_engine.strategies.momentum.settings import MomentumSettings
 from investment_analysis_engine.strategies.momentum.tool import (
     MomentumToolArguments,
@@ -156,6 +164,7 @@ from investment_analysis_engine.strategies.piotroski.replay import (
     project_piotroski_document,
 )
 from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
+from investment_analysis_engine.strategies.piotroski.selection import reads_sec_edgar as piotroski_reads_sec_edgar
 from investment_analysis_engine.strategies.piotroski.tool import (
     PiotroskiToolArguments,
     PiotroskiToolDependencies,
@@ -218,6 +227,10 @@ class BehaviorView(Protocol):
         """Return a stored run's typed document; ``evidence`` and ``selection`` must be this strategy's exact types."""
         ...
 
+    def reads_sec_edgar_for(self, selection: object, /) -> bool:
+        """Return whether ``selection``, which must be exactly this strategy's selection type, reads SEC EDGAR."""
+        ...
+
 
 @dataclass(frozen=True)
 class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
@@ -237,6 +250,7 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
     headline: Callable[[ResultT], Headline]
     project: Callable[[ReplayInputs, ResultT, SelT, ReplayOptions], str]
     document: Callable[[ReplayInputs, ResultT, SelT], BaseModel]
+    reads_sec_edgar: Callable[[SelT], bool]
 
     def encode_object(self, evidence: object, /) -> StrictJsonMapping:
         """Encode ``evidence``, which must be exactly this strategy's result type."""
@@ -287,6 +301,12 @@ class StrategyBehavior[SelT: SelectionMember, ResultT: NativeEvidence, DepsT]:
             raise undeclared("selection type", type(selection))
         return self.document(inputs, evidence, selection)
 
+    def reads_sec_edgar_for(self, selection: object, /) -> bool:
+        """Return whether ``selection``, which must be exactly this strategy's selection type, reads SEC EDGAR."""
+        if not isinstance(selection, self.selection_type) or type(selection) is not self.selection_type:
+            raise undeclared("selection type", type(selection))
+        return self.reads_sec_edgar(selection)
+
 
 @dataclass(frozen=True)
 class StrategyDescriptor:
@@ -330,6 +350,7 @@ MOMENTUM_BEHAVIOR: Final = StrategyBehavior[MomentumSelection, MomentumRun, Mome
     headline=headline_momentum,
     project=project_momentum,
     document=project_momentum_document,
+    reads_sec_edgar=momentum_reads_sec_edgar,
 )
 GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
     GrahamNumberSelection, GrahamNumberAnalysis, GrahamNumberToolDependencies
@@ -345,6 +366,7 @@ GRAHAM_NUMBER_BEHAVIOR: Final = StrategyBehavior[
     headline=headline_graham_number,
     project=project_graham_number,
     document=project_graham_number_document,
+    reads_sec_edgar=graham_number_reads_sec_edgar,
 )
 GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     GrahamGrowthSelection, GrahamGrowthAnalysis, GrahamGrowthToolDependencies
@@ -360,6 +382,7 @@ GRAHAM_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     headline=headline_graham_growth,
     project=project_graham_growth,
     document=project_graham_growth_document,
+    reads_sec_edgar=graham_growth_reads_sec_edgar,
 )
 FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     FCFGrowthSelection, FCFEarningsGrowthResult, FCFEarningsGrowthToolDependencies
@@ -375,6 +398,7 @@ FCF_GROWTH_BEHAVIOR: Final = StrategyBehavior[
     headline=headline_fcf_growth,
     project=project_fcf_growth,
     document=project_fcf_growth_document,
+    reads_sec_edgar=fcf_growth_reads_sec_edgar,
 )
 
 MOMENTUM: Final = StrategyDescriptor(
@@ -470,6 +494,7 @@ PIOTROSKI_BEHAVIOR: Final = StrategyBehavior[PiotroskiSelection, PiotroskiResult
     headline=headline_piotroski,
     project=project_piotroski,
     document=project_piotroski_document,
+    reads_sec_edgar=piotroski_reads_sec_edgar,
 )
 PIOTROSKI: Final = StrategyDescriptor(
     analysis_id=PIOTROSKI_ANALYSIS_ID,
@@ -684,3 +709,18 @@ def run_spec_for(
         UndeclaredStrategyError: If no declared strategy has the selection's identifiers.
     """
     return require(run_specs, (selection.analysis_id, selection.method_id), what="run spec")
+
+
+DESCRIPTORS_BY_KEY: Final = MappingProxyType(
+    {(descriptor.analysis_id, descriptor.method_id): descriptor for descriptor in STRATEGIES}
+)
+
+
+def sec_edgar_strategy_label(selection: SelectionMember) -> str | None:
+    """Return the label of the strategy that owns ``selection`` when the selection reads SEC EDGAR, else ``None``.
+
+    Raises:
+        UndeclaredStrategyError: If no declared strategy has the selection's identifiers.
+    """
+    descriptor = require(DESCRIPTORS_BY_KEY, (selection.analysis_id, selection.method_id), what="strategy")
+    return descriptor.label if descriptor.behavior.reads_sec_edgar_for(selection) else None

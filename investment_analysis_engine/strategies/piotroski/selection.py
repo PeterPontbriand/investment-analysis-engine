@@ -50,3 +50,9 @@ class PiotroskiSelection(FrozenSelection):
             use_cache=self.use_cache,
             instrument_profile=instrument_profile,
         )
+
+
+def reads_sec_edgar(selection: PiotroskiSelection) -> bool:
+    """Return whether the selection reads SEC EDGAR: always: it reads financial statements from SEC filings."""
+    del selection
+    return True

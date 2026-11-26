@@ -245,7 +245,7 @@ engine does not recognize it. The part itself is null when the source gave no ve
 counts as giving none.
 
 A code means what its source says. A source that names one exchange gets that exchange's code (`nasdaq`, `nyse`,
-`nyse_arca`, `nyse_american`, `cboe_bzx`, `txse`), and a source that names only a group of exchanges gets the group's code
+`nyse_arca`, `nyse_american`, `cboe_bzx`, `txse`, and the Canadian `tsx`, `tsxv`, `cboe_canada`, `cse`), and a source that names only a group of exchanges gets the group's code
 (`nyse_group` for SEC's `NYSE`, `cboe` for `CBOE` or Yahoo's `Cboe US`); `otc` is the over-the-counter market. The code is
 worked out each time a document is built, from the stored wording and the identity's provider, so a run or a profile saved
 before a value was recognized gains its code, and a code can appear on a replay of a run that showed none before.
@@ -320,8 +320,11 @@ refused for it, and a check never makes the add fail; a duplicate, a blank ticke
 watchlist is refused before any provider is asked. A warning holds `ticker`, `code`, `reason_code`, `arguments`,
 `message` and `template`, with the `message` and `template` rules of a rule error (filling the template gives the
 message). `code` is `ticker_not_recognized` (the providers answered and none identified the ticker; `reason_code` is
-`null`) or `ticker_not_checked` (`reason_code` is the failure that kept the ticker from being checked: a `provider_*`
-code or a `database_*` code). After the first `provider_unreachable`, `provider_rate_limited` or `database_*` failure the
+`null`), `ticker_not_checked` (`reason_code` is the failure that kept the ticker from being checked: a `provider_*`
+code or a `database_*` code) or `ticker_not_in_sec_list` (the ticker was recognized but SEC EDGAR's ticker list does not
+include it, and a strategy of a new entry for it reads SEC filings; `reason_code` is `null`, `arguments` holds `ticker`
+and `strategies`, and a ticker gets at most one such warning). The warning codes are an open vocabulary, so a
+new code is an addition within `/v1`. After the first `provider_unreachable`, `provider_rate_limited` or `database_*` failure the
 remaining tickers are not asked, and each gets the same warning. `GET /v1/help/references` gives each warning code its
 term. A refresh of entries and `POST /v1/analyses` do not check tickers; their own results report an unknown ticker.
 
