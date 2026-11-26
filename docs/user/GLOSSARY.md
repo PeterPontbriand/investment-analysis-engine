@@ -144,7 +144,13 @@ The SEC's website is at [sec.gov](https://www.sec.gov/).
 ### EDGAR
 The SEC's Electronic Data Gathering, Analysis, and Retrieval system, which gives public access to company filings and structured filing data.
 
-See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data).
+See the SEC's [EDGAR search resources](https://www.sec.gov/search-filings) and [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data). Which companies it lists is explained in [SEC EDGAR ticker list](#sec-ticker-list).
+
+<a id="sec-ticker-list"></a>
+### SEC EDGAR Ticker List
+The SEC's list of the companies that file with it, each under its US ticker symbol.
+
+A company listed on an exchange outside the United States appears only under its US symbol, if it has one. Nutrien is NTR on the New York Stock Exchange, and NTR.TO on the Toronto Stock Exchange is not in the list. A company that does not file with the SEC is not in it at all. An analysis that reads a company's financial statements from SEC filings finds the company through this list, so it is unavailable for a ticker the list does not include. See [EDGAR](#edgar) and [listing venue](#listing-venue).
 
 <a id="cache"></a>
 ### Cache
@@ -308,7 +314,7 @@ The market where an instrument's shares or units are listed for trading, written
 
 The engine shows the provider's own wording and, when it recognizes that wording, the name of the market it stands for. A venue the engine does not recognize is shown in the provider's words alone, and this entry explains it. The venue is as the provider reports it, and a provider can report a different venue from another provider for the same ticker. A cryptocurrency is not listed on an exchange, and a provider's venue text for one may name where its price comes from rather than an exchange. See [instrument profile](#instrument-profile) and [security identity](#security-identity).
 
-The markets the engine recognizes are explained in [Nasdaq Stock Market](#listing-venue-nasdaq), [New York Stock Exchange](#listing-venue-nyse), [NYSE Group Exchange](#listing-venue-nyse-group), [NYSE Arca](#listing-venue-nyse-arca), [NYSE American](#listing-venue-nyse-american), [Cboe U.S. Equities Exchange](#listing-venue-cboe), [Cboe BZX Exchange](#listing-venue-cboe-bzx), [Texas Stock Exchange](#listing-venue-txse) and [Over-the-Counter Market](#listing-venue-otc).
+The markets the engine recognizes are explained in [Nasdaq Stock Market](#listing-venue-nasdaq), [New York Stock Exchange](#listing-venue-nyse), [NYSE Group Exchange](#listing-venue-nyse-group), [NYSE Arca](#listing-venue-nyse-arca), [NYSE American](#listing-venue-nyse-american), [Cboe U.S. Equities Exchange](#listing-venue-cboe), [Cboe BZX Exchange](#listing-venue-cboe-bzx), [Texas Stock Exchange](#listing-venue-txse), [Over-the-Counter Market](#listing-venue-otc), [Toronto Stock Exchange](#listing-venue-tsx), [TSX Venture Exchange](#listing-venue-tsxv), [Cboe Canada](#listing-venue-cboe-canada) and [Canadian Securities Exchange](#listing-venue-cse).
 
 <a id="listing-venue-nasdaq"></a>
 ### Nasdaq Stock Market
@@ -363,6 +369,30 @@ It is a new exchange, and some companies list on it as well as on an older excha
 The over-the-counter market in the United States, where brokers trade shares directly with each other instead of through a national securities exchange.
 
 OTC Markets Group operates the main US over-the-counter quotation system, which the code OTCM names. OTCQX, OTCID and OTCPK (Pink) are tiers of OTC Markets Group's system, and SEC's list writes OTC without naming a tier. Over-the-counter shares usually trade less often than exchange-listed shares and face lighter listing and reporting requirements, so prices can move more and be harder to rely on. See [listing venue](#listing-venue).
+
+<a id="listing-venue-tsx"></a>
+### Toronto Stock Exchange
+The Toronto Stock Exchange, Canada's main exchange for senior companies, with the market identifier code XTSE.
+
+Many of Canada's largest companies are listed there, and some are also listed in the United States under a US ticker symbol. See [listing venue](#listing-venue) and [SEC EDGAR ticker list](#sec-ticker-list).
+
+<a id="listing-venue-tsxv"></a>
+### TSX Venture Exchange
+The TSX Venture Exchange, a Canadian exchange for early-stage and smaller companies, with the market identifier code XTSX.
+
+Its companies are usually smaller and trade less often than those on the Toronto Stock Exchange, and few of them file with the SEC. See [listing venue](#listing-venue) and [SEC EDGAR ticker list](#sec-ticker-list).
+
+<a id="listing-venue-cboe-canada"></a>
+### Cboe Canada
+Cboe Canada, a Canadian exchange formerly called the NEO Exchange, with the market identifier code NEOE.
+
+It lists companies and many exchange-traded funds. See [listing venue](#listing-venue) and [SEC EDGAR ticker list](#sec-ticker-list).
+
+<a id="listing-venue-cse"></a>
+### Canadian Securities Exchange
+The Canadian Securities Exchange, a Canadian exchange for smaller and emerging companies, with the market identifier code XCNQ.
+
+Its companies are usually small, and few of them file with the SEC. See [listing venue](#listing-venue) and [SEC EDGAR ticker list](#sec-ticker-list).
 
 <a id="quote-freshness"></a>
 ### Quote Freshness
@@ -752,7 +782,7 @@ It is a verified absence of transition, which differs from history too short to 
 ### Graham Number Strategy
 A screening strategy that combines positive earnings per share and book value per share to estimate a conservative maximum indicated price.
 
-It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one.
+It is independent of Graham Growth Value: a different strategy with a different formula, not an alternative method of the same one. It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker list](#sec-ticker-list).
 
 Related terms: [Graham Number factor](#graham-number-factor), [defensive investor](#defensive-investor).
 
@@ -794,7 +824,7 @@ His complete defensive-stock framework included additional size, financial-stren
 ### Graham Growth Value Strategy
 A forecast-dependent strategy that estimates a value from earnings, an expected growth rate and a current AAA corporate-bond yield.
 
-It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply.
+It is independent of the Graham Number: a different strategy with a different formula, not an alternative method of the same one. The growth rate and the yield are assumptions you supply. It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker list](#sec-ticker-list).
 
 Related terms: [Graham growth-value formula](#growth-value-formula), [growth multiplier](#growth-multiplier), [base P/E](#base-pe), [growth-estimation policy](#growth-estimation-policy), [AAA corporate bond yield](#aaa-corporate-bond-yield), [baseline AAA yield](#baseline-aaa-yield), [current AAA yield](#current-aaa-yield).
 
@@ -875,7 +905,7 @@ See [EPS Basis](#eps-basis) for the whole set of values.
 ### Free Cash Flow & Earnings Growth Strategy
 A historical screen asking whether free cash flow and diluted EPS both grew at positive, meaningful compound annual rates over one compatible period. It is not a valuation.
 
-It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation.
+It returns `PASS`, `FAIL`, or `INDETERMINATE`, and it is not an investment recommendation. It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker list](#sec-ticker-list).
 
 Related terms: [total-company FCF](#total-company-fcf), [FCF per diluted share](#fcf-per-diluted-share), [weighted-average diluted shares](#weighted-average-diluted-shares), [operating cash flow](#operating-cash-flow).
 
@@ -1071,7 +1101,7 @@ Without both rates the engine cannot say which of the two grew. See [Growth Tren
 ### Piotroski F-Score Strategy
 A financial-strength screen that runs nine pass/fail tests on three consecutive fiscal years of reported statements and counts those passed. It is not a valuation.
 
-It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not an investment recommendation.
+It follows the Piotroski nine-test structure but substitutes the net change in split-adjusted shares outstanding for the original equity-issuance signal. It is not an investment recommendation. It reads the company's financial statements from SEC filings; see [SEC EDGAR ticker list](#sec-ticker-list).
 
 Related terms: [ROA](#roa), [current ratio](#current-ratio), [gross margin](#gross-margin), [asset turnover](#asset-turnover), [net dilution](#net-dilution).
 
@@ -1225,7 +1255,7 @@ The provider may have changed its format. Nothing in the answer is used.
 ### Provider Returned No Data
 The data provider answered correctly and has nothing for this request.
 
-Unlike an unreachable provider, the provider worked; it holds no data for what was asked. A run it stops is [unavailable](#outcome-unavailable), not failed, with the reason code `provider_no_data`, and the provider check still runs, so a mistyped ticker can be told from a provider that is down.
+Unlike an unreachable provider, the provider worked; it holds no data for what was asked. A run it stops is [unavailable](#outcome-unavailable), not failed, with the reason code `provider_no_data`, and the provider check still runs, so a mistyped ticker can be told from a provider that is down. A ticker that is not in SEC EDGAR's ticker list is the common case for an analysis that reads SEC filings; see [SEC EDGAR ticker list](#sec-ticker-list).
 
 <a id="provider-healthy"></a>
 ### Provider Healthy
@@ -1320,6 +1350,12 @@ A ticker that is mistyped, or no longer trades, is unavailable on every refresh.
 When an entry was added, the ticker could not be checked, because a data provider or the engine's database was not available. The entry was still added.
 
 The check asks the data providers about each new ticker once. After the providers could not be reached, asked the engine to wait, or the database was not available, the remaining tickers are not asked. Adding the entry again is not needed; a refresh shows whether the ticker works. See [provider unreachable](#provider-unreachable) and [provider rate-limited](#provider-rate-limited).
+
+<a id="entry-warning-ticker-not-in-sec-list"></a>
+### Ticker Not in SEC EDGAR's List
+When an entry was added, the ticker was recognized but is not in SEC EDGAR's ticker list. The entry was still added.
+
+The strategies of the new entries that read financial statements from SEC filings will be unavailable for this ticker. Strategies that use only prices still work. A company listed outside the United States may file with the SEC under its US ticker symbol; see [SEC EDGAR ticker list](#sec-ticker-list).
 
 <a id="failure-watchlist-empty"></a>
 ### Empty Watchlist

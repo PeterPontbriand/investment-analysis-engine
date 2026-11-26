@@ -21,7 +21,11 @@
         "cboe",
         "cboe_bzx",
         "txse",
-        "otc"
+        "otc",
+        "tsx",
+        "tsxv",
+        "cboe_canada",
+        "cse"
       ],
       "title": "ListingVenue",
       "type": "string"
