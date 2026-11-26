@@ -37,6 +37,7 @@ _ROOT_IMPORTERS = frozenset(
         "investment_analysis_engine.evaluation.strategy_fixtures",
         "investment_analysis_engine.cli_strategy_wiring",
         "investment_analysis_engine.application.analysis",
+        "investment_analysis_engine.application.entry_check",
         "investment_analysis_engine.application.providers",
         "investment_analysis_engine.application.tier",
         "investment_analysis_engine.strategies.graham_growth.application",

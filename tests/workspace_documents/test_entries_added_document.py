@@ -1,4 +1,4 @@
-"""The entries-added document and its warnings: closed codes, the template rule, and the terms of the codes."""
+"""The entries-added document and its warnings: the codes, the template rule, and the terms of the codes."""
 
 import pytest
 from pydantic import ValidationError
@@ -7,6 +7,7 @@ from investment_analysis_engine.core.entry_warnings import (
     ENTRY_WARNING_CODE_TERMS,
     EntryWarningCode,
     not_checked_warning,
+    not_in_sec_list_warning,
     not_recognized_warning,
 )
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
@@ -14,11 +15,11 @@ from investment_analysis_engine.help.bundle import load_help_bundle
 from investment_analysis_engine.workspace_documents.watchlist import EntryWarningDocument, build_entries_added_document
 
 
-def test_both_warning_codes_have_a_glossary_term_that_the_help_bundle_serves() -> None:
+def test_every_warning_code_has_a_glossary_term_that_the_help_bundle_serves() -> None:
     bundle = load_help_bundle("en")
 
     assert set(ENTRY_WARNING_CODE_TERMS) == {code.value for code in EntryWarningCode}
-    assert len(set(ENTRY_WARNING_CODE_TERMS.values())) == 2
+    assert len(set(ENTRY_WARNING_CODE_TERMS.values())) == len(EntryWarningCode)
     for term in ENTRY_WARNING_CODE_TERMS.values():
         assert term in bundle.terms
 
@@ -100,3 +101,20 @@ def test_the_builder_keeps_the_warnings_in_order() -> None:
         ("KOO", "ticker_not_recognized"),
         ("MSFT", "ticker_not_checked"),
     ]
+
+
+def test_the_sec_list_warning_document_carries_its_template_arguments_and_message() -> None:
+    warning = not_in_sec_list_warning("NTR.TO", ["Graham Number", "Piotroski F-Score", "Graham Number"])
+
+    document = EntryWarningDocument(
+        ticker=warning.ticker,
+        code=warning.code,
+        reason_code=warning.reason_code,
+        template=warning.template,
+        arguments=dict(warning.arguments),
+        message=warning.message,
+    )
+
+    assert document.code.value == "ticker_not_in_sec_list"
+    assert document.arguments == {"ticker": "NTR.TO", "strategies": "Graham Number and Piotroski F-Score"}
+    assert "{" not in document.message

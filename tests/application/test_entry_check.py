@@ -14,12 +14,17 @@ from investment_analysis_engine.application.instrument_profiles import lookup_in
 from investment_analysis_engine.application.parameters import ActionParameterError
 from investment_analysis_engine.application.watchlists import create_watchlist, get_watchlist_by_name
 from investment_analysis_engine.config import ProjectSettings
-from investment_analysis_engine.core.entry_warnings import EntryWarningCode
+from investment_analysis_engine.core.entry_warnings import EntryWarningCode, join_labels
 from investment_analysis_engine.core.failure_codes import FailureReasonCode
+from investment_analysis_engine.core.operator_errors import AnalysisConfigurationError
 from investment_analysis_engine.core.provider_failure_kind import ProviderFailureKind
 from investment_analysis_engine.data.base_client import DataFetchError
+from investment_analysis_engine.data.financial.facts import FinancialProviderError
 from investment_analysis_engine.data.repositories.database_errors import DatabaseError, DatabaseReason
+from investment_analysis_engine.strategies.graham_number.selection import GrahamNumberSelection
 from investment_analysis_engine.strategies.momentum.selection import MomentumSelection
+from investment_analysis_engine.strategies.piotroski.selection import PiotroskiSelection
+from investment_analysis_engine.workspace.strategy_types import AnalysisSelection
 from investment_analysis_engine.workspace.watchlists import WatchlistName
 from tests._instrument_profile_fakes import (
     FakeSec,
@@ -322,3 +327,146 @@ def test_a_raw_storage_error_is_no_longer_classified_here_and_propagates(
 
     with pytest.raises(OSError, match="raw"):
         _add(context, "KO")
+
+
+_SEC_MESSAGE = (
+    "{ticker} is not in SEC EDGAR's ticker list, so {strategies} will be unavailable for it: they read the company's "
+    "financial statements from SEC filings. SEC EDGAR lists a company only under its US ticker symbol, so a ticker on "
+    "an exchange outside the United States is not in the list even when the company files with the SEC."
+)
+_GRAHAM = GrahamNumberSelection()
+_GRAHAM_OVERRIDDEN = GrahamNumberSelection(eps_override=5.0, bvps_override=30.0)
+_PIOTROSKI = PiotroskiSelection()
+
+
+class _FakeSecList:
+    """Stands in for the SEC adapter: it lists the given tickers, or fails when asked about one in ``failing``."""
+
+    def __init__(self, listed: set[str], failing: set[str] | None = None) -> None:
+        self.listed = listed
+        self.failing = failing or set()
+        self.asked: list[str] = []
+
+    def lists_ticker(self, ticker: str) -> bool:
+        self.asked.append(ticker)
+        if ticker in self.failing:
+            raise FinancialProviderError("down", kind=ProviderFailureKind.UNREACHABLE, provider_id="sec_edgar")
+        return ticker in self.listed
+
+
+def _with_sec(monkeypatch: pytest.MonkeyPatch, sec: _FakeSecList | None) -> None:
+    def build(_context: ApplicationContext) -> _FakeSecList:
+        if sec is None:
+            raise AnalysisConfigurationError("SEC EDGAR access is not configured.")
+        return sec
+
+    monkeypatch.setattr(entry_check, "build_sec_edgar_adapter", build)
+
+
+def _add_selections(context: ApplicationContext, *entries: tuple[str, AnalysisSelection]) -> AddedEntries:
+    return add_watchlist_entries_checked(context, _REF, list(entries))
+
+
+def test_an_unlisted_ticker_with_one_sec_strategy_gets_the_warning_and_the_entry_is_added(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    _answers(monkeypatch, {"NTR.TO": None})
+    _with_sec(monkeypatch, _FakeSecList(set()))
+
+    added = _add_selections(context, ("ntr.to", _GRAHAM))
+
+    assert _tickers(context) == ["NTR.TO"]
+    (warning,) = added.warnings
+    assert (warning.ticker, warning.code, warning.reason_code) == (
+        "NTR.TO",
+        EntryWarningCode.TICKER_NOT_IN_SEC_LIST,
+        None,
+    )
+    assert warning.arguments == {"ticker": "NTR.TO", "strategies": "Graham Number"}
+    assert warning.message == _SEC_MESSAGE.format(ticker="NTR.TO", strategies="Graham Number")
+    assert warning.template.replace("{ticker}", "NTR.TO").replace("{strategies}", "Graham Number") == warning.message
+
+
+def test_several_sec_strategies_are_named_once_each_in_order_of_first_appearance(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    _answers(monkeypatch, {"NTR.TO": None})
+    sec = _FakeSecList(set())
+    _with_sec(monkeypatch, sec)
+
+    added = _add_selections(context, ("NTR.TO", _PIOTROSKI), ("NTR.TO", _SELECTION), ("NTR.TO", _GRAHAM))
+
+    (warning,) = added.warnings
+    assert warning.arguments["strategies"] == "Piotroski F-Score and Graham Number"
+    assert sec.asked == ["NTR.TO"]
+
+
+def test_three_strategies_are_joined_with_commas_and_and() -> None:
+    assert join_labels(["A"]) == "A"
+    assert join_labels(["A", "B"]) == "A and B"
+    assert join_labels(["A", "B", "C"]) == "A, B and C"
+
+
+@pytest.mark.parametrize(
+    "selection", [_SELECTION, _GRAHAM_OVERRIDDEN], ids=["momentum-only", "graham-with-every-filing-input-overridden"]
+)
+def test_an_entry_that_reads_no_sec_filing_gives_no_warning_and_does_not_ask_sec(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch, selection: AnalysisSelection
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    _answers(monkeypatch, {"NTR.TO": None})
+    sec = _FakeSecList(set())
+    _with_sec(monkeypatch, sec)
+
+    assert _add_selections(context, ("NTR.TO", selection)).warnings == ()
+    assert sec.asked == []
+
+
+def test_a_listed_or_overridden_ticker_gives_no_warning(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    _answers(monkeypatch, {"MSFT": None, "BRK.B": None})
+    _with_sec(monkeypatch, _FakeSecList({"MSFT", "BRK.B"}))
+
+    assert _add_selections(context, ("MSFT", _GRAHAM), ("BRK.B", _PIOTROSKI)).warnings == ()
+
+
+def test_without_an_sec_identity_there_is_no_new_warning(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    _answers(monkeypatch, {"NTR.TO": None})
+    _with_sec(monkeypatch, None)
+
+    assert _add_selections(context, ("NTR.TO", _GRAHAM)).warnings == ()
+
+
+def test_a_failure_asking_sec_gives_no_warning_logs_the_traceback_and_does_not_stop_the_check(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    _answers(monkeypatch, {"A": None, "NTR.TO": None})
+    _with_sec(monkeypatch, _FakeSecList(set(), failing={"A"}))
+
+    with caplog.at_level(logging.WARNING, logger=entry_check.logger.name):
+        added = _add_selections(context, ("A", _GRAHAM), ("NTR.TO", _GRAHAM))
+
+    assert [item.ticker for item in added.warnings] == ["NTR.TO"]
+    assert any(record.exc_info is not None and "A" in record.getMessage() for record in caplog.records)
+
+
+def test_an_unrecognized_ticker_gets_only_its_own_warning(
+    isolated_cli_settings: ProjectSettings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    context = _seeded(isolated_cli_settings)
+    _answers(monkeypatch, {"KOO": _fetch(ProviderFailureKind.NO_DATA)})
+    sec = _FakeSecList(set())
+    _with_sec(monkeypatch, sec)
+
+    added = _add_selections(context, ("KOO", _GRAHAM))
+
+    assert [item.code for item in added.warnings] == [EntryWarningCode.TICKER_NOT_RECOGNIZED]
+    assert sec.asked == []
