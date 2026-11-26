@@ -31,6 +31,10 @@ class ListingVenue(StrEnum):
     CBOE_BZX = "cboe_bzx"
     TXSE = "txse"
     OTC = "otc"
+    TSX = "tsx"
+    TSXV = "tsxv"
+    CBOE_CANADA = "cboe_canada"
+    CSE = "cse"
 
 
 class VenueSource(StrEnum):
@@ -79,6 +83,10 @@ YAHOO_VENUES: Final[Mapping[str, ListingVenue]] = MappingProxyType(
         "OTC Markets OTCPK": ListingVenue.OTC,
         "OTC Markets OTCID": ListingVenue.OTC,
         "OTC Markets OTCQX": ListingVenue.OTC,
+        "Toronto": ListingVenue.TSX,
+        "TSXV": ListingVenue.TSXV,
+        "Cboe CA": ListingVenue.CBOE_CANADA,
+        "Canadian Sec": ListingVenue.CSE,
         # ``exchange``, which the identity holds when ``fullExchangeName`` is missing.
         "NMS": ListingVenue.NASDAQ,
         "NGM": ListingVenue.NASDAQ,
@@ -91,6 +99,10 @@ YAHOO_VENUES: Final[Mapping[str, ListingVenue]] = MappingProxyType(
         "PNK": ListingVenue.OTC,
         "OID": ListingVenue.OTC,
         "OQX": ListingVenue.OTC,
+        "TOR": ListingVenue.TSX,
+        "VAN": ListingVenue.TSXV,
+        "NEO": ListingVenue.CBOE_CANADA,
+        "CNQ": ListingVenue.CSE,
     }
 )
 """Yahoo's ``fullExchangeName`` and ``exchange`` values, as the identity stores them. ``CCC`` is deliberately absent."""
@@ -204,6 +216,10 @@ LISTING_VENUE_TERMS: Final[Mapping[str, str]] = MappingProxyType(
         ListingVenue.CBOE_BZX.value: "listing-venue-cboe-bzx",
         ListingVenue.TXSE.value: "listing-venue-txse",
         ListingVenue.OTC.value: "listing-venue-otc",
+        ListingVenue.TSX.value: "listing-venue-tsx",
+        ListingVenue.TSXV.value: "listing-venue-tsxv",
+        ListingVenue.CBOE_CANADA.value: "listing-venue-cboe-canada",
+        ListingVenue.CSE.value: "listing-venue-cse",
     }
 )
 """The glossary term that explains each listing venue, one entry for each value."""

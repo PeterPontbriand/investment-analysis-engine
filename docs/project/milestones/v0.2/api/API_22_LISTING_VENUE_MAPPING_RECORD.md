@@ -9,7 +9,7 @@ A value is mapped only when it was captured from its source, and a code means ex
 capture below was made on 2026-11-22 or 2026-11-23, read-only, from the live source. Yahoo values come from the
 repository's installed `yfinance` through `Ticker.info`; the filing covers are the `ix:nonNumeric` facts named
 `dei:SecurityExchangeName` of the filing's main document; SEC's file is the real
-`https://www.sec.gov/files/company_tickers_exchange.json`.
+`https://www.sec.gov/files/company_tickers_exchange.json`. The Canadian values of section 3.3 were captured the same way on 2026-11-25.
 
 ## 1. The codes
 
@@ -24,6 +24,10 @@ repository's installed `yfinance` through `Ticker.info`; the filing covers are t
 | `cboe_bzx` | Cboe BZX Exchange | the cover |
 | `txse` | The Texas Stock Exchange | SEC's file, Yahoo |
 | `otc` | The over-the-counter market | SEC's file, Yahoo |
+| `tsx` | The Toronto Stock Exchange | Yahoo |
+| `tsxv` | The TSX Venture Exchange | Yahoo |
+| `cboe_canada` | Cboe Canada | Yahoo |
+| `cse` | The Canadian Securities Exchange | Yahoo |
 
 A code is exchange-level when the source names one exchange and group-level when it names only the group
 ([A.19](API_CONTRACT_AND_SLICE_PLAN.md#a19-listing-venue-codes-2026-11-23), V4 as amended).
@@ -76,15 +80,47 @@ U.S. equities exchange, so both map to the group-level `cboe`.
 | `OTC Markets OTCPK` | `PNK` | `otc` | TCEHY |
 | `OTC Markets OTCID` | `OID` | `otc` | NSRGY |
 | `OTC Markets OTCQX` | `OQX` | `otc` | OTCM |
+| `Toronto` | `TOR` | `tsx` | NTR.TO, SHOP.TO (captured 2026-11-25) |
+| `TSXV` | `VAN` | `tsxv` | MAX.V, CRE.V, EMO.V, NEXE.V, PGE.V, WMK.V (2026-11-25) |
+| `Cboe CA` | `NEO` | `cboe_canada` | AAPL.NE, MSFT.NE, XIU.NE (2026-11-25) |
+| `Canadian Sec` | `CNQ` | `cse` | PKK.CN, VEXT.CN, ELEM.CN (2026-11-25) |
 
 ### 3.1 Values left unmapped
 
 - `CCC` (BTC-USD and ETH-USD, both fields). No source was found for what Yahoo means by `CCC`. A web search found only
   that Yahoo's cryptocurrency data comes from CoinMarketCap, and nothing about the code. It is unmapped (`code: null`),
   and the Listing Venue term says a cryptocurrency's venue text may name where its price comes from.
-- Non-US venues, which no strategy has evidence of using: `Toronto` (SHOP.TO), `LSE` (VOD.L) and `Tokyo` (7203.T) were
-  observed and are unmapped.
+- Non-US venues other than the four Canadian ones of section 3.3, which no strategy has evidence of using: `LSE` (VOD.L)
+  and `Tokyo` (7203.T) were observed and are unmapped. `Toronto` (SHOP.TO) was observed on 2026-11-23 and is mapped from
+  2026-11-25 (section 3.3).
 - Any other value Yahoo writes, such as an OTC tier not listed above, until it is captured.
+
+### 3.3 Canadian venues
+
+Captured live on 2026-11-25, read-only, through the installed `yfinance` `Ticker.info` (API.23, decision C9). A ticker
+whose request returned no `fullExchangeName` and no `exchange` is not listed. NFG.V returned `exchange` `VAN` and no
+`fullExchangeName`; it is listed with its one value.
+
+| Ticker | `fullExchangeName` | `exchange` | Code |
+| :--- | :--- | :--- | :--- |
+| NTR.TO | `Toronto` | `TOR` | `tsx` |
+| SHOP.TO | `Toronto` | `TOR` | `tsx` |
+| MAX.V | `TSXV` | `VAN` | `tsxv` |
+| CRE.V | `TSXV` | `VAN` | `tsxv` |
+| EMO.V | `TSXV` | `VAN` | `tsxv` |
+| NEXE.V | `TSXV` | `VAN` | `tsxv` |
+| PGE.V | `TSXV` | `VAN` | `tsxv` |
+| WMK.V | `TSXV` | `VAN` | `tsxv` |
+| NFG.V | none | `VAN` | `tsxv` |
+| AAPL.NE | `Cboe CA` | `NEO` | `cboe_canada` |
+| MSFT.NE | `Cboe CA` | `NEO` | `cboe_canada` |
+| XIU.NE | `Cboe CA` | `NEO` | `cboe_canada` |
+| PKK.CN | `Canadian Sec` | `CNQ` | `cse` |
+| VEXT.CN | `Canadian Sec` | `CNQ` | `cse` |
+| ELEM.CN | `Canadian Sec` | `CNQ` | `cse` |
+
+Every ticker of a venue returned the same pair, and the four pairs are the eight values mapped. SEC's ticker file and
+filing covers name no Canadian venue, so their tables are unchanged.
 
 ### 3.2 A venue is as the provider reports it
 
@@ -134,7 +170,8 @@ The glossary entries name each venue's ISO 10383 market identifier code (MIC). E
 against the official list, the file `ISO10383_MIC.csv` that the registration authority publishes at
 `https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.csv` (2,893 rows; its most recent row update is
 dated 2026-11-23, the list carries no other publication date). A MIC is kept only where that list confirms it for that
-market. All ten were confirmed and none was removed:
+market. All ten were confirmed and none was removed. The four Canadian codes were checked on 2026-11-25 against the same file,
+downloaded again (591,598 bytes) and listed in the second table below:
 
 | MIC | The list's entry | Status | Used for |
 | :--- | :--- | :--- | :--- |
@@ -148,6 +185,13 @@ market. All ten were confirmed and none was removed:
 | `EDGA` | CBOE EDGA U.S. EQUITIES EXCHANGE (segment of XCBO) | active | Cboe group entry |
 | `TXSE` | TEXAS STOCK EXCHANGE (TEXAS STOCK EXCHANGE LLC), created 2025-11-24 | active | Texas Stock Exchange |
 | `OTCM` | OTC LINK ATS - OTC MARKETS (OTC MARKETS GROUP INC.) | active | the over-the-counter quotation system of OTC Markets Group |
+
+| MIC | The list's entry | Status | Used for |
+| :--- | :--- | :--- | :--- |
+| `XTSE` | TORONTO STOCK EXCHANGE (acronym TSX, CA) | active | Toronto Stock Exchange |
+| `XTSX` | TSX VENTURE EXCHANGE (acronym TSX-V, CA) | active | TSX Venture Exchange |
+| `NEOE` | CBOE CANADA - NEO-L (MARKET BY ORDER) (CBOE CANADA INC., CA) | active | Cboe Canada |
+| `XCNQ` | CANADIAN SECURITIES EXCHANGE (CNSX MARKETS, INC., CA) | active | Canadian Securities Exchange |
 
 `PINX` (OTC Pink Marketplace) is on the list as expired, so no entry names it.
 
