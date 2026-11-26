@@ -98,6 +98,7 @@ Tests:
   `tests/workspace_documents/test_entries_added_document.py`, `tests/core/test_provider_stopped_status.py`,
   `tests/test_unknown_ticker_unavailable.py`, `tests/data/test_listing_venue.py`, `tests/reporting/test_provider_messages.py`
   (new if absent), and a new `tests/test_reads_sec_edgar.py`.
+- `tests/scripts/test_new_strategy.py` and `tests/scripts/test_new_strategy_end_to_end.py`: only the `selection` stub expectations for `reads_sec_edgar`; new `tests/scripts/generator_fills/selection.py.fill`.
 - Any other test file that fails only because it pins the old reason text or the closed list of venue codes or warning
   codes: listed by name in the report.
 
@@ -128,7 +129,7 @@ Tests:
      `python scripts/check_package_dependencies.py`, both Ruff checks).
 2. **Run reason (C2, C3).** In `reporting/provider_messages.py`, a `ticker_unlisted` failure whose `provider_id` is SEC
    EDGAR's returns C2's text with `{input}` = the `what` the caller passes. A `ticker_unlisted` failure of any other
-   provider keeps today's text. Update the module and function docstrings. Update the tests that pin the old text, and
+   provider keeps today's text. When `what` is empty, `{input}` is "the company's financial statements" (a call site whose failure record names no input, such as FCF Growth's scope failure, must never print a blank). Update the module and function docstrings. Update the tests that pin the old text, and
    add one test per caller path (Graham via `_graham/outcome.py`, Piotroski, FCF Growth's two call sites) proving the
    message names the input. Update `docs/user/FINANCE_MATH.md` §"provider no data" paragraph and `docs/user/USAGE.md`'s
    quotation. Check: slice check.
@@ -361,3 +362,5 @@ the requested field. Missing preferred-share data is not assumed to be zero." Bu
 ## Change log
 
 - 2026-11-25: links in steps 1 and 7 that are text to paste into other files are written as code spans, because the documentation link check resolved them against this spec (implementer escalation, step 1).
+- 2026-11-25: step 2 gains a wording for an empty `what`, so no call site can print a blank input (implementer observation on FCF Growth's scope-failure site, step 2).
+- 2026-11-25: allowed files gain the two generator tests and a new `selection.py.fill`, which the new behavior-bundle member needs as `STRATEGY_DEVELOPMENT.md`'s platform-change checklist says (implementer escalation, step 3).
