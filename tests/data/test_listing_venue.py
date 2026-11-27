@@ -166,7 +166,7 @@ def test_every_code_is_reached_by_a_table_and_has_a_glossary_term() -> None:
 def test_the_listing_venue_term_says_the_venue_is_as_reported_and_never_that_it_is_the_primary_listing() -> None:
     term = load_help_bundle(DEFAULT_LOCALE).terms[LISTING_VENUE_FIELD_TERM]
     text = f"{term.definition} {term.body}"
-    assert "as the provider reports it" in text
+    assert "as the data source reports it" in text
     assert "primary" not in text.lower()
     assert "a cryptocurrency is not listed on an exchange" in text.lower()
 
