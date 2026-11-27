@@ -252,12 +252,11 @@ Each line is recorded verbatim, with its approval date, in record A.22 by step 1
 3. Ids unchanged: `git --no-pager diff origin/main...HEAD -- docs/user/GLOSSARY.md | grep -E '^[-+]<a id'` prints
    nothing.
 4. Bundle ids unchanged:
-   `uv run python -c "import json,subprocess;old=json.loads(subprocess.run(['git','show','origin/main:investment_analysis_engine/help/help_bundle.en.json'],capture_output=True,text=True,check=True).stdout);new=json.load(open('investment_analysis_engine/help/help_bundle.en.json',encoding='utf-8'));print(sorted(old['terms'])==sorted(new['terms']))"`
+   `uv run python -c "import json,subprocess;old=json.loads(subprocess.run(['git','show','origin/main:investment_analysis_engine/help/help_bundle.en.json'],capture_output=True,text=True,encoding='utf-8',check=True).stdout);new=json.load(open('investment_analysis_engine/help/help_bundle.en.json',encoding='utf-8'));print(sorted(old['terms'])==sorted(new['terms']))"`
    prints `True`.
 5. The renamed names are served:
    `uv run python -c "import json;t=json.load(open('investment_analysis_engine/help/help_bundle.en.json',encoding='utf-8'))['terms'];print(t['provider-no-data']['name'], '|', t['data-provider']['name'])"`
-   prints `No Data from the Data Source | Data Source` (if the term's name key is not `name`, use the bundle's key and
-   say so in the report).
+   prints `No Data from the Data Source | Data Source`.
 6. `uv run python -m scripts.generate_help --check` passes.
 7. `git --no-pager diff --stat origin/main...HEAD` lists only allowed files.
 
@@ -326,4 +325,4 @@ in engine issue 310.
 
 ## Change log
 
-None yet.
+- 2026-11-27: acceptance check 4 decodes git's output as UTF-8, because the one-liner failed on Windows' cp1252 default; check 5 drops its fallback, since the bundle's key is `name` (implementer report).
