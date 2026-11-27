@@ -71,7 +71,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.19 | [Database errors after the readiness check](#api19--database-errors-after-the-readiness-check) | Complete | 2026-11-21 |
 | API.22 | [Listing venue codes](#api22--listing-venue-codes) | Complete | 2026-11-23 |
 | API.23 | [SEC EDGAR ticker coverage, explained and warned](#api23--sec-edgar-ticker-coverage-explained-and-warned) | Complete | 2026-11-26 |
-| API.24 | [Explain why a result has no number](#api24--explain-why-a-result-has-no-number) | Next | |
+| Issue 305 | [Investor glossary wording](#issue-305--investor-glossary-wording) | Next | |
+| API.24 | [Explain why a result has no number](#api24--explain-why-a-result-has-no-number) | Planned | |
 | API.20 | [Sample workspace](#api20--sample-workspace) | Planned | |
 | API.21 | [The SEC identity through the API](#api21--the-sec-identity-through-the-api) | Planned | |
 
@@ -610,6 +611,20 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Scope:** every strategy's documents and text, the glossary, tests.
 - **Branch:** `feat/api-no-answer-explanations`.
 - **Detail:** ⚠ no slice plan yet.
+
+### Issue 305 — Investor glossary wording
+
+- **Problem:** investor glossary entries speak about this project's machinery ("the engine", "the provider"),
+  the data-source status terms are named after it, and the Nasdaq entry explains how venue text is matched rather
+  than what the tiers mean (engine issue 305).
+- **Decision:** investor entries use "this application" and "data source"; eight status term names change with
+  their ids kept; the Nasdaq tiers are explained qualitatively; the help-content check refuses "engine" and
+  "provider" in investor entries ([A.22](#a22-investor-glossary-wording-2026-11-27), G1 to G10).
+- **Scope:** the user glossary's investor section, one contributor glossary entry, the glossary rules in the
+  project README, `scripts/check_help_content.py` and its tests, the regenerated help bundle.
+- **Branch:** `docs/investor-glossary-wording`.
+- **Detail:** this unit's spec: [specs/issue-305.md](specs/issue-305.md); decisions in
+  [A.22](#a22-investor-glossary-wording-2026-11-27).
 
 ## 4. Out of scope
 
@@ -1212,3 +1227,21 @@ the requested field. Missing preferred-share data is not assumed to be zero." Bu
 | C29 | Example voice, for MSFT: needs "Book value per share is stockholders' equity, less any preferred stock, divided by the common share count."; found "Microsoft's SEC filings do not report a preferred share count."; no number "A company that has no preferred stock often does not report the count at all, but a missing count can also hide preferred stock that should be subtracted. Assuming zero could overstate book value, so the Graham Number is not calculated."; you can "If you know the book value per share, enter it as an override and run the analysis again." Final texts are in API.24's spec. |
 | C30 | The desktop application shows the explanation under the reason after re-vendoring, in its own work. |
 | C31 | Explaining is not enough where the gap is in coverage: engine issue 307 asks for a third verified evidence path for zero preferred shares (for example a filing's balance sheet with no preferred stock line, or a reported preferred stock value of zero), captured on MSFT and similar filers, never assumed from absence. It follows CAN.1. |
+
+### A.22 Investor glossary wording (2026-11-27)
+
+Approved by the project owner on 2026-11-27, as decisions G1 to G10. Closes engine issue 305; the served guides follow
+in engine issue 310.
+
+| # | Decision |
+| :--- | :--- |
+| G1 | Recorded in this plan as sequence row Issue 305 and this record; the unit's spec is `specs/issue-305.md`, its branch `docs/investor-glossary-wording`. This plan owns it because the help bundle and the glossary rules came from API.5 and API.6. |
+| G2 | Scope: every investor entry of the user glossary (names, short definitions and bodies), with the page's title, introduction and group introductions, which are served with them. The command-line section and the contributor glossary change only to receive moved detail. |
+| G3 | "the engine" and "Investment Analysis Engine" become "this application" where the behavior matters to an investor, and are removed where it does not. "a/the provider" and "data provider" become "a/the data source", or the source's name (SEC EDGAR, Yahoo Finance) where one is meant. Code values in backticks, such as `provider_no_data`, stay, since they are API values. "This application" reads correctly in the desktop application and on the command line. |
+| G4 | Term names change, with every id and anchor kept: Data Provider becomes Data Source; Provider Error, Data Source Error; Provider Unreachable, Data Source Unreachable; Provider Rate-Limited, Data Source Limiting Requests; Provider Unexpected Response, Unexpected Answer from a Data Source; Provider Returned No Data, No Data from the Data Source; Provider Healthy, Data Source Answering Normally; Provider Not Checked, Data Source Not Checked. |
+| G5 | The Nasdaq entry explains the three tiers, Global Select Market, Global Market and Capital Market: listing standards (size, financial and liquidity requirements) are strictest for Global Select and the Capital Market serves smaller companies; a company's tier is a rough sign of its size and trading liquidity, not a rating. The tier codes stay in one sentence, because an investor sees them beside the name. No numeric thresholds: they change over time and would need checking against Nasdaq's rules on every edit. |
+| G6 | Detail with no investor relevance moves to the contributor glossary, or is dropped where a contributor document already says it. The unit's spec lists each move. |
+| G7 | `scripts/check_help_content.py` refuses the whole words "engine" and "provider", in any case and with their plurals, in an investor entry's name or text outside code spans and link destinations. It runs in the gate and in the help-bundle generator, like the other glossary rules. No word-level allow list. |
+| G8 | The served guides (Beginner Guide, Finance Math's served sections, the strategy guides) are not in this unit. Engine issue 310 rewords them and extends G7's check to served sections; it is placed right after this unit. |
+| G9 | Messages produced by code that say "the engine's database" or "data provider" are not changed here; API.24 rewords investor messages ([A.21](#a21-explain-why-a-result-has-no-number-2026-11-25), C27). |
+| G10 | No API shape or version change: term ids, anchors and code values stay, only the served names and text change, and the help bundle is regenerated. Help text carries no compatibility guarantee; ids do. The desktop application picks up the text when it next re-vendors; no desktop issue is filed. |
