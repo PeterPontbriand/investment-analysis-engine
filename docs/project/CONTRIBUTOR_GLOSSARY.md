@@ -52,6 +52,12 @@ The historical-price provider boundary used by deterministic analyzers and data 
 
 Investment Analysis Engine supplements it with a separate financial-facts provider and resolution boundary for current quotes, company financial facts, macro observations, and valuation-cache semantics, rather than enlarging BaseDataClient into a generic financial-data interface.
 
+<a id="provider"></a>
+### Provider
+The code that fetches data from one data source, such as SEC EDGAR or Yahoo Finance, behind a data contract. Investor text says data source instead.
+
+A provider that supplies an economic series, such as a future AAA corporate bond yield, keeps in provenance the exact series, its units, its observation and publication dates, and its rating and maturity scope.
+
 <a id="ohlcv"></a>
 ### OHLCV
 Open, high, low, close and volume observations for a market-data interval.
