@@ -196,7 +196,7 @@
           "markdown": "Where a strategy resolves financial facts, each required value follows the documented precedence:\n\n```text\nexplicit override → valid cache → configured data provider → unavailable\n```\n\nResolved financial values retain enough [provenance](help:terms/provenance) to explain their source, measurement basis, relevant dates, and derivation."
         },
         {
-          "heading": "`as_of` and publication timing",
+          "heading": "as_of and publication timing",
           "id": "as_of-and-publication-timing",
           "level": 3,
           "markdown": "A requested [`as_of`](help:terms/as-of-date) date is a hard information boundary.\n\nA company's fiscal year may end on December 31 while the corresponding filing is not published until weeks or months later. A historical analysis dated January 15 must not use a filing that did not become public until February.\n\nThis distinction helps prevent [look-ahead bias](help:terms/look-ahead-bias)."
