@@ -10,6 +10,7 @@ from investment_analysis_engine.help.bundle import load_help_bundle
 from investment_analysis_engine.help.locales import DEFAULT_LOCALE
 from investment_analysis_engine.strategy_wiring import STRATEGIES
 from scripts import generate_help
+from scripts.check_doc_links import strip_markdown_markup
 from scripts.check_help_content import served_document
 from scripts.generate_help import (
     HELP_BUNDLE_FILE,
@@ -145,6 +146,23 @@ def test_a_bundle_has_a_term_for_every_served_entry_and_a_document_for_every_str
     assert {"beginner-guide", "finance-math"} <= set(bundle.documents)
     assert bundle.terms
     assert all(term.definition for term in bundle.terms.values())
+
+
+def test_served_headings_term_names_and_definitions_are_plain_text() -> None:
+    bundle = load_help_bundle(DEFAULT_LOCALE)
+    fields = [
+        *(section.heading for document in bundle.documents.values() for section in document.sections),
+        *(term.name for term in bundle.terms.values()),
+        *(term.definition for term in bundle.terms.values()),
+    ]
+
+    assert fields
+    assert all(strip_markdown_markup(text) == text for text in fields)
+    finance_math = bundle.documents["finance-math"]
+    assert any(
+        section.id == "as_of-and-publication-timing" and section.heading == "as_of and publication timing"
+        for section in finance_math.sections
+    )
 
 
 def test_the_bundle_text_uses_sorted_keys_two_space_indent_and_a_trailing_line_feed() -> None:

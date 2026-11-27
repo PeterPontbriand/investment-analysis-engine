@@ -32,7 +32,7 @@ explicit override → valid cache → configured data provider → unavailable
 
 Resolved financial values retain enough [provenance](GLOSSARY.md#provenance) to explain their source, measurement basis, relevant dates, and derivation.
 
-### `as_of` and publication timing
+### as_of and publication timing
 
 A requested [`as_of`](GLOSSARY.md#as-of-date) date is a hard information boundary.
 
