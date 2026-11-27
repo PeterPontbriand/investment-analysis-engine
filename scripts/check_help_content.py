@@ -12,7 +12,8 @@ An entry is a level-3 heading. For every entry the checker requires:
 - a short definition, the first paragraph after the heading: at most 200 characters and two sentences, and plain text
   (no link, backtick, ``*``, ``_`` or ``[``).
 
-Whether a short definition stands alone is a review rule, not a checked one.
+Whether a short definition stands alone is a review rule, not a checked one. An investor entry's name and text, outside
+code spans and link destinations, never use the whole words engine or provider (any case, with their plurals).
 
 ``<!-- help:exclude -->`` on the line directly after a heading excludes that section, with its subsections, from served
 content. An entry inside an excluded section of the user glossary is a command-line term. The checker refuses a marker
@@ -84,6 +85,9 @@ LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 _INLINE_CODE_RE = re.compile(r"(?<!`)(?P<ticks>`+)(?!`).*?(?<!`)(?P=ticks)(?!`)")
 _DEFINITION_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+INVESTOR_FORBIDDEN_WORDS_RE = re.compile(r"\b(?:engine|provider)s?\b", re.IGNORECASE)
+_LINK_DESTINATION_RE = re.compile(r"(?<!!)(\[[^\]]*\])\([^)]+\)")
+_WORDING_RULE_SEE = "; see docs/project/README.md, Glossary entries"
 
 
 @dataclass(frozen=True)
@@ -111,6 +115,7 @@ class Entry:
     excluded: bool
     short_definition: str | None
     link_targets: tuple[str, ...]
+    text: str
 
 
 @dataclass(frozen=True)
@@ -148,6 +153,24 @@ def _links_in(lines: list[str]) -> tuple[str, ...]:
         searchable = _INLINE_CODE_RE.sub(" ", line)
         targets.extend(match.group(1).strip() for match in LINK_RE.finditer(searchable))
     return tuple(targets)
+
+
+def _body_text(lines: list[str]) -> str:
+    """Return the prose of an entry body: no fenced block, id line, code span or link destination.
+
+    The text of a link stays. The remaining lines are joined by single spaces.
+    """
+    kept: list[str] = []
+    in_fence = False
+    for line in lines:
+        if FENCE_RE.match(line.strip()):
+            in_fence = not in_fence
+            continue
+        if in_fence or ANCHOR_ID_RE.match(line.strip()):
+            continue
+        without_spans = _INLINE_CODE_RE.sub(" ", line)
+        kept.append(_LINK_DESTINATION_RE.sub(r"\1", without_spans).strip())
+    return " ".join(part for part in kept if part)
 
 
 def parse_glossary(lines: list[str]) -> ParsedGlossary:
@@ -198,6 +221,7 @@ def parse_glossary(lines: list[str]) -> ParsedGlossary:
                 excluded=excluded_level is not None,
                 short_definition=_first_paragraph(stripped, body_start, end),
                 link_targets=_links_in(stripped[body_start:end]),
+                text=_body_text(stripped[body_start:end]),
             )
         )
     return ParsedGlossary(tuple(entries), stray)
@@ -266,6 +290,15 @@ def _link_problems(entry: Entry, relative_path: str, command_line_ids: frozenset
     return problems
 
 
+def _wording_problems(entry: Entry) -> list[str]:
+    """Return the internal words an investor entry's name and text use, one problem per distinct word."""
+    reasons: list[str] = []
+    for place, subject in (("name", entry.name), ("text", entry.text)):
+        words = sorted({match.group(0).lower() for match in INVESTOR_FORBIDDEN_WORDS_RE.finditer(subject)})
+        reasons.extend(f"the {place} uses the internal word '{word}'{_WORDING_RULE_SEE}" for word in words)
+    return reasons
+
+
 def _entry_problems(entry: Entry, parsed: ParsedGlossary, first_by_id: dict[str, Entry]) -> list[str]:
     """Return every problem of one entry except its links."""
     reasons = [
@@ -298,6 +331,7 @@ def check_glossary(
         reasons = _entry_problems(entry, parsed, first_by_id)
         if relative_path == USER_GLOSSARY and not entry.excluded:
             reasons.extend(_link_problems(entry, relative_path, command_line_ids, repo_root))
+            reasons.extend(_wording_problems(entry))
         problems.extend(Problem(relative_path, entry.heading_line, entry.name, reason) for reason in reasons)
     return problems
 

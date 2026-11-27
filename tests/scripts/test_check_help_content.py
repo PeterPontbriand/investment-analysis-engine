@@ -170,6 +170,58 @@ class TestInvestorLinks:
         assert check(text) == []
 
 
+def worded(body: str, name: str = "Thing") -> str:
+    """An entry named ``name`` whose second paragraph is ``body``."""
+    return f'<a id="thing"></a>\n### {name}\nShort.\n\n{body}\n'
+
+
+class TestInvestorWording:
+    def test_a_name_with_an_internal_word_is_reported(self) -> None:
+        problems = check(entry("healthy", "Provider Healthy"))
+        assert len(problems) == 1
+        assert "the name uses the internal word 'provider'" in problems[0]
+        assert problems[0].endswith("; see docs/project/README.md, Glossary entries")
+
+    def test_text_with_an_internal_word_is_reported(self) -> None:
+        problems = check(worded("the engine reads it"))
+        assert len(problems) == 1
+        assert "the text uses the internal word 'engine'" in problems[0]
+
+    def test_plurals_and_capitals_are_reported(self) -> None:
+        assert any("'engines'" in text for text in check(worded("Engines differ")))
+        assert any("'providers'" in text for text in check(worded("PROVIDERS differ")))
+
+    def test_each_distinct_word_is_reported_once(self) -> None:
+        assert len(check(worded("engine, Engine and provider, provider"))) == 2
+
+    def test_a_code_span_passes(self) -> None:
+        assert check(worded("The code `provider_error` is kept.")) == []
+
+    def test_a_link_destination_passes(self) -> None:
+        assert check(worded("See [unreachable](#provider-unreachable).")) == []
+
+    def test_a_link_text_is_checked(self) -> None:
+        problems = check(worded("See [provider error](#status-provider-error)."))
+        assert len(problems) == 1
+        assert "the text uses the internal word 'provider'" in problems[0]
+
+    def test_an_id_line_inside_a_body_passes(self) -> None:
+        assert check(worded('More.\n\n<a id="provider-no-data"></a>')) == []
+
+    def test_a_fenced_block_passes(self) -> None:
+        assert check(worded("```\nthe engine\n```")) == []
+
+    def test_an_excluded_section_passes(self) -> None:
+        text = f"## CLI\n{EXCLUDE_MARKER}\n\n" + worded("the engine reads it", "The Provider")
+        assert check(text) == []
+
+    def test_the_contributor_glossary_passes(self) -> None:
+        assert check(worded("the provider and the engine", "Provider"), path=CONTRIBUTOR_GLOSSARY) == []
+
+    def test_only_whole_words_are_reported(self) -> None:
+        assert check(worded("A providential engineering feat.")) == []
+
+
 class TestRepository:
     def test_the_repository_glossaries_pass(self) -> None:
         assert check_repository(REPOSITORY_ROOT) == []

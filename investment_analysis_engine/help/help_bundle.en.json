@@ -1108,7 +1108,7 @@
   ],
   "terms": {
     "aaa-corporate-bond-yield": {
-      "body": "No live series is currently integrated, so the strategy takes a yield you supply. A future provider integration must retain exact series, units, observation/publication date, and rating/maturity scope.",
+      "body": "No live series is connected yet, so the strategy takes a yield you supply.",
       "definition": "The yield on a documented series of highest-rated corporate debt, used by the Graham Growth Value strategy.",
       "group": "graham-growth-value-strategy-terms",
       "name": "AAA Corporate Bond Yield"
@@ -1132,7 +1132,7 @@
       "name": "Analysis Limitation"
     },
     "analysis-run": {
-      "body": "A run is saved when you ask for it, and a refresh saves one for every entry it runs. Showing a saved Analysis Run always replays its own captured evidence; it never re-fetches data or recalculates, so it keeps showing the same result even if a data provider or your configuration changes afterward.",
+      "body": "A run is saved when you ask for it, and a refresh saves one for every entry it runs. Showing a saved Analysis Run always replays its own captured evidence; it never re-fetches data or recalculates, so it keeps showing the same result even if a data source or your configuration changes afterward.",
       "definition": "One saved record of a single analysis attempt: the method, the ticker, the exact configuration used and the result, or the fact that no result could be produced.",
       "group": "local-research-workspace",
       "name": "Analysis Run"
@@ -1145,7 +1145,7 @@
     },
     "analysis-warning": {
       "body": "Warnings depend on the run: two runs of the same strategy can carry different warnings, or none.\n\nRelated terms: [analysis limitation](help:terms/analysis-limitation).",
-      "definition": "A note in one analysis result about something in that run that may affect how far you can rely on it, such as a value you entered instead of provider data, or a fallback the method had to use.",
+      "definition": "A note in one analysis result about something in that run that may affect how far you can rely on it, such as a value you entered instead of a data source's value, or a fallback the method had to use.",
       "group": "analysis-strategies-and-results",
       "name": "Analysis Warning"
     },
@@ -1156,13 +1156,13 @@
       "name": "Analyst Consensus Estimate"
     },
     "anchor-filing": {
-      "body": "The engine reads the annual reports filed by the as-of date from the newest. The first original report (not an amendment) fixes the fiscal year, and the anchor filing is the newest filing for that year, so an amendment of that year can be the anchor and an amendment of an older year never is. The anchor filing is **stale** when the next annual report was overdue at the as-of date and none had been filed: the as-of date is after the latest date it was due, counted from the fiscal year-end and never from the filing date. The engine never warns early. See [fiscal year](help:terms/fiscal-year), [as-of date](help:terms/as-of-date) and [stale anchor](help:terms/reason-stale-anchor).",
+      "body": "The analysis reads the annual reports filed by the as-of date, starting from the newest. The first original report (not an amendment) fixes the fiscal year, and the anchor filing is the newest filing for that year, so an amendment of that year can be the anchor and an amendment of an older year never is. The anchor filing is **stale** when the next annual report was overdue at the as-of date and none had been filed: the as-of date is after the latest date it was due, counted from the fiscal year-end and never from the filing date. No warning is given early. See [fiscal year](help:terms/fiscal-year), [as-of date](help:terms/as-of-date) and [stale anchor](help:terms/reason-stale-anchor).",
       "definition": "The annual report an analysis rests on: the newest annual report the company had filed by the as-of date, for its newest completed fiscal year. Its fiscal year-end is the date every input is taken at.",
       "group": "company-financial-measures",
       "name": "Anchor Filing"
     },
     "applicability-status": {
-      "body": "Investment Analysis Engine uses machine-readable statuses including `ok`, `not_applicable`, `input_unavailable`, `invalid_input`, and `provider_error`.",
+      "body": "Results carry machine-readable statuses, including `ok`, `not_applicable`, `input_unavailable`, `invalid_input`, and `provider_error`.",
       "definition": "Whether a method can be meaningfully calculated for a security, instead of forcing every security into a numeric result.",
       "group": "analysis-strategies-and-results",
       "name": "Applicability Status"
@@ -1216,13 +1216,13 @@
       "name": "Book Value"
     },
     "bvps": {
-      "body": "When using SEC EDGAR data, Investment Analysis Engine derives it from eligible fiscal-year-end balance-sheet components rather than claiming a direct SEC BVPS field.",
+      "body": "When it comes from SEC EDGAR data, it is derived from eligible fiscal-year-end balance-sheet components rather than read from a single reported figure.",
       "definition": "Book value attributable to common shareholders divided by period-end common shares outstanding. It is an accounting measure of net assets per share, not a market price.",
       "group": "company-financial-measures",
       "name": "BVPS (Book Value Per Share)"
     },
     "cache": {
-      "body": "Otherwise the engine asks an allowed provider or reports the input unavailable. Caching is automatic and distinct from saving an [Analysis Run](help:terms/analysis-run), which is optional and durable.\n\nRelated terms: [cache states](help:terms/cache-states).",
+      "body": "Otherwise the value is fetched from an allowed data source, or the input is reported unavailable. Caching is automatic and distinct from saving an [Analysis Run](help:terms/analysis-run), which is optional and durable.\n\nRelated terms: [cache states](help:terms/cache-states).",
       "definition": "A stored copy of previously retrieved data. A stored value is reused only if it satisfies the requested as-of date and the freshness policy.",
       "group": "market-data-and-timing",
       "name": "Cache"
@@ -1240,13 +1240,13 @@
       "name": "CAGR (Compound Annual Growth Rate)"
     },
     "capex-sign-convention": {
-      "body": "The engine records the convention so that free cash flow subtracts spending once, whichever sign the provider used. When the convention is missing the figure is ambiguous and is not used. See [capital expenditures](help:terms/capital-expenditures) and [free cash flow](help:terms/free-cash-flow).",
-      "definition": "How a data provider writes capital expenditures: as a positive amount of spending or as a negative cash outflow.",
+      "body": "The convention is recorded so that free cash flow subtracts spending once, whichever sign the data source used. When the convention is missing the figure is ambiguous and is not used. See [capital expenditures](help:terms/capital-expenditures) and [free cash flow](help:terms/free-cash-flow).",
+      "definition": "How a data source writes capital expenditures: as a positive amount of spending or as a negative cash outflow.",
       "group": "market-data-and-timing",
       "name": "Capital Expenditure Sign"
     },
     "capital-expenditures": {
-      "body": "Provider sign conventions differ, so Investment Analysis Engine normalizes CapEx to a positive expenditure amount and retains the transformation in provenance.\n\nFrom SEC filings the engine uses purchases of property and equipment, or, for a filer that reports only the broader purchases of productive assets, that concept. It uses one of the two for a company, never both. The broader concept includes intangible assets such as software, and a result that uses it says so.",
+      "body": "Data sources write CapEx with different signs, so it is converted to a positive amount of spending and the conversion is kept in provenance.\n\nFrom SEC filings the analysis uses purchases of property and equipment, or, for a filer that reports only the broader purchases of productive assets, that concept. It uses one of the two for a company, never both. The broader concept includes intangible assets such as software, and a result that uses it says so.",
       "definition": "Cash spent to acquire or improve long-lived productive assets.",
       "group": "company-financial-measures",
       "name": "Capital Expenditures (CapEx)"
@@ -1306,14 +1306,14 @@
       "name": "No New Crossover"
     },
     "current-aaa-yield": {
-      "body": "It is a value you supply and is identified as such; a future provider-resolved value would additionally need series provenance and observation/publication dates.",
+      "body": "It is a value you supply and is identified as such.",
       "definition": "The AAA corporate-bond yield used in the denominator of the growth-value formula. It must be strictly positive.",
       "group": "graham-growth-value-strategy-terms",
       "name": "Current AAA Yield"
     },
     "current-quote": {
-      "body": "For an analysis with an explicit historical [as-of date](help:terms/as-of-date), a quote is usable only if the selected provider can establish an eligible observation at or before that boundary. A current-only quote adapter therefore returns unavailable for historical financial-fact requests rather than substituting today's price.\n\nThe report calls this the latest available quote. Retrieval time records when the provider response was obtained; market observation time records when the market price was observed, if actually supplied. A five-minute response-reuse bound does not prove that the underlying trade is five minutes old. The current Yahoo adapter retains retrieval time and explicitly reports unknown market observation time.",
-      "definition": "A market price taken as of now, used for comparison with a valuation. For a historical as-of date, it is usable only if the provider can establish a price at or before that date.",
+      "body": "For an analysis with an explicit historical [as-of date](help:terms/as-of-date), a quote is usable only if the selected data source can establish an eligible observation at or before that boundary. A source that gives only current quotes therefore gives no quote for a historical as-of date, and today's price is never substituted.\n\nThe report calls this the latest available quote. Retrieval time records when the data source's answer was obtained; market observation time records when the market price was observed, if actually supplied. A five-minute response-reuse bound does not prove that the underlying trade is five minutes old. Quotes from Yahoo Finance keep their retrieval time and report the market observation time as unknown.",
+      "definition": "A market price taken as of now, used for comparison with a valuation. For a historical as-of date, it is usable only if the data source can establish a price at or before that date.",
       "group": "market-data-and-timing",
       "name": "Current Quote / Current Market Price"
     },
@@ -1327,7 +1327,7 @@
       "body": "",
       "definition": "An external or local source of market prices, company financial facts or economic-series observations. Examples are a quote service, a financial-statements service and a macroeconomic data service.",
       "group": "market-data-and-timing",
-      "name": "Data Provider"
+      "name": "Data Source"
     },
     "data-vintage": {
       "body": "A reproducible historical analysis may therefore need the original vintage rather than today's revised value.",
@@ -1378,8 +1378,8 @@
       "name": "Entry"
     },
     "entry-warning-ticker-not-checked": {
-      "body": "The check asks the data providers about each new ticker once. After the providers could not be reached, asked the engine to wait, or the database was not available, the remaining tickers are not asked. Adding the entry again is not needed; a refresh shows whether the ticker works. See [provider unreachable](help:terms/provider-unreachable) and [provider rate-limited](help:terms/provider-rate-limited).",
-      "definition": "When an entry was added, the ticker could not be checked, because a data provider or the engine's database was not available. The entry was still added.",
+      "body": "The check asks the data sources about each new ticker once. After the data sources could not be reached, asked this application to wait, or the database was not available, the remaining tickers are not asked. Adding the entry again is not needed; a refresh shows whether the ticker works. See [data source unreachable](help:terms/provider-unreachable) and [data source limiting requests](help:terms/provider-rate-limited).",
+      "definition": "When an entry was added, the ticker could not be checked, because a data source or this application's database was not available. The entry was still added.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Ticker Not Checked"
     },
@@ -1390,8 +1390,8 @@
       "name": "Ticker Not in SEC EDGAR's List"
     },
     "entry-warning-ticker-not-recognized": {
-      "body": "A ticker that is mistyped, or no longer trades, is unavailable on every refresh. Check the ticker, and remove the entry if it is wrong. A provider sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](help:terms/ticker) and [provider returned no data](help:terms/provider-no-data).",
-      "definition": "When an entry was added, the data providers answered and none of them identified the ticker. The entry was still added.",
+      "body": "A ticker that is mistyped, or no longer trades, is unavailable on every refresh. Check the ticker, and remove the entry if it is wrong. A data source sometimes answers nothing for a valid ticker, which is why the entry is kept. See [ticker](help:terms/ticker) and [no data from the data source](help:terms/provider-no-data).",
+      "definition": "When an entry was added, the data sources answered and none of them identified the ticker. The entry was still added.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Ticker Not Recognized"
     },
@@ -1420,37 +1420,37 @@
       "name": "F-Score"
     },
     "failure-category-error": {
-      "body": "The other category is [input unavailable](help:terms/status-input-unavailable). A failure the engine cannot place is treated as this category.",
+      "body": "The other category is [input unavailable](help:terms/status-input-unavailable). A failure that fits neither category is treated as this one.",
       "definition": "The category of a failure that is not about unusable data. The failure code says what went wrong.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Error Category"
     },
     "failure-configuration-error": {
-      "body": "The message is written for the person who runs the engine.",
-      "definition": "A setting of the engine prevents the analysis. The message says what to change.",
+      "body": "The message is written for the person who set up this application.",
+      "definition": "A setting of this application prevents the analysis. The message says what to change.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Configuration Error"
     },
     "failure-database": {
-      "body": "Every code that begins with database is explained here, and the message shown says what to do:\n\n- upgrade required: the database comes from an older version and needs a one-time upgrade, which keeps its data;\n- incompatible schema: the database's structure does not match this version of the engine;\n- busy: the database could not be accessed within the wait, so close other operations and try again;\n- permission denied: the engine may not use the file or its folder;\n- invalid file: the file is not a readable database, or it is corrupt;\n- input or output error: the storage could not be accessed, so check the path, the space and the disk;\n- resources unavailable: the engine's own migration resources are missing or inconsistent;\n- initialization failed: setting up a new database did not complete;\n- migration failed: an upgrade did not complete and was rolled back.",
+      "body": "Every code that begins with database is explained here, and the message shown says what to do:\n\n- upgrade required: the database comes from an older version and needs a one-time upgrade, which keeps its data;\n- incompatible schema: the database's structure does not match this version of the application;\n- busy: the database could not be accessed within the wait, so close other operations and try again;\n- permission denied: this application may not use the file or its folder;\n- invalid file: the file is not a readable database, or it is corrupt;\n- input or output error: the storage could not be accessed, so check the path, the space and the disk;\n- resources unavailable: the files this application uses to set up or upgrade a database are missing or inconsistent;\n- initialization failed: setting up a new database did not complete;\n- migration failed: an upgrade did not complete and was rolled back.",
       "definition": "The local database could not be used. The code says whether it needs an upgrade, is busy, cannot be read or written, or could not be set up.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Database Failure"
     },
     "failure-execution-error": {
       "body": "It is the code used for any failure that no other code describes.",
-      "definition": "The analysis failed in a way the engine did not anticipate. The details are in the engine's log, not in the message shown.",
+      "definition": "The analysis failed in a way this application did not anticipate. The details are in this application's log, not in the message shown.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Unexpected Failure"
     },
     "failure-historical-quality": {
-      "body": "The check names what was wrong with the data. It is not a provider outage: the provider answered, and the answer was rejected. Its category is [input unavailable](help:terms/status-input-unavailable).",
-      "definition": "The price history failed the engine's data-quality checks, so it was not used.",
+      "body": "The check names what was wrong with the data. It is not a data source outage: the data source answered, and the answer was rejected. Its category is [input unavailable](help:terms/status-input-unavailable).",
+      "definition": "The price history failed the data-quality checks, so it was not used.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Historical Data Quality Failure"
     },
     "failure-instrument-profile-not-found": {
-      "body": "A profile is stored the first time the ticker is analyzed or looked up. A profile kept by an earlier version of the engine counts as absent until then. See [instrument profile](help:terms/instrument-profile).",
+      "body": "A profile is stored the first time the ticker is analyzed or looked up. A profile kept by an earlier version of the application counts as absent until then. See [instrument profile](help:terms/instrument-profile).",
       "definition": "No instrument profile is stored for the ticker, so there are no details to show.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Instrument Profile Not Found"
@@ -1499,13 +1499,13 @@
     },
     "failure-stored-data-unreadable": {
       "body": "A saved run may be malformed or may not match its summary. A watchlist entry's saved selection may be unreadable. A saved run may also have no replay in this version.",
-      "definition": "A saved run or watchlist entry cannot be read by this version of the engine, so it cannot be shown or replayed.",
+      "definition": "A saved run or watchlist entry cannot be read by this version of the application, so it cannot be shown or replayed.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Stored Data Unreadable"
     },
     "failure-unsupported-run-version": {
       "body": "The run stays in the database and is refused by its version; it is never read as if it were current.",
-      "definition": "A saved run was stored under an older version of its shape or method than this version of the engine reads.",
+      "definition": "A saved run was stored under an older version of its shape or method than this version of the application reads.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Unsupported Run Version"
     },
@@ -1528,7 +1528,7 @@
       "name": "FCF Growth Fail"
     },
     "fcf-growth-indeterminate": {
-      "body": "It is not a failed screen: the engine cannot make the classification from the evidence it may use. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
+      "body": "It is not a failed screen: the classification cannot be made from the evidence the analysis may use. See [FCF Classification](help:terms/fcf-classification) for the whole set of values.",
       "definition": "The screen cannot be decided, because a required growth rate could not be calculated or is not meaningful, or the hard gate lacks complete consensus evidence.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "FCF Growth Indeterminate"
@@ -1594,7 +1594,7 @@
       "name": "Forward Evidence Status"
     },
     "forward-evidence-unavailable": {
-      "body": "The engine has no approved source of consensus estimates yet, so this is the usual value. See [Forward Evidence Status](help:terms/forward-evidence-status) for the whole set of values.",
+      "body": "No source of consensus estimates is approved yet, so this is the usual value. See [Forward Evidence Status](help:terms/forward-evidence-status) for the whole set of values.",
       "definition": "No usable consensus estimate was found, so the forward evidence is empty.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Unavailable Forward Evidence"
@@ -1624,7 +1624,7 @@
       "name": "Hard-Gate Policy"
     },
     "free-cash-flow": {
-      "body": "In the Free Cash Flow & Earnings Growth strategy, it is completed annual operating cash flow minus normalized capital expenditures.\n\nFCF is a non-GAAP analytical measure, so another provider may use a different definition.",
+      "body": "In the Free Cash Flow & Earnings Growth strategy, it is completed annual operating cash flow minus normalized capital expenditures.\n\nFCF is a non-GAAP analytical measure, so another data source may use a different definition.",
       "definition": "The cash a company's operations generate in a year, minus what it spends on long-lived assets such as equipment.",
       "group": "company-financial-measures",
       "name": "Free Cash Flow (FCF)"
@@ -1660,7 +1660,7 @@
       "name": "Gross Margin"
     },
     "growth-estimation-policy": {
-      "body": "An LLM, data provider, or silent default must not invent growth.",
+      "body": "A language model, a data source or a silent default never invents growth.",
       "definition": "The explicit rule that supplies the expected growth rate. The application supports only a growth assumption that you provide.",
       "group": "graham-growth-value-strategy-terms",
       "name": "Growth-Estimation Policy"
@@ -1696,7 +1696,7 @@
       "name": "Only Free Cash Flow Growing"
     },
     "growth-trend-insufficient": {
-      "body": "Without both rates the engine cannot say which of the two grew. See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
+      "body": "Without both rates the analysis cannot say which of the two grew. See [Growth Trend](help:terms/growth-trend) for the whole set of values.",
       "definition": "At least one of the two growth rates, of free cash flow and of diluted EPS, could not be calculated or is not meaningful, so the trend cannot be described.",
       "group": "free-cash-flow--earnings-growth-strategy-terms",
       "name": "Insufficient Growth Evidence"
@@ -1792,13 +1792,13 @@
       "name": "ETF"
     },
     "instrument-profile": {
-      "body": "The engine keeps a durable copy of an instrument profile and can show it without contacting a provider. A stored profile expires after a configured freshness window and is looked up again live when it does, and a lookup can also be asked for directly. A profile includes the [quote currency](help:terms/quote-currency) of the listing. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.",
+      "body": "This application keeps a durable copy of an instrument profile and can show it without contacting a data source. A stored profile expires after a configured freshness window and is looked up again live when it does, and a lookup can also be asked for directly. A profile includes the [quote currency](help:terms/quote-currency) of the listing. If a refresh finds a genuinely different entity behind the same ticker — a **ticker reuse**, such as a delisting followed by a new listing under the same symbol — the prior profile is retired rather than overwritten, and every Analysis Run that already used it keeps showing that original entity: reopening an old result never relabels it using the ticker's current meaning.",
       "definition": "A security's identity plus a normalized kind of instrument, such as equity or ETF, each with its own provenance. It is kept so that repeated analyses do not look up details that rarely change.",
       "group": "market-data-and-timing",
       "name": "Instrument Profile"
     },
     "intrinsic-value": {
-      "body": "Different models can produce different intrinsic-value estimates. Investment Analysis Engine avoids using this term without qualification for the Graham Number.",
+      "body": "Different models can produce different intrinsic-value estimates. The Graham Number is never called an intrinsic value without qualification.",
       "definition": "An estimate of what an investment is economically worth under a stated model and assumptions, rather than its market price.",
       "group": "valuation-and-price-comparison",
       "name": "Intrinsic Value"
@@ -1810,13 +1810,13 @@
       "name": "Invested Capital"
     },
     "listing-venue": {
-      "body": "The engine shows the provider's own wording and, when it recognizes that wording, the name of the market it stands for. A venue the engine does not recognize is shown in the provider's words alone, and this entry explains it. The venue is as the provider reports it, and a provider can report a different venue from another provider for the same ticker. A cryptocurrency is not listed on an exchange, and a provider's venue text for one may name where its price comes from rather than an exchange. See [instrument profile](help:terms/instrument-profile) and [security identity](help:terms/security-identity).\n\nThe markets the engine recognizes are explained in [Nasdaq Stock Market](help:terms/listing-venue-nasdaq), [New York Stock Exchange](help:terms/listing-venue-nyse), [NYSE Group Exchange](help:terms/listing-venue-nyse-group), [NYSE Arca](help:terms/listing-venue-nyse-arca), [NYSE American](help:terms/listing-venue-nyse-american), [Cboe U.S. Equities Exchange](help:terms/listing-venue-cboe), [Cboe BZX Exchange](help:terms/listing-venue-cboe-bzx), [Texas Stock Exchange](help:terms/listing-venue-txse), [Over-the-Counter Market](help:terms/listing-venue-otc), [Toronto Stock Exchange](help:terms/listing-venue-tsx), [TSX Venture Exchange](help:terms/listing-venue-tsxv), [Cboe Canada](help:terms/listing-venue-cboe-canada) and [Canadian Securities Exchange](help:terms/listing-venue-cse).",
-      "definition": "The market where an instrument's shares or units are listed for trading, written as the data provider reports it.",
+      "body": "You see the data source's own wording and, when this application recognizes that wording, the name of the market it stands for. A venue it does not recognize is shown in the data source's words alone, and this entry explains it. The venue is as the data source reports it, and two data sources can report different venues for the same ticker. A cryptocurrency is not listed on an exchange, and a data source's venue text for one may name where its price comes from rather than an exchange. See [instrument profile](help:terms/instrument-profile) and [security identity](help:terms/security-identity).\n\nThe markets this application recognizes are explained in [Nasdaq Stock Market](help:terms/listing-venue-nasdaq), [New York Stock Exchange](help:terms/listing-venue-nyse), [NYSE Group Exchange](help:terms/listing-venue-nyse-group), [NYSE Arca](help:terms/listing-venue-nyse-arca), [NYSE American](help:terms/listing-venue-nyse-american), [Cboe U.S. Equities Exchange](help:terms/listing-venue-cboe), [Cboe BZX Exchange](help:terms/listing-venue-cboe-bzx), [Texas Stock Exchange](help:terms/listing-venue-txse), [Over-the-Counter Market](help:terms/listing-venue-otc), [Toronto Stock Exchange](help:terms/listing-venue-tsx), [TSX Venture Exchange](help:terms/listing-venue-tsxv), [Cboe Canada](help:terms/listing-venue-cboe-canada) and [Canadian Securities Exchange](help:terms/listing-venue-cse).",
+      "definition": "The market where an instrument's shares or units are listed for trading, written as the data source reports it.",
       "group": "market-data-and-timing",
       "name": "Listing Venue"
     },
     "listing-venue-cboe": {
-      "body": "The Cboe group runs four such exchanges: Cboe BZX (market identifier code BATS), Cboe BYX (BATY), Cboe EDGX (EDGX) and Cboe EDGA (EDGA). The source does not say which of them the security is listed on, so the engine does not either. Many bitcoin and volatility funds are listed there. See [Cboe BZX Exchange](help:terms/listing-venue-cboe-bzx) and [listing venue](help:terms/listing-venue).",
+      "body": "The Cboe group runs four such exchanges: Cboe BZX (market identifier code BATS), Cboe BYX (BATY), Cboe EDGX (EDGX) and Cboe EDGA (EDGA). The data source does not say which of them the security is listed on, so only the group is shown. Many bitcoin and volatility funds are listed there. See [Cboe BZX Exchange](help:terms/listing-venue-cboe-bzx) and [listing venue](help:terms/listing-venue).",
       "definition": "One of the Cboe group's national securities exchanges for stocks in the United States, which the data source names as Cboe without saying which one.",
       "group": "market-data-and-timing",
       "name": "Cboe U.S. Equities Exchange"
@@ -1840,7 +1840,7 @@
       "name": "Canadian Securities Exchange"
     },
     "listing-venue-nasdaq": {
-      "body": "Nasdaq lists companies in three tiers, the Global Select Market, the Global Market and the Capital Market, which a provider may write as NasdaqGS, NasdaqGM and NasdaqCM. The engine shows all three as the Nasdaq Stock Market and keeps the provider's wording beside it. See [listing venue](help:terms/listing-venue).",
+      "body": "Nasdaq lists companies in three tiers: the Global Select Market, the Global Market and the Capital Market. Its listing standards (size, financial and liquidity requirements) are strictest for the Global Select Market, and the Capital Market serves smaller companies. A company's tier is a rough sign of its size and trading liquidity, not a rating. Data sources write the tiers as NasdaqGS, NasdaqGM and NasdaqCM. See [listing venue](help:terms/listing-venue).",
       "definition": "The Nasdaq Stock Market, a national securities exchange in the United States, with the market identifier code XNAS.",
       "group": "market-data-and-timing",
       "name": "Nasdaq Stock Market"
@@ -1864,7 +1864,7 @@
       "name": "NYSE Arca"
     },
     "listing-venue-nyse-group": {
-      "body": "The group runs the New York Stock Exchange, NYSE American and NYSE Arca, all national securities exchanges in the United States. The source does not say which of them the security is listed on, so the engine does not either. See [New York Stock Exchange](help:terms/listing-venue-nyse), [NYSE American](help:terms/listing-venue-nyse-american), [NYSE Arca](help:terms/listing-venue-nyse-arca) and [listing venue](help:terms/listing-venue).",
+      "body": "The group runs the New York Stock Exchange, NYSE American and NYSE Arca, all national securities exchanges in the United States. The data source does not say which of them the security is listed on, so only the group is shown. See [New York Stock Exchange](help:terms/listing-venue-nyse), [NYSE American](help:terms/listing-venue-nyse-american), [NYSE Arca](help:terms/listing-venue-nyse-arca) and [listing venue](help:terms/listing-venue).",
       "definition": "One of the exchanges of the NYSE group, which the data source names as NYSE without saying which one.",
       "group": "market-data-and-timing",
       "name": "NYSE Group Exchange"
@@ -1978,20 +1978,20 @@
       "name": "Completed"
     },
     "outcome-failed": {
-      "body": "It is the outcome of a run whose calculation status is [invalid input](help:terms/status-invalid-input) or [provider error](help:terms/status-provider-error). The run's failure code says which. A provider that answered with nothing does not make a run failed; see [provider returned no data](help:terms/provider-no-data).",
-      "definition": "A run outcome meaning the analysis stopped because an input was invalid or a data provider failed. No result was produced.",
+      "body": "It is the outcome of a run whose calculation status is [invalid input](help:terms/status-invalid-input) or [data source error](help:terms/status-provider-error). The run's failure code says which. A data source that answered with nothing does not make a run failed; see [no data from the data source](help:terms/provider-no-data).",
+      "definition": "A run outcome meaning the analysis stopped because an input was invalid or a data source failed. No result was produced.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Failed"
     },
     "outcome-unavailable": {
-      "body": "It is the outcome of a run whose calculation status is [input unavailable](help:terms/status-input-unavailable), which includes a run whose data provider answered and had nothing for a required input, such as an unknown ticker. The run is saved so that it can be revisited; nothing is estimated or replaced by zero.",
+      "body": "It is the outcome of a run whose calculation status is [input unavailable](help:terms/status-input-unavailable), which includes a run whose data source answered and had nothing for a required input, such as an unknown ticker. The run is saved so that it can be revisited; nothing is estimated or replaced by zero.",
       "definition": "A run outcome meaning the analysis could not be calculated because an input it needs was not available.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Unavailable"
     },
     "override": {
       "body": "",
-      "definition": "A value you supply yourself instead of accepting the value found from the cache or a provider. An override takes precedence over every other source and is identified in provenance.",
+      "definition": "A value you supply yourself instead of accepting the value found from the cache or a data source. An override takes precedence over every other source and is identified in provenance.",
       "group": "market-data-and-timing",
       "name": "Override"
     },
@@ -2026,7 +2026,7 @@
       "name": "Piotroski F-Score Strategy"
     },
     "price-basis": {
-      "body": "The basis shows which price series the averages and the RSI were calculated from. Providers revise adjusted prices after the fact, so an adjusted close can differ from the price quoted on that day.",
+      "body": "The basis shows which price series the averages and the RSI were calculated from. Data sources revise adjusted prices after the fact, so an adjusted close can differ from the price quoted on that day.",
       "definition": "Which close the current price is: the latest adjusted historical close, or the latest historical close without the adjustment.",
       "group": "momentum-strategy-terms",
       "name": "Price Basis"
@@ -2056,50 +2056,50 @@
       "name": "Price Relationship"
     },
     "provenance": {
-      "body": "Provenance can include source kind, provider, source field, observation period, retrieval time, calculation steps, and whether the value was overridden.",
+      "body": "Provenance can include source kind, data source, source field, observation period, retrieval time, calculation steps, and whether the value was overridden.",
       "definition": "The record of where a value came from and how it was transformed.",
       "group": "market-data-and-timing",
       "name": "Provenance"
     },
     "provider-healthy": {
-      "body": "The check is made after a failure to tell a provider problem from a problem with one ticker. See [data provider](help:terms/data-provider).",
-      "definition": "A test request to the data provider was answered normally.",
+      "body": "The check is made after a failure to tell a problem with the data source from a problem with one ticker. See [data source](help:terms/data-provider).",
+      "definition": "A test request to the data source was answered normally.",
       "group": "outcomes-statuses-and-reasons",
-      "name": "Provider Healthy"
+      "name": "Data Source Answering Normally"
     },
     "provider-no-data": {
-      "body": "Unlike an unreachable provider, the provider worked; it holds no data for what was asked. A run it stops is [unavailable](help:terms/outcome-unavailable), not failed, with the reason code `provider_no_data`, and the provider check still runs, so a mistyped ticker can be told from a provider that is down. A ticker that is not in SEC EDGAR's ticker list is the common case for an analysis that reads SEC filings; see [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
-      "definition": "The data provider answered correctly and has nothing for this request.",
+      "body": "Unlike an unreachable data source, the data source worked; it holds no data for what was asked. A run it stops is [unavailable](help:terms/outcome-unavailable), not failed, with the reason code `provider_no_data`, and the data source is still checked, so a mistyped ticker can be told from a data source that is down. A ticker that is not in SEC EDGAR's ticker list is the common case for an analysis that reads SEC filings; see [SEC EDGAR ticker list](help:terms/sec-ticker-list).",
+      "definition": "The data source answered correctly and has nothing for this request.",
       "group": "outcomes-statuses-and-reasons",
-      "name": "Provider Returned No Data"
+      "name": "No Data from the Data Source"
     },
     "provider-not-checked": {
-      "body": "A provider is checked only when a failure suggests a problem with it.",
-      "definition": "No test request was made to the data provider, so nothing is known about its condition.",
+      "body": "A data source is checked only when a failure suggests a problem with it.",
+      "definition": "No test request was made to the data source, so nothing is known about its condition.",
       "group": "outcomes-statuses-and-reasons",
-      "name": "Provider Not Checked"
+      "name": "Data Source Not Checked"
     },
     "provider-rate-limited": {
       "body": "The analysis can be tried again after a pause.",
-      "definition": "The data provider refused the request because it is limiting how many requests it accepts.",
+      "definition": "The data source refused the request because it is limiting how many requests it accepts.",
       "group": "outcomes-statuses-and-reasons",
-      "name": "Provider Rate-Limited"
+      "name": "Data Source Limiting Requests"
     },
     "provider-unexpected-response": {
-      "body": "The provider may have changed its format. Nothing in the answer is used.",
-      "definition": "The data provider answered, but not in a form the engine reads, so the answer could not be used.",
+      "body": "The data source may have changed its format. Nothing in the answer is used.",
+      "definition": "The data source answered, but not in a form this application reads, so the answer could not be used.",
       "group": "outcomes-statuses-and-reasons",
-      "name": "Provider Unexpected Response"
+      "name": "Unexpected Answer from a Data Source"
     },
     "provider-unreachable": {
       "body": "It says nothing about whether the data exists. The same request can succeed later.",
-      "definition": "The data provider did not serve the request, because of a connection problem, a timeout, a block or a server error.",
+      "definition": "The data source did not serve the request, because of a connection problem, a timeout, a block or a server error.",
       "group": "outcomes-statuses-and-reasons",
-      "name": "Provider Unreachable"
+      "name": "Data Source Unreachable"
     },
     "quote-currency": {
-      "body": "It can differ from the reporting currency of the company's statements. A provider may report a smaller unit of a currency, such as pence. See [reporting currency](help:terms/reporting-currency) and [instrument profile](help:terms/instrument-profile).",
-      "definition": "The currency a listing's price is quoted in, as the data provider reports it, such as USD.",
+      "body": "It can differ from the reporting currency of the company's statements. A data source may report a smaller unit of a currency, such as pence. See [reporting currency](help:terms/reporting-currency) and [instrument profile](help:terms/instrument-profile).",
+      "definition": "The currency a listing's price is quoted in, as the data source reports it, such as USD.",
       "group": "market-data-and-timing",
       "name": "Quote Currency"
     },
@@ -2147,7 +2147,7 @@
     },
     "reason-ambiguous-fact": {
       "body": "Choosing one would be a guess. The value stays unavailable.",
-      "definition": "Facts conflict, or a fact cannot be identified reliably, so the engine chooses none of them.",
+      "definition": "Facts conflict, or a fact cannot be identified reliably, so none of them is used.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Ambiguous Fact"
     },
@@ -2158,7 +2158,7 @@
       "name": "Debt Not Visible"
     },
     "reason-earlier-basis": {
-      "body": "The restated years and the older years are on different bases, so the engine never combines them and does no split arithmetic to convert one to the other. It uses the newest run of years that share one basis and names the years it left out. A year whose filings, filed together, give different values is left out too, with the reason [ambiguous fact](help:terms/reason-ambiguous-fact), and so is every year older than it. When a requested history needs those years, the result is indeterminate with this reason. See [stock split adjustment](help:terms/stock-split-adjustment) and [fiscal year](help:terms/fiscal-year).",
+      "body": "The restated years and the older years are on different bases, so the analysis never combines them and does no split arithmetic to convert one to the other. It uses the newest run of years that share one basis and names the years it left out. A year whose filings, filed together, give different values is left out too, with the reason [ambiguous fact](help:terms/reason-ambiguous-fact), and so is every year older than it. When a requested history needs those years, the result is indeterminate with this reason. See [stock split adjustment](help:terms/stock-split-adjustment) and [fiscal year](help:terms/fiscal-year).",
       "definition": "A year is left out because the company reported it only before a later filing restated other years, for example after a stock split.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Earlier Basis"
@@ -2176,7 +2176,7 @@
       "name": "Growth Not Meaningful"
     },
     "reason-incompatible-inputs": {
-      "body": "A scope can be the accounting scope or the filing taxonomy. The engine does not convert or substitute to make the inputs fit. See [period kind](help:terms/period-kind), [accounting scope](help:terms/accounting-scope) and [reporting currency](help:terms/reporting-currency).",
+      "body": "A scope can be the accounting scope or the filing taxonomy. Nothing is converted or substituted to make the inputs fit. See [period kind](help:terms/period-kind), [accounting scope](help:terms/accounting-scope) and [reporting currency](help:terms/reporting-currency).",
       "definition": "Two inputs cannot be combined because their reporting periods, units, currencies or scopes differ.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Incompatible Inputs"
@@ -2218,7 +2218,7 @@
       "name": "Nonpositive Input"
     },
     "reason-not-available-as-of": {
-      "body": "The engine never uses information from after the boundary. See [as-of date](help:terms/as-of-date) and [look-ahead bias](help:terms/look-ahead-bias).",
+      "body": "No information from after the boundary is used. See [as-of date](help:terms/as-of-date) and [look-ahead bias](help:terms/look-ahead-bias).",
       "definition": "An input was not yet available on the as-of date, for example because it was filed or published after it.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Not Available As Of"
@@ -2231,7 +2231,7 @@
     },
     "reason-override-only": {
       "body": "",
-      "definition": "Every input was supplied as an override and none came from a data provider, so the analysis is not run.",
+      "definition": "Every input was supplied as an override and none came from a data source, so the analysis is not run.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Override Only"
     },
@@ -2285,7 +2285,7 @@
     },
     "resolution-precedence": {
       "body": "",
-      "definition": "The order in which sources are tried for each financial value: your override, then a valid cache entry, then a configured provider, then an explicit statement that the value is unavailable.",
+      "definition": "The order in which sources are tried for each financial value: your override, then a valid cache entry, then a configured data source, then an explicit statement that the value is unavailable.",
       "group": "market-data-and-timing",
       "name": "Resolution Precedence"
     },
@@ -2321,7 +2321,7 @@
     },
     "sec": {
       "body": "The SEC's website is at [sec.gov](https://www.sec.gov/).",
-      "definition": "The United States Securities and Exchange Commission, the federal securities regulator. The engine uses its public data as a source of company financial facts.",
+      "definition": "The United States Securities and Exchange Commission, the federal securities regulator. Its public data is a source of company financial facts for the analyses.",
       "group": "market-data-and-timing",
       "name": "SEC"
     },
@@ -2369,31 +2369,31 @@
     },
     "source-kind": {
       "body": "The source is kept with every input so that a saved run can show where each figure came from. See [override](help:terms/override), [cache](help:terms/cache) and [provenance](help:terms/provenance).\n\nRelated terms: [resolution precedence](help:terms/resolution-precedence), [financial facts](help:terms/financial-facts), [macro series](help:terms/macro-series).",
-      "definition": "How a resolved input value was obtained: you supplied it as an override, it came from the cache, it was fetched from a data provider, or the engine derived it from other inputs.",
+      "definition": "How a resolved input value was obtained: you supplied it as an override, it came from the cache, it was fetched from a data source, or it was derived from other inputs.",
       "group": "market-data-and-timing",
       "name": "Input Source"
     },
     "split-adjusted-close": {
-      "body": "It is the price on the same basis as a share count scaled by those splits, and the two together give the market capitalization the shares and the price had on the day. It is not the dividend-adjusted close that the [Momentum](help:terms/momentum-strategy) series uses. A stock dividend appears in the provider's split history as a fractional split (1.05) and is treated like a split; it is not counted as new shares issued.",
+      "body": "It is the price on the same basis as a share count scaled by those splits, and the two together give the market capitalization the shares and the price had on the day. It is not the dividend-adjusted close that the [Momentum](help:terms/momentum-strategy) series uses. A stock dividend appears in the data source's split history as a fractional split (1.05) and is treated like a split; it is not counted as new shares issued.",
       "definition": "A closing price restated for every stock split after its date, and for nothing else. A dividend paid later does not change it.",
       "group": "company-financial-measures",
       "name": "Split-Adjusted Close"
     },
     "split-adjustment-window": {
-      "body": "A recognizable split between the share count and the price is applied to the share count. An adjustment after the price date is always applied, because it undoes the provider's adjustment of the historical close. See [stock split adjustment](help:terms/stock-split-adjustment) and [market capitalization](help:terms/market-capitalization).",
-      "definition": "Where a data provider's adjustment fell relative to the share count and the price: between the count and the price, or between the price and the date the provider adjusted to.",
+      "body": "A recognizable split between the share count and the price is applied to the share count. An adjustment after the price date is always applied, because it undoes the data source's adjustment of the historical close. See [stock split adjustment](help:terms/stock-split-adjustment) and [market capitalization](help:terms/market-capitalization).",
+      "definition": "Where a data source's adjustment fell relative to the share count and the price: between the count and the price, or between the price and the date the data source adjusted to.",
       "group": "company-financial-measures",
       "name": "Split-Adjustment Window"
     },
     "status-input-unavailable": {
-      "body": "It is the calculation status of an [unavailable run](help:terms/outcome-unavailable). It is also the category of a failure whose data could not be used, such as a data-quality failure, a lack of observations or a provider that answered with nothing for a required input.",
+      "body": "It is the calculation status of an [unavailable run](help:terms/outcome-unavailable). It is also the category of a failure whose data could not be used, such as a data-quality failure, a lack of observations or a data source that answered with nothing for a required input.",
       "definition": "A required input could not be found for the date and the data the analysis was asked to use. The analysis is not calculated rather than guessed.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Input Unavailable"
     },
     "status-invalid-input": {
-      "body": "It is the calculation status that makes a run [failed](help:terms/outcome-failed), and the failure code of the same name. The shown message says only that the inputs or the provider data were invalid; the details are kept in the engine's log.",
-      "definition": "A value given to the analysis, or read from provider data, is not valid, so the analysis cannot be calculated.",
+      "body": "It is the calculation status that makes a run [failed](help:terms/outcome-failed), and the failure code of the same name. The shown message says only that the inputs or the data source's data were invalid; the details are kept in this application's log.",
+      "definition": "A value given to the analysis, or read from a data source, is not valid, so the analysis cannot be calculated.",
       "group": "outcomes-statuses-and-reasons",
       "name": "Invalid Input"
     },
@@ -2404,10 +2404,10 @@
       "name": "OK Status"
     },
     "status-provider-error": {
-      "body": "It is the calculation status that makes a run [failed](help:terms/outcome-failed). The failure code of the same name is used when the provider's failure could not be classified; a classified failure has its own entry: [unreachable](help:terms/provider-unreachable), [rate-limited](help:terms/provider-rate-limited) or [unexpected response](help:terms/provider-unexpected-response). A provider that answered with nothing is not a provider error; see [no data](help:terms/provider-no-data).",
-      "definition": "A data provider failed in a way that is not an absent answer, so the analysis could not be calculated.",
+      "body": "It is the calculation status that makes a run [failed](help:terms/outcome-failed). The failure code `provider_error` is used when the data source's failure could not be classified; a classified failure has its own entry: [unreachable](help:terms/provider-unreachable), [rate-limited](help:terms/provider-rate-limited) or [unexpected response](help:terms/provider-unexpected-response). A data source that answered with nothing is not a data source error; see [no data](help:terms/provider-no-data).",
+      "definition": "A data source failed in a way that is not an absent answer, so the analysis could not be calculated.",
       "group": "outcomes-statuses-and-reasons",
-      "name": "Provider Error"
+      "name": "Data Source Error"
     },
     "status-unavailable": {
       "body": "A metric that is unavailable usually comes with a reason code that says why. See [Applicability Status](help:terms/applicability-status).",
@@ -2446,7 +2446,7 @@
       "name": "Test Result"
     },
     "three-year-average-eps": {
-      "body": "Investment Analysis Engine uses this as the standard Graham Number earnings basis and when the Graham Growth Value strategy uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.",
+      "body": "It is the standard Graham Number earnings basis, and the Graham Growth Value strategy's basis when it uses SEC EDGAR earnings data, reflecting Graham's defensive-investor emphasis on average earnings over the preceding three years.",
       "definition": "The arithmetic mean of EPS from three completed fiscal years.",
       "group": "company-financial-measures",
       "name": "Three-Year-Average EPS"
@@ -2518,7 +2518,7 @@
       "name": "UTC (Coordinated Universal Time)"
     },
     "valuation": {
-      "body": "In Investment Analysis Engine a valuation result is one method's reference value, such as the Graham Number's maximum indicated price, not a complete intrinsic-value conclusion or a recommendation (see [Intrinsic Value](help:terms/intrinsic-value) and [Reference Value](help:terms/reference-value)).\n\nRelated terms: [book value](help:terms/book-value), [tangible book value](help:terms/tangible-book-value), [common shareholders' equity](help:terms/common-shareholders-equity), [EBITDA](help:terms/ebitda), [enterprise value](help:terms/enterprise-value), [invested capital](help:terms/invested-capital), [normalized EPS](help:terms/normalized-eps).",
+      "body": "Here a valuation result is one method's reference value, such as the Graham Number's maximum indicated price, not a complete intrinsic-value conclusion or a recommendation (see [Intrinsic Value](help:terms/intrinsic-value) and [Reference Value](help:terms/reference-value)).\n\nRelated terms: [book value](help:terms/book-value), [tangible book value](help:terms/tangible-book-value), [common shareholders' equity](help:terms/common-shareholders-equity), [EBITDA](help:terms/ebitda), [enterprise value](help:terms/enterprise-value), [invested capital](help:terms/invested-capital), [normalized EPS](help:terms/normalized-eps).",
       "definition": "Estimating what a security may be worth under a stated method and assumptions, usually to compare with its market price.",
       "group": "valuation-and-price-comparison",
       "name": "Valuation"
