@@ -72,8 +72,8 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.22 | [Listing venue codes](#api22--listing-venue-codes) | Complete | 2026-11-23 |
 | API.23 | [SEC EDGAR ticker coverage, explained and warned](#api23--sec-edgar-ticker-coverage-explained-and-warned) | Complete | 2026-11-26 |
 | Issue 305 | [Investor glossary wording](#issue-305--investor-glossary-wording) | Complete | 2026-11-27 |
-| Issue 310 | [Served guides in investor words](#issue-310--served-guides-in-investor-words) | Next | |
-| API.24 | [Explain why a result has no number](#api24--explain-why-a-result-has-no-number) | Planned | |
+| Issue 310 | [Served guides in investor words](#issue-310--served-guides-in-investor-words) | Complete | 2026-11-27 |
+| API.24 | [Explain why a result has no number](#api24--explain-why-a-result-has-no-number) | Next | |
 | API.20 | [Sample workspace](#api20--sample-workspace) | Planned | |
 | API.21 | [The SEC identity through the API](#api21--the-sec-identity-through-the-api) | Planned | |
 
