@@ -333,13 +333,13 @@ def _market_cap_detail_lines(market_cap: MarketCapEvidence | None) -> list[str]:
     if market_cap.scaled_share_count is not None:
         lines.append(f"  Share count on the price's basis: {market_cap.scaled_share_count:,.0f}")
     if market_cap.provider_adjustments:
-        lines.append("  Provider split adjustments applied:")
+        lines.append("  Split adjustments in the price history applied:")
         lines.extend(
             f"    {_day(item.ex_date)} ×{item.ratio:g} ({_WINDOW_LABELS[item.window]})"
             for item in market_cap.provider_adjustments
         )
     elif market_cap.scaled_share_count is not None:
-        lines.append("  Provider split adjustments applied: none")
+        lines.append("  Split adjustments in the price history applied: none")
     if market_cap.price is not None:
         lines.append(
             f"  Price: {format_money(market_cap.price, market_cap.quote_currency)} "
