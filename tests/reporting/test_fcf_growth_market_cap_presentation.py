@@ -57,7 +57,7 @@ def test_the_details_view_shows_the_whole_evidence() -> None:
         f"  Share count: {FCF_GROWTH_SHARE_COUNT:,.0f} (year end, dated 2025-01-01; source filed 2025-02-01)" in lines
     )
     assert "  Share count on the price's basis: 400" in lines
-    assert "  Provider split adjustments applied:" in lines
+    assert "  Split adjustments in the price history applied:" in lines
     assert "    2025-03-03 ×2 (between the share count and the price)" in lines
     assert f"  Price: {FCF_GROWTH_PRICE:,.2f} USD (split-adjusted close, {CLOCK.date().isoformat()})" in lines
     assert "  Currencies: filing USD, quote USD" in lines
@@ -205,5 +205,5 @@ def test_the_details_view_says_none_when_no_provider_adjustment_scaled_the_count
         replace(result, market_capitalization=unscaled), PresentationMode.DETAILS
     ).splitlines()
 
-    assert "  Provider split adjustments applied: none" in lines
-    assert "  Provider split adjustments applied:" not in lines
+    assert "  Split adjustments in the price history applied: none" in lines
+    assert "  Split adjustments in the price history applied:" not in lines

@@ -1,14 +1,14 @@
 # Financial Math & Data Conventions
 
-This document defines the deterministic financial formulas and data conventions used by the analysis strategies that Investment Analysis Engine currently implements.
+This document defines the deterministic financial formulas and data conventions used by the analysis strategies that this application currently implements.
 
-It is not a catalogue of every financial indicator the project may someday support. Strategy-specific usage and interpretation live in each strategy's guide.
+It is not a catalogue of every financial indicator this application may someday support. Strategy-specific usage and interpretation live in each strategy's guide.
 
 ## Shared data conventions
 
 ### Data sources are capabilities, not interchangeable labels
 
-Investment Analysis Engine uses different sources for different kinds of information:
+This application uses different sources for different kinds of information:
 
 - **SEC EDGAR** — completed annual company financial facts used by Graham and FCF/Earnings Growth. Reviewed US-GAAP duration concepts accept `10-K`/`20-F`/`40-F` annual forms; reviewed IFRS support is limited to exact diluted EPS, diluted weighted-average shares, operating cash flow, and physical-PP&E CapEx concepts.
 - **Yahoo Finance data via [`yfinance`](https://ranaroussi.github.io/yfinance/)** — historical market prices for Momentum and current quote comparison for Graham where applicable. `yfinance` is an independent open-source library and is not affiliated with, endorsed by, or vetted by Yahoo.
@@ -20,14 +20,14 @@ A source is used only for financial values whose meaning and time behavior are u
 
 A historical price series is an ordered set of observations used for time-series calculations. A current quote is a point-in-time market price used for comparison.
 
-A provider that supplies a current quote does not automatically provide a historically valid quote for an earlier `as_of` date.
+A data source that supplies a current quote does not automatically provide a historically valid quote for an earlier `as_of` date.
 
 ### Resolution and provenance
 
 Where a strategy resolves financial facts, each required value follows the documented precedence:
 
 ```text
-explicit override → valid cache → configured data provider → unavailable
+explicit override → valid cache → configured data source → unavailable
 ```
 
 Resolved financial values retain enough [provenance](GLOSSARY.md#provenance) to explain their source, measurement basis, relevant dates, and derivation.
@@ -50,7 +50,7 @@ A calculation may instead report that:
 - supplied data is invalid; or
 - the method is not applicable to otherwise valid facts.
 
-A data provider that answers and has nothing for a required input makes that input unavailable; it is not an error of the provider. An unknown ticker is the common case. The run is `input_unavailable` with the reason code `provider_no_data`, and its reason names the provider: Momentum reads `Yahoo Finance returned no price history for ZZZZQ.`, and a strategy that reads SEC EDGAR reads `SEC EDGAR's ticker list does not include ZZZZQ, so annual filings could not be read from SEC filings. SEC EDGAR lists companies under their US ticker symbols only.` for a ticker the list does not hold (the message names the input that needed the company identifier), or `SEC EDGAR returned no <input> for ZZZZQ.` for a listed company SEC has no data for. A provider that did not answer, was limiting requests or answered in a form the engine does not read is a `provider_error` instead, and a run with both kinds among its failed required inputs is a `provider_error`.
+A data source that answers and has nothing for a required input makes that input unavailable; it is not an error of the data source. An unknown ticker is the common case. The run is `input_unavailable` with the reason code `provider_no_data`, and its reason names the data source: Momentum reads `Yahoo Finance returned no price history for ZZZZQ.`, and a strategy that reads SEC EDGAR reads `SEC EDGAR's ticker list does not include ZZZZQ, so annual filings could not be read from SEC filings. SEC EDGAR lists companies under their US ticker symbols only.` for a ticker the list does not hold (the message names the input that needed the company identifier), or `SEC EDGAR returned no <input> for ZZZZQ.` for a listed company SEC has no data for. A data source that did not answer, was limiting requests or answered in a form this application does not read is a `provider_error` instead, and a run with both kinds among its failed required inputs is a `provider_error`.
 
 ## Momentum Strategy
 
@@ -137,7 +137,7 @@ three-year-average EPS =
 
 The three observations must be compatible in financial meaning/share basis and must have been available by the requested historical boundary.
 
-Compatibility requires the same provider concept, diluted/basic basis, currency, units, and fiscal basis across distinct fiscal years. Provider-exposed share-class and split-treatment evidence must agree. Ambiguous restatements or compatibility gaps make the series unavailable rather than triggering a guessed normalization.
+Compatibility requires the same reported concept, diluted/basic basis, currency, units, and fiscal basis across distinct fiscal years. Share-class and split-treatment evidence reported by the data source must agree. Ambiguous restatements or compatibility gaps make the series unavailable rather than triggering a guessed normalization.
 
 The Graham Number has no other EPS basis: it always uses the three-year average, and a trailing-twelve-month EPS is not offered.
 
@@ -147,13 +147,13 @@ The Graham Number has no other EPS basis: it always uses the three-year average,
 BVPS = common shareholders' equity / period-end common shares outstanding
 ```
 
-A provider-reported BVPS is usable only when its definition is understood. Investment Analysis Engine's SEC calculation derives fiscal-year-end BVPS from compatible accounting evidence when a safe direct value is unavailable.
+A BVPS reported by a data source is usable only when its definition is understood. The SEC EDGAR calculation derives fiscal-year-end BVPS from compatible accounting evidence when a safe direct value is unavailable.
 
 Tangible BVPS is a different measure and is not silently substituted.
 
 ### Fiscal year of the inputs
 
-Both inputs are taken at the fiscal year-end *t* of the [anchor filing](#the-anchor-filing). The newest of the three EPS years and the balance sheet behind BVPS must each end on *t*, exactly: there is no tolerance, because the report date of every captured filer, 52- and 53-week filers included, equals its fiscal year-end. An input whose newest year ends on another day is `input_unavailable`, and the method never uses an older year. The three EPS years must be *t*, *t−1* and *t−2*: each period starts the day after the previous one ends, and a missing year makes the input unavailable. A cached input for another fiscal year is set aside and the provider asked once. An overridden input has no year and is exempt, and when both inputs are overridden no filing is read. A stale anchor filing leaves the status unchanged and is reported with a warning.
+Both inputs are taken at the fiscal year-end *t* of the [anchor filing](#the-anchor-filing). The newest of the three EPS years and the balance sheet behind BVPS must each end on *t*, exactly: there is no tolerance, because the report date of every captured filer, 52- and 53-week filers included, equals its fiscal year-end. An input whose newest year ends on another day is `input_unavailable`, and the method never uses an older year. The three EPS years must be *t*, *t−1* and *t−2*: each period starts the day after the previous one ends, and a missing year makes the input unavailable. A cached input for another fiscal year is set aside and the data source asked once. An overridden input has no year and is exempt, and when both inputs are overridden no filing is read. A stale anchor filing leaves the status unchanged and is reported with a warning.
 
 ### Applicability
 
@@ -193,7 +193,7 @@ This is a forecast-dependent growth-stock estimate. It is not the Graham Number.
 ### EPS basis
 
 - Graham Number always uses three-year-average diluted EPS; it has no EPS-basis option.
-- Graham Growth uses three-year-average diluted EPS by default, for every provider. The production tool boundary also supports an explicit single completed fiscal-year EPS basis for reviewed workflows.
+- Graham Growth uses three-year-average diluted EPS by default, for every data source. An explicit single completed fiscal-year EPS basis is also supported for reviewed workflows.
 
 An unsupported basis is rejected rather than silently transformed into a different calculation.
 
@@ -204,7 +204,7 @@ conversion are not performed.
 
 ### Fiscal year of the EPS
 
-EPS is taken at the fiscal year-end *t* of the [anchor filing](#the-anchor-filing). Its newest year must end on *t*, exactly, with no tolerance, and the three-year average needs the years *t*, *t−1* and *t−2*, each starting the day after the previous one ends. EPS for another year is `input_unavailable`; the method never uses an older year. A cached EPS for another fiscal year is set aside and the provider asked once. An overridden EPS has no year and is exempt. A stale anchor filing leaves the status unchanged and is reported with a warning.
+EPS is taken at the fiscal year-end *t* of the [anchor filing](#the-anchor-filing). Its newest year must end on *t*, exactly, with no tolerance, and the three-year average needs the years *t*, *t−1* and *t−2*, each starting the day after the previous one ends. EPS for another year is `input_unavailable`; the method never uses an older year. A cached EPS for another fiscal year is set aside and the data source asked once. An overridden EPS has no year and is exempt. A stale anchor filing leaves the status unchanged and is reported with a warning.
 
 ### Expected growth
 
@@ -260,7 +260,7 @@ The relationship is to the latest available quote response, whose retrieval age 
 
 If a current quote is unavailable, the Graham calculation can still remain valid while the price comparison is omitted.
 
-An invalid explicit quote override is instead a fatal input error. An override may omit currency; a provider quote may not. Provider quotes without verified currency are classified as unavailable. A known cross-currency quote remains visible, but its price relationship is suppressed.
+An invalid explicit quote override is instead a fatal input error. An override may omit currency; a quote from a data source may not. Quotes from a data source without verified currency are classified as unavailable. A known cross-currency quote remains visible, but its price relationship is suppressed.
 
 A quote in a different currency is not used for a price relationship without an approved currency-conversion mechanism.
 
@@ -268,7 +268,7 @@ A quote in a different currency is not used for a price relationship without an 
 
 NaN, infinity, and mathematically invalid configuration values are rejected deterministically.
 
-Investment Analysis Engine does not impose arbitrary financial-domain cutoffs merely because a number “looks unusual.” A non-mathematical bound requires an explicit rationale.
+This application does not impose arbitrary financial-domain cutoffs merely because a number “looks unusual.” A non-mathematical bound requires an explicit rationale.
 
 See the [Graham Number Strategy Guide](strategies/GRAHAM_NUMBER.md) and the [Graham Growth Value Strategy Guide](strategies/GRAHAM_GROWTH.md).
 
@@ -287,11 +287,11 @@ free_cash_flow_per_diluted_share =
     free_cash_flow / weighted_average_diluted_shares
 ```
 
-Operating cash flow is net cash provided by operating activities. Capital expenditures are normalized to a positive expenditure amount before subtraction because providers may report cash outflows with different sign conventions. The normalization and original provider field remain in provenance.
+Operating cash flow is net cash provided by operating activities. Capital expenditures are normalized to a positive expenditure amount before subtraction because data sources may report cash outflows with different sign conventions. The normalization and the data source's original field remain in provenance.
 
-The SEC concept for capital expenditures is property, plant and equipment purchases. Some filers, such as NVIDIA, report only the broader purchases of productive assets, which includes intangible assets such as software. For each company the engine uses one of the two, never both: the one the filer reports for the longer run of consecutive recent years, and property and equipment when they tie. When the broader concept is used, the result says so in a limitation, because free cash flow can then be lower than with property and equipment alone.
+The SEC concept for capital expenditures is property, plant and equipment purchases. Some filers, such as NVIDIA, report only the broader purchases of productive assets, which includes intangible assets such as software. For each company the analysis uses one of the two, never both: the one the filer reports for the longer run of consecutive recent years, and property and equipment when they tie. When the broader concept is used, the result says so in a limitation, because free cash flow can then be lower than with property and equipment alone.
 
-Weighted-average diluted shares must be positive and compatible with the same completed fiscal year. Ending shares outstanding are not silently substituted. A provider's precomputed “free cash flow” is not accepted merely because its label matches; the strategy derives FCF from its resolved components.
+Weighted-average diluted shares must be positive and compatible with the same completed fiscal year. Ending shares outstanding are not silently substituted. A data source's precomputed “free cash flow” is not accepted merely because its label matches; the strategy derives FCF from its resolved components.
 
 ### Historical horizon
 
@@ -342,7 +342,7 @@ The numerator is annual and the denominator is the market capitalization at the 
 
 Compatible analyst-consensus diluted EPS for FY1 and FY2 may provide two implied growth intervals: latest actual to FY1 and FY1 to FY2. Each prior value must be positive for the corresponding growth rate to be meaningful.
 
-The `display_only` and `confirmation` policies do not change the historical classification. Under `hard_gate`, both intervals must be available and positive for `PASS`; missing required forward evidence produces `INDETERMINATE`. The current production SEC mapping may not supply analyst consensus, and the software does not generate estimates to fill that gap.
+The `display_only` and `confirmation` policies do not change the historical classification. Under `hard_gate`, both intervals must be available and positive for `PASS`; missing required forward evidence produces `INDETERMINATE`. SEC EDGAR data may not include analyst consensus, and the software does not generate estimates to fill that gap.
 
 See the [Free Cash Flow & Earnings Growth Strategy Guide](strategies/FCF_GROWTH.md).
 
@@ -394,7 +394,7 @@ A partial score is always shown as "*x* of *n*" with the unavailable tests named
 
 ### Execution status and applicability
 
-The status is `ok` for a complete or partial score, `input_unavailable` below six available tests, `provider_error` after a provider failure other than an absent answer while the inputs were assembled (the result then holds the failure and no tests), and `input_unavailable` with the reason code `provider_no_data`, the failure and no tests, when the provider answered with nothing for a required input, and `not_applicable` for a provider-confirmed ETF. A financial issuer is applicable with a warning, because the gross-margin and current-ratio tests are typically unavailable for it. The industry class is that of the SIC code on the anchor filing, as filed; an unknown class runs and says so.
+The status is `ok` for a complete or partial score, `input_unavailable` below six available tests, `provider_error` after a data source failure other than an absent answer while the inputs were assembled (the result then holds the failure and no tests), and `input_unavailable` with the reason code `provider_no_data`, the failure and no tests, when the data source answered with nothing for a required input, and `not_applicable` for an ETF that the data source confirms as one. A financial issuer is applicable with a warning, because the gross-margin and current-ratio tests are typically unavailable for it. The industry class is that of the SIC code on the anchor filing, as filed; an unknown class runs and says so.
 
 The result records one taxonomy, us-gaap or ifrs-full, only when every resolved operand states the same one; otherwise it records none.
 
@@ -416,13 +416,13 @@ A stale anchor filing does not change a result's status. The result reports the 
 
 ```text
 market_cap = scaled_share_count * price
-scaled_share_count = share_count * product of the ratios of the provider split adjustments
+scaled_share_count = share_count * product of the ratios of the split adjustments in the price history
                      of the two windows below, with after < ex_date <= adjustment_date
 ```
 
 - **Share count:** the common shares outstanding at fiscal year-end *t*, reported directly or as shares issued minus treasury shares at the same date. When no balance-sheet path gives a count at *t*, the single non-dimensional cover-page count of the anchor filing is used and the result says so. A year-end count dated other than *t* (an older year's count) is `unavailable` with `incompatible_period` and is never substituted. Conflicting counts, and per-class counts with no total, are `unavailable`. One combined count for several share classes is valued at the requested ticker's price.
 - **Price:** the split-adjusted close, without dividend adjustment, on the last trading day on or before the boundary.
-- **Provider split adjustments:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the provider adjusted the price. The provider's split history reports splits and other adjustments alike (a spin-off appears as a ratio such as 0.9535), and only a split changes the share count, so the events apply in two windows. An event after the price date is always applied, whatever its ratio: it undoes the provider's adjustment of the historical close and never changes the market cap at the boundary. An event after `after` and not after the price date is applied only when its ratio is a recognizable split ratio: *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q*, or the reciprocal of one. Any other ratio, such as a spin-off or a stock dividend of 1.05, makes market cap `unavailable` with `ambiguous_fact`, naming the event. Without an as-of date the price date is the quote's date, so every event after the count's date is in the second window. A filing restates its counts for a split effective before it is issued, so such a split is not applied again.
+- **Split adjustments in the price history:** `after` is the filing date of the filing a year-end count was taken from, or the date of the cover page for a cover-page count, and `adjustment_date` is the date up to which the data source adjusted the price. The data source's split history reports splits and other adjustments alike (a spin-off appears as a ratio such as 0.9535), and only a split changes the share count, so the events apply in two windows. An event after the price date is always applied, whatever its ratio: it undoes the data source's adjustment of the historical close and never changes the market cap at the boundary. An event after `after` and not after the price date is applied only when its ratio is a recognizable split ratio: *p*-for-*q* with *p* in 2 to 10, 15, 20, 25, 30, 40, 50 or 100, *q* in 1 to 4 and *p* greater than *q*, or the reciprocal of one. Any other ratio, such as a spin-off or a stock dividend of 1.05, makes market cap `unavailable` with `ambiguous_fact`, naming the event. Without an as-of date the price date is the quote's date, so every event after the count's date is in the second window. A filing restates its counts for a split effective before it is issued, so such a split is not applied again.
 - **Availability:** market cap is available only when all of these hold, and each refusal has its reason code.
   1. The anchor annual filing is a 10-K or a 10-K/A (`incompatible_scope`). A 20-F or 40-F filer, or an amendment of either, is a foreign private issuer whose US listing may be a depositary receipt at a ratio the structured data cannot show.
   2. The quote currency equals the filing currency (`incompatible_currency`). When either is unknown, market cap is `unavailable`.
@@ -492,6 +492,6 @@ The critical inputs are current assets, current liabilities, net PP&E and cash. 
 
 - Benjamin Graham, *The Intelligent Investor*, Chapter 14: defensive-investor limits on price relative to average earnings and book value, including the combined product limit of 22.5.
 - Benjamin Graham, *The Intelligent Investor*, Chapter 11: simplified growth-stock formula and cautions about the reliability of projected growth.
-- Federal Reserve Bank of St. Louis FRED, [Moody's Seasoned Aaa Corporate Bond Yield (AAA)](https://fred.stlouisfed.org/series/AAA): useful background on a defined AAA corporate-bond-yield series; Investment Analysis Engine does not currently retrieve it automatically.
+- Federal Reserve Bank of St. Louis FRED, [Moody's Seasoned Aaa Corporate Bond Yield (AAA)](https://fred.stlouisfed.org/series/AAA): useful background on a defined AAA corporate-bond-yield series; this application does not currently retrieve it automatically.
 
 Secondary calculators or articles may illustrate common modern usage, but they do not override the formula, input, provenance, and naming conventions documented here.

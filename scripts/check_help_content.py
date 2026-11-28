@@ -28,6 +28,9 @@ Their served content (``served_documents``) fails the check on any of:
 - a link to a repository file that is not served, to an excluded section of a served document, to a term that is not
   served, or to the user glossary without an entry id.
 
+Outside the user glossary, whose entries the glossary rules cover, a served section's title and lines, fenced blocks
+included, never use the whole words engine or provider outside code spans and link destinations.
+
 An external link passes. A served document has exactly one level-1 heading, its title. A heading titled
 ``On the command line`` must carry the exclude marker and be the last subsection of its parent.
 ``tests/scripts/test_served_content.py`` adds the check that no code span starts with the name of an ``ian``
@@ -88,6 +91,7 @@ SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 INVESTOR_FORBIDDEN_WORDS_RE = re.compile(r"\b(?:engine|provider)s?\b", re.IGNORECASE)
 _LINK_DESTINATION_RE = re.compile(r"(?<!!)(\[[^\]]*\])\([^)]+\)")
 _WORDING_RULE_SEE = "; see docs/project/README.md, Glossary entries"
+_SERVED_RULE_SEE = "; see docs/project/README.md, Served documents"
 
 
 @dataclass(frozen=True)
@@ -646,6 +650,26 @@ def _section_problems(section: ServedSection, relative_path: str, context: _Link
     return [ContentProblem(relative_path, number, section.heading, reason) for number, reason in sorted(found)]
 
 
+def _served_wording_problems(section: ServedSection, relative_path: str) -> list[ContentProblem]:
+    """Return the internal words a served section's heading and lines use, one problem per distinct word on a line.
+
+    Code spans, link destinations and id lines are not read; fenced blocks are.
+    """
+    lines = [(section.first_line, section.heading)]
+    lines.extend((section.body_first_line + offset, raw) for offset, raw in enumerate(section.lines))
+    found: list[ContentProblem] = []
+    for number, raw in lines:
+        if ANCHOR_ID_RE.match(raw.strip()):
+            continue
+        searchable = _LINK_DESTINATION_RE.sub(r"\1", _INLINE_CODE_RE.sub(" ", raw))
+        words = sorted({match.group(0).lower() for match in INVESTOR_FORBIDDEN_WORDS_RE.finditer(searchable)})
+        found.extend(
+            ContentProblem(relative_path, number, section.heading, f"uses the internal word '{word}'{_SERVED_RULE_SEE}")
+            for word in words
+        )
+    return found
+
+
 def _structure_problems(relative_path: str, raw_lines: list[str]) -> list[ContentProblem]:
     """Return the problems of a document's level-1 headings, exclude markers and "On the command line" subsections."""
     parsed = _parse_document(raw_lines)
@@ -720,6 +744,8 @@ def check_served_content(repo_root: Path) -> list[ContentProblem]:
     for document in documents:
         for section in document.sections:
             problems.extend(_section_problems(section, document.path, context))
+            if document.path != USER_GLOSSARY:
+                problems.extend(_served_wording_problems(section, document.path))
     return problems
 
 

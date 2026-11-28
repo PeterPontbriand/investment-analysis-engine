@@ -72,6 +72,7 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 | API.22 | [Listing venue codes](#api22--listing-venue-codes) | Complete | 2026-11-23 |
 | API.23 | [SEC EDGAR ticker coverage, explained and warned](#api23--sec-edgar-ticker-coverage-explained-and-warned) | Complete | 2026-11-26 |
 | Issue 305 | [Investor glossary wording](#issue-305--investor-glossary-wording) | Complete | 2026-11-27 |
+| Issue 310 | [Served guides in investor words](#issue-310--served-guides-in-investor-words) | Complete | 2026-11-27 |
 | API.24 | [Explain why a result has no number](#api24--explain-why-a-result-has-no-number) | Next | |
 | API.20 | [Sample workspace](#api20--sample-workspace) | Planned | |
 | API.21 | [The SEC identity through the API](#api21--the-sec-identity-through-the-api) | Planned | |
@@ -625,6 +626,21 @@ Implementation starts after Step 3.5's 3.5.3e merges and its slice 3.5.3e1c and 
 - **Branch:** `docs/investor-glossary-wording`.
 - **Detail:** this unit's spec: [specs/issue-305.md](specs/issue-305.md); decisions in
   [A.22](#a22-investor-glossary-wording-2026-11-27).
+
+### Issue 310 — Served guides in investor words
+
+- **Problem:** the served guides (the Beginner Guide, Finance Math and the strategy guides) speak about this
+  project's machinery ("Investment Analysis Engine", "the engine", "the provider", "the Yahoo adapter", "the
+  resolver"), and links to renamed glossary terms still show the old names (engine issue 310).
+- **Decision:** served sections use "this application" and "data source", wording only in Finance Math; the FCF
+  Growth split-adjustment output label is renamed to match; the help-content check refuses "engine" and "provider"
+  in every served section ([A.23](#a23-served-guides-in-investor-words-2026-11-27), H1 to H10).
+- **Scope:** the served sections of the Beginner Guide, Finance Math and the strategy guides, one presenter label
+  and its test, the served-documents rules in the project README, `scripts/check_help_content.py` and its tests, the
+  regenerated help bundle.
+- **Branch:** `docs/investor-guide-wording`.
+- **Detail:** this unit's spec: [specs/issue-310.md](specs/issue-310.md); decisions in
+  [A.23](#a23-served-guides-in-investor-words-2026-11-27).
 
 ## 4. Out of scope
 
@@ -1245,3 +1261,21 @@ in engine issue 310.
 | G8 | The served guides (Beginner Guide, Finance Math's served sections, the strategy guides) are not in this unit. Engine issue 310 rewords them and extends G7's check to served sections; it is placed right after this unit. |
 | G9 | Messages produced by code that say "the engine's database" or "data provider" are not changed here; API.24 rewords investor messages ([A.21](#a21-explain-why-a-result-has-no-number-2026-11-25), C27). |
 | G10 | No API shape or version change: term ids, anchors and code values stay, only the served names and text change, and the help bundle is regenerated. Help text carries no compatibility guarantee; ids do. The desktop application picks up the text when it next re-vendors; no desktop issue is filed. |
+
+### A.23 Served guides in investor words (2026-11-27)
+
+Approved by the project owner on 2026-11-27, as decisions H1 to H10. Closes engine issue 310, which follows engine
+issue 305 ([A.22](#a22-investor-glossary-wording-2026-11-27), G8).
+
+| # | Decision |
+| :--- | :--- |
+| H1 | Recorded in this plan as sequence row Issue 310 and this record; the unit's spec is `specs/issue-310.md`, its branch `docs/investor-guide-wording`. API.24 stays Planned until this unit completes. |
+| H2 | Scope: the served sections of the Beginner Guide, Finance Math and every strategy guide: titles, introductions, prose, tables, fenced text blocks and link texts. Excluded command-line sections are not changed. The glossary is not touched. |
+| H3 | The words of G3: "Investment Analysis Engine" and "the engine" become "this application" where the behavior matters to an investor and are removed where it does not; "a/the provider" and "data provider" become "a/the data source", or the source's name (SEC EDGAR, Yahoo Finance). Code values in backticks, such as `provider_error`, `provider_no_data` and `provider_failure`, stay. |
+| H4 | Other internal words in served text are replaced too, line by line in the spec: "the Yahoo adapter" becomes Yahoo Finance; "production tool boundary", "current production SEC EDGAR mapping" and "current production analysis" become plain statements of what the analysis does; "the resolver" and "resolver clock" become "the analysis" or the as-of rule in investor words. They are not added to the check: they are rare, and "production" has ordinary uses. |
+| H5 | Where "the project" or "the program" means the software in the Beginner Guide, it becomes "this application"; the guide's title becomes "A Beginner's Guide to Investment Analysis", and the README link's text becomes "limitations and disclaimer". Finance Math's "the project may someday support" becomes "this application". Headings that carry a section id keep their wording, so section ids do not change. "Project" is not added to the check. |
+| H6 | Link texts that repeat a term name renamed by G4 take the new name ("Provider error" becomes "Data source error"); link destinations and anchors do not change. |
+| H7 | Finance Math changes wording only: no formula, condition, threshold, ratio, date rule, reason code or status changes meaning. The spec lists every changed Finance Math line before and after, and the review compares Finance Math with that list. "Provider concept" becomes "reported concept"; "Provider split adjustments" becomes "Split adjustments in the price history". |
+| H8 | The command line's `Provider split adjustments applied:` (and its `: none` form) becomes `Split adjustments in the price history applied:` in the FCF Growth presenter and its test, so the FCF Growth guide's sample output and Finance Math keep matching the output. Every other message produced by code stays with API.24 ([A.21](#a21-explain-why-a-result-has-no-number-2026-11-25), C27; [A.22](#a22-investor-glossary-wording-2026-11-27), G9). |
+| H9 | `scripts/check_help_content.py` extends G7 from investor glossary entries to every served section outside the user glossary: its title and lines, fenced blocks included, outside code spans and link destinations, never use the whole words "engine" or "provider", in any case and with their plurals. Excluded sections are not checked; no allow list. The rule is stated in the project README's "Served documents" section. |
+| H10 | No API shape or version change: document ids, section ids, term ids and code values are unchanged, and the help bundle is regenerated; only served text and the Beginner Guide's title change. The desktop application picks up the text when it next re-vendors; no desktop issue is filed. |

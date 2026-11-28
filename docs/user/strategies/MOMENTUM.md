@@ -1,6 +1,6 @@
 # Momentum Strategy Guide
 
-This guide explains the Investment Analysis Engine **Momentum Strategy** from an investor/user perspective.
+This guide explains the **Momentum Strategy** from an investor/user perspective.
 
 ## What this strategy does
 
@@ -53,7 +53,7 @@ The strategy calculates a short moving average and a long moving average over th
 
 A crossover needs two consecutive valid SMA pairs. Having exactly enough prices for the long SMA establishes today's relationship but not a prior relationship; crossover is unavailable in that case. The RSI uses simple trailing averages of gains/losses, as specified in [Financial Math](../FINANCE_MATH.md#momentum-strategy).
 
-The result's technical evidence retains original provider retrieval time and cache origin. Historical daily labels are not verified exchange-close timestamps, and the provider's past adjusted-price vintages are not retained. Observation-date filtering alone is not a guarantee of historical knowability. Missing or nonfinite prices cause a failure with the affected field/date when known; the application does not silently remove bad rows or substitute an older close.
+The result's technical evidence retains the data source's original retrieval time and cache origin. Historical daily labels are not verified exchange-close timestamps, and the data source's past adjusted-price vintages are not retained. Observation-date filtering alone is not a guarantee of historical knowability. Missing or nonfinite prices cause a failure with the affected field/date when known; the application does not silently remove bad rows or substitute an older close.
 
 In investor terms:
 
@@ -70,11 +70,11 @@ Only price observations at or before the as-of boundary are used. The boundary i
 
 The result reports the latest observation that remained after the boundary was applied, not the boundary you requested. A date-only boundary includes that whole day.
 
-`data_as_of` and each price observation's `observed_at` are exchange-local trading dates. A daily series stamped at local midnight in its own timezone is read by those local calendar dates, so each observation is reported as that date at 00:00 UTC, the same form a timezone-naive series produces, and a date-only as-of boundary includes the bars dated on or before that date in the exchange's calendar. A series with any bar at another time of day keeps the exact instants its provider supplied. One case is not corrected: a daily bar stamped as the UTC instant of a non-UTC local midnight (for example 15:00 UTC for a Tokyo date), because the series does not carry the exchange's timezone.
+`data_as_of` and each price observation's `observed_at` are exchange-local trading dates. A daily series stamped at local midnight in its own timezone is read by those local calendar dates, so each observation is reported as that date at 00:00 UTC, the same form a timezone-naive series produces, and a date-only as-of boundary includes the bars dated on or before that date in the exchange's calendar. A series with any bar at another time of day keeps the exact instants its data source supplied. One case is not corrected: a daily bar stamped as the UTC instant of a non-UTC local midnight (for example 15:00 UTC for a Tokyo date), because the series does not carry the exchange's timezone.
 
-As-of runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them. The one exception is a provider that stamps a daily price later in its date than the boundary time; Yahoo stamps daily prices at midnight, so it does not apply to them.
+As-of runs fetch history only up to the boundary, so they are cached separately from live runs, and an invalid price dated after the boundary does not affect them. The one exception is a data source that stamps a daily price later in its date than the boundary time; Yahoo stamps daily prices at midnight, so it does not apply to them.
 
-Provider-adjusted prices are revised retroactively: splits and dividends restate history. An as-of result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
+Prices adjusted by the data source are revised retroactively: splits and dividends restate history. An as-of result is therefore filtered to a date but reflects today's adjusted view of the prices on that date, not the prices as they would have looked then. See [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
 
 Bypassing the cache affects the historical price cache only. A saved run stores the as-of and cache choices with the run, and refreshing a watchlist entry saved this way reuses them.
 
@@ -146,9 +146,9 @@ Every Momentum result carries a status, as the other strategies' results do:
 | The history is too short for the long average (trend `UNKNOWN`) | `input_unavailable` | `unavailable` |
 | No price history exists at or before the as-of boundary | `input_unavailable` | `unavailable` |
 | The price data failed a data-quality check | `input_unavailable` | `unavailable` |
-| The price provider failed | `provider_error` | `failed` |
+| The price data source failed | `provider_error` | `failed` |
 
-A result that could not be calculated has a reason, and a reason code where one fits (`insufficient_history`, `not_available_as_of` or `provider_error`; a failed data-quality check has the reason only). A provider failure never stores the provider's own error text: the stored reason is a fixed message, and `provider_failure` names the provider and the kind of failure.
+A result that could not be calculated has a reason, and a reason code where one fits (`insufficient_history`, `not_available_as_of` or `provider_error`; a failed data-quality check has the reason only). A data source failure never stores the data source's own error text: the stored reason is a fixed message, and `provider_failure` names the data source and the kind of failure.
 
 A saved run keeps a failed or unavailable outcome, and refreshing a watchlist entry records it as a run with that outcome instead of an error without a run.
 
@@ -176,7 +176,7 @@ Common causes include:
 - different trading-day coverage;
 - missing-price handling;
 - different crossover definitions/reporting rules; and
-- different market-data revisions or provider histories.
+- different market-data revisions or data source histories.
 
 When comparing results, first confirm that both tools are calculating the same indicator over the same price series and dates.
 

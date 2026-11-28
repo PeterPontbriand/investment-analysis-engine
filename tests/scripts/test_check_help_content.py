@@ -369,6 +369,52 @@ class TestServedLeaks:
         assert "docs/user/BEGINNER_GUIDE.md:0: section '' -- the served document does not exist" in problems
 
 
+class TestServedWording:
+    def test_a_word_in_prose_is_reported_with_its_line_and_section(self, tmp_path: Path) -> None:
+        problems = served_problems("# G\n\n## Sec\n\nThe engine reads it.\n", tmp_path)
+        assert problems == [
+            f"{GUIDE}:5: section 'Sec' -- uses the internal word 'engine'; see docs/project/README.md, Served documents"
+        ]
+
+    def test_a_title_heading_and_table_are_checked(self, tmp_path: Path) -> None:
+        guide = "# Engine guide\n\n## Provider notes\n\n| Case | Code |\n| :--- | :--- |\n| Provider failed | x |\n"
+        problems = served_problems(guide, tmp_path)
+        assert [problem.split(" -- ")[0] for problem in problems] == [
+            f"{GUIDE}:1: section 'Engine guide'",
+            f"{GUIDE}:3: section 'Provider notes'",
+            f"{GUIDE}:7: section 'Provider notes'",
+        ]
+
+    def test_plurals_and_capitals_are_reported_once_per_word_and_line(self, tmp_path: Path) -> None:
+        problems = served_problems("# G\n\n## S\n\nEngines and PROVIDERS, the provider.\n", tmp_path)
+        assert len(problems) == 3
+        assert {problem.rsplit("'", 2)[1] for problem in problems} == {"engines", "providers", "provider"}
+
+    def test_a_fenced_block_is_checked(self, tmp_path: Path) -> None:
+        problems = served_problems("# G\n\n## S\n\n```text\nProvider split adjustments applied:\n```\n", tmp_path)
+        assert len(problems) == 1
+        assert ":6: " in problems[0]
+
+    def test_code_spans_link_destinations_and_link_texts(self, tmp_path: Path) -> None:
+        clean = "# G\n\n## S\n\nCode `provider_error`, [error](../GLOSSARY.md#cache), see [it](https://example.com/engine).\n"
+        assert served_problems(clean, tmp_path) == []
+        problems = served_problems("# G\n\n## S\n\n[Provider error](../GLOSSARY.md#cache).\n", tmp_path)
+        assert len(problems) == 1
+        assert "'provider'" in problems[0]
+
+    def test_an_excluded_section_passes(self, tmp_path: Path) -> None:
+        guide = f"# G\n\n## Data\n\nText.\n\n### On the command line\n{EXCLUDE_MARKER}\n\nThe engine and provider.\n"
+        assert served_problems(guide, tmp_path) == []
+
+    def test_only_whole_words_are_reported(self, tmp_path: Path) -> None:
+        assert served_problems("# G\n\n## S\n\nProvidential engineering.\n", tmp_path) == []
+
+    def test_a_glossary_entry_is_left_to_the_glossary_rule(self, tmp_path: Path) -> None:
+        glossary = "# Glossary\n\n## Terms\n\n" + entry("cache", "Cache", "Kept by the engine.") + entry("eps", "EPS")
+        problems = served_problems("# G\n\nText.\n", tmp_path, {USER_GLOSSARY: glossary})
+        assert problems == []
+
+
 class TestExcludedSections:
     def test_an_excluded_section_and_its_subsections_are_not_checked(self, tmp_path: Path) -> None:
         guide = (
