@@ -4,7 +4,7 @@ The Free Cash Flow & Earnings Growth strategy is a deterministic historical scre
 
 The result is a `PASS`, `FAIL`, or `INDETERMINATE` screen—not a valuation, moat rating, forecast, or investment recommendation.
 
-Explanations follow the selected classification basis: total-company FCF or FCF per diluted share. Those measures can move in opposite directions when share counts change. The detailed evidence retains component currency, source/cache origin, derivation notes and reasons for unavailable optional metrics. The effective analysis time controls input eligibility as well as the reported execution time; a later resolver clock cannot admit later filings into an earlier execution boundary.
+Explanations follow the selected classification basis: total-company FCF or FCF per diluted share. Those measures can move in opposite directions when share counts change. The detailed evidence retains component currency, source/cache origin, derivation notes and reasons for unavailable optional metrics. The effective analysis time controls input eligibility as well as the reported execution time; filings made after that time are never admitted into an analysis at an earlier date.
 
 ## Quick start
 <!-- help:exclude -->
@@ -71,7 +71,7 @@ The strategy also shows an informational FCF yield: the latest completed fiscal 
 
 - **When it is shown.** The yield is shown only when it is a number. The yield requires the latest fiscal year to end at the fiscal year-end of the most recent annual report at the boundary, the year the share count is taken at; otherwise it is unavailable, and an older year is never used.
 - **What it needs.** A share count from the annual report (or its cover page), a split-adjusted closing price, the splits since the count was taken, and a check of the annual report's cover that the ticker is a share of the company. Without an as-of date the price is the current quote; with one it is the closing price on the last trading day on or before that date.
-- **When it is unavailable.** The yield is left out and a warning, `FCF yield is unavailable:`, gives the reason: for example a filer of a 20-F or 40-F, an [anchor filing](../GLOSSARY.md#anchor-filing) that is stale (the next annual report was overdue at the as-of date and none had been filed), a ticker that is a depositary share, unit or warrant on the cover, a quote and annual figures in different currencies, or no share count. When a market-data provider fails, the warning names the provider and the kind of failure (such as `yfinance` and `rate_limited`) and never repeats the provider's own message. The run is still a completed run: its status and classification are the same as without the yield. The failure is not recorded as a provider failure of the run.
+- **When it is unavailable.** The yield is left out and a warning, `FCF yield is unavailable:`, gives the reason: for example a filer of a 20-F or 40-F, an [anchor filing](../GLOSSARY.md#anchor-filing) that is stale (the next annual report was overdue at the as-of date and none had been filed), a ticker that is a depositary share, unit or warrant on the cover, a quote and annual figures in different currencies, or no share count. When a market-data source fails, the warning names the source and the kind of failure (such as `yfinance` and `rate_limited`) and never repeats the source's own message. The run is still a completed run: its status and classification are the same as without the yield. The failure is not recorded as a data source failure of the run.
 - **No request when it is not wanted.** For an ETF no market data is requested. When no completed fiscal year could be resolved there is nothing to divide, and none is requested either.
 
 The evidence behind the market capitalization is shown under the calculation notes:
@@ -80,7 +80,7 @@ The evidence behind the market capitalization is shown under the calculation not
 Market capitalization: 1,300.00 USD
   Share count: 200 (year end, dated 2025-01-01; source filed 2025-02-01)
   Share count on the price's basis: 400
-  Provider split adjustments applied:
+  Split adjustments in the price history applied:
     2025-03-03 ×2 (between the share count and the price)
   Price: 3.25 USD (split-adjusted close, 2026-10-28)
   Currencies: filing USD, quote USD
@@ -94,7 +94,7 @@ The share count line names its basis (`year end` or `cover page`), the date of t
 - With a date-only as-of boundary, the price includes that day's close, and a session is read by its exchange-local date, as Momentum reads its prices.
 - The share count is the count at the fiscal year-end, so buybacks and issuance between the year-end and the price date are not reflected.
 - A filing restates its counts for a split effective before it is issued. A split announced before the filing but effective just after it is assumed not to be reflected in the filing.
-- The provider's split history reports splits and other adjustments alike. A provider adjustment for a spin-off (Honeywell's appear as ×1.061 and ×0.9535), or a stock dividend outside the recognized split ratios (Commerce Bancshares' ×1.05), between the filing and the price makes the yield unavailable, with the event's date and ratio in the warning; the share count is not guessed. The same adjustment after the price date, which the provider applied to the historical close, is undone and does not make it unavailable. Ordinary splits such as 2-for-1, 3-for-1, 10-for-1 and 3-for-2, and reverse splits, are applied.
+- The data source's split history reports splits and other adjustments alike. An adjustment for a spin-off (Honeywell's appear as ×1.061 and ×0.9535), or a stock dividend outside the recognized split ratios (Commerce Bancshares' ×1.05), between the filing and the price makes the yield unavailable, with the event's date and ratio in the warning; the share count is not guessed. The same adjustment after the price date, which the data source applied to the historical close, is undone and does not make it unavailable. Ordinary splits such as 2-for-1, 3-for-1, 10-for-1 and 3-for-2, and reverse splits, are applied.
 - A filer of a 20-F or 40-F (a foreign private issuer) is unavailable, because its US listing may be a depositary receipt at a ratio the structured data cannot show. A listing that is not a share of the company on the annual report's cover (a depositary share, unit, warrant or preferred security) is unavailable.
 - The yield uses an annual numerator and a market denominator, so it is context, not a valuation.
 
@@ -123,7 +123,7 @@ An explicit span is strict. If the required history is unavailable, the strategy
 
 ### Years reported only before a restatement
 
-A company restates earlier years when something such as a stock split changes the per-share figures. The filings that restate them usually cover only the latest three years, so older years can remain on the earlier basis. Diluted EPS and the weighted-average diluted shares of those older years are not comparable with the restated years, and the engine does not convert them.
+A company restates earlier years when something such as a stock split changes the per-share figures. The filings that restate them usually cover only the latest three years, so older years can remain on the earlier basis. Diluted EPS and the weighted-average diluted shares of those older years are not comparable with the restated years, and they are not converted.
 
 It uses the newest run of years that share one basis and leaves the older years out. The result names each year left out, for which figure, and why: its `left_out_years` list in the JSON output, and a warning in the text output such as "Diluted EPS for FY2020–FY2021 was reported only before a later filing restated other years (for example after a stock split); those years are left out." The reason code is `earlier_basis`. When nothing is left out the list is empty.
 
@@ -185,7 +185,7 @@ The typed strategy supports analyst-consensus diluted EPS evidence for FY1 and F
 | `confirmation` | Report whether both forward intervals confirm positive growth without changing the historical conclusion. |
 | `hard_gate` | Require both forward intervals to be available and positive for `PASS`; missing required evidence yields `INDETERMINATE`. |
 
-Forward estimates are optional provider evidence, not predictions generated by Investment Analysis Engine. The current production SEC EDGAR mapping supplies historical company facts but may not supply forward analyst consensus. In that case, `display_only` leaves the historical conclusion unchanged, while `hard_gate` produces `INDETERMINATE` as designed.
+Forward estimates are optional evidence from a data source, not predictions generated by this application. SEC EDGAR data supplies historical company facts but may not include forward analyst consensus. In that case, `display_only` leaves the historical conclusion unchanged, while `hard_gate` produces `INDETERMINATE` as designed.
 
 ### On the command line
 <!-- help:exclude -->
@@ -223,7 +223,7 @@ When supported provider evidence supplies an instrument name, the heading shows 
 
 ## Data sources and provenance
 
-The current production analysis resolves annual financial facts from SEC EDGAR. Required evidence includes:
+The analysis takes annual financial facts from SEC EDGAR. Required evidence includes:
 
 - net cash provided by operating activities;
 - capital expenditures, normalized to a positive expenditure amount: purchases of property and equipment or, for a filer that reports only the broader purchases of productive assets, that concept (the result then states a limitation, because the broader concept includes intangible assets);
@@ -244,9 +244,9 @@ currency conversion are not performed.
 
 A three-letter ISO 4217 reporting currency can be required, and annual facts must then be compatible with it.
 
-The calculation does not accept a provider's precomputed “free cash flow” solely because its label matches. It derives FCF from the resolved components and retains their provider fields, period dates, publication/availability dates, retrieval times, units, currency, and derivation lineage.
+The calculation does not accept a data source's precomputed “free cash flow” solely because its label matches. It derives FCF from the resolved components and retains their source fields, period dates, publication/availability dates, retrieval times, units, currency, and derivation lineage.
 
-The resolver rejects incompatible facts instead of combining values with mismatched fiscal periods, units, currency, or measurement bases. Amendments and restatements are handled by deterministic selection rules.
+The analysis rejects incompatible facts instead of combining values with mismatched fiscal periods, units, currency, or measurement bases. Amendments and restatements are handled by deterministic selection rules.
 
 ## Why another calculator may disagree
 
@@ -260,7 +260,7 @@ Differences can arise when another source:
 - calculates growth across a different number of elapsed years; or
 - reports growth from zero, negative, or sign-changing endpoints using a different convention.
 
-Investment Analysis Engine preserves the reported annual history and does not use absolute values to manufacture a CAGR from nonpositive endpoints.
+This application preserves the reported annual history and does not use absolute values to manufacture a CAGR from nonpositive endpoints.
 
 ## Interpretation and limitations
 

@@ -1,6 +1,6 @@
-# A Beginner's Guide to Investment Analysis in This Project
+# A Beginner's Guide to Investment Analysis
 
-You do not need a background in finance to start exploring Investment Analysis Engine. This guide introduces the basic ideas behind the numbers it works with, shows how those numbers become an analysis, and points to deeper explanations. It is an orientation, not an investing course.
+You do not need a background in finance to start exploring this application. This guide introduces the basic ideas behind the numbers it works with, shows how those numbers become an analysis, and points to deeper explanations. It is an orientation, not an investing course.
 
 ## Words you'll meet first
 
@@ -8,12 +8,12 @@ A few everyday investing words appear throughout this guide and the rest of the 
 
 - **Share (stock):** a small unit of ownership in a company. Owning shares means owning a slice of the company; “stock” usually means shares in general.
 - **Stock exchange:** a regulated marketplace where shares of publicly traded companies are bought and sold, such as the New York Stock Exchange.
-- **Ticker symbol:** the short code that identifies a company's shares on an exchange, such as KO for Coca-Cola. You give the program a [ticker](GLOSSARY.md#ticker) to say which company to analyze.
+- **Ticker symbol:** the short code that identifies a company's shares on an exchange, such as KO for Coca-Cola. You give this application a [ticker](GLOSSARY.md#ticker) to say which company to analyze.
 - **Market price and quote:** the market price is what shares have recently been bought and sold for. A [quote](GLOSSARY.md#current-quote) is the price a data service reports at a given moment; it changes throughout the trading day.
 - **Valuation:** estimating what a share might be worth by a stated method, usually to compare that estimate with the market price. Different methods give different answers, and no [valuation](GLOSSARY.md#valuation) is a prediction or a recommendation.
 - **Financial report (filing):** a document a company publishes about its finances. In the United States, companies file these reports with the [SEC](GLOSSARY.md#sec).
 - **Fiscal year:** a company's twelve-month accounting year, which need not match the calendar year. See [fiscal year](GLOSSARY.md#fiscal-year).
-- **Data provider:** a service the program gets information from. This project uses Yahoo Finance for share prices and the SEC's [EDGAR](GLOSSARY.md#edgar) system for company reports.
+- **Data source:** a service this application gets information from. It uses Yahoo Finance for share prices and the SEC's [EDGAR](GLOSSARY.md#edgar) system for company reports.
 
 For more everyday investing terms, the SEC's investor-education site has a plain-language [glossary](https://www.investor.gov/introduction-investing/investing-basics/glossary).
 
@@ -21,7 +21,7 @@ For more everyday investing terms, the SEC's investor-education site has a plain
 
 Investment analysis means examining information about a business and the market for its shares to understand what the information may suggest. Someone might look at a company's reported earnings, the cash it generates, how those figures have changed, or how a share price compares with a particular measure.
 
-“Quantitative investment research” means using numbers and explicit calculation rules as part of that research. In this project, **quantitative** does not necessarily mean advanced mathematics: an average or a comparison can also be quantitative. The important point is that the calculation is defined and repeatable. The project's software performs financial arithmetic; an artificial intelligence (AI) model is not treated as a calculator or source of financial facts.
+“Quantitative investment research” means using numbers and explicit calculation rules as part of that research. Here, **quantitative** does not necessarily mean advanced mathematics: an average or a comparison can also be quantitative. The important point is that the calculation is defined and repeatable. This application performs financial arithmetic; an artificial intelligence (AI) model is not treated as a calculator or source of financial facts.
 
 Numbers can help organize evidence and raise questions. Their meaning depends on definitions, dates, and business context, and a result is not by itself a recommendation.
 
@@ -29,7 +29,7 @@ Publicly traded companies periodically publish financial reports and other infor
 
 In the United States, companies file reports with the [Securities and Exchange Commission (SEC)](GLOSSARY.md#sec). The SEC's [EDGAR](GLOSSARY.md#edgar) system provides public access to filings and related data.
 
-These reports are the original source of the company's figures. The project selects and prepares relevant values as financial facts for a requested analysis; deterministic calculations then produce metrics from those inputs.
+These reports are the original source of the company's figures. This application selects and prepares relevant values as financial facts for a requested analysis; deterministic calculations then produce metrics from those inputs.
 
 A reporting period tells you what span of time a figure describes. A filing or availability date tells you when the information became public. Both dates matter when analyzing the past, as explained below.
 
@@ -42,7 +42,7 @@ These four terms describe different layers:
 - An **analysis method** applies a defined calculation to selected inputs to address a particular question.
 - An **analysis strategy** organizes one or more methods around an analytical question and presents the result, including relevant evidence and limits.
 
-Here is a deliberately simplified example using the project's [Graham Number](GLOSSARY.md#graham-number) method. EPS is profit attributable to common shareholders for each share. [Book value per share (BVPS)](GLOSSARY.md#bvps) is the company's reported assets minus its liabilities, attributed to common shareholders and expressed per share; it is not the market price. A [fiscal year](GLOSSARY.md#fiscal-year) is a company's annual accounting period.
+Here is a deliberately simplified example using the [Graham Number](GLOSSARY.md#graham-number) method. EPS is profit attributable to common shareholders for each share. [Book value per share (BVPS)](GLOSSARY.md#bvps) is the company's reported assets minus its liabilities, attributed to common shareholders and expressed per share; it is not the market price. A [fiscal year](GLOSSARY.md#fiscal-year) is a company's annual accounting period.
 
 ```text
 Reported annual diluted earnings per share, plus accounting and share information that meets the method's requirements (such as the right periods and share counts)
@@ -56,11 +56,11 @@ Reported annual diluted earnings per share, plus accounting and share informatio
  A screening ceiling, with its inputs, sources, dates, and limitations
 ```
 
-In the standard Graham Number path, the project uses reported diluted EPS from three completed fiscal years to form an average. "Diluted" means the share calculation also allows for certain shares that could be created, for example through employee options.
+In the standard Graham Number path, this application uses reported diluted EPS from three completed fiscal years to form an average. "Diluted" means the share calculation also allows for certain shares that could be created, for example through employee options.
 
-The project derives BVPS from year-end accounting facts that meet the method's data rules. These include common shareholders' equity (the accounting value left for common owners after liabilities and other claims) and shares outstanding.
+This application derives BVPS from year-end accounting facts that meet the method's data rules. These include common shareholders' equity (the accounting value left for common owners after liabilities and other claims) and shares outstanding.
 
-The method combines the average EPS and BVPS to produce a [maximum indicated price](GLOSSARY.md#maximum-indicated-price), or screening ceiling (a price limit indicated by this formula). If the project has a current share price for the same kind of share and currency as the financial figures, the result can show how they compare.
+The method combines the average EPS and BVPS to produce a [maximum indicated price](GLOSSARY.md#maximum-indicated-price), or screening ceiling (a price limit indicated by this formula). If this application has a current share price for the same kind of share and currency as the financial figures, the result can show how they compare.
 
 This is one limited screen, not a complete judgment of what a company is worth or whether its shares are suitable for someone. See the [Graham Number strategy guide](strategies/GRAHAM_NUMBER.md) and [Financial Math & Data Conventions](FINANCE_MATH.md#graham-number-strategy) for the exact inputs, formula, and data rules.
 
@@ -74,7 +74,7 @@ Different analyses use different kinds of information. A term may be useful back
 
 Companies report financial information for defined periods. **Earnings** describe profit under an accounting basis. **EPS** expresses earnings per share; basic and diluted EPS use different share assumptions. **Shares outstanding** is a share count at a point in time, while weighted-average shares are averaged across a reporting period. These distinctions matter because a per-share figure depends on which earnings and share basis are used. See [EPS](GLOSSARY.md#eps), [diluted EPS](GLOSSARY.md#basic-and-diluted-eps), and [shares outstanding](GLOSSARY.md#shares-outstanding).
 
-**[Free cash flow (FCF)](GLOSSARY.md#free-cash-flow)** is an analytical measure of cash generated after spending on long-lived assets such as buildings or equipment (capital expenditures). Different sources may define it differently. In the Free Cash Flow & Earnings Growth strategy, the project calculates annual FCF as cash generated by normal business operations minus capital expenditures, then also calculates FCF per diluted share. See the [strategy guide](strategies/FCF_GROWTH.md) for the project's calculation and limits.
+**[Free cash flow (FCF)](GLOSSARY.md#free-cash-flow)** is an analytical measure of cash generated after spending on long-lived assets such as buildings or equipment (capital expenditures). Different sources may define it differently. In the Free Cash Flow & Earnings Growth strategy, this application calculates annual FCF as cash generated by normal business operations minus capital expenditures, then also calculates FCF per diluted share. See the [strategy guide](strategies/FCF_GROWTH.md) for the calculation and its limits.
 
 ### Change over time
 
@@ -82,9 +82,9 @@ A **growth rate** describes how a value changes across a period. **[CAGR (compou
 
 ### Prices, yields, and valuation measures
 
-A **historical price** is one observed share price in a series of prices over time. The current market price is a separate kind of input: it is a quote, and the time the project retrieves it does not necessarily establish when the underlying trade occurred.
+A **historical price** is one observed share price in a series of prices over time. The current market price is a separate kind of input: it is a quote, and the time this application retrieves it does not necessarily establish when the underlying trade occurred.
 
-A **[yield](GLOSSARY.md#yield)** expresses an amount of income relative to an investment's price or value, usually as a percentage. In this project's [Graham Growth Value](strategies/GRAHAM_GROWTH.md#graham-growth-value) method, a user supplies an expected growth estimate and the yield on AAA-rated (highest credit category) corporate bonds; the project does not currently provide a live series of that yield. See the glossary's [AAA definition](GLOSSARY.md#aaa-rating).
+A **[yield](GLOSSARY.md#yield)** expresses an amount of income relative to an investment's price or value, usually as a percentage. In the [Graham Growth Value](strategies/GRAHAM_GROWTH.md#graham-growth-value) method, a user supplies an expected growth estimate and the yield on AAA-rated (highest credit category) corporate bonds; this application does not currently provide a live series of that yield. See the glossary's [AAA definition](GLOSSARY.md#aaa-rating).
 
 **Market capitalization** is the market value of a company's shares, generally calculated from share price and shares outstanding. It is different from accounting book value. **Valuation measures** compare a price or market value with a financial measure. For example, the [price-to-earnings ratio (P/E)](GLOSSARY.md#pe-ratio) compares price per share with EPS; the [price-to-book ratio (P/B)](GLOSSARY.md#pb-ratio) compares price per share with BVPS. A ratio can help frame a comparison, but it does not establish what a business should be worth. In the current FCF strategy, market capitalization may support an optional, informational [FCF yield](GLOSSARY.md#fcf-yield); it does not determine the growth classification.
 
@@ -100,29 +100,29 @@ Treat a metric as evidence to inspect, not as a verdict. A historical growth rat
 
 ## How the project applies this model today
 
-A few of the project's strategies, offered only as examples, show how different analytical questions can be:
+A few of this application's strategies, offered only as examples, show how different analytical questions can be:
 
 - The **Graham Number** method combines earnings and book value per share to produce a screening ceiling. Positive EPS and BVPS are required. A current-price comparison is optional and depends on compatible evidence.
 - **Graham Growth Value** is a separate calculation that depends on estimates about future growth. Under the current implementation, the user supplies an expected growth estimate and a current AAA corporate-bond yield; the method is not the Graham Number.
 - **Momentum** examines recent share-price behavior using simple moving averages (averages over selected numbers of past prices) and whether their relationship changes, called a crossover. It also reports [RSI (Relative Strength Index)](GLOSSARY.md#rsi), a momentum indicator—a score that compares recent price gains with losses. The strategy describes price behavior; it does not assess business quality or estimate [intrinsic value](GLOSSARY.md#intrinsic-value), meaning what an investment may be economically worth.
 
-These examples have different purposes and inputs. They are illustrations, not a complete list: the set of strategies can evolve as the project grows, and a future strategy need not use the same measures. Each strategy's own guide describes its inputs, sources and limits.
+These examples have different purposes and inputs. They are illustrations, not a complete list: the set of strategies can evolve as this application grows, and a future strategy need not use the same measures. Each strategy's own guide describes its inputs, sources and limits.
 
 ## Where values come from, and why dates matter
 
-Financial facts and market observations come from sources with different roles. For some annual company facts, the project uses [SEC filings](GLOSSARY.md#sec) available through [EDGAR](GLOSSARY.md#edgar) that meet its data rules.
+Financial facts and market observations come from sources with different roles. For some annual company facts, this application uses [SEC filings](GLOSSARY.md#sec) available through [EDGAR](GLOSSARY.md#edgar) that meet its data rules.
 
-The project uses a software component called `yfinance` to access Yahoo Finance historical prices and certain current share prices. `yfinance` is a third-party open-source library; it is not affiliated with, endorsed by, or vetted by Yahoo.
+This application uses a software component called `yfinance` to access Yahoo Finance historical prices and certain current share prices. `yfinance` is a third-party open-source library; it is not affiliated with, endorsed by, or vetted by Yahoo.
 
 Some analyses also accept user-provided overrides—values supplied for a particular run rather than confirmed by a data service. Each strategy guide describes its specific sources.
 
-A **fiscal period** is the period a reported figure describes. The date that period ended is not necessarily when investors could first know the figure: a company may file its report weeks or months later. For a historical analysis, using a fact before its public release would use information that arrived later, an error called [look-ahead bias](GLOSSARY.md#look-ahead-bias). The project's [`as_of`](GLOSSARY.md#as-of-date) date is a cutoff: where the source supports it, the analysis only uses information available by that date. A current-only quote does not become a historical quote just because an analysis has an earlier `as_of` date. See [filing and publication dates](GLOSSARY.md#availability-date) for more detail.
+A **fiscal period** is the period a reported figure describes. The date that period ended is not necessarily when investors could first know the figure: a company may file its report weeks or months later. For a historical analysis, using a fact before its public release would use information that arrived later, an error called [look-ahead bias](GLOSSARY.md#look-ahead-bias). The [`as_of`](GLOSSARY.md#as-of-date) date is a cutoff: where the source supports it, the analysis only uses information available by that date. A current-only quote does not become a historical quote just because an analysis has an earlier `as_of` date. See [filing and publication dates](GLOSSARY.md#availability-date) for more detail.
 
 **[Provenance](GLOSSARY.md#provenance)** means the record of where a value came from and how it was changed or calculated. Source details, reporting periods, availability dates, and when data were retrieved help someone inspect or reconstruct what an analysis used. They do not prove that a source is complete or correct, that a measure suits every purpose, or that the result predicts future performance.
 
 ## What the project does not establish
 
-Investment Analysis Engine does not provide personalized investment advice, guarantee source-data quality or future performance, or turn one formula or metric into a complete valuation or investment decision. Its results have to be understood in context, and decisions require judgment beyond the calculation. Read the [project limitations and disclaimer](https://github.com/PeterPontbriand/investment-analysis-engine/blob/main/README.md#limitations--disclaimer) and the limitations in the relevant strategy guide.
+This application does not provide personalized investment advice, guarantee source-data quality or future performance, or turn one formula or metric into a complete valuation or investment decision. Its results have to be understood in context, and decisions require judgment beyond the calculation. Read the [limitations and disclaimer](https://github.com/PeterPontbriand/investment-analysis-engine/blob/main/README.md#limitations--disclaimer) and the limitations in the relevant strategy guide.
 
 ## Where to go next
 

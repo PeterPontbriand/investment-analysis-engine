@@ -1,6 +1,6 @@
 # Graham Number Strategy Guide
 
-This guide explains how the Investment Analysis Engine **Graham Number** strategy works, where its financial values come from, and how to interpret its results.
+This guide explains how the **Graham Number** strategy works, where its financial values come from, and how to interpret its results.
 
 The Graham Number is the earnings-and-book-value screening ceiling. It is a complete, independent strategy — not one of two "Graham methods" sharing a base — and it is not a complete investment decision. For the related but formula-independent Graham Growth Value strategy, see [its own guide](GRAHAM_GROWTH.md).
 
@@ -27,7 +27,7 @@ maximum indicated price = sqrt(22.5 × EPS × BVPS)
 
 The factor `22.5` combines the conventional maximum P/E of 15 and maximum P/B of 1.5.
 
-Investment Analysis Engine describes the result as a **maximum indicated price** or **screening ceiling**. It does not present the Graham Number as an unquestionable intrinsic value or as proof that a stock satisfies Graham's complete defensive-investor framework.
+This application describes the result as a **maximum indicated price** or **screening ceiling**. It does not present the Graham Number as an unquestionable intrinsic value or as proof that a stock satisfies Graham's complete defensive-investor framework.
 
 ### Earnings basis
 
@@ -43,17 +43,17 @@ The implemented convention is:
 BVPS = common shareholders' equity / period-end common shares outstanding
 ```
 
-When using [SEC](../GLOSSARY.md#sec) [EDGAR](../GLOSSARY.md#edgar) data, Investment Analysis Engine derives BVPS conservatively from eligible fiscal-year-end accounting facts rather than pretending that EDGAR provides one universal BVPS field.
+When using [SEC](../GLOSSARY.md#sec) [EDGAR](../GLOSSARY.md#edgar) data, this application derives BVPS conservatively from eligible fiscal-year-end accounting facts rather than pretending that EDGAR provides one universal BVPS field.
 
 If the evidence required for a defensible calculation is unavailable, the result reports that limitation rather than guessing.
 
 ### The fiscal year of the inputs
 
-Both inputs come from the same annual report: the [anchor filing](../GLOSSARY.md#anchor-filing), the newest annual report filed by the analysis date. The newest of the three years of earnings and the balance sheet that gives book value must both end on that report's fiscal year-end, on exactly that date. When one ends on another day, the Graham Number is unavailable and says which input it is and which dates differ. The engine never steps back to an older year to produce a number.
+Both inputs come from the same annual report: the [anchor filing](../GLOSSARY.md#anchor-filing), the newest annual report filed by the analysis date. The newest of the three years of earnings and the balance sheet that gives book value must both end on that report's fiscal year-end, on exactly that date. When one ends on another day, the Graham Number is unavailable and says which input it is and which dates differ. The analysis never steps back to an older year to produce a number.
 
 The three earnings years must also be consecutive fiscal years. When one is missing, the Graham Number is unavailable and names the missing year. When a [stock split](../GLOSSARY.md#reason-earlier-basis) or conflicting filings left years out of the series and that is why fewer than three years are left, the message names each year left out and why, and the JSON lists them in `left_out_years`.
 
-A value saved from an earlier run is not reused when it is for an older fiscal year: the engine asks the provider again, once, and keeps the answer. An EPS or book value you supply yourself has no year and is not checked. If you supply both, no filing is read and no anchor filing is reported.
+A value saved from an earlier run is not reused when it is for an older fiscal year: the data source is asked again, once, and keeps the answer. An EPS or book value you supply yourself has no year and is not checked. If you supply both, no filing is read and no anchor filing is reported.
 
 When the anchor filing is stale, because the next annual report was overdue at the analysis date and none had been filed, the status does not change. The result names the filing and the date the next report was due, and a warning says so; it is the first warning shown.
 
@@ -63,7 +63,7 @@ Positive EPS and BVPS are required. If either is non-positive, the method report
 
 ### Current-price comparison
 
-A current quote is optional to the Graham Number itself. When a compatible current price is available, Investment Analysis Engine shows how far the market price is above or below the Graham Number.
+A current quote is optional to the Graham Number itself. When a compatible current price is available, this application shows how far the market price is above or below the Graham Number.
 
 If the quote is unavailable, the Graham Number can still remain valid.
 
@@ -76,7 +76,7 @@ documented inference from that evidence, not an upstream ratio field. It does
 not establish exhaustive coverage of intervening corporate actions.
 
 Unsupported classes (including ADR/ADS and multiple common classes), ambiguous
-filings, provider failures, and explicit historical requests leave the comparison
+filings, data source failures, and explicit historical requests leave the comparison
 unavailable with a reason. They do not invalidate an otherwise valid Graham Number.
 
 Older cached inputs may lack the source lineage needed for verification, and the
@@ -146,7 +146,7 @@ Emits [machine-readable output](../GLOSSARY.md#machine-readable-output) in [JSON
 
 The analysis supports explicit [overrides](../GLOSSARY.md#override) for values including EPS, BVPS, and current price.
 
-An override is recorded as an override rather than being presented as provider-verified evidence.
+An override is recorded as an override rather than being presented as evidence from a data source.
 
 ### On the command line
 <!-- help:exclude -->
@@ -166,7 +166,7 @@ Use `--details` to inspect what financial values were used and `--diagnostics` t
 
 [SEC](../GLOSSARY.md#sec) [EDGAR](../GLOSSARY.md#edgar) is the U.S. Securities and Exchange Commission's public filing system.
 
-Investment Analysis Engine currently uses eligible SEC filing facts for:
+This application currently uses eligible SEC filing facts for:
 
 - completed annual diluted EPS from reviewed `10-K`/`20-F`/`40-F` forms and
   exact US-GAAP or IFRS concepts; and
@@ -180,11 +180,11 @@ matching-currency ordinary-share 1:1 relationship. ADR/ADS and currency
 conversion are not performed; the valuation can remain available while its
 market-price comparison is unavailable.
 
-For market-price comparison, Investment Analysis Engine obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
+For market-price comparison, this application obtains current quote data from Yahoo Finance through the third-party [`yfinance`](https://ranaroussi.github.io/yfinance/) library when available. `yfinance` is not affiliated with or endorsed by Yahoo.
 
 ### Quotes and filing evidence
 
-Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which the current Yahoo adapter does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship.
+Quote responses are reused for at most five minutes by default, independently of annual-fact age. Reports retain retrieval time and distinguish it from market observation time, which Yahoo Finance does not supply. An expired quote is refreshed automatically; a failed refresh cannot produce a stale price relationship.
 
 Detailed provenance distinguishes guarded inferred zeroes from reported zeroes and includes nested derivations. A verified filing listing venue is shown with its filing date, separately from current identity metadata; it is not silently treated as current registration evidence.
 
@@ -201,7 +201,7 @@ A fiscal period ending before that date is not automatically eligible. The suppo
 
 This distinction helps prevent [look-ahead bias](../GLOSSARY.md#look-ahead-bias).
 
-Current-only quote providers do not manufacture historical quotes. A historical calculation can therefore succeed while the market-price comparison is omitted.
+Data sources of current quotes only do not manufacture historical quotes. A historical calculation can therefore succeed while the market-price comparison is omitted.
 
 ### On the command line
 <!-- help:exclude -->
@@ -225,7 +225,7 @@ Ask:
 - were stock-split adjustments handled consistently?
 - which exact fiscal periods were used?
 
-Investment Analysis Engine uses three-year-average diluted EPS as the Graham Number basis, and offers no other. An explicit single-fiscal-year basis is a Graham Growth Value-only capability. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement.
+This application uses three-year-average diluted EPS as the Graham Number basis, and offers no other. An explicit single-fiscal-year basis is a Graham Growth Value-only capability. See [Financial Math](../FINANCE_MATH.md#eps-basis) for the authoritative formula-level statement.
 
 #### On the command line
 <!-- help:exclude -->
@@ -241,7 +241,7 @@ Ask:
 - period-end shares outstanding or another share count?
 - ordinary book value or tangible book value?
 
-Investment Analysis Engine uses a documented common-equity/period-end-share convention and does not silently substitute tangible book value.
+This application uses a documented common-equity/period-end-share convention and does not silently substitute tangible book value.
 
 ### Publication timing
 
@@ -257,9 +257,9 @@ The Graham Number and Graham Growth Value are different, independent strategies 
 
 ### Rounding and source revisions
 
-Provider corrections, accounting restatements, and intermediate rounding can create smaller differences.
+Data source corrections, accounting restatements, and intermediate rounding can create smaller differences.
 
-The goal is not to force every external calculator to match. It is to make Investment Analysis Engine's formula, evidence, dates, and assumptions inspectable enough that a difference can be explained.
+The goal is not to force every external calculator to match. It is to make this application's formula, evidence, dates, and assumptions inspectable enough that a difference can be explained.
 
 ## Important limitations
 
@@ -278,15 +278,15 @@ Nothing produced by this strategy is investment advice.
 
 Whenever the status is anything other than `ok`, the analysis also gives a reason code and a message that says the same thing in words. A script or the desktop app can act on the code; the message is for reading. A successful analysis has no code. These are the codes this strategy can give, with when each happens:
 
-- [Missing input](../GLOSSARY.md#reason-missing-input) (`missing_fact`): the data provider has no value for earnings per share or book value per share, or for the anchor filing.
-- [Not available as of](../GLOSSARY.md#reason-not-available-as-of) (`not_available_as_of`): a value exists, but it was not public at the as-of date, or the provider gave no date when it became public.
+- [Missing input](../GLOSSARY.md#reason-missing-input) (`missing_fact`): the data source has no value for earnings per share or book value per share, or for the anchor filing.
+- [Not available as of](../GLOSSARY.md#reason-not-available-as-of) (`not_available_as_of`): a value exists, but it was not public at the as-of date, or the data source gave no date when it became public.
 - [Insufficient history](../GLOSSARY.md#reason-insufficient-history) (`insufficient_history`): fewer than three fiscal years of earnings are available and none was left out for a reason of its own.
-- [Earlier basis](../GLOSSARY.md#reason-earlier-basis) (`earlier_basis`): the earnings of the older years are on a different basis from the newest, so the engine does not combine them.
+- [Earlier basis](../GLOSSARY.md#reason-earlier-basis) (`earlier_basis`): the earnings of the older years are on a different basis from the newest, so they are not combined.
 - [Ambiguous fact](../GLOSSARY.md#reason-ambiguous-fact) (`ambiguous_fact`): the filings give two values for one fiscal year, or share counts that cannot be used.
 - [Incompatible inputs](../GLOSSARY.md#reason-incompatible-inputs) (`incompatible_period`, `incompatible_currency`, `incompatible_units` or `incompatible_scope`): an input is not for the anchor filing's fiscal year, the book value inputs are not for one period end, not in one currency or in shares, or carry preferred shares; or the earnings years differ in currency, units or scope.
-- [Provider error](../GLOSSARY.md#status-provider-error) (`provider_error`): the data provider could not be reached or its answer was rejected.
+- [Data source error](../GLOSSARY.md#status-provider-error) (`provider_error`): the data source could not be reached or its answer was rejected.
 - [Security not applicable](../GLOSSARY.md#reason-security-not-applicable) (`instrument_kind_not_applicable`): the security is an ETF, and the method is a company-level valuation.
-- [Override only](../GLOSSARY.md#reason-override-only) (`override_only`): every input was supplied as an override and none came from a data provider, so the analysis is not run.
+- [Override only](../GLOSSARY.md#reason-override-only) (`override_only`): every input was supplied as an override and none came from a data source, so the analysis is not run.
 - [Invalid request](../GLOSSARY.md#reason-invalid-request) (`invalid_request`): the product of the earnings and book value is too large to compute.
 - [Nonpositive input](../GLOSSARY.md#reason-nonpositive-input) (`nonpositive_input`): earnings per share or book value per share is zero or negative, so the Graham Number does not apply to this company.
 
